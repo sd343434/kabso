@@ -11,15 +11,21 @@ servers:
     description: Local development
 tags:
   - name: health
+    description: "Liveness and readiness probes (unversioned)."
   - name: auth
+    description: "Registration, login, token refresh, email verification and password reset."
   - name: sessions
+    description: "Management of the caller's device sessions."
   - name: me
+    description: "The authenticated user."
   - name: users
+    description: "Public user lookups."
 paths:
   /health/live:
     get:
       tags: [health]
       operationId: healthLive
+      summary: "Liveness probe"
       security: []
       responses:
         '200':
@@ -31,6 +37,7 @@ paths:
     get:
       tags: [health]
       operationId: healthReady
+      summary: "Readiness probe (database, Redis)"
       security: []
       responses:
         '200':
@@ -48,6 +55,7 @@ paths:
     post:
       tags: [auth]
       operationId: register
+      summary: "Create an account and start a session"
       security: []
       requestBody:
         required: true
@@ -68,6 +76,7 @@ paths:
     post:
       tags: [auth]
       operationId: login
+      summary: "Sign in with email or username"
       security: []
       requestBody:
         required: true
@@ -89,6 +98,7 @@ paths:
     post:
       tags: [auth]
       operationId: refresh
+      summary: "Rotate the refresh token and issue a new token pair"
       security: []
       requestBody:
         required: true
@@ -106,6 +116,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -114,15 +125,18 @@ paths:
     post:
       tags: [auth]
       operationId: logout
+      summary: "Revoke the current session"
       description: Revokes the session identified by the access token.
       responses:
         '204': { description: Session revoked. }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/email/verify:
     post:
       tags: [auth]
       operationId: verifyEmail
+      summary: "Confirm an email address with a single-use token"
       security: []
       requestBody:
         required: true
@@ -136,13 +150,16 @@ paths:
                 token: { type: string, minLength: 10, maxLength: 200 }
       responses:
         '204': { description: Email verified. }
+        '400': { $ref: '#/components/responses/Error' }
         '410': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/email/resend:
     post:
       tags: [auth]
       operationId: resendVerificationEmail
+      summary: "Re-send the verification email"
       description: Re-sends the verification email for the authenticated user (no-op if verified).
       responses:
         '202': { description: Accepted. }
@@ -153,6 +170,7 @@ paths:
     post:
       tags: [auth]
       operationId: forgotPassword
+      summary: "Request a password-reset email (non-enumerating)"
       security: []
       requestBody:
         required: true
@@ -173,6 +191,7 @@ paths:
     post:
       tags: [auth]
       operationId: resetPassword
+      summary: "Set a new password with a reset token"
       security: []
       requestBody:
         required: true
@@ -190,11 +209,13 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '410': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/sessions:
     get:
       tags: [sessions]
       operationId: listSessions
+      summary: "List the caller's active sessions"
       responses:
         '200':
           description: Active sessions of the caller, newest first (bounded, max 50).
@@ -208,11 +229,13 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/SessionInfo' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/sessions/{sessionId}:
     delete:
       tags: [sessions]
       operationId: revokeSession
+      summary: "Revoke one of the caller's sessions"
       parameters:
         - name: sessionId
           in: path
@@ -220,13 +243,16 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         '204': { description: Revoked. }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me:
     get:
       tags: [me]
       operationId: getMe
+      summary: "Get the authenticated user"
       responses:
         '200':
           description: The authenticated user.
@@ -234,11 +260,13 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Me' }
         '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
     get:
       tags: [users]
       operationId: checkUsernameAvailability
+      summary: "Check whether a username is available"
       security: []
       parameters:
         - name: username

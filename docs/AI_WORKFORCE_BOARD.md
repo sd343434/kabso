@@ -43,8 +43,23 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-006 | Independent QA verification of Phase 1 | A6 | P0 | BACKLOG | KL-002, KL-003 | A1 |
 | KL-007 | Auth threat model & security review | A7 | P0 | BACKLOG | KL-002 | A1 |
 | KL-008 | Integration of Phase 1 + regression run | A1 | P0 | BACKLOG | KL-002..005 | A6 |
+| KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
 ### Acceptance criteria
+
+**KL-009 Accessibility token fixes** — Approved scope: A5 proposals P1 (dark `textTertiary` →
+#92929E), P2 (light `textTertiary` → #666671), P3/P4 (add `primaryText` dark #FF3B47 / light
+#C8080F), P5 (light `success` → #137A43), P6 (light `warning` → #955C00), P7 (light `error` →
+#C4242D), P8 (light `info` → #1A64BF), P9 (add `borderStrong` dark #70707C / light #85858F),
+P11 (add `focusRing`: dark red400, light `primary`), P14 (add `onStatus` #0B0B0D). Process:
+(1) A2 + A5 review the proposals against the merged Flutter token implementation and list every
+usage site affected; (2) CTO records the contract change (design-tokens v1.1) with compatibility
+notes; (3) A2 applies the change to `design-tokens.json` and Flutter tokens/theme in one change
+set and switches text-on-red, input outlines, focus indicators and text-on-status-fill to the new
+roles; (4) a Flutter test asserts WCAG ratios ≥ 4.5:1 for body-text pairs and ≥ 3:1 for
+outlines/large text, computed from the token constants; (5) `flutter analyze`/`flutter test`
+green. P10, P12, P13, P15–P19 remain proposals (not approved).
+
 
 **KL-002 Backend auth slice** — every endpoint in `docs/contracts/openapi.yaml` implemented with
 the exact shapes and error codes of `CONVENTIONS.md`; Prisma schema + initial migration
@@ -83,6 +98,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D4 | 2026-10-15 | Opaque rotating refresh tokens `<sid>.<secret>` + 15-min JWT; guard checks session | Immediate revocation, reuse detection |
 | D5 | 2026-10-15 | Generated Dart code committed, CI checks drift | Analyzer works on fresh clone |
 | D6 | 2026-10-15 | Error messages localized client-side by `code` | Single source of copy in the app |
+| D7 | 2026-10-15 | OpenAPI v1.0.1/v1.0.2: YAML fix + additive documentation of 400/429 responses; health 4xx warnings deferred | No shape change; see CONVENTIONS §9 |
+| D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
 

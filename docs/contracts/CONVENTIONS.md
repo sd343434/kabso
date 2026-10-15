@@ -131,3 +131,15 @@ return the resource object directly (no `data` wrapper).
 | `docs/design/**` | Design | CTO review |
 | `.github/**`, `infra/**`, `docker-compose.yml` | DevOps | CTO review |
 | Root `package.json`, `pnpm-workspace.yaml` | Backend (Phase 1) | CTO review |
+
+## 9. Contract change log
+
+| Version | Date | Change | Compatibility |
+| ------- | ---- | ------ | ------------- |
+| v1.0 | 2026-10-15 | Initial Phase 1 contract. | — |
+| v1.0.1 | 2026-10-15 | `openapi.yaml`: quoted the `forgotPassword` 202 description (invalid YAML flow mapping, found by A8). | Fix; no shape change. |
+| v1.0.2 | 2026-10-15 | `openapi.yaml`: documented responses already guaranteed by §4/§7 but missing from operations — `400 VALIDATION_FAILED` on `refresh`, `verifyEmail`, `revokeSession`; `429 RATE_LIMITED` on `logout`, `verifyEmail`, `resetPassword`, `listSessions`, `revokeSession`, `getMe`. Added operation summaries and tag descriptions. | Additive documentation only; no request/response shape changed. |
+
+**Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
+`operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
+cannot produce a 4xx; adding a fictitious 4xx would make the contract less accurate.
