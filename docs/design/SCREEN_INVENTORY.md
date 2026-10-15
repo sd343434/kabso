@@ -36,15 +36,12 @@ flowchart TD
     Login -->|"success"| Shell
     Login --> Register
     Login --> Forgot["Forgot password"]
-    Register -->|"201"| VerifyNotice["Verify-email notice"]
-    VerifyNotice -->|"Later / verified"| Shell
+    Register -->|"202 (constant)"| CodeEntry["Check your email: 8-digit code (v1.2)"]
+    CodeEntry -->|"201 verified"| Shell
     Forgot -->|"202 always"| ForgotSent["Check your email (non-enumerating)"]
     ForgotSent --> Login
     DeepReset[/"Reset link (deep link)"/] --> Reset["Reset password"]
     Reset -->|"204"| Login
-    DeepVerify[/"Verify link (deep link)"/] --> VerifyResult["Verify result"]
-    VerifyResult -->|"signed in"| Shell
-    VerifyResult -->|"signed out"| Login
     Shell -->|"Logout / refresh invalid / session revoked"| Login
 ```
 
@@ -96,8 +93,8 @@ navigator (BottomNav hidden). Android back on a tab root goes to Home, then exit
 | Forgot password | 1 | Request reset link | Login | TextField email, Button | L, Er, O | Email LTR | — |
 | Forgot — sent | 1 | Non-enumerating confirmation | Forgot submit | EmptyState-like block, Button text (resend w/ countdown) | Er (429), O | Email isolated (`bidiIsolate`) in sentence | Countdown announced once, not every second |
 | Reset password | 1 | Set new password from link | Deep link | TextField password ×2, Button | L, Er (`TOKEN_EXPIRED`, `TOKEN_INVALID`), O | — | Password rules visible as text, not colour only |
-| Verify-email notice | 1 | Ask user to verify | After register; Profile banner | Illustration icon, Button secondary/text | L (resend/check), Er, O | Email isolated | — |
-| Verify result | 1 | Outcome of verify link | Deep link | EmptyState / ErrorState | L, Er (`TOKEN_*`), O | — | Result announced |
+| Code entry "Check your email" | 1.1 | Enter 8-digit registration code (verify-first, v1.2) | Register 202 | Code field, Button primary/secondary/text | L, Er (`TOKEN_INVALID`, 429, 503), O | Code cells always LTR; email isolated | Single semantics field; errors announced — see PHASE1_1_SCREENS §1 |
+| Verify-email notice / Verify result | — | **Retired from the app in v1.2** (accounts verified at creation); endpoints kept for future email change | — | — | — | — | — |
 | Account suspended | 1 | Explain suspension | Login/refresh `ACCOUNT_SUSPENDED` | Inline banner on Login + Dialog | R | — | Support contact as tappable link (B7) |
 | Profile setup (avatar, bio) | 2 | First-run profile completion | After first verify/login | Avatar `lg` picker, TextField multiline, Button | L, Er, O, P (photos) | — | Skip is a real button, not a gesture |
 | Follow suggestions | 2 | Seed follow graph | After profile setup | ListTile `user`, Button small | L, E, Er, O | — | "Follow" buttons have name in label ("Follow Sara") |
