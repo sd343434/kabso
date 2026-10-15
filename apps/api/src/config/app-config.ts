@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { envSchema, type Env, type RateLimitRule } from './env.schema.js';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -9,6 +10,9 @@ export interface AppConfig {
   readonly logLevel: Env['LOG_LEVEL'];
   readonly databaseUrl: string;
   readonly redis: { readonly url: string; readonly keyPrefix: string };
+  /** HMAC key for rate-limit subject keys (generated per process outside production). */
+  readonly rateLimitKeySecret: string;
+  readonly argon2: { readonly maxConcurrency: number; readonly maxQueue: number };
   readonly jwt: {
     readonly accessSecret: string;
     readonly accessTtlSeconds: number;
@@ -28,7 +32,8 @@ export interface AppConfig {
     readonly bodyLimit: string;
   };
   readonly rateLimits: {
-    readonly loginIpIdentifier: RateLimitRule;
+    readonly loginIpAccount: RateLimitRule;
+    readonly loginAccount: RateLimitRule;
     readonly loginIp: RateLimitRule;
     readonly registerIp: RateLimitRule;
     readonly forgotEmail: RateLimitRule;
@@ -67,6 +72,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     logLevel: e.LOG_LEVEL,
     databaseUrl: e.DATABASE_URL,
     redis: { url: e.REDIS_URL, keyPrefix: e.REDIS_KEY_PREFIX },
+    rateLimitKeySecret: e.RATE_LIMIT_KEY_SECRET ?? randomBytes(32).toString('base64url'),
+    argon2: { maxConcurrency: e.ARGON2_MAX_CONCURRENCY, maxQueue: e.ARGON2_MAX_QUEUE },
     jwt: {
       accessSecret: e.JWT_ACCESS_SECRET,
       accessTtlSeconds: e.JWT_ACCESS_TTL_SECONDS,
@@ -85,7 +92,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     mailTransport: e.MAIL_TRANSPORT,
     http: { corsOrigins: e.CORS_ORIGINS, trustProxy: e.TRUST_PROXY, bodyLimit: e.BODY_LIMIT },
     rateLimits: {
-      loginIpIdentifier: e.RATE_LIMIT_LOGIN_IP_IDENTIFIER,
+      loginIpAccount: e.RATE_LIMIT_LOGIN_IP_ACCOUNT,
+      loginAccount: e.RATE_LIMIT_LOGIN_ACCOUNT,
       loginIp: e.RATE_LIMIT_LOGIN_IP,
       registerIp: e.RATE_LIMIT_REGISTER_IP,
       forgotEmail: e.RATE_LIMIT_FORGOT_EMAIL,

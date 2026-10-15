@@ -1,7 +1,13 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
-import { clientIp, userAgent, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
+import {
+  clientIp,
+  clientIpBucket,
+  userAgent,
+  type AppRequest,
+  type AuthContext,
+} from '../../common/http/request-context.js';
 import { bodyField, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
@@ -31,6 +37,7 @@ function acceptLanguage(req: AppRequest): 'ar' | 'en' | undefined {
 function requestMeta(req: AppRequest): RequestMeta {
   return {
     ip: clientIp(req),
+    ipBucket: clientIpBucket(req),
     userAgent: userAgent(req),
     requestId: getRequestId(req),
     acceptLanguage: acceptLanguage(req),
@@ -41,7 +48,7 @@ function requestMeta(req: AppRequest): RequestMeta {
 function refreshSubject(req: AppRequest): string {
   const raw = bodyField(req, 'refreshToken');
   const parsed = parseRefreshToken(raw);
-  return parsed ? `sid:${parsed.sessionId}` : `ip:${clientIp(req)}`;
+  return parsed ? `sid:${parsed.sessionId}` : `ip:${clientIpBucket(req)}`;
 }
 
 @Controller('auth')
@@ -51,7 +58,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(201)
-  @RateLimit({ bucket: 'register:ip', rule: 'registerIp', key: (req) => clientIp(req) })
+  @RateLimit({ bucket: 'register:ip', rule: 'registerIp', key: (req) => clientIpBucket(req) })
   register(
     @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
     @Req() req: AppRequest,
@@ -62,14 +69,9 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @RateLimit(
-    {
-      bucket: 'login:ip_identifier',
-      rule: 'loginIpIdentifier',
-      key: (req) => `${clientIp(req)}|${bodyField(req, 'identifier')}`,
-    },
-    { bucket: 'login:ip', rule: 'loginIp', key: (req) => clientIp(req) },
-  )
+  // Per-IP here; the per-account and per-IP+account buckets need the resolved account and are
+  // applied by AuthService.login before any password hashing (CONVENTIONS §7).
+  @RateLimit({ bucket: 'login:ip', rule: 'loginIp', key: (req) => clientIpBucket(req) })
   login(
     @Body(new ZodValidationPipe(loginSchema)) body: LoginInput,
     @Req() req: AppRequest,
@@ -116,7 +118,7 @@ export class AuthController {
   @HttpCode(202)
   @RateLimit(
     { bucket: 'forgot:email', rule: 'forgotEmail', key: (req) => bodyField(req, 'email') },
-    { bucket: 'forgot:ip', rule: 'forgotIp', key: (req) => clientIp(req) },
+    { bucket: 'forgot:ip', rule: 'forgotIp', key: (req) => clientIpBucket(req) },
   )
   forgotPassword(
     @Body(new ZodValidationPipe(forgotPasswordSchema)) body: { email: string },

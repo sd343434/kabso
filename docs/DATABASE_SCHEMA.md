@@ -45,7 +45,7 @@ verification secrets are stored as SHA-256 hex.
 | id | uuid PK | also the `sid` JWT claim and the prefix of the refresh token |
 | user_id | uuid FK | |
 | refresh_token_hash | char(64) | SHA-256 of the current secret |
-| previous_refresh_token_hash | char(64) null | previous secret (diagnostics: reuse audit `matchedPrevious`) |
+| previous_refresh_token_hash | char(64) null | previous secret: presenting it is reuse → revoke (only this secret revokes) |
 | rotation_counter | int | incremented on every rotation |
 | device_name / platform / app_version | varchar | from the client's `device` object; platform CHECK `sessions_platform_valid` |
 | ip / user_agent | varchar | at creation |
@@ -66,7 +66,8 @@ ones of the same purpose), `created_at`. Indexes: `(user_id, purpose)`, `(expire
 ### `audit_logs` (append-only)
 
 `id`, `actor_user_id` (FK → users, `ON DELETE SET NULL` so the trail survives deletion), `action`
-(`auth.register`, `auth.login.success`, `auth.login.failure`, `auth.logout`, `auth.refresh.reuse`,
+(`auth.register`, `auth.login.success`, `auth.login.failure`, `auth.login.rate_limited`,
+`auth.logout`, `auth.refresh.reuse`, `auth.refresh.invalid_secret`,
 `auth.email.verified`, `auth.password.reset_requested`, `auth.password.reset`,
 `auth.session.revoke`), `target_type`, `target_id`, `metadata jsonb` (never secrets or raw
 identifiers), `ip`, `request_id`, `created_at`. Indexes: `(actor_user_id, created_at DESC)`,

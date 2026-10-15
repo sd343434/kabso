@@ -40,12 +40,16 @@ export interface SessionInfoDto {
 
 export type RotationOutcome =
   | { readonly kind: 'rotated'; readonly userId: string; readonly session: IssuedSession }
+  /** The immediately previous secret was presented: the session has been revoked. */
   | {
       readonly kind: 'reuse';
       readonly userId: string;
       readonly sessionId: string;
-      readonly matchedPrevious: boolean;
-    };
+      /** When the session was last rotated (measures concurrent-refresh false positives). */
+      readonly lastRotatedAt: Date;
+    }
+  /** Some other non-matching secret: refused, session untouched. */
+  | { readonly kind: 'invalid_secret'; readonly userId: string; readonly sessionId: string };
 
 const MAX_LISTED_SESSIONS = 50;
 const PLATFORMS = new Set(['android', 'ios', 'web', 'other']);
@@ -114,6 +118,7 @@ export class SessionsService {
         userId: true,
         refreshTokenHash: true,
         previousRefreshTokenHash: true,
+        lastUsedAt: true,
         expiresAt: true,
         absoluteExpiresAt: true,
         revokedAt: true,
@@ -124,8 +129,18 @@ export class SessionsService {
 
     const presentedHash = sha256Hex(parsed.secret);
     if (!hashesEqual(presentedHash, session.refreshTokenHash)) {
+      const isPrevious =
+        session.previousRefreshTokenHash !== null &&
+        hashesEqual(presentedHash, session.previousRefreshTokenHash);
+      if (!isPrevious) {
+        // Guessed/garbage secret for a known sid (the sid is public: JWT claim, logs). Must not
+        // revoke, or knowing a session id would be enough to force a logout (SEC-001).
+        return { kind: 'invalid_secret', userId: session.userId, sessionId: session.id };
+      }
+      // The immediately previous secret: genuine reuse → revoke (CONVENTIONS §6). Conditional on
+      // the previous hash still being the one presented, in case another rotation happened.
       const revoked = await this.prisma.session.updateMany({
-        where: { id: session.id, revokedAt: null },
+        where: { id: session.id, revokedAt: null, previousRefreshTokenHash: presentedHash },
         data: { revokedAt: now, revokedReason: RevokedReason.REFRESH_REUSE },
       });
       if (revoked.count === 0) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
@@ -133,9 +148,7 @@ export class SessionsService {
         kind: 'reuse',
         userId: session.userId,
         sessionId: session.id,
-        matchedPrevious:
-          session.previousRefreshTokenHash !== null &&
-          hashesEqual(presentedHash, session.previousRefreshTokenHash),
+        lastRotatedAt: session.lastUsedAt,
       };
     }
 

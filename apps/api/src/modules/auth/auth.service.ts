@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { safeErrorLog } from '../../logging/redact-text.js';
 import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
@@ -35,6 +37,8 @@ export interface AuthResponseDto {
 /** Request metadata needed for sessions and audit records. */
 export interface RequestMeta {
   readonly ip: string | null;
+  /** Client IP as a rate-limit subject (IPv6 grouped by /64). */
+  readonly ipBucket: string;
   readonly userAgent: string | null;
   readonly requestId: string;
   readonly acceptLanguage?: MailLocale | undefined;
@@ -52,6 +56,7 @@ export class AuthService {
     private readonly passwords: PasswordHasher,
     private readonly accessTokens: AccessTokenService,
     private readonly audit: AuditService,
+    private readonly rateLimits: RateLimitService,
     @Inject(MAIL_SENDER) private readonly mail: MailSender,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
@@ -105,6 +110,7 @@ export class AuthService {
       : { username: normalizeUsername(input.identifier) };
     const identifierType = 'email' in identifier ? 'email' : 'username';
     const candidate = await this.users.findLoginCandidate(identifier);
+    await this.consumeLoginAccountLimits(candidate?.id ?? null, identifier, identifierType, meta);
 
     const passwordOk = candidate
       ? await this.passwords.verify(candidate.passwordHash, input.password)
@@ -162,11 +168,27 @@ export class AuthService {
         actorUserId: outcome.userId,
         targetType: 'session',
         targetId: outcome.sessionId,
-        metadata: { matchedPrevious: outcome.matchedPrevious },
+        metadata: {
+          matchedPrevious: true,
+          secondsSinceLastRotation: Math.round((Date.now() - outcome.lastRotatedAt.getTime()) / 1000),
+        },
         ip: meta.ip,
         requestId: meta.requestId,
       });
-      this.logger.warn({ sessionId: outcome.sessionId }, 'Refresh token reuse detected; session revoked');
+      // No session id in logs: it is the prefix of refresh tokens (the audit row has it).
+      this.logger.warn({ requestId: meta.requestId }, 'Refresh token reuse detected; session revoked');
+      throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
+    }
+    if (outcome.kind === 'invalid_secret') {
+      await this.audit.record({
+        action: AuditAction.REFRESH_INVALID_SECRET,
+        // The presenter is not proven to be the owner, so no actor is attributed.
+        actorUserId: null,
+        targetType: 'session',
+        targetId: outcome.sessionId,
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
       throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
     }
     return this.tokenPair(outcome.userId, outcome.session);
@@ -255,7 +277,7 @@ export class AuthService {
       await this.sendMail('reset', user.email, user.locale, token);
     } catch (err) {
       this.logger.error(
-        { err: { message: (err as Error).message }, requestId: meta.requestId },
+        { error: safeErrorLog(err), requestId: meta.requestId },
         'Forgot-password processing failed',
       );
     }
@@ -288,6 +310,43 @@ export class AuthService {
     });
   }
 
+  /**
+   * Login limits that need the resolved account (CONVENTIONS §7, SEC-002/SEC-009): per account
+   * across all IPs and per IP+account. Email and username of one account share the key (the
+   * user id); unknown identifiers are keyed on the normalized identifier. Runs before Argon2.
+   */
+  private async consumeLoginAccountLimits(
+    userId: string | null,
+    identifier: { email: string } | { username: string },
+    identifierType: 'email' | 'username',
+    meta: RequestMeta,
+  ): Promise<void> {
+    const account = userId
+      ? `user:${userId}`
+      : 'email' in identifier
+        ? `email:${identifier.email}`
+        : `username:${identifier.username}`;
+    try {
+      await this.rateLimits.consume(
+        'login:ip_account',
+        `${meta.ipBucket}|${account}`,
+        this.config.rateLimits.loginIpAccount,
+      );
+      await this.rateLimits.consume('login:account', account, this.config.rateLimits.loginAccount);
+    } catch (err) {
+      if (err instanceof AppException && err.code === ErrorCode.RATE_LIMITED) {
+        await this.audit.record({
+          action: AuditAction.LOGIN_RATE_LIMITED,
+          actorUserId: userId,
+          metadata: { identifierType },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+      }
+      throw err;
+    }
+  }
+
   private client(device: DeviceInfo | undefined, meta: RequestMeta) {
     return { device, ip: meta.ip, userAgent: meta.userAgent };
   }
@@ -316,7 +375,7 @@ export class AuthService {
       else await this.mail.sendPasswordReset(mail);
     } catch (err) {
       // Delivery failure must not fail the user-facing request (user can ask for a resend).
-      this.logger.error({ err: { message: (err as Error).message }, kind }, 'Mail delivery failed');
+      this.logger.error({ error: safeErrorLog(err), kind }, 'Mail delivery failed');
     }
   }
 }

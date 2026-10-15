@@ -13,5 +13,11 @@
     "api:test": "pnpm --filter @kabso/api test",
     "api:test:e2e": "pnpm --filter @kabso/api test:e2e",
     "api:start:dev": "pnpm --filter @kabso/api start:dev"
+  },
+  "pnpm": {
+    "overrides": {
+      "prisma>mysql2": "3.24.5",
+      "@prisma/config>deepmerge-ts": "8.0.2"
+    }
   }
 }

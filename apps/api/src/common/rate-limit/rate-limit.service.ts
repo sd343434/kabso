@@ -1,5 +1,8 @@
+import { createHmac } from 'node:crypto';
+import { safeErrorLog } from '../../logging/redact-text.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Redis } from 'ioredis';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { RateLimitRule } from '../../config/env.schema.js';
 import { REDIS } from '../../redis/redis.module.js';
 import { AppException } from '../errors/app-exception.js';
@@ -32,17 +35,32 @@ export interface RateLimitResult {
 export class RateLimitService {
   private readonly logger = new Logger(RateLimitService.name);
 
-  constructor(@Inject(REDIS) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS) private readonly redis: Redis,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
-  /** Records one hit for `bucket:key` and reports whether it is within `rule`. */
-  async hit(bucket: string, key: string, rule: RateLimitRule): Promise<RateLimitResult> {
-    const redisKey = `rl:${bucket}:${key}`;
+  /**
+   * Redis key for a subject (email, identifier, IP bucket, user id). Subjects are never stored
+   * raw or as a plain hash: HMAC-SHA-256 under RATE_LIMIT_KEY_SECRET (SEC-010).
+   */
+  keyFor(bucket: string, subject: string): string {
+    const mac = createHmac('sha256', this.config.rateLimitKeySecret)
+      .update(`${bucket}\u0000${subject}`)
+      .digest('base64url')
+      .slice(0, 32);
+    return `rl:${bucket}:${mac}`;
+  }
+
+  /** Records one hit for `subject` in `bucket` and reports whether it is within `rule`. */
+  async hit(bucket: string, subject: string, rule: RateLimitRule): Promise<RateLimitResult> {
+    const redisKey = this.keyFor(bucket, subject);
     let reply: unknown;
     try {
       reply = await this.redis.eval(HIT_SCRIPT, 1, redisKey, String(rule.windowSeconds * 1000));
     } catch (err) {
       // Fail closed: abuse protection on auth endpoints must not silently disappear.
-      this.logger.error({ err: { message: (err as Error).message }, bucket }, 'Rate limiter unavailable');
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
     }
     const [count, ttlMs] = reply as [number, number];
@@ -54,8 +72,8 @@ export class RateLimitService {
   }
 
   /** Like {@link hit} but throws RATE_LIMITED (with `Retry-After`) when over the limit. */
-  async consume(bucket: string, key: string, rule: RateLimitRule): Promise<void> {
-    const result = await this.hit(bucket, key, rule);
+  async consume(bucket: string, subject: string, rule: RateLimitRule): Promise<void> {
+    const result = await this.hit(bucket, subject, rule);
     if (!result.allowed) {
       throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
         'Retry-After': String(result.retryAfterSeconds),

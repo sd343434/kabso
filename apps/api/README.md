@@ -58,12 +58,28 @@ All variables are validated with zod at boot (`src/config/env.schema.ts`); the p
 list of problems if any is invalid (secret values are never printed). See `.env.example` for the
 full list. Notable rules:
 
-- `JWT_ACCESS_SECRET` ≥ 32 bytes; in `production`, obvious placeholders are rejected.
+- `JWT_ACCESS_SECRET` ≥ 32 bytes. In `production` it must be base64/base64url decoding to
+  ≥ 32 bytes and pass an entropy check (placeholders, typed passphrases, repeated or sequential
+  characters are refused). Generate with `openssl rand -base64 48`.
+- `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
+  rules, must differ from the JWT secret); generated per process when unset elsewhere.
+- `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):
+  process-wide cap on Argon2 work; when full, login/register/reset answer 503
+  `SERVICE_UNAVAILABLE` with `Retry-After: 1`. Set `UV_THREADPOOL_SIZE` ≥ the cap in the
+  container environment (libuv default is 4).
 - `MAIL_TRANSPORT=log` is the only transport and is **refused in production** (it writes token
   links to the log). SMTP is **BLOCKED (B2)** until a provider + sending domain exist.
 - Rate limits: `RATE_LIMIT_*` as `<max>/<windowSeconds>` (defaults = CONVENTIONS §7).
-- `TRUST_PROXY` must be set correctly behind a load balancer, otherwise all clients share one IP
-  for rate limiting.
+- `TRUST_PROXY` decides how the client IP is derived for every per-IP rate limit (IPv6 clients
+  are bucketed by /64). Allowed values:
+  - `false` (default): no proxy; the socket address is used. Right when clients connect directly.
+  - a hop count, e.g. `1`: exactly that many proxies in front that append to `X-Forwarded-For`.
+    Wrong if clients can also reach the API directly (they could then spoof the header).
+  - a comma-separated list of proxy IPs/CIDRs (or `loopback`, `linklocal`, `uniquelocal`):
+    preferred when the load balancer subnet is known.
+  - `true` trusts the client-controlled left-most `X-Forwarded-For` and is **refused when
+    `NODE_ENV=production`** (SEC-003). The effective value is logged at startup
+    (`trust proxy = …`). Per-platform values belong in `docs/DEPLOYMENT.md` (A8).
 
 ## Layout
 

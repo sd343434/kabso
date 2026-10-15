@@ -19,7 +19,8 @@ describe('loadConfig', () => {
       audience: 'kabso-mobile',
     });
     expect(config.refresh).toEqual({ ttlSeconds: 2_592_000, absoluteTtlSeconds: 15_552_000 });
-    expect(config.rateLimits.loginIpIdentifier).toEqual({ max: 10, windowSeconds: 900 });
+    expect(config.rateLimits.loginIpAccount).toEqual({ max: 10, windowSeconds: 900 });
+    expect(config.rateLimits.loginAccount).toEqual({ max: 20, windowSeconds: 900 });
     expect(config.rateLimits.loginIp).toEqual({ max: 50, windowSeconds: 900 });
     expect(config.rateLimits.registerIp).toEqual({ max: 5, windowSeconds: 3600 });
     expect(config.rateLimits.forgotEmail).toEqual({ max: 3, windowSeconds: 3600 });
@@ -73,5 +74,84 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({ ...base, REFRESH_TTL_SECONDS: '100', REFRESH_ABSOLUTE_TTL_SECONDS: '50' }),
     ).toThrow(/REFRESH_ABSOLUTE_TTL_SECONDS/);
+  });
+
+  describe('production hardening (KL-011)', () => {
+    const hex = () => randomBytes(32).toString('hex');
+    const prod = (overrides: Record<string, string> = {}) => ({
+      ...base,
+      NODE_ENV: 'production',
+      JWT_ACCESS_SECRET: hex(),
+      RATE_LIMIT_KEY_SECRET: hex(),
+      ...overrides,
+    });
+    function problems(env: Record<string, string>): string[] {
+      try {
+        loadConfig(env);
+        return [];
+      } catch (err) {
+        if (err instanceof ConfigValidationError) return [...err.problems];
+        throw err;
+      }
+    }
+    const about = (env: Record<string, string>, key: string) =>
+      problems(env).filter((p) => p.startsWith(`${key}:`));
+
+    it('refuses TRUST_PROXY=true in production but accepts it in development (SEC-003)', () => {
+      expect(about(prod({ TRUST_PROXY: 'true' }), 'TRUST_PROXY')).toHaveLength(1);
+      expect(loadConfig({ ...base, TRUST_PROXY: 'true' }).http.trustProxy).toBe(true);
+    });
+
+    it('accepts a hop count or an address/CIDR list in production', () => {
+      expect(about(prod({ TRUST_PROXY: '1' }), 'TRUST_PROXY')).toEqual([]);
+      expect(about(prod({ TRUST_PROXY: '10.0.0.0/8, 2001:db8::/32, 192.0.2.7' }), 'TRUST_PROXY')).toEqual([]);
+      expect(about(prod({ TRUST_PROXY: 'loopback' }), 'TRUST_PROXY')).toEqual([]);
+    });
+
+    it.each(['yes', '10.0.0.0/33', 'proxy.internal', '1.2.3.4/8/1'])(
+      'refuses malformed TRUST_PROXY entry %s',
+      (value) => {
+        expect(about({ ...base, TRUST_PROXY: value }, 'TRUST_PROXY')).toHaveLength(1);
+      },
+    );
+
+    it.each([
+      'abcdefghijklmnopqrstuvwxyzABCDEF',
+      'kabso-live-production-jwt-key-2026!',
+      '0123456789012345678901234567890123',
+    ])('refuses the weak JWT secret from the review in production: %s (SEC-005)', (secret) => {
+      expect(about(prod({ JWT_ACCESS_SECRET: secret }), 'JWT_ACCESS_SECRET')).toHaveLength(1);
+    });
+
+    it('requires a strong RATE_LIMIT_KEY_SECRET distinct from the JWT secret (SEC-010)', () => {
+      const env = prod();
+      delete (env as Record<string, string | undefined>).RATE_LIMIT_KEY_SECRET;
+      expect(about(env, 'RATE_LIMIT_KEY_SECRET')).toEqual([
+        'RATE_LIMIT_KEY_SECRET: is required in production',
+      ]);
+      const shared = hex();
+      expect(
+        about(prod({ JWT_ACCESS_SECRET: shared, RATE_LIMIT_KEY_SECRET: shared }), 'RATE_LIMIT_KEY_SECRET'),
+      ).toHaveLength(1);
+      expect(about(prod({ RATE_LIMIT_KEY_SECRET: 'b'.repeat(48) }), 'RATE_LIMIT_KEY_SECRET')).toHaveLength(1);
+      // Production config with generated secrets has no secret/proxy problems (only the B2 mail block).
+      expect(problems(prod()).map((p) => p.split(':')[0])).toEqual(['MAIL_TRANSPORT']);
+    });
+
+    it('generates a per-process rate-limit key outside production', () => {
+      const a = loadConfig(base).rateLimitKeySecret;
+      const b = loadConfig(base).rateLimitKeySecret;
+      expect(a).not.toBe(b);
+      expect(Buffer.from(a, 'base64url').length).toBe(32);
+    });
+
+    it('configures the Argon2 cap (default = CPU count)', () => {
+      expect(loadConfig(base).argon2.maxConcurrency).toBeGreaterThanOrEqual(1);
+      expect(loadConfig({ ...base, ARGON2_MAX_CONCURRENCY: '2', ARGON2_MAX_QUEUE: '0' }).argon2).toEqual({
+        maxConcurrency: 2,
+        maxQueue: 0,
+      });
+      expect(() => loadConfig({ ...base, ARGON2_MAX_CONCURRENCY: '0' })).toThrow(/ARGON2_MAX_CONCURRENCY/);
+    });
   });
 });

@@ -7,7 +7,8 @@ import { AccessTokenService } from './access-token.service.js';
 import { IS_PUBLIC_KEY } from './public.decorator.js';
 import { SessionsService } from './sessions.service.js';
 
-const BEARER = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/;
+// RFC 7235: the auth scheme is case-insensitive (QA-002).
+const BEARER = /^Bearer +([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
 
 /**
  * Global guard: every route requires a valid access token unless marked `@Public()`.
@@ -23,7 +24,8 @@ export class AccessTokenGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if (context.getType() !== 'http') return true;
+    // Deny-by-default: no WebSocket/RPC auth strategy exists yet (SEC-013, SECURITY_MODEL R8).
+    if (context.getType() !== 'http') return false;
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),

@@ -77,7 +77,7 @@ describe('rate limiting', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp({
-      RATE_LIMIT_LOGIN_IP_IDENTIFIER: '3/900',
+      RATE_LIMIT_LOGIN_IP_ACCOUNT: '3/900',
       RATE_LIMIT_FORGOT_EMAIL: '2/3600',
       RATE_LIMIT_AUTHENTICATED_USER: '4/900',
     });
