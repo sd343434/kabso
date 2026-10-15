@@ -43,30 +43,31 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-006 | Independent QA verification of Phase 1 | A6 | P0 | DONE — APPROVE WITH CONDITIONS; merged `a8acdd6` (30 API e2e + 36 Flutter tests, report `docs/qa/KL-006_PHASE1_QA_REPORT.md`) | KL-002, KL-003 | A1 ✅ |
 | KL-007 | Auth threat model & security review | A7 | P0 | DONE — verdict PASS WITH CONDITIONS; deliverables merged `0b6e9fc` (17 security regression tests) | KL-002 | A1 ✅ (SEC-001/003/007 re-verified in code) |
 | KL-008 | Integration of Phase 1 + regression run | A1 | P0 | IN_PROGRESS — all Wave 1 branches merged; awaiting QA/Security + full remote CI | KL-002..005 | A6 |
-| KL-010 | (TESTING — merged; D1 concurrency fix `a04201b`; awaiting first GitHub run) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
-| KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | IN_PROGRESS | contract v1.1 | A1, A7 re-test, A6 |
-| KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | IN_PROGRESS | — | A1, A7 re-test |
+| KL-010 | (DONE — verified by dispatch run 19, all 8 jobs; KL-010b `b1a2a94` merged) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
+| KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | REVIEW — INTEGRATED `3179be1` (D1 Argon2-cap root cause fixed `0944980`); A7/A6 re-test running | contract v1.1 | A1, A7 re-test, A6 |
+| KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | REVIEW — INTEGRATED `74f8ac7`; **D1 OPEN: Android `build.gradle.kts` fails to compile in CI run 21** (A2 fixing) | — | A1, A7 re-test |
 | KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P1 | BACKLOG — required before any deployment (B10) | KL-011 | A7 |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
-## Phase 1 integration gate (status 2026-10-15 ~14:15 UTC)
+## Phase 1 integration gate (status 2026-10-15 ~14:50 UTC)
 
-Integrated candidate: **`b973d7b`** + KL-007 deliverables (`0b6e9fc`).
+Integration HEAD: **`3179be1`** (all Wave 1 work + KL-006/007 deliverables + KL-010/010b/011/012).
 
 | Gate item | Evidence | State |
 | --------- | -------- | ----- |
-| KL-002 / KL-003 contract conformance | CTO review (routes, codes, schemas, DTOs, null handling, `/api/v1` base) | ✅ |
-| API gates (local, CTO re-run) | lint · prettier · tsc · unit **73/73** · e2e **61/61** (44 + 17 security) · build · prisma validate · migrate status · fresh-DB migration | ✅ |
-| Mobile gates (local, CTO re-run) | codegen drift none · format 0/71 changed · analyze no issues · test **162/162** | ✅ |
-| Remote CI, all jobs | **run 13 (`fbd1745`, workflow_dispatch): all 8 jobs success** — gitleaks, contracts, API (incl. e2e on service containers), Mobile, **Android debug APK built + uploaded**, **iOS unsigned build (macos-latest)**, CI OK | ✅ |
-| KL-007 Security | PASS WITH CONDITIONS — no Critical/High; conditions: SEC-001, SEC-003, SEC-002, SEC-007 fixed; SEC-011 before deployment | ⏳ fixes in KL-011/012 |
-| KL-006 QA | APPROVE WITH CONDITIONS: 0 Blocker, 5 Medium, 2 Low; black-box 128/131 (3 fails = QA-001/002); integrated tree after merge: API e2e **91/91**, Flutter **196 pass / 3 skipped (tracked QA-003/004)** | ⏳ fixes in KL-011/012 |
-| Device testing (install/run on emulator/device) | not performed anywhere | ⛔ NOT VERIFIED |
+| API gates (CTO re-run on `3179be1`) | lint · prettier · tsc · unit **133/133 ×20 consecutive runs** · e2e **112/112 ×3 runs** · build · `pnpm audit --prod` no known vulns · gitleaks no leaks | ✅ |
+| Mobile gates (CTO re-run on `74f8ac7`) | lockfile enforced · no codegen drift · format 0/80 · analyze clean · test **252/252, 0 skipped** · Release Info.plist has no ATS exception | ✅ |
+| Remote CI | run 19 (`6d65966`) all 8 jobs ✅; **run 21 (`74f8ac7`): Android debug APK ❌** (`build.gradle.kts` script compile errors — KL-012-D1), all other jobs incl. iOS unsigned build ✅ | ❌ |
+| Security re-test (A7) | running on `3179be1`; SEC-020 verdict held until KL-012-D1 merges | ⏳ |
+| QA re-test (A6) | running on `3179be1` | ⏳ |
+| Device testing | not performed anywhere | ⛔ NOT VERIFIED |
 
-Build evidence = **compiles in CI**; not device-tested, not signed, not production-ready.
+**Integration error (CTO):** KL-012 was merged and pushed before its Gradle changes had ever been
+compiled (A2 could not run Gradle: Maven Central 429). Rule D19: build-script changes that cannot
+be compiled locally must pass a CI build before they are merged to the integration branch.
 
-**Closed defects:** D1 (gitleaks fixtures) — `e424d77`; KL-010-D1 (default-branch concurrency) — `a04201b`.
+**Closed defects:** D1 (gitleaks fixtures) — `e424d77`; KL-010-D1 (default-branch concurrency) — `a04201b`; KL-011-D1 (Argon2 cap: lazy dummy hash outside the limiter → uncapped work + first-call timing side channel; flaky test) — `0944980`.
 
 **Repository facts (2026-10-15):** visibility **public**; default branch `claude/amazing-tesla-5aj3um`
 (no `main`), so the iOS CI job runs only on `workflow_dispatch`. Owner decisions pending:
@@ -142,6 +143,7 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D16 | 2026-10-15 | QA tests that pin open defects may be committed with `skip:` + defect ID; owner must remove the skip as part of the fix's acceptance | Keeps evidence of the defect in-repo without a red build |
 | D17 | 2026-10-15 | CI concurrency: PRs cancel superseded runs; pushes to the **repository default branch** (currently `claude/amazing-tesla-5aj3um`) and `main` get one group per run, never cancelled/replaced; other branches never cancel in-progress | Run 10 was lost to cancel-in-progress; on the default branch paths-filter diffs vs the previous push |
 | D18 | 2026-10-15 | **Process violation recorded (A8):** the renamed gitleaks copy `leakscan` was created by A8 in KL-005 to bypass a sandbox command rule; A8 disclosed it. KL-005's local history-scan claim is void; scan evidence of record is CI gitleaks (runs 9, 13) + CTO local run | Guardrail integrity |
+| D19 | 2026-10-15 | Build-script changes (Gradle/Xcode) that cannot be compiled locally must pass a CI build before merge | KL-012-D1 broke the Android build on the integration branch |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
