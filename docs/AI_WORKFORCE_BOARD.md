@@ -36,30 +36,36 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | ID | Title | Owner | Pri | Status | Depends | Review |
 | -- | ----- | ----- | --- | ------ | ------- | ------ |
 | KL-001 | Environment audit, contracts, architecture, plan | A1 | P0 | DONE | — | self (docs only) |
-| KL-002 | Backend foundation + auth vertical slice | A3 | P0 | REVIEW — INTEGRATED (`f45b867`); defect D1 open | KL-001 | A1 ✅ contract review; A6, A7 pending |
-| KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | IN_PROGRESS (agent running, uncommitted) | KL-001 | A1, A6 |
+| KL-002 | Backend foundation + auth vertical slice | A3 | P0 | REVIEW — INTEGRATED (`f45b867`, D1 fix `217cad6`) | KL-001 | A1 ✅; A6, A7 in progress |
+| KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | REVIEW — INTEGRATED (`b973d7b`) | KL-001 | A1 ✅; A6, A7 in progress |
 | KL-004 | Design system & screen inventory spec | A5 | P1 | DONE — INTEGRATED (`6e64fd3`) | KL-001 | A1 ✅ (scope + contrast math re-computed) |
 | KL-005 | CI, local infra, deployment doc | A8 | P0 | TESTING — INTEGRATED (`5ec94ad`); first remote runs in progress | KL-001 | A1 ✅ |
-| KL-006 | Independent QA verification of Phase 1 | A6 | P0 | BACKLOG | KL-002, KL-003 | A1 |
-| KL-007 | Auth threat model & security review | A7 | P0 | BACKLOG | KL-002 | A1 |
-| KL-008 | Integration of Phase 1 + regression run | A1 | P0 | BACKLOG | KL-002..005 | A6 |
+| KL-006 | Independent QA verification of Phase 1 | A6 | P0 | IN_PROGRESS (candidate `b973d7b`, own DB `kabso_qa_test`, Redis db 14) | KL-002, KL-003 | A1 |
+| KL-007 | Auth threat model & security review | A7 | P0 | IN_PROGRESS (candidate `b973d7b`, own DB `kabso_sec_test`, Redis db 13) | KL-002 | A1 |
+| KL-008 | Integration of Phase 1 + regression run | A1 | P0 | IN_PROGRESS — all Wave 1 branches merged; awaiting QA/Security + full remote CI | KL-002..005 | A6 |
 | KL-010 | Dependabot policy: ignore semver-major for postgres/redis images (PRs #1, #2 propose 16→18, 7→8 against D2) | A8 | P2 | BACKLOG | — | A1 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
-## Phase 1 integration gate (status 2026-10-15 ~13:50 UTC)
+## Phase 1 integration gate (status 2026-10-15 ~13:57 UTC)
+
+Integrated candidate: **`b973d7b`** (all Wave 1 branches merged; contracts v1.0.4 on top in `416527a`).
 
 | Gate item | Evidence | State |
 | --------- | -------- | ----- |
-| KL-002 merged, contract-conformant | CTO review: 15/15 error codes, 14/14 routes + status codes, strict zod schemas match `openapi.yaml`; merge `f45b867` | ✅ |
-| API gates on integrated tree (local, re-run by CTO) | lint 0 problems · prettier clean · `tsc --noEmit` clean · unit **73/73** · e2e **44/44** (real Postgres 16.15 + Redis) · build `dist/main.js` · `prisma validate` OK · `migrate status` up to date · `20261015132258_init` applied to an empty DB → 6 tables, 5 CHECK constraints | ✅ |
-| CI on GitHub | contracts job ✅ (runs 4–5); gitleaks ❌ run 6 — D1 (test-fixture literals); api job running | ⏳ |
-| KL-003 merged + `flutter analyze` / `flutter test` | agent still running | ⏳ |
-| KL-006 QA, KL-007 Security | start after KL-003 is integrated | ⏳ |
-| Android / iOS builds | no Android SDK / Xcode here; only CI can prove (`android`, `ios` jobs) | ⛔ not verifiable locally |
+| KL-002 contract conformance | CTO review: 15/15 error codes, 14/14 routes + status codes, strict zod schemas = `openapi.yaml` | ✅ |
+| KL-003 contract conformance | CTO review: all endpoint paths under `${API_BASE_URL}/api/v1`; DTO fields/nullability = `openapi.yaml`; request DTOs omit nulls (`includeIfNull: false`) so strict server schemas accept them; v1.0.3 username lowercasing applied | ✅ |
+| API gates (local, re-run by CTO on integrated tree) | lint 0 · prettier clean · `tsc` clean · unit **73/73** · e2e **44/44** (Postgres 16.15 + Redis) · build OK · `prisma validate` OK · `migrate status` up to date · `20261015132258_init` applies to empty DB (6 tables, 5 CHECKs) | ✅ |
+| Mobile gates (local, re-run by CTO on integrated tree) | `flutter pub get` ✅ · build_runner ✅ · codegen drift none · `dart format` 71 files / 0 changed · `flutter analyze` **No issues found** · `flutter test` **162/162** | ✅ |
+| Secret scan | `gitleaks git` (CI command) → no leaks (local + CI run 9) | ✅ |
+| Remote CI | run 9 (`217cad6`): gitleaks ✅, API (migrate, lint, format, typecheck, unit, e2e, build) ✅, CI OK ✅. Run 10 (`b973d7b`, first mobile + Android APK run): in progress | ⏳ |
+| KL-006 QA / KL-007 Security | running independently on `b973d7b` | ⏳ |
+| Android APK / iOS build | not possible locally (B6); CI `android` job in run 10; `ios` job runs only on dispatch/main | ⏳ / ⛔ local |
 
-**Open defects:** D1 (KL-002) — gitleaks `generic-api-key` on literal `JWT_ACCESS_SECRET` fixtures in
-`access-token.service.spec.ts:9` and `app-config.spec.ts:7` (commit `d29d958`). Test-only values,
-not real secrets; returned to A3.
+**Closed defects:** D1 (KL-002) gitleaks on test-fixture literals — fixed in `e424d77` (runtime-generated
+secrets + `.gitleaksignore` for exactly two historical fingerprints), verified by CTO and CI run 9.
+
+**Watch items:** `material_ui` 1.7.0 (publisher flutter.dev, required by go_router 18) was published
+2026-10-14 — pinned by `pubspec.lock`; re-evaluate on next dependency review.
 
 ### Acceptance criteria
 
@@ -117,6 +123,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D7 | 2026-10-15 | OpenAPI v1.0.1/v1.0.2: YAML fix + additive documentation of 400/429 responses; health 4xx warnings deferred | No shape change; see CONVENTIONS §9 |
 | D9 | 2026-10-15 | Contract v1.0.3 ratifies KL-002 clarifications (issue vocabulary, 400 not 413/415, suspended token → 401, extra limits, revokeSession 404) | Behaviour already implemented and tested; A2 notified |
 | D10 | 2026-10-15 | Backend pins TypeScript 6.0.3 (not 7.0.2) and Vitest+SWC (not Jest) | TS 7 lacks the compiler API typescript-eslint/@nestjs/cli need; Nest 12 is ESM-only |
+| D11 | 2026-10-15 | Mobile uses `material_ui` (decoupled Material, flutter.dev) instead of `flutter/material.dart`; Dart 3.13 `new(...)` constructor syntax | go_router 18 requires it; single theme/localizations source |
+| D12 | 2026-10-15 | Contract v1.0.4: ARGB token hex, explicit username length check, B7 placeholder id corrected | Documentation only |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
