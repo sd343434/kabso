@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
-import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -82,41 +82,50 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       showBack: true,
       title: l10n.forgotTitle,
       subtitle: l10n.forgotSubtitle,
-      child: Form(
-        key: _formKey,
-        autovalidateMode: _autovalidate,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (submission is SubmissionFailed) ...[
-              KInlineMessage(message: failureMessage(l10n, submission.failure)),
-              const SizedBox(height: KSpacing.lg),
-            ],
-            KTextField(
-              fieldKey: ForgotPasswordScreen.emailKey,
-              controller: _email,
-              label: l10n.forgotEmailLabel,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.email],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.emailMax,
-              enabled: !submitting,
-              onSubmitted: (_) => _submit(),
-              validator: (v) => validationMessage(
-                l10n,
-                AuthValidators.email(v),
-                formatMessage: l10n.validationEmailInvalid,
+      child: RetryCountdown(
+        key: ObjectKey(submission),
+        failure: submission is SubmissionFailed ? submission.failure : null,
+        builder: (context, remaining) => Form(
+          key: _formKey,
+          autovalidateMode: _autovalidate,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (submission is SubmissionFailed) ...[
+                FailureBanner(
+                  failure: submission.failure,
+                  remaining: remaining,
+                ),
+                const SizedBox(height: KSpacing.lg),
+              ],
+              KTextField(
+                fieldKey: ForgotPasswordScreen.emailKey,
+                controller: _email,
+                label: l10n.forgotEmailLabel,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.email],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.emailMax,
+                enabled: !submitting,
+                onSubmitted: (_) async {
+                  if (remaining == Duration.zero) await _submit();
+                },
+                validator: (v) => validationMessage(
+                  l10n,
+                  AuthValidators.email(v),
+                  formatMessage: l10n.validationEmailInvalid,
+                ),
               ),
-            ),
-            const SizedBox(height: KSpacing.xl),
-            KButton(
-              key: ForgotPasswordScreen.submitKey,
-              label: l10n.forgotSubmit,
-              loading: submitting,
-              onPressed: _submit,
-            ),
-          ],
+              const SizedBox(height: KSpacing.xl),
+              KButton(
+                key: ForgotPasswordScreen.submitKey,
+                label: l10n.forgotSubmit,
+                loading: submitting,
+                onPressed: remaining > Duration.zero ? null : _submit,
+              ),
+            ],
+          ),
         ),
       ),
     );

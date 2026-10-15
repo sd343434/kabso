@@ -103,14 +103,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String usernameTaken(String username) {
-    return '@$username is taken';
-  }
-
-  @override
-  String get usernameCheckFailed => 'Couldn\'t check availability right now';
-
-  @override
   String get passwordShow => 'Show password';
 
   @override
@@ -209,15 +201,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeComingTitle => 'Your feed is on its way';
 
   @override
-  String get homeComingBody =>
-      'Posts and stories from people you follow arrive in Phase 2.';
-
-  @override
   String get discoverComingTitle => 'Discover is coming';
-
-  @override
-  String get discoverComingBody =>
-      'Search and trending creators arrive in Phase 9.';
 
   @override
   String get createComingTitle => 'Creating is coming';
@@ -230,10 +214,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveComingTitle => 'Live rooms are coming';
 
   @override
-  String get liveComingBody =>
-      'Going live and watching streams arrive in Phase 6.';
-
-  @override
   String get profileTitle => 'Profile';
 
   @override
@@ -244,13 +224,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileResendVerification => 'Resend verification email';
-
-  @override
-  String get profileContentComingTitle => 'Your profile is being built';
-
-  @override
-  String get profileContentComingBody =>
-      'Your posts, followers and highlights arrive in Phase 2.';
 
   @override
   String profileUsername(String username) {
@@ -286,27 +259,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsCurrent => 'This device';
-
-  @override
-  String sessionsLastActive(String date) {
-    return 'Last active $date';
-  }
-
-  @override
-  String get sessionsRevoke => 'Sign out';
-
-  @override
-  String get sessionsRevokeConfirmTitle => 'Sign out this device?';
-
-  @override
-  String get sessionsRevokeConfirmBody =>
-      'That device will have to sign in again.';
-
-  @override
-  String get sessionsRevoked => 'Device signed out';
-
-  @override
-  String get sessionsNoOthers => 'No other active sessions';
 
   @override
   String get sessionUnknownDevice => 'Unknown device';
@@ -361,9 +313,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorNotFound => 'We couldn\'t find that.';
 
   @override
-  String get errorEmailTaken => 'This email is already registered.';
-
-  @override
   String get errorUsernameTaken => 'This username isn\'t available.';
 
   @override
@@ -377,16 +326,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorTokenInvalid => 'This link isn\'t valid.';
 
   @override
-  String get errorRateLimited =>
-      'Too many attempts. Wait a moment and try again.';
-
-  @override
   String get errorInternal =>
       'Something went wrong on our side. Please try again later.';
 
   @override
   String get errorServiceUnavailable =>
-      'The service is temporarily unavailable. Try again shortly.';
+      'We\'re busy right now. Please try again in a moment.';
 
   @override
   String get errorNetworkOffline =>
@@ -398,4 +343,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorUnknown => 'Something unexpected happened. Please try again.';
+
+  @override
+  String get errorEmailTaken =>
+      'This email can\'t be used to create a new account. Try logging in or resetting your password.';
+
+  @override
+  String get errorRateLimited =>
+      'Too many attempts. Wait a moment, then try again.';
+
+  @override
+  String errorRateLimitedRetryIn(String wait) {
+    return 'Too many attempts. Try again in $wait.';
+  }
+
+  @override
+  String errorServiceBusyRetryIn(String wait) {
+    return 'We\'re busy right now. Please try again in $wait.';
+  }
+
+  @override
+  String errorIdLabel(String requestId) {
+    return 'Error ID: $requestId';
+  }
+
+  @override
+  String get homeComingBody =>
+      'Following people and your home feed arrive in Phase 2; posts in Phase 3.';
+
+  @override
+  String get discoverComingBody =>
+      'People search arrives in Phase 2; trending lives, videos and creators in Phase 9.';
+
+  @override
+  String get liveComingBody =>
+      'Watching and hosting live streams arrive in Phase 6; PK battles and gifts in Phase 7.';
+
+  @override
+  String get profileContentComingTitle => 'Your posts will live here';
+
+  @override
+  String get profileContentComingBody =>
+      'Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.';
+
+  @override
+  String usernameTaken(String username) {
+    return '@$username isn\'t available. Try another.';
+  }
+
+  @override
+  String get usernameCheckFailed =>
+      'Couldn\'t check right now. You can still continue.';
+
+  @override
+  String get usernameTooShort => 'Use at least 3 characters';
+
+  @override
+  String get usernameTooLong => 'Use 30 characters or fewer';
+
+  @override
+  String get usernameBadChars =>
+      'Use only a–z, 0–9, dot (.) and underscore (_)';
+
+  @override
+  String get usernameBadEdges => 'Can\'t start or end with a dot or underscore';
+
+  @override
+  String sessionsLastActive(String relativeTime) {
+    return 'Active $relativeTime';
+  }
+
+  @override
+  String get sessionsActiveNow => 'Active now';
+
+  @override
+  String sessionsSignedIn(String date) {
+    return 'Signed in $date';
+  }
+
+  @override
+  String relativeMinutesAgo(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String relativeHoursAgo(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String relativeDaysAgo(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get sessionsRevoke => 'End';
+
+  @override
+  String get sessionsRevokeConfirmTitle => 'End this session?';
+
+  @override
+  String sessionsRevokeConfirmBody(String device) {
+    return '$device will be logged out right away.';
+  }
+
+  @override
+  String get sessionsRevoked => 'Session ended';
+
+  @override
+  String get sessionsAlreadyEnded => 'This session had already ended';
+
+  @override
+  String get sessionsNoOthers => 'You\'re signed in on this device only.';
 }

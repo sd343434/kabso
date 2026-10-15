@@ -11,4 +11,8 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 abstract final class PreferenceKeys {
   static const themeMode = 'pref.themeMode';
   static const languageCode = 'pref.languageCode';
+
+  /// Set after the first launch of this installation (see
+  /// `clearSecureStorageOnFreshInstall`). Not sensitive.
+  static const installed = 'pref.installed';
 }

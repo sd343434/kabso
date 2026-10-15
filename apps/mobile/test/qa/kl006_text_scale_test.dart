@@ -156,10 +156,7 @@ void main() {
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: 'settings');
           },
-          // Known defect QA-004 (owner A2): in Arabic at text scale 2.0 the
-          // session tile's trailing "sign out" button consumes the whole
-          // ListTile width (layout assertion). Remove the skip with the fix.
-          skip: language == AppLanguage.ar && scale == 2.0,
+          // QA-004 fixed in KL-012 (adaptive session row).
         );
       }
     }

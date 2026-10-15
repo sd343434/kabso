@@ -34,8 +34,6 @@
 
   "usernameChecking": "Checking availability…",
   "usernameAvailable": "@{username} is available",
-  "usernameTaken": "@{username} is taken",
-  "usernameCheckFailed": "Couldn't check availability right now",
 
   "passwordShow": "Show password",
   "passwordHide": "Hide password",
@@ -72,20 +70,15 @@
   "navProfile": "Profile",
 
   "homeComingTitle": "Your feed is on its way",
-  "homeComingBody": "Posts and stories from people you follow arrive in Phase 2.",
   "discoverComingTitle": "Discover is coming",
-  "discoverComingBody": "Search and trending creators arrive in Phase 9.",
   "createComingTitle": "Creating is coming",
   "createComingBody": "Photo posts arrive in Phase 3 and short videos in Phase 5.",
   "liveComingTitle": "Live rooms are coming",
-  "liveComingBody": "Going live and watching streams arrive in Phase 6.",
 
   "profileTitle": "Profile",
   "profileEmailVerified": "Email verified",
   "profileEmailNotVerified": "Email not verified",
   "profileResendVerification": "Resend verification email",
-  "profileContentComingTitle": "Your profile is being built",
-  "profileContentComingBody": "Your posts, followers and highlights arrive in Phase 2.",
   "profileUsername": "@{username}",
 
   "settingsTitle": "Settings",
@@ -98,12 +91,6 @@
   "languageEnglish": "English",
   "settingsSessions": "Active sessions",
   "sessionsCurrent": "This device",
-  "sessionsLastActive": "Last active {date}",
-  "sessionsRevoke": "Sign out",
-  "sessionsRevokeConfirmTitle": "Sign out this device?",
-  "sessionsRevokeConfirmBody": "That device will have to sign in again.",
-  "sessionsRevoked": "Device signed out",
-  "sessionsNoOthers": "No other active sessions",
   "sessionUnknownDevice": "Unknown device",
   "platformAndroid": "Android",
   "platformIos": "iOS",
@@ -121,15 +108,69 @@
   "errorAuthForbidden": "You don't have permission to do that.",
   "errorAccountSuspended": "This account has been suspended.",
   "errorNotFound": "We couldn't find that.",
-  "errorEmailTaken": "This email is already registered.",
   "errorUsernameTaken": "This username isn't available.",
   "errorIdempotencyConflict": "This request was already sent with different details.",
   "errorTokenExpired": "This link has expired or was already used.",
   "errorTokenInvalid": "This link isn't valid.",
-  "errorRateLimited": "Too many attempts. Wait a moment and try again.",
   "errorInternal": "Something went wrong on our side. Please try again later.",
-  "errorServiceUnavailable": "The service is temporarily unavailable. Try again shortly.",
+  "errorServiceUnavailable": "We're busy right now. Please try again in a moment.",
   "errorNetworkOffline": "You're offline. Check your connection and try again.",
   "errorNetworkTimeout": "The connection timed out. Please try again.",
-  "errorUnknown": "Something unexpected happened. Please try again."
+  "errorUnknown": "Something unexpected happened. Please try again.",
+
+  "errorEmailTaken": "This email can't be used to create a new account. Try logging in or resetting your password.",
+
+  "errorRateLimited": "Too many attempts. Wait a moment, then try again.",
+
+  "errorRateLimitedRetryIn": "Too many attempts. Try again in {wait}.",
+
+  "errorServiceBusyRetryIn": "We're busy right now. Please try again in {wait}.",
+
+  "errorIdLabel": "Error ID: {requestId}",
+
+  "homeComingBody": "Following people and your home feed arrive in Phase 2; posts in Phase 3.",
+
+  "discoverComingBody": "People search arrives in Phase 2; trending lives, videos and creators in Phase 9.",
+
+  "liveComingBody": "Watching and hosting live streams arrive in Phase 6; PK battles and gifts in Phase 7.",
+
+  "profileContentComingTitle": "Your posts will live here",
+
+  "profileContentComingBody": "Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.",
+
+  "usernameTaken": "@{username} isn't available. Try another.",
+
+  "usernameCheckFailed": "Couldn't check right now. You can still continue.",
+
+  "usernameTooShort": "Use at least 3 characters",
+
+  "usernameTooLong": "Use 30 characters or fewer",
+
+  "usernameBadChars": "Use only a–z, 0–9, dot (.) and underscore (_)",
+
+  "usernameBadEdges": "Can't start or end with a dot or underscore",
+
+  "sessionsLastActive": "Active {relativeTime}",
+
+  "sessionsActiveNow": "Active now",
+
+  "sessionsSignedIn": "Signed in {date}",
+
+  "relativeMinutesAgo": "{n}m ago",
+
+  "relativeHoursAgo": "{n}h ago",
+
+  "relativeDaysAgo": "{n}d ago",
+
+  "sessionsRevoke": "End",
+
+  "sessionsRevokeConfirmTitle": "End this session?",
+
+  "sessionsRevokeConfirmBody": "{device} will be logged out right away.",
+
+  "sessionsRevoked": "Session ended",
+
+  "sessionsAlreadyEnded": "This session had already ended",
+
+  "sessionsNoOthers": "You're signed in on this device only."
 }

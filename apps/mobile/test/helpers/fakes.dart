@@ -48,6 +48,7 @@ class FakeAuthRepository implements AuthRepository {
     User? me,
     this.loginFailure,
     this.registerFailure,
+    this.availabilityFailure,
     this.takenUsernames = const {},
     this.availabilityDelay = Duration.zero,
   }) : me = me ?? storedUser ?? testUser();
@@ -59,6 +60,9 @@ class FakeAuthRepository implements AuthRepository {
   User me;
   AppFailure? loginFailure;
   AppFailure? registerFailure;
+  AppFailure? availabilityFailure;
+  int loginCalls = 0;
+  int registerCalls = 0;
   Set<String> takenUsernames;
   Duration availabilityDelay;
 
@@ -74,6 +78,7 @@ class FakeAuthRepository implements AuthRepository {
     required String identifier,
     required String password,
   }) async {
+    loginCalls++;
     final failure = loginFailure;
     if (failure != null) throw failure;
     return me;
@@ -87,6 +92,7 @@ class FakeAuthRepository implements AuthRepository {
     required String displayName,
     required String locale,
   }) async {
+    registerCalls++;
     final failure = registerFailure;
     if (failure != null) throw failure;
     return me;
@@ -106,6 +112,8 @@ class FakeAuthRepository implements AuthRepository {
     String username,
   ) async {
     availabilityChecks.add(username);
+    final failure = availabilityFailure;
+    if (failure != null) throw failure;
     if (availabilityDelay > Duration.zero) {
       await Future<void>.delayed(availabilityDelay);
     }

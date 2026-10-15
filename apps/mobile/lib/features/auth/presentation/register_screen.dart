@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
-import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
@@ -109,113 +109,122 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return AuthScaffold(
       title: l10n.registerTitle,
       subtitle: l10n.registerSubtitle,
-      child: Form(
-        key: _formKey,
-        autovalidateMode: _autovalidate,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (generalFailure != null) ...[
-              KInlineMessage(message: failureMessage(l10n, generalFailure)),
-              const SizedBox(height: KSpacing.lg),
-            ],
-            KTextField(
-              fieldKey: RegisterScreen.emailKey,
-              controller: _email,
-              label: l10n.registerEmailLabel,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.emailMax,
-              enabled: !submitting,
-              errorText: _serverErrors[AuthField.email],
-              onChanged: (_) => _clearServerError(AuthField.email),
-              validator: (v) => validationMessage(
-                l10n,
-                AuthValidators.email(v),
-                formatMessage: l10n.validationEmailInvalid,
-              ),
-            ),
-            const SizedBox(height: KSpacing.lg),
-            KTextField(
-              fieldKey: RegisterScreen.usernameKey,
-              controller: _username,
-              label: l10n.registerUsernameLabel,
-              helperText: l10n.registerUsernameHelper,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.newUsername],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.usernameMax,
-              inputFormatters: [_LowerCaseFormatter()],
-              enabled: !submitting,
-              errorText: _serverErrors[AuthField.username],
-              status: _UsernameStatusLine(
-                key: RegisterScreen.usernameStatusKey,
-                status: usernameStatus,
-              ).orNullIfIdle(),
-              onChanged: (value) {
-                _clearServerError(AuthField.username);
-                ref
-                    .read(usernameAvailabilityProvider.notifier)
-                    .onChanged(value);
-              },
-              validator: (v) => validationMessage(
-                l10n,
-                AuthValidators.username(
-                  AuthValidators.normalizeUsername(v ?? ''),
+      child: RetryCountdown(
+        key: ObjectKey(submission),
+        failure: submission is SubmissionFailed ? submission.failure : null,
+        builder: (context, remaining) => Form(
+          key: _formKey,
+          autovalidateMode: _autovalidate,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (generalFailure != null) ...[
+                FailureBanner(failure: generalFailure, remaining: remaining),
+                const SizedBox(height: KSpacing.lg),
+              ],
+              KTextField(
+                fieldKey: RegisterScreen.emailKey,
+                controller: _email,
+                label: l10n.registerEmailLabel,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.emailMax,
+                enabled: !submitting,
+                errorText: _serverErrors[AuthField.email],
+                onChanged: (_) => _clearServerError(AuthField.email),
+                validator: (v) => validationMessage(
+                  l10n,
+                  AuthValidators.email(v),
+                  formatMessage: l10n.validationEmailInvalid,
                 ),
-                formatMessage: l10n.validationUsernameFormat,
               ),
-            ),
-            const SizedBox(height: KSpacing.lg),
-            KTextField(
-              fieldKey: RegisterScreen.displayNameKey,
-              controller: _displayName,
-              label: l10n.registerDisplayNameLabel,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.name],
-              maxLength: AuthRules.displayNameMax,
-              enabled: !submitting,
-              errorText: _serverErrors[AuthField.displayName],
-              onChanged: (_) => _clearServerError(AuthField.displayName),
-              validator: (v) =>
-                  validationMessage(l10n, AuthValidators.displayName(v)),
-            ),
-            const SizedBox(height: KSpacing.lg),
-            KTextField(
-              fieldKey: RegisterScreen.passwordKey,
-              controller: _password,
-              label: l10n.registerPasswordLabel,
-              helperText: l10n.registerPasswordHelper,
-              obscure: true,
-              showPasswordLabel: l10n.passwordShow,
-              hidePasswordLabel: l10n.passwordHide,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.newPassword],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.passwordMax,
-              enabled: !submitting,
-              errorText: _serverErrors[AuthField.password],
-              onChanged: (_) => _clearServerError(AuthField.password),
-              onSubmitted: (_) => _submit(),
-              validator: (v) =>
-                  validationMessage(l10n, AuthValidators.password(v)),
-            ),
-            const SizedBox(height: KSpacing.xl),
-            KButton(
-              key: RegisterScreen.submitKey,
-              label: l10n.registerSubmit,
-              loading: submitting,
-              onPressed: _submit,
-            ),
-            const SizedBox(height: KSpacing.lg),
-            AuthSwitchPrompt(
-              question: l10n.registerHaveAccount,
-              action: l10n.registerSignIn,
-              onPressed: () => context.go(AppRoutes.login),
-            ),
-          ],
+              const SizedBox(height: KSpacing.lg),
+              KTextField(
+                fieldKey: RegisterScreen.usernameKey,
+                controller: _username,
+                label: l10n.registerUsernameLabel,
+                helperText: l10n.registerUsernameHelper,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.newUsername],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.usernameMax,
+                inputFormatters: [_LowerCaseFormatter()],
+                enabled: !submitting,
+                errorText: _serverErrors[AuthField.username],
+                status: _UsernameStatusLine(
+                  key: RegisterScreen.usernameStatusKey,
+                  status: usernameStatus,
+                  // After the first submit the field's own validator shows the
+                  // same reason as errorText; don't show it twice.
+                  showInvalid: _autovalidate == AutovalidateMode.disabled,
+                ).orNullIfHidden(),
+                onChanged: (value) {
+                  _clearServerError(AuthField.username);
+                  ref
+                      .read(usernameAvailabilityProvider.notifier)
+                      .onChanged(value);
+                },
+                validator: (v) => usernameIssueMessage(
+                  l10n,
+                  AuthValidators.usernameIssue(
+                    AuthValidators.normalizeUsername(v ?? ''),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KSpacing.lg),
+              KTextField(
+                fieldKey: RegisterScreen.displayNameKey,
+                controller: _displayName,
+                label: l10n.registerDisplayNameLabel,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.name],
+                maxLength: AuthRules.displayNameMax,
+                enabled: !submitting,
+                errorText: _serverErrors[AuthField.displayName],
+                onChanged: (_) => _clearServerError(AuthField.displayName),
+                validator: (v) =>
+                    validationMessage(l10n, AuthValidators.displayName(v)),
+              ),
+              const SizedBox(height: KSpacing.lg),
+              KTextField(
+                fieldKey: RegisterScreen.passwordKey,
+                controller: _password,
+                label: l10n.registerPasswordLabel,
+                helperText: l10n.registerPasswordHelper,
+                obscure: true,
+                showPasswordLabel: l10n.passwordShow,
+                hidePasswordLabel: l10n.passwordHide,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.newPassword],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.passwordMax,
+                enabled: !submitting,
+                errorText: _serverErrors[AuthField.password],
+                onChanged: (_) => _clearServerError(AuthField.password),
+                onSubmitted: (_) async {
+                  if (remaining == Duration.zero) await _submit();
+                },
+                validator: (v) =>
+                    validationMessage(l10n, AuthValidators.password(v)),
+              ),
+              const SizedBox(height: KSpacing.xl),
+              KButton(
+                key: RegisterScreen.submitKey,
+                label: l10n.registerSubmit,
+                loading: submitting,
+                // Disabled while a Retry-After countdown runs (QA-007).
+                onPressed: remaining > Duration.zero ? null : _submit,
+              ),
+              const SizedBox(height: KSpacing.lg),
+              AuthSwitchPrompt(
+                question: l10n.registerHaveAccount,
+                action: l10n.registerSignIn,
+                onPressed: () => context.go(AppRoutes.login),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -223,11 +232,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 }
 
 class _UsernameStatusLine extends StatelessWidget {
-  const new({required this.status, super.key});
+  const new({required this.status, required this.showInvalid, super.key});
 
   final UsernameStatus status;
+  final bool showInvalid;
 
-  Widget? orNullIfIdle() => status is UsernameIdle ? null : this;
+  Widget? orNullIfHidden() => switch (status) {
+    UsernameIdle() => null,
+    UsernameInvalid() when !showInvalid => null,
+    _ => this,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +259,13 @@ class _UsernameStatusLine extends StatelessWidget {
         p.error,
         l10n.usernameTaken(username),
       ),
-      UsernameCheckFailed() => (
+      UsernameInvalid(:final issue) => (
+        Icons.error_outline_rounded,
+        p.error,
+        usernameIssueMessage(l10n, issue) ?? '',
+      ),
+      // Check failed: neutral hint, submit still allowed (server decides).
+      UsernameUnknown() => (
         Icons.info_outline,
         p.textSecondary,
         l10n.usernameCheckFailed,

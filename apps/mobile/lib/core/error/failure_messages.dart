@@ -1,4 +1,5 @@
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 
 /// Localized, user-facing message for an error [code].
@@ -28,6 +29,52 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
   };
 }
 
+/// Codes that honour `Retry-After` (countdown + disabled CTA).
+bool hasRetryCountdown(AppFailure failure) =>
+    failure is ServerFailure &&
+    (failure.code == ErrorCode.rateLimited ||
+        failure.code == ErrorCode.serviceUnavailable) &&
+    (failure.retryAfter ?? Duration.zero) > Duration.zero;
+
 /// Localized, user-facing message for [failure].
-String failureMessage(AppLocalizations l10n, AppFailure failure) =>
-    errorCodeMessage(l10n, failure.code);
+///
+/// For `RATE_LIMITED` and `SERVICE_UNAVAILABLE` with `Retry-After`
+/// (PHASE1_SCREENS §10, CONVENTIONS v1.1) the wait is shown as `m:ss`:
+/// [remaining] is the live countdown value; without it the full
+/// `Retry-After` is shown. Once the countdown reaches zero the plain message
+/// is used.
+String failureMessage(
+  AppLocalizations l10n,
+  AppFailure failure, {
+  Duration? remaining,
+}) {
+  if (failure is ServerFailure && hasRetryCountdown(failure)) {
+    final left = remaining ?? failure.retryAfter!;
+    if (left > Duration.zero) {
+      final wait = KFormat.countdown(_roundUpToSecond(left));
+      return failure.code == ErrorCode.rateLimited
+          ? l10n.errorRateLimitedRetryIn(wait)
+          : l10n.errorServiceBusyRetryIn(wait);
+    }
+  }
+  return errorCodeMessage(l10n, failure.code);
+}
+
+/// The request id to show as a selectable "Error ID" (PHASE1_SCREENS §10):
+/// only for `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE` and unknown codes.
+String? failureErrorId(AppFailure failure) {
+  if (failure is! ServerFailure) return null;
+  final id = failure.requestId;
+  if (id == null || id.isEmpty) return null;
+  return switch (failure.code) {
+    ErrorCode.internalError ||
+    ErrorCode.serviceUnavailable ||
+    ErrorCode.unknown => id,
+    _ => null,
+  };
+}
+
+Duration _roundUpToSecond(Duration d) {
+  final ms = d.inMilliseconds;
+  return Duration(seconds: (ms + 999) ~/ 1000);
+}

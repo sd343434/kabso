@@ -1,6 +1,9 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -185,7 +188,7 @@ class _SessionsSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            KInlineMessage(message: failureMessage(l10n, toAppFailure(error))),
+            FailureBanner(failure: toAppFailure(error)),
             const SizedBox(height: KSpacing.sm),
             KButton(
               label: l10n.actionRetry,
@@ -214,13 +217,16 @@ class _SessionTile extends ConsumerWidget {
 
   final Session session;
 
+  /// Above this text scale the revoke action moves below the row content so
+  /// the text keeps a usable width (QA-004).
+  static const _stackedTextScale = 1.3;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
     final locale = Localizations.localeOf(context).toLanguageTag();
-    final lastActive = DateFormat.yMMMd(locale)
-        .add_jm()
-        .format(session.lastUsedAt.toLocal());
 
     final platform = switch (session.platform) {
       SessionPlatform.android => l10n.platformAndroid,
@@ -230,38 +236,106 @@ class _SessionTile extends ConsumerWidget {
       null => null,
     };
     final name = session.deviceName ?? platform ?? l10n.sessionUnknownDevice;
-    final subtitle = [
+    final relative = KFormat.relative(
+      session.lastUsedAt,
+      clock.now(),
+      l10n,
+      locale,
+    );
+    final activity = [
       if (session.current) l10n.sessionsCurrent,
       if (session.deviceName != null && platform != null) platform,
-      l10n.sessionsLastActive(lastActive),
+      if (session.appVersion case final String v when v.isNotEmpty) v,
+      if (relative == null)
+        l10n.sessionsActiveNow
+      else
+        l10n.sessionsLastActive(relative),
     ].join(' · ');
+    final signedIn = l10n.sessionsSignedIn(
+      KFormat.date(session.createdAt, locale),
+    );
 
-    return ListTile(
+    final icon = ExcludeSemantics(
+      child: Icon(switch (session.platform) {
+        SessionPlatform.android ||
+        SessionPlatform.ios => Icons.smartphone_rounded,
+        SessionPlatform.web => Icons.language_rounded,
+        _ => Icons.devices_other_rounded,
+      }, color: p.textSecondary),
+    );
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(name, style: t.bodyStrong),
+        const SizedBox(height: KSpacing.xxs),
+        Text(activity, style: t.caption),
+        Text(signedIn, style: t.caption),
+      ],
+    );
+    final revoke = session.current
+        ? null
+        : TextButton(
+            style: TextButton.styleFrom(foregroundColor: p.error),
+            onPressed: () => _revoke(context, ref, name),
+            child: Text(l10n.sessionsRevoke),
+          );
+
+    final info = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.only(top: KSpacing.xxs),
+          child: icon,
+        ),
+        const SizedBox(width: KSpacing.lg),
+        Expanded(child: content),
+      ],
+    );
+    final stacked =
+        MediaQuery.textScalerOf(context).scale(1) > _stackedTextScale;
+
+    final Widget body;
+    if (revoke == null) {
+      body = info;
+    } else if (stacked) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          info,
+          Align(alignment: AlignmentDirectional.centerEnd, child: revoke),
+        ],
+      );
+    } else {
+      body = Row(
+        children: [
+          Expanded(child: info),
+          const SizedBox(width: KSpacing.sm),
+          revoke,
+        ],
+      );
+    }
+
+    return ConstrainedBox(
       key: Key('session.${session.id}'),
-      leading: Icon(
-        session.platform == SessionPlatform.ios ||
-                session.platform == SessionPlatform.android
-            ? Icons.smartphone_rounded
-            : Icons.devices_other_rounded,
+      constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: KSpacing.lg,
+          vertical: KSpacing.sm,
+        ),
+        child: body,
       ),
-      title: Text(name),
-      subtitle: Text(subtitle),
-      trailing: session.current
-          ? null
-          : TextButton(
-              onPressed: () => _revoke(context, ref),
-              child: Text(l10n.sessionsRevoke),
-            ),
     );
   }
 
-  Future<void> _revoke(BuildContext context, WidgetRef ref) async {
+  Future<void> _revoke(BuildContext context, WidgetRef ref, String name) async {
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.sessionsRevokeConfirmTitle),
-        content: Text(l10n.sessionsRevokeConfirmBody),
+        // U+2068/U+2069 isolate the device name (any script) in the sentence.
+        content: Text(l10n.sessionsRevokeConfirmBody('\u2068$name\u2069')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -279,10 +353,17 @@ class _SessionTile extends ConsumerWidget {
       await ref.read(authRepositoryProvider).revokeSession(session.id);
       if (context.mounted) KSnack.success(context, l10n.sessionsRevoked);
     } on Object catch (e) {
+      final failure = toAppFailure(e);
       if (context.mounted) {
-        KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+        if (failure.code == ErrorCode.notFound) {
+          // PHASE1_SCREENS §9.3: the session had already ended elsewhere.
+          KSnack.info(context, l10n.sessionsAlreadyEnded);
+        } else {
+          KSnack.error(context, failureMessage(l10n, failure));
+        }
       }
     } finally {
+      // Refresh in every case: on NOT_FOUND this drops the stale row.
       if (context.mounted) ref.invalidate(sessionsProvider);
     }
   }

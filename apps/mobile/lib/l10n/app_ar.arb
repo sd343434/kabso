@@ -39,9 +39,6 @@
   "usernameChecking": "جارٍ التحقق من توفر الاسم…",
   "usernameAvailable": "‎@{username}‎ متاح",
   "@usernameAvailable": { "placeholders": { "username": { "type": "String" } } },
-  "usernameTaken": "‎@{username}‎ مستخدم بالفعل",
-  "@usernameTaken": { "placeholders": { "username": { "type": "String" } } },
-  "usernameCheckFailed": "تعذّر التحقق من توفر الاسم الآن",
 
   "passwordShow": "إظهار كلمة المرور",
   "passwordHide": "إخفاء كلمة المرور",
@@ -82,20 +79,15 @@
   "navProfile": "حسابي",
 
   "homeComingTitle": "خلاصتك في الطريق",
-  "homeComingBody": "منشورات وقصص من تتابعهم تصل في المرحلة 2.",
   "discoverComingTitle": "الاستكشاف قادم",
-  "discoverComingBody": "البحث وصنّاع المحتوى الرائجون يصلون في المرحلة 9.",
   "createComingTitle": "الإنشاء قادم",
   "createComingBody": "منشورات الصور تصل في المرحلة 3، والفيديوهات القصيرة في المرحلة 5.",
   "liveComingTitle": "البث المباشر قادم",
-  "liveComingBody": "بدء البث ومشاهدة البثوث تصل في المرحلة 6.",
 
   "profileTitle": "حسابي",
   "profileEmailVerified": "البريد الإلكتروني مؤكَّد",
   "profileEmailNotVerified": "البريد الإلكتروني غير مؤكَّد",
   "profileResendVerification": "إعادة إرسال رسالة التأكيد",
-  "profileContentComingTitle": "ملفك الشخصي قيد البناء",
-  "profileContentComingBody": "منشوراتك ومتابعوك ومقتطفاتك تصل في المرحلة 2.",
   "profileUsername": "‎@{username}‎",
   "@profileUsername": { "placeholders": { "username": { "type": "String" } } },
 
@@ -109,13 +101,6 @@
   "languageEnglish": "English",
   "settingsSessions": "الجلسات النشطة",
   "sessionsCurrent": "هذا الجهاز",
-  "sessionsLastActive": "آخر نشاط: {date}",
-  "@sessionsLastActive": { "placeholders": { "date": { "type": "String" } } },
-  "sessionsRevoke": "تسجيل الخروج",
-  "sessionsRevokeConfirmTitle": "تسجيل الخروج من هذا الجهاز؟",
-  "sessionsRevokeConfirmBody": "سيُطلب من هذا الجهاز تسجيل الدخول من جديد.",
-  "sessionsRevoked": "تم تسجيل خروج الجهاز",
-  "sessionsNoOthers": "لا توجد جلسات نشطة أخرى",
   "sessionUnknownDevice": "جهاز غير معروف",
   "platformAndroid": "أندرويد",
   "platformIos": "iOS",
@@ -133,15 +118,79 @@
   "errorAuthForbidden": "ليس لديك صلاحية للقيام بذلك.",
   "errorAccountSuspended": "تم إيقاف هذا الحساب.",
   "errorNotFound": "لم نعثر على ما تبحث عنه.",
-  "errorEmailTaken": "هذا البريد الإلكتروني مسجّل بالفعل.",
   "errorUsernameTaken": "اسم المستخدم هذا غير متاح.",
   "errorIdempotencyConflict": "تم إرسال هذا الطلب من قبل ببيانات مختلفة.",
   "errorTokenExpired": "انتهت صلاحية هذا الرابط أو تم استخدامه بالفعل.",
   "errorTokenInvalid": "هذا الرابط غير صالح.",
-  "errorRateLimited": "محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مجددًا.",
   "errorInternal": "حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.",
-  "errorServiceUnavailable": "الخدمة غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.",
+  "errorServiceUnavailable": "الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.",
   "errorNetworkOffline": "لا يوجد اتصال بالإنترنت. تحقّق من اتصالك وحاول مجددًا.",
   "errorNetworkTimeout": "استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى.",
-  "errorUnknown": "حدث خطأ غير متوقع. حاول مرة أخرى."
+  "errorUnknown": "حدث خطأ غير متوقع. حاول مرة أخرى.",
+
+  "errorEmailTaken": "لا يمكن استخدام هذا البريد الإلكتروني لإنشاء حساب جديد. جرّب تسجيل الدخول أو إعادة تعيين كلمة المرور.",
+
+  "errorRateLimited": "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
+
+  "errorRateLimitedRetryIn": "محاولات كثيرة. حاول مرة أخرى بعد {wait}.",
+  "@errorRateLimitedRetryIn": { "placeholders": { "wait": { "type": "String" } } },
+
+  "errorServiceBusyRetryIn": "الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.",
+  "@errorServiceBusyRetryIn": { "placeholders": { "wait": { "type": "String" } } },
+
+  "errorIdLabel": "رمز الخطأ: {requestId}",
+  "@errorIdLabel": { "placeholders": { "requestId": { "type": "String" } } },
+
+  "homeComingBody": "ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.",
+
+  "discoverComingBody": "يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.",
+
+  "liveComingBody": "تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.",
+
+  "profileContentComingTitle": "ستظهر منشوراتك هنا",
+
+  "profileContentComingBody": "يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.",
+
+  "usernameTaken": "‎@{username}‎ غير متاح. جرّب اسمًا آخر.",
+  "@usernameTaken": { "placeholders": { "username": { "type": "String" } } },
+
+  "usernameCheckFailed": "تعذّر التحقق الآن. يمكنك المتابعة على أي حال.",
+
+  "usernameTooShort": "استخدم 3 أحرف على الأقل",
+
+  "usernameTooLong": "استخدم 30 حرفًا أو أقل",
+
+  "usernameBadChars": "استخدم فقط a–z و0–9 والنقطة (.) والشرطة السفلية (_)",
+
+  "usernameBadEdges": "لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية",
+
+  "sessionsLastActive": "نشط {relativeTime}",
+  "@sessionsLastActive": { "placeholders": { "relativeTime": { "type": "String" } } },
+
+  "sessionsActiveNow": "نشط الآن",
+
+  "sessionsSignedIn": "تسجيل الدخول في {date}",
+  "@sessionsSignedIn": { "placeholders": { "date": { "type": "String" } } },
+
+  "relativeMinutesAgo": "منذ {n} د",
+  "@relativeMinutesAgo": { "placeholders": { "n": { "type": "int" } } },
+
+  "relativeHoursAgo": "منذ {n} س",
+  "@relativeHoursAgo": { "placeholders": { "n": { "type": "int" } } },
+
+  "relativeDaysAgo": "منذ {n} ي",
+  "@relativeDaysAgo": { "placeholders": { "n": { "type": "int" } } },
+
+  "sessionsRevoke": "إنهاء",
+
+  "sessionsRevokeConfirmTitle": "إنهاء هذه الجلسة؟",
+
+  "sessionsRevokeConfirmBody": "سيتم تسجيل خروج {device} على الفور.",
+  "@sessionsRevokeConfirmBody": { "placeholders": { "device": { "type": "String" } } },
+
+  "sessionsRevoked": "تم إنهاء الجلسة",
+
+  "sessionsAlreadyEnded": "كانت هذه الجلسة منتهية بالفعل",
+
+  "sessionsNoOthers": "حسابك مسجَّل الدخول على هذا الجهاز فقط."
 }

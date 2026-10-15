@@ -2,13 +2,21 @@
     <!-- Required in every build type: the app talks to the Kabso API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- allowBackup=false: flutter_secure_storage keys live in the Android
-         Keystore and cannot be restored on another device; backing up the
-         encrypted prefs would only produce unreadable data. -->
+    <!-- Backup / transfer of auth data (SEC-019):
+         - allowBackup=false: no cloud (or adb) backup of app data at all.
+         - Android 12+ (API 31+) still performs device-to-device transfer even
+           with allowBackup=false; dataExtractionRules excludes the
+           flutter_secure_storage files from both cloud backup and transfer.
+         - fullBackupContent (API <= 30) carries the same exclusions in case
+           allowBackup is ever enabled.
+         The refresh token is encrypted with a Keystore key that never leaves
+         the device, so a copied file could not be decrypted anyway; excluding
+         it makes the "never leaves the device" rule explicit. -->
     <application
         android:label="Kabso Live"
         android:allowBackup="false"
-        android:fullBackupContent="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -160,11 +160,8 @@ void main() {
   });
 
   group('checklist #11: Latin digits in Arabic', () {
-    // Known defect QA-003 (owner A2): DateFormat('ar') renders Arabic-Indic
-    // digits ("١٥ أكتوبر ٢٠٢٦ ١٢:٣٠ م"). Remove the skip with the fix.
-    testWidgets('session dates in Arabic use Latin digits', skip: true, (
-      tester,
-    ) async {
+    // QA-003 fixed in KL-012 (KFormat: Latin digits in both locales).
+    testWidgets('session dates in Arabic use Latin digits', (tester) async {
       final repo = _SessionsRepo([
         _session(_thisDevice, current: true, name: 'This Phone'),
       ]);
