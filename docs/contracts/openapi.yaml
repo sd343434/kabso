@@ -241,9 +241,9 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+          description: A malformed id is treated as not found (404), never 400.
       responses:
         '204': { description: Revoked. }
-        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }

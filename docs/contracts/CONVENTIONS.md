@@ -48,6 +48,13 @@ All non-2xx responses use one envelope:
 
 - `code` is a stable `UPPER_SNAKE_CASE` string; clients branch on it. `details` is optional;
   for validation errors it lists `{ field, issue }` where `field` is a dotted JSON path.
+- Validation `issue` vocabulary (closed set; clients may branch on it): `required`,
+  `invalid_type`, `too_short`, `too_long`, `too_small`, `too_big`, `invalid_email`,
+  `invalid_format`, `invalid_value`, `unknown_field`, `malformed_json`, `payload_too_large`.
+  Body-level problems (malformed JSON, body over the size limit, wrong content type) are reported
+  as 400 `VALIDATION_FAILED` with `field: ""` — the API does not use 413/415.
+- A suspended user's still-valid access token receives 401 `AUTH_UNAUTHENTICATED` on protected
+  routes; `ACCOUNT_SUSPENDED` (403) is returned only by login and refresh.
 - Never leak stack traces, SQL, or whether an email exists (see AUTH codes below).
 
 | HTTP | code | Meaning |
@@ -116,7 +123,11 @@ return the resource object directly (no `data` wrapper).
 | `POST /auth/register` | 5 / hour per IP |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
 | `POST /auth/refresh` | 60 / 15 min per session |
+| `POST /auth/email/resend` | 5 / hour per user |
+| Other public routes (`email/verify`, `password/reset`, `users/username-availability`) | 300 / 15 min per IP |
 | Everything else (authenticated) | 600 / 15 min per user |
+
+Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavailable.
 
 ## 8. Ownership of shared artifacts
 
@@ -139,6 +150,8 @@ return the resource object directly (no `data` wrapper).
 | v1.0 | 2026-10-15 | Initial Phase 1 contract. | — |
 | v1.0.1 | 2026-10-15 | `openapi.yaml`: quoted the `forgotPassword` 202 description (invalid YAML flow mapping, found by A8). | Fix; no shape change. |
 | v1.0.2 | 2026-10-15 | `openapi.yaml`: documented responses already guaranteed by §4/§7 but missing from operations — `400 VALIDATION_FAILED` on `refresh`, `verifyEmail`, `revokeSession`; `429 RATE_LIMITED` on `logout`, `verifyEmail`, `resetPassword`, `listSessions`, `revokeSession`, `getMe`. Added operation summaries and tag descriptions. | Additive documentation only; no request/response shape changed. |
+
+| v1.0.3 | 2026-10-15 | Ratified KL-002 clarifications: validation `issue` vocabulary (§4); body-level errors use 400 not 413/415; suspended access token → 401; extra rate limits for `email/resend` and other public routes (§7); `revokeSession` malformed id → 404 (removes the 400 added in v1.0.2). | Clarification of existing behavior; no shape change. Client must send usernames already lowercased (pattern is enforced strictly, not normalized). |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
