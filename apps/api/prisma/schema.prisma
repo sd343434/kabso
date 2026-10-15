@@ -63,7 +63,8 @@ model UserProfile {
   userId      String   @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
   username    String   @unique @db.VarChar(30)
-  displayName String   @map("display_name") @db.VarChar(50)
+  /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
+  displayName String   @map("display_name") @db.VarChar(100)
   bio         String?  @db.VarChar(300)
   avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
   locale      String   @default("ar") @db.VarChar(8)
@@ -91,8 +92,11 @@ model Session {
   userId                   String    @map("user_id") @db.Uuid
   /// SHA-256 (hex) of the current refresh secret.
   refreshTokenHash         String    @map("refresh_token_hash") @db.Char(64)
-  /// SHA-256 (hex) of the immediately preceding secret, kept for reuse detection.
+  /// SHA-256 (hex) of the immediately preceding secret (also element 1 of the history below).
   previousRefreshTokenHash String?   @map("previous_refresh_token_hash") @db.Char(64)
+  /// SHA-256 (hex) of the last 10 rotated secrets, newest first (SEC-022). Presenting any of
+  /// them is reuse and revokes the session. Bounded by the rotation SQL and a CHECK constraint.
+  rotatedRefreshTokenHashes String[] @default([]) @map("rotated_refresh_token_hashes") @db.Char(64)
   /// Incremented on every rotation (compare-and-swap guard + diagnostics).
   rotationCounter          Int       @default(0) @map("rotation_counter")
   deviceName               String?   @map("device_name") @db.VarChar(100)
@@ -152,4 +156,33 @@ model AuditLog {
   @@index([action, createdAt(sort: Desc)], map: "audit_logs_action_created_at_idx")
   @@index([targetType, targetId], map: "audit_logs_target_idx")
   @@map("audit_logs")
+}
+
+/// Verify-first registration (contract v1.2 §6, KL-019). No account exists until the emailed code
+/// is verified. At most one row per email; a username held by a live row counts as taken.
+model PendingRegistration {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  /// Normalized (trimmed + lowercase).
+  email        String   @unique @db.VarChar(254)
+  /// Lowercase; reserved while the row is live (format CHECK as for user_profiles).
+  username     String   @unique @db.VarChar(30)
+  displayName  String   @map("display_name") @db.VarChar(100)
+  locale       String   @db.VarChar(8)
+  /// Argon2id PHC string of the chosen password (computed at register time).
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  deviceName   String?  @map("device_name") @db.VarChar(100)
+  platform     String?  @db.VarChar(16)
+  appVersion   String?  @map("app_version") @db.VarChar(32)
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @map("user_agent") @db.VarChar(512)
+  /// HMAC-SHA-256 (hex) of the 8-digit code, keyed by a key derived from RATE_LIMIT_KEY_SECRET.
+  codeHash     String   @map("code_hash") @db.Char(64)
+  /// Code checks consumed (max 5, then the row is deleted).
+  attempts     Int      @default(0)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([expiresAt], map: "pending_registrations_expires_at_idx")
+  @@map("pending_registrations")
 }
