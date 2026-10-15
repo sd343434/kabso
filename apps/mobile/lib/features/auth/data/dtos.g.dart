@@ -142,3 +142,29 @@ Map<String, dynamic> _$UsernameAvailabilityDtoToJson(
   'username': instance.username,
   'available': instance.available,
 };
+
+VerificationPendingDto _$VerificationPendingDtoFromJson(
+  Map<String, dynamic> json,
+) => VerificationPendingDto(status: json['status'] as String);
+
+Map<String, dynamic> _$VerificationPendingDtoToJson(
+  VerificationPendingDto instance,
+) => <String, dynamic>{'status': instance.status};
+
+RegisterVerifyRequestDto _$RegisterVerifyRequestDtoFromJson(
+  Map<String, dynamic> json,
+) => RegisterVerifyRequestDto(
+  email: json['email'] as String,
+  code: json['code'] as String,
+  device: json['device'] == null
+      ? null
+      : DeviceInfoDto.fromJson(json['device'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$RegisterVerifyRequestDtoToJson(
+  RegisterVerifyRequestDto instance,
+) => <String, dynamic>{
+  'email': instance.email,
+  'code': instance.code,
+  'device': ?instance.device?.toJson(),
+};

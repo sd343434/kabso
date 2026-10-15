@@ -195,3 +195,34 @@ class UsernameAvailabilityDto {
 
   Map<String, dynamic> toJson() => _$UsernameAvailabilityDtoToJson(this);
 }
+
+/// `VerificationPending` (v1.2): constant body of `register` / `registerResend`.
+@JsonSerializable()
+class VerificationPendingDto {
+  const new({required this.status});
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$VerificationPendingDtoFromJson(json);
+
+  /// Always `verification_pending`.
+  final String status;
+
+  Map<String, dynamic> toJson() => _$VerificationPendingDtoToJson(this);
+}
+
+/// `RegisterVerifyRequest` (v1.2).
+@JsonSerializable(includeIfNull: false, explicitToJson: true)
+class RegisterVerifyRequestDto {
+  const new({required this.email, required this.code, this.device});
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$RegisterVerifyRequestDtoFromJson(json);
+
+  final String email;
+
+  /// Exactly 8 Western digits (`^[0-9]{8}$`).
+  final String code;
+  final DeviceInfoDto? device;
+
+  Map<String, dynamic> toJson() => _$RegisterVerifyRequestDtoToJson(this);
+}

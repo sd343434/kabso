@@ -18,6 +18,9 @@ enum ValidationIssueCode {
   unknownField('unknown_field'),
   malformedJson('malformed_json'),
   payloadTooLarge('payload_too_large'),
+
+  /// v1.2: displayName contains a reserved term (list is server-side only).
+  reservedTerm('reserved_term'),
   unknown('');
 
   new(this.wire);
@@ -34,13 +37,13 @@ enum ValidationIssueCode {
 extension AuthFailureFields on AppFailure {
   /// Fields the failure points at, with the validation issue when known.
   ///
-  /// `EMAIL_TAKEN` / `USERNAME_TAKEN` map to their field (issue `null`);
+  /// `USERNAME_TAKEN` maps to the username (issue `null`); `EMAIL_TAKEN`
+  /// is deliberately **not** mapped (v1.2, D24: never reveal email use);
   /// `VALIDATION_FAILED` maps `details[].field` entries that name a form
   /// field. Body-level details (`field: ""`) and unknown fields are not
   /// mapped, so the caller shows a form-level message instead.
   Map<AuthField, ValidationIssueCode?> get authFieldIssues {
     final self = this;
-    if (code == ErrorCode.emailTaken) return {AuthField.email: null};
     if (code == ErrorCode.usernameTaken) return {AuthField.username: null};
     if (code == ErrorCode.validationFailed && self is ServerFailure) {
       return {

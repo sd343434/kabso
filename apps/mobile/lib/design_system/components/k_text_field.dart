@@ -31,6 +31,8 @@ class KTextField extends StatefulWidget {
     this.enabled = true,
     this.maxLength,
     this.fieldKey,
+    this.counterText,
+    this.counterIsError = false,
   });
 
   final String label;
@@ -58,6 +60,12 @@ class KTextField extends StatefulWidget {
 
   /// Key of the inner [TextFormField] (tests, focus).
   final Key? fieldKey;
+
+  /// Shown at the end of the helper line (e.g. "12/50").
+  final String? counterText;
+
+  /// Renders [counterText] in the error colour.
+  final bool counterIsError;
 
   @override
   State<KTextField> createState() => _KTextFieldState();
@@ -101,6 +109,13 @@ class _KTextFieldState extends State<KTextField> {
             labelText: widget.label,
             errorText: widget.errorText,
             helperText: widget.status == null ? widget.helperText : null,
+            counterText: widget.counterText,
+            counterStyle: widget.counterText == null
+                ? null
+                : context.textStyles.caption.copyWith(
+                    color: widget.counterIsError ? p.error : null,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
             suffixIcon: widget.obscure
                 ? IconButton(
                     tooltip: toggleLabel,
