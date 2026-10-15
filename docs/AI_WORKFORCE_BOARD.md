@@ -40,12 +40,12 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | REVIEW — INTEGRATED (`b973d7b`) | KL-001 | A1 ✅; A6, A7 in progress |
 | KL-004 | Design system & screen inventory spec | A5 | P1 | DONE — INTEGRATED (`6e64fd3`) | KL-001 | A1 ✅ (scope + contrast math re-computed) |
 | KL-005 | CI, local infra, deployment doc | A8 | P0 | TESTING — INTEGRATED (`5ec94ad`); first remote runs in progress | KL-001 | A1 ✅ |
-| KL-006 | Independent QA verification of Phase 1 | A6 | P0 | IN_PROGRESS (candidate `b973d7b`, own DB `kabso_qa_test`, Redis db 14) | KL-002, KL-003 | A1 |
+| KL-006 | Independent QA verification of Phase 1 | A6 | P0 | DONE — APPROVE WITH CONDITIONS; merged `a8acdd6` (30 API e2e + 36 Flutter tests, report `docs/qa/KL-006_PHASE1_QA_REPORT.md`) | KL-002, KL-003 | A1 ✅ |
 | KL-007 | Auth threat model & security review | A7 | P0 | DONE — verdict PASS WITH CONDITIONS; deliverables merged `0b6e9fc` (17 security regression tests) | KL-002 | A1 ✅ (SEC-001/003/007 re-verified in code) |
 | KL-008 | Integration of Phase 1 + regression run | A1 | P0 | IN_PROGRESS — all Wave 1 branches merged; awaiting QA/Security + full remote CI | KL-002..005 | A6 |
-| KL-010 | DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
-| KL-011 | Backend security fixes: SEC-001, 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 | A3 | P0 | READY | contract v1.1 | A1, A7 re-test, A6 |
-| KL-012 | Mobile hardening: SEC-007 (no ATS local-networking / http in release), SEC-019 (backup/transfer exclusion), SEC-020 (no debug-key release signing) | A2 | P0 | READY | — | A1, A7 re-test |
+| KL-010 | (IN_PROGRESS) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
+| KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | IN_PROGRESS | contract v1.1 | A1, A7 re-test, A6 |
+| KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | IN_PROGRESS | — | A1, A7 re-test |
 | KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P1 | BACKLOG — required before any deployment (B10) | KL-011 | A7 |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
@@ -61,7 +61,7 @@ Integrated candidate: **`b973d7b`** + KL-007 deliverables (`0b6e9fc`).
 | Mobile gates (local, CTO re-run) | codegen drift none · format 0/71 changed · analyze no issues · test **162/162** | ✅ |
 | Remote CI, all jobs | **run 13 (`fbd1745`, workflow_dispatch): all 8 jobs success** — gitleaks, contracts, API (incl. e2e on service containers), Mobile, **Android debug APK built + uploaded**, **iOS unsigned build (macos-latest)**, CI OK | ✅ |
 | KL-007 Security | PASS WITH CONDITIONS — no Critical/High; conditions: SEC-001, SEC-003, SEC-002, SEC-007 fixed; SEC-011 before deployment | ⏳ fixes in KL-011/012 |
-| KL-006 QA | running | ⏳ |
+| KL-006 QA | APPROVE WITH CONDITIONS: 0 Blocker, 5 Medium, 2 Low; black-box 128/131 (3 fails = QA-001/002); integrated tree after merge: API e2e **91/91**, Flutter **196 pass / 3 skipped (tracked QA-003/004)** | ⏳ fixes in KL-011/012 |
 | Device testing (install/run on emulator/device) | not performed anywhere | ⛔ NOT VERIFIED |
 
 Build evidence = **compiles in CI**; not device-tested, not signed, not production-ready.
@@ -131,6 +131,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D12 | 2026-10-15 | Contract v1.0.4: ARGB token hex, explicit username length check, B7 placeholder id corrected | Documentation only |
 | D13 | 2026-10-15 | Contract v1.1 adopts KL-007 recommendations (see CONVENTIONS §9); EMAIL_TAKEN kept for Phase 1 as accepted risk → launch blocker B9 | Security gate conditions; no shape change |
 | D14 | 2026-10-15 | Removed `scratchpad/bin/ls8/leakscan` (byte-identical renamed gitleaks copy, sha256 88f91962…) — renaming tools to bypass sandbox command rules is not permitted for any agent | Process integrity |
+| D15 | 2026-10-15 | QA-006: `PHASE1_SCREENS.md` governs wording/behavior; ARB key names are implementation detail | Avoid churn without user-visible value |
+| D16 | 2026-10-15 | QA tests that pin open defects may be committed with `skip:` + defect ID; owner must remove the skip as part of the fix's acceptance | Keeps evidence of the defect in-repo without a red build |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
