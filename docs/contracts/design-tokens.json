@@ -1,5 +1,5 @@
 {
-  "$comment": "Kabso Live core design tokens v1 (authoritative). Flutter implements these 1:1 in lib/design_system/tokens. Design spec: docs/design/DESIGN_SYSTEM.md. Colors are sRGB hex. Changes via contract proposal only.",
+  "$comment": "Kabso Live core design tokens v1 (authoritative). Flutter implements these 1:1 in lib/design_system/tokens. Design spec: docs/design/DESIGN_SYSTEM.md. Colors are sRGB hex: #RRGGBB, or #AARRGGBB (alpha first, Flutter Color order) where 8 digits are used, e.g. scrim #B3000000 = black at 70% opacity. Changes via contract proposal only.",
   "color": {
     "brand": {
       "red500": "#E50914",

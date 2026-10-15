@@ -108,7 +108,7 @@ return the resource object directly (no `data` wrapper).
 - Passwords: 8–128 chars, hashed with Argon2id (server-side only). Login accepts email or
   username as `identifier`.
 - Usernames: `^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$` (3–30 chars, lowercase, no leading/
-  trailing `.`/`_`), unique case-insensitively, stored lowercase. A reserved list (admin, kabso,
+  trailing `.`/`_`), unique case-insensitively, stored lowercase. The regex alone admits a 1-character name; the 3–30 length bound is a separate, mandatory check (clients and server apply both). A reserved list (admin, kabso,
   support, api, live, …) is rejected with `USERNAME_TAKEN`.
 - Emails are normalized (trim + lowercase) before uniqueness checks.
 - Email verification and password reset use single-use tokens (32 random bytes, SHA-256 stored,
@@ -152,6 +152,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.0.2 | 2026-10-15 | `openapi.yaml`: documented responses already guaranteed by §4/§7 but missing from operations — `400 VALIDATION_FAILED` on `refresh`, `verifyEmail`, `revokeSession`; `429 RATE_LIMITED` on `logout`, `verifyEmail`, `resetPassword`, `listSessions`, `revokeSession`, `getMe`. Added operation summaries and tag descriptions. | Additive documentation only; no request/response shape changed. |
 
 | v1.0.3 | 2026-10-15 | Ratified KL-002 clarifications: validation `issue` vocabulary (§4); body-level errors use 400 not 413/415; suspended access token → 401; extra rate limits for `email/resend` and other public routes (§7); `revokeSession` malformed id → 404 (removes the 400 added in v1.0.2). | Clarification of existing behavior; no shape change. Client must send usernames already lowercased (pattern is enforced strictly, not normalized). |
+| v1.0.4 | 2026-10-15 | Clarifications from KL-003 (A2): design-tokens 8-digit hex is `#AARRGGBB`; username length bound must be checked in addition to the regex. KNOWN_LIMITATIONS B7 corrected to the actual placeholder id `com.kabso.kabso_live`. | Documentation only; matches implemented behavior. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
