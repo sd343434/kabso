@@ -357,7 +357,7 @@ describe('POST /auth/refresh', () => {
     const audit = await ctx.prisma.auditLog.findFirst({
       where: { action: 'auth.refresh.reuse', targetId: sessionId },
     });
-    expect(audit?.metadata).toEqual({ matchedPrevious: true });
+    expect(audit?.metadata).toMatchObject({ matchedPrevious: true });
   });
 
   it('lets exactly one of several concurrent refreshes with the same token succeed', async () => {

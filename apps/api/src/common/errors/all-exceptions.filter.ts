@@ -1,5 +1,6 @@
 import { Catch, Logger, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { safeErrorLog } from '../../logging/redact-text.js';
 import { getRequestId } from '../request-id/request-id.js';
 import { mapException, toEnvelope } from './error-mapping.js';
 
@@ -10,7 +11,10 @@ export function sendError(exception: unknown, req: Request, res: Response): void
   const mapped = mapException(exception);
   const requestId = getRequestId(req);
   if (mapped.unexpected) {
-    logger.error({ err: exception, requestId, method: req.method, path: req.path }, 'Unhandled exception');
+    logger.error(
+      { error: safeErrorLog(exception), requestId, method: req.method, path: req.path },
+      'Unhandled exception',
+    );
   }
   if (res.headersSent) return;
   for (const [name, value] of Object.entries(mapped.headers ?? {})) res.setHeader(name, value);

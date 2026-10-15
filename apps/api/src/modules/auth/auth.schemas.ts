@@ -5,15 +5,41 @@ import { passwordPolicyIssue } from './password-policy.js';
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
 // (`additionalProperties: false`): unknown fields fail with `unknown_field`.
 
-// eslint-disable-next-line no-control-regex -- intentionally matching control characters
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+/**
+ * Characters refused in free text (CONVENTIONS §6, SEC-008): C0/C1 controls and DEL, bidi
+ * embedding/override (U+202A–U+202E) and isolate (U+2066–U+2069) controls, zero-width
+ * characters (U+200B–U+200D, U+2060, U+FEFF).
+ */
+export const UNSAFE_TEXT_CHARS =
+  // eslint-disable-next-line no-control-regex -- intentionally matching control characters
+  /[\u0000-\u001f\u007f-\u009f\u200b-\u200d\u2060\u202a-\u202e\u2066-\u2069\ufeff]/;
+
+/** Trimmed free-text field that rejects {@link UNSAFE_TEXT_CHARS} with `invalid_format`. */
+export const safeText = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(min)
+    .max(max)
+    .refine((v) => !UNSAFE_TEXT_CHARS.test(v), {
+      message: 'contains control, bidi or zero-width characters',
+      params: { issue: 'invalid_format' },
+    });
+
+/** Passwords are compared and hashed in Unicode NFC (CONVENTIONS §6, SEC-016). */
+export function normalizePassword(password: string): string {
+  return password.normalize('NFC');
+}
 
 export const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email());
 
-export const passwordSchema = z.string().superRefine((value, ctx) => {
-  const issue = passwordPolicyIssue(value);
-  if (issue) ctx.addIssue({ code: 'custom', message: `password ${issue}`, params: { issue } });
-});
+export const passwordSchema = z
+  .string()
+  .transform(normalizePassword)
+  .superRefine((value, ctx) => {
+    const issue = passwordPolicyIssue(value);
+    if (issue) ctx.addIssue({ code: 'custom', message: `password ${issue}`, params: { issue } });
+  });
 
 export const usernameSchema = z
   .string()
@@ -24,21 +50,16 @@ export const usernameSchema = z
 export const localeSchema = z.enum(['ar', 'en']);
 
 export const deviceInfoSchema = z.strictObject({
-  name: z.string().trim().max(100).optional(),
+  name: safeText(0, 100).optional(),
   platform: z.enum(['android', 'ios', 'web', 'other']).optional(),
-  appVersion: z.string().trim().max(32).optional(),
+  appVersion: safeText(0, 32).optional(),
 });
 
 export const registerSchema = z.strictObject({
   email: emailSchema,
   password: passwordSchema,
   username: usernameSchema,
-  displayName: z
-    .string()
-    .trim()
-    .min(1)
-    .max(50)
-    .refine((v) => !CONTROL_CHARS.test(v), { params: { issue: 'invalid_format' } }),
+  displayName: safeText(1, 50),
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
 });
@@ -46,7 +67,13 @@ export type RegisterInput = z.output<typeof registerSchema>;
 
 export const loginSchema = z.strictObject({
   identifier: z.string().trim().min(3).max(254),
-  password: z.string().min(1).max(128),
+  // Length is checked in code points after NFC, so an NFD spelling of a valid password passes.
+  password: z
+    .string()
+    .min(1)
+    .max(512)
+    .transform(normalizePassword)
+    .refine((v) => [...v].length <= 128, { params: { issue: 'too_long' } }),
   device: deviceInfoSchema.optional(),
 });
 export type LoginInput = z.output<typeof loginSchema>;

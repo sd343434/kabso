@@ -6,7 +6,8 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 
 ## Global behaviour
 
-- Every route requires `Authorization: Bearer <access JWT>` unless marked **public** below.
+- Every route requires `Authorization: Bearer <access JWT>` (scheme matched
+  case-insensitively, RFC 7235) unless marked **public** below.
   The guard verifies the JWT (HS256 only, `iss=kabso-api`, `aud=kabso-mobile`, `typ=access`,
   not expired) **and** loads the session: it must belong to `sub`, not be revoked, not be expired,
   and the user must be `ACTIVE`. Otherwise → 401 `AUTH_UNAUTHENTICATED`.
@@ -15,8 +16,17 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 - Validation `issue` values: `required`, `invalid_type`, `too_short`, `too_long`, `too_small`,
   `too_big`, `invalid_email`, `invalid_format`, `invalid_value`, `unknown_field`,
   `malformed_json`, `payload_too_large`.
-- Rate limits are Redis fixed windows. If Redis is unavailable, rate-limited routes fail
+- Every response carries `Cache-Control: no-store` (CONVENTIONS §1).
+- Free text (`displayName`, `device.name`, `device.appVersion`) rejects C0/C1 controls, bidi
+  override/isolate and zero-width characters with `invalid_format`.
+- Passwords are normalized to Unicode NFC before length checks, hashing and verification. Argon2
+  work is capped per process; when saturated → 503 `SERVICE_UNAVAILABLE` + `Retry-After: 1`.
+- Rate limits are Redis fixed windows keyed by HMAC-SHA-256 of the subject under
+  `RATE_LIMIT_KEY_SECRET`. IP buckets use the client IP derived per `TRUST_PROXY` (never `true`
+  in production), with IPv6 grouped by /64. If Redis is unavailable, rate-limited routes fail
   **closed** with 503 `SERVICE_UNAVAILABLE`.
+- Non-HTTP execution contexts (WebSocket, RPC) are denied by both global guards until a
+  dedicated auth strategy exists.
 - Every authenticated request also counts against 600 / 15 min per user; public routes without
   a specific rule count against 300 / 15 min per IP (`RATE_LIMIT_PUBLIC_IP`).
 
@@ -26,13 +36,13 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 | -------- | ---- | -------------------- | ----- |
 | `GET /health/live` | public | none | process up |
 | `GET /health/ready` | public | none | DB `SELECT 1` + Redis `PING` (2 s timeout each); 503 + `{status:"down"}` if either fails |
-| `POST /auth/register` | public | 5/h per IP | reserved username → 409 `USERNAME_TAKEN`; creates user+profile+settings+session+verify token in one transaction; email sent after commit |
-| `POST /auth/login` | public | 10/15 min per IP+identifier, 50/15 min per IP | `identifier` containing `@` is treated as an email, otherwise a username; unknown user and wrong password both → 401 `AUTH_INVALID_CREDENTIALS` (unknown users still pay an Argon2 verification); SUSPENDED (after correct password) → 403 `ACCOUNT_SUSPENDED`; DELETED → 401 |
-| `POST /auth/refresh` | public (refresh token) | 60/15 min per session | rotation via compare-and-swap; any non-current secret for a live session = reuse → session revoked (`REFRESH_REUSE`) + 401 `AUTH_REFRESH_INVALID`; losing a concurrent race → 401 without revoking; SUSPENDED → 403 |
+| `POST /auth/register` | public | 5/h per IP (/64) | reserved username → 409 `USERNAME_TAKEN`; creates user+profile+settings+session+verify token in one transaction; email sent after commit |
+| `POST /auth/login` | public | 50/15 min per IP (guard); then, after resolving the account and **before** Argon2: 10/15 min per IP+account and 20/15 min per account across all IPs (email and username of one account share these; unknown identifiers are keyed by the normalized identifier; breaches audited as `auth.login.rate_limited`) | `identifier` containing `@` is treated as an email, otherwise a username; unknown user and wrong password both → 401 `AUTH_INVALID_CREDENTIALS` (unknown users still pay an Argon2 verification); SUSPENDED (after correct password) → 403 `ACCOUNT_SUSPENDED`; DELETED → 401 |
+| `POST /auth/refresh` | public (refresh token) | 60/15 min per session | rotation via compare-and-swap. Presenting the **immediately previous** secret = reuse → session revoked (`REFRESH_REUSE`, audited with `matchedPrevious` and seconds since the last rotation) + 401 `AUTH_REFRESH_INVALID`. Any other non-matching secret (e.g. made up from the public `sid`) → 401 `AUTH_REFRESH_INVALID` **without** revoking (audited `auth.refresh.invalid_secret`). Concurrent refreshes with one secret: exactly one succeeds; a duplicate that arrives *after* the winner committed presents the now-previous secret and therefore **revokes the session** (intentional fail-safe, CONVENTIONS §6 — clients must keep refresh single-flight); a duplicate that read the row before the winner committed just gets 401. SUSPENDED → 403 |
 | `POST /auth/logout` | bearer | per user | revokes the caller's session (`LOGOUT`) |
 | `POST /auth/email/verify` | public | per IP | malformed/unknown → 422 `TOKEN_INVALID`; used/expired → 410 `TOKEN_EXPIRED` |
 | `POST /auth/email/resend` | bearer | 5/h per user (`RATE_LIMIT_EMAIL_RESEND_USER`) + per user | no-op when already verified; new token invalidates older ones |
-| `POST /auth/password/forgot` | public | 3/h per email, 10/h per IP | always 202 with empty body; work happens after the response; only ACTIVE users receive mail |
+| `POST /auth/password/forgot` | public | 3/h per email, 10/h per IP (/64) | always 202 with empty body; work happens after the response; only ACTIVE users receive mail |
 | `POST /auth/password/reset` | public | per IP | token single-use; sets new password and revokes **all** sessions (`PASSWORD_RESET`) |
 | `GET /auth/sessions` | bearer | per user | live sessions only, newest first, max 50, `current` = caller's session, `ipCountry` always null |
 | `DELETE /auth/sessions/{id}` | bearer | per user | own live session only; foreign, revoked, unknown or malformed id → 404 `NOT_FOUND` |
@@ -42,5 +52,6 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 ## Audit events
 
 `auth.register`, `auth.login.success`, `auth.login.failure` (with `reason`: `unknown_identifier`
-\| `bad_password` \| `suspended`), `auth.logout`, `auth.refresh.reuse`, `auth.email.verified`,
+\| `bad_password` \| `suspended`), `auth.login.rate_limited`, `auth.logout`, `auth.refresh.reuse`,
+`auth.refresh.invalid_secret` (CONVENTIONS §6 `refresh.invalid_secret`), `auth.email.verified`,
 `auth.password.reset_requested`, `auth.password.reset`, `auth.session.revoke`.

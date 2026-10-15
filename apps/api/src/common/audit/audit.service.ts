@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { safeErrorLog } from '../../logging/redact-text.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -6,8 +7,11 @@ export enum AuditAction {
   REGISTER = 'auth.register',
   LOGIN_SUCCESS = 'auth.login.success',
   LOGIN_FAILURE = 'auth.login.failure',
+  LOGIN_RATE_LIMITED = 'auth.login.rate_limited',
   LOGOUT = 'auth.logout',
   REFRESH_REUSE = 'auth.refresh.reuse',
+  /** CONVENTIONS §6 `refresh.invalid_secret` (namespaced like every other auth action). */
+  REFRESH_INVALID_SECRET = 'auth.refresh.invalid_secret',
   EMAIL_VERIFIED = 'auth.email.verified',
   PASSWORD_RESET_REQUESTED = 'auth.password.reset_requested',
   PASSWORD_RESET = 'auth.password.reset',
@@ -46,10 +50,7 @@ export class AuditService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        { err: { message: (err as Error).message }, action: entry.action },
-        'Audit write failed',
-      );
+      this.logger.error({ error: safeErrorLog(err), action: entry.action }, 'Audit write failed');
     }
   }
 }

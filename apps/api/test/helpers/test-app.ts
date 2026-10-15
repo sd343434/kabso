@@ -65,7 +65,10 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     JWT_ACCESS_SECRET: randomBytes(48).toString('base64url'),
     APP_PUBLIC_URL: 'http://localhost:3000',
     MAIL_TRANSPORT: 'log',
-    RATE_LIMIT_LOGIN_IP_IDENTIFIER: GENEROUS,
+    RATE_LIMIT_KEY_SECRET: randomBytes(48).toString('base64url'),
+    ARGON2_MAX_QUEUE: '1000',
+    RATE_LIMIT_LOGIN_IP_ACCOUNT: GENEROUS,
+    RATE_LIMIT_LOGIN_ACCOUNT: GENEROUS,
     RATE_LIMIT_LOGIN_IP: GENEROUS,
     RATE_LIMIT_REGISTER_IP: GENEROUS,
     RATE_LIMIT_FORGOT_EMAIL: GENEROUS,
@@ -100,13 +103,24 @@ async function deleteRedisKeys(url: string, prefix: string): Promise<void> {
   }
 }
 
-export async function createTestApp(overrides: Record<string, string> = {}): Promise<TestContext> {
+export interface ProviderOverride {
+  readonly token: string | symbol | (abstract new (...args: never[]) => unknown);
+  readonly value: unknown;
+}
+
+export async function createTestApp(
+  overrides: Record<string, string> = {},
+  providerOverrides: readonly ProviderOverride[] = [],
+): Promise<TestContext> {
   const config = buildTestConfig(overrides);
   const mail = new CapturingMailSender();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule.register(config)] })
+  let builder = Test.createTestingModule({ imports: [AppModule.register(config)] })
     .overrideProvider(MAIL_SENDER)
-    .useValue(mail)
-    .compile();
+    .useValue(mail);
+  for (const override of providerOverrides) {
+    builder = builder.overrideProvider(override.token).useValue(override.value);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
   configureApp(app, config);
   await app.init();
