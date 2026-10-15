@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kabso Live API
-  version: 1.0.0-phase1
+  version: 1.2.0
   description: |
     Authoritative HTTP contract. Conventions (errors, pagination, auth, rate limits) are defined in
     CONVENTIONS.md and apply to every operation. Phase 1 scope: health, authentication, sessions,
@@ -55,7 +55,11 @@ paths:
     post:
       tags: [auth]
       operationId: register
-      summary: "Create an account and start a session"
+      summary: "Start a verify-first registration (never reveals whether the email exists)"
+      description: |
+        v1.2 (CONVENTIONS §6 "Verify-first registration"). Always 202 with a constant body when
+        the request is valid and the username is free — whether or not the email is registered.
+        No account and no tokens are created here; complete with `registerVerify`.
       security: []
       requestBody:
         required: true
@@ -63,13 +67,74 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/RegisterRequest' }
       responses:
+        '202':
+          description: Verification code emailed if the address can register (constant body).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationPending' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409':
+          description: USERNAME_TAKEN only (taken by an account or a live pending registration).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/register/verify:
+    post:
+      tags: [auth]
+      operationId: registerVerify
+      summary: "Complete registration with the emailed code; creates the account and a session"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterVerifyRequest' }
+      responses:
         '201':
-          description: Account created, session started, verification email queued.
+          description: Account created (email verified) and session started.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuthResponse' }
         '400': { $ref: '#/components/responses/Error' }
-        '409': { $ref: '#/components/responses/Error' }
+        '409':
+          description: USERNAME_TAKEN (backstop race only).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422':
+          description: TOKEN_INVALID for every failure (unknown email, wrong/expired code, attempts exhausted, email registered meanwhile).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/register/resend:
+    post:
+      tags: [auth]
+      operationId: registerResend
+      summary: "Re-send the registration code (always 202)"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202':
+          description: Always returned for a valid body.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationPending' }
+        '400': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/auth/login:
@@ -261,6 +326,29 @@ paths:
               schema: { $ref: '#/components/schemas/Me' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [me]
+      operationId: updateMe
+      summary: "Update the caller's preferences (v1.2: locale)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locale]
+              additionalProperties: false
+              properties:
+                locale: { $ref: '#/components/schemas/Locale' }
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/users/username-availability:
     get:
@@ -354,8 +442,30 @@ components:
         email: { type: string, format: email, maxLength: 254 }
         password: { $ref: '#/components/schemas/Password' }
         username: { $ref: '#/components/schemas/Username' }
-        displayName: { type: string, minLength: 1, maxLength: 50 }
+        displayName: { $ref: '#/components/schemas/DisplayName' }
         locale: { $ref: '#/components/schemas/Locale' }
+        device: { $ref: '#/components/schemas/DeviceInfo' }
+    DisplayName:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: |
+        v1.2 (CONVENTIONS §6): NFC, trimmed, 1–50 grapheme clusters and ≤ 100 code points.
+        ZWNJ/ZWJ allowed between non-joiner, non-space characters; bidi controls, U+200B, U+2060,
+        U+FEFF, C0/C1 rejected (`invalid_format`); > 3 consecutive combining marks rejected;
+        reserved terms rejected (`reserved_term`).
+    VerificationPending:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [verification_pending] }
+    RegisterVerifyRequest:
+      type: object
+      required: [email, code]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        code: { type: string, pattern: '^[0-9]{8}$' }
         device: { $ref: '#/components/schemas/DeviceInfo' }
     LoginRequest:
       type: object

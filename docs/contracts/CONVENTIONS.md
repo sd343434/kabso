@@ -1,6 +1,7 @@
 # Kabso Live — Shared API Conventions (authoritative contract)
 
-Status: **v1.1 — frozen for Phase 1** (see §9 change log). Changes require a contract-change proposal recorded in
+Status: **v1.2 — approved 2026-10-15; in implementation (KL-016/017/018/019)**. Until those tasks
+merge, the deployed API still behaves as v1.1 for the items marked *(v1.2)* below. See §9. Changes require a contract-change proposal recorded in
 `docs/AI_WORKFORCE_BOARD.md` (Decision Log), a compatibility note, and coordinated updates to
 `apps/api` and `apps/mobile` in the same change set. No specialist may change this silently.
 
@@ -52,7 +53,8 @@ All non-2xx responses use one envelope:
   for validation errors it lists `{ field, issue }` where `field` is a dotted JSON path.
 - Validation `issue` vocabulary (closed set; clients may branch on it): `required`,
   `invalid_type`, `too_short`, `too_long`, `too_small`, `too_big`, `invalid_email`,
-  `invalid_format`, `invalid_value`, `unknown_field`, `malformed_json`, `payload_too_large`.
+  `invalid_format`, `invalid_value`, `unknown_field`, `malformed_json`, `payload_too_large`,
+  *(v1.2)* `reserved_term`.
   Body-level problems (malformed JSON, body over the size limit, wrong content type) are reported
   as 400 `VALIDATION_FAILED` with `field: ""` — the API does not use 413/415.
 - A suspended user's still-valid access token receives 401 `AUTH_UNAUTHENTICATED` on protected
@@ -105,7 +107,10 @@ return the resource object directly (no `data` wrapper).
   = reuse → the session is revoked (`revokedReason = REFRESH_REUSE`) and `AUTH_REFRESH_INVALID`
   is returned. Any other non-matching secret (guessed or garbage, e.g. built from the public `sid`)
   returns `AUTH_REFRESH_INVALID` **without** revoking the session (audited as
-  `refresh.invalid_secret`), so knowing a session id cannot force a logout.
+  `auth.refresh.invalid_secret`), so knowing a session id cannot force a logout.
+  *(v1.2, SEC-022)* The server keeps the hashes of the last **10** rotated secrets per session;
+  presenting **any** of them (not only the immediately previous one) is reuse and revokes the
+  session. Only secrets that were never issued for the session get the non-revoking 401.
   Concurrent refreshes with the same secret: exactly one succeeds; a request that arrives *after*
   the winner committed presents the now-previous secret and therefore revokes the session. This
   fail-safe is intentional (a grace window would let a token thief keep the session); clients
@@ -122,23 +127,71 @@ return the resource object directly (no `data` wrapper).
   trailing `.`/`_`), unique case-insensitively, stored lowercase. The regex alone admits a 1-character name; the 3–30 length bound is a separate, mandatory check (clients and server apply both). A reserved list (admin, kabso,
   support, api, live, …) is rejected with `USERNAME_TAKEN`.
 - Emails are normalized (trim + lowercase) before uniqueness checks.
-- Email verification and password reset use single-use tokens (32 random bytes, SHA-256 stored,
-  TTL 24 h / 1 h) delivered through the `MailSender` port. Password reset revokes all sessions.
+- Password reset uses single-use tokens (32 random bytes, SHA-256 stored, TTL 1 h) delivered
+  through the `MailSender` port and revokes all sessions. `POST /auth/email/verify` and
+  `/auth/email/resend` (single-use tokens, TTL 24 h) remain for **future email-address changes**;
+  from v1.2 every account's email is verified at creation, so the mobile app does not call them.
 - `POST /auth/password/forgot` always returns 202 regardless of whether the email exists.
-- **Enumeration (accepted risk, Phase 1 only):** login, forgot-password and timing do not reveal
-  account existence, but `POST /auth/register` returns `EMAIL_TAKEN`. Before any public launch
-  registration must become verify-first (always 202 + email to the address), which depends on
-  SMTP (blocker B2) — tracked as blocker B9.
-- Free-text fields (`displayName`, `device.name`) reject C0/C1 control characters, bidi
-  override/isolate characters (U+202A–U+202E, U+2066–U+2069) and zero-width characters
-  (U+200B–U+200D, U+2060, U+FEFF) with `issue: "invalid_format"`.
+- **Verify-first registration *(v1.2, owner decision B9 — email existence must never be revealed)*:**
+  1. `POST /auth/register` validates the body, then **always** returns `202` with the constant body
+     `{"status":"verification_pending"}` — identical whether or not the email is registered. It
+     never returns tokens and never returns `EMAIL_TAKEN`. Possible errors: 400, 409
+     `USERNAME_TAKEN` (usernames are public), 429, 503.
+  2. The server always computes the Argon2id hash of the password before branching (equal cost),
+     and sends mail after the response is written (equal latency).
+  3. **Email not registered:** store a *pending registration* (normalized email, username,
+     displayName, locale, password hash, device info, code hash, attempt counter, expiry
+     **30 min**). **At most one live pending registration per email:** a new register call for the
+     same email replaces the previous one (new code; previous username reservation released), so
+     a third party cannot block the address owner. Email the **8-digit numeric code** (CSPRNG,
+     stored as HMAC-SHA-256) in the request locale.
+  4. **Email already registered:** create nothing; email the account owner an "account already
+     exists — log in or reset your password" notice in the **account's** locale
+     (max 1 / hour / account).
+  5. `POST /auth/register/verify` `{email, code, device?}` → `201 AuthResponse` (user + session):
+     in **one transaction** it re-checks that no user has the email and creates User
+     (`emailVerifiedAt = now`) + Profile + Settings + Session, then deletes the pending record.
+     Every failure — unknown email, no live pending, wrong code, expired, attempts exhausted
+     (**5** per pending, after which it is deleted), or the email registered meanwhile — returns
+     the same `422 TOKEN_INVALID`. If the email was registered meanwhile, the owner also gets the
+     notice from step 4. Unique constraints on `users.email` / `user_profiles.username` remain the
+     final backstop (email conflict → `TOKEN_INVALID`, username conflict → `USERNAME_TAKEN`).
+  6. `POST /auth/register/resend` `{email}` → always `202` (new code if a live pending exists,
+     which invalidates the old code; otherwise nothing).
+  7. **Usernames held by live pending registrations count as taken** for `register` and
+     `users/username-availability`; reservations disappear when the pending expires or is
+     replaced. No account exists before verification, so unverified accounts can never log in and
+     duplicate accounts cannot arise.
+  8. Expired pending registrations are deleted lazily on access and by a periodic cleanup job.
+  Until v1.2 is implemented, `EMAIL_TAKEN` remains a known pre-production blocker (B9).
+- Free-text fields (`displayName`, `device.name`, `device.appVersion`) reject C0/C1 control
+  characters, bidi override/isolate characters (U+202A–U+202E, U+2066–U+2069), U+200B, U+2060
+  and U+FEFF with `issue: "invalid_format"`.
+- **`displayName` *(v1.2, KL-017 / QA-008)*:** NFC-normalized, trimmed; **1–50 grapheme
+  clusters and ≤ 100 Unicode code points**. ZWNJ (U+200C) and ZWJ (U+200D) are **allowed**
+  (Persian/Urdu/Kurdish orthography, emoji sequences) but must sit between two non-joiner,
+  non-space characters (not leading/trailing, never adjacent to another joiner or whitespace).
+  `device.*` fields still reject all zero-width characters. Rejected with `invalid_format`: names
+  consisting only of whitespace, joiners, combining marks or symbols; more than **3** consecutive
+  combining marks ("zalgo"); the bans above. Rejected with `issue: "reserved_term"`: names whose
+  NFKC-casefolded, confusable-skeleton form (Unicode TS #39) contains a reserved term
+  (`kabso`, `admin`, `administrator`, `support`, `official`, `moderator`, `staff`, `كابسو`,
+  `الدعم`, `رسمي`, `مشرف`, `الإدارة`; list is server configuration).
+- **Locale *(v1.2, KL-018)*:** `locale` is `ar` or `en`. The client sends the locale it is
+  displaying in `register` (and `Accept-Language` on every request). `PATCH /api/v1/me`
+  `{"locale": "ar"|"en"}` persists an explicit user choice. Transactional email language:
+  verification code → request `locale`/`Accept-Language`; account notices, password reset,
+  security emails → the account's stored `locale`; unknown email (no mail is sent) → n/a.
 
 ## 7. Rate limits (Phase 1 defaults, Redis-backed, configurable)
 
 | Endpoint | Limit |
 | -------- | ----- |
-| `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier) |
-| `POST /auth/register` | 5 / hour per IP |
+| `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier). *(v1.2, SEC-023)* the account bucket counts **failed** attempts only, and a source (IPv4 / IPv6 /64) that logged into the account successfully within the last 30 days bypasses the account bucket (still subject to the IP+account bucket). |
+| `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
+| `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per pending registration |
+| `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
+| `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
 | `POST /auth/refresh` | 60 / 15 min per session |
 | `POST /auth/email/resend` | 5 / hour per user |
@@ -148,7 +201,12 @@ return the resource object directly (no `data` wrapper).
 IP-based buckets group IPv6 clients by their /64 prefix. Rate-limit keys are HMAC-SHA-256 of
 the subject under a server-side key (no raw or plainly hashed emails/IPs in Redis). The client IP
 is derived only via an explicit trusted-proxy hop count or CIDR list; `trust proxy = true` is
-refused in production.
+refused in production. *(v1.2, SEC-003a)* production also refuses `/0` CIDRs (`0.0.0.0/0`, `::/0`)
+and hop counts greater than 3.
+
+*(v1.2, SEC-023 residual)* An exhausted account bucket still answers 429 while an unrelated
+identifier answers 401, which can link an email to a public username. Accepted only for internal
+builds; a CAPTCHA/step-up challenge replacing the 429 is required before public launch (B11).
 
 Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavailable.
 
@@ -177,6 +235,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.0.3 | 2026-10-15 | Ratified KL-002 clarifications: validation `issue` vocabulary (§4); body-level errors use 400 not 413/415; suspended access token → 401; extra rate limits for `email/resend` and other public routes (§7); `revokeSession` malformed id → 404 (removes the 400 added in v1.0.2). | Clarification of existing behavior; no shape change. Client must send usernames already lowercased (pattern is enforced strictly, not normalized). |
 | v1.0.4 | 2026-10-15 | Clarifications from KL-003 (A2): design-tokens 8-digit hex is `#AARRGGBB`; username length bound must be checked in addition to the regex. KNOWN_LIMITATIONS B7 corrected to the actual placeholder id `com.kabso.kabso_live`. | Documentation only; matches implemented behavior. |
 | v1.1 | 2026-10-15 | Security review KL-007 decisions (D13): refresh revocation only for the previous secret (SEC-001) + documented concurrent-refresh fail-safe (SEC-004); NFC password normalization (SEC-016); Argon2 concurrency cap → 503 (SEC-002); per-account login limit, IPv6 /64 bucketing, HMAC rate-limit keys, no `trust proxy = true` in production (SEC-002/003/009/010); `Cache-Control: no-store` (SEC-006); control/bidi/zero-width characters rejected in free text (SEC-008); registration enumeration recorded as accepted Phase 1 risk with launch blocker B9 (SEC-018). | Behavioral tightening; no request/response shape change. Clients: unchanged except they may now see 503 on login/register under load (already a defined code). |
+| v1.2 | 2026-10-15 | **Approved, in implementation.** Owner decisions: verify-first registration — `register` → 202 constant body, new `register/verify` (8-digit code) and `register/resend`, pending registrations with username reservation, `EMAIL_TAKEN` no longer returned by register (B9); displayName allows ZWNJ/ZWJ with placement rules, grapheme/code-point limits, zalgo and reserved-term (`reserved_term` issue) rules (KL-017/QA-008); `PATCH /me` locale + email-locale rules (KL-018); refresh reuse across last 10 rotated secrets (SEC-022); failed-only account bucket + recent-success bypass (SEC-023); `/0` CIDR and hop > 3 refused in production (SEC-003a). | **Breaking:** `POST /auth/register` 201 `AuthResponse` → 202; clients must add the code-entry step. Backend (A3) and mobile (A2) ship together in one integration; no released clients exist. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
