@@ -1,5 +1,10 @@
 # Kabso Live — Phase 1 Screen Specs
 
+> **Contract v1.2 update:** [`PHASE1_1_SCREENS.md`](PHASE1_1_SCREENS.md) supersedes parts of this
+> document — register submit (§4.3), display-name rules, the verify-email screens (§6, retired),
+> the Profile verify banner (§8), the language rule (§1), and final error copy (§10, via its §5
+> KL-015 decisions). Where the two differ, PHASE1_1_SCREENS wins.
+
 Status: **Implementable specification (KL-004).** Describes what Flutter (KL-003) should build;
 it does not claim anything is built. Tokens: [`../contracts/design-tokens.json`](../contracts/design-tokens.json).
 Components: [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) §9. API: [`../contracts/openapi.yaml`](../contracts/openapi.yaml),
