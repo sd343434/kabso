@@ -380,3 +380,110 @@ The Low/Info items are to be scheduled into Phase 2 backlog by their owners.
   another agent's API instance. Subsequent stops used the recorded PID only.
 - gitleaks `git` sub-command could not be invoked in the reviewer sandbox; the equivalent legacy
   `gitleaks detect --source .` (same engine, full git history) was used.
+
+---
+
+## 6. Re-test (2026-10-15) — candidate `3179be1`
+
+Scope: KL-011 (A3, backend), KL-012 (A2, mobile), KL-010 (A8, CI), contract v1.1. Worktree
+merged `claude/amazing-tesla-5aj3um` at `3179be1`, `pnpm install --frozen-lockfile`. Resources:
+`kabso_sec_test`, Redis db 13, API on port 3102. Each server was stopped by its recorded PID
+(`kill <pid>` after `readlink /proc/<pid>/cwd` confirmed it was this worktree's `apps/api`).
+Suites at `3179be1` plus this re-test's additions: API unit 133/133, API e2e 118/118 (incl. 23
+tests in `test/security/`), mobile `test/core/app_config_test.dart` + `fresh_install_test.dart`
+24/24. `gitleaks detect --source .` over 36 commits: no leaks.
+
+### 6.1 Per-finding results
+
+| ID | Result | Evidence |
+| -- | ------ | -------- |
+| SEC-001 | **FIXED** | `sessions.service.ts:132-141`. The original PoC (`<sid from JWT>.<random 43 chars>`) now gets `AUTH_REFRESH_INVALID`, while the victim's `/me` → 200 and its refresh → rotated. Session stays `live`. Audit row `auth.refresh.invalid_secret` with `actor_user_id NULL`. 0 log lines contain the sid. Genuine reuse of the previous secret still revokes (`REFRESH_REUSE`, audit `{"matchedPrevious": true, "secondsSinceLastRotation": 0}`). See new **SEC-022** for a side effect. |
+| SEC-002 | **FIXED** | Default limits; `TRUST_PROXY=loopback` so the PoC can choose the client IP.<br>• Per-account limit: 25 wrong passwords for one account, each from a different IPv4 → `20 × 401, 5 × 429`.<br>• A different account from a fresh IP → OK.<br>• IPv6: 55 logins from 55 addresses in `2001:db8:1:2::/64` → `50 × 401, 5 × 429`; another /64 → 401.<br>• Argon2 cap (`ARGON2_MAX_CONCURRENCY=1`, `ARGON2_MAX_QUEUE=1`): 12 parallel unknown-user logins → `2 × 401, 10 × 503 SERVICE_UNAVAILABLE` with `Retry-After: 1`. 12 parallel registrations → `2 × 201, 10 × 503`. Readiness and later logins unaffected.<br>• Boot log: `trust proxy = false; Argon2 cap = 4 (+16 queued)`.<br>See new **SEC-023** for a side effect. |
+| SEC-003 | **FIXED** (residual Low, see 6.2) | `env.schema.ts:179`. Production rejects `TRUST_PROXY=true`, and the effective setting is logged at boot. Still accepted: `1`, CIDR lists, and also `0.0.0.0/0,::/0` or `999`, which behave like `true` behind no proxy (SEC-003a). |
+| SEC-004 | **FIXED** (documentation) | `API_SPECIFICATION.md:41` and CONVENTIONS §6 now say that a duplicate arriving after the winner commits revokes the session (intended fail-safe). Re-measured: 20 parallel refreshes → `1 OK, 19 × 401`, session `REFRESH_REUSE`, which matches the docs. The reuse audit now carries `secondsSinceLastRotation` for false-positive telemetry. |
+| SEC-005 | **FIXED** | `secret-strength.ts` (base64 only, ≥ 32 decoded bytes, entropy and sequence checks, placeholder words).<br>• All original PoC secrets are refused in production, plus `abc…XYZ0123456789` (62 chars), `aaaa…` and `change-me…`.<br>• False rejections: 0 of 20,000 `openssl rand -base64 48`-style keys; 1 of 20,000 random 32-byte hex keys. A false rejection fails safe at boot (Info).<br>• `RATE_LIMIT_KEY_SECRET` is required, checked the same way, and must differ from the JWT key. |
+| SEC-006 | **FIXED** | `app.setup.ts:38`. `Cache-Control: no-store` on a 200 login response and on a 400 body-parser error. |
+| SEC-007 | **FIXED** (static; no Xcode/Android SDK here) | • `Info.plist` no longer has `NSAppTransportSecurity`.<br>• The "Debug ATS exception" build phase in `project.pbxproj` adds `NSAllowsLocalNetworking` to the built plist only when `KABSO_ALLOW_LOCAL_NETWORKING=YES` (set only in `Debug.xcconfig`). It fails the build if the variable is set in any other configuration. Release and Profile use `Release.xcconfig`, which does not set it.<br>• `AppConfig.resolve` refuses non-https in release (tests: `HTTP://…` and the dev default refused in release).<br>• `bootstrap.dart` validates the config before installing error handlers. |
+| SEC-008 | **FIXED** | `auth.schemas.ts:13` `UNSAFE_TEXT_CHARS`. Rejected with `invalid_format`:<br>• `device.name` containing newline+ESC, U+0085, U+202E, U+200B, U+2066 or U+FEFF<br>• `appVersion` containing NUL<br>• `displayName` containing RLO or zero-width<br>Accepted: Arabic device and display names. |
+| SEC-009 | **FIXED** | After the per-account limit is reached by username, the same account by email from a fresh IP → 429. Key = `user:<id>` (`auth.service.ts:113`, `consumeLoginAccountLimits`). |
+| SEC-010 | **FIXED** | `rate-limit.service.ts` `keyFor` = HMAC-SHA-256(`RATE_LIMIT_KEY_SECRET`, bucket‖subject). `redis-cli --scan` shows 0 keys containing an account, email, IPv4 or IPv6 string. |
+| SEC-011 | **NOT FIXED** (docs corrected) | `SYSTEM_ARCHITECTURE.md:76` and `DEPLOYMENT.md:237` now say "not yet implemented (KL-013)". Still a **production blocker**. |
+| SEC-012 | NOT FIXED (not in KL-011 scope) | No cleanup or retention jobs. Remains Phase 2 (R3/R15). |
+| SEC-013 | **FIXED** | `access-token.guard.ts:28`, `rate-limit.guard.ts:24`: non-HTTP contexts → `false`. Unit spec `guards-context.spec.ts` passes. |
+| SEC-014 | **FIXED** | Root `package.json` `pnpm.overrides`: `prisma>mysql2 3.24.5`, `@prisma/config>deepmerge-ts 8.0.2`. `pnpm audit --prod` → "No known vulnerabilities found". Prisma generate, migrate, build and all suites pass. |
+| SEC-015 | **FIXED** | `.github/dependabot.yml` `cooldown: default-days 7, semver-major-days 14`. |
+| SEC-016 | **FIXED** | NFC in `passwordSchema`, `loginSchema` and `PasswordHasher`. Registered with NFD, login with NFC → ok, and with NFD → ok. A 128-character `é` password typed in NFD (256 code points) is accepted by the login length check after NFC. |
+| SEC-017 | **FIXED** | `safeErrorLog`/`redactText` (`logging/redact-text.ts`) are used in the exception filter, audit, mail and rate limiter. PoC on a Prisma-style message: email, `passwordHash`, `refreshTokenHash` and the refresh token are all `[REDACTED]`. IP addresses are not masked (acceptable). |
+| SEC-018 | ACCEPTED (contract v1.1) | Recorded as blocker B9 (`KNOWN_LIMITATIONS.md:14`). The architecture doc wording is corrected. |
+| SEC-019 | **FIXED** | • Android: `dataExtractionRules` and `fullBackupContent` exclude `FlutterSecureStorage.xml`, `FlutterSecureKeyStorage.xml` and `FlutterSecureStorageConfiguration.xml` from cloud backup and device transfer. I checked these names against the flutter_secure_storage 11.2.0 sources. The namespaced config file `FlutterSecureStorageConfiguration:FlutterSecureStorage.xml` is not listed; it holds algorithm settings only, no secret (Info).<br>• iOS: `clearSecureStorageOnFreshInstall` runs in `bootstrap.dart`. The flag is set only after a successful clear (4 tests). |
+| SEC-020 | **HOLD** | Read only, as instructed. `build.gradle.kts` no longer references the debug key. Release uses `key.properties` or `null` (unsigned), and `verifyReleaseSigning` (hooked to `preReleaseBuild`) fails without a key unless `-Pkabso.allowUnsignedRelease=true`. `key.properties`, `*.jks` and `*.keystore` are git-ignored. The logic looks right, but the script does not compile in CI (`java.util.Properties`, KL-012-D1). Final verdict after the fix is merged. |
+| SEC-021 | **FIXED** | Redocly is pinned via `tools/redocly/package-lock.json` (`npm ci --ignore-scripts`). CI service images are digest-pinned (`ci.yml:98,112`). |
+| Dummy-hash timing (A3 KL-011-D1) | **FIXED** | `PasswordHasher.onModuleInit` precomputes the dummy hash through the limiter. Three fresh boots each:<br>• first request = unknown user: 126 / 142 / 142 ms; second request ≈ 56–70 ms<br>• first request = known user with wrong password: 224 / 136 / 125 ms; second ≈ 49–62 ms<br>The first-call overhead is the same cold start for both, so there is no first-call side channel. Warm, 30 interleaved: unknown 57.3 ms vs known 55.1 ms. |
+
+### 6.2 New findings
+
+**SEC-022 — Low — CWE-287 — owner CTO-contract + A3: theft detection is lost once the thief rotates twice.**
+`sessions.service.ts:132-141` revokes only for the *immediately previous* hash. A secret from
+two or more rotations ago is a silent 401. This is intentional per v1.1 and tested in
+`kl011-security-fixes.e2e-spec.ts:86`.
+
+PoC (`r1.sh`): the thief uses stolen RT0 → T1, then T1 → T2. The victim then presents RT0 →
+`AUTH_REFRESH_INVALID`, and the session stays `live` (rotation_counter 2). The thief's T2 still
+rotates, so the thief keeps the session.
+
+Before KL-011, the victim's late RT0 revoked the session. A thief can now defeat reuse
+detection with one extra refresh.
+
+Fix (keeps SEC-001 intact):
+- Store the last N (e.g. 5–10) rotated hashes, or an `HMAC(secret)` history, per session.
+- A hit anywhere in that history → revoke (`REFRESH_REUSE`).
+- Only secrets never issued for that session → `invalid_secret` without revocation.
+
+Phase 2 is acceptable. Theft first requires extracting a Keystore/Keychain-protected token.
+
+**SEC-023 — Low — CWE-645 / CWE-204 — owner CTO-contract + A3: the per-account login limit is a targeted lockout and an email↔account oracle.**
+`login:account` (20 / 15 min, keyed on the user id) counts every attempt from any IP, before
+Argon2. PoC (`r2.sh`): after 20 wrong guesses from 20 different IPs, the real owner with the
+*correct* password from a fresh IP gets **429** for up to 15 minutes. The attacker needs only
+the public username and 20 requests per window. Existing sessions keep working.
+
+The shared key also acts as an oracle. After exhausting by username `acctuser`:
+- `acct@example.com` → `RATE_LIMITED`
+- an unregistered email → `AUTH_INVALID_CREDENTIALS`
+- another account → `AUTH_INVALID_CREDENTIALS`
+
+So it confirms that a given email belongs to a given (public) username. Each probe costs about
+20 requests, locks the target and is audited (`auth.login.rate_limited`).
+
+Recommendations:
+- Count only failed attempts in `login:account`.
+- Let a client that recently logged in successfully on that account bypass the account bucket (the per-IP+account bucket still applies), using a device-bound marker such as a session-bound device id.
+- Phase 2: replace the hard 429 on the account bucket with a CAPTCHA/step-up.
+
+**SEC-003a — Low — CWE-348 — owner A3: trust-everything equivalents are still accepted in production.**
+`TRUST_PROXY=0.0.0.0/0,::/0` or a hop count larger than the real proxy chain (e.g. `999`) has
+the same effect as `true` and passes validation. Fix: refuse `/0` CIDRs, and hop counts above a
+small bound (e.g. > 3), in production.
+
+**Info:**
+- The SEC-019 exclusion list omits the namespaced config prefs file (holds no secret).
+- SEC-005 hex keys have a ~0.005 % false-rejection rate (fails safe at boot).
+- In non-production, `RATE_LIMIT_KEY_SECRET` falls back to a random per-process key (`app-config.ts:75`), so multiple replicas would not share buckets. Staging must set it explicitly.
+
+### 6.3 Regression tests added (all passing at `3179be1`)
+
+In `apps/api/test/security/security-regression.e2e-spec.ts`:
+- SEC-008 e2e (device fields and displayName refused, Arabic accepted).
+- The SEC-005 PoC secrets added to the production-secret table.
+- SEC-003/005/010 production config (generator output accepted for both keys; `TRUST_PROXY=true` refused, `1` accepted; `RATE_LIMIT_KEY_SECRET` required and distinct from the JWT key).
+
+No tests were committed for SEC-022/023 because they are open defects.
+
+### 6.4 Updated gate verdict (excluding SEC-020): **PASS WITH CONDITIONS**
+
+- Conditions 1, 2, 3 and 5 from §4 (SEC-001, SEC-003, SEC-002, SEC-007) are closed with evidence.
+- Remaining before any production or public exposure:
+  - **SEC-011** least-privilege DB role (KL-013).
+  - **SEC-020** final check after KL-012-D1 is merged.
+  - The CTO to schedule or risk-accept **SEC-022**, **SEC-023** and **SEC-003a** (all Low; none allows account takeover or cross-user data access).
+- Phase 1 can close as an internal milestone.
