@@ -5,6 +5,7 @@
 | Agent | A6 (QA & Test) |
 | Date | 2026-10-15 |
 | Candidate tested | `b973d7b` (Merge KL-003), which contains KL-002 `f45b867`, KL-002-D1 `217cad6`, KL-004 and KL-005 |
+| Re-test | `3179be1` (KL-011 + KL-012 fixes, contract v1.1). See **§8**, which supersedes §4 and §7 for defect status. |
 | Contract | `CONVENTIONS.md` v1.0.3, `openapi.yaml` 1.0.0-phase1 |
 | Environment | Node 22.22.0, pnpm 10.28.0, PostgreSQL 16 (`kabso_qa_test`), Redis 7 (db 14), Flutter 3.47.7 / Dart 3.13.5. No Android SDK or Xcode. |
 
@@ -261,3 +262,148 @@ No production code was modified.
 - **API (KL-002): approve.** Every acceptance criterion passed under independent test, and the contract holds in 128/131 black-box checks. QA-001 must be decided (fix, or ratify plus stop logging session ids) before any public exposure. It is not a blocker for integration. QA-002 is cosmetic.
 - **Mobile (KL-003): approve for integration, not DONE.** All gates are green, and the core auth/refresh/restore/logout behaviour passes independent tests. Before KL-003 is marked DONE, A2 should fix QA-003, QA-004, QA-005 and QA-007, then remove the `skip:` markers in `test/qa`. QA-006 needs a CTO decision on whether the spec or the implementation sets Phase 1 copy.
 - **Release readiness: not verifiable here.** No device or store builds were possible.
+
+## 8. Re-test on `3179be1` (2026-10-15, after KL-011 / KL-012)
+
+- **Integration:** `git merge --no-edit claude/amazing-tesla-5aj3um` fast-forwarded the worktree to **`3179be1`**.
+- **My tests on the branch:** A6 commit `119e37e` is an ancestor. `git diff 119e37e 3179be1 -- apps/*/test/qa` shows only the three `skip:` removals (QA-003, QA-004), as the CTO stated.
+- **Resources used again:** `kabso_qa_test`, Redis db 14, port 3101.
+- **Contract:** CONVENTIONS **v1.1** (D13) and D15 (spec governs wording, not key names).
+
+### 8.1 Gates (re-run by A6)
+
+| Gate | Result |
+| ---- | ------ |
+| `pnpm install --frozen-lockfile` | OK |
+| API `prisma:generate` / `lint` / `format:check` / `typecheck` | all exit 0; lint 0 problems; "All matched files use Prettier code style!" |
+| API `test` (unit) | **133/133**, 16 files |
+| API `test:e2e` | **112/112**, 7 files (includes the 30 A6 QA tests); no pending migrations |
+| API `build` | exit 0, `dist/main.js` |
+| Mobile `flutter pub get`, `build_runner` | OK ("wrote 1 output") |
+| Codegen drift `git diff --exit-code` | clean (empty `git status`) |
+| `dart format --set-exit-if-changed lib test` | exit 0, 0 changed (80 files; 81 with the new QA file) |
+| `flutter analyze` | "No issues found!" |
+| `flutter test` (as integrated) | **252 passed, 0 skipped** |
+| `flutter test` (+ new `test/qa/kl006_retest_test.dart`) | **267 passed, 0 skipped** |
+| Black-box script (131 original + 16 v1.1 checks) | **147/147 PASS**, including the 3 previous failures |
+
+### 8.2 Defect re-verification
+
+| ID | Status | Evidence (run by A6) |
+| -- | ------ | -------------------- |
+| QA-001 (= SEC-001) | **FIXED** | See note 1. |
+| QA-002 | **FIXED** | `Authorization: bearer <AT>` → **200** (repro step 5). `Basic` and garbage are still 401 (black-box). |
+| QA-003 | **FIXED** | Previously skipped `kl006_qa_test` › "session dates in Arabic use Latin digits" passes unskipped. New test: an Arabic register countdown renders `12:34` with no U+0660–0669 / U+06F0–06F9 digits. `KFormat` sets `useNativeDigits = false`. |
+| QA-004 | **FIXED** | See note 2. |
+| QA-005 | **FIXED** | See note 3. |
+| QA-006 (D15 items) | **FIXED** | See note 4. |
+| QA-006 (broader wording) | **OPEN, Low** | See note 5. |
+| QA-007 | **FIXED** | See note 6. |
+
+**Note 1: QA-001.**
+- **Repro script (same as before):**
+
+  ```
+  1) GET /me before: 200
+  2) refresh <sid>.<random>: 401 AUTH_REFRESH_INVALID
+  3) GET /me after: 200
+  4) victim's real refresh: 200 (new pair)
+  ```
+
+  The DB shows `revoked_reason` NULL, and the audit log records `auth.refresh.invalid_secret`.
+- **Previous secret still revokes** (black-box v1.1):
+  - rotate;
+  - replay the previous secret → 401;
+  - the rotated access token and refresh token → both 401.
+- Session ids still appear in request-log URLs. Under v1.1 they are public, so this no longer matters.
+
+**Note 2: QA-004.**
+- `kl006_text_scale_test`: all 24 cases pass, including ar/en × dark/light × 1.0/2.0 for login, register, forgot, the 5 tabs, profile and settings. The ar@2.0 settings cases are unskipped.
+- New tests at 2.0, in ar and en:
+  - splash restore error;
+  - verify-email notice;
+  - login with a 1:02:05 countdown + Error ID banner;
+  - register with every field error.
+
+  `takeException()` returns null in every case.
+
+**Note 3: QA-005.**
+- The Home, Discover, Live and Profile bodies match PHASE1_SCREENS §6 **verbatim** in en and ar.
+- Create names correct phases (posts 3, videos 5) but omits Story (4) and Live (6), because the rows were not built (§8.3).
+
+**Note 4: QA-006 items listed under D15.**
+- **EMAIL_TAKEN:** en is the spec text verbatim ("This email can't be used to create a new account…").
+- **Revoke NOT_FOUND:** new test › "shows 'already ended' and removes the row". It shows `sessionsAlreadyEnded`, does not show `errorNotFound`, and the row disappears.
+- **Relative "last active":** the same test shows "5h ago" for a session active 5 h earlier.
+- **Six username states:** idle, invalid, checking, available, taken and unknown exist in `auth_controller.dart`. A2's test "unknown state: check failed → neutral hint, submit allowed" passes, and the server still decides.
+
+**Note 5: QA-006 broader wording.**
+- The `scratchpad/copy.py` text match finds **72/167** spec en strings verbatim; 95 differ.
+- Most differences are in §10 error copy. For example:
+  - `errorAuthInvalidCredentials` is "Incorrect email, username or password." vs the spec's "The email/username or password is incorrect.";
+  - `errorAccountSuspended` lacks "…contact support".
+- "Sign in" vs "Log in" terminology also differs, and some screens/strings are not built (reset, Create rows, Settings groups).
+- Under D15 the spec governs wording, so A2 + A5 should align the remaining strings. This is non-blocking.
+
+**Note 6: QA-007.**
+- A2's login tests pass.
+- A6's independent tests (new file) cover:
+  - **Register:** 429 → `2:05` → `2:03`, submit disabled (`registerCalls` stays 1), re-enabled at zero.
+  - **Register, Argon2-cap 503:** `0:03` countdown, disabled, selectable `Error ID: rid-argon-503`.
+  - **Forgot:** 429 for 3600 s → `1:00:00` then `59:59`, disabled.
+  - **Forgot, 503:** disabled until zero.
+  - **Unknown code** → `errorUnknown` + selectable Error ID.
+- **Server side:** the API was started with `ARGON2_MAX_CONCURRENCY=1 ARGON2_MAX_QUEUE=0` and hit with 8 concurrent logins → `{"401":1,"503":7}`, 503 body `SERVICE_UNAVAILABLE` "Password hashing capacity exhausted.", `Retry-After: 1`. Unknown-user logins are capped too, so there is no timing oracle.
+
+### 8.3 A2's deliberately kept differences
+
+| Difference | Classification | Reason |
+| ---------- | -------------- | ------ |
+| Arabic default regardless of device locale (spec §1: device `en*` → `en`) | **Acceptable for Phase 1 internal builds; not for public launch** | See note A. |
+| "End" button label | **Acceptable** | See note B. |
+| Settings theme/language as inline segmented controls, not bottom sheets (§9.2) | **Acceptable** | Same choices, same immediate apply, fewer taps. Widget tests cover switching. There is no accessibility regression (tap-target guideline passes). |
+| Create tab: no 4 disabled rows with phase badges | **Acceptable for Phase 1, with a copy condition** | The rows are informational only (disabled), so no function is missing and there are no dead buttons. The body copy should then name all four phases (Story 4, Live 6 are missing; note 3). |
+
+**Note A: Arabic default.**
+- KL-003's acceptance criterion says "Arabic default", so this is conformant with the task.
+- However, language can only be changed in Settings **after** sign-in (`languageControllerProvider` is used only by `settings_screen.dart`).
+- An English-device user therefore has to log in or register in Arabic, and register sends `locale: ar`, which makes their emails Arabic.
+- Before launch, either follow spec §1 or add a language switch to the auth screens.
+
+**Note B: "End" label.**
+- The `sessionsRevoke` row label now matches the spec ("End" / "إنهاء").
+- The confirm button reuses it instead of the spec's "End session" (`sessionsRevokeConfirm`). The meaning is identical, and the dialog title says "End this session?".
+
+### 8.4 New findings
+
+**QA-008 (Low; owner CTO/A7 for the contract, A2 for the message): v1.1 rejects ZWJ/ZWNJ in `displayName`.**
+- **Where:** CONVENTIONS v1.1 / `auth.schemas.ts` reject U+200B–U+200D in `displayName`.
+- **Repro:** register with `displayName: "عائلة 👨‍👩‍👧"` → **400** `invalid_format` (black-box `bb4`).
+- **Impact:**
+  - Common emoji ZWJ sequences are refused (👨‍👩‍👧, 🏳️‍🌈, ❤️‍🔥, profession emoji).
+  - U+200C (ZWNJ) is required in Persian/Urdu/Kurdish orthography.
+  - The app has no client-side check, so the user only sees a generic field error.
+- **Behaviour is contract-conformant.** This is a product/i18n decision, so I've recorded it rather than failing anything.
+- **Suggestion:** allow U+200C/U+200D, or allow them only inside emoji/joining contexts, while keeping the bidi-override and BOM bans.
+
+No other new defects. KL-002 and KL-003 acceptance criteria were regression-checked:
+- all original e2e tests and A6 QA e2e tests are inside the green 112;
+- all original and A6 Flutter tests are inside the green 267;
+- the black-box contract run is 147/147.
+
+### 8.5 Open items, not verified
+
+- **KL-012-D1:** the Android debug APK fails to compile in CI (`android/app/build.gradle.kts`), fix in progress. This is outside A6 scope; noted as open.
+- Device builds/runs, real Keychain/Keystore, screen readers and focus order are still **NOT VERIFIED** (no Android SDK/Xcode).
+- Two items are not verifiable headlessly:
+  - the iOS Debug-only ATS build phase;
+  - Android backup exclusion (SEC-019).
+
+### 8.6 Updated recommendation
+
+**Approve.** Phase 1 KL-002 and KL-003 can be marked DONE from a QA standpoint, with these non-blocking conditions:
+1. A2 + A5 align the remaining wording to PHASE1_SCREENS (QA-006 residual), including the Create body phases.
+2. Before public launch, resolve the language-at-first-launch deviation (§8.3) and decide QA-008.
+3. Release readiness still depends on KL-012-D1 (APK compile) and device verification in CI. Neither can be checked here.
+
+Every QA-001…QA-007 item is verified fixed by A6's own runs.
