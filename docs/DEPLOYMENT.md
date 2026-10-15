@@ -99,7 +99,7 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 | `ios` | `workflow_dispatch`, or a push to `main` that changes mobile | `macos-latest`, `flutter build ios --no-codesign`. Gated because macOS minutes cost about 10 times Linux minutes. **Never run in the authoring environment.** |
 | `contracts` | `docs/contracts/**`, `redocly.yaml`, `tools/redocly/**`, or the workflow file changed | `npm ci --ignore-scripts` in `tools/redocly` (Redocly CLI 2.57.0 pinned by `package-lock.json` with sha512 integrity), then `redocly lint` with the rules in `redocly.yaml`; results shown as PR annotations |
 | `secrets` | always | gitleaks 8.30.1 CLI (download checked against its SHA-256) scans the full git history with redacted output |
-| `ci-ok` | always | Fails if any job failed or was cancelled. **Make this the only required status check** in branch protection; skipped jobs count as passing. |
+| `ci-ok` | always | **Allowlist:** passes only if every job's result is `success` or `skipped` (path-filtered or gated); any other result (`failure`, `cancelled`, `abandoned`, `timed_out`, missing, or a future value) fails and names the job. Since KL-010c: run 29 passed while `ios` was `abandoned` (no macOS runner) under the old failure/cancelled denylist. **Make this the only required status check** in branch protection. |
 
 CI test configuration lives in the workflow `env`. It contains clearly fake values
 (`ci_test_password_not_secret`, `ci-test-only-jwt-secret-…`, `ci-test-only-rate-limit-…`)
