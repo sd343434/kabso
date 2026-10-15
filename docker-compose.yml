@@ -9,7 +9,8 @@ name: kabso
 
 services:
   postgres:
-    image: postgres:16.15-alpine
+    # postgres:16.15-alpine — multi-arch index digest resolved 2026-10-15 (scripts/image-digests.sh)
+    image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kabso_dev}
@@ -27,7 +28,8 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:7.4-alpine
+    # redis:7.4-alpine — multi-arch index digest resolved 2026-10-15
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
     ports:
@@ -44,8 +46,9 @@ services:
   # minio/mc are no longer pullable). Default is the community-maintained build from pgsty
   # (AGPL-3.0, same `minio` binary and S3 API; bundles `mc` and `curl`). Override with
   # MINIO_IMAGE if your organisation mirrors an approved image. Dev use only.
+  # Default pinned: pgsty/minio:RELEASE.2026-08-04T00-00-00Z (multi-arch index digest, 2026-10-15).
   minio:
-    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}
+    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372}
     profiles: ["storage"]
     restart: unless-stopped
     command: ["minio", "server", "/data", "--console-address", ":9001"]
@@ -66,7 +69,7 @@ services:
 
   # One-shot job: creates the media bucket (idempotent) and exits.
   minio-init:
-    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}
+    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372}
     profiles: ["storage"]
     depends_on:
       minio:

@@ -7,7 +7,8 @@
 # What it does:
 #   1. Checks prerequisites (node 22, corepack/pnpm, flutter, docker) and reports what is missing.
 #   2. Creates .env from .env.example if .env does not exist (never overwrites an existing .env).
-#   3. Replaces the JWT_ACCESS_SECRET placeholder with a random value if openssl is available.
+#   3. Replaces the JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET placeholders with random values
+#      (openssl rand -base64 48) if openssl is available.
 #   4. Starts docker compose services if a Docker daemon is reachable, and waits for health.
 #   5. Prints the next steps.
 set -euo pipefail
@@ -96,28 +97,35 @@ fi
 # --- 2. .env -----------------------------------------------------------------------------------
 info "Environment file"
 if [ -f .env ]; then
-  ok ".env already exists (left untouched)"
+  ok ".env already exists (not overwritten)"
 else
   cp .env.example .env
   chmod 600 .env
   ok "created .env from .env.example"
 fi
 
-# --- 3. JWT secret -----------------------------------------------------------------------------
-if grep -q '^JWT_ACCESS_SECRET=change-me-' .env; then
-  if have openssl; then
-    secret="$(openssl rand -base64 48 | tr -d '\n')"
-    tmp="$(mktemp)"
-    sed "s|^JWT_ACCESS_SECRET=change-me-.*|JWT_ACCESS_SECRET=${secret}|" .env >"$tmp"
-    cat "$tmp" >.env
-    rm -f "$tmp"
-    ok "generated a random JWT_ACCESS_SECRET in .env"
-  else
-    warn "JWT_ACCESS_SECRET is still the placeholder; set it with: openssl rand -base64 48"
+# --- 3. Local secrets --------------------------------------------------------------------------
+# Each variable gets its own random value (never shared between purposes).
+for var in JWT_ACCESS_SECRET RATE_LIMIT_KEY_SECRET; do
+  if ! grep -q "^${var}=" .env; then
+    # .env created before this variable existed: append a placeholder, filled in below.
+    printf '%s=change-me-generate-with-openssl-rand-base64-48\n' "$var" >>.env
   fi
-else
-  ok "JWT_ACCESS_SECRET already set"
-fi
+  if grep -q "^${var}=change-me-" .env; then
+    if have openssl; then
+      secret="$(openssl rand -base64 48 | tr -d '\n')"
+      tmp="$(mktemp)"
+      sed "s|^${var}=change-me-.*|${var}=${secret}|" .env >"$tmp"
+      cat "$tmp" >.env
+      rm -f "$tmp"
+      ok "generated a random ${var} in .env"
+    else
+      warn "${var} is still the placeholder; set it with: openssl rand -base64 48"
+    fi
+  else
+    ok "${var} already set"
+  fi
+done
 
 # --- 4. Infrastructure -------------------------------------------------------------------------
 info "Local infrastructure"
