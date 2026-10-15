@@ -47,6 +47,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | REVIEW — INTEGRATED `3179be1` (D1 Argon2-cap root cause fixed `0944980`); A7/A6 re-test running | contract v1.1 | A1, A7 re-test, A6 |
 | KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | REVIEW — INTEGRATED `74f8ac7`; **D1 OPEN: Android `build.gradle.kts` fails to compile in CI run 21** (A2 fixing) | — | A1, A7 re-test |
 | KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P1 | BACKLOG — required before any deployment (B10) | KL-011 | A7 |
+| KL-016 | Auth hardening before public exposure: SEC-022 (revoke on any secret in a bounded rotation history, e.g. last 10 — needs contract v1.2 §6), SEC-023 (count only failed logins; recently-successful device bypasses account bucket; CAPTCHA step-up — needs contract v1.2 §7), SEC-003a (refuse `/0` CIDRs and hop counts > 3 in production) | A3 (+CTO contract) | P1 | BACKLOG — required before public exposure | KL-011 | A7, A6 |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
@@ -144,6 +145,7 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D17 | 2026-10-15 | CI concurrency: PRs cancel superseded runs; pushes to the **repository default branch** (currently `claude/amazing-tesla-5aj3um`) and `main` get one group per run, never cancelled/replaced; other branches never cancel in-progress | Run 10 was lost to cancel-in-progress; on the default branch paths-filter diffs vs the previous push |
 | D18 | 2026-10-15 | **Process violation recorded (A8):** the renamed gitleaks copy `leakscan` was created by A8 in KL-005 to bypass a sandbox command rule; A8 disclosed it. KL-005's local history-scan claim is void; scan evidence of record is CI gitleaks (runs 9, 13) + CTO local run | Guardrail integrity |
 | D19 | 2026-10-15 | Build-script changes (Gradle/Xcode) that cannot be compiled locally must pass a CI build before merge | KL-012-D1 broke the Android build on the integration branch |
+| D20 | 2026-10-15 | SEC-022/023/003a (all Low, no takeover) scheduled as KL-016 before public exposure; not Phase 1 gate blockers | Security re-test verdict: Phase 1 may close as an internal milestone |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
