@@ -21,17 +21,21 @@ on:
 # same jobs (KL-010; run 10 lost its mobile/Android verification to a docs-only push).
 #  - pull_request: paths-filter diffs the whole PR against its base, so a newer run of the same
 #    PR covers a superset of files -> cancel the older run (saves the most minutes).
-#  - push to a non-main branch (claude/**): never cancel a run in progress. Runs of one branch
-#    queue in one group; GitHub only replaces a run that is still *pending* with the newer one,
-#    and paths-filter diffs the branch against its merge-base with main, so the newer run again
-#    covers a superset. Cost: at most one running + one queued run per branch.
-#  - push to main and workflow_dispatch: unique group per run, never cancelled or replaced
-#    (on main paths-filter only diffs against the previous push, so every run is needed).
+#  - push to a branch that is NOT the repository default branch: never cancel a run in
+#    progress. Runs of one branch queue in one group; GitHub only replaces a run that is still
+#    *pending* with the newer one, and paths-filter diffs such a branch against its merge-base
+#    with the default branch, so the newer run again covers a superset.
+#    Cost: at most one running + one queued run per branch.
+#  - push to the repository default branch (today `claude/amazing-tesla-5aj3um`, see
+#    docs/DEPLOYMENT.md §2), push to `main`, and workflow_dispatch: unique group per run, never
+#    cancelled or replaced. On the default branch paths-filter only diffs against the previous
+#    push (`before`), so replacing a queued run could leave a commit untested (KL-010-D1).
 concurrency:
   group: >-
     ci-${{ github.workflow }}-${{
       github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
-      (github.event_name == 'push' && github.ref != 'refs/heads/main') && format('ref-{0}', github.ref) ||
+      (github.event_name == 'push' && github.ref_name != github.event.repository.default_branch &&
+       github.ref != 'refs/heads/main') && format('ref-{0}', github.ref) ||
       format('run-{0}', github.run_id)
     }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -247,7 +251,9 @@ jobs:
   ios:
     name: iOS build (no codesign)
     needs: changes
-    # macOS minutes are ~10x Linux: only on manual dispatch or pushes to main.
+    # macOS minutes are ~10x Linux: only on manual dispatch or pushes to main. NOTE: `main` does
+    # not exist yet (default branch is claude/amazing-tesla-5aj3um), so today iOS runs only on
+    # workflow_dispatch. Kept on purpose; see docs/DEPLOYMENT.md §2 (default branch).
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile == 'true')

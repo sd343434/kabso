@@ -82,8 +82,8 @@ docs-only push two minutes later; that can no longer happen.
 | Event | Concurrency group | In-progress run cancelled? | Why it is safe |
 | ----- | ----------------- | -------------------------- | -------------- |
 | `pull_request` | one per PR | yes, by the next push to the PR | paths-filter diffs the whole PR against its base, so the newer run covers a superset of files |
-| push to `claude/**` (any non-`main` branch) | one per branch | **never** | runs queue; GitHub only replaces a run that is still *pending* with the newer one, and paths-filter diffs the branch against its merge-base with `main`, so the newer run again covers a superset |
-| push to `main`, `workflow_dispatch` | one per run | never, and never replaced | on `main` paths-filter only diffs against the previous push, so every run is needed |
+| push to a `claude/**` branch that is **not** the repository default branch | one per branch | **never** | runs queue; GitHub only replaces a run that is still *pending* with the newer one, and paths-filter diffs the branch against its merge-base with the default branch, so the newer run again covers a superset |
+| push to the **repository default branch** (detected with `github.event.repository.default_branch`), push to `main`, `workflow_dispatch` | one per run | never, and never replaced | on the default branch paths-filter only diffs against the previous push (`before`); replacing a queued run could leave a commit untested (defect KL-010-D1) |
 
 Cost: at most one running and one queued run per branch. A docs-only push still runs
 `changes`, `secrets` and `ci-ok` (about one runner-minute each); the expensive mobile, Android
@@ -118,6 +118,21 @@ compose; security updates are not delayed.
 `prisma:migrate:deploy`, `lint`, `typecheck`, `format:check`, `test`, `test:e2e`, `build`, and
 a root `packageManager` field. `apps/mobile` must keep `build_runner` as a dev dependency and
 commit its generated code (decision D5).
+
+**Default branch (human decision pending):** the repository's default branch is currently
+`claude/amazing-tesla-5aj3um`; there is no `main` branch. CI handles this: the default branch
+is detected at run time for concurrency, and paths-filter compares against it. Places that
+still say `main` and only take effect once a `main` branch exists:
+
+- the `push: branches: [main, "claude/**"]` trigger (the current default branch is covered
+  by `claude/**`);
+- the `ios` job runs on pushes to `main` only, so **today iOS builds run only on
+  `workflow_dispatch`**;
+- branch protection (below) and the staging deploy trigger in §3 are written for `main`.
+
+Dependabot sets no `target-branch`, so its PRs go to whatever the default branch is (today
+`claude/amazing-tesla-5aj3um`). Renaming the default branch to `main` is left to the repository
+owner; after that, none of the items above needs changing.
 
 Branch protection on `main` — [DESIGNED]: require a PR, the `CI OK` check, one review and
 linear history, and block force pushes. A repository admin has to configure this in GitHub
