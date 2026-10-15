@@ -188,6 +188,29 @@ infrastructure change:** send `curl -H 'X-Forwarded-For: 203.0.113.7' https://<h
 and check that the logged client IP is your real address, not `203.0.113.7`; the API is
 planned to log the effective `TRUST_PROXY` setting at boot (KL-011).
 
+### 3.2 API container / runtime spec: libuv threadpool and Argon2
+
+The API caps concurrent Argon2 hashes with `ARGON2_MAX_CONCURRENCY` (default
+`os.availableParallelism()`; over the cap, login and register answer 503, contract v1.1). Argon2
+runs on the libuv threadpool, which is shared with DNS lookups, file system and crypto work and
+defaults to **4** threads. If the pool is smaller than the cap, hashes queue behind each other
+and starve DNS and fs work.
+
+- **Rule:** `UV_THREADPOOL_SIZE ≥ ARGON2_MAX_CONCURRENCY + 4`.
+- **Set it in the process environment before Node starts**: in the container/task definition
+  `env`, the Kubernetes `env:` block, or the systemd unit. libuv reads it once at startup, so
+  setting it from application code or a dotenv loader is too late. Locally,
+  `set -a; . ./.env; set +a` before `pnpm … start` works.
+- **Set both values explicitly per environment.** The default cap follows the CPU count the
+  runtime sees, which differs between laptops, CI runners and containers with CPU limits. Size
+  them from the container's CPU limit, e.g. 2 vCPU: `ARGON2_MAX_CONCURRENCY=2`,
+  `UV_THREADPOOL_SIZE=6`; 8 vCPU: `8` and `12`.
+- Memory: each Argon2 hash uses about 19 MiB (`m=19456`), so the cap also bounds hashing memory
+  (8 concurrent hashes ≈ 152 MiB). Include this in the container memory limit.
+- A startup check or warning in the API when the rule is violated is the backend's call (A3).
+  Until then this is a deploy-checklist item. [DESIGNED for deployments; documented in root
+  `.env.example`.]
+
 ## 4. Secrets management — [DESIGNED]
 
 - **No secret ever lives in the repository or in the mobile app binary.** `.gitignore`

@@ -22,6 +22,20 @@ updates:
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # Decision D10: TypeScript is pinned to the 6.0 line (`~6.0.3` in apps/api/package.json)
+      # because TS 7 lacks the compiler API that typescript-eslint and @nestjs/cli need.
+      # Ignore major AND minor: TypeScript does not follow SemVer (minor releases ship breaking
+      # type-checking changes) and `~` only admits 6.0.x anyway, so a 6.1 PR could never be
+      # merged without a decision. Patch updates (6.0.x fixes) stay enabled.
+      # (Dependabot run 38751156859 failed with unknown_error trying to move typescript.)
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # @types/node must track the Node.js runtime major (Node 22: .nvmrc, engines, CI
+      # NODE_VERSION). A @types/node 23+/24+ bump would type APIs the runtime lacks.
+      # Move it together with a Node major upgrade, by decision.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm # pinned Redocly CLI used by the `contracts` CI job (SEC-021)
     directory: /tools/redocly

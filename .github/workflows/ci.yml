@@ -127,6 +127,9 @@ jobs:
       JWT_ACCESS_SECRET: ci-test-only-jwt-secret-not-used-anywhere-else-0123456789
       RATE_LIMIT_KEY_SECRET: ci-test-only-rate-limit-hmac-key-not-a-secret-0123456789
       TRUST_PROXY: "false"
+      # >= ARGON2_MAX_CONCURRENCY (default = vCPU count; 4 on ubuntu-24.04 runners) + 4.
+      # Job-level env, so it is in the process environment before Node starts.
+      UV_THREADPOOL_SIZE: "16"
       JWT_ACCESS_TTL_SECONDS: "900"
       REFRESH_TTL_SECONDS: "2592000"
       APP_PUBLIC_URL: http://localhost:3000
