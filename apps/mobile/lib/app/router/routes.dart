@@ -5,7 +5,9 @@ abstract final class AppRoutes {
   static const login = '/auth/login';
   static const register = '/auth/register';
   static const forgotPassword = '/auth/forgot-password';
-  static const verifyEmailNotice = '/auth/verify-email-notice';
+
+  /// Verify-first registration: enter the emailed 8-digit code (v1.2).
+  static const registerCode = '/auth/register/code';
 
   static const home = '/home';
   static const discover = '/discover';
@@ -16,7 +18,12 @@ abstract final class AppRoutes {
   static const settings = '/settings';
 
   /// Reachable without a session.
-  static const Set<String> publicAuthRoutes = {login, register, forgotPassword};
+  static const Set<String> publicAuthRoutes = {
+    login,
+    register,
+    registerCode,
+    forgotPassword,
+  };
 
   /// Shell branches, in navigation order (start → end).
   static const List<String> shellBranches = [

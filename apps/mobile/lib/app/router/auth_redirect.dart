@@ -5,8 +5,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 ///
 /// - Restoring / restore failed → stay on the splash.
 /// - Signed out → only the public auth routes.
-/// - Signed in → never the splash or the public auth routes; right after
-///   registration the verify-email notice comes first.
+/// - Signed in → never the splash or the public auth routes.
 String? authRedirect(AuthState state, String location) {
   final isSplash = location == AppRoutes.splash;
   final isPublicAuth = AppRoutes.publicAuthRoutes.contains(location);
@@ -17,10 +16,7 @@ String? authRedirect(AuthState state, String location) {
       return isSplash ? null : AppRoutes.splash;
     case Unauthenticated():
       return isPublicAuth ? null : AppRoutes.login;
-    case Authenticated(:final justRegistered):
-      if (isSplash || isPublicAuth) {
-        return justRegistered ? AppRoutes.verifyEmailNotice : AppRoutes.home;
-      }
-      return null;
+    case Authenticated():
+      return isSplash || isPublicAuth ? AppRoutes.home : null;
   }
 }

@@ -7,6 +7,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -23,7 +24,17 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.profileTitle),
+        // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
+        // the tab label).
+        title: Text(
+          l10n.profileUsername(
+            me.value?.username ??
+                ref.watch(currentUserProvider)?.username ??
+                '',
+          ),
+          key: const Key('profile.title'),
+          textDirection: TextDirection.ltr,
+        ),
         actions: [
           IconButton(
             key: settingsButtonKey,
@@ -59,33 +70,16 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileBody extends ConsumerWidget {
+class _ProfileBody extends StatelessWidget {
   const new({required this.user});
 
   final User user;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final submission = ref.watch(authControllerProvider);
-
-    Future<void> resend() async {
-      final ok = await ref
-          .read(authControllerProvider.notifier)
-          .resendVerificationEmail();
-      if (!context.mounted) return;
-      if (ok) {
-        KSnack.success(context, l10n.verifyResent);
-      } else {
-        final s = ref.read(authControllerProvider);
-        if (s is SubmissionFailed) {
-          KSnack.error(context, failureMessage(l10n, s.failure));
-        }
-      }
-    }
-
     return ListView(
       padding: const EdgeInsetsDirectional.all(KSpacing.xl),
       children: [
@@ -116,12 +110,6 @@ class _ProfileBody extends ConsumerWidget {
           Text(user.bio!, style: t.body, textAlign: TextAlign.center),
         ],
         const SizedBox(height: KSpacing.xl),
-        _VerificationTile(
-          user: user,
-          sending: submission is SubmissionInProgress,
-          onResend: resend,
-        ),
-        const SizedBox(height: KSpacing.xl),
         Container(
           padding: const EdgeInsetsDirectional.all(KSpacing.lg),
           decoration: BoxDecoration(
@@ -150,81 +138,6 @@ class _ProfileBody extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _VerificationTile extends StatelessWidget {
-  const new({
-    required this.user,
-    required this.sending,
-    required this.onResend,
-  });
-
-  final User user;
-  final bool sending;
-  final VoidCallback onResend;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final p = context.palette;
-    final verified = user.emailVerified;
-    final color = verified ? p.success : p.warning;
-
-    return Container(
-      key: const Key('profile.emailStatus'),
-      padding: const EdgeInsetsDirectional.all(KSpacing.lg),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(KRadius.lg),
-        border: Border.all(color: p.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              ExcludeSemantics(
-                child: Icon(
-                  verified
-                      ? Icons.verified_outlined
-                      : Icons.mark_email_unread_outlined,
-                  color: color,
-                ),
-              ),
-              const SizedBox(width: KSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.email,
-                      style: context.textStyles.bodyStrong,
-                      textDirection: TextDirection.ltr,
-                    ),
-                    Text(
-                      verified
-                          ? l10n.profileEmailVerified
-                          : l10n.profileEmailNotVerified,
-                      style: context.textStyles.caption.copyWith(color: color),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (!verified) ...[
-            const SizedBox(height: KSpacing.md),
-            KButton(
-              label: l10n.profileResendVerification,
-              variant: KButtonVariant.secondary,
-              loading: sending,
-              onPressed: onResend,
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

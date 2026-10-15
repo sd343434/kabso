@@ -5,10 +5,10 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/auth/presentation/register_code_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
-import 'package:kabso_live/features/auth/presentation/verify_email_notice_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
@@ -54,8 +54,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ForgotPasswordScreen(),
       ),
       GoRoute(
-        path: AppRoutes.verifyEmailNotice,
-        builder: (_, _) => const VerifyEmailNoticeScreen(),
+        path: AppRoutes.registerCode,
+        builder: (_, _) => const RegisterCodeScreen(),
       ),
       GoRoute(
         path: AppRoutes.settings,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -8,6 +9,7 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/auth_repository.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
+import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 
 /// Submission state of an auth form: idle, submitting, or failed.
@@ -29,8 +31,8 @@ final class SubmissionFailed extends FormSubmission {
   final AppFailure failure;
 }
 
-/// Runs the auth form actions (login, register, forgot password, resend
-/// verification). One instance per screen (auto-disposed).
+/// Runs the auth form actions (login, register, forgot password). One
+/// instance per screen (auto-disposed).
 class AuthController extends Notifier<FormSubmission> {
   @override
   FormSubmission build() => const SubmissionIdle();
@@ -54,22 +56,26 @@ class AuthController extends Notifier<FormSubmission> {
     required String username,
     required String displayName,
   }) => _run(() async {
-    final user = await _repo.register(
+    // v1.2: 202 only — no account, no session yet. The `locale` is the
+    // language displayed at submit time, so the code email matches it.
+    await _repo.register(
       email: email,
       password: password,
       username: username,
       displayName: displayName,
       locale: ref.read(languageControllerProvider).name,
     );
-    ref
-        .read(sessionControllerProvider.notifier)
-        .signedIn(user, justRegistered: true);
+    ref.read(registrationFlowProvider.notifier).draft = RegistrationDraft(
+      email: AuthValidators.normalizeEmail(email),
+      username: username,
+      displayName: displayName,
+      password: password,
+      codeSentAt: clock.now(),
+    );
   });
 
   Future<bool> requestPasswordReset(String email) =>
       _run(() => _repo.requestPasswordReset(email));
-
-  Future<bool> resendVerificationEmail() => _run(_repo.resendVerificationEmail);
 
   void reset() => state = const SubmissionIdle();
 

@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -21,6 +22,8 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const passwordKey = Key('register.password');
   static const submitKey = Key('register.submit');
   static const usernameStatusKey = Key('register.usernameStatus');
+  static const usernameLostKey = Key('register.usernameLost');
+  static const codeNoticeKey = Key('register.codeNotice');
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -38,7 +41,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final Map<AuthField, String> _serverErrors = {};
 
   @override
+  void initState() {
+    super.initState();
+    // Returning from the code screen ("Change email" or a lost username):
+    // the form comes back filled (PHASE1_1_SCREENS §1.1).
+    final draft = ref.read(registrationFlowProvider);
+    if (draft != null) {
+      _email.text = draft.email;
+      _username.text = draft.username;
+      _displayName.text = draft.displayName;
+      _password.text = draft.password;
+      if (draft.usernameLost) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showUsernameLost(draft.username);
+        });
+      }
+    }
+    _displayName.addListener(_onDisplayNameChanged);
+  }
+
+  void _onDisplayNameChanged() => setState(() {});
+
+  void _showUsernameLost(String username) {
+    ref.read(usernameAvailabilityProvider.notifier).markTaken(username);
+  }
+
+  @override
   void dispose() {
+    _displayName.removeListener(_onDisplayNameChanged);
     _email.dispose();
     _username.dispose();
     _displayName.dispose();
@@ -70,7 +100,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           username: _username.text,
           displayName: _displayName.text,
         );
-    if (ok || !mounted) return;
+    if (!mounted) return;
+    if (ok) {
+      // 202: code entry. The draft keeps the form for "Change email".
+      // maybeOf: the screen is also hosted without a router (widget tests).
+      await GoRouter.maybeOf(context)?.push(AppRoutes.registerCode);
+      return;
+    }
 
     final submission = ref.read(authControllerProvider);
     if (submission is! SubmissionFailed) return;
@@ -79,11 +115,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() {
       for (final MapEntry(key: field, value: issue)
           in failure.authFieldIssues.entries) {
-        _serverErrors[field] = switch (failure.code) {
-          ErrorCode.emailTaken => l10n.errorEmailTaken,
-          ErrorCode.usernameTaken => l10n.errorUsernameTaken,
-          _ => serverIssueMessage(l10n, field, issue),
-        };
+        // EMAIL_TAKEN is never mapped to a field (v1.2, D24).
+        _serverErrors[field] = failure.code == ErrorCode.usernameTaken
+            ? l10n.errorUsernameTaken
+            : serverIssueMessage(l10n, field, issue);
       }
     });
     if (failure.code == ErrorCode.usernameTaken) {
@@ -99,6 +134,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final submission = ref.watch(authControllerProvider);
     final submitting = submission is SubmissionInProgress;
     final usernameStatus = ref.watch(usernameAvailabilityProvider);
+    final draft = ref.watch(registrationFlowProvider);
+    ref.listen(registrationFlowProvider, (previous, next) {
+      if (next != null && next.usernameLost && previous?.usernameLost != true) {
+        _showUsernameLost(next.username);
+      }
+    });
+    final displayNameLength = AuthValidators.displayNameLength(
+      _displayName.text,
+    );
 
     // A failure that maps to a field is shown on that field only.
     final generalFailure =
@@ -109,6 +153,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return AuthScaffold(
       title: l10n.registerTitle,
       subtitle: l10n.registerSubtitle,
+      actions: [AuthLanguageSwitch(enabled: !submitting)],
       child: RetryCountdown(
         key: ObjectKey(submission),
         failure: submission is SubmissionFailed ? submission.failure : null,
@@ -118,7 +163,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (generalFailure != null) ...[
+              if (draft?.usernameLost ?? false) ...[
+                KInlineMessage(
+                  key: RegisterScreen.usernameLostKey,
+                  message: l10n.errUsernameTakenDuringVerify,
+                ),
+                const SizedBox(height: KSpacing.lg),
+              ] else if (generalFailure != null) ...[
                 FailureBanner(failure: generalFailure, remaining: remaining),
                 const SizedBox(height: KSpacing.lg),
               ],
@@ -162,6 +213,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ).orNullIfHidden(),
                 onChanged: (value) {
                   _clearServerError(AuthField.username);
+                  if (draft?.usernameLost ?? false) {
+                    ref
+                        .read(registrationFlowProvider.notifier)
+                        .acknowledgeUsernameLost();
+                  }
                   ref
                       .read(usernameAvailabilityProvider.notifier)
                       .onChanged(value);
@@ -178,14 +234,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 fieldKey: RegisterScreen.displayNameKey,
                 controller: _displayName,
                 label: l10n.registerDisplayNameLabel,
+                helperText: l10n.registerDisplayNameHelper,
+                // Graphemes, not UTF-16 units; no silent truncation (§2).
+                counterText: l10n.displayNameCounter(displayNameLength),
+                counterIsError: displayNameLength > AuthRules.displayNameMax,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
-                maxLength: AuthRules.displayNameMax,
                 enabled: !submitting,
                 errorText: _serverErrors[AuthField.displayName],
                 onChanged: (_) => _clearServerError(AuthField.displayName),
-                validator: (v) =>
-                    validationMessage(l10n, AuthValidators.displayName(v)),
+                validator: (v) => displayNameIssueMessage(
+                  l10n,
+                  AuthValidators.displayNameIssue(v),
+                ),
               ),
               const SizedBox(height: KSpacing.lg),
               KTextField(
@@ -217,11 +278,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Disabled while a Retry-After countdown runs (QA-007).
                 onPressed: remaining > Duration.zero ? null : _submit,
               ),
+              const SizedBox(height: KSpacing.sm),
+              Text(
+                l10n.registerCodeNotice,
+                key: RegisterScreen.codeNoticeKey,
+                style: context.textStyles.caption,
+              ),
+              const SizedBox(height: KSpacing.xs),
+              Text(l10n.registerTerms, style: context.textStyles.caption),
               const SizedBox(height: KSpacing.lg),
               AuthSwitchPrompt(
                 question: l10n.registerHaveAccount,
                 action: l10n.registerSignIn,
-                onPressed: () => context.go(AppRoutes.login),
+                onPressed: () {
+                  // Leaving the flow to Login clears the in-memory draft.
+                  ref.read(registrationFlowProvider.notifier).clear();
+                  context.go(AppRoutes.login);
+                },
               ),
             ],
           ),
