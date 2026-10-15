@@ -1,0 +1,17 @@
+{
+  "name": "kabso",
+  "private": true,
+  "description": "Kabso Live monorepo — Node tooling root (pnpm workspace).",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "api:build": "pnpm --filter @kabso/api build",
+    "api:lint": "pnpm --filter @kabso/api lint",
+    "api:typecheck": "pnpm --filter @kabso/api typecheck",
+    "api:test": "pnpm --filter @kabso/api test",
+    "api:test:e2e": "pnpm --filter @kabso/api test:e2e",
+    "api:start:dev": "pnpm --filter @kabso/api start:dev"
+  }
+}
