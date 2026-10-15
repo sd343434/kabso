@@ -487,3 +487,46 @@ No tests were committed for SEC-022/023 because they are open defects.
   - **SEC-020** final check after KL-012-D1 is merged.
   - The CTO to schedule or risk-accept **SEC-022**, **SEC-023** and **SEC-003a** (all Low; none allows account takeover or cross-user data access).
 - Phase 1 can close as an internal milestone.
+
+### 6.5 SEC-020 follow-up — candidate `f2b147e` (KL-012-D1) — **FIXED**
+
+KL-012-D1 changes two lines: `import java.util.Properties` (`build.gradle.kts:1`) and
+`Properties()` (`:20`). Nothing else in the signing logic changed since §6.1. Evidence, all in
+`apps/mobile/android/app/build.gradle.kts`:
+
+- **No debug key anywhere.** The release build type uses
+  `if (hasReleaseSigning) signingConfigs.getByName("release") else null` (`:75-76`). No
+  `signingConfigs.getByName("debug")` remains in the file (it was `:37` in `b973d7b`).
+- **Release key only from git-ignored `key.properties`.** The file is read at `:18-24`. The
+  `release` signing config is created only when the file exists (`:62-69`). Every field is
+  required and non-blank via `requiredSigningProperty` (`:29-33`). `key.properties`, `*.jks` and
+  `*.keystore` are in both `.gitignore` files.
+- **Fail-closed release builds.** `verifyReleaseSigning` (`:83-92`) runs before every
+  `preReleaseBuild` (`:95-96`). With no key, it throws unless the explicit opt-out
+  `-Pkabso.allowUnsignedRelease=true` (`:26-27`) is passed. That opt-out yields an *unsigned*
+  artifact, which Play and the App Store refuse, so it cannot leak a wrongly-signed release.
+- **Compile evidence.** CI run 38754642734 (push, `f2b147e`) built and uploaded the debug APK.
+  This is as reported by the coordinator; I could not run Gradle here because there is no
+  Android SDK (B6).
+
+**A2's caveat (an incomplete `key.properties` breaks every build, debug included):** I assess
+this as **acceptable, fail-closed**.
+- The file exists only where release signing is intended: the release CI job, which decodes it
+  from environment secrets, or a release engineer's machine. A partly written file there is a
+  misconfiguration. Stopping with the explicit message "android/key.properties is missing
+  '<name>'" is better than silently falling back to an unsigned build or a different key.
+- Developers without the file are unaffected (`hasReleaseSigning = false`, `:25`), and the
+  debug build in CI proves it.
+
+Residual notes (Info, owner A2/A8):
+- (a) A wrong `storeFile` path or a wrong password is caught only at the signing task, not at
+  configuration time. Still fail-closed.
+- (b) The `preReleaseBuild` hook will need to match `pre<Flavor>ReleaseBuild` if product
+  flavours are added later.
+- (c) The future release job must write `key.properties` from secrets and delete it (and the
+  keystore) at job end, as in `DEPLOYMENT.md` §4.
+
+**Final gate verdict for Phase 1: PASS WITH CONDITIONS.** SEC-020 is closed. Remaining before
+production or public exposure:
+- **SEC-011** (least-privilege DB role, KL-013).
+- The scheduled Low items **SEC-022**, **SEC-023** and **SEC-003a** (CTO).
