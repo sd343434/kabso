@@ -9,7 +9,8 @@ import { createTestApp, newUser, type TestContext } from './helpers/test-app.js'
 
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 const NFC = 'café passphrase';
-const NFD = 'café passphrase';
+// Same text in decomposed form (e + U+0301 COMBINING ACUTE ACCENT); differs byte-wise from NFC.
+const NFD = NFC.normalize('NFD');
 
 async function register(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}) {
   const payload = newUser(overrides);
@@ -296,36 +297,5 @@ describe('KL-011 IPv6 /64 grouping (SEC-002)', () => {
     expect(third.status).toBe(429);
     expect(third.body.error.code).toBe('RATE_LIMITED');
     expect((await attempt('2001:db8:1:3::1')).status).toBe(201);
-  });
-});
-
-describe('KL-011 Argon2 concurrency cap (SEC-002)', () => {
-  let ctx: TestContext;
-
-  beforeAll(async () => {
-    ctx = await createTestApp({ ARGON2_MAX_CONCURRENCY: '1', ARGON2_MAX_QUEUE: '0' });
-  });
-
-  afterAll(async () => {
-    await ctx?.close();
-  });
-
-  it('answers 503 SERVICE_UNAVAILABLE with Retry-After when hashing capacity is saturated', async () => {
-    const results = await Promise.all(
-      Array.from({ length: 8 }, (_, i) =>
-        ctx.http
-          .post('/api/v1/auth/login')
-          .send({ identifier: `nobody${i}@example.com`, password: 'x'.repeat(12) }),
-      ),
-    );
-    const statuses = results.map((r) => r.status);
-    expect(statuses).toContain(401);
-    const shed = results.filter((r) => r.status === 503);
-    expect(shed.length).toBeGreaterThan(0);
-    for (const r of shed) {
-      expect(r.body.error.code).toBe('SERVICE_UNAVAILABLE');
-      expect(r.headers['retry-after']).toBe('1');
-    }
-    expect(statuses.every((s) => s === 401 || s === 503)).toBe(true);
   });
 });

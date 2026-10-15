@@ -5,7 +5,7 @@ import { AccessTokenGuard } from './access-token.guard.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
-import { PasswordHasher } from './password-hasher.service.js';
+import { ARGON2_BACKEND, nodeArgon2Backend, PasswordHasher } from './password-hasher.service.js';
 import { SessionsService } from './sessions.service.js';
 import { VerificationTokensService } from './verification-tokens.service.js';
 
@@ -18,6 +18,7 @@ import { VerificationTokensService } from './verification-tokens.service.js';
     AccessTokenService,
     AccessTokenGuard,
     PasswordHasher,
+    { provide: ARGON2_BACKEND, useValue: nodeArgon2Backend },
     SessionsService,
     VerificationTokensService,
   ],

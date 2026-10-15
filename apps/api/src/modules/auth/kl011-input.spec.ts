@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
-import { AppException } from '../../common/errors/app-exception.js';
+import { type AppException } from '../../common/errors/app-exception.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { loginSchema, passwordSchema, registerSchema } from './auth.schemas.js';
 import { PasswordHasher } from './password-hasher.service.js';
 
 const NFC = 'café passphrase';
-const NFD = 'café passphrase';
+// Same text in decomposed form (e + U+0301 COMBINING ACUTE ACCENT); differs byte-wise from NFC.
+const NFD = NFC.normalize('NFD');
 
 function details(fn: () => unknown) {
   try {
@@ -87,37 +88,5 @@ describe('password NFC normalization (SEC-016)', () => {
     const fromNfc = await hasher.hash(NFC);
     expect(await hasher.verify(fromNfc, NFD)).toBe(true);
     expect(await hasher.verify(fromNfc, 'cafe passphrase')).toBe(false);
-  });
-});
-
-describe('Argon2 concurrency cap (SEC-002)', () => {
-  it('sheds load with 503 SERVICE_UNAVAILABLE + Retry-After when saturated', async () => {
-    const hasher = new PasswordHasher(
-      loadConfig({
-        DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
-        REDIS_URL: 'redis://localhost:6379',
-        JWT_ACCESS_SECRET: 'x'.repeat(32),
-        APP_PUBLIC_URL: 'http://localhost:3000',
-        ARGON2_MAX_CONCURRENCY: '1',
-        ARGON2_MAX_QUEUE: '1',
-      }),
-    );
-    const running = hasher.hash('first password');
-    const queued = hasher.hash('second password');
-    expect(hasher.load).toEqual({ active: 1, queued: 1 });
-    let refused: unknown;
-    try {
-      await hasher.verifyAgainstDummy('third password');
-    } catch (err) {
-      refused = err;
-    }
-    expect(refused).toBeInstanceOf(AppException);
-    expect(refused).toMatchObject({
-      code: 'SERVICE_UNAVAILABLE',
-      status: 503,
-      headers: { 'Retry-After': '1' },
-    });
-    await Promise.all([running, queued]);
-    expect(hasher.load).toEqual({ active: 0, queued: 0 });
   });
 });

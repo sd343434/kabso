@@ -103,13 +103,24 @@ async function deleteRedisKeys(url: string, prefix: string): Promise<void> {
   }
 }
 
-export async function createTestApp(overrides: Record<string, string> = {}): Promise<TestContext> {
+export interface ProviderOverride {
+  readonly token: string | symbol | (abstract new (...args: never[]) => unknown);
+  readonly value: unknown;
+}
+
+export async function createTestApp(
+  overrides: Record<string, string> = {},
+  providerOverrides: readonly ProviderOverride[] = [],
+): Promise<TestContext> {
   const config = buildTestConfig(overrides);
   const mail = new CapturingMailSender();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule.register(config)] })
+  let builder = Test.createTestingModule({ imports: [AppModule.register(config)] })
     .overrideProvider(MAIL_SENDER)
-    .useValue(mail)
-    .compile();
+    .useValue(mail);
+  for (const override of providerOverrides) {
+    builder = builder.overrideProvider(override.token).useValue(override.value);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bodyParser: false });
   configureApp(app, config);
   await app.init();
