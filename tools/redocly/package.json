@@ -1,0 +1,15 @@
+{
+  "name": "kabso-tools-redocly",
+  "private": true,
+  "description": "Pinned Redocly CLI for linting docs/contracts/openapi.yaml (SEC-021). Install with: npm ci --ignore-scripts",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "lint:openapi": "redocly lint ../../docs/contracts/openapi.yaml --config ../../redocly.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.57.0"
+  }
+}

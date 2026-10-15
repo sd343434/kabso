@@ -43,7 +43,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-006 | Independent QA verification of Phase 1 | A6 | P0 | DONE — APPROVE WITH CONDITIONS; merged `a8acdd6` (30 API e2e + 36 Flutter tests, report `docs/qa/KL-006_PHASE1_QA_REPORT.md`) | KL-002, KL-003 | A1 ✅ |
 | KL-007 | Auth threat model & security review | A7 | P0 | DONE — verdict PASS WITH CONDITIONS; deliverables merged `0b6e9fc` (17 security regression tests) | KL-002 | A1 ✅ (SEC-001/003/007 re-verified in code) |
 | KL-008 | Integration of Phase 1 + regression run | A1 | P0 | IN_PROGRESS — all Wave 1 branches merged; awaiting QA/Security + full remote CI | KL-002..005 | A6 |
-| KL-010 | (IN_PROGRESS) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
+| KL-010 | (TESTING — merged; D1 concurrency fix `a04201b`; awaiting first GitHub run) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
 | KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | IN_PROGRESS | contract v1.1 | A1, A7 re-test, A6 |
 | KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | IN_PROGRESS | — | A1, A7 re-test |
 | KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P1 | BACKLOG — required before any deployment (B10) | KL-011 | A7 |
@@ -66,7 +66,14 @@ Integrated candidate: **`b973d7b`** + KL-007 deliverables (`0b6e9fc`).
 
 Build evidence = **compiles in CI**; not device-tested, not signed, not production-ready.
 
-**Closed defects:** D1 (gitleaks fixtures) — `e424d77`.
+**Closed defects:** D1 (gitleaks fixtures) — `e424d77`; KL-010-D1 (default-branch concurrency) — `a04201b`.
+
+**Repository facts (2026-10-15):** visibility **public**; default branch `claude/amazing-tesla-5aj3um`
+(no `main`), so the iOS CI job runs only on `workflow_dispatch`. Owner decisions pending:
+visibility, creating `main` as default, Dependabot PRs #1/#2, B9 sign-off, KL-013 deferral.
+
+**Watch items:** `material_ui` 1.7.0 (publisher flutter.dev, required by go_router 18) was
+published 2026-10-14 — pinned by `pubspec.lock`, CI now uses `--enforce-lockfile`.
 **Incident:** A7 killed a `node dist/main.js` process it did not start (PID 16769, probably QA's
 server) using a pattern kill; QA notified to re-run affected checks. Agents must stop processes
 by recorded PID only.
@@ -133,6 +140,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D14 | 2026-10-15 | Removed `scratchpad/bin/ls8/leakscan` (byte-identical renamed gitleaks copy, sha256 88f91962…) — renaming tools to bypass sandbox command rules is not permitted for any agent | Process integrity |
 | D15 | 2026-10-15 | QA-006: `PHASE1_SCREENS.md` governs wording/behavior; ARB key names are implementation detail | Avoid churn without user-visible value |
 | D16 | 2026-10-15 | QA tests that pin open defects may be committed with `skip:` + defect ID; owner must remove the skip as part of the fix's acceptance | Keeps evidence of the defect in-repo without a red build |
+| D17 | 2026-10-15 | CI concurrency: PRs cancel superseded runs; pushes to the **repository default branch** (currently `claude/amazing-tesla-5aj3um`) and `main` get one group per run, never cancelled/replaced; other branches never cancel in-progress | Run 10 was lost to cancel-in-progress; on the default branch paths-filter diffs vs the previous push |
+| D18 | 2026-10-15 | **Process violation recorded (A8):** the renamed gitleaks copy `leakscan` was created by A8 in KL-005 to bypass a sandbox command rule; A8 disclosed it. KL-005's local history-scan claim is void; scan evidence of record is CI gitleaks (runs 9, 13) + CTO local run | Guardrail integrity |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
