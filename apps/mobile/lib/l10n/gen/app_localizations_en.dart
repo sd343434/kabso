@@ -37,10 +37,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorTitle => 'Something went wrong';
 
   @override
-  String get loginTitle => 'Sign in';
+  String get languageArabic => 'العربية';
 
   @override
-  String get loginSubtitle => 'Welcome back! Sign in to continue.';
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageSwitchHint => 'Changes the app language';
+
+  @override
+  String get loginTitle => 'Log in';
+
+  @override
+  String get loginSubtitle => 'Welcome back. Log in to continue.';
 
   @override
   String get loginIdentifierLabel => 'Email or username';
@@ -49,7 +58,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginPasswordLabel => 'Password';
 
   @override
-  String get loginSubmit => 'Sign in';
+  String get loginSubmit => 'Log in';
 
   @override
   String get loginForgotPassword => 'Forgot password?';
@@ -59,6 +68,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginCreateAccount => 'Create account';
+
+  @override
+  String get passwordShow => 'Show password';
+
+  @override
+  String get passwordHide => 'Hide password';
 
   @override
   String get registerTitle => 'Create your account';
@@ -80,19 +95,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerDisplayNameLabel => 'Display name';
 
   @override
+  String get registerDisplayNameHelper =>
+      'Your name as others see it. Up to 50 characters; emoji are fine.';
+
+  @override
+  String displayNameCounter(int count) {
+    return '$count/50';
+  }
+
+  @override
+  String get displayNameTooLong =>
+      'This name is too long. Use up to 50 characters (some emoji count as more than one).';
+
+  @override
+  String get displayNameInvalid =>
+      'This name has characters that can\'t be used. Use letters, numbers, spaces and emoji.';
+
+  @override
+  String get displayNameReserved =>
+      'This name can\'t be used. Choose a different name.';
+
+  @override
   String get registerPasswordLabel => 'Password';
 
   @override
-  String get registerPasswordHelper => '8–128 characters';
+  String get registerPasswordHelper => 'At least 8 characters';
 
   @override
   String get registerSubmit => 'Create account';
 
   @override
+  String get registerCodeNotice =>
+      'We\'ll email you an 8-digit code to confirm your address.';
+
+  @override
+  String get registerTerms =>
+      'By creating an account, you agree to the Terms and the Privacy Policy.';
+
+  @override
   String get registerHaveAccount => 'Already have an account?';
 
   @override
-  String get registerSignIn => 'Sign in';
+  String get registerSignIn => 'Log in';
 
   @override
   String get usernameChecking => 'Checking availability…';
@@ -103,51 +147,113 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get passwordShow => 'Show password';
+  String usernameTaken(String username) {
+    return '@$username isn\'t available. Try another.';
+  }
 
   @override
-  String get passwordHide => 'Hide password';
+  String get usernameCheckFailed =>
+      'Couldn\'t check right now. You can still continue.';
+
+  @override
+  String get usernameTooShort => 'Use at least 3 characters';
+
+  @override
+  String get usernameTooLong => 'Use 30 characters or fewer';
+
+  @override
+  String get usernameBadChars =>
+      'Use only a–z, 0–9, dot (.) and underscore (_)';
+
+  @override
+  String get usernameBadEdges => 'Can\'t start or end with a dot or underscore';
+
+  @override
+  String get codeTitle => 'Check your email';
+
+  @override
+  String codeBody(String email) {
+    return 'If $email can be used for a new account, we\'ve sent an 8-digit code to it. Enter the code below.';
+  }
+
+  @override
+  String get codeChangeEmail => 'Change email';
+
+  @override
+  String get codeFieldLabel => '8-digit code';
+
+  @override
+  String get codeFieldHint => 'Enter or paste the code from the email';
+
+  @override
+  String get codeExpiryHint =>
+      'The code expires in 30 minutes. Check your spam folder if you can\'t find it.';
+
+  @override
+  String get codeMaybeExpired => 'This code may have expired. Send a new one.';
+
+  @override
+  String get codePasteInvalid =>
+      'The code has 8 digits. Check it and try again.';
+
+  @override
+  String get codeSubmit => 'Verify';
+
+  @override
+  String get codeResend => 'Send a new code';
+
+  @override
+  String codeResendIn(String time) {
+    return 'Send a new code in $time';
+  }
+
+  @override
+  String get codeResent =>
+      'If this email can be used, a new code is on its way. Earlier codes no longer work.';
+
+  @override
+  String get codeHaveAccount => 'Already have an account?';
+
+  @override
+  String get codeLogIn => 'Log in';
+
+  @override
+  String get codeWelcome => 'Welcome to Kabso Live';
+
+  @override
+  String get errCodeInvalid => 'This code is incorrect or has expired.';
+
+  @override
+  String get errCodeInvalidRepeated =>
+      'Still not working? Send a new code and use the latest email.';
+
+  @override
+  String get errUsernameTakenDuringVerify =>
+      'Someone took this username before you finished. Choose another one and we\'ll send a new code.';
 
   @override
   String get forgotTitle => 'Reset your password';
 
   @override
   String get forgotSubtitle =>
-      'Enter your email and we\'ll send you reset instructions.';
+      'Enter the email you signed up with and we\'ll send you a reset link.';
 
   @override
   String get forgotEmailLabel => 'Email';
 
   @override
-  String get forgotSubmit => 'Send instructions';
+  String get forgotSubmit => 'Send link';
 
   @override
   String get forgotConfirmationTitle => 'Check your email';
 
   @override
   String forgotConfirmationBody(String email) {
-    return 'If an account exists for $email, we\'ve sent it instructions to reset the password.';
+    return 'If an account exists for $email, we\'ve sent a link to reset the password. The link expires in 1 hour.';
   }
 
   @override
-  String get forgotBackToLogin => 'Back to sign in';
-
-  @override
-  String get verifyTitle => 'Verify your email';
-
-  @override
-  String verifyBody(String email) {
-    return 'We sent a verification link to $email. Open it to verify your account.';
-  }
-
-  @override
-  String get verifyResend => 'Resend email';
-
-  @override
-  String get verifyResent => 'Verification email sent';
-
-  @override
-  String get verifyContinue => 'Continue to the app';
+  String get forgotBackToLogin => 'Back to log in';
 
   @override
   String get validationRequired => 'This field is required';
@@ -157,27 +263,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String validationTooShort(int min) {
-    return 'Must be at least $min characters';
+    return 'Use at least $min characters';
   }
 
   @override
   String validationTooLong(int max) {
-    return 'Must be at most $max characters';
+    return 'Use $max characters or fewer';
   }
-
-  @override
-  String get validationUsernameFormat =>
-      'Use only lowercase letters, numbers, . and _; it can\'t start or end with . or _';
 
   @override
   String get validationInvalid => 'This value isn\'t valid';
 
   @override
   String get sessionEndedBanner =>
-      'Your session has ended. Please sign in again.';
+      'Your session has ended. Please log in again.';
 
   @override
-  String get accountSuspendedBanner => 'This account has been suspended.';
+  String get accountSuspendedBanner =>
+      'This account has been suspended. If you think this is a mistake, contact support.';
 
   @override
   String get splashRestoreFailed => 'We couldn\'t restore your session.';
@@ -201,34 +304,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeComingTitle => 'Your feed is on its way';
 
   @override
+  String get homeComingBody =>
+      'Following people and your home feed arrive in Phase 2; posts in Phase 3.';
+
+  @override
   String get discoverComingTitle => 'Discover is coming';
+
+  @override
+  String get discoverComingBody =>
+      'People search arrives in Phase 2; trending lives, videos and creators in Phase 9.';
 
   @override
   String get createComingTitle => 'Creating is coming';
 
   @override
   String get createComingBody =>
-      'Photo posts arrive in Phase 3 and short videos in Phase 5.';
+      'Posts arrive in Phase 3, stories in Phase 4, short videos in Phase 5 and going live in Phase 6.';
 
   @override
   String get liveComingTitle => 'Live rooms are coming';
 
   @override
-  String get profileTitle => 'Profile';
-
-  @override
-  String get profileEmailVerified => 'Email verified';
-
-  @override
-  String get profileEmailNotVerified => 'Email not verified';
-
-  @override
-  String get profileResendVerification => 'Resend verification email';
+  String get liveComingBody =>
+      'Watching and hosting live streams arrive in Phase 6; PK battles and gifts in Phase 7.';
 
   @override
   String profileUsername(String username) {
     return '@$username';
   }
+
+  @override
+  String get profileContentComingTitle => 'Your posts will live here';
+
+  @override
+  String get profileContentComingBody =>
+      'Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.';
 
   @override
   String get settingsTitle => 'Settings';
@@ -237,7 +347,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearance => 'Appearance';
 
   @override
-  String get themeSystem => 'System';
+  String get themeSystem => 'Match device';
 
   @override
   String get themeDark => 'Dark';
@@ -249,12 +359,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguage => 'Language';
 
   @override
-  String get languageArabic => 'العربية';
-
-  @override
-  String get languageEnglish => 'English';
-
-  @override
   String get settingsSessions => 'Active sessions';
 
   @override
@@ -262,151 +366,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionUnknownDevice => 'Unknown device';
-
-  @override
-  String get platformAndroid => 'Android';
-
-  @override
-  String get platformIos => 'iOS';
-
-  @override
-  String get platformWeb => 'Web';
-
-  @override
-  String get platformOther => 'Other';
-
-  @override
-  String get settingsAccount => 'Account';
-
-  @override
-  String get logout => 'Sign out';
-
-  @override
-  String get logoutConfirmTitle => 'Sign out of Kabso Live?';
-
-  @override
-  String get logoutConfirmBody =>
-      'You\'ll need to sign in again on this device.';
-
-  @override
-  String get errorValidationFailed =>
-      'Some details aren\'t valid. Check them and try again.';
-
-  @override
-  String get errorAuthUnauthenticated => 'Please sign in to continue.';
-
-  @override
-  String get errorAuthInvalidCredentials =>
-      'Incorrect email, username or password.';
-
-  @override
-  String get errorAuthRefreshInvalid =>
-      'Your session has ended. Please sign in again.';
-
-  @override
-  String get errorAuthForbidden => 'You don\'t have permission to do that.';
-
-  @override
-  String get errorAccountSuspended => 'This account has been suspended.';
-
-  @override
-  String get errorNotFound => 'We couldn\'t find that.';
-
-  @override
-  String get errorUsernameTaken => 'This username isn\'t available.';
-
-  @override
-  String get errorIdempotencyConflict =>
-      'This request was already sent with different details.';
-
-  @override
-  String get errorTokenExpired => 'This link has expired or was already used.';
-
-  @override
-  String get errorTokenInvalid => 'This link isn\'t valid.';
-
-  @override
-  String get errorInternal =>
-      'Something went wrong on our side. Please try again later.';
-
-  @override
-  String get errorServiceUnavailable =>
-      'We\'re busy right now. Please try again in a moment.';
-
-  @override
-  String get errorNetworkOffline =>
-      'You\'re offline. Check your connection and try again.';
-
-  @override
-  String get errorNetworkTimeout =>
-      'The connection timed out. Please try again.';
-
-  @override
-  String get errorUnknown => 'Something unexpected happened. Please try again.';
-
-  @override
-  String get errorEmailTaken =>
-      'This email can\'t be used to create a new account. Try logging in or resetting your password.';
-
-  @override
-  String get errorRateLimited =>
-      'Too many attempts. Wait a moment, then try again.';
-
-  @override
-  String errorRateLimitedRetryIn(String wait) {
-    return 'Too many attempts. Try again in $wait.';
-  }
-
-  @override
-  String errorServiceBusyRetryIn(String wait) {
-    return 'We\'re busy right now. Please try again in $wait.';
-  }
-
-  @override
-  String errorIdLabel(String requestId) {
-    return 'Error ID: $requestId';
-  }
-
-  @override
-  String get homeComingBody =>
-      'Following people and your home feed arrive in Phase 2; posts in Phase 3.';
-
-  @override
-  String get discoverComingBody =>
-      'People search arrives in Phase 2; trending lives, videos and creators in Phase 9.';
-
-  @override
-  String get liveComingBody =>
-      'Watching and hosting live streams arrive in Phase 6; PK battles and gifts in Phase 7.';
-
-  @override
-  String get profileContentComingTitle => 'Your posts will live here';
-
-  @override
-  String get profileContentComingBody =>
-      'Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.';
-
-  @override
-  String usernameTaken(String username) {
-    return '@$username isn\'t available. Try another.';
-  }
-
-  @override
-  String get usernameCheckFailed =>
-      'Couldn\'t check right now. You can still continue.';
-
-  @override
-  String get usernameTooShort => 'Use at least 3 characters';
-
-  @override
-  String get usernameTooLong => 'Use 30 characters or fewer';
-
-  @override
-  String get usernameBadChars =>
-      'Use only a–z, 0–9, dot (.) and underscore (_)';
-
-  @override
-  String get usernameBadEdges => 'Can\'t start or end with a dot or underscore';
 
   @override
   String sessionsLastActive(String relativeTime) {
@@ -448,6 +407,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get sessionsRevokeConfirm => 'End session';
+
+  @override
   String get sessionsRevoked => 'Session ended';
 
   @override
@@ -455,4 +417,112 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsNoOthers => 'You\'re signed in on this device only.';
+
+  @override
+  String get platformAndroid => 'Android';
+
+  @override
+  String get platformIos => 'iOS';
+
+  @override
+  String get platformWeb => 'Web';
+
+  @override
+  String get platformOther => 'Other';
+
+  @override
+  String get settingsAccount => 'Account';
+
+  @override
+  String get logout => 'Log out';
+
+  @override
+  String get logoutConfirmTitle => 'Log out of Kabso Live?';
+
+  @override
+  String get logoutConfirmBody =>
+      'You\'ll need your password to log back in on this device.';
+
+  @override
+  String get logoutDone => 'You\'ve logged out';
+
+  @override
+  String get errorValidationFailed =>
+      'Some details need fixing. Check the highlighted fields.';
+
+  @override
+  String get errorAuthUnauthenticated =>
+      'Your session has ended. Please log in again.';
+
+  @override
+  String get errorAuthInvalidCredentials =>
+      'Incorrect email, username or password.';
+
+  @override
+  String get errorAuthRefreshInvalid =>
+      'Your session has ended. Please log in again.';
+
+  @override
+  String get errorAuthForbidden => 'You don\'t have permission to do that.';
+
+  @override
+  String get errorAccountSuspended =>
+      'This account has been suspended. If you think this is a mistake, contact support.';
+
+  @override
+  String get errorNotFound =>
+      'This isn\'t available. It may have been removed.';
+
+  @override
+  String get errorUsernameTaken =>
+      'This username isn\'t available. Try another.';
+
+  @override
+  String get errorIdempotencyConflict =>
+      'This request was already sent with different details. Refresh and try again.';
+
+  @override
+  String get errorTokenExpired =>
+      'This link has expired or has already been used. Request a new one.';
+
+  @override
+  String get errorTokenInvalid => 'This link isn\'t valid. Request a new one.';
+
+  @override
+  String get errorRateLimited =>
+      'Too many attempts. Wait a moment, then try again.';
+
+  @override
+  String errorRateLimitedRetryIn(String wait) {
+    return 'Too many attempts. Try again in $wait.';
+  }
+
+  @override
+  String get errorInternal =>
+      'Something went wrong on our side. Please try again.';
+
+  @override
+  String get errorServiceUnavailable =>
+      'We\'re busy right now. Please try again in a moment.';
+
+  @override
+  String errorServiceBusyRetryIn(String wait) {
+    return 'We\'re busy right now. Please try again in $wait.';
+  }
+
+  @override
+  String get errorNetworkOffline =>
+      'You\'re offline. Check your connection and try again.';
+
+  @override
+  String get errorNetworkTimeout =>
+      'The connection timed out. Please try again.';
+
+  @override
+  String get errorUnknown => 'Something unexpected happened. Please try again.';
+
+  @override
+  String errorIdLabel(String requestId) {
+    return 'Error ID: $requestId';
+  }
 }

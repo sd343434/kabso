@@ -98,19 +98,19 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
-  /// Application name shown by the OS task switcher.
+  /// App name (T2: Latin script in Arabic until B8).
   ///
   /// In ar, this message translates to:
-  /// **'كابسو لايف'**
+  /// **'Kabso Live'**
   String get appTitle;
 
-  /// First word of the text wordmark placeholder (brand name, not translated).
+  /// Wordmark first word (brand, not translated).
   ///
   /// In ar, this message translates to:
   /// **'Kabso'**
   String get brandWordmarkPrimary;
 
-  /// Accent word of the text wordmark placeholder (brand name, not translated).
+  /// Wordmark accent word (brand, not translated).
   ///
   /// In ar, this message translates to:
   /// **'Live'**
@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// Screen reader label for the wordmark.
   ///
   /// In ar, this message translates to:
-  /// **'كابسو لايف'**
+  /// **'Kabso Live'**
   String get brandSemanticLabel;
 
   /// No description provided for @actionRetry.
@@ -152,6 +152,24 @@ abstract class AppLocalizations {
   /// **'حدث خطأ ما'**
   String get errorTitle;
 
+  /// Arabic in its own script.
+  ///
+  /// In ar, this message translates to:
+  /// **'العربية'**
+  String get languageArabic;
+
+  /// English in its own script.
+  ///
+  /// In ar, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
+
+  /// No description provided for @languageSwitchHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'يغيّر لغة التطبيق'**
+  String get languageSwitchHint;
+
   /// No description provided for @loginTitle.
   ///
   /// In ar, this message translates to:
@@ -161,7 +179,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginSubtitle.
   ///
   /// In ar, this message translates to:
-  /// **'مرحبًا بعودتك! سجّل الدخول للمتابعة.'**
+  /// **'مرحبًا بعودتك. سجّل الدخول للمتابعة.'**
   String get loginSubtitle;
 
   /// No description provided for @loginIdentifierLabel.
@@ -200,6 +218,18 @@ abstract class AppLocalizations {
   /// **'إنشاء حساب'**
   String get loginCreateAccount;
 
+  /// No description provided for @passwordShow.
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار كلمة المرور'**
+  String get passwordShow;
+
+  /// No description provided for @passwordHide.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء كلمة المرور'**
+  String get passwordHide;
+
   /// No description provided for @registerTitle.
   ///
   /// In ar, this message translates to:
@@ -209,7 +239,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerSubtitle.
   ///
   /// In ar, this message translates to:
-  /// **'انضم إلى كابسو لايف خلال دقيقة.'**
+  /// **'انضم إلى Kabso Live خلال دقيقة.'**
   String get registerSubtitle;
 
   /// No description provided for @registerEmailLabel.
@@ -236,6 +266,36 @@ abstract class AppLocalizations {
   /// **'الاسم الظاهر'**
   String get registerDisplayNameLabel;
 
+  /// No description provided for @registerDisplayNameHelper.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمك كما يراه الآخرون. حتى 50 حرفًا، ويمكنك استخدام الرموز التعبيرية.'**
+  String get registerDisplayNameHelper;
+
+  /// Grapheme counter (Latin digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count}/50'**
+  String displayNameCounter(int count);
+
+  /// No description provided for @displayNameTooLong.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الاسم طويل جدًا. استخدم 50 حرفًا كحدّ أقصى (بعض الرموز التعبيرية تُحتسب أكثر من حرف).'**
+  String get displayNameTooLong;
+
+  /// No description provided for @displayNameInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتوي هذا الاسم على أحرف لا يمكن استخدامها. استخدم الحروف والأرقام والمسافات والرموز التعبيرية.'**
+  String get displayNameInvalid;
+
+  /// reserved_term; never hints at the reserved list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن استخدام هذا الاسم. اختر اسمًا آخر.'**
+  String get displayNameReserved;
+
   /// No description provided for @registerPasswordLabel.
   ///
   /// In ar, this message translates to:
@@ -245,7 +305,7 @@ abstract class AppLocalizations {
   /// No description provided for @registerPasswordHelper.
   ///
   /// In ar, this message translates to:
-  /// **'من 8 إلى 128 حرفًا'**
+  /// **'8 أحرف على الأقل'**
   String get registerPasswordHelper;
 
   /// No description provided for @registerSubmit.
@@ -253,6 +313,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إنشاء الحساب'**
   String get registerSubmit;
+
+  /// No description provided for @registerCodeNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنرسل إلى بريدك الإلكتروني رمزًا من 8 أرقام لتأكيد عنوانك.'**
+  String get registerCodeNotice;
+
+  /// Links added once B7 URLs exist.
+  ///
+  /// In ar, this message translates to:
+  /// **'بإنشائك حسابًا، فإنك توافق على الشروط وسياسة الخصوصية.'**
+  String get registerTerms;
 
   /// No description provided for @registerHaveAccount.
   ///
@@ -277,504 +349,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'‎@{username}‎ متاح'**
   String usernameAvailable(String username);
-
-  /// No description provided for @passwordShow.
-  ///
-  /// In ar, this message translates to:
-  /// **'إظهار كلمة المرور'**
-  String get passwordShow;
-
-  /// No description provided for @passwordHide.
-  ///
-  /// In ar, this message translates to:
-  /// **'إخفاء كلمة المرور'**
-  String get passwordHide;
-
-  /// No description provided for @forgotTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'استعادة كلمة المرور'**
-  String get forgotTitle;
-
-  /// No description provided for @forgotSubtitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'أدخل بريدك الإلكتروني وسنرسل لك تعليمات إعادة التعيين.'**
-  String get forgotSubtitle;
-
-  /// No description provided for @forgotEmailLabel.
-  ///
-  /// In ar, this message translates to:
-  /// **'البريد الإلكتروني'**
-  String get forgotEmailLabel;
-
-  /// No description provided for @forgotSubmit.
-  ///
-  /// In ar, this message translates to:
-  /// **'إرسال التعليمات'**
-  String get forgotSubmit;
-
-  /// No description provided for @forgotConfirmationTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'تحقّق من بريدك'**
-  String get forgotConfirmationTitle;
-
-  /// No description provided for @forgotConfirmationBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'إذا كان هناك حساب مرتبط بـ {email} فقد أرسلنا إليه تعليمات إعادة تعيين كلمة المرور.'**
-  String forgotConfirmationBody(String email);
-
-  /// No description provided for @forgotBackToLogin.
-  ///
-  /// In ar, this message translates to:
-  /// **'العودة إلى تسجيل الدخول'**
-  String get forgotBackToLogin;
-
-  /// No description provided for @verifyTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'أكّد بريدك الإلكتروني'**
-  String get verifyTitle;
-
-  /// No description provided for @verifyBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'أرسلنا رابط تأكيد إلى {email}. افتح الرابط لتأكيد حسابك.'**
-  String verifyBody(String email);
-
-  /// No description provided for @verifyResend.
-  ///
-  /// In ar, this message translates to:
-  /// **'إعادة إرسال الرسالة'**
-  String get verifyResend;
-
-  /// No description provided for @verifyResent.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم إرسال رسالة التأكيد'**
-  String get verifyResent;
-
-  /// No description provided for @verifyContinue.
-  ///
-  /// In ar, this message translates to:
-  /// **'المتابعة إلى التطبيق'**
-  String get verifyContinue;
-
-  /// No description provided for @validationRequired.
-  ///
-  /// In ar, this message translates to:
-  /// **'هذا الحقل مطلوب'**
-  String get validationRequired;
-
-  /// No description provided for @validationEmailInvalid.
-  ///
-  /// In ar, this message translates to:
-  /// **'أدخل بريدًا إلكترونيًا صحيحًا'**
-  String get validationEmailInvalid;
-
-  /// No description provided for @validationTooShort.
-  ///
-  /// In ar, this message translates to:
-  /// **'يجب ألا يقل عن {min} أحرف'**
-  String validationTooShort(int min);
-
-  /// No description provided for @validationTooLong.
-  ///
-  /// In ar, this message translates to:
-  /// **'يجب ألا يزيد عن {max} حرفًا'**
-  String validationTooLong(int max);
-
-  /// No description provided for @validationUsernameFormat.
-  ///
-  /// In ar, this message translates to:
-  /// **'استخدم أحرفًا إنجليزية صغيرة وأرقامًا و . و _ فقط، ولا تبدأ أو تنتهي بـ . أو _'**
-  String get validationUsernameFormat;
-
-  /// No description provided for @validationInvalid.
-  ///
-  /// In ar, this message translates to:
-  /// **'القيمة غير صالحة'**
-  String get validationInvalid;
-
-  /// No description provided for @sessionEndedBanner.
-  ///
-  /// In ar, this message translates to:
-  /// **'انتهت جلستك. سجّل الدخول مرة أخرى.'**
-  String get sessionEndedBanner;
-
-  /// No description provided for @accountSuspendedBanner.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم إيقاف هذا الحساب.'**
-  String get accountSuspendedBanner;
-
-  /// No description provided for @splashRestoreFailed.
-  ///
-  /// In ar, this message translates to:
-  /// **'تعذّرت استعادة جلستك.'**
-  String get splashRestoreFailed;
-
-  /// No description provided for @navHome.
-  ///
-  /// In ar, this message translates to:
-  /// **'الرئيسية'**
-  String get navHome;
-
-  /// No description provided for @navDiscover.
-  ///
-  /// In ar, this message translates to:
-  /// **'استكشف'**
-  String get navDiscover;
-
-  /// No description provided for @navCreate.
-  ///
-  /// In ar, this message translates to:
-  /// **'إنشاء'**
-  String get navCreate;
-
-  /// No description provided for @navLive.
-  ///
-  /// In ar, this message translates to:
-  /// **'مباشر'**
-  String get navLive;
-
-  /// No description provided for @navProfile.
-  ///
-  /// In ar, this message translates to:
-  /// **'حسابي'**
-  String get navProfile;
-
-  /// No description provided for @homeComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'خلاصتك في الطريق'**
-  String get homeComingTitle;
-
-  /// No description provided for @discoverComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'الاستكشاف قادم'**
-  String get discoverComingTitle;
-
-  /// No description provided for @createComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'الإنشاء قادم'**
-  String get createComingTitle;
-
-  /// No description provided for @createComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'منشورات الصور تصل في المرحلة 3، والفيديوهات القصيرة في المرحلة 5.'**
-  String get createComingBody;
-
-  /// No description provided for @liveComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'البث المباشر قادم'**
-  String get liveComingTitle;
-
-  /// No description provided for @profileTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'حسابي'**
-  String get profileTitle;
-
-  /// No description provided for @profileEmailVerified.
-  ///
-  /// In ar, this message translates to:
-  /// **'البريد الإلكتروني مؤكَّد'**
-  String get profileEmailVerified;
-
-  /// No description provided for @profileEmailNotVerified.
-  ///
-  /// In ar, this message translates to:
-  /// **'البريد الإلكتروني غير مؤكَّد'**
-  String get profileEmailNotVerified;
-
-  /// No description provided for @profileResendVerification.
-  ///
-  /// In ar, this message translates to:
-  /// **'إعادة إرسال رسالة التأكيد'**
-  String get profileResendVerification;
-
-  /// No description provided for @profileUsername.
-  ///
-  /// In ar, this message translates to:
-  /// **'‎@{username}‎'**
-  String profileUsername(String username);
-
-  /// No description provided for @settingsTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'الإعدادات'**
-  String get settingsTitle;
-
-  /// No description provided for @settingsAppearance.
-  ///
-  /// In ar, this message translates to:
-  /// **'المظهر'**
-  String get settingsAppearance;
-
-  /// No description provided for @themeSystem.
-  ///
-  /// In ar, this message translates to:
-  /// **'النظام'**
-  String get themeSystem;
-
-  /// No description provided for @themeDark.
-  ///
-  /// In ar, this message translates to:
-  /// **'داكن'**
-  String get themeDark;
-
-  /// No description provided for @themeLight.
-  ///
-  /// In ar, this message translates to:
-  /// **'فاتح'**
-  String get themeLight;
-
-  /// No description provided for @settingsLanguage.
-  ///
-  /// In ar, this message translates to:
-  /// **'اللغة'**
-  String get settingsLanguage;
-
-  /// No description provided for @languageArabic.
-  ///
-  /// In ar, this message translates to:
-  /// **'العربية'**
-  String get languageArabic;
-
-  /// No description provided for @languageEnglish.
-  ///
-  /// In ar, this message translates to:
-  /// **'English'**
-  String get languageEnglish;
-
-  /// No description provided for @settingsSessions.
-  ///
-  /// In ar, this message translates to:
-  /// **'الجلسات النشطة'**
-  String get settingsSessions;
-
-  /// No description provided for @sessionsCurrent.
-  ///
-  /// In ar, this message translates to:
-  /// **'هذا الجهاز'**
-  String get sessionsCurrent;
-
-  /// No description provided for @sessionUnknownDevice.
-  ///
-  /// In ar, this message translates to:
-  /// **'جهاز غير معروف'**
-  String get sessionUnknownDevice;
-
-  /// No description provided for @platformAndroid.
-  ///
-  /// In ar, this message translates to:
-  /// **'أندرويد'**
-  String get platformAndroid;
-
-  /// No description provided for @platformIos.
-  ///
-  /// In ar, this message translates to:
-  /// **'iOS'**
-  String get platformIos;
-
-  /// No description provided for @platformWeb.
-  ///
-  /// In ar, this message translates to:
-  /// **'الويب'**
-  String get platformWeb;
-
-  /// No description provided for @platformOther.
-  ///
-  /// In ar, this message translates to:
-  /// **'أخرى'**
-  String get platformOther;
-
-  /// No description provided for @settingsAccount.
-  ///
-  /// In ar, this message translates to:
-  /// **'الحساب'**
-  String get settingsAccount;
-
-  /// No description provided for @logout.
-  ///
-  /// In ar, this message translates to:
-  /// **'تسجيل الخروج'**
-  String get logout;
-
-  /// No description provided for @logoutConfirmTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'تسجيل الخروج من كابسو لايف؟'**
-  String get logoutConfirmTitle;
-
-  /// No description provided for @logoutConfirmBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'ستحتاج إلى تسجيل الدخول مرة أخرى على هذا الجهاز.'**
-  String get logoutConfirmBody;
-
-  /// No description provided for @errorValidationFailed.
-  ///
-  /// In ar, this message translates to:
-  /// **'بعض المعلومات غير صحيحة. راجعها وحاول مجددًا.'**
-  String get errorValidationFailed;
-
-  /// No description provided for @errorAuthUnauthenticated.
-  ///
-  /// In ar, this message translates to:
-  /// **'يلزم تسجيل الدخول للمتابعة.'**
-  String get errorAuthUnauthenticated;
-
-  /// No description provided for @errorAuthInvalidCredentials.
-  ///
-  /// In ar, this message translates to:
-  /// **'البريد الإلكتروني أو اسم المستخدم أو كلمة المرور غير صحيحة.'**
-  String get errorAuthInvalidCredentials;
-
-  /// No description provided for @errorAuthRefreshInvalid.
-  ///
-  /// In ar, this message translates to:
-  /// **'انتهت جلستك. سجّل الدخول مرة أخرى.'**
-  String get errorAuthRefreshInvalid;
-
-  /// No description provided for @errorAuthForbidden.
-  ///
-  /// In ar, this message translates to:
-  /// **'ليس لديك صلاحية للقيام بذلك.'**
-  String get errorAuthForbidden;
-
-  /// No description provided for @errorAccountSuspended.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم إيقاف هذا الحساب.'**
-  String get errorAccountSuspended;
-
-  /// No description provided for @errorNotFound.
-  ///
-  /// In ar, this message translates to:
-  /// **'لم نعثر على ما تبحث عنه.'**
-  String get errorNotFound;
-
-  /// No description provided for @errorUsernameTaken.
-  ///
-  /// In ar, this message translates to:
-  /// **'اسم المستخدم هذا غير متاح.'**
-  String get errorUsernameTaken;
-
-  /// No description provided for @errorIdempotencyConflict.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم إرسال هذا الطلب من قبل ببيانات مختلفة.'**
-  String get errorIdempotencyConflict;
-
-  /// No description provided for @errorTokenExpired.
-  ///
-  /// In ar, this message translates to:
-  /// **'انتهت صلاحية هذا الرابط أو تم استخدامه بالفعل.'**
-  String get errorTokenExpired;
-
-  /// No description provided for @errorTokenInvalid.
-  ///
-  /// In ar, this message translates to:
-  /// **'هذا الرابط غير صالح.'**
-  String get errorTokenInvalid;
-
-  /// No description provided for @errorInternal.
-  ///
-  /// In ar, this message translates to:
-  /// **'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.'**
-  String get errorInternal;
-
-  /// No description provided for @errorServiceUnavailable.
-  ///
-  /// In ar, this message translates to:
-  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.'**
-  String get errorServiceUnavailable;
-
-  /// No description provided for @errorNetworkOffline.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا يوجد اتصال بالإنترنت. تحقّق من اتصالك وحاول مجددًا.'**
-  String get errorNetworkOffline;
-
-  /// No description provided for @errorNetworkTimeout.
-  ///
-  /// In ar, this message translates to:
-  /// **'استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى.'**
-  String get errorNetworkTimeout;
-
-  /// No description provided for @errorUnknown.
-  ///
-  /// In ar, this message translates to:
-  /// **'حدث خطأ غير متوقع. حاول مرة أخرى.'**
-  String get errorUnknown;
-
-  /// No description provided for @errorEmailTaken.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا يمكن استخدام هذا البريد الإلكتروني لإنشاء حساب جديد. جرّب تسجيل الدخول أو إعادة تعيين كلمة المرور.'**
-  String get errorEmailTaken;
-
-  /// No description provided for @errorRateLimited.
-  ///
-  /// In ar, this message translates to:
-  /// **'محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.'**
-  String get errorRateLimited;
-
-  /// No description provided for @errorRateLimitedRetryIn.
-  ///
-  /// In ar, this message translates to:
-  /// **'محاولات كثيرة. حاول مرة أخرى بعد {wait}.'**
-  String errorRateLimitedRetryIn(String wait);
-
-  /// No description provided for @errorServiceBusyRetryIn.
-  ///
-  /// In ar, this message translates to:
-  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.'**
-  String errorServiceBusyRetryIn(String wait);
-
-  /// No description provided for @errorIdLabel.
-  ///
-  /// In ar, this message translates to:
-  /// **'رمز الخطأ: {requestId}'**
-  String errorIdLabel(String requestId);
-
-  /// No description provided for @homeComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.'**
-  String get homeComingBody;
-
-  /// No description provided for @discoverComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.'**
-  String get discoverComingBody;
-
-  /// No description provided for @liveComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.'**
-  String get liveComingBody;
-
-  /// No description provided for @profileContentComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'ستظهر منشوراتك هنا'**
-  String get profileContentComingTitle;
-
-  /// No description provided for @profileContentComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.'**
-  String get profileContentComingBody;
 
   /// No description provided for @usernameTaken.
   ///
@@ -811,6 +385,354 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية'**
   String get usernameBadEdges;
+
+  /// No description provided for @codeTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من بريدك الإلكتروني'**
+  String get codeTitle;
+
+  /// Never implies whether the address has an account.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا كان من الممكن استخدام {email} لإنشاء حساب جديد، فقد أرسلنا إليه رمزًا من 8 أرقام. أدخل الرمز أدناه.'**
+  String codeBody(String email);
+
+  /// No description provided for @codeChangeEmail.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير البريد الإلكتروني'**
+  String get codeChangeEmail;
+
+  /// No description provided for @codeFieldLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز المكوّن من 8 أرقام'**
+  String get codeFieldLabel;
+
+  /// No description provided for @codeFieldHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل الرمز الوارد في البريد أو الصقه'**
+  String get codeFieldHint;
+
+  /// No description provided for @codeExpiryHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنتهي صلاحية الرمز خلال 30 دقيقة. تحقّق من مجلد الرسائل غير المرغوب فيها إن لم تجده.'**
+  String get codeExpiryHint;
+
+  /// No description provided for @codeMaybeExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربما انتهت صلاحية هذا الرمز. اطلب رمزًا جديدًا.'**
+  String get codeMaybeExpired;
+
+  /// No description provided for @codePasteInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتكوّن الرمز من 8 أرقام. تحقّق منه وحاول مرة أخرى.'**
+  String get codePasteInvalid;
+
+  /// No description provided for @codeSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get codeSubmit;
+
+  /// No description provided for @codeResend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رمز جديد'**
+  String get codeResend;
+
+  /// {time} = m:ss, Latin digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رمز جديد بعد {time}'**
+  String codeResendIn(String time);
+
+  /// No description provided for @codeResent.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا كان من الممكن استخدام هذا البريد، فسيصلك رمز جديد قريبًا. لم تعد الرموز السابقة صالحة.'**
+  String get codeResent;
+
+  /// No description provided for @codeHaveAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك حساب بالفعل؟'**
+  String get codeHaveAccount;
+
+  /// No description provided for @codeLogIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول'**
+  String get codeLogIn;
+
+  /// No description provided for @codeWelcome.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحبًا بك في Kabso Live'**
+  String get codeWelcome;
+
+  /// No description provided for @errCodeInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرمز غير صحيح أو انتهت صلاحيته.'**
+  String get errCodeInvalid;
+
+  /// No description provided for @errCodeInvalidRepeated.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما زال لا يعمل؟ اطلب رمزًا جديدًا واستخدم أحدث رسالة.'**
+  String get errCodeInvalidRepeated;
+
+  /// No description provided for @errUsernameTakenDuringVerify.
+  ///
+  /// In ar, this message translates to:
+  /// **'حجز شخص آخر اسم المستخدم هذا قبل أن تُكمل. اختر اسمًا آخر وسنرسل إليك رمزًا جديدًا.'**
+  String get errUsernameTakenDuringVerify;
+
+  /// No description provided for @forgotTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة تعيين كلمة المرور'**
+  String get forgotTitle;
+
+  /// No description provided for @forgotSubtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل البريد الإلكتروني الذي سجّلت به وسنرسل إليك رابطًا لإعادة التعيين.'**
+  String get forgotSubtitle;
+
+  /// No description provided for @forgotEmailLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني'**
+  String get forgotEmailLabel;
+
+  /// No description provided for @forgotSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرابط'**
+  String get forgotSubmit;
+
+  /// No description provided for @forgotConfirmationTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من بريدك الإلكتروني'**
+  String get forgotConfirmationTitle;
+
+  /// No description provided for @forgotConfirmationBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا كان هناك حساب مرتبط بـ {email}، فقد أرسلنا إليه رابطًا لإعادة تعيين كلمة المرور. تنتهي صلاحية الرابط خلال ساعة واحدة.'**
+  String forgotConfirmationBody(String email);
+
+  /// No description provided for @forgotBackToLogin.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى تسجيل الدخول'**
+  String get forgotBackToLogin;
+
+  /// No description provided for @validationRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحقل مطلوب'**
+  String get validationRequired;
+
+  /// No description provided for @validationEmailInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل بريدًا إلكترونيًا صحيحًا'**
+  String get validationEmailInvalid;
+
+  /// T4: Arabic plural via ICU.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم {min} {min, plural, few{أحرف} many{حرفًا} other{حرف}} على الأقل'**
+  String validationTooShort(int min);
+
+  /// T4: Arabic plural via ICU.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم {max} {max, plural, few{أحرف} many{حرفًا} other{حرف}} أو أقل'**
+  String validationTooLong(int max);
+
+  /// No description provided for @validationInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'القيمة غير صالحة'**
+  String get validationInvalid;
+
+  /// No description provided for @sessionEndedBanner.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلستك. يُرجى تسجيل الدخول مرة أخرى.'**
+  String get sessionEndedBanner;
+
+  /// No support button until B7 provides a channel.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إيقاف هذا الحساب. إذا كنت تعتقد أن هذا خطأ، فتواصل مع الدعم.'**
+  String get accountSuspendedBanner;
+
+  /// No description provided for @splashRestoreFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت استعادة جلستك.'**
+  String get splashRestoreFailed;
+
+  /// No description provided for @navHome.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرئيسية'**
+  String get navHome;
+
+  /// No description provided for @navDiscover.
+  ///
+  /// In ar, this message translates to:
+  /// **'استكشاف'**
+  String get navDiscover;
+
+  /// No description provided for @navCreate.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء'**
+  String get navCreate;
+
+  /// No description provided for @navLive.
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get navLive;
+
+  /// No description provided for @navProfile.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابي'**
+  String get navProfile;
+
+  /// No description provided for @homeComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'خلاصتك في الطريق'**
+  String get homeComingTitle;
+
+  /// No description provided for @homeComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.'**
+  String get homeComingBody;
+
+  /// No description provided for @discoverComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاستكشاف قادم'**
+  String get discoverComingTitle;
+
+  /// No description provided for @discoverComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.'**
+  String get discoverComingBody;
+
+  /// No description provided for @createComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإنشاء قادم'**
+  String get createComingTitle;
+
+  /// No description provided for @createComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.'**
+  String get createComingBody;
+
+  /// No description provided for @liveComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرف البث المباشر قادمة'**
+  String get liveComingTitle;
+
+  /// No description provided for @liveComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.'**
+  String get liveComingBody;
+
+  /// Profile TopBar title.
+  ///
+  /// In ar, this message translates to:
+  /// **'‎@{username}‎'**
+  String profileUsername(String username);
+
+  /// No description provided for @profileContentComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر منشوراتك هنا'**
+  String get profileContentComingTitle;
+
+  /// No description provided for @profileContentComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.'**
+  String get profileContentComingBody;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعدادات'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In ar, this message translates to:
+  /// **'المظهر'**
+  String get settingsAppearance;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسب إعدادات الجهاز'**
+  String get themeSystem;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In ar, this message translates to:
+  /// **'داكن'**
+  String get themeDark;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In ar, this message translates to:
+  /// **'فاتح'**
+  String get themeLight;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In ar, this message translates to:
+  /// **'اللغة'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsSessions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجلسات النشطة'**
+  String get settingsSessions;
+
+  /// No description provided for @sessionsCurrent.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الجهاز'**
+  String get sessionsCurrent;
+
+  /// No description provided for @sessionUnknownDevice.
+  ///
+  /// In ar, this message translates to:
+  /// **'جهاز غير معروف'**
+  String get sessionUnknownDevice;
 
   /// No description provided for @sessionsLastActive.
   ///
@@ -866,6 +788,12 @@ abstract class AppLocalizations {
   /// **'سيتم تسجيل خروج {device} على الفور.'**
   String sessionsRevokeConfirmBody(String device);
 
+  /// No description provided for @sessionsRevokeConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء الجلسة'**
+  String get sessionsRevokeConfirm;
+
   /// No description provided for @sessionsRevoked.
   ///
   /// In ar, this message translates to:
@@ -883,6 +811,180 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حسابك مسجَّل الدخول على هذا الجهاز فقط.'**
   String get sessionsNoOthers;
+
+  /// No description provided for @platformAndroid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أندرويد'**
+  String get platformAndroid;
+
+  /// No description provided for @platformIos.
+  ///
+  /// In ar, this message translates to:
+  /// **'iOS'**
+  String get platformIos;
+
+  /// No description provided for @platformWeb.
+  ///
+  /// In ar, this message translates to:
+  /// **'الويب'**
+  String get platformWeb;
+
+  /// No description provided for @platformOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get platformOther;
+
+  /// No description provided for @settingsAccount.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب'**
+  String get settingsAccount;
+
+  /// No description provided for @logout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get logout;
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من Kabso Live؟'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستحتاج إلى كلمة المرور لتسجيل الدخول مجددًا على هذا الجهاز.'**
+  String get logoutConfirmBody;
+
+  /// No description provided for @logoutDone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تسجيل خروجك'**
+  String get logoutDone;
+
+  /// No description provided for @errorValidationFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعض البيانات تحتاج إلى تصحيح. راجع الحقول المحدَّدة.'**
+  String get errorValidationFailed;
+
+  /// No description provided for @errorAuthUnauthenticated.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلستك. يُرجى تسجيل الدخول مرة أخرى.'**
+  String get errorAuthUnauthenticated;
+
+  /// No description provided for @errorAuthInvalidCredentials.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني أو اسم المستخدم أو كلمة المرور غير صحيحة.'**
+  String get errorAuthInvalidCredentials;
+
+  /// No description provided for @errorAuthRefreshInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلستك. يُرجى تسجيل الدخول مرة أخرى.'**
+  String get errorAuthRefreshInvalid;
+
+  /// No description provided for @errorAuthForbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك صلاحية للقيام بذلك.'**
+  String get errorAuthForbidden;
+
+  /// No description provided for @errorAccountSuspended.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إيقاف هذا الحساب. إذا كنت تعتقد أن هذا خطأ، فتواصل مع الدعم.'**
+  String get errorAccountSuspended;
+
+  /// No description provided for @errorNotFound.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المحتوى غير متاح. ربما تمت إزالته.'**
+  String get errorNotFound;
+
+  /// No description provided for @errorUsernameTaken.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم هذا غير متاح. جرّب اسمًا آخر.'**
+  String get errorUsernameTaken;
+
+  /// No description provided for @errorIdempotencyConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال هذا الطلب من قبل ببيانات مختلفة. حدّث الصفحة وحاول مرة أخرى.'**
+  String get errorIdempotencyConflict;
+
+  /// No description provided for @errorTokenExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية هذا الرابط أو سبق استخدامه. اطلب رابطًا جديدًا.'**
+  String get errorTokenExpired;
+
+  /// No description provided for @errorTokenInvalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرابط غير صالح. اطلب رابطًا جديدًا.'**
+  String get errorTokenInvalid;
+
+  /// No description provided for @errorRateLimited.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.'**
+  String get errorRateLimited;
+
+  /// {wait} = m:ss, Latin digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. حاول مرة أخرى بعد {wait}.'**
+  String errorRateLimitedRetryIn(String wait);
+
+  /// No description provided for @errorInternal.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ من جهتنا. يُرجى المحاولة مرة أخرى.'**
+  String get errorInternal;
+
+  /// No description provided for @errorServiceUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.'**
+  String get errorServiceUnavailable;
+
+  /// {wait} = m:ss, Latin digits.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.'**
+  String errorServiceBusyRetryIn(String wait);
+
+  /// No description provided for @errorNetworkOffline.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد اتصال بالإنترنت. تحقّق من اتصالك وحاول مجددًا.'**
+  String get errorNetworkOffline;
+
+  /// No description provided for @errorNetworkTimeout.
+  ///
+  /// In ar, this message translates to:
+  /// **'استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى.'**
+  String get errorNetworkTimeout;
+
+  /// No description provided for @errorUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ غير متوقع. حاول مرة أخرى.'**
+  String get errorUnknown;
+
+  /// No description provided for @errorIdLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الخطأ: {requestId}'**
+  String errorIdLabel(String requestId);
 }
 
 class _AppLocalizationsDelegate
