@@ -1,0 +1,16 @@
+packages:
+  - apps/api
+
+# pnpm 10 does not run dependency lifecycle scripts unless allow-listed.
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/engines'
+  - '@swc/core'
+  - argon2
+  - esbuild
+  - prisma
+
+# Not needed: optional native watcher (Nest CLI) and resolver (jest) prebuilt binaries.
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - unrs-resolver

@@ -1,0 +1,4 @@
+dist/
+coverage/
+# Prisma client is generated from prisma/schema.prisma (`pnpm prisma:generate`).
+src/generated/
