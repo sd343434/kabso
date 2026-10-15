@@ -4,8 +4,9 @@
 # required status check for branch protection: it passes when every job either succeeded or was
 # skipped because nothing relevant changed.
 #
-# Third-party actions are pinned to full commit SHAs (the comment names the release tag).
-# Dependabot (.github/dependabot.yml) proposes SHA bumps weekly.
+# Third-party actions are pinned to full commit SHAs (the comment names the release tag) and
+# service images to registry digests (refresh with scripts/image-digests.sh). Dependabot
+# (.github/dependabot.yml) proposes action SHA bumps weekly.
 name: CI
 
 on:
@@ -16,10 +17,24 @@ on:
       - "claude/**"
   workflow_dispatch:
 
+# Cancellation rule: a run may only be cancelled by a newer run that executes at least the
+# same jobs (KL-010; run 10 lost its mobile/Android verification to a docs-only push).
+#  - pull_request: paths-filter diffs the whole PR against its base, so a newer run of the same
+#    PR covers a superset of files -> cancel the older run (saves the most minutes).
+#  - push to a non-main branch (claude/**): never cancel a run in progress. Runs of one branch
+#    queue in one group; GitHub only replaces a run that is still *pending* with the newer one,
+#    and paths-filter diffs the branch against its merge-base with main, so the newer run again
+#    covers a superset. Cost: at most one running + one queued run per branch.
+#  - push to main and workflow_dispatch: unique group per run, never cancelled or replaced
+#    (on main paths-filter only diffs against the previous push, so every run is needed).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # Never cancel runs on main so every merged commit gets a complete result.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: >-
+    ci-${{ github.workflow }}-${{
+      github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main') && format('ref-{0}', github.ref) ||
+      format('run-{0}', github.run_id)
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -27,7 +42,6 @@ permissions:
 env:
   NODE_VERSION: "22"
   FLUTTER_VERSION: "3.47.7"
-  REDOCLY_CLI_VERSION: "2.57.0"
   GITLEAKS_VERSION: "8.30.1"
   # sha256 of gitleaks_8.30.1_linux_x64.tar.gz from the upstream checksums file.
   GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
@@ -44,8 +58,6 @@ jobs:
       api: ${{ steps.filter.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
       mobile: ${{ steps.filter.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
       contracts: ${{ steps.filter.outputs.contracts == 'true' || github.event_name == 'workflow_dispatch' }}
-      api_present: ${{ steps.present.outputs.api }}
-      mobile_present: ${{ steps.present.outputs.mobile }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,29 +79,19 @@ jobs:
             contracts:
               - "docs/contracts/**"
               - "redocly.yaml"
+              - "tools/redocly/**"
               - ".github/workflows/ci.yml"
-      # Phase 1 bootstrap guard: apps/api and apps/mobile are being built in parallel and may
-      # not exist on every branch yet. Remove this guard after integration (KL-008).
-      - name: Check which apps exist
-        id: present
-        run: |
-          api=false; mobile=false
-          if [ -f apps/api/package.json ]; then api=true; fi
-          if [ -f apps/mobile/pubspec.yaml ]; then mobile=true; fi
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "mobile=$mobile" >> "$GITHUB_OUTPUT"
-          if [ "$api" != true ]; then echo "::warning::apps/api/package.json not found; API jobs skipped"; fi
-          if [ "$mobile" != true ]; then echo "::warning::apps/mobile/pubspec.yaml not found; mobile jobs skipped"; fi
 
   api:
     name: API (lint, typecheck, test, e2e, build)
     needs: changes
-    if: needs.changes.outputs.api == 'true' && needs.changes.outputs.api_present == 'true'
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16.15-alpine
+        # postgres:16.15-alpine (multi-arch index digest, resolved 2026-10-15)
+        image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
         env:
           POSTGRES_USER: kabso
           POSTGRES_PASSWORD: ci_test_password_not_secret
@@ -102,7 +104,8 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       redis:
-        image: redis:7.4-alpine
+        # redis:7.4-alpine (multi-arch index digest, resolved 2026-10-15)
+        image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
         ports:
           - 6379:6379
         options: >-
@@ -118,6 +121,8 @@ jobs:
       DATABASE_URL: postgresql://kabso:ci_test_password_not_secret@localhost:5432/kabso_test?schema=public
       REDIS_URL: redis://localhost:6379/0
       JWT_ACCESS_SECRET: ci-test-only-jwt-secret-not-used-anywhere-else-0123456789
+      RATE_LIMIT_KEY_SECRET: ci-test-only-rate-limit-hmac-key-not-a-secret-0123456789
+      TRUST_PROXY: "false"
       JWT_ACCESS_TTL_SECONDS: "900"
       REFRESH_TTL_SECONDS: "2592000"
       APP_PUBLIC_URL: http://localhost:3000
@@ -159,7 +164,7 @@ jobs:
   mobile:
     name: Mobile (codegen drift, format, analyze, test)
     needs: changes
-    if: needs.changes.outputs.mobile == 'true' && needs.changes.outputs.mobile_present == 'true'
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     defaults:
@@ -177,8 +182,8 @@ jobs:
           pub-cache: true
       - name: Flutter version
         run: flutter --version
-      - name: Pub get
-        run: flutter pub get
+      - name: Pub get (lockfile enforced)
+        run: flutter pub get --enforce-lockfile
       - name: Regenerate code
         run: dart run build_runner build --delete-conflicting-outputs
       # Generated code is committed (decision D5); it must match what build_runner produces.
@@ -201,7 +206,7 @@ jobs:
   android:
     name: Android debug APK
     needs: changes
-    if: needs.changes.outputs.mobile == 'true' && needs.changes.outputs.mobile_present == 'true'
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     defaults:
@@ -228,8 +233,8 @@ jobs:
       # The Android SDK is preinstalled on GitHub's ubuntu runner image ($ANDROID_HOME).
       - name: Flutter doctor
         run: flutter doctor -v
-      - name: Pub get
-        run: flutter pub get
+      - name: Pub get (lockfile enforced)
+        run: flutter pub get --enforce-lockfile
       - name: Build debug APK
         run: flutter build apk --debug
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -244,9 +249,8 @@ jobs:
     needs: changes
     # macOS minutes are ~10x Linux: only on manual dispatch or pushes to main.
     if: >-
-      needs.changes.outputs.mobile_present == 'true' &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile == 'true'))
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile == 'true')
     runs-on: macos-latest
     timeout-minutes: 45
     defaults:
@@ -262,8 +266,8 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
           pub-cache: true
-      - name: Pub get
-        run: flutter pub get
+      - name: Pub get (lockfile enforced)
+        run: flutter pub get --enforce-lockfile
       - name: Build iOS (unsigned)
         run: flutter build ios --no-codesign
 
@@ -281,8 +285,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
+      # Redocly CLI is pinned with an npm lockfile (sha512 integrity) in tools/redocly (SEC-021).
+      - name: Install pinned Redocly CLI
+        run: npm ci --prefix tools/redocly --ignore-scripts --no-audit --no-fund
       - name: Lint OpenAPI (rules in redocly.yaml)
-        run: npx --yes "@redocly/cli@${REDOCLY_CLI_VERSION}" lint docs/contracts/openapi.yaml --format=github-actions
+        env:
+          REDOCLY_TELEMETRY: "off"
+          REDOCLY_SUPPRESS_UPDATE_NOTICE: "true"
+        run: tools/redocly/node_modules/.bin/redocly lint docs/contracts/openapi.yaml --format=github-actions
 
   secrets:
     name: Secret scan (gitleaks)

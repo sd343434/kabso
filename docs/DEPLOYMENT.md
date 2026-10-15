@@ -27,19 +27,20 @@ scripts/dev-setup.sh            # checks tools, creates .env, starts Postgres + 
 scripts/dev-setup.sh --storage  # also MinIO + bucket init (needed from Phase 3)
 ```
 
-The script is idempotent: it never overwrites an existing `.env`, replaces the
-`JWT_ACCESS_SECRET` placeholder with `openssl rand -base64 48` output only while the
-placeholder is still present, and only starts containers when a Docker daemon is reachable
-(`docker compose up -d --wait` blocks until health checks pass). Verified locally by running
-it twice without a daemon; shellcheck 0.11.0 reports no findings.
+The script is idempotent: it never overwrites an existing `.env`, gives `JWT_ACCESS_SECRET`
+and `RATE_LIMIT_KEY_SECRET` separate `openssl rand -base64 48` values only while they are
+still placeholders (and appends `RATE_LIMIT_KEY_SECRET` to an older `.env` that lacks it), and
+only starts containers when a Docker daemon is reachable (`docker compose up -d --wait` blocks
+until health checks pass). Verified locally without a daemon (fresh run, re-run, older `.env`);
+shellcheck 0.11.0 reports no findings.
 
 ### 1.3 Infrastructure (`docker-compose.yml`) — [IMPLEMENTED, UNVERIFIED]
 
 | Service | Image | Host port (127.0.0.1 only) | Volume | Health check |
 | ------- | ----- | -------------------------- | ------ | ------------ |
-| `postgres` | `postgres:16.15-alpine` | 5432 | `postgres-data` | `pg_isready` |
-| `redis` | `redis:7.4-alpine` (AOF on) | 6379 | `redis-data` | `redis-cli ping` |
-| `minio` (profile `storage`) | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` | 9000 API, 9001 console | `minio-data` | `GET /minio/health/live` |
+| `postgres` | `postgres:16.15-alpine@sha256:7218…80ea` | 5432 | `postgres-data` | `pg_isready` |
+| `redis` | `redis:7.4-alpine@sha256:858f…3499` (AOF on) | 6379 | `redis-data` | `redis-cli ping` |
+| `minio` (profile `storage`) | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bf…2372` | 9000 API, 9001 console | `minio-data` | `GET /minio/health/live` |
 | `minio-init` (profile `storage`) | same image, one-shot | — | — | creates `$S3_BUCKET` idempotently |
 
 - Credentials are dev defaults overridable from `.env`; database `kabso_dev`, user `kabso`.
@@ -49,6 +50,11 @@ it twice without a daemon; shellcheck 0.11.0 reports no findings.
   (`minio/minio` and `minio/mc` on Docker Hub are no longer pullable). The default is the
   community-maintained AGPL build by pgsty, which bundles `mc` and `curl`. Organisations with
   an approved mirror set `MINIO_IMAGE`. MinIO is local-only; cloud environments use S3 or R2.
+- Images are pinned by tag **and** registry digest (SEC-021; full digests in the file). The
+  digest is the multi-arch index, so the same pin works on amd64 and arm64 machines. To
+  refresh, run `scripts/image-digests.sh <image:tag> …` (queries Docker Hub) and update
+  `docker-compose.yml` and the CI service containers together. Dependabot bumps the compose
+  file only, and ignores new PostgreSQL/Redis **majors** (decision D2).
 - Reset everything: `docker compose --profile storage down -v` (deletes all local data).
 
 ### 1.4 Configuration
@@ -58,33 +64,55 @@ environment variables (validated with Zod at boot); export the root `.env` befor
 (`set -a; . ./.env; set +a`) or use the API's own loader if `apps/api` documents one. The
 mobile app gets only `API_BASE_URL` through `--dart-define`. It never receives secrets.
 
-## 2. Continuous integration (`.github/workflows/ci.yml`) — [IMPLEMENTED, UNVERIFIED]
+## 2. Continuous integration (`.github/workflows/ci.yml`) — [IMPLEMENTED]
+
+Evidence: run 13 (`workflow_dispatch` on `fbd1745`) passed all 8 jobs, including the Android
+debug APK and the unsigned iOS build. The KL-010 changes below (concurrency, digests, pinned
+Redocly, guard removal) are validated locally only until the next run.
 
 Triggers: every `pull_request`, pushes to `main` and `claude/**`, and manual
-`workflow_dispatch`, which runs every job. Runs on the same PR or branch cancel each other, but
-runs on `main` are never cancelled. The default token is `contents: read`; only the change
-detector also gets `pull-requests: read`. Every third-party action is pinned to a full commit
-SHA, and Dependabot proposes updates weekly.
+`workflow_dispatch`, which runs every job. The default token is `contents: read`; only the
+change detector also gets `pull-requests: read`. Every third-party action is pinned to a full
+commit SHA, and Dependabot proposes updates weekly (with a 7-day cooldown).
+
+**Concurrency rule (KL-010):** a run is only cancelled by a newer run that executes at least
+the same jobs. In run 10 the first mobile and Android verification was cancelled by a
+docs-only push two minutes later; that can no longer happen.
+
+| Event | Concurrency group | In-progress run cancelled? | Why it is safe |
+| ----- | ----------------- | -------------------------- | -------------- |
+| `pull_request` | one per PR | yes, by the next push to the PR | paths-filter diffs the whole PR against its base, so the newer run covers a superset of files |
+| push to `claude/**` (any non-`main` branch) | one per branch | **never** | runs queue; GitHub only replaces a run that is still *pending* with the newer one, and paths-filter diffs the branch against its merge-base with `main`, so the newer run again covers a superset |
+| push to `main`, `workflow_dispatch` | one per run | never, and never replaced | on `main` paths-filter only diffs against the previous push, so every run is needed |
+
+Cost: at most one running and one queued run per branch. A docs-only push still runs
+`changes`, `secrets` and `ci-ok` (about one runner-minute each); the expensive mobile, Android
+and API jobs run only when their paths are in the diff. A push to a branch that also has an
+open PR produces both a push run and a PR run; only the PR run is cancellable.
 
 | Job | Runs when | Steps |
 | --- | --------- | ----- |
-| `changes` | always | `dorny/paths-filter` → `api` / `mobile` / `contracts` outputs; also detects whether `apps/api` / `apps/mobile` exist yet |
-| `api` | `apps/api/**`, root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or the workflow file changed | Node 22, pnpm (version from `packageManager`, store cached) → `install --frozen-lockfile` → `prisma:generate` → `prisma:migrate:deploy` → `lint` → `format:check` → `typecheck` → `test` → `test:e2e` → `build`. Postgres 16.15 and Redis 7.4 service containers with health checks. |
-| `mobile` | `apps/mobile/**`, design tokens, or the workflow file changed | Flutter 3.47.7 (SDK and pub cache cached) → `pub get` → `build_runner build` → fail on drift (`git diff --exit-code` plus untracked files) → `dart format --set-exit-if-changed lib test` → `flutter analyze` → `flutter test` |
+| `changes` | always | `dorny/paths-filter` → `api` / `mobile` / `contracts` outputs |
+| `api` | `apps/api/**`, root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or the workflow file changed | Node 22, pnpm (version from `packageManager`, store cached) → `install --frozen-lockfile` → `prisma:generate` → `prisma:migrate:deploy` → `lint` → `format:check` → `typecheck` → `test` → `test:e2e` → `build`. Postgres 16.15 and Redis 7.4 service containers, pinned by digest, with health checks. |
+| `mobile` | `apps/mobile/**`, design tokens, or the workflow file changed | Flutter 3.47.7 (SDK and pub cache cached) → `pub get --enforce-lockfile` → `build_runner build` → fail on drift (`git diff --exit-code` plus untracked files) → `dart format --set-exit-if-changed lib test` → `flutter analyze` → `flutter test` |
 | `android` | same as `mobile` | Temurin 17 with Gradle cache, the Android SDK from the runner image, then `flutter build apk --debug`. The APK is uploaded as an artifact kept for 7 days. **Never run in the authoring environment (no Android SDK, blocker B6).** |
 | `ios` | `workflow_dispatch`, or a push to `main` that changes mobile | `macos-latest`, `flutter build ios --no-codesign`. Gated because macOS minutes cost about 10 times Linux minutes. **Never run in the authoring environment.** |
-| `contracts` | `docs/contracts/**`, `redocly.yaml`, or the workflow file changed | `npx @redocly/cli@2.57.0 lint` with the rules in `redocly.yaml`, results shown as PR annotations |
+| `contracts` | `docs/contracts/**`, `redocly.yaml`, `tools/redocly/**`, or the workflow file changed | `npm ci --ignore-scripts` in `tools/redocly` (Redocly CLI 2.57.0 pinned by `package-lock.json` with sha512 integrity), then `redocly lint` with the rules in `redocly.yaml`; results shown as PR annotations |
 | `secrets` | always | gitleaks 8.30.1 CLI (download checked against its SHA-256) scans the full git history with redacted output |
 | `ci-ok` | always | Fails if any job failed or was cancelled. **Make this the only required status check** in branch protection; skipped jobs count as passing. |
 
 CI test configuration lives in the workflow `env`. It contains clearly fake values
-(`ci_test_password_not_secret`, `ci-test-only-jwt-secret-…`) that only exist inside the
-ephemeral job. No repository secrets are used by CI today.
+(`ci_test_password_not_secret`, `ci-test-only-jwt-secret-…`, `ci-test-only-rate-limit-…`)
+that only exist inside the ephemeral job. No repository secrets are used by CI today.
 
-**Bootstrap guard (temporary):** when `apps/api/package.json` or `apps/mobile/pubspec.yaml`
-does not exist yet, the `api`/`mobile`/`android`/`ios` jobs are skipped and the run shows a
-warning. These apps are being built in parallel. Remove the guard (the `present` step and the
-`*_present` conditions) once KL-008 integrates both apps, so that losing an app fails CI.
+The Phase 1 bootstrap guard (skip app jobs while `apps/api` / `apps/mobile` were absent) was
+removed in KL-010: both apps exist, so a missing app now fails CI instead of being skipped.
+
+**Supply chain (SEC-021):** actions by commit SHA; service and compose images by digest;
+Redocly CLI by lockfile; gitleaks by SHA-256-checked release tarball; API dependencies by
+`pnpm install --frozen-lockfile`; Flutter packages by `pubspec.lock` with
+`--enforce-lockfile`. Dependabot cooldown: 7 days (14 for majors) for npm, pub, actions and
+compose; security updates are not delayed.
 
 **Command contract** the apps must provide: `apps/api/package.json` scripts `prisma:generate`,
 `prisma:migrate:deploy`, `lint`, `typecheck`, `format:check`, `test`, `test:e2e`, `build`, and
@@ -112,14 +140,47 @@ differs. Configuration is validated at boot and the process exits on invalid con
 Production values are never copied into staging, and production data is never copied into
 dev.
 
+### 3.1 Client IP and `TRUST_PROXY` (SEC-003)
+
+Per-IP rate limits (CONVENTIONS §7) are only as good as the client IP. Express derives it from
+`X-Forwarded-For` according to `TRUST_PROXY`, and any client can send that header. A wrong
+value lets an attacker rotate `X-Forwarded-For` and bypass every per-IP limit (PoC in
+`docs/security/KL-007_PHASE1_REVIEW.md`).
+
+- **`TRUST_PROXY=true` is refused when `NODE_ENV=production`** (contract v1.1; the boot check
+  is being implemented by A3 in KL-011 — until it is merged, treat it as a deploy-checklist
+  item). `true` trusts the left-most, client-controlled entry.
+- Use a **hop count** = the number of proxies in front of the API that *append* to
+  `X-Forwarded-For` and that every request must pass through; or a **CIDR list** of your own
+  proxies' addresses (robust when the hop count varies). Never list a range that clients can
+  connect from.
+- The API port must only be reachable through those proxies (security group, private
+  subnet, ingress-only service). With no proxy in front, a hop count of 1 trusts the client's
+  own header — use `false`.
+
+| Platform (request path) | `TRUST_PROXY` | Notes |
+| ----------------------- | ------------- | ----- |
+| Local dev, docker compose, CI | `false` | no proxy; spoofed headers are ignored |
+| AWS ALB → ECS/EC2 | `1`, or the VPC subnets of the ALB, e.g. `10.0.0.0/16` | ALB appends the connecting IP; security group admits only the ALB |
+| AWS CloudFront → ALB → app | `2` | CloudFront appends the viewer IP, ALB appends the edge IP; restrict the ALB to the CloudFront origin-facing prefix list |
+| GCP external Application LB → GKE/GCE | `2` | the LB appends `<client-ip>,<lb-ip>` |
+| Google Cloud Run (no LB in front) | `1` | |
+| Kubernetes ingress-nginx behind an L4 (TCP) load balancer | `1` | ingress-nginx is the only appending hop; add 1 per additional L7 proxy |
+| Cloudflare → origin LB → app | `2` | allow only Cloudflare IP ranges at the origin |
+
+These values are [DESIGNED] until the platform is chosen. **Verify after every
+infrastructure change:** send `curl -H 'X-Forwarded-For: 203.0.113.7' https://<host>/health/ready`
+and check that the logged client IP is your real address, not `203.0.113.7`; the API is
+planned to log the effective `TRUST_PROXY` setting at boot (KL-011).
+
 ## 4. Secrets management — [DESIGNED]
 
 - **No secret ever lives in the repository or in the mobile app binary.** `.gitignore`
   excludes `.env*` (except `.env.example`), keystores, `key.properties`, `*.p12` and
   Firebase configuration files. The `secrets` CI job scans the history with gitleaks on
   every run **[IMPLEMENTED]**.
-- Runtime secrets (`DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, SMTP, S3 and LiveKit
-  keys) live in the cloud secret manager (AWS Secrets Manager or GCP Secret Manager). Each
+- Runtime secrets (`DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`,
+  `RATE_LIMIT_KEY_SECRET`, SMTP, S3 and LiveKit keys) live in the cloud secret manager (AWS Secrets Manager or GCP Secret Manager). Each
   environment's workload identity reads only its own secrets. They are injected as environment
   variables at container start.
 - Deploy-time credentials live in **GitHub Environments** (`staging`, `production`). Deploy
@@ -131,11 +192,13 @@ dev.
   at job end.
 - Rotation: `JWT_ACCESS_SECRET` rotation needs dual-key verification (`kid`) so access tokens
   stay valid for up to 15 minutes. Planned for the Security model; until then a rotation
-  signs every user out. Database passwords rotate through the secret manager, followed by a
-  rolling restart.
+  signs every user out. `RATE_LIMIT_KEY_SECRET` (HMAC key for rate-limit buckets, required in
+  production, distinct from the JWT key) can rotate at any time; rotation only resets
+  counters. Generate both with `openssl rand -base64 48`. Database passwords rotate through
+  the secret manager, followed by a rolling restart.
 - **Required, not yet implemented (SEC-011 / KL-013):** the API must use a least-privilege
   database role (DML only); migrations run as a separate migration role with DDL rights. Today
-  the API connects as the schema owner — acceptable for local development only.
+  the API connects as the schema owner — acceptable for local development only. Design: §5.1.
 
 ## 5. Database migrations — [DESIGNED]
 
@@ -157,6 +220,68 @@ dev.
   4. *Contract*: drop old columns in a **later** release, once no running version reads them.
 - Destructive or locking migrations need a review note in the PR: the expected lock, the
   table size, and the rollback.
+
+### 5.1 Database roles (SEC-011) — [DESIGNED; implementation KL-013 (A3 + A8), required before any deployment]
+
+Today the API and the migrations use the same owner role. Target:
+
+| Role | Login | Used by | Rights |
+| ---- | ----- | ------- | ------ |
+| `kabso_migrator` | yes | the pre-deploy migration job only (`prisma migrate deploy`) | owns schema `public` and every table, sequence and type in it; DDL |
+| `kabso_app` | yes | API pods (`DATABASE_URL`) | `CONNECT`; `USAGE` on schema; `SELECT, INSERT, UPDATE, DELETE` on app tables; `INSERT, SELECT` only on `audit_logs`; `USAGE, SELECT` on sequences; no `TRUNCATE`, `REFERENCES`, `TRIGGER`, DDL, or access to `_prisma_migrations` |
+| bootstrap / admin (managed-service master user) | break-glass only | environment bootstrap | creates the two roles; never used by an application |
+
+**1. Environment bootstrap** (run once per environment as the admin user; passwords come from
+the secret manager, never from a migration):
+
+```sql
+CREATE ROLE kabso_migrator LOGIN PASSWORD :'migrator_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+CREATE ROLE kabso_app LOGIN PASSWORD :'app_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 200;
+ALTER ROLE kabso_app SET statement_timeout = '15s';
+ALTER ROLE kabso_app SET idle_in_transaction_session_timeout = '30s';
+
+REVOKE ALL ON DATABASE kabso FROM PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE kabso TO kabso_migrator;
+GRANT CONNECT ON DATABASE kabso TO kabso_app;
+ALTER SCHEMA public OWNER TO kabso_migrator;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;   -- already the default since PostgreSQL 15
+GRANT USAGE ON SCHEMA public TO kabso_app;
+```
+
+**2. Grants in a Prisma migration** (runs as `kabso_migrator`, so it lives with the schema):
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kabso_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kabso_app;
+REVOKE ALL ON TABLE _prisma_migrations FROM kabso_app;
+REVOKE UPDATE, DELETE ON TABLE audit_logs FROM kabso_app;   -- append-only audit trail
+
+-- Objects created later by kabso_migrator get the same grants automatically.
+ALTER DEFAULT PRIVILEGES FOR ROLE kabso_migrator IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kabso_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE kabso_migrator IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO kabso_app;
+```
+
+Design rules and open points for KL-013:
+
+- Migrations **must run as `kabso_migrator`**: default privileges only apply to objects
+  created by that role. A migration run as the admin user would create tables `kabso_app`
+  cannot read.
+- Any future append-only or sensitive table gets an explicit `REVOKE` in the migration that
+  creates it (the default privileges grant full DML).
+- Two connection strings: `DATABASE_URL` (`kabso_app`) for the API, and a separate migration
+  URL (name to be agreed with A3, e.g. `MIGRATION_DATABASE_URL`, read by
+  `apps/api/prisma.config.ts`) available only to the migration job.
+- The grant migration references `kabso_app`, so the role must exist everywhere migrations
+  run: local compose (an init script under `infra/postgres/`), the CI service container (a
+  setup step before `prisma:migrate:deploy`), staging and production (bootstrap above).
+- CI then runs the e2e suite as `kabso_app` and adds negative tests (`UPDATE audit_logs`,
+  `TRUNCATE`, `CREATE TABLE` must fail) so the separation cannot regress silently.
+- Until KL-013 ships, the API connects as the owner: acceptable for local development and
+  CI only. **No staging or production deployment before KL-013** (blocker B10).
 
 ## 6. Observability baseline
 
@@ -216,14 +341,19 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
 - **Build flavours:** `API_BASE_URL` per environment through `--dart-define` (staging builds
   go to the internal and TestFlight tracks only).
 - **Today:** CI produces an unsigned Android **debug** APK and an unsigned iOS build on
-  dispatch or main. Neither has been run yet (see §2).
+  dispatch or main; both compiled in run 13 but are not device-tested (see §2 and §10).
 
 ## 10. What is not verified
 
-- The CI workflow has passed `actionlint` 1.7.12 (with shellcheck 0.11.0) but has **never run
-  on GitHub**. The first PR run is the real test.
+- CI ran green on GitHub in run 13 (`fbd1745`). The KL-010 workflow changes (concurrency
+  groups, digest-pinned service images, pinned Redocly install, guard removal,
+  `--enforce-lockfile`) pass `actionlint` 1.7.12 with shellcheck 0.11.0 but have not run on
+  GitHub yet.
 - The Docker Compose services have never been started (no daemon in the authoring
   environment).
-- The Android and iOS builds have never been run (no Android SDK or Xcode, blocker B6).
-- The `contracts` job **currently fails** on a real error in `docs/contracts/openapi.yaml`
-  (see the KL-005 report); the contract owner must fix it.
+- The Android debug APK and unsigned iOS build compile in CI (run 13); neither has been
+  installed on a device or emulator.
+- The Dependabot `cooldown` / `ignore` settings were validated against the published schema;
+  their effect is only visible in the next weekly Dependabot run.
+- The per-platform `TRUST_PROXY` values in §3.1 are based on each platform's documented
+  `X-Forwarded-For` behaviour and must be verified on the real deployment.
