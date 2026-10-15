@@ -1,0 +1,155 @@
+// Kabso Live — Phase 1 schema (identity, sessions, verification tokens, audit log).
+// Conventions: snake_case tables/columns via @@map/@map, UUIDv7 ids, timestamptz(3).
+// Ownership: auth module owns sessions/verification_tokens; users module owns users,
+// user_profiles, user_settings; audit_logs is append-only (common).
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+
+  @@map("user_status")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+
+  @@map("verification_purpose")
+}
+
+model User {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  /// Normalized (trimmed + lowercased) before write; unique.
+  email           String     @unique @db.VarChar(254)
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(3)
+  /// Argon2id PHC string.
+  passwordHash    String     @map("password_hash") @db.VarChar(255)
+  status          UserStatus @default(ACTIVE)
+  role            UserRole   @default(USER)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  profile            UserProfile?
+  settings           UserSettings?
+  sessions           Session[]
+  verificationTokens VerificationToken[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
+  username    String   @unique @db.VarChar(30)
+  displayName String   @map("display_name") @db.VarChar(50)
+  bio         String?  @db.VarChar(300)
+  avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
+  locale      String   @default("ar") @db.VarChar(8)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserSettings {
+  userId    String   @id @map("user_id") @db.Uuid
+  isPrivate Boolean  @default(false) @map("is_private")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Session {
+  id                       String    @id @default(uuid(7)) @db.Uuid
+  userId                   String    @map("user_id") @db.Uuid
+  /// SHA-256 (hex) of the current refresh secret.
+  refreshTokenHash         String    @map("refresh_token_hash") @db.Char(64)
+  /// SHA-256 (hex) of the immediately preceding secret, kept for reuse detection.
+  previousRefreshTokenHash String?   @map("previous_refresh_token_hash") @db.Char(64)
+  /// Incremented on every rotation (compare-and-swap guard + diagnostics).
+  rotationCounter          Int       @default(0) @map("rotation_counter")
+  deviceName               String?   @map("device_name") @db.VarChar(100)
+  platform                 String?   @db.VarChar(16)
+  appVersion               String?   @map("app_version") @db.VarChar(32)
+  ip                       String?   @db.VarChar(64)
+  userAgent                String?   @map("user_agent") @db.VarChar(512)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt               DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  /// Sliding expiry (REFRESH_TTL_SECONDS from last rotation, capped by absoluteExpiresAt).
+  expiresAt                DateTime  @map("expires_at") @db.Timestamptz(3)
+  absoluteExpiresAt        DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN
+  revokedReason            String?   @map("revoked_reason") @db.VarChar(32)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)], map: "sessions_user_id_created_at_idx")
+  @@index([expiresAt], map: "sessions_expires_at_idx")
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  purpose    VerificationPurpose
+  /// SHA-256 (hex) of the raw token; the raw token is only ever sent by mail.
+  tokenHash  String              @unique @map("token_hash") @db.Char(64)
+  expiresAt  DateTime            @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime?           @map("consumed_at") @db.Timestamptz(3)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose], map: "verification_tokens_user_id_purpose_idx")
+  @@index([expiresAt], map: "verification_tokens_expires_at_idx")
+  @@map("verification_tokens")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// Null for anonymous actions (e.g. failed login for an unknown identifier).
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String   @db.VarChar(64)
+  targetType  String?  @map("target_type") @db.VarChar(32)
+  targetId    String?  @map("target_id") @db.VarChar(64)
+  metadata    Json?    @db.JsonB
+  ip          String?  @db.VarChar(64)
+  requestId   String?  @map("request_id") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  /// Audit rows survive user deletion (actor becomes NULL).
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt(sort: Desc)], map: "audit_logs_actor_user_id_created_at_idx")
+  @@index([action, createdAt(sort: Desc)], map: "audit_logs_action_created_at_idx")
+  @@index([targetType, targetId], map: "audit_logs_target_idx")
+  @@map("audit_logs")
+}
