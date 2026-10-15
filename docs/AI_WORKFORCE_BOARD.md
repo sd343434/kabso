@@ -1,0 +1,89 @@
+# Kabso Live — AI Workforce Board
+
+Authoritative task registry. Statuses: `BACKLOG → READY → IN_PROGRESS → REVIEW → TESTING → DONE`
+(+ `BLOCKED`, `REJECTED`). A task is DONE only when acceptance criteria are met, its tests were
+actually executed, and required reviews passed. Delivery labels used in reports:
+**IMPLEMENTED** (code exists) ≠ **TESTED** (tests executed and passing) ≠ **INTEGRATED** (merged
+on the integration branch with the other modules, regression suite green) ≠ **PRODUCTION-READY**
+(release gates passed + human authorization).
+
+## Environment audit (2026-10-15)
+
+| Item | Finding |
+| ---- | ------- |
+| Repository | `sd343434/kabso` was empty (no commits). Greenfield monorepo. |
+| Unrelated repo | `sd343434/flexibx` (separate Next.js product) — not modified. |
+| Multi-agent capability | Claude Code `Agent` tool with `isolation: "worktree"` is available → genuine parallel subagents in isolated git worktrees. |
+| Toolchain | Node 22.22, pnpm, PostgreSQL 16 (local cluster), Redis 7.0, Java; Flutter 3.47.7 / Dart 3.13.5 installed into `/opt/sdk/flutter` this session. |
+| Not available | Docker daemon (client only), Android SDK, Xcode/macOS → no device/emulator runs, no APK/IPA builds in this environment. |
+| Network | npm, pub.dev, Flutter storage reachable. |
+
+## Agent roster
+
+| ID | Role | Ownership (Phase 1) |
+| -- | ---- | ------------------- |
+| A1 | CTO / Orchestrator | `docs/contracts/**`, plan, board, integration, reviews |
+| A2 | Flutter Mobile | `apps/mobile/**` |
+| A3 | Backend & Database | `apps/api/**`, root `package.json`, `pnpm-workspace.yaml` |
+| A4 | Real-time Media | Phase 6+ (LiveKit adapter, WS events) — not active in Phase 1 |
+| A5 | Product Design & UX | `docs/design/**` |
+| A6 | QA & Test | independent verification; may add tests under `apps/*/test` |
+| A7 | Security & Performance | `docs/SECURITY_MODEL.md`, review of auth |
+| A8 | DevOps & Release | `.github/**`, `docker-compose.yml`, `infra/**`, `docs/DEPLOYMENT.md` |
+
+## Phase 1 tasks
+
+| ID | Title | Owner | Pri | Status | Depends | Review |
+| -- | ----- | ----- | --- | ------ | ------- | ------ |
+| KL-001 | Environment audit, contracts, architecture, plan | A1 | P0 | DONE | — | self (docs only) |
+| KL-002 | Backend foundation + auth vertical slice | A3 | P0 | IN_PROGRESS | KL-001 | A1, A6, A7 |
+| KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | IN_PROGRESS | KL-001 | A1, A6 |
+| KL-004 | Design system & screen inventory spec | A5 | P1 | IN_PROGRESS | KL-001 | A1 |
+| KL-005 | CI, local infra, deployment doc | A8 | P0 | IN_PROGRESS | KL-001 | A1 |
+| KL-006 | Independent QA verification of Phase 1 | A6 | P0 | BACKLOG | KL-002, KL-003 | A1 |
+| KL-007 | Auth threat model & security review | A7 | P0 | BACKLOG | KL-002 | A1 |
+| KL-008 | Integration of Phase 1 + regression run | A1 | P0 | BACKLOG | KL-002..005 | A6 |
+
+### Acceptance criteria
+
+**KL-002 Backend auth slice** — every endpoint in `docs/contracts/openapi.yaml` implemented with
+the exact shapes and error codes of `CONVENTIONS.md`; Prisma schema + initial migration
+(User, UserProfile, UserSettings, Session, VerificationToken, AuditLog); Argon2id; refresh
+rotation with reuse detection; immediate revocation; Redis rate limits; log mail adapter;
+health endpoints; zod-validated config; e2e tests against real Postgres+Redis covering happy
+paths, validation, duplicate email/username, wrong password (no enumeration), refresh rotation,
+reuse detection, logout, session revoke, suspended account, password reset revoking sessions,
+rate limiting; lint + typecheck + tests green.
+
+**KL-003 Flutter slice** — app boots to splash → auth gate; Arabic default (RTL) + English;
+dark (default) + light themes from `design-tokens.json`; 5-tab `StatefulShellRoute` with
+honest "coming in Phase N" empty states (no fake data, no dead buttons); login, register (live
+username availability), forgot-password, email-verification notice screens wired to the API;
+Dio client with error-envelope mapping and single-flight refresh; refresh token in secure
+storage; session restore on launch; logout; loading/error/empty states; unit tests (repository,
+interceptor refresh single-flight, error mapping), widget tests (login validation, RTL layout,
+shell navigation); `dart format`, `flutter analyze` (zero issues), `flutter test` green.
+
+**KL-004 Design spec** — `docs/design/DESIGN_SYSTEM.md` (tokens usage, components with states,
+RTL rules, accessibility, motion) and `docs/design/SCREEN_INVENTORY.md` (all screens across
+phases, navigation map, per-screen states) consistent with `design-tokens.json`.
+
+**KL-005 DevOps** — `docker-compose.yml` (Postgres 16, Redis 7, MinIO), `.github/workflows/ci.yml`
+(api: install, prisma generate, migrate, lint, typecheck, test with service containers;
+mobile: pub get, codegen-diff check, format check, analyze, test; contracts: OpenAPI lint),
+`docs/DEPLOYMENT.md`, root `.env.example` guidance.
+
+## Decision log
+
+| # | Date | Decision | Rationale |
+| - | ---- | -------- | --------- |
+| D1 | 2026-10-15 | Monorepo: `apps/mobile`, `apps/api`, `docs/contracts` | Contract-first, one review surface |
+| D2 | 2026-10-15 | NestJS 12 + Prisma 7.10 (stable; npm `latest` is 8.0.0-rc → rejected) + Postgres 16 + Redis | Stable versions only |
+| D3 | 2026-10-15 | LiveKit as default live provider behind `LiveMediaProvider` | OSS/self-hostable, Flutter SDK, multi-host |
+| D4 | 2026-10-15 | Opaque rotating refresh tokens `<sid>.<secret>` + 15-min JWT; guard checks session | Immediate revocation, reuse detection |
+| D5 | 2026-10-15 | Generated Dart code committed, CI checks drift | Analyzer works on fresh clone |
+| D6 | 2026-10-15 | Error messages localized client-side by `code` | Single source of copy in the app |
+
+## Blockers (need human input)
+
+See `docs/KNOWN_LIMITATIONS.md` → "Blockers".

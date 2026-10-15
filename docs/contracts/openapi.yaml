@@ -1,0 +1,386 @@
+openapi: 3.1.0
+info:
+  title: Kabso Live API
+  version: 1.0.0-phase1
+  description: |
+    Authoritative HTTP contract. Conventions (errors, pagination, auth, rate limits) are defined in
+    CONVENTIONS.md and apply to every operation. Phase 1 scope: health, authentication, sessions,
+    current user. Later phases append paths; existing shapes change only via contract proposal.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+tags:
+  - name: health
+  - name: auth
+  - name: sessions
+  - name: me
+  - name: users
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      operationId: healthLive
+      security: []
+      responses:
+        '200':
+          description: Process is up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: healthReady
+      security: []
+      responses:
+        '200':
+          description: Dependencies (database, redis) reachable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+        '503':
+          description: A dependency is down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthStatus' }
+
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created, session started, verification email queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Session started.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              additionalProperties: false
+              properties:
+                refreshToken: { type: string, minLength: 10, maxLength: 200 }
+      responses:
+        '200':
+          description: New token pair (refresh token rotated).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      description: Revokes the session identified by the access token.
+      responses:
+        '204': { description: Session revoked. }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/email/verify:
+    post:
+      tags: [auth]
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              additionalProperties: false
+              properties:
+                token: { type: string, minLength: 10, maxLength: 200 }
+      responses:
+        '204': { description: Email verified. }
+        '410': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/email/resend:
+    post:
+      tags: [auth]
+      operationId: resendVerificationEmail
+      description: Re-sends the verification email for the authenticated user (no-op if verified).
+      responses:
+        '202': { description: Accepted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/password/forgot:
+    post:
+      tags: [auth]
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202': { description: Always returned, whether or not the email exists. }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/password/reset:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              additionalProperties: false
+              properties:
+                token: { type: string, minLength: 10, maxLength: 200 }
+                newPassword: { $ref: '#/components/schemas/Password' }
+      responses:
+        '204': { description: Password changed; all sessions revoked. }
+        '400': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/sessions:
+    get:
+      tags: [sessions]
+      operationId: listSessions
+      responses:
+        '200':
+          description: Active sessions of the caller, newest first (bounded, max 50).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SessionInfo' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      tags: [sessions]
+      operationId: revokeSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Revoked. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      responses:
+        '200':
+          description: The authenticated user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /api/v1/users/username-availability:
+    get:
+      tags: [users]
+      operationId: checkUsernameAvailability
+      security: []
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Username' }
+      responses:
+        '200':
+          description: Availability (reserved or invalid-but-well-formed names report false).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [username, available]
+                properties:
+                  username: { type: string }
+                  available: { type: boolean }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Error:
+      description: Error envelope (see CONVENTIONS.md §4).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, degraded, down] }
+        checks:
+          type: object
+          additionalProperties: { type: string, enum: [ok, down] }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string, example: VALIDATION_FAILED }
+            message: { type: string }
+            requestId: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, issue]
+                properties:
+                  field: { type: string }
+                  issue: { type: string }
+    Username:
+      type: string
+      minLength: 3
+      maxLength: 30
+      pattern: '^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$'
+    Password:
+      type: string
+      minLength: 8
+      maxLength: 128
+    Locale:
+      type: string
+      enum: [ar, en]
+    DeviceInfo:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, maxLength: 100, example: Pixel 9 }
+        platform: { type: string, enum: [android, ios, web, other] }
+        appVersion: { type: string, maxLength: 32 }
+    RegisterRequest:
+      type: object
+      required: [email, password, username, displayName]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { $ref: '#/components/schemas/Password' }
+        username: { $ref: '#/components/schemas/Username' }
+        displayName: { type: string, minLength: 1, maxLength: 50 }
+        locale: { $ref: '#/components/schemas/Locale' }
+        device: { $ref: '#/components/schemas/DeviceInfo' }
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      additionalProperties: false
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 254
+          description: Email address or username.
+        password: { type: string, minLength: 1, maxLength: 128 }
+        device: { $ref: '#/components/schemas/DeviceInfo' }
+    TokenPair:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        refreshToken: { type: string }
+        refreshTokenExpiresAt: { type: string, format: date-time }
+    AuthResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user: { $ref: '#/components/schemas/Me' }
+        tokens: { $ref: '#/components/schemas/TokenPair' }
+    Me:
+      type: object
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        emailVerified: { type: boolean }
+        username: { $ref: '#/components/schemas/Username' }
+        displayName: { type: string }
+        bio: { type: [string, 'null'], maxLength: 300 }
+        avatarUrl: { type: [string, 'null'], format: uri }
+        locale: { $ref: '#/components/schemas/Locale' }
+        role: { type: string, enum: [USER, ADMIN] }
+        isPrivate: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    SessionInfo:
+      type: object
+      required: [id, current, createdAt, lastUsedAt]
+      properties:
+        id: { type: string, format: uuid }
+        current: { type: boolean }
+        deviceName: { type: [string, 'null'] }
+        platform: { type: [string, 'null'], enum: [android, ios, web, other, null] }
+        appVersion: { type: [string, 'null'] }
+        ipCountry: { type: [string, 'null'], description: Reserved; null in Phase 1. }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+security:
+  - bearerAuth: []

@@ -1,0 +1,32 @@
+# Dependencies & builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# Env & secrets (never commit real values)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
