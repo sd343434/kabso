@@ -307,6 +307,62 @@ void main() {
     });
   });
 
+  group('RegisterScreen displayName (KL-017)', () {
+    final l10n = l10nFor(AppLanguage.en);
+
+    testWidgets('counter counts graphemes and turns red above 50; the '
+        'name is never truncated', (tester) async {
+      await pump(tester, const RegisterScreen());
+      final field = find.byKey(RegisterScreen.displayNameKey);
+      await tester.enterText(field, 'Layla 👨\u200D👩\u200D👧');
+      await tester.pump();
+      expect(find.text(l10n.displayNameCounter(7)), findsOneWidget);
+
+      final long = 'x' * 51;
+      await tester.enterText(field, long);
+      await tester.pump();
+      expect(find.text(l10n.displayNameCounter(51)), findsOneWidget);
+      final counter = tester.widget<Text>(
+        find.text(l10n.displayNameCounter(51)),
+      );
+      expect(counter.style?.color, isNotNull);
+      expect(find.text(long), findsOneWidget, reason: 'no silent truncation');
+
+      await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
+      await tester.tap(find.byKey(RegisterScreen.submitKey));
+      await tester.pump();
+      expect(find.text(l10n.displayNameTooLong), findsOneWidget);
+    });
+
+    testWidgets('server reserved_term → neutral copy on the field', (
+      tester,
+    ) async {
+      repo.registerFailure = const ServerFailure(
+        code: ErrorCode.validationFailed,
+        rawCode: 'VALIDATION_FAILED',
+        debugMessage: 'reserved',
+        details: [FieldIssue(field: 'displayName', issue: 'reserved_term')],
+      );
+      await pump(tester, const RegisterScreen());
+      await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
+      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.displayNameKey),
+        'Kabso Official',
+      );
+      await tester.enterText(
+        find.byKey(RegisterScreen.passwordKey),
+        'pa55word!',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
+      await tester.tap(find.byKey(RegisterScreen.submitKey));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(l10n.displayNameReserved), findsOneWidget);
+    });
+  });
+
   group('RegisterScreen server validation (contract v1.0.3)', () {
     final l10n = l10nFor(AppLanguage.en);
 
@@ -335,7 +391,7 @@ void main() {
       await pump(tester, const RegisterScreen());
       await fillAndSubmit(tester);
 
-      expect(find.text(l10n.validationUsernameFormat), findsOneWidget);
+      expect(find.text(l10n.usernameBadChars), findsOneWidget);
       expect(find.text(l10n.errorValidationFailed), findsNothing);
     });
 
@@ -354,7 +410,10 @@ void main() {
       expect(find.text(l10n.errorValidationFailed), findsOneWidget);
     });
 
-    testWidgets('EMAIL_TAKEN is shown on the email field', (tester) async {
+    testWidgets('v1.2 (D24): an EMAIL_TAKEN from an old server never '
+        'reveals email use — generic banner, no email field error', (
+      tester,
+    ) async {
       repo.registerFailure = const ServerFailure(
         code: ErrorCode.emailTaken,
         rawCode: 'EMAIL_TAKEN',
@@ -363,7 +422,17 @@ void main() {
       await pump(tester, const RegisterScreen());
       await fillAndSubmit(tester);
 
-      expect(find.text(l10n.errorEmailTaken), findsOneWidget);
+      expect(find.text(l10n.errorUnknown), findsOneWidget);
+      final email = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(RegisterScreen.emailKey),
+          matching: find.byType(TextField),
+        ),
+      );
+      expect(email.decoration?.errorText, isNull);
+      // Nothing on screen talks about the email being registered.
+      expect(find.textContaining('already'), findsNothing);
+      expect(find.textContaining('registered'), findsNothing);
     });
   });
 

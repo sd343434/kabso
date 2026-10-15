@@ -95,7 +95,8 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(AlertDialog),
-          matching: find.text(l10n.sessionsRevoke),
+          // KL-015 §5.5: the destructive confirm names the object.
+          matching: find.text(l10n.sessionsRevokeConfirm),
         ),
       );
       await tester.pumpAndSettle();
@@ -341,11 +342,18 @@ void main() {
   });
 
   group('KL-003: defaults on a fresh install', () {
+    // Contract v1.2 / D26 (PHASE1_1_SCREENS §3.1): with no saved choice the
+    // device language decides (en* → en, ar* → ar, anything else → ar). The
+    // test now pins a non-English, non-Arabic device locale so the Arabic
+    // fallback is what is asserted, independent of the test host's locale.
     test('language defaults to Arabic and theme to dark', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLocalesProvider.overrideWithValue(const [Locale('fr', 'FR')]),
+        ],
       );
       addTearDown(container.dispose);
       expect(container.read(languageControllerProvider), AppLanguage.ar);

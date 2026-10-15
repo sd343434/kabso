@@ -32,7 +32,6 @@ void main() {
     test('everything else goes to login', () {
       for (final r in [
         AppRoutes.splash,
-        AppRoutes.verifyEmailNotice,
         AppRoutes.settings,
         ...AppRoutes.shellBranches,
       ]) {
@@ -57,13 +56,14 @@ void main() {
       }
     });
 
-    test('right after registration the verify notice comes first', () {
-      final fresh = Authenticated(testUser(), justRegistered: true);
+    test('v1.2: the code screen is a signed-out route; signing in from it '
+        'lands on Home (no verify-email notice)', () {
+      expect(AppRoutes.publicAuthRoutes, contains(AppRoutes.registerCode));
+      expect(authRedirect(state, AppRoutes.registerCode), AppRoutes.home);
       expect(
-        authRedirect(fresh, AppRoutes.register),
-        AppRoutes.verifyEmailNotice,
+        authRedirect(const Unauthenticated(), AppRoutes.registerCode),
+        isNull,
       );
-      expect(authRedirect(fresh, AppRoutes.verifyEmailNotice), isNull);
     });
   });
 }

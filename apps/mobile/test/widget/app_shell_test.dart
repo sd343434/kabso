@@ -69,7 +69,6 @@ void main() {
     });
 
     testWidgets('profile tab shows the user from GET /me', (tester) async {
-      final l10n = l10nFor(AppLanguage.en);
       await pumpSignedIn(tester);
       await tester.pumpAndSettle();
 
@@ -79,10 +78,18 @@ void main() {
       expect(repo.getMeCalls, greaterThanOrEqualTo(1));
       expect(find.text('Layla From Me'), findsOneWidget);
       expect(find.text('Stored Layla'), findsNothing);
-      expect(find.text('@layla.k'), findsOneWidget);
-      expect(find.text('layla@example.com'), findsOneWidget);
-      expect(find.text(l10n.profileEmailNotVerified), findsOneWidget);
-      expect(find.text(l10n.profileResendVerification), findsOneWidget);
+      // TopBar title and the body line both show @username (§5.4).
+      expect(
+        tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
+        '@layla.k',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('profile.username'))).data,
+        '@layla.k',
+      );
+      // v1.2 §0: no verify banner / "Not verified" UI, even though this
+      // fake user has emailVerified=false.
+      expect(find.byKey(const Key('profile.emailStatus')), findsNothing);
       expect(find.byKey(ProfileScreen.settingsButtonKey), findsOneWidget);
     });
 
