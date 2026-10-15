@@ -1,0 +1,21 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - lib/l10n/gen/**
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # Application code, not a published package: API docs on every public
+    # member add noise without value. Everything else in very_good_analysis
+    # stays enabled.
+    public_member_api_docs: false
