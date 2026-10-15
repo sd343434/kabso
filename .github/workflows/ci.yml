@@ -1,0 +1,322 @@
+# Kabso Live — continuous integration.
+#
+# Jobs run only when their part of the monorepo changed (see `changes`). `ci-ok` is the single
+# required status check for branch protection: it passes when every job either succeeded or was
+# skipped because nothing relevant changed.
+#
+# Third-party actions are pinned to full commit SHAs (the comment names the release tag).
+# Dependabot (.github/dependabot.yml) proposes SHA bumps weekly.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "claude/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel runs on main so every merged commit gets a complete result.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  FLUTTER_VERSION: "3.47.7"
+  REDOCLY_CLI_VERSION: "2.57.0"
+  GITLEAKS_VERSION: "8.30.1"
+  # sha256 of gitleaks_8.30.1_linux_x64.tar.gz from the upstream checksums file.
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists PR files through the API
+    outputs:
+      api: ${{ steps.filter.outputs.api == 'true' || github.event_name == 'workflow_dispatch' }}
+      mobile: ${{ steps.filter.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch' }}
+      contracts: ${{ steps.filter.outputs.contracts == 'true' || github.event_name == 'workflow_dispatch' }}
+      api_present: ${{ steps.present.outputs.api }}
+      mobile_present: ${{ steps.present.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          filters: |
+            api:
+              - "apps/api/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - ".github/workflows/ci.yml"
+            mobile:
+              - "apps/mobile/**"
+              - "docs/contracts/design-tokens.json"
+              - ".github/workflows/ci.yml"
+            contracts:
+              - "docs/contracts/**"
+              - "redocly.yaml"
+              - ".github/workflows/ci.yml"
+      # Phase 1 bootstrap guard: apps/api and apps/mobile are being built in parallel and may
+      # not exist on every branch yet. Remove this guard after integration (KL-008).
+      - name: Check which apps exist
+        id: present
+        run: |
+          api=false; mobile=false
+          if [ -f apps/api/package.json ]; then api=true; fi
+          if [ -f apps/mobile/pubspec.yaml ]; then mobile=true; fi
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "mobile=$mobile" >> "$GITHUB_OUTPUT"
+          if [ "$api" != true ]; then echo "::warning::apps/api/package.json not found; API jobs skipped"; fi
+          if [ "$mobile" != true ]; then echo "::warning::apps/mobile/pubspec.yaml not found; mobile jobs skipped"; fi
+
+  api:
+    name: API (lint, typecheck, test, e2e, build)
+    needs: changes
+    if: needs.changes.outputs.api == 'true' && needs.changes.outputs.api_present == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_USER: kabso
+          POSTGRES_PASSWORD: ci_test_password_not_secret
+          POSTGRES_DB: kabso_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kabso -d kabso_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Clearly non-secret values that only exist inside this ephemeral CI job.
+      NODE_ENV: test
+      CI: "true"
+      PORT: "3000"
+      DATABASE_URL: postgresql://kabso:ci_test_password_not_secret@localhost:5432/kabso_test?schema=public
+      REDIS_URL: redis://localhost:6379/0
+      JWT_ACCESS_SECRET: ci-test-only-jwt-secret-not-used-anywhere-else-0123456789
+      JWT_ACCESS_TTL_SECONDS: "900"
+      REFRESH_TTL_SECONDS: "2592000"
+      APP_PUBLIC_URL: http://localhost:3000
+      MAIL_TRANSPORT: log
+      CORS_ORIGINS: http://localhost:3000
+      LOG_LEVEL: warn
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false # pnpm store is cached by pnpm/action-setup below
+      # pnpm version comes from the `packageManager` field of the root package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          cache_dependency_path: pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prisma generate
+        run: pnpm --filter ./apps/api prisma:generate
+      - name: Apply migrations (migrate deploy)
+        run: pnpm --filter ./apps/api prisma:migrate:deploy
+      - name: Lint
+        run: pnpm --filter ./apps/api lint
+      - name: Format check
+        run: pnpm --filter ./apps/api format:check
+      - name: Typecheck
+        run: pnpm --filter ./apps/api typecheck
+      - name: Unit tests
+        run: pnpm --filter ./apps/api test
+      - name: E2E tests (real Postgres + Redis)
+        run: pnpm --filter ./apps/api test:e2e
+      - name: Build
+        run: pnpm --filter ./apps/api build
+
+  mobile:
+    name: Mobile (codegen drift, format, analyze, test)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' && needs.changes.outputs.mobile_present == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      - name: Flutter version
+        run: flutter --version
+      - name: Pub get
+        run: flutter pub get
+      - name: Regenerate code
+        run: dart run build_runner build --delete-conflicting-outputs
+      # Generated code is committed (decision D5); it must match what build_runner produces.
+      - name: Fail on generated-code drift
+        run: |
+          git diff --exit-code -- .
+          untracked="$(git ls-files --others --exclude-standard -- .)"
+          if [ -n "$untracked" ]; then
+            echo "::error::build_runner produced files that are not committed:"
+            echo "$untracked"
+            exit 1
+          fi
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Android debug APK
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true' && needs.changes.outputs.mobile_present == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            apps/mobile/android/*.gradle*
+            apps/mobile/android/**/gradle-wrapper.properties
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      # The Android SDK is preinstalled on GitHub's ubuntu runner image ($ANDROID_HOME).
+      - name: Flutter doctor
+        run: flutter doctor -v
+      - name: Pub get
+        run: flutter pub get
+      - name: Build debug APK
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kabso-live-debug-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  ios:
+    name: iOS build (no codesign)
+    needs: changes
+    # macOS minutes are ~10x Linux: only on manual dispatch or pushes to main.
+    if: >-
+      needs.changes.outputs.mobile_present == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mobile == 'true'))
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+      - name: Pub get
+        run: flutter pub get
+      - name: Build iOS (unsigned)
+        run: flutter build ios --no-codesign
+
+  contracts:
+    name: Contracts (OpenAPI lint)
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Lint OpenAPI (rules in redocly.yaml)
+        run: npx --yes "@redocly/cli@${REDOCLY_CLI_VERSION}" lint docs/contracts/openapi.yaml --format=github-actions
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # scan the full history, not only the tip
+          persist-credentials: false
+      # The gitleaks CLI is used directly (gitleaks-action needs a paid licence for orgs).
+      - name: Install gitleaks (pinned, checksum-verified)
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
+      - name: Scan git history
+        run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --verbose --exit-code 1 .'
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [changes, api, mobile, android, ios, contracts, secrets]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "Job results: $RESULTS"
+          if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
+            echo "::error::At least one CI job failed or was cancelled."
+            exit 1
+          fi
