@@ -133,8 +133,9 @@ dev.
   stay valid for up to 15 minutes. Planned for the Security model; until then a rotation
   signs every user out. Database passwords rotate through the secret manager, followed by a
   rolling restart.
-- The API uses a least-privilege database role. Migrations run as a separate migration role
-  with DDL rights.
+- **Required, not yet implemented (SEC-011 / KL-013):** the API must use a least-privilege
+  database role (DML only); migrations run as a separate migration role with DDL rights. Today
+  the API connects as the schema owner — acceptable for local development only.
 
 ## 5. Database migrations — [DESIGNED]
 

@@ -11,6 +11,8 @@
 | B5 | Coin purchases: Apple IAP / Google Play Billing products, legal review of virtual currency & creator payouts per region | Phase 8 real money stays disabled | Commercial/legal sign-off, store product setup |
 | B6 | Android SDK / Xcode not available in this cloud environment | No APK/IPA build or device test here; CI must run them | macOS runner / signing assets |
 | B7 | App identity: final bundle id / application id (current placeholder in `apps/mobile`: `com.kabso.kabso_live`), domain, privacy/terms URLs, support contact | Store submission | Owner-provided values |
+| B9 | Registration reveals whether an email is registered (`EMAIL_TAKEN`) | Account enumeration via sign-up | Before public launch: switch to verify-first registration (needs B2 SMTP); product sign-off on the UX change |
+| B10 | Least-privilege runtime DB role not implemented (SEC-011) | API connects as a schema owner | Required before any production deployment (KL-013) |
 | B8 | Brand assets (logo, app icon) | App uses a text wordmark placeholder | Official Kabso Live assets |
 
 ## Current limitations (Phase 1)

@@ -71,4 +71,7 @@ kabso/
 
 See `docs/SECURITY_MODEL.md` (Phase 1 deliverable of the Security specialist). Highlights:
 Argon2id, rotating refresh tokens with reuse detection, immediate revocation via session check,
-Redis rate limits, no account enumeration, least-privilege DB role, secrets only via env.
+Redis rate limits, no enumeration via login/forgot-password (registration still reveals
+`EMAIL_TAKEN` — accepted Phase 1 risk, blocker B9), secrets only via env.
+**Not yet implemented:** least-privilege runtime DB role (KL-007 SEC-011; required before any
+production deployment). Full threat model: `docs/SECURITY_MODEL.md`.

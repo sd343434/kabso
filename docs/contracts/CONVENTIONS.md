@@ -1,6 +1,6 @@
 # Kabso Live — Shared API Conventions (authoritative contract)
 
-Status: **v1 — frozen for Phase 1.** Changes require a contract-change proposal recorded in
+Status: **v1.1 — frozen for Phase 1** (see §9 change log). Changes require a contract-change proposal recorded in
 `docs/AI_WORKFORCE_BOARD.md` (Decision Log), a compatibility note, and coordinated updates to
 `apps/api` and `apps/mobile` in the same change set. No specialist may change this silently.
 
@@ -17,6 +17,8 @@ Machine-readable HTTP contract: [`openapi.yaml`](openapi.yaml). Design tokens:
   (≤ 64 chars, `[A-Za-z0-9._-]`), the server reuses it; otherwise it generates a UUID.
 - The client sends `Accept-Language: ar` or `en`. Server-generated user-facing text (emails)
   uses it; error `message` fields are English developer text — **clients localize by `code`**.
+- Every `/api/v1` response carries `Cache-Control: no-store` (token-bearing and personal data
+  must never be cached by intermediaries or the client HTTP cache).
 - Clients identify themselves with `X-Client: kabso-mobile/<version> (<android|ios>)` (informational).
 
 ## 2. Identifiers and time
@@ -99,13 +101,22 @@ return the resource object directly (no `data` wrapper).
   session revocation and suspension take effect immediately.
 - **Refresh token**: opaque string `<sessionId>.<secret>` where `secret` is 32 random bytes
   base64url. The server stores only `SHA-256(secret)`. TTL 30 days sliding
-  (`REFRESH_TTL_SECONDS`), absolute max 180 days. **Rotated on every refresh.** Presenting a
-  previously rotated secret for a live session = reuse → the session is revoked
-  (`revokedReason = REFRESH_REUSE`) and `AUTH_REFRESH_INVALID` is returned.
+  (`REFRESH_TTL_SECONDS`), absolute max 180 days. **Rotated on every refresh.** Presenting **the immediately previous** secret for a live session
+  = reuse → the session is revoked (`revokedReason = REFRESH_REUSE`) and `AUTH_REFRESH_INVALID`
+  is returned. Any other non-matching secret (guessed or garbage, e.g. built from the public `sid`)
+  returns `AUTH_REFRESH_INVALID` **without** revoking the session (audited as
+  `refresh.invalid_secret`), so knowing a session id cannot force a logout.
+  Concurrent refreshes with the same secret: exactly one succeeds; a request that arrives *after*
+  the winner committed presents the now-previous secret and therefore revokes the session. This
+  fail-safe is intentional (a grace window would let a token thief keep the session); clients
+  must keep refresh single-flight.
 - Mobile stores the refresh token only in platform secure storage (Keychain/Keystore) and the
   access token in memory. The HTTP client runs a **single-flight** refresh: concurrent 401s wait
   for one refresh call, then retry once.
-- Passwords: 8–128 chars, hashed with Argon2id (server-side only). Login accepts email or
+- Passwords: 8–128 chars (counted in Unicode code points after NFC normalization), normalized
+  to **Unicode NFC** before hashing and before verification, hashed with Argon2id (server-side
+  only). The server caps concurrent Argon2 operations per process; when saturated it returns
+  503 `SERVICE_UNAVAILABLE` with `Retry-After`. Login accepts email or
   username as `identifier`.
 - Usernames: `^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$` (3–30 chars, lowercase, no leading/
   trailing `.`/`_`), unique case-insensitively, stored lowercase. The regex alone admits a 1-character name; the 3–30 length bound is a separate, mandatory check (clients and server apply both). A reserved list (admin, kabso,
@@ -114,18 +125,30 @@ return the resource object directly (no `data` wrapper).
 - Email verification and password reset use single-use tokens (32 random bytes, SHA-256 stored,
   TTL 24 h / 1 h) delivered through the `MailSender` port. Password reset revokes all sessions.
 - `POST /auth/password/forgot` always returns 202 regardless of whether the email exists.
+- **Enumeration (accepted risk, Phase 1 only):** login, forgot-password and timing do not reveal
+  account existence, but `POST /auth/register` returns `EMAIL_TAKEN`. Before any public launch
+  registration must become verify-first (always 202 + email to the address), which depends on
+  SMTP (blocker B2) — tracked as blocker B9.
+- Free-text fields (`displayName`, `device.name`) reject C0/C1 control characters, bidi
+  override/isolate characters (U+202A–U+202E, U+2066–U+2069) and zero-width characters
+  (U+200B–U+200D, U+2060, U+FEFF) with `issue: "invalid_format"`.
 
 ## 7. Rate limits (Phase 1 defaults, Redis-backed, configurable)
 
 | Endpoint | Limit |
 | -------- | ----- |
-| `POST /auth/login` | 10 / 15 min per IP+identifier, 50 / 15 min per IP |
+| `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier) |
 | `POST /auth/register` | 5 / hour per IP |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
 | `POST /auth/refresh` | 60 / 15 min per session |
 | `POST /auth/email/resend` | 5 / hour per user |
 | Other public routes (`email/verify`, `password/reset`, `users/username-availability`) | 300 / 15 min per IP |
 | Everything else (authenticated) | 600 / 15 min per user |
+
+IP-based buckets group IPv6 clients by their /64 prefix. Rate-limit keys are HMAC-SHA-256 of
+the subject under a server-side key (no raw or plainly hashed emails/IPs in Redis). The client IP
+is derived only via an explicit trusted-proxy hop count or CIDR list; `trust proxy = true` is
+refused in production.
 
 Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavailable.
 
@@ -153,6 +176,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 
 | v1.0.3 | 2026-10-15 | Ratified KL-002 clarifications: validation `issue` vocabulary (§4); body-level errors use 400 not 413/415; suspended access token → 401; extra rate limits for `email/resend` and other public routes (§7); `revokeSession` malformed id → 404 (removes the 400 added in v1.0.2). | Clarification of existing behavior; no shape change. Client must send usernames already lowercased (pattern is enforced strictly, not normalized). |
 | v1.0.4 | 2026-10-15 | Clarifications from KL-003 (A2): design-tokens 8-digit hex is `#AARRGGBB`; username length bound must be checked in addition to the regex. KNOWN_LIMITATIONS B7 corrected to the actual placeholder id `com.kabso.kabso_live`. | Documentation only; matches implemented behavior. |
+| v1.1 | 2026-10-15 | Security review KL-007 decisions (D13): refresh revocation only for the previous secret (SEC-001) + documented concurrent-refresh fail-safe (SEC-004); NFC password normalization (SEC-016); Argon2 concurrency cap → 503 (SEC-002); per-account login limit, IPv6 /64 bucketing, HMAC rate-limit keys, no `trust proxy = true` in production (SEC-002/003/009/010); `Cache-Control: no-store` (SEC-006); control/bidi/zero-width characters rejected in free text (SEC-008); registration enumeration recorded as accepted Phase 1 risk with launch blocker B9 (SEC-018). | Behavioral tightening; no request/response shape change. Clients: unchanged except they may now see 503 on login/register under load (already a defined code). |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
