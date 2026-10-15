@@ -28,7 +28,7 @@ verification secrets are stored as SHA-256 hex.
 | ------ | ---- | ----- |
 | user_id | uuid PK, FK → users.id | |
 | username | varchar(30) UNIQUE | lowercase; CHECK `user_profiles_username_format` = `^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$` |
-| display_name | varchar(50) | |
+| display_name | varchar(100) | v1.2: ≤ 100 code points, 1–50 grapheme clusters (validated in the API) |
 | bio | varchar(300) null | |
 | avatar_url | varchar(2048) null | |
 | locale | varchar(8) | `ar` (default) \| `en`; CHECK `user_profiles_locale_valid` |
@@ -45,7 +45,8 @@ verification secrets are stored as SHA-256 hex.
 | id | uuid PK | also the `sid` JWT claim and the prefix of the refresh token |
 | user_id | uuid FK | |
 | refresh_token_hash | char(64) | SHA-256 of the current secret |
-| previous_refresh_token_hash | char(64) null | previous secret: presenting it is reuse → revoke (only this secret revokes) |
+| previous_refresh_token_hash | char(64) null | immediately previous secret (kept for sessions rotated before v1.2) |
+| rotated_refresh_token_hashes | char(64)[] default `{}` | v1.2 SEC-022: last 10 rotated secrets, newest first; presenting any → reuse → revoke. CHECK `sessions_rotated_hashes_bounded` (≤ 10); maintained by the rotation compare-and-swap `UPDATE` |
 | rotation_counter | int | incremented on every rotation |
 | device_name / platform / app_version | varchar | from the client's `device` object; platform CHECK `sessions_platform_valid` |
 | ip / user_agent | varchar | at creation |
@@ -56,6 +57,27 @@ verification secrets are stored as SHA-256 hex.
 
 Indexes: `(user_id, created_at DESC)` (session list), `(expires_at)` (future cleanup job).
 Refresh rotation is a compare-and-swap: `UPDATE … WHERE id = $1 AND refresh_token_hash = $old AND revoked_at IS NULL`.
+
+### `pending_registrations` (owner: auth module — registration) — v1.2 verify-first, KL-019
+
+No account exists until the emailed 8-digit code is verified (contract v1.2 §6).
+
+| Column | Type | Notes |
+| ------ | ---- | ----- |
+| id | uuid PK | UUIDv7 |
+| email | varchar(254) UNIQUE | normalized; **one row per email** (a new register replaces it); CHECK `pending_registrations_email_normalized` |
+| username | varchar(30) UNIQUE | reserved while the row is live; CHECK `pending_registrations_username_format` |
+| display_name | varchar(100) | already validated (NFC, graphemes, reserved terms) |
+| locale | varchar(8) | request locale; CHECK `pending_registrations_locale_valid` |
+| password_hash | varchar(255) | Argon2id, computed at register time |
+| device_name / platform / app_version, ip, user_agent | varchar | from the register request; platform CHECK |
+| code_hash | char(64) | HMAC-SHA-256(key, `email \n code`); key = HKDF-SHA-256(`RATE_LIMIT_KEY_SECRET`, salt `kabso`, info `registration-code/v1`) |
+| attempts | int default 0 | consumed atomically before each comparison; CHECK 0–5; the row is deleted at 5 |
+| expires_at | timestamptz | created/renewed at now + 30 min (`REGISTRATION_TTL_SECONDS`) |
+| created_at / updated_at | timestamptz | |
+
+Index `(expires_at)` for the cleanup job (`REGISTRATION_CLEANUP_INTERVAL_SECONDS`, default 10 min)
+plus lazy deletion on register/verify. Not linked to `users` (no account yet).
 
 ### `verification_tokens` (owner: auth module) — N:1 users, `ON DELETE CASCADE`
 
@@ -80,6 +102,9 @@ identifiers), `ip`, `request_id`, `created_at`. Indexes: `(actor_user_id, create
 | login / register / forgot by email | `users_email_key` |
 | login / availability by username | `user_profiles_username_key` |
 | session by id (guard, refresh) | `sessions_pkey` |
+| pending registration by email (register, verify, resend) | `pending_registrations_email_key` |
+| username reservation (availability, register) | `pending_registrations_username_key` |
+| expired pending registrations (cleanup) | `pending_registrations_expires_at_idx` |
 | sessions of a user, newest first | `sessions_user_id_created_at_idx` |
 | token by hash | `verification_tokens_token_hash_key` |
 | outstanding tokens of a user | `verification_tokens_user_id_purpose_idx` |
