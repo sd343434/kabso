@@ -36,14 +36,30 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | ID | Title | Owner | Pri | Status | Depends | Review |
 | -- | ----- | ----- | --- | ------ | ------- | ------ |
 | KL-001 | Environment audit, contracts, architecture, plan | A1 | P0 | DONE | — | self (docs only) |
-| KL-002 | Backend foundation + auth vertical slice | A3 | P0 | IN_PROGRESS | KL-001 | A1, A6, A7 |
-| KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | IN_PROGRESS | KL-001 | A1, A6 |
-| KL-004 | Design system & screen inventory spec | A5 | P1 | IN_PROGRESS | KL-001 | A1 |
-| KL-005 | CI, local infra, deployment doc | A8 | P0 | IN_PROGRESS | KL-001 | A1 |
+| KL-002 | Backend foundation + auth vertical slice | A3 | P0 | REVIEW — INTEGRATED (`f45b867`); defect D1 open | KL-001 | A1 ✅ contract review; A6, A7 pending |
+| KL-003 | Flutter foundation + auth vertical slice | A2 | P0 | IN_PROGRESS (agent running, uncommitted) | KL-001 | A1, A6 |
+| KL-004 | Design system & screen inventory spec | A5 | P1 | DONE — INTEGRATED (`6e64fd3`) | KL-001 | A1 ✅ (scope + contrast math re-computed) |
+| KL-005 | CI, local infra, deployment doc | A8 | P0 | TESTING — INTEGRATED (`5ec94ad`); first remote runs in progress | KL-001 | A1 ✅ |
 | KL-006 | Independent QA verification of Phase 1 | A6 | P0 | BACKLOG | KL-002, KL-003 | A1 |
 | KL-007 | Auth threat model & security review | A7 | P0 | BACKLOG | KL-002 | A1 |
 | KL-008 | Integration of Phase 1 + regression run | A1 | P0 | BACKLOG | KL-002..005 | A6 |
+| KL-010 | Dependabot policy: ignore semver-major for postgres/redis images (PRs #1, #2 propose 16→18, 7→8 against D2) | A8 | P2 | BACKLOG | — | A1 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
+
+## Phase 1 integration gate (status 2026-10-15 ~13:50 UTC)
+
+| Gate item | Evidence | State |
+| --------- | -------- | ----- |
+| KL-002 merged, contract-conformant | CTO review: 15/15 error codes, 14/14 routes + status codes, strict zod schemas match `openapi.yaml`; merge `f45b867` | ✅ |
+| API gates on integrated tree (local, re-run by CTO) | lint 0 problems · prettier clean · `tsc --noEmit` clean · unit **73/73** · e2e **44/44** (real Postgres 16.15 + Redis) · build `dist/main.js` · `prisma validate` OK · `migrate status` up to date · `20261015132258_init` applied to an empty DB → 6 tables, 5 CHECK constraints | ✅ |
+| CI on GitHub | contracts job ✅ (runs 4–5); gitleaks ❌ run 6 — D1 (test-fixture literals); api job running | ⏳ |
+| KL-003 merged + `flutter analyze` / `flutter test` | agent still running | ⏳ |
+| KL-006 QA, KL-007 Security | start after KL-003 is integrated | ⏳ |
+| Android / iOS builds | no Android SDK / Xcode here; only CI can prove (`android`, `ios` jobs) | ⛔ not verifiable locally |
+
+**Open defects:** D1 (KL-002) — gitleaks `generic-api-key` on literal `JWT_ACCESS_SECRET` fixtures in
+`access-token.service.spec.ts:9` and `app-config.spec.ts:7` (commit `d29d958`). Test-only values,
+not real secrets; returned to A3.
 
 ### Acceptance criteria
 
@@ -99,6 +115,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D5 | 2026-10-15 | Generated Dart code committed, CI checks drift | Analyzer works on fresh clone |
 | D6 | 2026-10-15 | Error messages localized client-side by `code` | Single source of copy in the app |
 | D7 | 2026-10-15 | OpenAPI v1.0.1/v1.0.2: YAML fix + additive documentation of 400/429 responses; health 4xx warnings deferred | No shape change; see CONVENTIONS §9 |
+| D9 | 2026-10-15 | Contract v1.0.3 ratifies KL-002 clarifications (issue vocabulary, 400 not 413/415, suspended token → 401, extra limits, revokeSession 404) | Behaviour already implemented and tested; A2 notified |
+| D10 | 2026-10-15 | Backend pins TypeScript 6.0.3 (not 7.0.2) and Vitest+SWC (not Jest) | TS 7 lacks the compiler API typescript-eslint/@nestjs/cli need; Nest 12 is ESM-only |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
