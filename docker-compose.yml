@@ -1,0 +1,90 @@
+# Kabso Live — local development infrastructure (NOT for production).
+#
+#   docker compose up -d                    # Postgres + Redis (Phase 1)
+#   docker compose --profile storage up -d  # + MinIO S3-compatible storage and bucket init (Phase 3)
+#
+# All ports bind to 127.0.0.1 only. Credentials are dev defaults, overridable from `.env`
+# (copied from `.env.example` by scripts/dev-setup.sh). Never reuse them anywhere else.
+name: kabso
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kabso_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-kabso}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kabso_dev_password}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Upstream MinIO stopped publishing community container images (Docker Hub minio/minio and
+  # minio/mc are no longer pullable). Default is the community-maintained build from pgsty
+  # (AGPL-3.0, same `minio` binary and S3 API; bundles `mc` and `curl`). Override with
+  # MINIO_IMAGE if your organisation mirrors an approved image. Dev use only.
+  minio:
+    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}
+    profiles: ["storage"]
+    restart: unless-stopped
+    command: ["minio", "server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kabso_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-kabso_minio_dev_password}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # One-shot job: creates the media bucket (idempotent) and exits.
+  minio-init:
+    image: ${MINIO_IMAGE:-pgsty/minio:RELEASE.2026-08-04T00-00-00Z}
+    profiles: ["storage"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-kabso_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-kabso_minio_dev_password}
+      S3_BUCKET: ${S3_BUCKET:-kabso-media-dev}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+        echo "bucket $${S3_BUCKET} ready"
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

@@ -1,0 +1,23 @@
+# Redocly CLI configuration for `docs/contracts/openapi.yaml`.
+# Run locally:  npx @redocly/cli@2.57.0 lint docs/contracts/openapi.yaml
+# (CI pins the same version in .github/workflows/ci.yml → env.REDOCLY_CLI_VERSION.)
+#
+# Starts from the `recommended` ruleset. Structural/spec-validity rules stay errors; a few
+# documentation-style rules are relaxed to warnings or turned off with a reason.
+extends:
+  - recommended
+
+apis:
+  kabso@v1:
+    root: docs/contracts/openapi.yaml
+
+rules:
+  # operationId is mandatory (kept as error by `recommended`); summaries are nice-to-have docs.
+  operation-summary: warn
+  tag-description: warn
+  # /health/live and /health/ready legitimately have no 4xx responses.
+  operation-4xx-response: warn
+  # Proprietary API; no public licence to declare.
+  info-license: off
+  # The only declared server is the local development server, on purpose.
+  no-server-example.com: off
