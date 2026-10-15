@@ -1,6 +1,7 @@
 # Kabso Live — mobile app (`apps/mobile`)
 
-Flutter app for Android and iOS. Arabic-first (RTL, default locale `ar`) with English.
+Flutter app for Android and iOS. Arabic-first (RTL) with English; the first-launch language
+follows the device (`en*` → English, anything else → Arabic) until the user picks one.
 Phase 1 scope (KL-003): foundation, design system, navigation shell and the email
 authentication slice against `docs/contracts/openapi.yaml`.
 
@@ -122,10 +123,24 @@ lib/
 - **Auth flow:** `/splash` restores the session (refresh token → `POST /auth/refresh` →
   `GET /me`). No token → `/auth/login`. Offline/5xx/429 during restore → splash error with retry
   (token kept). `AUTH_REFRESH_INVALID` / `ACCOUNT_SUSPENDED` from refresh → session cleared,
-  login shows why. After register the verify-email notice is shown once.
+  login shows why.
 - **Refresh:** a 401 `AUTH_UNAUTHENTICATED` triggers one shared refresh for all concurrent
   requests; each failed request is retried once. A request whose 401 arrives after another
   request already refreshed reuses the new token.
+- **Verify-first registration (contract v1.2):** `POST /auth/register` → 202 (never tokens,
+  never `EMAIL_TAKEN`) → code screen (`/auth/register/code`, 8 LTR cells, Arabic-Indic digits
+  normalized, paste + auto-submit, 60 s resend cooldown, 30 min expiry hint) →
+  `POST /auth/register/verify` → 201 session → Home. The form is kept in memory only while the
+  flow is open (`registrationFlowProvider`). There is no verify-email notice or "Not verified"
+  UI any more.
+- **displayName (v1.2):** counted in grapheme clusters (`String.characters`, max 50) and code
+  points (max 100); ZWNJ/ZWJ allowed between characters; server issues `invalid_format`,
+  `too_long` and `reserved_term` map to the PHASE1_1_SCREENS §2 copy. The reserved list is
+  server-side only.
+- **Language (v1.2, D26):** saved choice → device language (`en*` → en, else ar); nothing is
+  persisted until the user picks (Login/Register language chip or Settings). After sign-in the
+  app `PATCH /me {"locale"}`s an explicit choice that differs from the account, or adopts the
+  account locale when there is no choice; failures are silent and retried on the next start.
 - **Contract v1.0.3:** usernames are trimmed and lowercased before `register` and
   `username-availability`; `VALIDATION_FAILED` details use the closed issue vocabulary and
   body-level details (`field: ""`) show a form-level message.
