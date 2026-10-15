@@ -330,12 +330,30 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # ALLOWLIST, not denylist (KL-010c). In run 29 (38755740110, 3b80e0a) the `ios` job never
+      # got a macOS runner and ended `abandoned`; the old check only rejected failure|cancelled,
+      # so this required check passed although a job never ran. Now only `success` and
+      # `skipped` (path-filtered or gated jobs) pass; every other value (failure, cancelled,
+      # abandoned, timed_out, null, or anything GitHub adds later) fails and is named.
       - name: Check job results
         env:
-          RESULTS: ${{ toJSON(needs.*.result) }}
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          echo "Job results: $RESULTS"
-          if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
-            echo "::error::At least one CI job failed or was cancelled."
+          set -euo pipefail
+          echo "Job results:"
+          jq -r 'to_entries[] | "  \(.key): \(.value.result // "null")"' <<<"$NEEDS"
+          total="$(jq 'length' <<<"$NEEDS")"
+          if [ "$total" -eq 0 ]; then
+            echo "::error::No job results received; failing closed."
             exit 1
           fi
+          bad="$(jq -r 'to_entries[]
+            | select(.value.result != "success" and .value.result != "skipped")
+            | "\(.key)=\(.value.result // "null")"' <<<"$NEEDS")"
+          if [ -n "$bad" ]; then
+            while IFS= read -r line; do
+              echo "::error::Job '${line%%=*}' ended with result '${line#*=}' (only success or skipped pass)."
+            done <<<"$bad"
+            exit 1
+          fi
+          echo "All ${total} jobs succeeded or were skipped."
