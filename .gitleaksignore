@@ -1,0 +1,5 @@
+# Known false positives in history (defect KL-002-D1). Both are random-looking JWT_ACCESS_SECRET
+# test fixtures in unit specs from commit d29d958; they were never real secrets and have since been
+# replaced by values generated at test time. History is not rewritten. Do not add anything else here.
+d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/modules/auth/access-token.service.spec.ts:generic-api-key:9
+d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/config/app-config.spec.ts:generic-api-key:7

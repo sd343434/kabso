@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
@@ -6,7 +7,8 @@ import { AccessTokenService } from './access-token.service.js';
 const config = loadConfig({
   DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_ACCESS_SECRET: 'k9Qz2vX7pL4mN8rT1wY6bC3dF5gH0jK2sA7eR9uI',
+  // Generated per run: never commit a secret-like literal (gitleaks).
+  JWT_ACCESS_SECRET: randomBytes(48).toString('base64url'),
   APP_PUBLIC_URL: 'http://localhost:3000',
 });
 const jwt = new JwtService({});
@@ -52,7 +54,7 @@ describe('AccessTokenService', () => {
 
     const base = { sid: claims.sessionId, typ: 'access' };
     const opts = { subject: claims.userId, issuer: 'kabso-api', audience: 'kabso-mobile', expiresIn: 60 };
-    const foreign = await jwt.signAsync(base, { ...opts, secret: 'another-secret-another-secret-123456' });
+    const foreign = await jwt.signAsync(base, { ...opts, secret: randomBytes(48).toString('base64url') });
     expect(await service.verify(foreign)).toBeNull();
 
     const refreshTyp = await jwt.signAsync(

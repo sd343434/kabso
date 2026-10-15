@@ -1,10 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ConfigValidationError, loadConfig } from './app-config.js';
 
 const base = {
   DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_ACCESS_SECRET: 'k9Qz2vX7pL4mN8rT1wY6bC3dF5gH0jK2sA7eR9uI',
+  // Generated per run: never commit a secret-like literal (gitleaks).
+  JWT_ACCESS_SECRET: randomBytes(48).toString('base64url'),
   APP_PUBLIC_URL: 'https://kabso.example/',
 };
 
