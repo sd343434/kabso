@@ -53,14 +53,16 @@ void main() {
     });
   }
 
-  group('Retry-After on 429 / 503 (CONVENTIONS v1.1)', () {
-    ServerFailure failure(ErrorCode code, int? seconds) => ServerFailure(
-      code: code,
-      rawCode: code.wire,
-      debugMessage: 'x',
-      statusCode: code == ErrorCode.rateLimited ? 429 : 503,
-      retryAfter: seconds == null ? null : Duration(seconds: seconds),
-    );
+  group('Retry-After countdown on 429 / 503 (PHASE1_SCREENS §10)', () {
+    ServerFailure failure(ErrorCode code, int? seconds, {String? id}) =>
+        ServerFailure(
+          code: code,
+          rawCode: code.wire,
+          debugMessage: 'x',
+          statusCode: code == ErrorCode.rateLimited ? 429 : 503,
+          requestId: id,
+          retryAfter: seconds == null ? null : Duration(seconds: seconds),
+        );
 
     test('503 without Retry-After uses the generic busy message', () {
       final en = l10nFor(AppLanguage.en);
@@ -70,43 +72,51 @@ void main() {
       );
     });
 
-    test('503 with Retry-After names the wait (en)', () {
-      final en = l10nFor(AppLanguage.en);
-      expect(
-        failureMessage(en, failure(ErrorCode.serviceUnavailable, 30)),
-        "We're busy right now. Please try again in 30 seconds.",
-      );
-      expect(
-        failureMessage(en, failure(ErrorCode.serviceUnavailable, 1)),
-        "We're busy right now. Please try again in 1 second.",
-      );
-      expect(
-        failureMessage(en, failure(ErrorCode.serviceUnavailable, 61)),
-        "We're busy right now. Please try again in 2 minutes.",
-      );
-    });
-
-    test('429 with Retry-After names the wait (en)', () {
+    test('the full Retry-After is shown as m:ss without a live countdown', () {
       final en = l10nFor(AppLanguage.en);
       expect(
         failureMessage(en, failure(ErrorCode.rateLimited, 900)),
-        'Too many attempts. Try again in 15 minutes.',
+        'Too many attempts. Try again in 15:00.',
+      );
+      expect(
+        failureMessage(en, failure(ErrorCode.serviceUnavailable, 5)),
+        "We're busy right now. Please try again in 0:05.",
       );
     });
 
-    test('Arabic plural forms', () {
+    test('the live remaining time wins and rounds up to whole seconds', () {
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        failureMessage(
+          en,
+          failure(ErrorCode.rateLimited, 900),
+          remaining: const Duration(minutes: 4, seconds: 4, milliseconds: 1),
+        ),
+        'Too many attempts. Try again in 4:05.',
+      );
+    });
+
+    test('when the countdown has ended the plain message is shown', () {
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        failureMessage(
+          en,
+          failure(ErrorCode.rateLimited, 900),
+          remaining: Duration.zero,
+        ),
+        en.errorRateLimited,
+      );
+    });
+
+    test('Arabic uses Latin digits', () {
       final ar = l10nFor(AppLanguage.ar);
       expect(
+        failureMessage(ar, failure(ErrorCode.rateLimited, 65)),
+        'محاولات كثيرة. حاول مرة أخرى بعد 1:05.',
+      );
+      expect(
         failureMessage(ar, failure(ErrorCode.serviceUnavailable, 2)),
-        'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد ثانيتين.',
-      );
-      expect(
-        failureMessage(ar, failure(ErrorCode.serviceUnavailable, 5)),
-        'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد 5 ثوانٍ.',
-      );
-      expect(
-        failureMessage(ar, failure(ErrorCode.rateLimited, 60)),
-        'محاولات كثيرة جدًا. حاول مرة أخرى بعد دقيقة واحدة.',
+        'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد 0:02.',
       );
     });
 
@@ -119,6 +129,33 @@ void main() {
         retryAfter: Duration(seconds: 10),
       );
       expect(failureMessage(en, f), en.errorInternal);
+      expect(hasRetryCountdown(f), isFalse);
+    });
+
+    test('Error ID only for INTERNAL_ERROR, SERVICE_UNAVAILABLE, unknown', () {
+      ServerFailure withId(ErrorCode code) => ServerFailure(
+        code: code,
+        rawCode: code.wire,
+        debugMessage: 'x',
+        requestId: 'req-42',
+      );
+      expect(failureErrorId(withId(ErrorCode.internalError)), 'req-42');
+      expect(failureErrorId(withId(ErrorCode.serviceUnavailable)), 'req-42');
+      expect(failureErrorId(withId(ErrorCode.unknown)), 'req-42');
+      for (final code in [
+        ErrorCode.rateLimited,
+        ErrorCode.authInvalidCredentials,
+        ErrorCode.validationFailed,
+        ErrorCode.notFound,
+      ]) {
+        expect(failureErrorId(withId(code)), isNull, reason: code.wire);
+      }
+      expect(failureErrorId(const NetworkFailure.offline()), isNull);
+      expect(
+        failureErrorId(failure(ErrorCode.internalError, null)),
+        isNull,
+        reason: 'no requestId',
+      );
     });
   });
 }

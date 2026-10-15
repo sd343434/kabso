@@ -125,6 +125,17 @@ String serverIssueMessage(
   };
 }
 
+/// Localized reason for a [UsernameIssue] (PHASE1_SCREENS §4.2).
+String? usernameIssueMessage(AppLocalizations l10n, UsernameIssue? issue) =>
+    switch (issue) {
+      null => null,
+      UsernameIssue.required => l10n.validationRequired,
+      UsernameIssue.badChars => l10n.usernameBadChars,
+      UsernameIssue.tooShort => l10n.usernameTooShort,
+      UsernameIssue.tooLong => l10n.usernameTooLong,
+      UsernameIssue.badEdges => l10n.usernameBadEdges,
+    };
+
 /// A "question + link" row, e.g. "Don't have an account? Create account".
 class AuthSwitchPrompt extends StatelessWidget {
   const new({

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
@@ -47,10 +48,9 @@ class ProfileScreen extends ConsumerWidget {
           },
           child: _ProfileBody(user: value),
         ),
-        AsyncValue(:final error?, isLoading: false) => KErrorState(
+        AsyncValue(:final error?, isLoading: false) => FailureErrorState(
           title: l10n.errorTitle,
-          message: failureMessage(l10n, toAppFailure(error)),
-          retryLabel: l10n.actionRetry,
+          failure: toAppFailure(error),
           onRetry: () => ref.invalidate(meProvider),
         ),
         _ => const _ProfileSkeleton(),

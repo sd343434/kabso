@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
-import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -53,7 +53,7 @@ class VerifyEmailNoticeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: KSpacing.xl),
           if (submission is SubmissionFailed) ...[
-            KInlineMessage(message: failureMessage(l10n, submission.failure)),
+            FailureBanner(failure: submission.failure),
             const SizedBox(height: KSpacing.lg),
           ],
           KButton(

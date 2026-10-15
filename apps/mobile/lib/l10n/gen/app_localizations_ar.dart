@@ -103,14 +103,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String usernameTaken(String username) {
-    return '‎@$username‎ مستخدم بالفعل';
-  }
-
-  @override
-  String get usernameCheckFailed => 'تعذّر التحقق من توفر الاسم الآن';
-
-  @override
   String get passwordShow => 'إظهار كلمة المرور';
 
   @override
@@ -208,14 +200,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeComingTitle => 'خلاصتك في الطريق';
 
   @override
-  String get homeComingBody => 'منشورات وقصص من تتابعهم تصل في المرحلة 2.';
-
-  @override
   String get discoverComingTitle => 'الاستكشاف قادم';
-
-  @override
-  String get discoverComingBody =>
-      'البحث وصنّاع المحتوى الرائجون يصلون في المرحلة 9.';
 
   @override
   String get createComingTitle => 'الإنشاء قادم';
@@ -228,9 +213,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveComingTitle => 'البث المباشر قادم';
 
   @override
-  String get liveComingBody => 'بدء البث ومشاهدة البثوث تصل في المرحلة 6.';
-
-  @override
   String get profileTitle => 'حسابي';
 
   @override
@@ -241,13 +223,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileResendVerification => 'إعادة إرسال رسالة التأكيد';
-
-  @override
-  String get profileContentComingTitle => 'ملفك الشخصي قيد البناء';
-
-  @override
-  String get profileContentComingBody =>
-      'منشوراتك ومتابعوك ومقتطفاتك تصل في المرحلة 2.';
 
   @override
   String profileUsername(String username) {
@@ -283,27 +258,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sessionsCurrent => 'هذا الجهاز';
-
-  @override
-  String sessionsLastActive(String date) {
-    return 'آخر نشاط: $date';
-  }
-
-  @override
-  String get sessionsRevoke => 'تسجيل الخروج';
-
-  @override
-  String get sessionsRevokeConfirmTitle => 'تسجيل الخروج من هذا الجهاز؟';
-
-  @override
-  String get sessionsRevokeConfirmBody =>
-      'سيُطلب من هذا الجهاز تسجيل الدخول من جديد.';
-
-  @override
-  String get sessionsRevoked => 'تم تسجيل خروج الجهاز';
-
-  @override
-  String get sessionsNoOthers => 'لا توجد جلسات نشطة أخرى';
 
   @override
   String get sessionUnknownDevice => 'جهاز غير معروف';
@@ -357,9 +311,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorNotFound => 'لم نعثر على ما تبحث عنه.';
 
   @override
-  String get errorEmailTaken => 'هذا البريد الإلكتروني مسجّل بالفعل.';
-
-  @override
   String get errorUsernameTaken => 'اسم المستخدم هذا غير متاح.';
 
   @override
@@ -374,53 +325,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorTokenInvalid => 'هذا الرابط غير صالح.';
 
   @override
-  String get errorRateLimited =>
-      'محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مجددًا.';
-
-  @override
   String get errorInternal => 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
 
   @override
   String get errorServiceUnavailable =>
       'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.';
-
-  @override
-  String errorServiceBusyRetryIn(String wait) {
-    return 'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد $wait.';
-  }
-
-  @override
-  String errorRateLimitedRetryIn(String wait) {
-    return 'محاولات كثيرة جدًا. حاول مرة أخرى بعد $wait.';
-  }
-
-  @override
-  String durationSeconds(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count ثانية',
-      many: '$count ثانية',
-      few: '$count ثوانٍ',
-      two: 'ثانيتين',
-      one: 'ثانية واحدة',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String durationMinutes(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count دقيقة',
-      many: '$count دقيقة',
-      few: '$count دقائق',
-      two: 'دقيقتين',
-      one: 'دقيقة واحدة',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get errorNetworkOffline =>
@@ -432,4 +341,116 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorUnknown => 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+
+  @override
+  String get errorEmailTaken =>
+      'لا يمكن استخدام هذا البريد الإلكتروني لإنشاء حساب جديد. جرّب تسجيل الدخول أو إعادة تعيين كلمة المرور.';
+
+  @override
+  String get errorRateLimited =>
+      'محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.';
+
+  @override
+  String errorRateLimitedRetryIn(String wait) {
+    return 'محاولات كثيرة. حاول مرة أخرى بعد $wait.';
+  }
+
+  @override
+  String errorServiceBusyRetryIn(String wait) {
+    return 'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد $wait.';
+  }
+
+  @override
+  String errorIdLabel(String requestId) {
+    return 'رمز الخطأ: $requestId';
+  }
+
+  @override
+  String get homeComingBody =>
+      'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.';
+
+  @override
+  String get discoverComingBody =>
+      'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.';
+
+  @override
+  String get liveComingBody =>
+      'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.';
+
+  @override
+  String get profileContentComingTitle => 'ستظهر منشوراتك هنا';
+
+  @override
+  String get profileContentComingBody =>
+      'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.';
+
+  @override
+  String usernameTaken(String username) {
+    return '‎@$username‎ غير متاح. جرّب اسمًا آخر.';
+  }
+
+  @override
+  String get usernameCheckFailed =>
+      'تعذّر التحقق الآن. يمكنك المتابعة على أي حال.';
+
+  @override
+  String get usernameTooShort => 'استخدم 3 أحرف على الأقل';
+
+  @override
+  String get usernameTooLong => 'استخدم 30 حرفًا أو أقل';
+
+  @override
+  String get usernameBadChars =>
+      'استخدم فقط a–z و0–9 والنقطة (.) والشرطة السفلية (_)';
+
+  @override
+  String get usernameBadEdges => 'لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية';
+
+  @override
+  String sessionsLastActive(String relativeTime) {
+    return 'نشط $relativeTime';
+  }
+
+  @override
+  String get sessionsActiveNow => 'نشط الآن';
+
+  @override
+  String sessionsSignedIn(String date) {
+    return 'تسجيل الدخول في $date';
+  }
+
+  @override
+  String relativeMinutesAgo(int n) {
+    return 'منذ $n د';
+  }
+
+  @override
+  String relativeHoursAgo(int n) {
+    return 'منذ $n س';
+  }
+
+  @override
+  String relativeDaysAgo(int n) {
+    return 'منذ $n ي';
+  }
+
+  @override
+  String get sessionsRevoke => 'إنهاء';
+
+  @override
+  String get sessionsRevokeConfirmTitle => 'إنهاء هذه الجلسة؟';
+
+  @override
+  String sessionsRevokeConfirmBody(String device) {
+    return 'سيتم تسجيل خروج $device على الفور.';
+  }
+
+  @override
+  String get sessionsRevoked => 'تم إنهاء الجلسة';
+
+  @override
+  String get sessionsAlreadyEnded => 'كانت هذه الجلسة منتهية بالفعل';
+
+  @override
+  String get sessionsNoOthers => 'حسابك مسجَّل الدخول على هذا الجهاز فقط.';
 }

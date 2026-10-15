@@ -23,12 +23,44 @@ flutter run --dart-define=API_BASE_URL=http://localhost:3000
 
 | `--dart-define` | Default | Meaning |
 | --------------- | ------- | ------- |
-| `API_BASE_URL` | `http://10.0.2.2:3000` | API origin (no `/api/v1`; the client appends it). |
+| `API_BASE_URL` | `http://10.0.2.2:3000` (debug/profile only) | API origin (no `/api/v1`; the client appends it). **Release builds must pass an `https://` URL** — otherwise startup fails with `AppConfigError` (SEC-007). |
 | `APP_VERSION` | `1.0.0` | Sent in `X-Client: kabso-mobile/<version> (<android\|ios>)` and as `device.appVersion`. |
 
-No secrets are compiled into the app. Plain HTTP is allowed only in **debug** Android builds
-(`src/debug/AndroidManifest.xml`) and for local networking on iOS (`NSAllowsLocalNetworking`);
-release builds need HTTPS.
+No secrets are compiled into the app. Plain HTTP is allowed only in **debug** builds:
+
+- Android: `usesCleartextTraffic` only in `src/debug/AndroidManifest.xml`.
+- iOS: `ios/Runner/Info.plist` has **no** ATS exception. `ios/Flutter/Debug.xcconfig` sets
+  `KABSO_ALLOW_LOCAL_NETWORKING = YES`; the Runner build phase "Debug ATS exception" then adds
+  `NSAppTransportSecurity/NSAllowsLocalNetworking = true` to the *built* Info.plist (PlistBuddy).
+  Release and Profile use `Release.xcconfig`, which does not set it, so the key never ships; the
+  phase fails the build if the setting appears in any non-Debug configuration.
+
+## Release signing (Android, SEC-020)
+
+Release builds are never signed with the debug key. Create `android/key.properties`
+(git-ignored):
+
+```properties
+storeFile=/absolute/path/to/upload-keystore.jks
+storePassword=...
+keyAlias=upload
+keyPassword=...
+```
+
+Without it, any release build (`flutter build apk|appbundle --release`) fails early in
+`preReleaseBuild` with an explicit message. To build an unsigned release on purpose (e.g. CI that
+signs later), pass `-Pkabso.allowUnsignedRelease=true` (`flutter build appbundle --release
+--android-project-arg=kabso.allowUnsignedRelease=true`). Debug builds are unchanged.
+
+## Device data (SEC-019)
+
+- Android: `allowBackup="false"`; `dataExtractionRules` (API 31+) and `fullBackupContent`
+  exclude the flutter_secure_storage files (`FlutterSecureStorage.xml`,
+  `FlutterSecureKeyStorage.xml`, `FlutterSecureStorageConfiguration.xml`) from cloud backup and
+  device-to-device transfer.
+- iOS: Keychain items survive uninstall. On the first launch of an install (no
+  `pref.installed` flag in shared preferences) the stored refresh token is deleted
+  (`core/storage/fresh_install.dart`).
 
 ## Quality gates (same commands as CI)
 
@@ -97,6 +129,12 @@ lib/
 - **Contract v1.0.3:** usernames are trimmed and lowercased before `register` and
   `username-availability`; `VALIDATION_FAILED` details use the closed issue vocabulary and
   body-level details (`field: ""`) show a form-level message.
+- **Errors (PHASE1_SCREENS §10):** `RATE_LIMITED` and `SERVICE_UNAVAILABLE` with `Retry-After`
+  show a live `m:ss` countdown and disable the submit button until it reaches zero;
+  `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE` and unknown codes show a selectable "Error ID"
+  (`requestId`).
+- **Digits:** all dates, countdowns and relative times go through `core/format/k_format.dart`
+  with Western digits (0–9) in both locales (DESIGN_SYSTEM §3.3).
 
 ## Tests
 

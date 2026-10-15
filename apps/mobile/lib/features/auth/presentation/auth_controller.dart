@@ -120,7 +120,16 @@ final class UsernameTaken extends UsernameStatus {
   final String username;
 }
 
-final class UsernameCheckFailed extends UsernameStatus {
+/// Fails the contract pattern; no request is sent.
+final class UsernameInvalid extends UsernameStatus {
+  const new(this.issue);
+
+  final UsernameIssue issue;
+}
+
+/// The check failed (offline, timeout, 429, 5xx): neutral hint, submit is
+/// still allowed and the server decides.
+final class UsernameUnknown extends UsernameStatus {
   const new(this.username, this.failure);
 
   final String username;
@@ -147,8 +156,13 @@ class UsernameAvailabilityController extends Notifier<UsernameStatus> {
     _debounce?.cancel();
     final value = AuthValidators.normalizeUsername(raw);
     _latest = value;
-    if (AuthValidators.username(value) != null) {
+    final issue = AuthValidators.usernameIssue(value);
+    if (issue == UsernameIssue.required) {
       state = const UsernameIdle();
+      return;
+    }
+    if (issue != null) {
+      state = UsernameInvalid(issue);
       return;
     }
     state = UsernameChecking(value);
@@ -172,7 +186,7 @@ class UsernameAvailabilityController extends Notifier<UsernameStatus> {
           : UsernameTaken(username);
     } on AppFailure catch (f) {
       if (!ref.mounted || username != _latest) return;
-      state = UsernameCheckFailed(username, f);
+      state = UsernameUnknown(username, f);
     }
   }
 }

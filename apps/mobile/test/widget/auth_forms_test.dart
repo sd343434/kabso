@@ -73,10 +73,83 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(
-        find.text(l10n.errorServiceBusyRetryIn(l10n.durationSeconds(5))),
-        findsOneWidget,
+      expect(find.text(l10n.errorServiceBusyRetryIn('0:05')), findsOneWidget);
+    });
+
+    testWidgets('RATE_LIMITED: m:ss countdown, submit disabled until zero', (
+      tester,
+    ) async {
+      repo.loginFailure = const ServerFailure(
+        code: ErrorCode.rateLimited,
+        rawCode: 'RATE_LIMITED',
+        debugMessage: 'slow down',
+        statusCode: 429,
+        retryAfter: Duration(seconds: 65),
       );
+      await pump(tester, const LoginScreen());
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      await tester.pump();
+      expect(repo.loginCalls, 1);
+      expect(find.text(l10n.errorRateLimitedRetryIn('1:05')), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text(l10n.errorRateLimitedRetryIn('1:04')), findsOneWidget);
+
+      // Disabled: tapping does not submit again.
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      expect(repo.loginCalls, 1);
+
+      await tester.pump(const Duration(seconds: 64));
+      expect(find.text(l10n.errorRateLimited), findsOneWidget);
+
+      repo.loginFailure = null;
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      expect(repo.loginCalls, 2);
+    });
+
+    testWidgets('INTERNAL_ERROR shows a selectable Error ID', (tester) async {
+      repo.loginFailure = const ServerFailure(
+        code: ErrorCode.internalError,
+        rawCode: 'INTERNAL_ERROR',
+        debugMessage: 'boom',
+        statusCode: 500,
+        requestId: '0192f1c2-aaaa-7bbb-8ccc-1234567890ab',
+      );
+      await pump(tester, const LoginScreen());
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text(l10n.errorInternal), findsOneWidget);
+      final id = find.widgetWithText(
+        SelectableText,
+        l10n.errorIdLabel('0192f1c2-aaaa-7bbb-8ccc-1234567890ab'),
+      );
+      expect(id, findsOneWidget);
+    });
+
+    testWidgets('AUTH_INVALID_CREDENTIALS shows no Error ID', (tester) async {
+      repo.loginFailure = const ServerFailure(
+        code: ErrorCode.authInvalidCredentials,
+        rawCode: 'AUTH_INVALID_CREDENTIALS',
+        debugMessage: 'bad',
+        statusCode: 401,
+        requestId: 'req-1',
+      );
+      await pump(tester, const LoginScreen());
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(SelectableText), findsNothing);
     });
 
     testWidgets('server error code is shown localized', (tester) async {
@@ -166,11 +239,57 @@ void main() {
       expect(find.text('_bad'), findsOneWidget);
       expect(find.text(l10n.usernameChecking), findsNothing);
       expect(repo.availabilityChecks, isEmpty);
+      // `invalid` state: the specific reason, live.
+      expect(find.text(l10n.usernameBadEdges), findsOneWidget);
 
       await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
       await tester.tap(find.byKey(RegisterScreen.submitKey));
       await tester.pump();
-      expect(find.text(l10n.validationUsernameFormat), findsOneWidget);
+      // Shown once (field error), not twice.
+      expect(find.text(l10n.usernameBadEdges), findsOneWidget);
+    });
+
+    for (final (input, expected) in [
+      ('a-b', 'badChars'),
+      ('ab', 'tooShort'),
+      ('abc.', 'badEdges'),
+    ]) {
+      testWidgets('invalid state reason for "$input" ($expected)', (
+        tester,
+      ) async {
+        await pump(tester, const RegisterScreen());
+        await tester.enterText(find.byKey(RegisterScreen.usernameKey), input);
+        await tester.pump(const Duration(milliseconds: 350));
+        final text = switch (expected) {
+          'badChars' => l10n.usernameBadChars,
+          'tooShort' => l10n.usernameTooShort,
+          _ => l10n.usernameBadEdges,
+        };
+        expect(find.text(text), findsOneWidget);
+        expect(repo.availabilityChecks, isEmpty);
+      });
+    }
+
+    testWidgets('unknown state: check failed → neutral hint, submit allowed', (
+      tester,
+    ) async {
+      repo.availabilityFailure = const NetworkFailure.offline();
+      await pump(tester, const RegisterScreen());
+      await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
+      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
+      await tester.enterText(
+        find.byKey(RegisterScreen.passwordKey),
+        'pa55word!',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+      expect(find.text(l10n.usernameCheckFailed), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
+      await tester.tap(find.byKey(RegisterScreen.submitKey));
+      await tester.pump();
+      expect(repo.registerCalls, 1);
     });
 
     testWidgets('client-side validation mirrors the contract', (tester) async {

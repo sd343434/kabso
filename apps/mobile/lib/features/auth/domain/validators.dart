@@ -6,6 +6,11 @@ import 'package:flutter/foundation.dart' show immutable;
 
 enum ValidationIssue { required, tooShort, tooLong, invalidFormat }
 
+/// Specific reason a username is invalid (PHASE1_SCREENS §4.2), in the
+/// spec's precedence order: bad characters → too short → too long → bad
+/// edges.
+enum UsernameIssue { required, badChars, tooShort, tooLong, badEdges }
+
 /// A failed validation with the bound that was violated (if any).
 @immutable
 class ValidationError {
@@ -139,6 +144,18 @@ abstract final class AuthValidators {
         AuthRules.displayNameMax,
       );
     }
+    return null;
+  }
+
+  /// The specific [UsernameIssue] for [value], or `null` when it matches
+  /// the contract pattern and length.
+  static UsernameIssue? usernameIssue(String? value) {
+    final v = value ?? '';
+    if (v.isEmpty) return UsernameIssue.required;
+    if (RegExp('[^a-z0-9._]').hasMatch(v)) return UsernameIssue.badChars;
+    if (v.length < AuthRules.usernameMin) return UsernameIssue.tooShort;
+    if (v.length > AuthRules.usernameMax) return UsernameIssue.tooLong;
+    if (!AuthRules.usernamePattern.hasMatch(v)) return UsernameIssue.badEdges;
     return null;
   }
 

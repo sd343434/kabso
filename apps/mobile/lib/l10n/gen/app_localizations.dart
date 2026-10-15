@@ -278,18 +278,6 @@ abstract class AppLocalizations {
   /// **'‎@{username}‎ متاح'**
   String usernameAvailable(String username);
 
-  /// No description provided for @usernameTaken.
-  ///
-  /// In ar, this message translates to:
-  /// **'‎@{username}‎ مستخدم بالفعل'**
-  String usernameTaken(String username);
-
-  /// No description provided for @usernameCheckFailed.
-  ///
-  /// In ar, this message translates to:
-  /// **'تعذّر التحقق من توفر الاسم الآن'**
-  String get usernameCheckFailed;
-
   /// No description provided for @passwordShow.
   ///
   /// In ar, this message translates to:
@@ -464,23 +452,11 @@ abstract class AppLocalizations {
   /// **'خلاصتك في الطريق'**
   String get homeComingTitle;
 
-  /// No description provided for @homeComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'منشورات وقصص من تتابعهم تصل في المرحلة 2.'**
-  String get homeComingBody;
-
   /// No description provided for @discoverComingTitle.
   ///
   /// In ar, this message translates to:
   /// **'الاستكشاف قادم'**
   String get discoverComingTitle;
-
-  /// No description provided for @discoverComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'البحث وصنّاع المحتوى الرائجون يصلون في المرحلة 9.'**
-  String get discoverComingBody;
 
   /// No description provided for @createComingTitle.
   ///
@@ -499,12 +475,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'البث المباشر قادم'**
   String get liveComingTitle;
-
-  /// No description provided for @liveComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'بدء البث ومشاهدة البثوث تصل في المرحلة 6.'**
-  String get liveComingBody;
 
   /// No description provided for @profileTitle.
   ///
@@ -529,18 +499,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إعادة إرسال رسالة التأكيد'**
   String get profileResendVerification;
-
-  /// No description provided for @profileContentComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'ملفك الشخصي قيد البناء'**
-  String get profileContentComingTitle;
-
-  /// No description provided for @profileContentComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'منشوراتك ومتابعوك ومقتطفاتك تصل في المرحلة 2.'**
-  String get profileContentComingBody;
 
   /// No description provided for @profileUsername.
   ///
@@ -607,42 +565,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذا الجهاز'**
   String get sessionsCurrent;
-
-  /// No description provided for @sessionsLastActive.
-  ///
-  /// In ar, this message translates to:
-  /// **'آخر نشاط: {date}'**
-  String sessionsLastActive(String date);
-
-  /// No description provided for @sessionsRevoke.
-  ///
-  /// In ar, this message translates to:
-  /// **'تسجيل الخروج'**
-  String get sessionsRevoke;
-
-  /// No description provided for @sessionsRevokeConfirmTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'تسجيل الخروج من هذا الجهاز؟'**
-  String get sessionsRevokeConfirmTitle;
-
-  /// No description provided for @sessionsRevokeConfirmBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'سيُطلب من هذا الجهاز تسجيل الدخول من جديد.'**
-  String get sessionsRevokeConfirmBody;
-
-  /// No description provided for @sessionsRevoked.
-  ///
-  /// In ar, this message translates to:
-  /// **'تم تسجيل خروج الجهاز'**
-  String get sessionsRevoked;
-
-  /// No description provided for @sessionsNoOthers.
-  ///
-  /// In ar, this message translates to:
-  /// **'لا توجد جلسات نشطة أخرى'**
-  String get sessionsNoOthers;
 
   /// No description provided for @sessionUnknownDevice.
   ///
@@ -740,12 +662,6 @@ abstract class AppLocalizations {
   /// **'لم نعثر على ما تبحث عنه.'**
   String get errorNotFound;
 
-  /// No description provided for @errorEmailTaken.
-  ///
-  /// In ar, this message translates to:
-  /// **'هذا البريد الإلكتروني مسجّل بالفعل.'**
-  String get errorEmailTaken;
-
   /// No description provided for @errorUsernameTaken.
   ///
   /// In ar, this message translates to:
@@ -770,12 +686,6 @@ abstract class AppLocalizations {
   /// **'هذا الرابط غير صالح.'**
   String get errorTokenInvalid;
 
-  /// No description provided for @errorRateLimited.
-  ///
-  /// In ar, this message translates to:
-  /// **'محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مجددًا.'**
-  String get errorRateLimited;
-
   /// No description provided for @errorInternal.
   ///
   /// In ar, this message translates to:
@@ -787,30 +697,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.'**
   String get errorServiceUnavailable;
-
-  /// 503 with Retry-After; wait is durationSeconds or durationMinutes.
-  ///
-  /// In ar, this message translates to:
-  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.'**
-  String errorServiceBusyRetryIn(String wait);
-
-  /// 429 with Retry-After; wait is durationSeconds or durationMinutes.
-  ///
-  /// In ar, this message translates to:
-  /// **'محاولات كثيرة جدًا. حاول مرة أخرى بعد {wait}.'**
-  String errorRateLimitedRetryIn(String wait);
-
-  /// No description provided for @durationSeconds.
-  ///
-  /// In ar, this message translates to:
-  /// **'{count, plural, =1{ثانية واحدة} =2{ثانيتين} few{{count} ثوانٍ} many{{count} ثانية} other{{count} ثانية}}'**
-  String durationSeconds(int count);
-
-  /// No description provided for @durationMinutes.
-  ///
-  /// In ar, this message translates to:
-  /// **'{count, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{count} دقائق} many{{count} دقيقة} other{{count} دقيقة}}'**
-  String durationMinutes(int count);
 
   /// No description provided for @errorNetworkOffline.
   ///
@@ -829,6 +715,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حدث خطأ غير متوقع. حاول مرة أخرى.'**
   String get errorUnknown;
+
+  /// No description provided for @errorEmailTaken.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن استخدام هذا البريد الإلكتروني لإنشاء حساب جديد. جرّب تسجيل الدخول أو إعادة تعيين كلمة المرور.'**
+  String get errorEmailTaken;
+
+  /// No description provided for @errorRateLimited.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.'**
+  String get errorRateLimited;
+
+  /// No description provided for @errorRateLimitedRetryIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. حاول مرة أخرى بعد {wait}.'**
+  String errorRateLimitedRetryIn(String wait);
+
+  /// No description provided for @errorServiceBusyRetryIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.'**
+  String errorServiceBusyRetryIn(String wait);
+
+  /// No description provided for @errorIdLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الخطأ: {requestId}'**
+  String errorIdLabel(String requestId);
+
+  /// No description provided for @homeComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.'**
+  String get homeComingBody;
+
+  /// No description provided for @discoverComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.'**
+  String get discoverComingBody;
+
+  /// No description provided for @liveComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.'**
+  String get liveComingBody;
+
+  /// No description provided for @profileContentComingTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر منشوراتك هنا'**
+  String get profileContentComingTitle;
+
+  /// No description provided for @profileContentComingBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.'**
+  String get profileContentComingBody;
+
+  /// No description provided for @usernameTaken.
+  ///
+  /// In ar, this message translates to:
+  /// **'‎@{username}‎ غير متاح. جرّب اسمًا آخر.'**
+  String usernameTaken(String username);
+
+  /// No description provided for @usernameCheckFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر التحقق الآن. يمكنك المتابعة على أي حال.'**
+  String get usernameCheckFailed;
+
+  /// No description provided for @usernameTooShort.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم 3 أحرف على الأقل'**
+  String get usernameTooShort;
+
+  /// No description provided for @usernameTooLong.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم 30 حرفًا أو أقل'**
+  String get usernameTooLong;
+
+  /// No description provided for @usernameBadChars.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم فقط a–z و0–9 والنقطة (.) والشرطة السفلية (_)'**
+  String get usernameBadChars;
+
+  /// No description provided for @usernameBadEdges.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية'**
+  String get usernameBadEdges;
+
+  /// No description provided for @sessionsLastActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط {relativeTime}'**
+  String sessionsLastActive(String relativeTime);
+
+  /// No description provided for @sessionsActiveNow.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط الآن'**
+  String get sessionsActiveNow;
+
+  /// No description provided for @sessionsSignedIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول في {date}'**
+  String sessionsSignedIn(String date);
+
+  /// No description provided for @relativeMinutesAgo.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {n} د'**
+  String relativeMinutesAgo(int n);
+
+  /// No description provided for @relativeHoursAgo.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {n} س'**
+  String relativeHoursAgo(int n);
+
+  /// No description provided for @relativeDaysAgo.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {n} ي'**
+  String relativeDaysAgo(int n);
+
+  /// No description provided for @sessionsRevoke.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get sessionsRevoke;
+
+  /// No description provided for @sessionsRevokeConfirmTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء هذه الجلسة؟'**
+  String get sessionsRevokeConfirmTitle;
+
+  /// No description provided for @sessionsRevokeConfirmBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيتم تسجيل خروج {device} على الفور.'**
+  String sessionsRevokeConfirmBody(String device);
+
+  /// No description provided for @sessionsRevoked.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنهاء الجلسة'**
+  String get sessionsRevoked;
+
+  /// No description provided for @sessionsAlreadyEnded.
+  ///
+  /// In ar, this message translates to:
+  /// **'كانت هذه الجلسة منتهية بالفعل'**
+  String get sessionsAlreadyEnded;
+
+  /// No description provided for @sessionsNoOthers.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك مسجَّل الدخول على هذا الجهاز فقط.'**
+  String get sessionsNoOthers;
 }
 
 class _AppLocalizationsDelegate

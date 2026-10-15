@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
-import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -61,73 +61,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthScaffold(
       title: l10n.loginTitle,
       subtitle: l10n.loginSubtitle,
-      child: Form(
-        key: _formKey,
-        autovalidateMode: _autovalidate,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (banner != null && submission is! SubmissionFailed) ...[
-              KInlineMessage(message: banner),
-              const SizedBox(height: KSpacing.lg),
-            ],
-            if (submission is SubmissionFailed) ...[
-              KInlineMessage(message: failureMessage(l10n, submission.failure)),
-              const SizedBox(height: KSpacing.lg),
-            ],
-            KTextField(
-              fieldKey: LoginScreen.identifierKey,
-              controller: _identifier,
-              label: l10n.loginIdentifierLabel,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.username],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.identifierMax,
-              enabled: !submitting,
-              validator: (v) =>
-                  validationMessage(l10n, AuthValidators.identifier(v)),
-            ),
-            const SizedBox(height: KSpacing.lg),
-            KTextField(
-              fieldKey: LoginScreen.passwordKey,
-              controller: _password,
-              label: l10n.loginPasswordLabel,
-              obscure: true,
-              showPasswordLabel: l10n.passwordShow,
-              hidePasswordLabel: l10n.passwordHide,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.password],
-              textDirection: TextDirection.ltr,
-              maxLength: AuthRules.loginPasswordMax,
-              enabled: !submitting,
-              onSubmitted: (_) => _submit(),
-              validator: (v) =>
-                  validationMessage(l10n, AuthValidators.loginPassword(v)),
-            ),
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                onPressed: submitting
-                    ? null
-                    : () => context.push(AppRoutes.forgotPassword),
-                child: Text(l10n.loginForgotPassword),
+      child: RetryCountdown(
+        key: ObjectKey(submission),
+        failure: submission is SubmissionFailed ? submission.failure : null,
+        builder: (context, remaining) => Form(
+          key: _formKey,
+          autovalidateMode: _autovalidate,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (banner != null && submission is! SubmissionFailed) ...[
+                KInlineMessage(message: banner),
+                const SizedBox(height: KSpacing.lg),
+              ],
+              if (submission is SubmissionFailed) ...[
+                FailureBanner(
+                  failure: submission.failure,
+                  remaining: remaining,
+                ),
+                const SizedBox(height: KSpacing.lg),
+              ],
+              KTextField(
+                fieldKey: LoginScreen.identifierKey,
+                controller: _identifier,
+                label: l10n.loginIdentifierLabel,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.username],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.identifierMax,
+                enabled: !submitting,
+                validator: (v) =>
+                    validationMessage(l10n, AuthValidators.identifier(v)),
               ),
-            ),
-            const SizedBox(height: KSpacing.sm),
-            KButton(
-              key: LoginScreen.submitKey,
-              label: l10n.loginSubmit,
-              loading: submitting,
-              onPressed: _submit,
-            ),
-            const SizedBox(height: KSpacing.lg),
-            AuthSwitchPrompt(
-              question: l10n.loginNoAccount,
-              action: l10n.loginCreateAccount,
-              onPressed: () => context.go(AppRoutes.register),
-            ),
-          ],
+              const SizedBox(height: KSpacing.lg),
+              KTextField(
+                fieldKey: LoginScreen.passwordKey,
+                controller: _password,
+                label: l10n.loginPasswordLabel,
+                obscure: true,
+                showPasswordLabel: l10n.passwordShow,
+                hidePasswordLabel: l10n.passwordHide,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                textDirection: TextDirection.ltr,
+                maxLength: AuthRules.loginPasswordMax,
+                enabled: !submitting,
+                onSubmitted: (_) async {
+                  if (remaining == Duration.zero) await _submit();
+                },
+                validator: (v) =>
+                    validationMessage(l10n, AuthValidators.loginPassword(v)),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: submitting
+                      ? null
+                      : () => context.push(AppRoutes.forgotPassword),
+                  child: Text(l10n.loginForgotPassword),
+                ),
+              ),
+              const SizedBox(height: KSpacing.sm),
+              KButton(
+                key: LoginScreen.submitKey,
+                label: l10n.loginSubmit,
+                loading: submitting,
+                // Disabled while a Retry-After countdown runs (QA-007).
+                onPressed: remaining > Duration.zero ? null : _submit,
+              ),
+              const SizedBox(height: KSpacing.lg),
+              AuthSwitchPrompt(
+                question: l10n.loginNoAccount,
+                action: l10n.loginCreateAccount,
+                onPressed: () => context.go(AppRoutes.register),
+              ),
+            ],
+          ),
         ),
       ),
     );

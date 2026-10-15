@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -18,10 +18,9 @@ class SplashScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: switch (state) {
-          AuthRestoreFailed(:final failure) => KErrorState(
+          AuthRestoreFailed(:final failure) => FailureErrorState(
             title: l10n.splashRestoreFailed,
-            message: failureMessage(l10n, failure),
-            retryLabel: l10n.actionRetry,
+            failure: failure,
             onRetry: () =>
                 ref.read(sessionControllerProvider.notifier).restore(),
           ),

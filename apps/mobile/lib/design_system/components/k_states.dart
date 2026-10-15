@@ -13,6 +13,7 @@ class KEmptyState extends StatelessWidget {
     super.key,
     this.actionLabel,
     this.onAction,
+    this.detail,
   });
 
   final IconData icon;
@@ -20,6 +21,9 @@ class KEmptyState extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// Selectable secondary line (e.g. "Error ID: …").
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +60,14 @@ class KEmptyState extends StatelessWidget {
                 style: t.body.copyWith(color: p.textSecondary),
                 textAlign: TextAlign.center,
               ),
+              if (detail != null) ...[
+                const SizedBox(height: KSpacing.sm),
+                SelectableText(
+                  detail!,
+                  style: t.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: KSpacing.xl),
                 KButton(
@@ -81,12 +93,16 @@ class KErrorState extends StatelessWidget {
     required this.retryLabel,
     required this.onRetry,
     super.key,
+    this.detail,
   });
 
   final String title;
   final String message;
   final String retryLabel;
   final VoidCallback onRetry;
+
+  /// Selectable secondary line (e.g. "Error ID: …").
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -96,16 +112,25 @@ class KErrorState extends StatelessWidget {
       message: message,
       actionLabel: retryLabel,
       onAction: onRetry,
+      detail: detail,
     );
   }
 }
 
 /// Inline banner for form-level errors and notices.
 class KInlineMessage extends StatelessWidget {
-  const new({required this.message, super.key, this.isError = true});
+  const new({
+    required this.message,
+    super.key,
+    this.isError = true,
+    this.detail,
+  });
 
   final String message;
   final bool isError;
+
+  /// Selectable secondary line (e.g. "Error ID: …").
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +157,20 @@ class KInlineMessage extends StatelessWidget {
             ),
             const SizedBox(width: KSpacing.sm),
             Expanded(
-              child: Text(
-                message,
-                style: context.textStyles.body.copyWith(color: p.textPrimary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message,
+                    style: context.textStyles.body.copyWith(
+                      color: p.textPrimary,
+                    ),
+                  ),
+                  if (detail != null) ...[
+                    const SizedBox(height: KSpacing.xs),
+                    SelectableText(detail!, style: context.textStyles.caption),
+                  ],
+                ],
               ),
             ),
           ],

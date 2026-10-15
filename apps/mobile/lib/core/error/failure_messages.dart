@@ -1,4 +1,5 @@
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 
 /// Localized, user-facing message for an error [code].
@@ -28,33 +29,52 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
   };
 }
 
+/// Codes that honour `Retry-After` (countdown + disabled CTA).
+bool hasRetryCountdown(AppFailure failure) =>
+    failure is ServerFailure &&
+    (failure.code == ErrorCode.rateLimited ||
+        failure.code == ErrorCode.serviceUnavailable) &&
+    (failure.retryAfter ?? Duration.zero) > Duration.zero;
+
 /// Localized, user-facing message for [failure].
 ///
-/// For `RATE_LIMITED` and `SERVICE_UNAVAILABLE` (e.g. login/register under
-/// load, CONVENTIONS v1.1) the server's `Retry-After` is shown when present.
-String failureMessage(AppLocalizations l10n, AppFailure failure) {
-  if (failure is ServerFailure) {
-    final retryAfter = failure.retryAfter;
-    if (retryAfter != null && retryAfter > Duration.zero) {
-      final wait = retryWaitText(l10n, retryAfter);
-      switch (failure.code) {
-        case ErrorCode.rateLimited:
-          return l10n.errorRateLimitedRetryIn(wait);
-        case ErrorCode.serviceUnavailable:
-          return l10n.errorServiceBusyRetryIn(wait);
-        // Other codes ignore Retry-After.
-        // ignore: no_default_cases
-        default:
-          break;
-      }
+/// For `RATE_LIMITED` and `SERVICE_UNAVAILABLE` with `Retry-After`
+/// (PHASE1_SCREENS §10, CONVENTIONS v1.1) the wait is shown as `m:ss`:
+/// [remaining] is the live countdown value; without it the full
+/// `Retry-After` is shown. Once the countdown reaches zero the plain message
+/// is used.
+String failureMessage(
+  AppLocalizations l10n,
+  AppFailure failure, {
+  Duration? remaining,
+}) {
+  if (failure is ServerFailure && hasRetryCountdown(failure)) {
+    final left = remaining ?? failure.retryAfter!;
+    if (left > Duration.zero) {
+      final wait = KFormat.countdown(_roundUpToSecond(left));
+      return failure.code == ErrorCode.rateLimited
+          ? l10n.errorRateLimitedRetryIn(wait)
+          : l10n.errorServiceBusyRetryIn(wait);
     }
   }
   return errorCodeMessage(l10n, failure.code);
 }
 
-/// "5 seconds" / "2 minutes" (minutes rounded up from 60 s on).
-String retryWaitText(AppLocalizations l10n, Duration wait) {
-  final seconds = wait.inSeconds < 1 ? 1 : wait.inSeconds;
-  if (seconds < 60) return l10n.durationSeconds(seconds);
-  return l10n.durationMinutes((seconds / 60).ceil());
+/// The request id to show as a selectable "Error ID" (PHASE1_SCREENS §10):
+/// only for `INTERNAL_ERROR`, `SERVICE_UNAVAILABLE` and unknown codes.
+String? failureErrorId(AppFailure failure) {
+  if (failure is! ServerFailure) return null;
+  final id = failure.requestId;
+  if (id == null || id.isEmpty) return null;
+  return switch (failure.code) {
+    ErrorCode.internalError ||
+    ErrorCode.serviceUnavailable ||
+    ErrorCode.unknown => id,
+    _ => null,
+  };
+}
+
+Duration _roundUpToSecond(Duration d) {
+  final ms = d.inMilliseconds;
+  return Duration(seconds: (ms + 999) ~/ 1000);
 }
