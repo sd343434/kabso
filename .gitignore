@@ -33,3 +33,6 @@ Thumbs.db
 
 # Claude Code agent worktrees (local only)
 .claude/worktrees/
+
+# Local Redis snapshots
+*.rdb
