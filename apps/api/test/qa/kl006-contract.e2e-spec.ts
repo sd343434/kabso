@@ -15,6 +15,7 @@ import {
   CapturingMailSender,
   createTestApp,
   newUser,
+  registerVerified,
   type TestContext,
 } from '../helpers/test-app.js';
 
@@ -101,9 +102,9 @@ describe('KL-006 contract checks', () => {
     await ctx?.close();
   });
 
+  // Contract v1.2: an account (and tokens) exists only after register → register/verify.
   async function register(overrides: Partial<Record<string, unknown>> = {}) {
-    const payload = newUser(overrides);
-    const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+    const { payload, res } = await registerVerified(ctx, overrides);
     expect(res.status).toBe(201);
     return { payload, body: res.body as { user: Record<string, unknown>; tokens: Record<string, string> } };
   }
@@ -447,10 +448,16 @@ describe('KL-006 rate limits not covered by the KL-002 suite (CONVENTIONS §7)',
   }
 
   it('register per IP, refresh per session, resend per user, public routes per IP, login per IP', async () => {
-    const first = await ctx.http.post('/api/v1/auth/register').send(newUser());
-    expect(first.status).toBe(201);
-    expect((await ctx.http.post('/api/v1/auth/register').send(newUser())).status).toBe(201);
+    // v1.2: register answers 202; tokens come from register/verify (its own per-IP bucket).
+    const firstUser = newUser();
+    expect((await ctx.http.post('/api/v1/auth/register').send(firstUser)).status).toBe(202);
+    expect((await ctx.http.post('/api/v1/auth/register').send(newUser())).status).toBe(202);
     expectLimited(await ctx.http.post('/api/v1/auth/register').send(newUser()), 3600);
+    const codeMail = await ctx.mail.waitFor(firstUser.email, 'code');
+    const first = await ctx.http
+      .post('/api/v1/auth/register/verify')
+      .send({ email: firstUser.email, code: codeMail.code });
+    expect(first.status).toBe(201);
 
     let refreshToken = first.body.tokens.refreshToken as string;
     for (let i = 0; i < 2; i++) {

@@ -42,7 +42,19 @@ export interface AppConfig {
     readonly authenticatedUser: RateLimitRule;
     readonly emailResendUser: RateLimitRule;
     readonly publicIp: RateLimitRule;
+    readonly registerEmail: RateLimitRule;
+    readonly registerVerifyIp: RateLimitRule;
+    readonly registerResendEmail: RateLimitRule;
+    readonly registerResendIp: RateLimitRule;
+    readonly updateMeUser: RateLimitRule;
   };
+  readonly registration: {
+    readonly ttlSeconds: number;
+    readonly noticeIntervalSeconds: number;
+    readonly cleanupIntervalSeconds: number;
+  };
+  readonly loginRecentSuccessTtlSeconds: number;
+  readonly reservedDisplayNameTerms: readonly string[];
 }
 
 export class ConfigValidationError extends Error {
@@ -102,6 +114,18 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       authenticatedUser: e.RATE_LIMIT_AUTHENTICATED_USER,
       emailResendUser: e.RATE_LIMIT_EMAIL_RESEND_USER,
       publicIp: e.RATE_LIMIT_PUBLIC_IP,
+      registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
+      registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
+      registerResendEmail: e.RATE_LIMIT_REGISTER_RESEND_EMAIL,
+      registerResendIp: e.RATE_LIMIT_REGISTER_RESEND_IP,
+      updateMeUser: e.RATE_LIMIT_UPDATE_ME_USER,
     },
+    registration: {
+      ttlSeconds: e.REGISTRATION_TTL_SECONDS,
+      noticeIntervalSeconds: e.REGISTRATION_NOTICE_INTERVAL_SECONDS,
+      cleanupIntervalSeconds: e.REGISTRATION_CLEANUP_INTERVAL_SECONDS,
+    },
+    loginRecentSuccessTtlSeconds: e.LOGIN_RECENT_SUCCESS_TTL_SECONDS,
+    reservedDisplayNameTerms: e.RESERVED_DISPLAY_NAME_TERMS,
   };
 }

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { UsersService } from '../src/modules/users/users.service.js';
-import { createTestApp, newUser, type TestContext } from './helpers/test-app.js';
+import { createTestApp, newUser, registerVerified, settle, type TestContext } from './helpers/test-app.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -15,9 +15,9 @@ afterAll(async () => {
   await ctx?.close();
 });
 
+// Contract v1.2: an account (and tokens) exists only after register → register/verify.
 async function register(overrides: Partial<Record<string, unknown>> = {}) {
-  const payload = newUser(overrides);
-  const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+  const { payload, res } = await registerVerified(ctx, overrides);
   expect(res.status).toBe(201);
   return { payload, body: res.body as AuthBody };
 }
@@ -35,16 +35,23 @@ interface AuthBody {
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 describe('POST /auth/register', () => {
-  it('creates the account, returns AuthResponse and queues a verification email', async () => {
+  // v1.2: register → 202 (no tokens), register/verify → 201 AuthResponse with a verified email.
+  it('register → 202, verify → creates the account and returns AuthResponse', async () => {
     const payload = newUser({ email: '  Mixed.Case@Example.COM ', username: 'mixed.case_user' });
-    const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+    const pending = await ctx.http.post('/api/v1/auth/register').send(payload);
+    expect(pending.status).toBe(202);
+    expect(pending.body).toEqual({ status: 'verification_pending' });
+    const codeMail = await ctx.mail.waitFor('mixed.case@example.com', 'code');
+    const res = await ctx.http
+      .post('/api/v1/auth/register/verify')
+      .send({ email: 'Mixed.Case@Example.COM', code: codeMail.code, device: payload.device });
 
     expect(res.status).toBe(201);
     expect(Object.keys(res.body).sort()).toEqual(['tokens', 'user']);
     expect(res.body.user).toEqual({
       id: expect.stringMatching(UUID),
       email: 'mixed.case@example.com',
-      emailVerified: false,
+      emailVerified: true,
       username: 'mixed.case_user',
       displayName: 'Test User',
       bio: null,
@@ -63,8 +70,9 @@ describe('POST /auth/register', () => {
     expect(accessTtl).toBeGreaterThan(14 * 60 * 1000);
     expect(accessTtl).toBeLessThanOrEqual(15 * 60 * 1000);
 
-    const mail = ctx.mail.last('mixed.case@example.com', 'verify');
-    expect(mail?.link).toContain('/verify-email?token=');
+    // No email-verification token mail: the address was proven by the code.
+    await settle(ctx);
+    expect(ctx.mail.last('mixed.case@example.com', 'verify')).toBeUndefined();
 
     // Profile + settings + session were written in the same transaction.
     const stored = await ctx.prisma.user.findUniqueOrThrow({
@@ -78,7 +86,7 @@ describe('POST /auth/register', () => {
     expect(stored.sessions[0]?.refreshTokenHash).toHaveLength(64);
     expect(tokens.refreshToken).not.toContain(stored.sessions[0]?.refreshTokenHash);
     const audit = await ctx.prisma.auditLog.findFirst({
-      where: { action: 'auth.register', actorUserId: stored.id },
+      where: { action: 'auth.registration.verified', actorUserId: stored.id },
     });
     expect(audit).not.toBeNull();
   });
@@ -130,13 +138,17 @@ describe('POST /auth/register', () => {
     );
   });
 
-  it('rejects a duplicate email case-insensitively with EMAIL_TAKEN', async () => {
+  // v1.2 (B9): a registered email (any case) is never revealed — same 202, the owner is notified.
+  it('answers a duplicate email (case-insensitive) with the same 202 and notifies the owner', async () => {
     const { payload } = await register();
+    const before = ctx.mail.sent.length;
     const res = await ctx.http
       .post('/api/v1/auth/register')
       .send(newUser({ email: payload.email.toUpperCase() }));
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('EMAIL_TAKEN');
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ status: 'verification_pending' });
+    await ctx.mail.waitFor(payload.email, 'account_exists', before);
+    expect(await ctx.prisma.pendingRegistration.count({ where: { email: payload.email } })).toBe(0);
   });
 
   it('rejects a duplicate username with USERNAME_TAKEN', async () => {
@@ -146,16 +158,17 @@ describe('POST /auth/register', () => {
     expect(res.body.error.code).toBe('USERNAME_TAKEN');
   });
 
-  it('maps concurrent duplicate registrations to EMAIL_TAKEN (unique constraint path)', async () => {
+  // v1.2: concurrent registrations for one email never reveal anything and leave one live pending.
+  it('concurrent registrations for one email all get 202 and leave exactly one pending row', async () => {
     const base = newUser();
     const results = await Promise.all(
       [0, 1, 2].map((i) =>
         ctx.http.post('/api/v1/auth/register').send({ ...base, username: `${base.username}x${i}` }),
       ),
     );
-    const statuses = results.map((r) => r.status).sort();
-    expect(statuses).toEqual([201, 409, 409]);
-    for (const r of results.filter((x) => x.status === 409)) expect(r.body.error.code).toBe('EMAIL_TAKEN');
+    expect(results.map((r) => r.status)).toEqual([202, 202, 202]);
+    await settle(ctx);
+    expect(await ctx.prisma.pendingRegistration.count({ where: { email: base.email } })).toBe(1);
   });
 
   it('translates database unique violations (race path) to EMAIL_TAKEN / USERNAME_TAKEN', async () => {
@@ -278,7 +291,8 @@ describe('POST /auth/login', () => {
         orderBy: { createdAt: 'asc' },
       })
     ).map((a) => a.action);
-    expect(actions).toEqual(['auth.register', 'auth.login.failure', 'auth.login.success']);
+    // v1.2: the account is created by register/verify.
+    expect(actions).toEqual(['auth.registration.verified', 'auth.login.failure', 'auth.login.success']);
   });
 });
 

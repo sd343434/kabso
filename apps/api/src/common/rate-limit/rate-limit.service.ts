@@ -80,4 +80,54 @@ export class RateLimitService {
       });
     }
   }
+
+  /**
+   * Checks a bucket without counting (SEC-023: the login account bucket counts failures only,
+   * via {@link hit} after a failed attempt). Throws RATE_LIMITED when already exhausted.
+   */
+  async assertNotExhausted(bucket: string, subject: string, rule: RateLimitRule): Promise<void> {
+    const redisKey = this.keyFor(bucket, subject);
+    let count: string | null;
+    let ttlMs: number;
+    try {
+      [count, ttlMs] = await Promise.all([this.redis.get(redisKey), this.redis.pttl(redisKey)]);
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+    if (count !== null && Number(count) >= rule.max) {
+      throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
+        'Retry-After': String(Math.max(1, Math.ceil(ttlMs / 1000))),
+      });
+    }
+  }
+
+  /** Sets a keyed flag with a TTL; returns false if it was already set (SET NX EX). */
+  async setFlagOnce(bucket: string, subject: string, ttlSeconds: number): Promise<boolean> {
+    try {
+      return (await this.redis.set(this.keyFor(bucket, subject), '1', 'EX', ttlSeconds, 'NX')) === 'OK';
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /** Sets (or refreshes) a keyed flag with a TTL. */
+  async setFlag(bucket: string, subject: string, ttlSeconds: number): Promise<void> {
+    try {
+      await this.redis.set(this.keyFor(bucket, subject), '1', 'EX', ttlSeconds);
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  async hasFlag(bucket: string, subject: string): Promise<boolean> {
+    try {
+      return (await this.redis.exists(this.keyFor(bucket, subject))) === 1;
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+  }
 }

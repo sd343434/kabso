@@ -5,16 +5,16 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RateLimitService } from '../src/common/rate-limit/rate-limit.service.js';
-import { createTestApp, newUser, type TestContext } from './helpers/test-app.js';
+import { createTestApp, newUser, registerVerified, type TestContext } from './helpers/test-app.js';
 
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 const NFC = 'café passphrase';
 // Same text in decomposed form (e + U+0301 COMBINING ACUTE ACCENT); differs byte-wise from NFC.
 const NFD = NFC.normalize('NFD');
 
+// Contract v1.2: an account (and tokens) exists only after register → register/verify.
 async function register(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}) {
-  const payload = newUser(overrides);
-  const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+  const { payload, res } = await registerVerified(ctx, overrides);
   expect(res.status).toBe(201);
   return {
     payload,
@@ -83,14 +83,19 @@ describe('KL-011 (default limits)', () => {
       expect(audit.metadata).toMatchObject({ matchedPrevious: true });
     });
 
-    it('a secret two rotations old is refused without revoking', async () => {
+    // Contract v1.2 (SEC-022) reverses the v1.1 behaviour pinned here: any of the last 10 rotated
+    // secrets is reuse and revokes the session.
+    it('a secret two rotations old is reuse and revokes the session (v1.2 SEC-022)', async () => {
       const user = await register(ctx);
       const r1 = await ctx.http.post('/api/v1/auth/refresh').send({ refreshToken: user.refreshToken });
       const r2 = await ctx.http.post('/api/v1/auth/refresh').send({ refreshToken: r1.body.refreshToken });
       expect(r2.status).toBe(200);
       const stale = await ctx.http.post('/api/v1/auth/refresh').send({ refreshToken: user.refreshToken });
       expect(stale.status).toBe(401);
-      expect((await ctx.http.get('/api/v1/me').set(bearer(r2.body.accessToken))).status).toBe(200);
+      expect(stale.body.error.code).toBe('AUTH_REFRESH_INVALID');
+      expect((await ctx.http.get('/api/v1/me').set(bearer(r2.body.accessToken))).status).toBe(401);
+      const session = await ctx.prisma.session.findUniqueOrThrow({ where: { id: user.sessionId } });
+      expect(session.revokedReason).toBe('REFRESH_REUSE');
     });
   });
 
@@ -291,11 +296,12 @@ describe('KL-011 IPv6 /64 grouping (SEC-002)', () => {
   it('addresses in one /64 share the per-IP bucket; another /64 does not', async () => {
     const attempt = (ip: string) =>
       ctx.http.post('/api/v1/auth/register').set('X-Forwarded-For', ip).send(newUser());
-    expect((await attempt('2001:db8:1:2::1')).status).toBe(201);
-    expect((await attempt('2001:db8:1:2:ffff:ffff:ffff:fffe')).status).toBe(201);
+    // v1.2: register answers 202 (verify-first).
+    expect((await attempt('2001:db8:1:2::1')).status).toBe(202);
+    expect((await attempt('2001:db8:1:2:ffff:ffff:ffff:fffe')).status).toBe(202);
     const third = await attempt('2001:db8:1:2:abcd::99');
     expect(third.status).toBe(429);
     expect(third.body.error.code).toBe('RATE_LIMITED');
-    expect((await attempt('2001:db8:1:3::1')).status).toBe(201);
+    expect((await attempt('2001:db8:1:3::1')).status).toBe(202);
   });
 });

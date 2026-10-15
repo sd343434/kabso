@@ -7,11 +7,10 @@ import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js'
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MAIL_SENDER, type MailLocale, type MailSender } from '../mail/mail-sender.js';
-import { normalizeEmail, normalizeUsername, isReservedUsername } from '../users/username.js';
+import { normalizeEmail, normalizeUsername } from '../users/username.js';
 import { UsersService, type MeDto } from '../users/users.service.js';
-import { toMeDto } from '../users/users.service.js';
 import { AccessTokenService } from './access-token.service.js';
-import type { DeviceInfo, LoginInput, RegisterInput } from './auth.schemas.js';
+import type { DeviceInfo, LoginInput } from './auth.schemas.js';
 import { PasswordHasher } from './password-hasher.service.js';
 import {
   RevokedReason,
@@ -44,6 +43,9 @@ export interface RequestMeta {
   readonly acceptLanguage?: MailLocale | undefined;
 }
 
+/** Redis flag bucket: "this source logged into this account recently" (SEC-023). */
+const RECENT_SUCCESS_BUCKET = 'login:recent_success';
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -61,62 +63,21 @@ export class AuthService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
-  async register(input: RegisterInput, meta: RequestMeta): Promise<AuthResponseDto> {
-    if (isReservedUsername(input.username)) throw new AppException(ErrorCode.USERNAME_TAKEN);
-    // Fast-path checks; the unique constraints remain the source of truth under races.
-    if (await this.users.emailExists(input.email)) throw new AppException(ErrorCode.EMAIL_TAKEN);
-    if (await this.users.usernameExists(input.username)) throw new AppException(ErrorCode.USERNAME_TAKEN);
-
-    const passwordHash = await this.passwords.hash(input.password);
-    const locale: MailLocale = input.locale ?? meta.acceptLanguage ?? 'ar';
-    const now = new Date();
-
-    const { user, session, verification } = await this.prisma.$transaction(async (tx) => {
-      const created = await this.users.createAccount(tx, {
-        email: input.email,
-        passwordHash,
-        username: input.username,
-        displayName: input.displayName,
-        locale,
-      });
-      const issued = await this.sessions.create(tx, created.id, this.client(input.device, meta), now);
-      const token = await this.verificationTokens.issue(
-        tx,
-        created.id,
-        'EMAIL_VERIFY',
-        this.config.tokens.emailVerifyTtlSeconds,
-        now,
-      );
-      return { user: created, session: issued, verification: token };
-    });
-
-    await this.audit.record({
-      action: AuditAction.REGISTER,
-      actorUserId: user.id,
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { sessionId: session.sessionId },
-      ip: meta.ip,
-      requestId: meta.requestId,
-    });
-    await this.sendMail('verify', user.email, locale, verification);
-
-    return { user: toMeDto(user), tokens: await this.tokenPair(user.id, session) };
-  }
-
   async login(input: LoginInput, meta: RequestMeta): Promise<AuthResponseDto> {
     const identifier = input.identifier.includes('@')
       ? { email: normalizeEmail(input.identifier) }
       : { username: normalizeUsername(input.identifier) };
     const identifierType = 'email' in identifier ? 'email' : 'username';
     const candidate = await this.users.findLoginCandidate(identifier);
-    await this.consumeLoginAccountLimits(candidate?.id ?? null, identifier, identifierType, meta);
+    const limits = await this.checkLoginLimits(candidate?.id ?? null, identifier, identifierType, meta);
 
     const passwordOk = candidate
       ? await this.passwords.verify(candidate.passwordHash, input.password)
       : await this.passwords.verifyAgainstDummy(input.password);
 
     if (!candidate || !passwordOk || candidate.status === 'DELETED') {
+      // SEC-023: the account bucket counts failed attempts only.
+      await this.rateLimits.hit('login:account', limits.account, this.config.rateLimits.loginAccount);
       await this.audit.record({
         action: AuditAction.LOGIN_FAILURE,
         actorUserId: candidate?.id ?? null,
@@ -146,6 +107,7 @@ export class AuthService {
     }
 
     const session = await this.sessions.create(this.prisma, candidate.id, this.client(input.device, meta));
+    await this.rememberSuccessfulSource(candidate.id, meta);
     await this.audit.record({
       action: AuditAction.LOGIN_SUCCESS,
       actorUserId: candidate.id,
@@ -169,7 +131,8 @@ export class AuthService {
         targetType: 'session',
         targetId: outcome.sessionId,
         metadata: {
-          matchedPrevious: true,
+          matchedPrevious: outcome.rotationsAgo === 1,
+          rotationsAgo: outcome.rotationsAgo,
           secondsSinceLastRotation: Math.round((Date.now() - outcome.lastRotatedAt.getTime()) / 1000),
         },
         ip: meta.ip,
@@ -311,16 +274,20 @@ export class AuthService {
   }
 
   /**
-   * Login limits that need the resolved account (CONVENTIONS §7, SEC-002/SEC-009): per account
-   * across all IPs and per IP+account. Email and username of one account share the key (the
-   * user id); unknown identifiers are keyed on the normalized identifier. Runs before Argon2.
+   * Login limits that need the resolved account (CONVENTIONS §7, SEC-002/SEC-009/SEC-023), checked
+   * before any Argon2 work. Email and username of one account share the key (the user id);
+   * unknown identifiers are keyed on the normalized identifier.
+   *  - per IP+account: every attempt counts;
+   *  - per account across IPs: only FAILED attempts count (recorded by the caller after a
+   *    failure); a source (IPv4 / IPv6 /64) that logged into this account successfully within
+   *    LOGIN_RECENT_SUCCESS_TTL_SECONDS bypasses this bucket, so the owner is not locked out.
    */
-  private async consumeLoginAccountLimits(
+  private async checkLoginLimits(
     userId: string | null,
     identifier: { email: string } | { username: string },
     identifierType: 'email' | 'username',
     meta: RequestMeta,
-  ): Promise<void> {
+  ): Promise<{ account: string; trustedSource: boolean }> {
     const account = userId
       ? `user:${userId}`
       : 'email' in identifier
@@ -332,7 +299,17 @@ export class AuthService {
         `${meta.ipBucket}|${account}`,
         this.config.rateLimits.loginIpAccount,
       );
-      await this.rateLimits.consume('login:account', account, this.config.rateLimits.loginAccount);
+      const trustedSource =
+        userId !== null &&
+        (await this.rateLimits.hasFlag(RECENT_SUCCESS_BUCKET, `${userId}|${meta.ipBucket}`));
+      if (!trustedSource) {
+        await this.rateLimits.assertNotExhausted(
+          'login:account',
+          account,
+          this.config.rateLimits.loginAccount,
+        );
+      }
+      return { account, trustedSource };
     } catch (err) {
       if (err instanceof AppException && err.code === ErrorCode.RATE_LIMITED) {
         await this.audit.record({
@@ -347,11 +324,20 @@ export class AuthService {
     }
   }
 
-  private client(device: DeviceInfo | undefined, meta: RequestMeta) {
+  /** Marks this source (IP / IPv6 /64, HMAC-keyed in Redis) as recently successful (SEC-023). */
+  async rememberSuccessfulSource(userId: string, meta: RequestMeta): Promise<void> {
+    await this.rateLimits.setFlag(
+      RECENT_SUCCESS_BUCKET,
+      `${userId}|${meta.ipBucket}`,
+      this.config.loginRecentSuccessTtlSeconds,
+    );
+  }
+
+  client(device: DeviceInfo | undefined, meta: RequestMeta) {
     return { device, ip: meta.ip, userAgent: meta.userAgent };
   }
 
-  private async tokenPair(userId: string, session: IssuedSession): Promise<TokenPairDto> {
+  async tokenPair(userId: string, session: IssuedSession): Promise<TokenPairDto> {
     const access = await this.accessTokens.sign({ userId, sessionId: session.sessionId });
     return {
       accessToken: access.token,

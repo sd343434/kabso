@@ -28,7 +28,6 @@ describe('free-text character policy (SEC-008, CONVENTIONS §6)', () => {
     ['FSI isolate', 'a⁨b'],
     ['PDI isolate', 'a⁩b'],
     ['zero-width space', 'Kab​so Official'],
-    ['zero-width joiner', 'a‍b'],
     ['word joiner', 'a⁠b'],
     ['BOM inside', 'a﻿b'],
     ['C0 newline', 'a\nb'],
@@ -52,6 +51,16 @@ describe('free-text character policy (SEC-008, CONVENTIONS §6)', () => {
         }),
       ),
     ).toEqual([{ field: 'device.name', issue: 'invalid_format' }]);
+  });
+
+  // Contract v1.2 (KL-017): ZWJ/ZWNJ are allowed in displayName between two letters, but every
+  // zero-width character stays banned in device.* fields.
+  it('allows a well-placed ZWJ in displayName but rejects it in device.name', () => {
+    const zwj = 'a\u200db';
+    expect(register.transform({ ...base, displayName: zwj })).toMatchObject({ displayName: zwj });
+    expect(details(() => register.transform({ ...base, displayName: 'ok', device: { name: zwj } }))).toEqual([
+      { field: 'device.name', issue: 'invalid_format' },
+    ]);
   });
 
   it('accepts Arabic, emoji and ordinary punctuation', () => {

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
+import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import {
@@ -15,15 +16,19 @@ import {
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
+  registerResendSchema,
   registerSchema,
+  registerVerifySchema,
   resetPasswordSchema,
   verifyEmailSchema,
   type LoginInput,
   type RegisterInput,
+  type RegisterVerifyInput,
 } from './auth.schemas.js';
 import { AuthService, type AuthResponseDto, type RequestMeta, type TokenPairDto } from './auth.service.js';
 import { CurrentAuth } from './current-auth.decorator.js';
 import { Public } from './public.decorator.js';
+import { RegistrationService, type VerificationPendingDto } from './registration.service.js';
 import type { SessionInfoDto } from './sessions.service.js';
 import { isUuid, parseRefreshToken } from './tokens.js';
 
@@ -53,17 +58,52 @@ function refreshSubject(req: AppRequest): string {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly registration: RegistrationService,
+    private readonly background: BackgroundTasks,
+  ) {}
 
+  /** v1.2 verify-first registration: always 202 with a constant body (never reveals the email). */
   @Public()
   @Post('register')
-  @HttpCode(201)
-  @RateLimit({ bucket: 'register:ip', rule: 'registerIp', key: (req) => clientIpBucket(req) })
+  @HttpCode(202)
+  @RateLimit(
+    { bucket: 'register:ip', rule: 'registerIp', key: (req) => clientIpBucket(req) },
+    { bucket: 'register:email', rule: 'registerEmail', key: (req) => bodyField(req, 'email') },
+  )
   register(
     @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
     @Req() req: AppRequest,
+  ): Promise<VerificationPendingDto> {
+    return this.registration.register(body, requestMeta(req));
+  }
+
+  /** v1.2: completes registration with the emailed code → 201 AuthResponse; failures → 422. */
+  @Public()
+  @Post('register/verify')
+  @HttpCode(201)
+  @RateLimit({ bucket: 'register_verify:ip', rule: 'registerVerifyIp', key: (req) => clientIpBucket(req) })
+  registerVerify(
+    @Body(new ZodValidationPipe(registerVerifySchema)) body: RegisterVerifyInput,
+    @Req() req: AppRequest,
   ): Promise<AuthResponseDto> {
-    return this.auth.register(body, requestMeta(req));
+    return this.registration.verify(body, requestMeta(req));
+  }
+
+  /** v1.2: re-sends the code if a live pending registration exists; always 202. */
+  @Public()
+  @Post('register/resend')
+  @HttpCode(202)
+  @RateLimit(
+    { bucket: 'register_resend:email', rule: 'registerResendEmail', key: (req) => bodyField(req, 'email') },
+    { bucket: 'register_resend:ip', rule: 'registerResendIp', key: (req) => clientIpBucket(req) },
+  )
+  registerResend(
+    @Body(new ZodValidationPipe(registerResendSchema)) body: { email: string },
+    @Req() req: AppRequest,
+  ): VerificationPendingDto {
+    return this.registration.resend(body.email, requestMeta(req));
   }
 
   @Public()
@@ -125,7 +165,8 @@ export class AuthController {
     @Req() req: AppRequest,
   ): void {
     // Processed after the response so timing does not reveal whether the account exists.
-    void this.auth.forgotPassword(body.email, requestMeta(req));
+    const meta = requestMeta(req);
+    this.background.run('password.forgot', () => this.auth.forgotPassword(body.email, meta));
   }
 
   @Public()

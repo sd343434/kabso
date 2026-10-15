@@ -1,10 +1,10 @@
-import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, type OnApplicationShutdown, type OnModuleInit } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { APP_CONFIG, type AppConfig } from '../config/app-config.js';
 import { PrismaClient } from '../generated/prisma/client.js';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService extends PrismaClient implements OnModuleInit, OnApplicationShutdown {
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
     super({
       adapter: new PrismaPg({
@@ -20,7 +20,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     await this.$connect();
   }
 
-  async onModuleDestroy(): Promise<void> {
+  /** In onApplicationShutdown (not onModuleDestroy) so background tasks can drain first. */
+  async onApplicationShutdown(): Promise<void> {
     await this.$disconnect();
   }
 }
