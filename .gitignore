@@ -30,3 +30,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/
