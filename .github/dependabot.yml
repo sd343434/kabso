@@ -1,4 +1,11 @@
 # Weekly dependency update PRs. Grouped to keep review load low; majors arrive separately.
+#
+# Cooldown (SEC-015): a new release is only proposed once it is old enough, so day-0
+# compromised or broken releases are not picked up automatically. Cooldown applies to version
+# updates only; Dependabot *security* updates are never delayed.
+# Schema verified against the Dependabot options reference (`cooldown`: default-days,
+# semver-major/minor/patch-days, include, exclude; SemVer-specific days are supported for
+# npm and pub, only `default-days` for github-actions and docker-compose).
 version: 2
 updates:
   - package-ecosystem: npm # pnpm workspace (root package.json + pnpm-lock.yaml, incl. apps/api)
@@ -9,9 +16,23 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
+
+  - package-ecosystem: npm # pinned Redocly CLI used by the `contracts` CI job (SEC-021)
+    directory: /tools/redocly
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(tools)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
 
   - package-ecosystem: pub
     directory: /apps/mobile
@@ -21,6 +42,9 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps-mobile)"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       pub-minor-patch:
         update-types: [minor, patch]
@@ -32,10 +56,15 @@ updates:
       day: monday
     commit-message:
       prefix: "chore(ci)"
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
 
+  # Bumps tags and digests in docker-compose.yml. The CI service-container images in
+  # .github/workflows/ci.yml are not scanned by Dependabot: refresh them together with this
+  # file using scripts/image-digests.sh.
   - package-ecosystem: docker-compose
     directory: /
     schedule:
@@ -43,3 +72,12 @@ updates:
       day: monday
     commit-message:
       prefix: "chore(infra)"
+    cooldown:
+      default-days: 7
+    ignore:
+      # Decision D2: PostgreSQL 16 and Redis 7 are the supported majors. Moving to a new major
+      # needs a decision (data upgrade path, managed-service parity), not a Dependabot PR.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+      - dependency-name: redis
+        update-types: ["version-update:semver-major"]
