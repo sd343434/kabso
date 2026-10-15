@@ -4,6 +4,32 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing (SEC-020). Release builds are NEVER signed with the debug
+// key. Signing comes from android/key.properties (git-ignored), e.g.:
+//   storeFile=/absolute/path/to/upload-keystore.jks   (or relative to android/app)
+//   storePassword=...
+//   keyAlias=upload
+//   keyPassword=...
+// Without key.properties a release build fails with an explicit message,
+// unless -Pkabso.allowUnsignedRelease=true is passed (CI artifacts that are
+// signed later); then the release output is left unsigned.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties =
+    java.util.Properties().apply {
+        if (keystorePropertiesFile.exists()) {
+            keystorePropertiesFile.inputStream().use { load(it) }
+        }
+    }
+val hasReleaseSigning = keystorePropertiesFile.exists()
+val allowUnsignedRelease =
+    (findProperty("kabso.allowUnsignedRelease") as String?)?.toBoolean() == true
+
+fun requiredSigningProperty(name: String): String =
+    keystoreProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "android/key.properties is missing '$name' (needed to sign release builds).",
+        )
+
 android {
     namespace = "com.kabso.kabso_live"
     compileSdk = flutter.compileSdkVersion
@@ -30,13 +56,42 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(requiredSigningProperty("storeFile"))
+                storePassword = requiredSigningProperty("storePassword")
+                keyAlias = requiredSigningProperty("keyAlias")
+                keyPassword = requiredSigningProperty("keyPassword")
+            }
         }
     }
+
+    buildTypes {
+        release {
+            // Upload key from key.properties, or unsigned. Never the debug key.
+            signingConfig =
+                if (hasReleaseSigning) signingConfigs.getByName("release") else null
+        }
+    }
+}
+
+// Fail every release build early and clearly when no release key is
+// configured (instead of producing an unsigned or debug-signed artifact).
+val verifyReleaseSigning by tasks.registering {
+    doFirst {
+        if (!hasReleaseSigning && !allowUnsignedRelease) {
+            throw GradleException(
+                "Release signing is not configured: create android/key.properties " +
+                    "(storeFile, storePassword, keyAlias, keyPassword) or pass " +
+                    "-Pkabso.allowUnsignedRelease=true to build an unsigned release. " +
+                    "Release builds are never signed with the debug key (SEC-020).",
+            )
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseSigning)
 }
 
 kotlin {

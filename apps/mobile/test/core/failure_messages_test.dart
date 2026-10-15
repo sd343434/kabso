@@ -52,4 +52,73 @@ void main() {
       });
     });
   }
+
+  group('Retry-After on 429 / 503 (CONVENTIONS v1.1)', () {
+    ServerFailure failure(ErrorCode code, int? seconds) => ServerFailure(
+      code: code,
+      rawCode: code.wire,
+      debugMessage: 'x',
+      statusCode: code == ErrorCode.rateLimited ? 429 : 503,
+      retryAfter: seconds == null ? null : Duration(seconds: seconds),
+    );
+
+    test('503 without Retry-After uses the generic busy message', () {
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        failureMessage(en, failure(ErrorCode.serviceUnavailable, null)),
+        "We're busy right now. Please try again in a moment.",
+      );
+    });
+
+    test('503 with Retry-After names the wait (en)', () {
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        failureMessage(en, failure(ErrorCode.serviceUnavailable, 30)),
+        "We're busy right now. Please try again in 30 seconds.",
+      );
+      expect(
+        failureMessage(en, failure(ErrorCode.serviceUnavailable, 1)),
+        "We're busy right now. Please try again in 1 second.",
+      );
+      expect(
+        failureMessage(en, failure(ErrorCode.serviceUnavailable, 61)),
+        "We're busy right now. Please try again in 2 minutes.",
+      );
+    });
+
+    test('429 with Retry-After names the wait (en)', () {
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        failureMessage(en, failure(ErrorCode.rateLimited, 900)),
+        'Too many attempts. Try again in 15 minutes.',
+      );
+    });
+
+    test('Arabic plural forms', () {
+      final ar = l10nFor(AppLanguage.ar);
+      expect(
+        failureMessage(ar, failure(ErrorCode.serviceUnavailable, 2)),
+        'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد ثانيتين.',
+      );
+      expect(
+        failureMessage(ar, failure(ErrorCode.serviceUnavailable, 5)),
+        'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد 5 ثوانٍ.',
+      );
+      expect(
+        failureMessage(ar, failure(ErrorCode.rateLimited, 60)),
+        'محاولات كثيرة جدًا. حاول مرة أخرى بعد دقيقة واحدة.',
+      );
+    });
+
+    test('Retry-After is ignored for other codes', () {
+      final en = l10nFor(AppLanguage.en);
+      const f = ServerFailure(
+        code: ErrorCode.internalError,
+        rawCode: 'INTERNAL_ERROR',
+        debugMessage: 'x',
+        retryAfter: Duration(seconds: 10),
+      );
+      expect(failureMessage(en, f), en.errorInternal);
+    });
+  });
 }

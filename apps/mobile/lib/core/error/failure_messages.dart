@@ -29,5 +29,32 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
 }
 
 /// Localized, user-facing message for [failure].
-String failureMessage(AppLocalizations l10n, AppFailure failure) =>
-    errorCodeMessage(l10n, failure.code);
+///
+/// For `RATE_LIMITED` and `SERVICE_UNAVAILABLE` (e.g. login/register under
+/// load, CONVENTIONS v1.1) the server's `Retry-After` is shown when present.
+String failureMessage(AppLocalizations l10n, AppFailure failure) {
+  if (failure is ServerFailure) {
+    final retryAfter = failure.retryAfter;
+    if (retryAfter != null && retryAfter > Duration.zero) {
+      final wait = retryWaitText(l10n, retryAfter);
+      switch (failure.code) {
+        case ErrorCode.rateLimited:
+          return l10n.errorRateLimitedRetryIn(wait);
+        case ErrorCode.serviceUnavailable:
+          return l10n.errorServiceBusyRetryIn(wait);
+        // Other codes ignore Retry-After.
+        // ignore: no_default_cases
+        default:
+          break;
+      }
+    }
+  }
+  return errorCodeMessage(l10n, failure.code);
+}
+
+/// "5 seconds" / "2 minutes" (minutes rounded up from 60 s on).
+String retryWaitText(AppLocalizations l10n, Duration wait) {
+  final seconds = wait.inSeconds < 1 ? 1 : wait.inSeconds;
+  if (seconds < 60) return l10n.durationSeconds(seconds);
+  return l10n.durationMinutes((seconds / 60).ceil());
+}

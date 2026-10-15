@@ -128,7 +128,11 @@
   "errorTokenInvalid": "This link isn't valid.",
   "errorRateLimited": "Too many attempts. Wait a moment and try again.",
   "errorInternal": "Something went wrong on our side. Please try again later.",
-  "errorServiceUnavailable": "The service is temporarily unavailable. Try again shortly.",
+  "errorServiceUnavailable": "We're busy right now. Please try again in a moment.",
+  "errorServiceBusyRetryIn": "We're busy right now. Please try again in {wait}.",
+  "errorRateLimitedRetryIn": "Too many attempts. Try again in {wait}.",
+  "durationSeconds": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "durationMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
   "errorNetworkOffline": "You're offline. Check your connection and try again.",
   "errorNetworkTimeout": "The connection timed out. Please try again.",
   "errorUnknown": "Something unexpected happened. Please try again."

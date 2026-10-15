@@ -386,7 +386,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorServiceUnavailable =>
-      'The service is temporarily unavailable. Try again shortly.';
+      'We\'re busy right now. Please try again in a moment.';
+
+  @override
+  String errorServiceBusyRetryIn(String wait) {
+    return 'We\'re busy right now. Please try again in $wait.';
+  }
+
+  @override
+  String errorRateLimitedRetryIn(String wait) {
+    return 'Too many attempts. Try again in $wait.';
+  }
+
+  @override
+  String durationSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seconds',
+      one: '1 second',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String durationMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes',
+      one: '1 minute',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get errorNetworkOffline =>

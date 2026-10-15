@@ -158,6 +158,7 @@
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+				5EC0071A2F00000000000001 /* Debug ATS exception */,
 			);
 			buildRules = (
 			);
@@ -265,6 +266,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+		};
+		5EC0071A2F00000000000001 /* Debug ATS exception */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}",
+			);
+			name = "Debug ATS exception";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nif [ \"${KABSO_ALLOW_LOCAL_NETWORKING:-NO}\" != \"YES\" ]; then\n  exit 0\nfi\nif [ \"${CONFIGURATION}\" != \"Debug\" ]; then\n  echo \"error: KABSO_ALLOW_LOCAL_NETWORKING is set for ${CONFIGURATION}; it is only allowed in Debug (SEC-007).\" >&2\n  exit 1\nfi\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n/usr/libexec/PlistBuddy -c \"Add :NSAppTransportSecurity dict\" \"$PLIST\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Set :NSAppTransportSecurity:NSAllowsLocalNetworking true\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true\" \"$PLIST\"\necho \"note: Debug ATS exception (NSAllowsLocalNetworking) added to $PLIST\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

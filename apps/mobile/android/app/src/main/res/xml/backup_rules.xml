@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and lower (API <= 30): android:fullBackupContent (SEC-019).
+     Inactive while allowBackup="false"; kept so the secure-storage files stay
+     excluded if backup is ever enabled. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration.xml" />
+</full-backup-content>

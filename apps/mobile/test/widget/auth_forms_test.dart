@@ -56,6 +56,29 @@ void main() {
       expect(find.text(l10n.validationRequired), findsNothing);
     });
 
+    testWidgets('503 under load shows the busy message with Retry-After', (
+      tester,
+    ) async {
+      repo.loginFailure = const ServerFailure(
+        code: ErrorCode.serviceUnavailable,
+        rawCode: 'SERVICE_UNAVAILABLE',
+        debugMessage: 'busy',
+        statusCode: 503,
+        retryAfter: Duration(seconds: 5),
+      );
+      await pump(tester, const LoginScreen());
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
+      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.text(l10n.errorServiceBusyRetryIn(l10n.durationSeconds(5))),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('server error code is shown localized', (tester) async {
       repo.loginFailure = const ServerFailure(
         code: ErrorCode.authInvalidCredentials,

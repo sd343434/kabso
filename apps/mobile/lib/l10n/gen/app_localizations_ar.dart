@@ -382,7 +382,45 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorServiceUnavailable =>
-      'الخدمة غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.';
+      'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.';
+
+  @override
+  String errorServiceBusyRetryIn(String wait) {
+    return 'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد $wait.';
+  }
+
+  @override
+  String errorRateLimitedRetryIn(String wait) {
+    return 'محاولات كثيرة جدًا. حاول مرة أخرى بعد $wait.';
+  }
+
+  @override
+  String durationSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ثانية',
+      many: '$count ثانية',
+      few: '$count ثوانٍ',
+      two: 'ثانيتين',
+      one: 'ثانية واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String durationMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count دقيقة',
+      many: '$count دقيقة',
+      few: '$count دقائق',
+      two: 'دقيقتين',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get errorNetworkOffline =>

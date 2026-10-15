@@ -785,8 +785,32 @@ abstract class AppLocalizations {
   /// No description provided for @errorServiceUnavailable.
   ///
   /// In ar, this message translates to:
-  /// **'الخدمة غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.'**
+  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد قليل.'**
   String get errorServiceUnavailable;
+
+  /// 503 with Retry-After; wait is durationSeconds or durationMinutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخدمة مشغولة حاليًا. حاول مرة أخرى بعد {wait}.'**
+  String errorServiceBusyRetryIn(String wait);
+
+  /// 429 with Retry-After; wait is durationSeconds or durationMinutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة جدًا. حاول مرة أخرى بعد {wait}.'**
+  String errorRateLimitedRetryIn(String wait);
+
+  /// No description provided for @durationSeconds.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{ثانية واحدة} =2{ثانيتين} few{{count} ثوانٍ} many{{count} ثانية} other{{count} ثانية}}'**
+  String durationSeconds(int count);
+
+  /// No description provided for @durationMinutes.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{دقيقة واحدة} =2{دقيقتين} few{{count} دقائق} many{{count} دقيقة} other{{count} دقيقة}}'**
+  String durationMinutes(int count);
 
   /// No description provided for @errorNetworkOffline.
   ///

@@ -1,1 +1,7 @@
 #include "Generated.xcconfig"
+
+// Debug only (SEC-007): the "Debug ATS exception" build phase adds
+// NSAppTransportSecurity/NSAllowsLocalNetworking to the built Info.plist so
+// `flutter run` can reach a local HTTP API. Release.xcconfig (used by the
+// Release and Profile configurations) must never set this.
+KABSO_ALLOW_LOCAL_NETWORKING = YES
