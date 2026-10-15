@@ -237,6 +237,23 @@ describe('KL-007 security regression', () => {
       }
     });
 
+    it('rejects control, bidi and zero-width characters in device fields and displayName (SEC-008)', async () => {
+      const { payload } = await register();
+      for (const device of [{ name: 'evil\n\u001b[31mred' }, { name: 'a‮b' }, { appVersion: '1.0\u0000' }]) {
+        const res = await ctx.http
+          .post('/api/v1/auth/login')
+          .send({ identifier: payload.email, password: payload.password, device });
+        expect(res.status).toBe(400);
+        expect(res.body.error.details[0].issue).toBe('invalid_format');
+      }
+      for (const displayName of ['admin‮gnp.exe', 'Kab​so Official']) {
+        const res = await ctx.http.post('/api/v1/auth/register').send(newUser({ displayName }));
+        expect(res.status).toBe(400);
+      }
+      const arabic = await ctx.http.post('/api/v1/auth/register').send(newUser({ displayName: 'محمد علي' }));
+      expect(arabic.status).toBe(201);
+    });
+
     it('rejects __proto__ and other unknown keys in strict bodies', async () => {
       const res = await ctx.http
         .post('/api/v1/auth/login')
@@ -344,9 +361,34 @@ describe('KL-007 production configuration guards', () => {
     'replace-me-with-a-long-random-string-of-at-least-32-bytes',
     'a'.repeat(48),
     'short',
-  ])('refuses placeholder or short JWT secrets in production: %s', (secret) => {
+    // KL-007 re-test (SEC-005): the low-entropy values from the original PoC.
+    'abcdefghijklmnopqrstuvwxyzABCDEF',
+    'kabso-live-production-jwt-key-2026!',
+    '0123456789012345678901234567890123',
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+  ])('refuses placeholder, short or low-entropy JWT secrets in production: %s', (secret) => {
     expect(
       problems({ ...base, JWT_ACCESS_SECRET: secret }).some((p) => p.startsWith('JWT_ACCESS_SECRET')),
+    ).toBe(true);
+  });
+
+  it('accepts generator output for both keys and refuses TRUST_PROXY=true (SEC-003/005/010)', () => {
+    const strong = {
+      ...base,
+      JWT_ACCESS_SECRET: randomBytes(48).toString('base64'),
+      RATE_LIMIT_KEY_SECRET: randomBytes(48).toString('base64url'),
+    };
+    const only = (env: Record<string, string>) =>
+      problems(env).filter((p) => !p.startsWith('MAIL_TRANSPORT'));
+    expect(only(strong)).toEqual([]);
+    expect(only({ ...strong, TRUST_PROXY: 'true' }).some((p) => p.startsWith('TRUST_PROXY'))).toBe(true);
+    expect(only({ ...strong, TRUST_PROXY: '1' })).toEqual([]);
+    const { RATE_LIMIT_KEY_SECRET: _omit, ...withoutRlKey } = strong;
+    expect(only(withoutRlKey).some((p) => p.startsWith('RATE_LIMIT_KEY_SECRET'))).toBe(true);
+    expect(
+      only({ ...strong, RATE_LIMIT_KEY_SECRET: strong.JWT_ACCESS_SECRET }).some((p) =>
+        p.startsWith('RATE_LIMIT_KEY_SECRET'),
+      ),
     ).toBe(true);
   });
 });
