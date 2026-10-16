@@ -6,6 +6,7 @@
 | Date | 2026-10-15 |
 | Candidate tested | `b973d7b` (Merge KL-003), which contains KL-002 `f45b867`, KL-002-D1 `217cad6`, KL-004 and KL-005 |
 | Re-test | `3179be1` (KL-011 + KL-012 fixes, contract v1.1). See **§8**, which supersedes §4 and §7 for defect status. |
+| v1.2 re-test (KL-006c) | `ed84dd4` (contract v1.2 / v1.2.1 / v1.2.2, openapi 1.2.0). See **§9**. |
 | Contract | `CONVENTIONS.md` v1.0.3, `openapi.yaml` 1.0.0-phase1 |
 | Environment | Node 22.22.0, pnpm 10.28.0, PostgreSQL 16 (`kabso_qa_test`), Redis 7 (db 14), Flutter 3.47.7 / Dart 3.13.5. No Android SDK or Xcode. |
 
@@ -407,3 +408,270 @@ No other new defects. KL-002 and KL-003 acceptance criteria were regression-chec
 3. Release readiness still depends on KL-012-D1 (APK compile) and device verification in CI. Neither can be checked here.
 
 Every QA-001…QA-007 item is verified fixed by A6's own runs.
+
+## 9. v1.2 re-test — KL-006c on `ed84dd4` (2026-10-16)
+
+- **Integration:** `git merge --no-edit claude/amazing-tesla-5aj3um` fast-forwarded to **`ed84dd4`**: KL-017b mobile, KL-009 tokens v1.1, and the KL-022 P0 live components + golden infra merge.
+- **Specs read:**
+  - CONVENTIONS §6, §7, §9 (v1.2, v1.2.1, v1.2.2);
+  - openapi 1.2.0;
+  - PHASE1_1_SCREENS;
+  - PRE_PRODUCTION_CHECKLIST PP-02, PP-21, PP-22.
+- **Resources:** `kabso_qa_test`, Redis db 14, API on :3101 (PID 13558, stopped by PID).
+- **Temp files:** `scratchpad/qa/` only (D30).
+
+### 9.1 Gates (re-run by A6)
+
+| Gate | Result |
+| ---- | ------ |
+| `pnpm install --frozen-lockfile` | OK |
+| API `prisma:generate` / `lint` / `format:check` / `typecheck` / `build` | all exit 0 |
+| API unit | **233/233** (18 files) |
+| API e2e (as integrated) | **148/148** (9 files); migration `20261015151159_verify_first_registration` applied to `kabso_qa_test` |
+| API e2e (+ new `test/qa/kl006c-v12.e2e-spec.ts`) | **197/197** (10 files; +49) |
+| Mobile `pub get`, `build_runner`, drift (`git status` empty), `dart format` (0 changed) | OK |
+| `flutter analyze` | "No issues found!" |
+| `flutter test` (as integrated) | **440 passed, 0 skipped** |
+| `flutter test` (+ new `test/qa/kl006c_v12_test.dart`) | **451 passed, 1 skipped**. The skip is QA-011, pinned per D16. |
+| `flutter test --tags golden` | **28/28** |
+| Black-box v1.2 script (`bb12.mjs`): verify-first / displayName / locale | **41 + 58 = 99/99 PASS** |
+| Adapted 147-check black-box suite (`blackbox12.mjs`, `V11=1`) | **148/148 PASS** (one check split in two, see §9.5) |
+| Reserved-term bypass probes (`probe-reserved.mjs`) | 20/21 rejected as intended (see §9.3) |
+
+### 9.2 Item 1: verify-first registration (PP-02) — **PASS**
+
+All evidence below comes from A6's black-box run against :3101: real Argon2, the log mail transport, and psql.
+
+| Check | Result |
+| ----- | ------ |
+| New vs existing email | Both **202** with body `{"status":"verification_pending"}`. Every response header is identical except `x-request-id`, `date` and `etag`. No `accessToken`/`refreshToken`/JWT and no `EMAIL_TAKEN` in either. |
+| Existing email | An `account_exists` mail is sent in the **account** locale (`en`), although the request said `ar`. No code mail and no pending row are created. The notice is throttled: a second attempt within the hour sends no second notice. |
+| One live pending per email | A second register for the same email → 202 and exactly 1 pending row. The old code → 422. The old username is released (`available: true`). The new code → 201 with the replacement username. A code is single-use (second use → 422). |
+| Pending username shows as taken | `username-availability` returns `available: false`, and a register by someone else → **409 `USERNAME_TAKEN`**. |
+| Verify success | 201 AuthResponse with `emailVerified: true`. DB: exactly 1 `users` row with `email_verified_at` set; pending row deleted. |
+| Identical 422 | See note 1. |
+| Malformed code (4 digits) | 400 `VALIDATION_FAILED`. |
+| Concurrent verify race | 8 parallel verifies with the correct code → `201×1, 422×7`, and exactly 1 user row. |
+| Email registered between register and verify | A pending registration exists; then another verified account's email is changed to that address in the DB. Verify → 422 with the identical body. The owner gets `account_exists`. Still exactly 1 user. |
+| Unverified registrants cannot log in | See note 2. |
+| Resend | 202 constant body. The new code differs; the old code → 422; the new code → 201. Resend for unknown, existing and pending emails returns byte-identical 202s. The resend mail uses `Accept-Language` (`ar`), while the created account keeps the pending locale (`en`). |
+| Rate limits | Register per email: `202,202,202,429`. Resend per email: `202,202,202,429` with `Retry-After`. The verify-per-IP limit (10/15 min) is covered by A3 e2e `kl019` › "register/verify: 10 / 15 min per IP" (green). |
+| Timing, real Argon2 | See note 3. |
+
+**Note 1: identical 422.**
+- Five failure kinds were compared:
+  - wrong code;
+  - unknown email;
+  - registered email with no pending registration;
+  - attempts exhausted (5 wrong, then the correct code);
+  - expired (`expires_at` moved into the past).
+- All five → **422 `TOKEN_INVALID`** with byte-identical bodies (requestId excluded).
+- After the 5th failure the pending row is deleted.
+
+**Note 2: unverified registrants cannot log in.**
+- Login with the email → 401, byte-identical (minus requestId) to the 401 for an unknown identifier.
+- Login with the username → 401 `AUTH_INVALID_CREDENTIALS`.
+
+**Note 3: timing.**
+- Requests are interleaved, sequential, on localhost. "Existing" means distinct verified accounts.
+- **N=30:**
+  - new: mean 45.4 ms, median 44.9 ms (p10 40.6 / p90 52.5, sd 4.8);
+  - existing: mean 46.0 ms, median 46.5 ms (p10 41.5 / p90 52.0, sd 4.4);
+  - Welch t = −0.50.
+- **N=60:**
+  - new: mean 46.6 ms, median 46.6 ms (sd 4.6);
+  - existing: mean 47.2 ms, median 47.0 ms (sd 3.9);
+  - Welch t = −0.77.
+- **Judgement:** no measurable timing oracle. The differences (0.4–1.6 ms) are well inside noise and smaller than one standard deviation, and both groups pay one Argon2 hash. Mail is sent after the response.
+
+### 9.3 Item 2: displayName (PP-21) — **PASS**, with two Low findings
+
+**Server (black-box and the new e2e) — accepted (202):**
+- Persian ZWNJ `علی‌رضا محمدی`
+- Urdu `شاہد آفریدی`
+- Kurdish Sorani `ژیان کەریم ڕەش`
+- 👨‍👩‍👧
+- flags 🇸🇦🇮🇶🇪🇬
+- skin tones 👋🏽 / 👍🏿
+- 🏳️‍🌈 (FE0F + ZWJ)
+- emoji-only
+- 50 graphemes
+- 20 families (20 graphemes / 100 code points)
+- 3 combining marks
+- "Kab Sonia"
+- "Badminton Supporter"
+- edge U+FEFF (trimmed)
+
+**Rejected:**
+
+| Issue | Inputs |
+| ----- | ------ |
+| `too_long` | 51 graphemes; 101 code points |
+| `invalid_format` | leading/trailing/double joiners; joiner next to a space; joiners only; 4 combining marks (zalgo); RLO spoof `Layla‮gnp.exe`; bidi isolate; inner ZWSP; inner U+FEFF; ★★; ©™; `...` |
+| `reserved_term` | "TheKabso"; "KabsoFan"; "Kabso Fan"; "K а b s o" (Cyrillic а); "ＫＡＢＳＯ"; "k-a-b-s-o"; "الدعم الفني"; "كابسو"; "Official Layla"; "Admin" |
+
+**Bypass probes rejected as `reserved_term`:**
+- ZWNJ/ZWJ inside "Kabso";
+- tatweel `كـابسو`;
+- spaced `ك ا ب س و`;
+- harakat;
+- `Kâbso` / combining acute;
+- `Kabs0`;
+- Greek ο;
+- 𝐊𝐚𝐛𝐬𝐨;
+- `kabso_fan`;
+- `k.a.b.s.o`;
+- emoji separators;
+- Cyrillic `аdmin`;
+- `Moderator Sam`;
+- `فريق الإدارة`;
+- Persian kaf `کابسو`.
+
+`Ⓚⓐⓑⓢⓞ` → `invalid_format`, because it is symbols only.
+
+**Round-trip after verify (stored exactly):** ZWNJ name; family emoji; 🏳️‍🌈; `﻿  Layla  ﻿` → `Layla`; NFD `éclair` → NFC. `device.name` with ZWJ is still `invalid_format`.
+
+**Mobile copy:** new A6 widget tests confirm each server issue on the displayName field shows the PHASE1_1 §2 copy, and the code screen is not opened:
+- `reserved_term` → `displayNameReserved`;
+- `invalid_format` → `displayNameInvalid`;
+- `too_long` → `displayNameTooLong`.
+
+This holds in ar and en (6 tests). A2's `display_name_test` also checks that no reserved term ships in the copy.
+
+### 9.4 Item 3: language (PP-22) — **PASS**, with one defect (QA-011)
+
+**Mobile, full `KabsoApp`, new A6 tests:**
+- **First launch:** device `en-US` → English LTR login; `ar-EG` → Arabic RTL; `fr-FR` → Arabic RTL. Nothing is persisted. A saved `en` beats an `ar-EG` device.
+- **Auth chip:** on an fr-FR device (Arabic UI) the chip shows "English". Tapping it switches the UI to English and LTR and persists `en`.
+- **Register locale:** register sent `locale: "en"` (the language displayed) and opened the code screen.
+- A2's tests cover the remaining switch states: field contents kept, errors re-rendered, disabled while submitting.
+
+**Server `PATCH /me`:**
+- `{locale:"ar"}` → 200 with the full `Me` (only `locale` changed) and `GET /me` reflects it.
+- `fr`, missing, unknown field, `null` → 400. Unauthenticated → 401.
+- Limit **exactly 30/hour/user**: the 31st PATCH → 429. Bad-body requests count too, because the limiter runs before validation.
+
+**Email locale:**
+
+| Mail | Language used |
+| ---- | ------------- |
+| Code mail | Body `locale` (`en` wins over `Accept-Language: ar`); with no body locale, `Accept-Language: en-US` → `en`; resend → `Accept-Language` |
+| Account notice and password reset | The account's stored locale, even after `PATCH /me` and with a different `Accept-Language` |
+
+**PATCH /me sync rules (client):** A2's `locale_test` covers them: explicit choice ≠ `me.locale` → PATCH; equal → none; no choice → adopt; failures retried after refresh; 400 drops the flag. A6 found one gap (QA-011).
+
+### 9.5 Item 4: regression
+
+**Black-box suite adapted to verify-first: 148/148 PASS.** Script `scratchpad/qa/adapt.py` makes these edits:
+
+| # | Adaptation | Reason |
+| - | ---------- | ------ |
+| A1 | Test emails use a unique domain (`qa@d<id>.example.com`) | The dev mail log masks recipients (`qa***@domain`); a unique domain identifies each code. No semantic change. |
+| A2 | `register()` = register (expects 202) → code from the mail log → `register/verify`, and returns the verify response | Under v1.2 an account and tokens exist only after verify. About 25 checks use `register()`: Me/TokenPair schema, `Content-Type`, displayName round-trips, email normalization, default locale, suspension, logout, reuse, sessions, JWT claims. They now exercise the verify 201. |
+| A3 | "register 201" split into "register 202 constant body" + "register/verify 201" | Same coverage plus the new constant body. This is why 147 → 148. |
+| A4 | Mixed-case email `  QA@D<id>.Example.COM  ` | A1 applied to the normalization check. |
+| A5 | "duplicate email → 409 `EMAIL_TAKEN`" → "→ **202** constant body, no `EMAIL_TAKEN`" | Contract v1.2 (B9). |
+| A6 | ZWJ displayName: was informational ("rejected in v1.1") → must be **201** and stored intact | Contract v1.2 (QA-008). |
+
+**Acceptance criteria:** the KL-002 and KL-003 criteria remain covered by the green 197 API e2e, the 451 Flutter tests and the 148 black-box checks:
+- envelopes and codes, `X-Request-Id`, body-level 400s;
+- JWT attacks, refresh rotation and reuse (any of the last 10), logout/revoke/suspension;
+- rate limits, Redis fail-closed;
+- RTL, the shell, single-flight refresh, restore and logout.
+
+### 9.6 Item 5: KL-015 copy alignment and the edits to A6's tests
+
+**Copy:** `scratchpad/qa/final_copy.py` compares every PHASE1_1_SCREENS §5 "Final en / Final ar" cell with both ARB files: **53 keys, all verbatim**.
+- The 7 flagged rows are not mismatches. Six are "as ARB" rows, which state no text. `profileTitle` was replaced by `@{username}` in the TopBar, as decided.
+- No English string contains "Sign in/Sign out".
+- Checklist #9 passes: no verify-email notice, verify banner or "Not verified" UI remains. Only the `emailVerified` DTO/entity field is left.
+
+**Edits to A6 test files** (`git diff 414d7be ed84dd4 -- apps/*/test/qa`):
+
+| Edit | Verdict | Reason |
+| ---- | ------- | ------ |
+| `kl006_qa_test.dart`: fresh-install test pins `deviceLocalesProvider = [fr-FR]` | **Confirmed** | D26 makes the device locale an input. Pinning a non-en/non-ar locale keeps the test's intent (Arabic fallback) and makes it independent of the CI host's locale. A6's new tests add the en-US / ar-EG cases end to end. |
+| `kl006_qa_test.dart`: revoke dialog finder `sessionsRevoke` → `sessionsRevokeConfirm` ("End session") | **Confirmed** | PHASE1_1 §5.5 makes the destructive confirm name the object. The test still taps the dialog's confirm action and asserts the same outcomes. |
+| `kl006_retest_test.dart`: verify-email-notice text-scale case → registration code screen | **Confirmed** | See note 1. |
+| `kl006-contract.e2e-spec.ts`: `register()` helper → `registerVerified` (register 202 → code → verify) | **Confirmed** | See note 2. |
+| `kl006-contract.e2e-spec.ts`: rate-limit test expects 202, 202, 429, then verifies the first registration | **Confirmed** | See note 3. |
+
+**Note 1: code screen replacing the verify-notice case.**
+- The notice is retired (PHASE1_1 §0), and the code screen is its replacement in the flow, so the 2.0-scale coverage moves to the right screen.
+- The test seeds a `RegistrationDraft` and navigates to `AppRoutes.registerCode`. That is the same state a 202 creates; A2's `register_code_test` covers the 202 → code-screen path itself.
+
+**Note 2: `registerVerified` helper.**
+- I reviewed `registerVerified` in `test/helpers/test-app.ts`.
+- It fails loudly if register is not 202, reads the code from the capturing mail double, and posts verify with the same device.
+- It doesn't weaken any assertion, because each test still asserts `201` and the response shape.
+
+**Note 3: rate-limit test.** It still proves the register per-IP limit (3rd → 429) and obtains tokens legitimately for the refresh/resend/login limits that follow.
+
+### 9.7 Item 6: P0 live components and goldens (debug-only)
+
+**Wiring:** the live widgets (`features/live/presentation/widgets/*`) are imported only by `features/debug/component_gallery_screen.dart` and by tests. `HomeScreen` and `LiveScreen` are still `ComingSoonTab` empty states; the copy is verbatim spec (§8.2).
+
+**`/debug/components` in release:**
+- The route is registered only inside `if (!kReleaseMode)`, which is a compile-time constant, so it is tree-shaken.
+- The Settings entry is behind the same guard.
+- The screen asserts `!kReleaseMode`.
+- Signed-out users are redirected to login in any build.
+- **Release binary: NOT VERIFIED.** No Android SDK, and no web/linux target, so no release build could be produced here.
+
+**Golden review.** I viewed room_viewer, room_pk, room_gifts, cover_cards (ar/en, phone/android), pk_bar, chat_overlay, tabs, badges and avatar_rings.
+
+| Area | Result |
+| ---- | ------ |
+| RTL/LTR | Correct. Host pill, close, count and Follow mirror. Send ▶ points to the end in RTL. The PK host side (red) is at the start in both directions, and win/lose/draw labels match the scores. LTR chat messages inside the RTL list keep their own direction ("Can you play it again?"). |
+| Digits | Latin in Arabic: `12.3 ألف`, `1.2 مليون`, `0:09`. |
+| Disabled state | The gift Send is disabled with an honest "sending gifts is coming soon" note. |
+| Contrast | PK white scores 3.45:1 on `pkLeft` and 3.32:1 on `pkRight`; that is ≥ 3:1 for large text (≥ 20 sp bold), and `contrast_test.dart` enforces it. Chat scrim text ≥ 5.74:1 (token note). |
+| Clipping | See **QA-009** below. Long titles and names on cover cards ellipsize correctly. |
+
+### 9.8 New findings
+
+**QA-009 (Low, A2; must be fixed before the components are wired, Phase 6).**
+- **Where:** `room_viewer`/`room_pk`/`room_gifts` `.{en,ar}.android.png` goldens (360 dp).
+- **Problem:** the host pill truncates "Sara"/"سارة" to `S…`/`س…`. On the 393 dp phone goldens the full name shows. Any real host name is unreadable on a 360 dp phone.
+- **Repro:** `test/goldens/png/room_viewer.en.android.png`, top start.
+- **Expected:** at least ~8 characters of the host name visible at 360 dp; the Follow chip or facepile should yield first.
+
+**QA-010 (Low, A3 or contract clarification).**
+- **Problem:** a whitespace-only `displayName` returns `too_short` instead of the `invalid_format` named in CONVENTIONS §6 ("names consisting only of whitespace…") and PHASE1_1 §2 (`required` / `invalid_format`).
+- **Repro:** `POST /auth/register` with `displayName: "   "` → `{"field":"displayName","issue":"too_short"}`.
+- **Impact:** the app maps server `too_short` to `displayNameInvalid` ("has characters that can't be used"), which is misleading copy. It is rarely reached, because the client blocks whitespace-only names first with `validationRequired`.
+- **Fix:** align the server issue or the contract text.
+
+**QA-011 (Medium, A2): a language change during an in-flight `PATCH /me` is lost.**
+- **Where:** `LocaleSync._push` returns early while `_pushing` is true, without setting the `localeSyncPending` flag.
+- **Result:** after en → ar quickly, the UI shows Arabic but the account stays `en`. Password-reset and notice emails go out in the wrong language until the next sign-in, and there is no retry.
+- **Repro:** `test/qa/kl006c_v12_test.dart` › "a second language change during an in-flight PATCH is not lost". Run with `flutter test --dart-define=QA_SKIP_011=false test/qa/kl006c_v12_test.dart`.
+- **Expected vs actual:** server `ar`, or a pending sync; actual `server=en updates=[en] pending=false`.
+- Committed skipped per D16. A2 should remove the skip with the fix, e.g. re-push when the displayed language differs from the pushed one, or set the pending flag.
+
+**QA-012 (Low, CTO/A7, term-list configuration): reserved-list false positive.**
+- `"مشرف علي"` → `reserved_term`, although مشرف (Musharraf) is a common given name; `"Musharraf Ali"` passes. `"Staff Sergeant"` is also rejected.
+- This is contract-conformant: whole-word match on a configured term.
+- **Suggestion:** reconsider `مشرف` and `staff` as whole-word terms, or allow them with a following word.
+- Informational only: `كابسۆ` (Kurdish ۆ) is not folded by the confusable skeleton and passes. That is a distinct letter, so it is acceptable.
+
+**Process note (A6).** While moving my files into `scratchpad/qa/` (D30), a `mv *.log` in the shared scratchpad root briefly moved 8 log files belonging to other agents. They were moved back unmodified within the same minute:
+- `api-defaults.log`, `api-generous.log`, `api-noredis.log`, `api.log`;
+- `boot.log`, `dev.log`, `down.log`, `install.log`.
+
+No file was edited or deleted.
+
+### 9.9 Open items / not verified
+
+- **Release build:** absence of `/debug/components` in a release build, Android/iOS device runs, real Keychain/Keystore, screen readers. No SDKs here.
+- **KL-012-D1:** the Android APK compile in CI, as before.
+- **PP-05 / B11:** the account-bucket 429 oracle remains, as the contract accepts it, until a CAPTCHA is in place.
+
+### 9.10 Recommendation (KL-006c)
+
+**Approve contract v1.2 / v1.2.1 / v1.2.2 for integration.**
+- PP-02 (verify-first: indistinguishable responses, identical failures, no timing oracle) is **verified** by A6.
+- PP-21 is verified except for the Low copy/term findings QA-010 and QA-012.
+- PP-22 is verified except for **QA-011**, which A2 should fix before PP-22 is ticked.
+- QA-009 must be fixed before the live components are wired into production screens.
+- No Blocker or High defects.
