@@ -476,7 +476,10 @@ describe('KL-013b KL7F-01: one runtime group per database', () => {
              (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
                WHERE n.nspname = 'public'
                  AND has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')) AS tables,
-             has_schema_privilege(r.oid, 'public', 'USAGE') AS schema,
+             -- The role's OWN entries on schema public: has_schema_privilege() would also count
+             -- PUBLIC's USAGE, which every role has (kept on purpose, see the next test).
+             EXISTS (SELECT 1 FROM pg_namespace n, aclexplode(n.nspacl) a
+                      WHERE n.nspname = 'public' AND a.grantee = r.oid) AS schema,
              (SELECT count(*) FROM pg_default_acl d, aclexplode(d.defaclacl) a WHERE a.grantee = r.oid) AS defaults
         FROM pg_roles r WHERE r.rolname = 'kabso_runtime'`);
     for (const row of legacy) {
@@ -487,6 +490,21 @@ describe('KL-013b KL7F-01: one runtime group per database', () => {
         defaults: 0,
       });
     }
+  });
+
+  it('PUBLIC keeps only USAGE on schema public (name lookup; no CREATE, no table privileges)', async () => {
+    // Deliberate: CONNECT on the database is the gate (PUBLIC and other databases' groups have
+    // none), and USAGE alone grants no access to any table, sequence or function in the schema.
+    const pub = await runtime.$queryRawUnsafe<{ schema: string; objects: bigint }[]>(`
+      SELECT (SELECT string_agg(a.privilege_type, ',' ORDER BY a.privilege_type)
+                FROM pg_namespace n, aclexplode(n.nspacl) a
+               WHERE n.nspname = 'public' AND a.grantee = 0) AS schema,
+             (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
+                     aclexplode(c.relacl) a
+               WHERE n.nspname = 'public' AND a.grantee = 0) AS objects`);
+    expect(pub.map((r) => ({ schema: r.schema, objects: Number(r.objects) }))).toEqual([
+      { schema: 'USAGE', objects: 0 },
+    ]);
   });
 
   it('future tables are granted to this database group (default privileges)', async () => {
@@ -953,7 +971,28 @@ describe.runIf(ADMIN_URL)('KL-013b bootstrap script: cross-database isolation, a
     });
     expect(retire.output).not.toMatch(/ERROR/);
     expect(retire.status).toBe(0);
-    expect(await connectError(urlB(appB, pw.app))).toMatch(/not permitted to log in|permission denied/i);
+    // Retired = NOLOGIN, password NULL, no group membership. With password authentication the
+    // server checks the (now absent) password before rolcanlogin, so the refusal is 28P01; with
+    // trust/peer/cert authentication NOLOGIN refuses instead. Both refusals are guaranteed.
+    expect(await connectError(urlB(appB, pw.app))).toMatch(
+      /password authentication failed|not permitted to log in/i,
+    );
+    const retired = await withClient(admin(), (a) =>
+      a.$queryRawUnsafe<{ login: boolean; member: boolean; superuser: boolean }[]>(`
+        SELECT r.rolcanlogin AS login, pg_has_role(r.oid, ${lit(groupB)}, 'MEMBER') AS member,
+               (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) AS superuser
+          FROM pg_roles r WHERE r.rolname = ${lit(appB)}`),
+    );
+    expect(retired.map(({ login, member }) => ({ login, member }))).toEqual([
+      { login: false, member: false },
+    ]);
+    if (retired[0]!.superuser) {
+      // pg_authid is readable by superusers only (the CI admin is one).
+      const noPassword = await withClient(admin(), (a) =>
+        value<boolean>(a, `SELECT rolpassword IS NULL AS v FROM pg_authid WHERE rolname = ${lit(appB)}`),
+      );
+      expect(noPassword).toBe(true);
+    }
     expect(await connectError(urlB(app2, app2Password))).toBeNull();
 
     const last = runBootstrap(ADMIN_URL!, dbB, {
