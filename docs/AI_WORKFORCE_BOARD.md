@@ -97,8 +97,8 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | DONE — APPROVE WITH CONDITIONS (`6a504eb`): API black-box 1,392/1,393 (the failure is QA-001), real app against the local API 5/5, Flutter 639/639; QA-001/002 → KL-046 contract patch, QA-003 (offline state) → KL-035a gap list | KL-037, KL-038 | A1 |
 | KL-035a | Home + Live hub design review package: real screenshots (ar/en, 393 + 360) of the wired screens, before/after, remaining visual gaps; references comparison marked pending (none supplied) | A1 + A5 | P0 | IN_PROGRESS | KL-038 | owner |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | DONE — PASS WITH CONDITIONS (`bfa0d6d`): SEC-035 Medium, SEC-036 Medium, SEC-037 Low, SEC-038 Info → KL-045 | KL-037 | A1 |
-| KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | IN_PROGRESS | KL-040 | A1, A7 |
-| KL-045 | Fix SEC-035 (bounded batched sweep, no global sweep on request path, tx timeout, non-overlapping sweeper), SEC-036 (per KL-046), SEC-037 (username pre-validation → 404), SEC-038 (cursor bounds); A7 re-test | A3 | P0 | BACKLOG — after KL-046 and KL-013b | KL-046 | A7 |
+| KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | DONE — merged, approved (D43); lint valid (2 known warnings) | KL-040 | A1, A7 |
+| KL-045 | Fix SEC-035 (bounded batched sweep, no global sweep on request path, tx timeout, non-overlapping sweeper), SEC-036 (per KL-046), SEC-037 (username pre-validation → 404), SEC-038 (cursor bounds); A7 re-test | A3 | P0 | IN_PROGRESS (parallel with KL-013b; disjoint files) | KL-046 | A7 |
 
 ### Mandatory release blockers (run alongside, never skipped)
 
@@ -230,6 +230,18 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D40 | 2026-10-16 | **Repository is public:** no reference screenshots, secrets or sensitive security material are committed until it is private. `design/references/` is git-ignored. New security reviews (KL-040 onward) commit only a summary (finding id, severity, status, fixed-in commit). Exploit steps for still-open findings stay out of the repo until fixed or the repo is private. Existing history is not rewritten | Owner instruction 2026-10-16; PP-11 stays open and visible |
 | D41 | 2026-10-16 | Pull-to-refresh is enabled on the Live hub "unavailable" state, overriding HL-H6: that state now comes from a server switch, so a refresh must re-check `GET /live/config`. Home keeps it disabled. Background refresh failures (tab re-select, app resume) are silent; pull-to-refresh failures show a snack. Contract doc nit: the heartbeat 503 should reference `LIVE_HOSTING_UNAVAILABLE` explicitly; fix in the next contract patch | KL-038 report |
 | D42 | 2026-10-16 | KL-037 review decisions:
+| D43 | 2026-10-16 | Contract v1.3.1 approved:
+- **SEC-036:** property-based hygiene (Unicode 17 vendored, sha256-pinned). Tightening applies on write only.
+- **SEC-035:** reads filter stale rooms and do no unbounded writes; the sweeper ends them in bounded batches. Supersedes D42 item 4.
+- **§7:** the replace/both/default rate-limit table is written out.
+- **D41:** the heartbeat 503 names `LIVE_HOSTING_UNAVAILABLE`.
+- **QA-001:** a malformed or oversized JSON body is rejected before auth on every route (documented, no behaviour change).
+- **QA-002:** an existing follower re-PUTting to a private account gets 200 (code change).
+
+CTO choices:
+- Sweeper batch size becomes the named setting `LIVE_SWEEP_BATCH_SIZE` (default 500, bounded).
+- The `unsupported_encoding` / `unsupported_charset` issue values the API already emits are added to the §4 vocabulary in the next patch.
+- Accepted side effect: U+0600–U+0605 and U+06DD (format characters) are rejected in titles; recitation titles can use U+FD3E/U+FD3F and digits | KL-045 implements; A7 re-verifies |
 1. `LIVE_CURSOR_KEY` is optional. When unset it is derived by HKDF (`live-cursor/v1`) from `RATE_LIMIT_KEY_SECRET`, matching the `REGISTRATION_CODE_KEY` pattern. When set it is strength-checked in production.
 2. Rate limits: v1.3 routes follow CONVENTIONS §7 (the endpoint bucket replaces the per-user default). Older routes still count both buckets, which is stricter and therefore safe. §7 wording is clarified in the next contract patch.
 3. Acknowledged a second read-only cross-module exception: the room list reads `users`/`user_profiles` for the ACTIVE-host filter and the host summary.
