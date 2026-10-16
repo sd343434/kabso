@@ -53,6 +53,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-018 | First-launch language: device `en*` → English, else Arabic (spec) or a language switch on auth screens — today an English-device user must register in Arabic and gets Arabic emails | A2 + A3 (`PATCH /me`, email locale) | P1 | READY — owner decision: follow device locale, en→English, ar→Arabic, other→Arabic; persist explicit choice | — | A6 |
 | KL-019 | Verify-first registration (owner decision B9, contract v1.2 §6): pending registrations, 8-digit code, `register/verify`, `register/resend`, account-exists notice email, username reservation, cleanup; mobile code-entry screen | A3 + A2 (+A5 copy) | P0 | READY | contract v1.2 | A7, A6 |
 | KL-020 | Repository governance: repo private; `main` created from the gate-verified commit and made default; branch protection (required `CI OK`, reviewed PRs) | owner (settings) + A1 | P0 | IN_PROGRESS — history scan ✅; settings require owner (no API access from this session) | Phase 1 gate | A1 |
+| KL-022 | Live UI P0 components + golden infrastructure (pattern fidelity, Kabso identity; debug gallery only, not in production screens) | A2 | P0 | INTEGRATED `ed84dd4` — 440 tests, 28 goldens, CI green; QA review pending | KL-021 | A6, A5 |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
@@ -153,6 +154,10 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D27 | 2026-10-15 | **Owner:** approve KL-017 / QA-008 as contract v1.2 (ZWNJ/ZWJ allowed with placement rules, limits, zalgo + reserved-term rules) | i18n + abuse |
 | D28 | 2026-10-15 | `docs/PRE_PRODUCTION_CHECKLIST.md` is the single list of mandatory release conditions | Visibility of conditions |
 | D29 | 2026-10-16 | Phase 1 gate passed on `3b80e0a`; Wave 2 may start. Owner fidelity decision for live UI: BIGO LIVE interaction patterns and hierarchy with Kabso's own visual identity; references uploaded to `design/references/` | Owner answers 2026-10-15 |
+| D30 | 2026-10-16 | Each agent keeps temporary files in its own `scratchpad/<agent>/` folder | A2 overwrote A3's scratch script |
+| D31 | 2026-10-16 | Goldens run inside the normal `flutter test` CI job; pinned Flutter 3.47.7 on ubuntu-24.04 matched local goldens (CI run 38874588220). Revisit only if the runner image changes | Evidence: mobile job green with 28 goldens |
+| D32 | 2026-10-16 | Component-only measurements stay in `lib/design_system/tokens/component_metrics.dart`; promoted to `design-tokens.json` only when shared by 2+ components or the backend | Avoid contract churn |
+| D33 | 2026-10-16 | Chat usernames white (gold over chat scrim on a white frame = 3.53:1); gold only for gift icon; tab indicator fades instead of sliding | Contrast + simplicity (A2/A5) |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
