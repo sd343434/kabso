@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kabso Live API
-  version: 1.3.0
+  version: 1.3.1
   description: |
     Authoritative HTTP contract. Conventions (errors, pagination, auth, rate limits) are defined in
     CONVENTIONS.md and apply to every operation. Phase 1 scope: health, authentication, sessions,
@@ -427,8 +427,10 @@ paths:
         CONVENTIONS §10.6. Following someone already followed is a no-op that returns 200 with
         the same body. Target unknown / suspended / deleted / malformed → 404 `NOT_FOUND`. The
         caller's own username → 400 `VALIDATION_FAILED` (`field: "username"`,
-        `issue: "invalid_value"`). Target with `isPrivate = true` → 403 `AUTH_FORBIDDEN`
-        (follow requests are deferred).
+        `issue: "invalid_value"`). Target with `isPrivate = true` → 403 `AUTH_FORBIDDEN` for a
+        **new** follow (follow requests are deferred). v1.3.1 (QA-002): a caller who already
+        follows a private target gets the idempotent 200 `{isFollowing: true, …}`; no edge is
+        created.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -523,7 +525,7 @@ paths:
       summary: "List live rooms for a discovery tab (cursor-paginated; v1.3)"
       description: |
         CONVENTIONS §10.2 and §10.4. Only rooms with `status = LIVE`, a fresh heartbeat and an
-        `ACTIVE` host. Orderings: `popular` = viewerCount desc, startedAt desc, id desc; `new` =
+        `ACTIVE` host. Stale rooms are filtered out; this read never writes (v1.3.1, SEC-035). Orderings: `popular` = viewerCount desc, startedAt desc, id desc; `new` =
         startedAt desc, id desc; `following` = rooms of hosts the caller follows, startedAt desc,
         id desc. `category` filters every tab. A well-formed slug that is unknown or inactive
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
@@ -582,7 +584,10 @@ paths:
       operationId: startLiveRoom
       summary: "Go live: create the caller's LIVE room (v1.3, behind LIVE_HOSTING_ENABLED)"
       description: |
-        CONVENTIONS §10.3. Checks, in order: auth → rate limit → `LIVE_HOSTING_ENABLED` (else
+        CONVENTIONS §10.3. Body parsing comes first on every route (CONVENTIONS §4, v1.3.1
+        QA-001): malformed JSON or an oversized body → 400 `VALIDATION_FAILED` before every
+        check below, even without a token or while hosting is disabled. Then, in order: auth →
+        rate limit → `LIVE_HOSTING_ENABLED` (else
         503 `LIVE_HOSTING_UNAVAILABLE`, no `Retry-After`) → body → `categorySlug` resolves to an
         **active** category (else 400, `field "categorySlug"`, `issue "invalid_value"`) → the
         caller has no LIVE room with a fresh heartbeat (else 409 `LIVE_ROOM_ALREADY_ACTIVE`; a
@@ -626,7 +631,8 @@ paths:
       summary: "Get a live room, including ended rooms (v1.3)"
       description: |
         A LIVE room whose heartbeat is stale is never reported as LIVE: it is returned as
-        `ENDED` with `endReason = HEARTBEAT_TIMEOUT` (§10.2). Nonexistent rooms, malformed ids
+        `ENDED` with `endReason = HEARTBEAT_TIMEOUT` and `endedAt = lastHeartbeatAt` (§10.2;
+        v1.3.1: computed, or by ending that single room). Nonexistent rooms, malformed ids
         and rooms whose host is not `ACTIVE` all return 404 `NOT_FOUND`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -683,7 +689,14 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
-        '503': { $ref: '#/components/responses/Error' }
+        '503':
+          description: |
+            LIVE_HOSTING_UNAVAILABLE — hosting is disabled by config (`LIVE_HOSTING_ENABLED=false`).
+            Returned to every caller before the ownership check; the client stops heartbeats and
+            re-checks `getLiveConfig`. SERVICE_UNAVAILABLE — a dependency is down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /api/v1/live/rooms/{roomId}/end:
     post:
@@ -809,7 +822,11 @@ components:
         v1.2 (CONVENTIONS §6): NFC, trimmed, 1–50 grapheme clusters and ≤ 100 code points.
         ZWNJ/ZWJ allowed between non-joiner, non-space characters; bidi controls, U+200B, U+2060,
         U+FEFF, C0/C1 rejected (`invalid_format`); > 3 consecutive combining marks rejected;
-        reserved terms rejected (`reserved_term`).
+        reserved terms rejected (`reserved_term`). v1.3.1 (SEC-036): text hygiene over vendored
+        Unicode 17.0.0 data rejects default-ignorable, Cc/Cf/Zl/Zp/Co/Cs/Cn code points and blank
+        look-alikes (Hangul fillers, U+2800, U+FFFC, U+1D159), except inside an RGI emoji, ZWNJ/ZWJ
+        as above, and one variation selector after a base character (`invalid_format`). Checked on
+        write; stored names are not rewritten.
     VerificationPending:
       type: object
       required: [status]
@@ -956,8 +973,9 @@ components:
       description: |
         v1.3 (CONVENTIONS §10.3): NFC, trimmed, 1–80 grapheme clusters and ≤ 160 code points.
         The displayName character-hygiene rules apply (control/bidi/zero-width bans, ZWNJ/ZWJ
-        placement, zalgo cap, at least one letter/digit/emoji) → `invalid_format`. The
-        reserved-term/brand rule and the mixed-script rule do **not** apply.
+        placement, zalgo cap, at least one letter/digit/emoji) → `invalid_format`, including the
+        v1.3.1 text-hygiene rules (CONVENTIONS §6, SEC-036). The reserved-term/brand rule and the
+        mixed-script rule do **not** apply.
     LiveRoomSummary:
       type: object
       required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host]
