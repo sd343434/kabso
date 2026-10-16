@@ -1,7 +1,10 @@
 # Kabso Live — Shared API Conventions (authoritative contract)
 
 Status: **v1.2 — approved 2026-10-15; in implementation (KL-016/017/018/019)**. Until those tasks
-merge, the deployed API still behaves as v1.1 for the items marked *(v1.2)* below. See §9. Changes require a contract-change proposal recorded in
+merge, the deployed API still behaves as v1.1 for the items marked *(v1.2)* below. See §9.
+**v1.3 — proposed 2026-10-16 (KL-036), awaiting CTO approval**: live discovery, host lifecycle,
+public profile and follow (§10; items marked *(v1.3)*). Data design:
+[`DB_PHASE2_DISCOVERY.md`](DB_PHASE2_DISCOVERY.md). Changes require a contract-change proposal recorded in
 `docs/AI_WORKFORCE_BOARD.md` (Decision Log), a compatibility note, and coordinated updates to
 `apps/api` and `apps/mobile` in the same change set. No specialist may change this silently.
 
@@ -73,11 +76,14 @@ All non-2xx responses use one envelope:
 | 409 | `EMAIL_TAKEN` | Registration email already in use. |
 | 409 | `USERNAME_TAKEN` | Username already in use. |
 | 409 | `IDEMPOTENCY_CONFLICT` | Same Idempotency-Key reused with a different payload. |
+| 409 | `LIVE_ROOM_ALREADY_ACTIVE` | *(v1.3)* Go-live refused: the caller already has a LIVE room with a fresh heartbeat (§10.3). The client resumes or ends it; the room id comes from the caller's own public profile (`liveRoomId`), not from the error. |
+| 409 | `LIVE_ROOM_ENDED` | *(v1.3)* Heartbeat for a room that is no longer LIVE (ended by the host, heartbeat timeout, suspension or admin). The host client stops heartbeats and shows the ended state. |
 | 410 | `TOKEN_EXPIRED` | Email-verification / password-reset token expired or already used. |
 | 422 | `TOKEN_INVALID` | Email-verification / password-reset token malformed or unknown. |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header (seconds) is set. |
 | 500 | `INTERNAL_ERROR` | Unexpected server error. |
 | 503 | `SERVICE_UNAVAILABLE` | Dependency down (DB/Redis) or feature disabled by config. |
+| 503 | `LIVE_HOSTING_UNAVAILABLE` | *(v1.3)* Going live (or heartbeating) is disabled by server config `LIVE_HOSTING_ENABLED=false` (no media provider yet, B1). Not transient: no `Retry-After`; the client shows "not available yet" instead of a generic error. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -93,6 +99,12 @@ Cursor-based everywhere a list can grow. Request: `?cursor=<opaque>&limit=<1..50
 
 Cursors are opaque base64url strings; clients never parse or build them. Non-list responses
 return the resource object directly (no `data` wrapper).
+
+*(v1.3)* Cursors are **tamper-evident** (signed, §10.4): a cursor that does not decode, fails its
+signature, or was issued for different query parameters returns 400 `VALIDATION_FAILED` with
+`field: "cursor"`, `issue: "invalid_value"`; the client then reloads from the first page. A small
+**server-bounded** list (hard cap enforced by the server, e.g. live categories ≤ 100) may be returned
+whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 
 ## 6. Authentication model
 
@@ -210,11 +222,22 @@ return the resource object directly (no `data` wrapper).
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
+| `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
+| `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
+| `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
+| `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
+| `POST /live/rooms/{roomId}/end` *(v1.3)* | 30 / hour per user |
+| `PUT` + `DELETE /users/{username}/follow` *(v1.3)* | one shared bucket per user: 60 / hour and 300 / day; idempotent no-op calls count too (anti follow/unfollow churn) |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
 | `POST /auth/refresh` | 60 / 15 min per session |
 | `POST /auth/email/resend` | 5 / hour per user |
 | Other public routes (`email/verify`, `password/reset`, `users/username-availability`) | 300 / 15 min per IP |
-| Everything else (authenticated) | 600 / 15 min per user |
+| Everything else (authenticated) — includes `GET /live/config`, `/live/categories`, `/live/rooms/{roomId}` | 600 / 15 min per user |
+
+*(v1.3)* Every v1.3 bucket is keyed by the authenticated user id (HMAC as below), with
+names `live:list`, `users:profile`, `live:start:h`, `live:start:d`, `live:heartbeat`, `live:end`,
+`follow:h`, `follow:d`. As for every row above, an endpoint-specific limit replaces the
+"everything else" bucket for that endpoint.
 
 IP-based buckets group IPv6 clients by their /64 prefix. Rate-limit keys are HMAC-SHA-256 of
 the subject under a server-side key (no raw or plainly hashed emails/IPs in Redis). The client IP
@@ -237,6 +260,9 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | -------- | ----- | --------------- |
 | `docs/contracts/*` | CTO | CTO + affected specialists |
 | `apps/api/prisma/schema.prisma` + migrations | Backend | CTO; Security for auth/financial tables |
+| *(v1.3)* Tables `live_categories`, `live_rooms` | Backend — `live` module | CTO; see `DB_PHASE2_DISCOVERY.md` |
+| *(v1.3)* Table `follows` | Backend — `social` module (follow graph) | CTO; Security reviews follow anti-abuse (KL-040) |
+| *(v1.3)* Server config `LIVE_HOSTING_ENABLED` and `LIVE_HEARTBEAT_*` | DevOps (per-environment value) | Turning hosting **on** in staging/production needs owner approval (B1: media provider) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -265,7 +291,201 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.2.5 | 2026-10-16 | Clarifications from KL-024: (1) error precedence — schema stage rejects mixed-script words with `invalid_format` before reserved-term evaluation; inside the displayName check `reserved_term` is evaluated first. (2) The confusable skeleton = Unicode 17.0.0 `confusables.txt` (vendored, sha256 `091c7f82…ef22a`, verified identical to unicode-org/unicodetools@4fd8eca) plus a documented supplement (i→l, ĸ→k, U+063B/U+063C→ك, ة→ه, combining marks and tatweel stripped). (3) Script data comes from the runtime ICU (Node 22: Unicode 16); characters new in 17 may lack script data — re-check on Node upgrades. (4) The login account bucket counts failures only: attempts from a trusted recent-success source are not counted; a slot is refunded on success, on Argon2 503, and on a correct password for a SUSPENDED account. | Clarification of implemented behavior; no shape change. |
 | v1.2.6 | 2026-10-16 | KL-007d residuals: (SEC-030) skeleton supplement adds Latin small capitals U+1D00–U+1D22 and ʙ ɢ ʜ ɪ ʟ ɴ ʀ ʏ ꜰ ꜱ; all-Cyrillic/Greek look-alikes of reserved terms must be caught by the skeleton. (SEC-031) before brand/reserved matching, words joined by non-space separators (`-` `.` `·` `_` etc.) and runs of single-letter words are concatenated (so "Kab-so Live", "K a b s o Team", "ك ا ب س و لايف" are reserved; "Kab Sonia" stays allowed). (SEC-032) the mixed-script rule treats decimal digits of any script as script-neutral and allows Latin combined with Han/Hiragana/Katakana/Hangul in one word (UTS #39 Highly Restrictive); `رسمي` removed from reserved terms. Accepted residual: Arabic words containing the brand string (e.g. "كابسولة") are reserved. | Behavioral; no shape change. |
 | v1.2.7 | 2026-10-16 | KL-025 clarifications: small capitals are mapped before the first confusables pass (the Unicode table sends ᴍ→ʍ otherwise); separator/single-letter joining applies to all reserved terms, not only the brand ("Ad-min Ali" reserved). Accepted residual: mixed partial splits such as "Kabs o Live" are allowed (catching them would also block names like "Kab Sonia"); handled by moderation. | Clarification; no shape change. |
+| v1.3.0 | 2026-10-16 | **Proposed (KL-036), awaiting CTO approval.** Phase 2 slice 1 — live discovery (D37): `GET /live/config`, `GET /live/categories` (bounded, empty until admin-created), `GET /live/rooms?tab=popular\|new\|following&category&cursor&limit`, `GET /live/rooms/{roomId}`; host lifecycle behind `LIVE_HOSTING_ENABLED` (default off): `POST /live/rooms`, `POST /live/rooms/{roomId}/heartbeat`, `POST /live/rooms/{roomId}/end`; `GET /users/{username}` (`PublicProfile`), `PUT`/`DELETE /users/{username}/follow`. New codes `LIVE_ROOM_ALREADY_ACTIVE` (409), `LIVE_ROOM_ENDED` (409), `LIVE_HOSTING_UNAVAILABLE` (503) (§4); signed cursors and server-bounded unpaginated lists (§5); new rate limits (§7); table ownership (§8); rules in §10. Tables `live_categories`, `live_rooms`, `follows` (`DB_PHASE2_DISCOVERY.md`). | **Additive**: no existing path, schema or code changes. Mobile maps the three new codes (unknown codes already fall back) and dedupes pages by id. API (KL-037) needs KL-013 merged first. |
 
-**Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
+**Intentionally deferred lint warnings** (`@redocly/cli@2.60.0`, pinned in `tools/redocly`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
 cannot produce a 4xx; adding a fictitious 4xx would make the contract less accurate.
+
+## 10. Live discovery, public profiles and follow *(v1.3, proposed — KL-036)*
+
+Phase 2 slice 1 (D37). Every endpoint below is under `/api/v1`, requires a bearer token, and
+uses §4 errors, §5 pagination and §7 rate limits. Data design: `DB_PHASE2_DISCOVERY.md`.
+**There is no media in v1.3** (B1): a "live room" is metadata plus a host heartbeat. That is
+why hosting is behind `LIVE_HOSTING_ENABLED` (default `false`) and production lists stay empty
+until a media provider is wired in.
+
+### 10.1 Categories
+
+- Server-curated rows (`slug`, Arabic and English names, `sortOrder`, `isActive`). **None are
+  seeded**: the owner has not chosen any (D36 Q7, D37). The list is empty and the client shows
+  only the "All / الكل" chip.
+- `GET /live/categories` returns active rows ordered by `sortOrder`, then `slug`, unpaginated.
+  The server caps active categories at **100** (enforced by the future admin write path), which
+  keeps the response bounded.
+- `name` is a single localized string. The language comes from the primary subtag of
+  `Accept-Language` when it is `ar` or `en`, else the caller's stored `locale`, else `ar`. The
+  client refetches categories and rooms after a locale change.
+- Admin management (create, rename, reorder, deactivate) is **out of scope** for v1.3. It will
+  be added as ADMIN-role endpoints under `/api/v1/admin/live/categories` in a later contract
+  version, with audit actions `admin.live_category.*`. Categories are deactivated, never deleted,
+  because rooms reference them. Until then, rows can only be added by a reviewed migration or an
+  ops script that the owner approves.
+
+### 10.2 Room visibility and freshness
+
+- **Fresh heartbeat:** `lastHeartbeatAt > now − LIVE_HEARTBEAT_STALE_SECONDS`. The default is
+  **45 s**, which is three missed beats at the 15 s cadence. The server clock is authoritative.
+- **Listed** (`GET /live/rooms`) and reported as `liveRoomId`: only when all three hold:
+  - `status = LIVE`;
+  - the heartbeat is fresh;
+  - the host's account is `ACTIVE`.
+- **Stale rooms are never reported as LIVE.** A periodic sweeper (every 15 s) and every read
+  path that sees a stale LIVE room end it:
+  - `status = ENDED`;
+  - `endReason = HEARTBEAT_TIMEOUT`;
+  - `endedAt = lastHeartbeatAt` (the last proof of life).
+- `GET /live/rooms/{roomId}` also returns ENDED rooms, so a stale card can open the "Live ended"
+  state (HL-L10). It returns 404 `NOT_FOUND` in three cases, with the same body each time:
+  - the room does not exist;
+  - the id is malformed;
+  - the host's account is not `ACTIVE`.
+- **Suspension:** the suspension flow ends the user's LIVE room with `HOST_SUSPENDED`. No admin
+  API exists yet, so suspension is an ops action, and the ops procedure must also end the room.
+  The `ACTIVE` filter above is the safety net. `ADMIN` is reserved for a future moderation
+  action.
+- `viewerCount` is always **0** in v1.3 because there is no realtime presence. `coverUrl` is
+  always `null` because there is no upload. The card shows the "New" chip and the host avatar
+  (HL-H4).
+
+### 10.3 Host lifecycle
+
+- **Go live** (`POST /live/rooms`, body `{title, categorySlug?}`): checks run in the order given
+  in `openapi.yaml`. In short:
+  - disabled by config → 503 `LIVE_HOSTING_UNAVAILABLE`;
+  - unknown or inactive `categorySlug` → 400, `invalid_value`;
+  - a fresh LIVE room already exists → 409 `LIVE_ROOM_ALREADY_ACTIVE`.
+
+  A stale LIVE room is ended (`HEARTBEAT_TIMEOUT`) in the same transaction. The database
+  guarantees **at most one LIVE room per host** with a partial unique index; a race loser gets
+  the 409. Only `SOLO` rooms can be created; `PK` and `MULTI` are reserved and the request has no
+  `mode` field (sending one → 400 `unknown_field`).
+- **No `Idempotency-Key`** (§3 requires one only for financial requests). A retried go-live
+  after a lost response gets 409. The client then reads its own `GET /users/{username}` and either
+  resumes heartbeats on `liveRoomId` or ends that room.
+- **Verified email** is required. Since v1.2 every account is verified at creation, so this only
+  rejects legacy unverified accounts, with 403 `AUTH_FORBIDDEN`.
+- **Title:** stored after the same NFC normalization and trimming as `displayName`; 1–80
+  grapheme clusters and ≤ 160 code points. Violations → `too_short`, `too_long` or
+  `invalid_format`.
+  - **These displayName rules apply** (§6):
+    - C0/C1 control characters are rejected, so titles are single-line;
+    - bidi override/isolate characters U+202A–U+202E and U+2066–U+2069 are rejected;
+    - LRM, RLM and ALM are rejected;
+    - U+200B, U+2060 and an inner U+FEFF are rejected; a U+FEFF at either end is trimmed;
+    - ZWNJ and ZWJ are allowed only between two non-joiner, non-space characters;
+    - more than 3 consecutive combining marks (counted on the NFD form) are rejected;
+    - the title must contain at least one letter, digit or RGI emoji.
+  - **These displayName rules do not apply:**
+    - the reserved-term and brand rule (`reserved_term`): a title is content, not an identity,
+      so "Kabso support Q&A" is a legitimate title;
+    - the confusable-skeleton and mixed-script rules: these exist to stop impersonation in
+      identity fields.
+
+  Title impersonation and abuse belong to moderation, which is out of scope here.
+- **Heartbeat** (`POST /live/rooms/{roomId}/heartbeat`, 204):
+  - Send it every `heartbeatIntervalSeconds` from `GET /live/config` (default **15 s**). Server
+    config: `LIVE_HEARTBEAT_INTERVAL_SECONDS` and `LIVE_HEARTBEAT_STALE_SECONDS`.
+  - Any caller who is not the host → 404 (never 403, so room ownership is not revealed). This
+    covers non-hosts, malformed ids and nonexistent rooms.
+  - A host heartbeat on an ended room → 409 `LIVE_ROOM_ENDED`.
+  - While `LIVE_HOSTING_ENABLED=false` → 503 `LIVE_HOSTING_UNAVAILABLE`. Turning hosting off
+    therefore empties the lists within 45 s, with no extra code path.
+- **End** (`POST /live/rooms/{roomId}/end`, 200 `LiveRoom`): host only (others → 404), and
+  idempotent. If the room is already ended, the original `endReason` and `endedAt` are kept.
+  End is allowed while hosting is disabled.
+- Audit actions: `live.room.start`, `live.room.end` (with the reason), `live.room.timeout`.
+  Heartbeats are not audited.
+
+### 10.4 Lists and cursors (`GET /live/rooms`)
+
+- **`tab` (required) sets the order**, always with `id` desc as the final tiebreak:
+
+  | Tab | Order |
+  | --- | ----- |
+  | `popular` | `viewerCount` desc, then `startedAt` desc |
+  | `new` | `startedAt` desc |
+  | `following` | `startedAt` desc, over rooms whose host the caller follows |
+
+  While `viewerCount` is 0, `popular` orders like `new`.
+- **`category`** is optional and filters **every** tab, so the semantics are uniform. Per HL-H3
+  the client sends it only on Popular.
+  - A malformed slug → 400 (`field "category"`).
+  - A well-formed slug that is unknown or inactive → **200 with an empty list**. Categories can
+    change between the client's category fetch and the list call, and an empty grid is the
+    honest answer.
+- **Cursor:** base64url of a compact payload, a `.`, then a truncated HMAC-SHA-256 tag (128-bit).
+  - The payload holds a format version, `tab`, `category`, the caller's user id (`following`
+    only), and the sort key of the last row (`viewerCount`, `startedAt`, `id`).
+  - The HMAC key is derived from server configuration (implementation: KL-037).
+  - The cursor fails with 400 `VALIDATION_FAILED` (`field "cursor"`, `issue "invalid_value"`)
+    when it:
+    - does not decode;
+    - fails the tag check;
+    - has an unknown version;
+    - does not match the request's `tab`, `category` or caller.
+  - The cursor contains nothing secret; the HMAC only stops crafted cursors from turning into
+    arbitrary keyset queries.
+- **Ranking drift:** pages are keyset queries over live data. A room can move between pages (its
+  viewer count changes) or end in between. As a result, **a room may appear twice or be
+  skipped**, so the client dedupes by `id` (HL-H5). `nextCursor = null` means no more rows at
+  query time; pull-to-refresh restarts from the first page.
+- `limit` is 1–50, default 20.
+
+### 10.5 Public profile (`GET /users/{username}`)
+
+- **Fields:**
+  - `id`, `username`, `displayName`, `avatarUrl`, `bio`;
+  - `isPrivate`, `followerCount`, `followingCount`;
+  - `isFollowing`, `isSelf`;
+  - `liveRoomId`: a fresh LIVE room (§10.2), else null.
+
+  The profile **never** includes an email, role, status, locale, or created-at time.
+- **404 `NOT_FOUND` with an identical body** in every one of these cases:
+  - the username is malformed (no 400);
+  - it is unknown;
+  - it is held only by a pending registration;
+  - the account is `SUSPENDED` or `DELETED`.
+
+  Suspended and nonexistent accounts are indistinguishable. Implementation note: a single query
+  filtered on `status = 'ACTIVE'`, so the response time does not depend on why the result is
+  empty.
+- **Counts** are the number of follow rows, computed on read in v1.3; denormalized counters can
+  come later. They can include accounts that are currently suspended; this is an accepted
+  inaccuracy. When an account is deleted, its follow rows are deleted in both directions.
+- **Private accounts:** `user_settings.is_private` exists, but no endpoint sets it in v1.3, so it
+  is `false` for everyone. Defined behaviour for when it becomes settable:
+  - the profile stays visible;
+  - **new** follows → 403 `AUTH_FORBIDDEN` (follow requests are deferred to a later contract);
+  - existing followers are kept and can unfollow;
+  - the live room stays listed (live rooms are public).
+
+### 10.6 Follow
+
+- **`PUT /users/{username}/follow`** creates the edge. It is idempotent: an existing edge →
+  200, with no error and no duplicate.
+- **`DELETE /users/{username}/follow`** removes the edge. It is idempotent: a missing edge → 200.
+- Both return `{isFollowing, followerCount}`, where `followerCount` is the target's count after
+  the operation.
+- **Errors:**
+  - target malformed, unknown, suspended or deleted → 404;
+  - self → 400 `VALIDATION_FAILED` (`field "username"`, `issue "invalid_value"`). The client never
+    offers Follow when `isSelf`. A database CHECK is the backstop.
+  - private target on `PUT` → 403 `AUTH_FORBIDDEN`.
+- **Anti-spam:** follow and unfollow share one rate-limit bucket (§7: 60 / hour, 300 / day). No
+  notification is sent in v1.3, so follow spam has no amplification yet. A cap on total
+  followees is an open owner question.
+- Audit: none per edge (high volume, low risk). Rate-limit rejections are logged.
+
+### 10.7 Out of scope for v1.3 (recorded so nobody assumes otherwise)
+
+- Media and streaming (playback, publish tokens, LiveKit) — B1.
+- Realtime presence and real viewer counts; the realtime events contract.
+- Live chat, gifts, PK and multi-guest.
+- Blocking and muting; follower and following lists; follow requests for private accounts;
+  follow notifications.
+- Moderation and reporting of rooms or titles; admin end-room (`ADMIN` is reserved).
+- Admin category management.
+- Search; the featured strip (HL-H4); the "Live now from people you follow" rail as a separate
+  endpoint (the client derives it from `tab=following`).
+- Editing a room's title or category after go-live; covers and cover upload.
