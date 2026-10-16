@@ -186,7 +186,11 @@ describe('KL-013 runtime role DML', () => {
         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relname <> '_prisma_migrations'
        ORDER BY 1`);
-    expect(rows.length).toBeGreaterThanOrEqual(7);
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+    // KL-037: the v1.3 tables came through default privileges (no GRANT in their migration).
+    expect(rows.map((r) => r.table)).toEqual(
+      expect.arrayContaining(['live_categories', 'live_rooms', 'follows']),
+    );
     for (const row of rows) {
       const appendOnly = row.table === 'audit_logs';
       expect({ table: row.table, owner: row.owner, s: row.s, i: row.i, u: row.u, d: row.d }).toEqual({
@@ -217,6 +221,124 @@ describe('KL-013 tables created later by the migration role (ALTER DEFAULT PRIVI
     ['ALTER SEQUENCE', `ALTER SEQUENCE "${LATER_TABLE}_id_seq" RESTART`],
   ])('but %s is refused', async (_name, sql) => {
     await expect(runtimeExec(sql)).rejects.toThrow(PERMISSION_DENIED);
+  });
+});
+
+describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000a001',
+    other: '0192f1c2-0000-7000-8000-00000000a002',
+    category: '0192f1c2-0000-7000-8000-00000000a003',
+    room: '0192f1c2-0000-7000-8000-00000000a004',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM live_categories WHERE id = '${ids.category}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${ids.user}', '${ids.other}')`);
+    });
+  });
+
+  it('are owned by the migration role', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('live_categories', 'live_rooms', 'follows')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'follows', owner: migrationUser },
+      { t: 'live_categories', owner: migrationUser },
+      { t: 'live_rooms', owner: migrationUser },
+    ]);
+  });
+
+  it('the runtime role can SELECT, INSERT, UPDATE and DELETE on all three (and use the enums)', async () => {
+    for (const id of [ids.user, ids.other]) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'kl037-${id.slice(-4)}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    await runtimeExec(
+      `INSERT INTO live_categories (id, slug, name_ar, name_en, updated_at) VALUES ('${ids.category}', 'kl037-${suffix}', 'تجربة', 'Probe', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, category_id, status, mode, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', '${ids.category}', 'LIVE'::live_room_status, 'SOLO'::live_room_mode, now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO follows (follower_id, followee_id) VALUES ('${ids.other}', '${ids.user}')`,
+    );
+    for (const table of ['live_categories', 'live_rooms', 'follows']) {
+      expect(
+        Number(await scalar<bigint>(runtime, `SELECT count(*) AS v FROM ${table}`)),
+      ).toBeGreaterThanOrEqual(1);
+    }
+    expect(await runtimeExec(`UPDATE live_categories SET sort_order = 5 WHERE id = '${ids.category}'`)).toBe(
+      1,
+    );
+    expect(
+      await runtimeExec(
+        `UPDATE live_rooms SET status = 'ENDED', end_reason = 'HOST_ENDED'::live_room_end_reason, ended_at = now() WHERE id = '${ids.room}'`,
+      ),
+    ).toBe(1);
+    expect(await runtimeExec(`DELETE FROM follows WHERE follower_id = '${ids.other}'`)).toBe(1);
+    expect(await runtimeExec(`DELETE FROM live_rooms WHERE id = '${ids.room}'`)).toBe(1);
+    expect(await runtimeExec(`DELETE FROM live_categories WHERE id = '${ids.category}'`)).toBe(1);
+  });
+
+  it.each([
+    ['TRUNCATE live_rooms', 'TRUNCATE TABLE live_rooms'],
+    ['TRUNCATE follows', 'TRUNCATE TABLE follows'],
+    ['TRUNCATE live_categories', 'TRUNCATE TABLE live_categories'],
+    ['ALTER TABLE follows', 'ALTER TABLE follows ADD COLUMN kl037_forbidden int'],
+    ['ALTER TABLE live_rooms DROP CONSTRAINT', 'ALTER TABLE live_rooms DROP CONSTRAINT live_rooms_end_state'],
+    ['DROP INDEX (one LIVE room per host)', 'DROP INDEX live_rooms_one_live_per_host'],
+    ['CREATE INDEX', 'CREATE INDEX kl037_forbidden_idx ON live_rooms (title)'],
+    ['ALTER TYPE', "ALTER TYPE live_room_status ADD VALUE 'PAUSED'"],
+    ['DROP TABLE', 'DROP TABLE live_categories'],
+  ])('%s is refused', async (_name, sql) => {
+    await expect(runtimeExec(sql)).rejects.toThrow(PERMISSION_DENIED);
+  });
+
+  it('the hand-written partial indexes and CHECK constraints exist', async () => {
+    const indexes = await runtime.$queryRawUnsafe<{ name: string; def: string }[]>(`
+      SELECT indexname::text AS name, indexdef AS def FROM pg_indexes
+       WHERE schemaname = 'public' AND tablename IN ('live_rooms', 'follows', 'live_categories')`);
+    const byName = Object.fromEntries(indexes.map((i) => [i.name, i.def]));
+    for (const name of [
+      'live_rooms_one_live_per_host',
+      'live_rooms_live_popular_idx',
+      'live_rooms_live_new_idx',
+      'live_rooms_live_cat_popular_idx',
+      'live_rooms_live_cat_new_idx',
+      'live_rooms_live_heartbeat_idx',
+    ]) {
+      expect(byName[name], name).toMatch(/WHERE \(status = 'LIVE'::live_room_status\)$/);
+    }
+    expect(byName.live_rooms_one_live_per_host).toMatch(/^CREATE UNIQUE INDEX/);
+    expect(Object.keys(byName)).toEqual(
+      expect.arrayContaining([
+        'live_rooms_host_started_idx',
+        'live_rooms_category_id_idx',
+        'follows_pkey',
+        'follows_followee_id_created_at_idx',
+        'live_categories_slug_key',
+      ]),
+    );
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conrelid IN ('live_rooms'::regclass, 'follows'::regclass, 'live_categories'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'follows_no_self_follow',
+      'live_categories_name_ar_length',
+      'live_categories_name_en_length',
+      'live_categories_slug_format',
+      'live_rooms_end_state',
+      'live_rooms_time_order',
+      'live_rooms_title_length',
+      'live_rooms_viewer_count_nonneg',
+    ]);
   });
 });
 

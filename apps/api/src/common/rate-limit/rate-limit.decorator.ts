@@ -12,7 +12,17 @@ export interface RateLimitSpec {
   readonly rule: keyof AppConfig['rateLimits'];
   /** Derives the raw subject key (hashed before use) from the request. */
   readonly key: (req: AppRequest) => string;
+  /**
+   * v1.3 (CONVENTIONS §7): this endpoint-specific limit replaces the default per-user
+   * ("everything else") bucket for the route instead of adding to it.
+   */
+  readonly replacesDefault?: boolean;
+  /** Log rejections of this bucket (e.g. follow anti-abuse, CONVENTIONS §10.6). */
+  readonly logRejections?: boolean;
 }
+
+/** Subject key of the per-user v1.3 buckets: the authenticated user id. */
+export const byUserId = (req: AppRequest): string => req.auth?.userId ?? '';
 
 /** Endpoint-specific limits (CONVENTIONS §7), evaluated in order before the handler. */
 export const RateLimit = (...specs: RateLimitSpec[]) => SetMetadata(RATE_LIMITS_KEY, specs);

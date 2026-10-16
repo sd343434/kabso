@@ -1,7 +1,9 @@
 // Kabso Live — Phase 1 schema (identity, sessions, verification tokens, audit log).
 // Conventions: snake_case tables/columns via @@map/@map, UUIDv7 ids, timestamptz(3).
 // Ownership: auth module owns sessions/verification_tokens; users module owns users,
-// user_profiles, user_settings; audit_logs is append-only (common).
+// user_profiles, user_settings; audit_logs is append-only (common). Phase 2 (contract v1.3,
+// docs/contracts/DB_PHASE2_DISCOVERY.md): live module owns live_categories, live_rooms; social
+// module owns follows.
 
 generator client {
   provider               = "prisma-client"
@@ -9,6 +11,7 @@ generator client {
   moduleFormat           = "esm"
   generatedFileExtension = "ts"
   importFileExtension    = "js"
+  previewFeatures        = ["partialIndexes"]
 }
 
 datasource db {
@@ -55,6 +58,9 @@ model User {
   sessions           Session[]
   verificationTokens VerificationToken[]
   auditLogs          AuditLog[]
+  liveRooms          LiveRoom[]
+  following          Follow[]            @relation("FollowFollower")
+  followers          Follow[]            @relation("FollowFollowee")
 
   @@map("users")
 }
@@ -187,4 +193,100 @@ model PendingRegistration {
 
   @@index([expiresAt], map: "pending_registrations_expires_at_idx")
   @@map("pending_registrations")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 2 slice 1 — live discovery and follow (contract v1.3, DB_PHASE2_DISCOVERY.md).
+// CHECK constraints and the partial indexes (WHERE status = 'LIVE') are hand-written SQL in
+// migration 20261016123000_live_discovery. The partial indexes are also declared below (preview
+// feature `partialIndexes`) only so that `prisma migrate dev` knows them and never generates a
+// DROP INDEX for them; the migration SQL remains the source of truth.
+
+enum LiveRoomStatus {
+  LIVE
+  ENDED
+
+  @@map("live_room_status")
+}
+
+enum LiveRoomMode {
+  SOLO
+  PK
+  MULTI
+
+  @@map("live_room_mode")
+}
+
+enum LiveRoomEndReason {
+  HOST_ENDED
+  HEARTBEAT_TIMEOUT
+  HOST_SUSPENDED
+  ADMIN
+
+  @@map("live_room_end_reason")
+}
+
+/// Server-curated live categories. None are seeded (D37); rows are deactivated, never deleted.
+model LiveCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// CHECK `live_categories_slug_format`: ^[a-z0-9-]{2,32}$
+  slug      String   @unique @db.VarChar(32)
+  nameAr    String   @map("name_ar") @db.VarChar(40)
+  nameEn    String   @map("name_en") @db.VarChar(40)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  rooms LiveRoom[]
+
+  @@map("live_categories")
+}
+
+/// A live room is metadata plus a host heartbeat (no media in v1.3, B1).
+model LiveRoom {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  hostUserId      String             @map("host_user_id") @db.Uuid
+  /// 1–80 graphemes / ≤ 160 code points, validated in the application (CONVENTIONS §10.3).
+  title           String             @db.VarChar(160)
+  categoryId      String?            @map("category_id") @db.Uuid
+  status          LiveRoomStatus     @default(LIVE)
+  mode            LiveRoomMode       @default(SOLO)
+  startedAt       DateTime           @default(now()) @map("started_at") @db.Timestamptz(3)
+  lastHeartbeatAt DateTime           @default(now()) @map("last_heartbeat_at") @db.Timestamptz(3)
+  endedAt         DateTime?          @map("ended_at") @db.Timestamptz(3)
+  endReason       LiveRoomEndReason? @map("end_reason")
+  /// Always 0 in v1.3 (no realtime presence).
+  viewerCount     Int                @default(0) @map("viewer_count")
+  /// Always null in v1.3 (no upload).
+  coverUrl        String?            @map("cover_url") @db.VarChar(2048)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  host     User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category LiveCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_new_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([categoryId, viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([categoryId, startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_new_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([lastHeartbeatAt], map: "live_rooms_live_heartbeat_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
+  @@index([categoryId], map: "live_rooms_category_id_idx")
+  @@map("live_rooms")
+}
+
+/// Follow graph edge (social module). CHECK `follows_no_self_follow`.
+model Follow {
+  followerId String   @map("follower_id") @db.Uuid
+  followeeId String   @map("followee_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  follower User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("FollowFollowee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followeeId], map: "follows_pkey")
+  @@index([followeeId, createdAt(sort: Desc)], map: "follows_followee_id_created_at_idx")
+  @@map("follows")
 }

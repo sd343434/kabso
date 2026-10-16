@@ -166,6 +166,44 @@ export const envSchema = z
     RATE_LIMIT_REGISTER_RESEND_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_RESEND_IP: rateLimit('10/3600'),
     RATE_LIMIT_UPDATE_ME_USER: rateLimit('30/3600'),
+    // v1.3 (CONVENTIONS §7): per-user buckets that replace the default authenticated bucket.
+    RATE_LIMIT_LIVE_LIST_USER: rateLimit('300/900'),
+    RATE_LIMIT_PROFILE_USER: rateLimit('300/900'),
+    RATE_LIMIT_LIVE_START_HOUR_USER: rateLimit('10/3600'),
+    RATE_LIMIT_LIVE_START_DAY_USER: rateLimit('30/86400'),
+    RATE_LIMIT_LIVE_HEARTBEAT_USER: rateLimit('12/60'),
+    RATE_LIMIT_LIVE_END_USER: rateLimit('30/3600'),
+    RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
+    RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
+
+    /**
+     * v1.3 (CONVENTIONS §10, B1): going live and heartbeats are refused with 503
+     * LIVE_HOSTING_UNAVAILABLE unless this is exactly "true". Default off: there is no media
+     * provider yet, so production must not list rooms that cannot play.
+     */
+    LIVE_HOSTING_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** Heartbeat cadence the client is told to use (GET /live/config). */
+    LIVE_HEARTBEAT_INTERVAL_SECONDS: z.coerce.number().int().min(5).max(60).default(15),
+    /** A LIVE room without a heartbeat for this long is stale (never listed, ended). */
+    LIVE_HEARTBEAT_STALE_SECONDS: z.coerce.number().int().positive().max(3600).default(45),
+    /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
+    LIVE_SWEEP_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(15),
+    /**
+     * Optional dedicated source of the HMAC key (HKDF, info `live-cursor/v1`) that signs list
+     * cursors (CONVENTIONS §10.4; same pattern as REGISTRATION_CODE_KEY). When unset, the key is
+     * derived from RATE_LIMIT_KEY_SECRET with that distinct HKDF label (DB_PHASE2_DISCOVERY §4).
+     * In production a set value must pass the secret-strength checks and differ from the other
+     * secrets. Rotating the source only invalidates outstanding cursors (clients get 400 cursor
+     * and reload from the first page).
+     */
+    LIVE_CURSOR_KEY: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
+      .optional(),
 
     /** Pending registration lifetime (contract: 30 min). */
     REGISTRATION_TTL_SECONDS: positiveInt(30 * 60),
@@ -223,6 +261,13 @@ export const envSchema = z
         message: 'must be >= REFRESH_TTL_SECONDS',
       });
     }
+    if (env.LIVE_HEARTBEAT_STALE_SECONDS < 2 * env.LIVE_HEARTBEAT_INTERVAL_SECONDS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LIVE_HEARTBEAT_STALE_SECONDS'],
+        message: 'must be at least 2 × LIVE_HEARTBEAT_INTERVAL_SECONDS',
+      });
+    }
     if (env.NODE_ENV === 'production') {
       const jwtProblem = productionSecretProblem(env.JWT_ACCESS_SECRET);
       if (jwtProblem) ctx.addIssue({ code: 'custom', path: ['JWT_ACCESS_SECRET'], message: jwtProblem });
@@ -256,6 +301,29 @@ export const envSchema = z
             message: 'must differ from JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET',
           });
         }
+      }
+      if (env.LIVE_CURSOR_KEY !== undefined) {
+        const cursorKeyProblem = productionSecretProblem(env.LIVE_CURSOR_KEY);
+        if (cursorKeyProblem) {
+          ctx.addIssue({ code: 'custom', path: ['LIVE_CURSOR_KEY'], message: cursorKeyProblem });
+        } else if (
+          [env.JWT_ACCESS_SECRET, env.RATE_LIMIT_KEY_SECRET, env.REGISTRATION_CODE_KEY].includes(
+            env.LIVE_CURSOR_KEY,
+          )
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['LIVE_CURSOR_KEY'],
+            message: 'must differ from JWT_ACCESS_SECRET, RATE_LIMIT_KEY_SECRET and REGISTRATION_CODE_KEY',
+          });
+        }
+      }
+      if (env.LIVE_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LIVE_SWEEP_INTERVAL_SECONDS'],
+          message: 'the stale-room sweeper cannot be disabled in production',
+        });
       }
       // SEC-003a: hop counts above 3 and overly broad ranges trust client-supplied headers.
       if (typeof env.TRUST_PROXY === 'number' && env.TRUST_PROXY > 3) {

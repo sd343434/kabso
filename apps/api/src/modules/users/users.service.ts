@@ -20,6 +20,22 @@ export interface MeDto {
   createdAt: string;
 }
 
+/** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  isPrivate: boolean;
+}
+
+/** A follow target locked for the duration of the caller's transaction. */
+export interface LockedUser {
+  id: string;
+  isPrivate: boolean;
+}
+
 export const ME_INCLUDE = { profile: true, settings: true } as const;
 
 export interface UserWithProfile {
@@ -213,6 +229,92 @@ export class UsersService {
   async isUsernameAvailable(username: string): Promise<boolean> {
     if (!isValidUsername(username) || isReservedUsername(username)) return false;
     return !(await this.isUsernameTaken(username));
+  }
+
+  /** Stored locale of a user (`ar` when unknown); used to localize server-curated names. */
+  async getLocale(userId: string): Promise<'ar' | 'en'> {
+    const profile = await this.prisma.userProfile.findUnique({ where: { userId }, select: { locale: true } });
+    return profile?.locale === 'en' ? 'en' : 'ar';
+  }
+
+  async isEmailVerified(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { emailVerifiedAt: true },
+    });
+    return user !== null && user.emailVerifiedAt !== null;
+  }
+
+  /**
+   * The public identity of an ACTIVE user by username, else null (contract v1.3 §10.5). One query
+   * filtered on `status = 'ACTIVE'` whatever the input (also for malformed names, which simply
+   * match nothing), so unknown, pending-only, SUSPENDED and DELETED are indistinguishable and the
+   * response time does not depend on the reason.
+   */
+  async findActivePublicUser(username: string): Promise<PublicUser | null> {
+    const profile = await this.prisma.userProfile.findFirst({
+      where: { username, user: { status: 'ACTIVE' } },
+      select: {
+        userId: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+        bio: true,
+        user: { select: { settings: { select: { isPrivate: true } } } },
+      },
+    });
+    if (!profile) return null;
+    return {
+      id: profile.userId,
+      username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+      bio: profile.bio,
+      isPrivate: profile.user.settings?.isPrivate ?? false,
+    };
+  }
+
+  /**
+   * Locks (FOR SHARE) an ACTIVE user found by username inside the caller's transaction and returns
+   * it, else null. A concurrent suspension or soft deletion either commits first (no row) or waits
+   * for the caller's transaction, so a follow edge can never be written to a DELETED account.
+   */
+  async lockActiveByUsername(tx: Prisma.TransactionClient, username: string): Promise<LockedUser | null> {
+    const rows = await tx.$queryRaw<{ id: string; is_private: boolean | null }[]>`
+      SELECT u.id::text AS id, s.is_private
+        FROM user_profiles p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN user_settings s ON s.user_id = u.id
+       WHERE p.username = ${username} AND u.status = 'ACTIVE'::user_status
+         FOR SHARE OF u`;
+    const row = rows[0];
+    return row ? { id: row.id, isPrivate: row.is_private ?? false } : null;
+  }
+
+  /** Like {@link lockActiveByUsername}, by id (the caller's own row). */
+  async lockActiveById(tx: Prisma.TransactionClient, userId: string): Promise<boolean> {
+    const rows = await tx.$queryRaw<{ id: string }[]>`
+      SELECT id::text AS id FROM users WHERE id = ${userId}::uuid AND status = 'ACTIVE'::user_status FOR SHARE`;
+    return rows.length === 1;
+  }
+
+  /**
+   * Suspends (ACTIVE → SUSPENDED) or soft-deletes (any → DELETED, stamping `deleted_at`) an account
+   * inside the caller's transaction; building block of AccountLifecycleService. Returns false when
+   * nothing changed.
+   */
+  async deactivate(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    status: 'SUSPENDED' | 'DELETED',
+    at: Date,
+  ): Promise<boolean> {
+    const updated = await tx.user.updateMany({
+      // Suspension applies to ACTIVE accounts; soft deletion to any account not yet deleted.
+      where: { id: userId, status: status === 'DELETED' ? { not: 'DELETED' } : 'ACTIVE' },
+      data: { status, ...(status === 'DELETED' ? { deletedAt: at } : {}) },
+    });
+    return updated.count === 1;
   }
 
   /** PATCH /me (contract v1.2, KL-018): persists an explicit locale choice. */

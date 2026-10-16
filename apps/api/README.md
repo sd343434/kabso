@@ -97,6 +97,16 @@ full list. Notable rules:
   `RESERVED_DISPLAY_NAME_BRAND_TERMS` (default `kabso,كابسو`; matched anywhere inside a word,
   v1.2.3). Matching uses the vendored Unicode `confusables.txt` — see
   `src/modules/users/data/README.md` for its source, checksum and update steps.
+- Live discovery (contract v1.3, KL-037): `LIVE_HOSTING_ENABLED` (default `false`; go-live and
+  heartbeat answer 503 `LIVE_HOSTING_UNAVAILABLE` unless exactly `true`; turning it on in
+  staging/production needs owner approval, B1), `LIVE_HEARTBEAT_INTERVAL_SECONDS` (15, 5–60),
+  `LIVE_HEARTBEAT_STALE_SECONDS` (45, ≥ 2 × interval), `LIVE_SWEEP_INTERVAL_SECONDS` (15; 0
+  disables the in-process stale-room sweeper and is refused in production), `LIVE_CURSOR_KEY`
+  (optional source of the list-cursor HMAC key, HKDF info `live-cursor/v1`; unset → derived from
+  `RATE_LIMIT_KEY_SECRET`; in production a set value must pass the secret checks and differ from
+  the other secrets; rotation only invalidates outstanding cursors) and the v1.3 per-user limits
+  `RATE_LIMIT_LIVE_*` / `RATE_LIMIT_PROFILE_USER` / `RATE_LIMIT_FOLLOW_*` (each replaces the
+  default authenticated bucket for its endpoint).
 - `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
   rules, must differ from the JWT secret); generated per process when unset elsewhere.
 - `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):
@@ -132,7 +142,10 @@ src/
   redis/             ioredis client (fail-fast, prefixed keys)
   modules/health     /health/live, /health/ready
   modules/auth       register/login/refresh/logout, email verify, password reset, sessions
-  modules/users      /me, username availability, account persistence
+  modules/users      /me, username availability, account persistence;
+                     users/profiles: GET /users/{username}, AccountLifecycleService (v1.3)
+  modules/live       v1.3 live categories, rooms, host lifecycle, stale sweeper, signed cursors
+  modules/social     v1.3 follow graph (PUT/DELETE /users/{username}/follow)
   modules/mail       MailSender port + LogMailSender (dev)
 prisma/              schema, migrations, seed
 test/                e2e specs + helpers

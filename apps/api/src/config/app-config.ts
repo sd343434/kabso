@@ -48,6 +48,24 @@ export interface AppConfig {
     readonly registerResendEmail: RateLimitRule;
     readonly registerResendIp: RateLimitRule;
     readonly updateMeUser: RateLimitRule;
+    readonly liveListUser: RateLimitRule;
+    readonly profileUser: RateLimitRule;
+    readonly liveStartHourUser: RateLimitRule;
+    readonly liveStartDayUser: RateLimitRule;
+    readonly liveHeartbeatUser: RateLimitRule;
+    readonly liveEndUser: RateLimitRule;
+    readonly followHourUser: RateLimitRule;
+    readonly followDayUser: RateLimitRule;
+  };
+  /** Contract v1.3 live discovery (CONVENTIONS §10). */
+  readonly live: {
+    readonly hostingEnabled: boolean;
+    readonly heartbeatIntervalSeconds: number;
+    readonly heartbeatStaleSeconds: number;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
+    /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
+    readonly cursorKey: string;
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -82,6 +100,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     );
   }
   const e = parsed.data;
+  const rateLimitKeySecret = e.RATE_LIMIT_KEY_SECRET ?? randomBytes(32).toString('base64url');
   return {
     env: e.NODE_ENV,
     isProduction: e.NODE_ENV === 'production',
@@ -89,7 +108,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     logLevel: e.LOG_LEVEL,
     databaseUrl: e.DATABASE_URL,
     redis: { url: e.REDIS_URL, keyPrefix: e.REDIS_KEY_PREFIX },
-    rateLimitKeySecret: e.RATE_LIMIT_KEY_SECRET ?? randomBytes(32).toString('base64url'),
+    rateLimitKeySecret,
     argon2: { maxConcurrency: e.ARGON2_MAX_CONCURRENCY, maxQueue: e.ARGON2_MAX_QUEUE },
     jwt: {
       accessSecret: e.JWT_ACCESS_SECRET,
@@ -125,6 +144,21 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       registerResendEmail: e.RATE_LIMIT_REGISTER_RESEND_EMAIL,
       registerResendIp: e.RATE_LIMIT_REGISTER_RESEND_IP,
       updateMeUser: e.RATE_LIMIT_UPDATE_ME_USER,
+      liveListUser: e.RATE_LIMIT_LIVE_LIST_USER,
+      profileUser: e.RATE_LIMIT_PROFILE_USER,
+      liveStartHourUser: e.RATE_LIMIT_LIVE_START_HOUR_USER,
+      liveStartDayUser: e.RATE_LIMIT_LIVE_START_DAY_USER,
+      liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
+      liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
+      followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
+      followDayUser: e.RATE_LIMIT_FOLLOW_DAY_USER,
+    },
+    live: {
+      hostingEnabled: e.LIVE_HOSTING_ENABLED,
+      heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,
+      heartbeatStaleSeconds: e.LIVE_HEARTBEAT_STALE_SECONDS,
+      sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,
+      cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

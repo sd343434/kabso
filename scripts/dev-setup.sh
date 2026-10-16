@@ -7,8 +7,8 @@
 # What it does:
 #   1. Checks prerequisites (node 22, corepack/pnpm, flutter, docker) and reports what is missing.
 #   2. Creates .env from .env.example if .env does not exist (never overwrites an existing .env).
-#   3. Replaces the JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET placeholders with random values
-#      (openssl rand -base64 48) if openssl is available.
+#   3. Replaces the JWT_ACCESS_SECRET, RATE_LIMIT_KEY_SECRET and LIVE_CURSOR_KEY placeholders with
+#      random values (openssl rand -base64 48) if openssl is available.
 #   4. Starts docker compose services if a Docker daemon is reachable, and waits for health.
 #   5. Prints the next steps.
 set -euo pipefail
@@ -113,7 +113,7 @@ fi
 
 # --- 3. Local secrets --------------------------------------------------------------------------
 # Each variable gets its own random value (never shared between purposes).
-for var in JWT_ACCESS_SECRET RATE_LIMIT_KEY_SECRET; do
+for var in JWT_ACCESS_SECRET RATE_LIMIT_KEY_SECRET LIVE_CURSOR_KEY; do
   if ! grep -q "^${var}=" .env; then
     # .env created before this variable existed: append a placeholder, filled in below.
     printf '%s=change-me-generate-with-openssl-rand-base64-48\n' "$var" >>.env
