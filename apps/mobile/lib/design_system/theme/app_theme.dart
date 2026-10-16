@@ -110,9 +110,10 @@ ThemeData buildAppTheme({
     labelSmall: text.caption,
   );
 
+  // v1.1: input outlines use `borderStrong` (≥ 3:1); focus uses `focusRing`.
   final fieldBorder = OutlineInputBorder(
     borderRadius: BorderRadius.circular(KRadius.md),
-    borderSide: BorderSide(color: p.border),
+    borderSide: BorderSide(color: p.borderStrong),
   );
 
   return ThemeData(
@@ -145,7 +146,7 @@ ThemeData buildAppTheme({
       border: fieldBorder,
       enabledBorder: fieldBorder,
       focusedBorder: fieldBorder.copyWith(
-        borderSide: BorderSide(color: p.primary, width: 2),
+        borderSide: BorderSide(color: p.focusRing, width: 2),
       ),
       errorBorder: fieldBorder.copyWith(borderSide: BorderSide(color: p.error)),
       focusedErrorBorder: fieldBorder.copyWith(
@@ -162,7 +163,7 @@ ThemeData buildAppTheme({
       behavior: SnackBarBehavior.floating,
       backgroundColor: p.surfaceOverlay,
       contentTextStyle: text.body,
-      actionTextColor: p.primary,
+      actionTextColor: p.primaryText,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KRadius.md),
       ),
@@ -186,7 +187,8 @@ ThemeData buildAppTheme({
     progressIndicatorTheme: ProgressIndicatorThemeData(color: p.primary),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: p.primary,
+        // Red text uses `primaryText` (v1.1).
+        foregroundColor: p.primaryText,
         minimumSize: const Size(KSizes.minTouchTarget, KSizes.minTouchTarget),
         textStyle: text.label,
       ),

@@ -120,7 +120,7 @@ class CodeField extends StatelessWidget {
       enableSuggestions: false,
       textDirection: TextDirection.ltr,
       showCursor: visible,
-      cursorColor: visible ? p.primary : Colors.transparent,
+      cursorColor: visible ? p.focusRing : Colors.transparent,
       style: style,
       inputFormatters: [formatter],
       onChanged: onChanged,
@@ -180,10 +180,10 @@ class CodeField extends StatelessWidget {
         border = p.error;
         width = 2;
       } else if (active) {
-        border = p.primary;
+        border = p.focusRing;
         width = 2;
       } else {
-        border = p.border;
+        border = p.borderStrong;
         width = 1;
       }
       return Opacity(

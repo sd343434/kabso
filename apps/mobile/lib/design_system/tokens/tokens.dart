@@ -1,4 +1,4 @@
-// Hand-written 1:1 from docs/contracts/design-tokens.json (v1).
+// Hand-written 1:1 from docs/contracts/design-tokens.json (v1.1).
 // Do not change values here without a contract change to that file.
 
 import 'package:material_ui/material_ui.dart';
@@ -22,6 +22,15 @@ abstract final class KLiveColors {
   static const badge = Color(0xFFE50914);
   static const pkLeft = Color(0xFFFF3B6B);
   static const pkRight = Color(0xFF3B8BFF);
+
+  /// v1.1: behind live chat lines (60 % black; white text stays ≥ 5.74:1
+  /// even over a white video frame).
+  static const chatScrim = Color(0x99000000);
+}
+
+/// `color.onStatus` (v1.1): text/icons on status, gold and PK fills.
+abstract final class KStatusColors {
+  static const onStatus = Color(0xFF0B0B0D);
 }
 
 /// `color.dark` / `color.light`.
@@ -43,6 +52,9 @@ class KPalette {
     required this.error,
     required this.info,
     required this.scrim,
+    required this.primaryText,
+    required this.borderStrong,
+    required this.focusRing,
   });
 
   final Color background;
@@ -61,6 +73,16 @@ class KPalette {
   final Color info;
   final Color scrim;
 
+  /// v1.1: red used as text/icon (links, selected labels). Never `primary`
+  /// for text on dark.
+  final Color primaryText;
+
+  /// v1.1: input/toggle boundaries (≥ 3:1). `border` is decorative only.
+  final Color borderStrong;
+
+  /// v1.1: focus indicators.
+  final Color focusRing;
+
   /// `scrim` is given as `#B3000000`, read as `#AARRGGBB` (70 % black).
   static const dark = KPalette(
     background: Color(0xFF0B0B0D),
@@ -70,7 +92,7 @@ class KPalette {
     border: Color(0xFF34343D),
     textPrimary: Color(0xFFFFFFFF),
     textSecondary: Color(0xFFB4B4BE),
-    textTertiary: Color(0xFF7A7A86),
+    textTertiary: Color(0xFF92929E),
     primary: Color(0xFFE50914),
     onPrimary: Color(0xFFFFFFFF),
     success: Color(0xFF2ECC71),
@@ -78,6 +100,9 @@ class KPalette {
     error: Color(0xFFFF5A5F),
     info: Color(0xFF4DA3FF),
     scrim: Color(0xB3000000),
+    primaryText: Color(0xFFFF3B47),
+    borderStrong: Color(0xFF70707C),
+    focusRing: Color(0xFFFF3B47),
   );
 
   /// `scrim` is given as `#99000000`, read as `#AARRGGBB` (60 % black).
@@ -89,14 +114,17 @@ class KPalette {
     border: Color(0xFFDCDCE2),
     textPrimary: Color(0xFF0B0B0D),
     textSecondary: Color(0xFF4A4A55),
-    textTertiary: Color(0xFF7A7A86),
+    textTertiary: Color(0xFF666671),
     primary: Color(0xFFC8080F),
     onPrimary: Color(0xFFFFFFFF),
-    success: Color(0xFF1E9E57),
-    warning: Color(0xFFC77D00),
-    error: Color(0xFFD92D36),
-    info: Color(0xFF1F6FD1),
+    success: Color(0xFF137A43),
+    warning: Color(0xFF955C00),
+    error: Color(0xFFC4242D),
+    info: Color(0xFF1A64BF),
     scrim: Color(0x99000000),
+    primaryText: Color(0xFFC8080F),
+    borderStrong: Color(0xFF85858F),
+    focusRing: Color(0xFFC8080F),
   );
 }
 
@@ -177,6 +205,9 @@ abstract final class KMotion {
   static const Curve standard = Curves.easeOutCubic;
   static const respectReduceMotion = true;
 
+  /// v1.1: gift combo ×N counter bump.
+  static const giftComboBump = Duration(milliseconds: 120);
+
   /// Returns [duration], or zero when the platform asks to reduce motion.
   static Duration of(BuildContext context, Duration duration) =>
       respectReduceMotion && MediaQuery.disableAnimationsOf(context)
@@ -193,4 +224,10 @@ abstract final class KSizes {
   static const double storyRing = 68;
   static const double bottomNavHeight = 64;
   static const double buttonHeight = 52;
+
+  /// v1.1: live cover card width / height (3:4).
+  static const double liveCardAspect = 0.75;
+
+  /// v1.1: columns in the gift panel grid.
+  static const int giftGridColumns = 4;
 }

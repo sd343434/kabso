@@ -46,7 +46,7 @@ class KEmptyState extends StatelessWidget {
                   border: Border.all(color: p.border),
                 ),
                 child: ExcludeSemantics(
-                  child: Icon(icon, size: 40, color: p.primary),
+                  child: Icon(icon, size: 40, color: p.primaryText),
                 ),
               ),
               const SizedBox(height: KSpacing.xl),
