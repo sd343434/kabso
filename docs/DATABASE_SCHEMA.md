@@ -110,7 +110,28 @@ identifiers), `ip`, `request_id`, `created_at`. Indexes: `(actor_user_id, create
 | token by hash | `verification_tokens_token_hash_key` |
 | outstanding tokens of a user | `verification_tokens_user_id_purpose_idx` |
 
+## Database roles and rules for new migrations (SEC-011 / KL-013)
+
+The API connects as a DML-only runtime role (member of the NOLOGIN group `kabso_runtime`);
+migrations run as the migration role that owns schema `public`. Details and bootstrap:
+`docs/DEPLOYMENT.md` §5.1.
+
+Every new migration must follow these rules:
+
+1. **Run it as the migration role** (`MIGRATION_DATABASE_URL`). Migration
+   `20261016120000_runtime_role_grants` set `ALTER DEFAULT PRIVILEGES` for that role, so every
+   table and sequence it creates later (`live_rooms`, `live_categories`, `follows`, ...) is
+   automatically `SELECT, INSERT, UPDATE, DELETE` (tables) / `USAGE, SELECT` (sequences) for
+   `kabso_runtime`. **No `GRANT` is needed for an ordinary table.**
+2. **Never grant DDL-like rights** (`TRUNCATE`, `REFERENCES`, `TRIGGER`, ownership, `CREATE`) to
+   `kabso_runtime`; the API refuses to boot in production if it holds any of them.
+3. **Append-only or read-only tables** need an explicit `REVOKE` in the migration that creates
+   them, e.g. `REVOKE UPDATE, DELETE ON TABLE "x" FROM kabso_runtime;` (as for `audit_logs`).
+4. **Never reference a login role or a password** in a migration; grant to `kabso_runtime` only.
+5. Do not change object ownership or create objects in another schema without updating the
+   bootstrap and the e2e check `test/security/kl013-db-roles.e2e-spec.ts` ("every application
+   table grants DML to the runtime role"), which fails if a table is missing its grants.
+
 ## Not yet done
 
 - No cleanup job for expired sessions/tokens (indexes on `expires_at` are in place).
-- Least-privilege runtime DB role (migrations currently run with the same role) — DevOps/Security.

@@ -11,7 +11,9 @@ following [`CONVENTIONS.md`](../../docs/contracts/CONVENTIONS.md). Endpoint auth
 pnpm install                       # from the repo root (pnpm workspace)
 cd apps/api
 cp .env.example .env               # then set JWT_ACCESS_SECRET (openssl rand -base64 48)
-pnpm prisma:migrate:deploy         # or prisma:migrate:dev while changing the schema
+# DB roles: `docker compose up` creates them on first start; otherwise run
+# infra/postgres/bootstrap-roles.sql as an admin (docs/DEPLOYMENT.md §5.1)
+pnpm prisma:migrate:deploy         # as MIGRATION_DATABASE_URL; or prisma:migrate:dev
 pnpm db:seed                       # optional; dev only, refuses NODE_ENV=production
 pnpm start:dev                     # http://localhost:3000/health/ready
 ```
@@ -40,14 +42,19 @@ Prisma 7 does not read `.env` itself; `prisma.config.ts` loads `apps/api/.env` v
 ### E2E tests
 
 ```bash
-DATABASE_URL=postgresql://kabso:kabso_dev@localhost:5432/kabso_test?schema=public \
+DATABASE_URL=postgresql://kabso_app:kabso_app_dev_password@localhost:5432/kabso_test?schema=public \
+MIGRATION_DATABASE_URL=postgresql://kabso_migrator:kabso_migrator_dev_password@localhost:5432/kabso_test?schema=public \
 REDIS_URL=redis://localhost:6379/15 \
 pnpm test:e2e
 ```
 
-- The global setup runs `prisma migrate deploy` against `DATABASE_URL` itself (no separate step
-  needed) and **refuses any database whose name does not end in `_test`**, because every test file
-  truncates all tables.
+- The API under test connects as the DML-only **runtime role** (`DATABASE_URL`); migrations and
+  the per-file `TRUNCATE` run as the **migration role** (`MIGRATION_DATABASE_URL`). Both must
+  point at the same database with different roles (SEC-011; docker compose creates `kabso_test`
+  and both roles on first start).
+- The global setup runs `prisma migrate deploy` itself (no separate step needed) and **refuses
+  any database whose name does not end in `_test`**, because every test file truncates all
+  tables.
 - Each test app uses a random `REDIS_KEY_PREFIX` and deletes its keys on teardown, so a shared
   Redis is safe. Test config is built programmatically (`test/helpers/test-app.ts`); no `.env.test`.
 - The `MailSender` port is replaced by a capturing test double so tests can read tokens.
@@ -57,6 +64,14 @@ pnpm test:e2e
 All variables are validated with zod at boot (`src/config/env.schema.ts`); the process exits with a
 list of problems if any is invalid (secret values are never printed). See `.env.example` for the
 full list. Notable rules:
+
+- `DATABASE_URL` is the least-privilege **runtime role** (SEC-011, docs/DEPLOYMENT.md §5.1).
+  After connecting, the API checks its own role (`src/prisma/runtime-role-check.ts`): superuser,
+  `CREATEROLE`/`CREATEDB`/`REPLICATION`/`BYPASSRLS`, owning any schema or table, `CREATE` on a
+  schema or the database, or `TRUNCATE`/`REFERENCES`/`TRIGGER` on a table. In `production` any
+  finding aborts the boot (`db.runtime_role_check failed — refusing to start`); elsewhere it is
+  logged as a warning. `MIGRATION_DATABASE_URL` (the schema owner) is read only by the Prisma
+  CLI (`prisma.config.ts`, falling back to `DATABASE_URL`) and must not be given to the API.
 
 - `JWT_ACCESS_SECRET` ≥ 32 bytes. In `production` it must be base64/base64url decoding to
   ≥ 32 bytes and pass an entropy check (placeholders, typed passphrases, repeated or sequential

@@ -43,7 +43,10 @@ shellcheck 0.11.0 reports no findings.
 | `minio` (profile `storage`) | `pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bf…2372` | 9000 API, 9001 console | `minio-data` | `GET /minio/health/live` |
 | `minio-init` (profile `storage`) | same image, one-shot | — | — | creates `$S3_BUCKET` idempotently |
 
-- Credentials are dev defaults overridable from `.env`; database `kabso_dev`, user `kabso`.
+- Credentials are dev defaults overridable from `.env`; database `kabso_dev`, admin user `kabso`.
+  On the first start of an empty volume `infra/postgres/initdb/10-kabso-roles.sh` creates the
+  migration role `kabso_migrator`, the runtime role `kabso_app` and the e2e database
+  `kabso_test` (§5.1). The API uses `kabso_app`, Prisma's CLI `kabso_migrator`.
 - The file validates with `docker compose config` (Compose v5.6.0 CLI, no daemon needed), but
   the containers have **not** been started in the authoring environment (no Docker daemon).
 - **MinIO image note:** upstream MinIO no longer publishes community container images
@@ -93,7 +96,7 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 | Job | Runs when | Steps |
 | --- | --------- | ----- |
 | `changes` | always | `dorny/paths-filter` → `api` / `mobile` / `contracts` outputs |
-| `api` | `apps/api/**`, root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or the workflow file changed | Node 22, pnpm (version from `packageManager`, store cached) → `install --frozen-lockfile` → `prisma:generate` → `prisma:migrate:deploy` → `lint` → `format:check` → `typecheck` → `test` → `test:e2e` → `build`. Postgres 16.15 and Redis 7.4 service containers, pinned by digest, with health checks. |
+| `api` | `apps/api/**`, `infra/postgres/**`, root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or the workflow file changed | Node 22, pnpm (version from `packageManager`, store cached) → `install --frozen-lockfile` → `prisma:generate` → bootstrap DB roles (`infra/postgres/bootstrap-roles.sql` in the service container) → `prisma:migrate:deploy` (migration role) → `lint` → `format:check` → `typecheck` → `test` → `test:e2e` (runtime role) → `build`. Postgres 16.15 and Redis 7.4 service containers, pinned by digest, with health checks. |
 | `mobile` | `apps/mobile/**`, design tokens, or the workflow file changed | Flutter 3.47.7 (SDK and pub cache cached) → `pub get --enforce-lockfile` → `build_runner build` → fail on drift (`git diff --exit-code` plus untracked files) → `dart format --set-exit-if-changed lib test` → `flutter analyze` → `flutter test` |
 | `android` | same as `mobile` | Temurin 17 with Gradle cache, the Android SDK from the runner image, then `flutter build apk --debug`. The APK is uploaded as an artifact kept for 7 days. **Never run in the authoring environment (no Android SDK, blocker B6).** |
 | `ios` | `workflow_dispatch`, or a push to `main` that changes mobile | `macos-latest`, `flutter build ios --no-codesign`. Gated because macOS minutes cost about 10 times Linux minutes. **Never run in the authoring environment.** |
@@ -102,7 +105,8 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 | `ci-ok` | always | **Allowlist:** passes only if every job's result is `success` or `skipped` (path-filtered or gated); any other result (`failure`, `cancelled`, `abandoned`, `timed_out`, missing, or a future value) fails and names the job. Since KL-010c: run 29 passed while `ios` was `abandoned` (no macOS runner) under the old failure/cancelled denylist. **Make this the only required status check** in branch protection. |
 
 CI test configuration lives in the workflow `env`. It contains clearly fake values
-(`ci_test_password_not_secret`, `ci-test-only-jwt-secret-…`, `ci-test-only-rate-limit-…`)
+(`ci_test_password_not_secret`, `ci_migrator_password_not_secret`, `ci_app_password_not_secret`,
+`ci-test-only-jwt-secret-…`, `ci-test-only-rate-limit-…`)
 that only exist inside the ephemeral job. No repository secrets are used by CI today.
 
 The Phase 1 bootstrap guard (skip app jobs while `apps/api` / `apps/mobile` were absent) was
@@ -234,9 +238,10 @@ and starve DNS and fs work.
   production, distinct from the JWT key) can rotate at any time; rotation only resets
   counters. Generate both with `openssl rand -base64 48`. Database passwords rotate through
   the secret manager, followed by a rolling restart.
-- **Required, not yet implemented (SEC-011 / KL-013):** the API must use a least-privilege
-  database role (DML only); migrations run as a separate migration role with DDL rights. Today
-  the API connects as the schema owner — acceptable for local development only. Design: §5.1.
+- **Database roles (SEC-011 / KL-013):** the API uses a least-privilege runtime role (DML
+  only, `DATABASE_URL`); migrations run as a separate migration role (`MIGRATION_DATABASE_URL`,
+  given only to the migration job). Both passwords live in the secret manager and are set by
+  `infra/postgres/bootstrap-roles.sql`, which reads them from the environment. See §5.1.
 
 ## 5. Database migrations — [DESIGNED]
 
@@ -259,67 +264,98 @@ and starve DNS and fs work.
 - Destructive or locking migrations need a review note in the PR: the expected lock, the
   table size, and the rollback.
 
-### 5.1 Database roles (SEC-011) — [DESIGNED; implementation KL-013 (A3 + A8), required before any deployment]
+### 5.1 Database roles (SEC-011) — [IMPLEMENTED (KL-013); compose init UNVERIFIED]
 
-Today the API and the migrations use the same owner role. Target:
+The API never connects as the schema owner. Three kinds of roles, per environment:
 
 | Role | Login | Used by | Rights |
 | ---- | ----- | ------- | ------ |
-| `kabso_migrator` | yes | the pre-deploy migration job only (`prisma migrate deploy`) | owns schema `public` and every table, sequence and type in it; DDL |
-| `kabso_app` | yes | API pods (`DATABASE_URL`) | `CONNECT`; `USAGE` on schema; `SELECT, INSERT, UPDATE, DELETE` on app tables; `INSERT, SELECT` only on `audit_logs`; `USAGE, SELECT` on sequences; no `TRUNCATE`, `REFERENCES`, `TRIGGER`, DDL, or access to `_prisma_migrations` |
-| bootstrap / admin (managed-service master user) | break-glass only | environment bootstrap | creates the two roles; never used by an application |
+| migration role (`KABSO_DB_MIGRATOR_USER`, default `kabso_migrator`) | yes | the pre-deploy migration job only (`prisma migrate deploy`, `MIGRATION_DATABASE_URL`) | owns schema `public` and every table, sequence and type in it; DDL; `CONNECT, TEMPORARY, CREATE` on the database. No `SUPERUSER`, `CREATEROLE`, `REPLICATION`, `BYPASSRLS`; `CREATEDB` only in local dev (shadow database of `prisma migrate dev`) |
+| `kabso_runtime` | **no** (group) | holds the runtime grants; the fixed name migrations grant to | `CONNECT`; `USAGE` on `public`; `SELECT, INSERT, UPDATE, DELETE` on app tables; `INSERT, SELECT` only on `audit_logs`; `USAGE, SELECT` on sequences; nothing on `_prisma_migrations`; no `TRUNCATE`, `REFERENCES`, `TRIGGER`, `CREATE`, ownership |
+| runtime role (`KABSO_DB_APP_USER`, default `kabso_app`) | yes | API pods (`DATABASE_URL`) | member of `kabso_runtime` and nothing else; all role attributes off |
+| bootstrap / admin (local `POSTGRES_USER`, managed-service master user) | break-glass only | environment bootstrap, password rotation | creates the roles; never used by the API or by migrations |
 
-**1. Environment bootstrap** (run once per environment as the admin user; passwords come from
-the secret manager, never from a migration):
+**Why a NOLOGIN group:** migrations are committed SQL, so they may only reference names that are
+the same in every environment and carry no secret. They grant to `kabso_runtime`; the login role
+that actually connects is configurable per environment and its password lives only in the secret
+manager. A second login role can be added to the group for zero-downtime credential rotation.
 
-```sql
-CREATE ROLE kabso_migrator LOGIN PASSWORD :'migrator_password'
-  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-CREATE ROLE kabso_app LOGIN PASSWORD :'app_password'
-  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 200;
-ALTER ROLE kabso_app SET statement_timeout = '15s';
-ALTER ROLE kabso_app SET idle_in_transaction_session_timeout = '30s';
+**Where each piece lives (and why):**
 
-REVOKE ALL ON DATABASE kabso FROM PUBLIC;
-GRANT CONNECT, TEMPORARY ON DATABASE kabso TO kabso_migrator;
-GRANT CONNECT ON DATABASE kabso TO kabso_app;
-ALTER SCHEMA public OWNER TO kabso_migrator;
-REVOKE CREATE ON SCHEMA public FROM PUBLIC;   -- already the default since PostgreSQL 15
-GRANT USAGE ON SCHEMA public TO kabso_app;
+1. **Role creation and passwords — bootstrap script, not a migration:**
+   `infra/postgres/bootstrap-roles.sql`, run by an admin. Creating roles needs `CREATEROLE`,
+   which the migration role must not have, and passwords must never be in git. The script reads
+   role names and passwords from the environment (`\getenv`: `KABSO_DB_MIGRATOR_USER`,
+   `KABSO_DB_MIGRATOR_PASSWORD`, `KABSO_DB_APP_USER`, `KABSO_DB_APP_PASSWORD`), so they do not
+   appear on the command line either. It is idempotent and re-sets both passwords on every run,
+   so it is also the rotation procedure. It also sets the database/schema ownership and
+   privileges, and finally verifies the role attributes (fails if any is unsafe).
+2. **Grants on schema objects — Prisma migration** `20261016120000_runtime_role_grants` (runs
+   as the migration role, so it lives with the schema it protects): grants on existing tables
+   and sequences, revokes on `_prisma_migrations` and `UPDATE, DELETE` on `audit_logs`, and
+   `ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public` for tables and sequences
+   created later. It refuses to run if `kabso_runtime` is missing, if it runs as a superuser, or
+   if the current role does not own schema `public` (default privileges only follow the role
+   that creates objects).
+
+```bash
+# Once per environment (and per database), as the admin; values from the secret manager:
+export KABSO_DB_MIGRATOR_USER=kabso_migrator KABSO_DB_MIGRATOR_PASSWORD=...   # from secrets
+export KABSO_DB_APP_USER=kabso_app           KABSO_DB_APP_PASSWORD=...        # from secrets
+psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/postgres/bootstrap-roles.sql
+
+# Every deploy, pre-deploy job:
+MIGRATION_DATABASE_URL=postgresql://kabso_migrator:...@host/kabso pnpm --filter ./apps/api prisma:migrate:deploy
+# API pods get only DATABASE_URL=postgresql://kabso_app:...@host/kabso
 ```
 
-**2. Grants in a Prisma migration** (runs as `kabso_migrator`, so it lives with the schema):
+Managed services: the master user is not a superuser. It needs to be able to `SET ROLE` to the
+migration role for `ALTER SCHEMA public OWNER TO ...` (on PostgreSQL 16 grant it membership
+first, e.g. `GRANT kabso_migrator TO <master>`), and the database should be owned by the master
+or the migration role, never by the runtime role. A password may be given as a pre-computed
+`SCRAM-SHA-256$...` verifier so the clear text never reaches the server log.
 
-```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kabso_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kabso_app;
-REVOKE ALL ON TABLE _prisma_migrations FROM kabso_app;
-REVOKE UPDATE, DELETE ON TABLE audit_logs FROM kabso_app;   -- append-only audit trail
+**Rules for future migrations** (also in `docs/DATABASE_SCHEMA.md`):
 
--- Objects created later by kabso_migrator get the same grants automatically.
-ALTER DEFAULT PRIVILEGES FOR ROLE kabso_migrator IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kabso_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE kabso_migrator IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO kabso_app;
-```
+- Migrations **must run as the migration role**: default privileges only apply to objects that
+  role creates. New tables (`live_rooms`, `live_categories`, `follows`, ...) then need no
+  `GRANT`. A table that must be append-only or read-only gets an explicit `REVOKE` in the
+  migration that creates it. Never grant `TRUNCATE`, `REFERENCES`, `TRIGGER` or ownership to
+  `kabso_runtime`, and never name a login role or password in a migration.
 
-Design rules and open points for KL-013:
+**Boot-time guard [IMPLEMENTED]:** after connecting, the API inspects its own role
+(`src/prisma/runtime-role-check.ts`): superuser, `CREATEROLE`, `CREATEDB`, `REPLICATION`,
+`BYPASSRLS`, owning (directly or through membership) any non-system schema or relation, `CREATE`
+on a schema or on the database, or `TRUNCATE`/`REFERENCES`/`TRIGGER` on any table. With
+`NODE_ENV=production` any finding — or failing to inspect the role — logs
+`db.runtime_role_check failed — refusing to start. …` at fatal level and aborts the boot (fail
+closed, no override). Outside production the same finding is a warning so older single-role
+dev setups still start.
 
-- Migrations **must run as `kabso_migrator`**: default privileges only apply to objects
-  created by that role. A migration run as the admin user would create tables `kabso_app`
-  cannot read.
-- Any future append-only or sensitive table gets an explicit `REVOKE` in the migration that
-  creates it (the default privileges grant full DML).
-- Two connection strings: `DATABASE_URL` (`kabso_app`) for the API, and a separate migration
-  URL (name to be agreed with A3, e.g. `MIGRATION_DATABASE_URL`, read by
-  `apps/api/prisma.config.ts`) available only to the migration job.
-- The grant migration references `kabso_app`, so the role must exist everywhere migrations
-  run: local compose (an init script under `infra/postgres/`), the CI service container (a
-  setup step before `prisma:migrate:deploy`), staging and production (bootstrap above).
-- CI then runs the e2e suite as `kabso_app` and adds negative tests (`UPDATE audit_logs`,
-  `TRUNCATE`, `CREATE TABLE` must fail) so the separation cannot regress silently.
-- Until KL-013 ships, the API connects as the owner: acceptable for local development and
-  CI only. **No staging or production deployment before KL-013** (blocker B10).
+**Where it runs:**
+
+- **Local compose:** `infra/postgres/initdb/10-kabso-roles.sh` runs the bootstrap on the first
+  start of an empty volume for `kabso_dev` and `kabso_test` (values from `.env`, `CREATEDB` for
+  the shadow database). An existing volume from before KL-013 has no roles: run
+  `docker compose down -v` (deletes local data) or the bootstrap by hand. **UNVERIFIED** in a
+  container (no Docker daemon in the authoring environment); the script and SQL were run
+  against a local PostgreSQL 16.
+- **CI:** step "Bootstrap database roles" runs the same SQL inside the service container as the
+  admin user, then `migrate deploy` uses `MIGRATION_DATABASE_URL` and the unit/e2e suites use
+  the runtime role (`DATABASE_URL`).
+- **E2E suite:** needs both URLs for the same `*_test` database and refuses to run if they use
+  the same role. It migrates and truncates as the migration role; the API under test is the
+  runtime role. `test/security/kl013-db-roles.e2e-spec.ts` proves that `CREATE TABLE`,
+  `ALTER TABLE`, `DROP TABLE`, `TRUNCATE`, `CREATE ROLE`, `GRANT` and other DDL fail, DML
+  works, `audit_logs` is append-only, a table created later by the migration role is
+  DML-accessible but not DDL-accessible, and the boot guard rejects the owner role.
+- **Staging / production:** bootstrap once per environment as above before the first
+  migration. **No staging or production deployment before KL-013 is merged and verified
+  (PP-01).**
+
+Optional hardening not applied by the script (tune per environment): `ALTER ROLE kabso_app SET
+statement_timeout = '15s'`, `idle_in_transaction_session_timeout = '30s'` and a
+`CONNECTION LIMIT`.
 
 ## 6. Observability baseline
 
@@ -389,6 +425,10 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
   GitHub yet.
 - The Docker Compose services have never been started (no daemon in the authoring
   environment).
+- KL-013: the compose init script (`infra/postgres/initdb/10-kabso-roles.sh`) and the CI
+  "Bootstrap database roles" step (`docker exec` into the service container) have not run in a
+  container yet; the same script and SQL were run against a local PostgreSQL 16.15 cluster. The
+  first CI run proves the workflow step (decision D19).
 - The Android debug APK and unsigned iOS build compile in CI (run 13); neither has been
   installed on a device or emulator.
 - The Dependabot `cooldown` / `ignore` settings were validated against the published schema;

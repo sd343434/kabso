@@ -72,6 +72,7 @@ jobs:
           filters: |
             api:
               - "apps/api/**"
+              - "infra/postgres/**"
               - "package.json"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
@@ -122,7 +123,11 @@ jobs:
       NODE_ENV: test
       CI: "true"
       PORT: "3000"
-      DATABASE_URL: postgresql://kabso:ci_test_password_not_secret@localhost:5432/kabso_test?schema=public
+      # SEC-011 / KL-013: the API and the e2e suite use the DML-only runtime role; Prisma's CLI
+      # (migrate deploy) uses the migration/owner role. Both are created by the "Bootstrap
+      # database roles" step; the service's POSTGRES_USER (kabso) is only the admin.
+      DATABASE_URL: postgresql://kabso_app:ci_app_password_not_secret@localhost:5432/kabso_test?schema=public
+      MIGRATION_DATABASE_URL: postgresql://kabso_migrator:ci_migrator_password_not_secret@localhost:5432/kabso_test?schema=public
       REDIS_URL: redis://localhost:6379/0
       JWT_ACCESS_SECRET: ci-test-only-jwt-secret-not-used-anywhere-else-0123456789
       RATE_LIMIT_KEY_SECRET: ci-test-only-rate-limit-hmac-key-not-a-secret-0123456789
@@ -153,7 +158,22 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prisma generate
         run: pnpm --filter ./apps/api prisma:generate
-      - name: Apply migrations (migrate deploy)
+      # Same script as staging/production (docs/DEPLOYMENT.md §5.1), run as the admin user inside
+      # the service container so its psql 16 is used. Values come from the step env, not argv.
+      - name: Bootstrap database roles
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          KABSO_DB_MIGRATOR_USER: kabso_migrator
+          KABSO_DB_MIGRATOR_PASSWORD: ci_migrator_password_not_secret
+          KABSO_DB_APP_USER: kabso_app
+          KABSO_DB_APP_PASSWORD: ci_app_password_not_secret
+        run: >-
+          docker exec -i
+          -e KABSO_DB_MIGRATOR_USER -e KABSO_DB_MIGRATOR_PASSWORD
+          -e KABSO_DB_APP_USER -e KABSO_DB_APP_PASSWORD
+          "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U kabso -d kabso_test -f -
+          < infra/postgres/bootstrap-roles.sql
+      - name: Apply migrations (migrate deploy, migration role)
         run: pnpm --filter ./apps/api prisma:migrate:deploy
       - name: Lint
         run: pnpm --filter ./apps/api lint
@@ -163,7 +183,7 @@ jobs:
         run: pnpm --filter ./apps/api typecheck
       - name: Unit tests
         run: pnpm --filter ./apps/api test
-      - name: E2E tests (real Postgres + Redis)
+      - name: E2E tests (real Postgres + Redis, runtime role)
         run: pnpm --filter ./apps/api test:e2e
       - name: Build
         run: pnpm --filter ./apps/api build
