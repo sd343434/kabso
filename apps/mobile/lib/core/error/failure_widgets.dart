@@ -154,18 +154,23 @@ class FailureBanner extends StatelessWidget {
   }
 }
 
-/// Full-screen error state for [failure] with retry and Error ID.
+/// Error state for [failure] with retry and Error ID: full-screen, or
+/// in place with [compact].
 class FailureErrorState extends StatelessWidget {
   const new({
     required this.title,
     required this.failure,
     required this.onRetry,
     super.key,
+    this.compact = false,
   });
 
   final String title;
   final AppFailure failure;
   final VoidCallback onRetry;
+
+  /// In-place variant inside a screen's structure (VG-03).
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -177,6 +182,7 @@ class FailureErrorState extends StatelessWidget {
       retryLabel: l10n.actionRetry,
       onRetry: onRetry,
       detail: id == null ? null : l10n.errorIdLabel(id),
+      compact: compact,
     );
   }
 }

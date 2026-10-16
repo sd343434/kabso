@@ -19,49 +19,52 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: KBottomNav(
         currentIndex: navigationShell.currentIndex,
         onSelect: _onSelect,
-        items: [
-          KBottomNavItem(
-            key: const Key('nav.home'),
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home_rounded,
-            label: l10n.navHome,
-          ),
-          KBottomNavItem(
-            key: const Key('nav.discover'),
-            icon: Icons.explore_outlined,
-            activeIcon: Icons.explore_rounded,
-            label: l10n.navDiscover,
-          ),
-          KBottomNavItem(
-            key: const Key('nav.create'),
-            icon: Icons.add_rounded,
-            activeIcon: Icons.add_rounded,
-            label: l10n.navCreate,
-            prominent: true,
-          ),
-          KBottomNavItem(
-            key: const Key('nav.live'),
-            icon: Icons.sensors_outlined,
-            activeIcon: Icons.sensors_rounded,
-            label: l10n.navLive,
-          ),
-          KBottomNavItem(
-            key: const Key('nav.profile'),
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
-            label: l10n.navProfile,
-          ),
-        ],
+        items: shellNavItems(context.l10n),
       ),
     );
   }
 }
+
+/// The five shell destinations in navigation order (start → end), matching
+/// `AppRoutes.shellBranches`.
+List<KBottomNavItem> shellNavItems(AppLocalizations l10n) => [
+  KBottomNavItem(
+    key: const Key('nav.home'),
+    icon: Icons.home_outlined,
+    activeIcon: Icons.home_rounded,
+    label: l10n.navHome,
+  ),
+  KBottomNavItem(
+    key: const Key('nav.discover'),
+    icon: Icons.explore_outlined,
+    activeIcon: Icons.explore_rounded,
+    label: l10n.navDiscover,
+  ),
+  KBottomNavItem(
+    key: const Key('nav.create'),
+    icon: Icons.add_rounded,
+    activeIcon: Icons.add_rounded,
+    label: l10n.navCreate,
+    prominent: true,
+  ),
+  KBottomNavItem(
+    key: const Key('nav.live'),
+    icon: Icons.sensors_outlined,
+    activeIcon: Icons.sensors_rounded,
+    label: l10n.navLive,
+  ),
+  KBottomNavItem(
+    key: const Key('nav.profile'),
+    icon: Icons.person_outline_rounded,
+    activeIcon: Icons.person_rounded,
+    label: l10n.navProfile,
+  ),
+];
 
 @immutable
 class KBottomNavItem {
@@ -78,7 +81,8 @@ class KBottomNavItem {
   final IconData activeIcon;
   final String label;
 
-  /// The centered Create action, drawn as a raised gradient button.
+  /// The centred Create action, drawn as a `primary` pill with no visible
+  /// label (the label is its screen-reader name).
   final bool prominent;
 }
 
@@ -136,14 +140,17 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    // Selected label/icon is red text → `primaryText` (v1.1).
-    final color = selected ? p.primaryText : p.textSecondary;
+    // HL-N1 §2 styling: the active item is a filled icon, a `textPrimary`
+    // label and a 4 dp `primary` dot above the icon; inactive items are
+    // outline icons with `textSecondary` labels. Red stays on the dot only.
+    final color = selected ? p.textPrimary : p.textSecondary;
+    final duration = KMotion.of(context, KMotion.fast);
 
-    final Widget visual;
+    final Widget icon;
     if (item.prominent) {
       // G-21 / DESIGN_SYSTEM §9.6: a plain `primary` pill (the live
       // gradient is reserved for live surfaces), 44×32, radius md.
-      visual = Container(
+      icon = Container(
         width: KSpacing.xxl + KSpacing.md,
         height: KSpacing.xxl,
         decoration: BoxDecoration(
@@ -153,10 +160,28 @@ class _NavButton extends StatelessWidget {
         child: Icon(item.icon, color: p.onPrimary, size: KSpacing.xl),
       );
     } else {
-      visual = Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(selected ? item.activeIcon : item.icon, color: color, size: 24),
+      icon = Icon(
+        selected ? item.activeIcon : item.icon,
+        color: color,
+        size: KMetrics.iconMd,
+      );
+    }
+
+    final visual = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedOpacity(
+          duration: duration,
+          opacity: selected ? 1 : 0,
+          child: Container(
+            width: KMetrics.navDotSize,
+            height: KMetrics.navDotSize,
+            decoration: BoxDecoration(color: p.primary, shape: BoxShape.circle),
+          ),
+        ),
+        const SizedBox(height: KSpacing.xxs),
+        icon,
+        if (!item.prominent) ...[
           const SizedBox(height: KSpacing.xxs),
           Text(
             item.label,
@@ -172,8 +197,8 @@ class _NavButton extends StatelessWidget {
             ),
           ),
         ],
-      );
-    }
+      ],
+    );
 
     return Semantics(
       key: item.key,

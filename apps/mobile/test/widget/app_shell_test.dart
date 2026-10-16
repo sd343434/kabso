@@ -53,13 +53,13 @@ void main() {
       for (final key in _navKeys) {
         expect(find.byKey(key), findsOneWidget);
       }
-      expect(find.text(l10n.homeComingTitle), findsOneWidget);
+      expect(find.text(l10n.homePopularUnavailableTitle), findsOneWidget);
 
       final expected = {
         const Key('nav.discover'): l10n.discoverComingTitle,
         const Key('nav.create'): l10n.createComingTitle,
-        const Key('nav.live'): l10n.liveComingTitle,
-        const Key('nav.home'): l10n.homeComingTitle,
+        const Key('nav.live'): l10n.liveHubPopularUnavailableTitle,
+        const Key('nav.home'): l10n.homePopularUnavailableTitle,
       };
       for (final MapEntry(:key, :value) in expected.entries) {
         await tester.tap(find.byKey(key));
@@ -206,7 +206,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
-      expect(find.text(l10nFor(AppLanguage.en).homeComingTitle), findsOne);
+      expect(
+        find.text(l10nFor(AppLanguage.en).homePopularUnavailableTitle),
+        findsOne,
+      );
     });
 
     testWidgets('suspended account: refresh 403 ACCOUNT_SUSPENDED clears the '

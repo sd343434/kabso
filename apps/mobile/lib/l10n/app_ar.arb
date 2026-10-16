@@ -174,14 +174,10 @@
   "navCreate": "إنشاء",
   "navLive": "مباشر",
   "navProfile": "حسابي",
-  "homeComingTitle": "خلاصتك في الطريق",
-  "homeComingBody": "ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.",
   "discoverComingTitle": "الاستكشاف قادم",
   "discoverComingBody": "يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.",
   "createComingTitle": "الإنشاء قادم",
   "createComingBody": "تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.",
-  "liveComingTitle": "غرف البث المباشر قادمة",
-  "liveComingBody": "تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.",
   "profileUsername": "‎@{username}‎",
   "@profileUsername": {
     "description": "Profile TopBar title.",
@@ -343,7 +339,6 @@
       }
     }
   },
-  "liveCoverUnavailable": "تعذّر تحميل الغلاف",
   "avatarLiveNow": "يبث مباشرة الآن",
   "@avatarLiveNow": {
     "description": "Avatar ring semantics suffix."
@@ -463,5 +458,95 @@
     "description": "v1.2.3 SEC-025: 409 USERNAME_TAKEN for the username the user reserved in this flow."
   },
   "registerResendCode": "أعد إرسال الرمز",
-  "registerChooseAnotherUsername": "اختر اسم مستخدم آخر"
+  "registerChooseAnotherUsername": "اختر اسم مستخدم آخر",
+  "feedTabFollowing": "متابَعون",
+  "@feedTabFollowing": {
+    "description": "KL-033 primary tab (Home feed and Live hub)."
+  },
+  "feedTabPopular": "رائج",
+  "@feedTabPopular": {
+    "description": "KL-033 primary tab; the default tab."
+  },
+  "feedTabNew": "جديد",
+  "@feedTabNew": {
+    "description": "KL-033 primary tab: most recent first."
+  },
+  "feedSearch": "بحث",
+  "@feedSearch": {
+    "description": "Semantics/tooltip of the header search button; opens Discover."
+  },
+  "feedSeePopular": "عرض الرائج",
+  "@feedSeePopular": {
+    "description": "Empty Following tab: switches to the Popular tab."
+  },
+  "feedPullToRefresh": "اسحب للأسفل للتحديث.",
+  "homeFollowingUnavailableTitle": "منشورات من تتابعهم",
+  "@homeFollowingUnavailableTitle": {
+    "description": "Home Following tab while there is no feed API."
+  },
+  "homeFollowingUnavailableBody": "تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.",
+  "homePopularUnavailableTitle": "تصل المنشورات الرائجة في المرحلة 3",
+  "@homePopularUnavailableTitle": {
+    "description": "Home Popular tab while there is no feed API."
+  },
+  "homePopularUnavailableBody": "ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.",
+  "homeNewUnavailableTitle": "تصل المنشورات الجديدة في المرحلة 3",
+  "@homeNewUnavailableTitle": {
+    "description": "Home New tab while there is no feed API."
+  },
+  "homeNewUnavailableBody": "ستظهر هنا أحدث المنشورات، الأحدث أولًا.",
+  "homeEmptyTitle": "لا توجد منشورات بعد",
+  "homeFollowingEmptyTitle": "لا توجد منشورات ممن تتابعهم بعد",
+  "homeErrorTitle": "تعذّر تحميل المنشورات",
+  "liveHubChipAll": "الكل",
+  "@liveHubChipAll": {
+    "description": "The only category chip until categories come from the server (D36)."
+  },
+  "liveHubFollowingUnavailableTitle": "غرف البث ممن تتابعهم",
+  "@liveHubFollowingUnavailableTitle": {
+    "description": "Live hub Following tab while there is no live list API."
+  },
+  "liveHubFollowingUnavailableBody": "تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.",
+  "liveHubPopularUnavailableTitle": "تصل غرف البث المباشر في المرحلة 6",
+  "@liveHubPopularUnavailableTitle": {
+    "description": "Live hub Popular tab while there is no live list API."
+  },
+  "liveHubPopularUnavailableBody": "سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.",
+  "liveHubNewUnavailableTitle": "تصل غرف البث الجديدة في المرحلة 6",
+  "@liveHubNewUnavailableTitle": {
+    "description": "Live hub New tab while there is no live list API."
+  },
+  "liveHubNewUnavailableBody": "ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.",
+  "liveHubEmptyTitle": "لا أحد يبث مباشرة الآن",
+  "liveHubFollowingEmptyTitle": "لا أحد ممن تتابعهم يبث الآن",
+  "liveHubErrorTitle": "تعذّر تحميل غرف البث",
+  "liveCardNew": "جديد",
+  "@liveCardNew": {
+    "description": "Cover card chip shown instead of a viewer count below 1 viewer (VG-11)."
+  },
+  "liveMultiGuest": "{count, plural, =1{ضيف واحد} =2{ضيفان} few{{count} ضيوف} many{{count} ضيفًا} other{{count} ضيف}}",
+  "@liveMultiGuest": {
+    "description": "Semantics of the multi-guest tag on a cover card.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "liveCardSemanticsMode": "{card}، {mode}",
+  "@liveCardSemanticsMode": {
+    "description": "Cover card semantics with the room mode (PK or guests) appended.",
+    "placeholders": {
+      "card": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "feedPostJustNow": "الآن",
+  "@feedPostJustNow": {
+    "description": "Feed item time under one minute."
+  }
 }

@@ -35,6 +35,9 @@ void main() {
       'fixtureImage(',
       'brokenFixtureImage',
       'viewerCountSamples',
+      'hubRooms(',
+      'feedPosts(',
+      'fixtureNow',
     ];
     final offenders = <String>[];
     for (final file

@@ -22,6 +22,9 @@ void main() {
       ),
     );
 
+    Finder badge(KBadgeVariant variant) =>
+        find.byWidgetPredicate((w) => w is KBadge && w.variant == variant);
+
     testWidgets('announces host, live, viewers and title; 3:4', (tester) async {
       var taps = 0;
       await pumpComponent(
@@ -34,47 +37,166 @@ void main() {
       );
       final size = tester.getSize(find.byType(KLiveCoverCard));
       expect(size.width / size.height, closeTo(KSizes.liveCardAspect, 0.001));
-      expect(find.byType(KBadge), findsOneWidget); // LIVE only, no PK
       await tester.tap(find.byType(KLiveCoverCard));
       expect(taps, 1);
     });
 
-    testWidgets('Arabic semantics', (tester) async {
+    testWidgets('VG-10: grid cards have no LIVE badge and no accent line; '
+        'mixed contexts opt in to the badge', (tester) async {
+      final room = liveRooms(AppLanguage.en).first;
+      await pumpComponent(tester, card(room));
+      expect(find.byType(KBadge), findsNothing);
+      expect(find.byType(KViewerCountChip), findsOneWidget);
+      // No gradient anywhere except the bottom scrim (the old accent line
+      // was a live-gradient strip at the top).
+      final gradients = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .map((b) => b.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.gradient != null);
+      expect(gradients, hasLength(1));
+      expect(
+        (gradients.single.gradient! as LinearGradient).begin,
+        Alignment.topCenter,
+      );
+
       await pumpComponent(
         tester,
-        card(liveRooms(AppLanguage.ar).first),
-        language: AppLanguage.ar,
+        Center(
+          child: SizedBox(
+            width: 180,
+            child: KLiveCoverCard(room: room, showLiveBadge: true),
+          ),
+        ),
       );
-      expect(
-        find.bySemanticsLabel('سارة، مباشر، 12,345 مشاهدًا، سهرة موسيقى عربية'),
-        findsOneWidget,
-      );
+      expect(badge(KBadgeVariant.live), findsOneWidget);
     });
 
-    testWidgets('PK rooms show the PK badge at the top end', (tester) async {
-      await pumpComponent(tester, card(liveRooms(AppLanguage.en)[1]));
-      final pk = find.byWidgetPredicate(
-        (w) => w is KBadge && w.variant == KBadgeVariant.pk,
-      );
-      expect(pk, findsOneWidget);
-      final live = find.byWidgetPredicate(
-        (w) => w is KBadge && w.variant == KBadgeVariant.live,
-      );
-      expect(tester.getCenter(pk).dx, greaterThan(tester.getCenter(live).dx));
-    });
-
-    testWidgets('missing cover and broken cover show the error state', (
+    testWidgets('VG-11: 0 viewers shows "New", 1 viewer shows "1"', (
       tester,
     ) async {
+      const room = LiveRoomCardData(hostName: 'a', title: 'b', viewerCount: 0);
+      await pumpComponent(tester, card(room));
+      expect(badge(KBadgeVariant.newRoom), findsOneWidget);
+      expect(find.text('New'), findsOneWidget);
+      expect(find.byType(KViewerCountChip), findsNothing);
+      expect(find.bySemanticsLabel('a, live, New, b'), findsOneWidget);
+
       await pumpComponent(
         tester,
         card(const LiveRoomCardData(hostName: 'a', title: 'b', viewerCount: 1)),
       );
-      expect(find.text("Cover couldn't load"), findsOneWidget);
+      expect(badge(KBadgeVariant.newRoom), findsNothing);
+      expect(find.text('1'), findsOneWidget);
+
+      await pumpComponent(tester, card(room), language: AppLanguage.ar);
+      expect(find.text('جديد'), findsOneWidget);
+    });
+
+    testWidgets('PK rooms show the solid PK tag at the top end', (
+      tester,
+    ) async {
+      await pumpComponent(tester, card(liveRooms(AppLanguage.en)[1]));
+      final pk = badge(KBadgeVariant.pk);
+      expect(pk, findsOneWidget);
+      final viewers = find.byType(KViewerCountChip);
+      expect(
+        tester.getCenter(pk).dx,
+        greaterThan(tester.getCenter(viewers).dx),
+      );
+      expect(find.bySemanticsLabel(RegExp(r', PK$')), findsOneWidget);
+
+      await pumpComponent(
+        tester,
+        card(liveRooms(AppLanguage.ar)[1]),
+        language: AppLanguage.ar,
+      );
+      // RTL: the mode tag is at the top-left, the viewer chip top-right.
+      expect(
+        tester.getCenter(badge(KBadgeVariant.pk)).dx,
+        lessThan(tester.getCenter(find.byType(KViewerCountChip)).dx),
+      );
+    });
+
+    testWidgets('multi-guest tag only when the room is multi-guest', (
+      tester,
+    ) async {
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(
+            hostName: 'a',
+            title: 'b',
+            viewerCount: 5,
+            guestCount: 4,
+          ),
+        ),
+      );
+      expect(badge(KBadgeVariant.multiGuest), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('a, live, 5 viewers, b, 4 guests'),
+        findsOneWidget,
+      );
+
+      await pumpComponent(tester, card(liveRooms(AppLanguage.en).first));
+      expect(badge(KBadgeVariant.multiGuest), findsNothing);
+      expect(badge(KBadgeVariant.pk), findsNothing);
+    });
+
+    testWidgets('VG-13: missing and broken covers show the host avatar, '
+        'no error text', (tester) async {
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(hostName: 'Zed', title: 'b', viewerCount: 1),
+        ),
+      );
+      expect(find.byType(KAvatar), findsOneWidget);
+      expect(find.text('Z'), findsOneWidget);
+      expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
 
       await pumpComponent(tester, card(liveRooms(AppLanguage.en)[3]));
       await precacheImages(tester);
-      expect(find.text("Cover couldn't load"), findsOneWidget);
+      expect(find.byType(KAvatar), findsOneWidget);
+      expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    });
+
+    testWidgets('VG-44: press scales to 0.98, instant with reduce motion', (
+      tester,
+    ) async {
+      Future<void> check({required bool reduceMotion}) async {
+        await pumpComponent(
+          tester,
+          card(liveRooms(AppLanguage.en).first, onTap: () {}),
+          disableAnimations: reduceMotion,
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(KLiveCoverCard)),
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        final scale = tester.widget<AnimatedScale>(find.byType(AnimatedScale));
+        expect(scale.scale, KMetrics.cardPressedScale);
+        expect(scale.duration, reduceMotion ? Duration.zero : KMotion.fast);
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale,
+          1,
+        );
+      }
+
+      await check(reduceMotion: false);
+      await check(reduceMotion: true);
+    });
+
+    testWidgets('without onTap the card is not a button', (tester) async {
+      await pumpComponent(tester, card(liveRooms(AppLanguage.en).first));
+      expect(find.byType(InkWell), findsNothing);
+      expect(
+        tester.getSemantics(find.byType(KLiveCoverCard)),
+        isNot(isSemantics(isButton: true)),
+      );
     });
 
     testWidgets('skeleton keeps the card shape and is hidden from a11y', (

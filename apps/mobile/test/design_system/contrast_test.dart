@@ -131,6 +131,26 @@ void main() {
       );
     });
 
+    test('KL-033 VG-16: solid PK badge label (white on brand.red600) '
+        '≥ 4.5:1', () {
+      _expectAtLeast(
+        const Color(0xFFFFFFFF),
+        KBrandColors.red600,
+        _body,
+        'PK badge',
+      );
+    });
+
+    test('KL-033: nav labels (textPrimary / textSecondary on surface) and '
+        'chips ≥ 4.5:1', () {
+      for (final p in [KPalette.dark, KPalette.light]) {
+        _expectAtLeast(p.textPrimary, p.surface, _body, 'active nav label');
+        _expectAtLeast(p.textSecondary, p.surface, _body, 'inactive label');
+        _expectAtLeast(p.onPrimary, p.primary, _body, 'selected chip');
+        _expectAtLeast(p.textPrimary, p.surfaceRaised, _body, 'chip');
+      }
+    });
+
     test('PK scores: white large text on pk fills ≥ 3:1; small labels use '
         'onStatus ≥ 4.5:1', () {
       for (final fill in [KLiveColors.pkLeft, KLiveColors.pkRight]) {

@@ -1,5 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
@@ -25,6 +31,8 @@ class ComponentGalleryScreen extends StatefulWidget {
 
 class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
   int _tab = 0;
+  int _primaryTab = 1;
+  int _chip = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +50,8 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
             children: [
               const KBadge.live(),
               const KBadge.pk(),
+              const KBadge.newRoom(),
+              const KBadge.multiGuest(count: 4),
               for (final n in _Samples.counts) KViewerCountChip(count: n),
             ],
           ),
@@ -57,6 +67,22 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
                 KAvatar.story(name: _Samples.viewers[1], ring: ring),
             ],
           ),
+          const _Section(_Samples.primaryTabsTitle),
+          KPrimaryTabs(
+            labels: _Samples.primaryTabs,
+            selectedIndex: _primaryTab,
+            onSelected: (i) => setState(() => _primaryTab = i),
+          ),
+          KChipRow(
+            children: [
+              for (var i = 0; i < _Samples.categories.length; i++)
+                KChip(
+                  label: _Samples.categories[i],
+                  selected: i == _chip,
+                  onSelected: () => setState(() => _chip = i),
+                ),
+            ],
+          ),
           const _Section(_Samples.tabsTitle),
           KScrollableTabs(
             labels: _Samples.categories,
@@ -68,13 +94,28 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
             crossAxisCount: 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: KSpacing.sm,
-            crossAxisSpacing: KSpacing.sm,
+            mainAxisSpacing: KMetrics.liveGridGap,
+            crossAxisSpacing: KMetrics.liveGridGap,
             childAspectRatio: KSizes.liveCardAspect,
             children: [
               for (final room in _Samples.rooms) KLiveCoverCard(room: room),
+              KLiveCoverCard(room: _Samples.rooms.first, showLiveBadge: true),
               const KLiveCoverCardSkeleton(),
             ],
+          ),
+          const _Section(_Samples.statesTitle),
+          const KEmptyState(
+            compact: true,
+            icon: Icons.sensors_outlined,
+            title: 'Compact empty state',
+            message: 'In-place state under tabs and chips (VG-03).',
+          ),
+          KErrorState(
+            compact: true,
+            title: 'Compact error state',
+            message: 'Retry re-runs the request.',
+            retryLabel: l10n.actionRetry,
+            onRetry: () {},
           ),
           const _Section(_Samples.pkTitle),
           const KPkScoreBar(
@@ -122,6 +163,31 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
                 icon: Icons.live_tv_outlined,
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => const _RoomDemo()),
+                ),
+              ),
+            ],
+          ),
+          const _Section(_Samples.screensTitle),
+          Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              KButton(
+                key: const Key('gallery.homeFeed'),
+                label: _Samples.homeDemo,
+                expand: false,
+                variant: KButtonVariant.secondary,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const _HomeDemo()),
+                ),
+              ),
+              KButton(
+                key: const Key('gallery.liveHub'),
+                label: _Samples.liveHubDemo,
+                expand: false,
+                variant: KButtonVariant.secondary,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const _LiveHubDemo()),
                 ),
               ),
             ],
@@ -202,10 +268,52 @@ class _RoomDemoState extends State<_RoomDemo> {
   );
 }
 
+/// Home feed with sample posts on Popular and New; Following is empty.
+class _HomeDemo extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => FeedTabsScaffold(
+    pageBuilder: (context, tab, selectTab) => HomeFeedBody(
+      tab: tab,
+      content: AsyncData(
+        FeedItems(tab == FeedTab.following ? const [] : _Samples.posts()),
+      ),
+      onRefresh: () async {},
+      onRetry: () {},
+      onSeePopular: () => selectTab(FeedTab.popular),
+    ),
+  );
+}
+
+/// Live hub with sample rooms on Popular and New; Following is empty.
+class _LiveHubDemo extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => FeedTabsScaffold(
+    pageBuilder: (context, tab, selectTab) => LiveHubBody(
+      tab: tab,
+      content: AsyncData(
+        FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
+      ),
+      onRefresh: () async {},
+      onRetry: () {},
+      onSeePopular: () => selectTab(FeedTab.popular),
+    ),
+  );
+}
+
 /// Obviously fake gallery samples (debug only).
 abstract final class _Samples {
   static const badgesTitle = 'Badges · viewer count';
   static const avatarsTitle = 'Avatar rings';
+  static const primaryTabsTitle = 'Primary tabs · chips';
+  static const statesTitle = 'Compact states';
+  static const screensTitle = 'Home feed · Live hub (samples)';
+  static const homeDemo = 'Home feed demo';
+  static const liveHubDemo = 'Live hub demo';
+  static const primaryTabs = ['Following', 'Popular', 'New'];
   static const tabsTitle = 'Scrollable tabs';
   static const cardsTitle = 'Live cover cards';
   static const pkTitle = 'PK score bar';
@@ -229,7 +337,43 @@ abstract final class _Samples {
       viewerCount: 987,
       inPk: true,
     ),
+    LiveRoomCardData(
+      hostName: 'Sample guest room',
+      title: 'Multi-guest sample',
+      viewerCount: 42,
+      guestCount: 4,
+    ),
+    LiveRoomCardData(
+      hostName: 'Sample new host',
+      title: 'Just started (0 viewers)',
+      viewerCount: 0,
+    ),
   ];
+
+  static final List<LiveRoomCardData> hubRooms = [
+    for (var i = 0; i < 4; i++) ...rooms,
+  ];
+
+  static List<FeedPostData> posts() {
+    final now = DateTime.now();
+    return [
+      FeedPostData(
+        authorName: 'Sample author',
+        postedAt: now.subtract(const Duration(minutes: 5)),
+        text: 'Sample text post (debug gallery only).',
+      ),
+      FeedPostData(
+        authorName: 'مؤلف تجريبي',
+        postedAt: now.subtract(const Duration(hours: 3)),
+        text: 'منشور تجريبي للمعرض فقط.',
+      ),
+      FeedPostData(
+        authorName: 'Sample author',
+        postedAt: now.subtract(const Duration(days: 2)),
+        text: 'Another sample post.',
+      ),
+    ];
+  }
 
   static const chat = <LiveChatLine>[
     LiveChatSystem(text: 'System notice sample'),

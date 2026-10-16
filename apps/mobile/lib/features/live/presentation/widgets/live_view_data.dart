@@ -13,16 +13,27 @@ class LiveRoomCardData {
     required this.title,
     required this.viewerCount,
     this.cover,
+    this.hostAvatar,
     this.inPk = false,
+    this.guestCount,
   });
 
   final String hostName;
   final String title;
+
+  /// Below 1 the card shows "New" instead of a count (VG-11).
   final int viewerCount;
 
-  /// `null` shows the cover-unavailable state.
+  /// `null` (or an image that fails to load) shows the host avatar.
   final ImageProvider? cover;
+
+  /// Host photo for the cover fallback; initials when `null`.
+  final ImageProvider? hostAvatar;
   final bool inPk;
+
+  /// Guests on stage in a multi-guest room; `null` when the room is not
+  /// multi-guest (no tag is shown).
+  final int? guestCount;
 }
 
 /// A line in the live chat overlay.

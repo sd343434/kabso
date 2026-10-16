@@ -614,18 +614,6 @@ abstract class AppLocalizations {
   /// **'حسابي'**
   String get navProfile;
 
-  /// No description provided for @homeComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'خلاصتك في الطريق'**
-  String get homeComingTitle;
-
-  /// No description provided for @homeComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.'**
-  String get homeComingBody;
-
   /// No description provided for @discoverComingTitle.
   ///
   /// In ar, this message translates to:
@@ -649,18 +637,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.'**
   String get createComingBody;
-
-  /// No description provided for @liveComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'غرف البث المباشر قادمة'**
-  String get liveComingTitle;
-
-  /// No description provided for @liveComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.'**
-  String get liveComingBody;
 
   /// Profile TopBar title.
   ///
@@ -1010,12 +986,6 @@ abstract class AppLocalizations {
   /// **'{host}، مباشر، {viewers}، {title}'**
   String liveCardSemantics(String host, String viewers, String title);
 
-  /// No description provided for @liveCoverUnavailable.
-  ///
-  /// In ar, this message translates to:
-  /// **'تعذّر تحميل الغلاف'**
-  String get liveCoverUnavailable;
-
   /// Avatar ring semantics suffix.
   ///
   /// In ar, this message translates to:
@@ -1189,6 +1159,180 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اختر اسم مستخدم آخر'**
   String get registerChooseAnotherUsername;
+
+  /// KL-033 primary tab (Home feed and Live hub).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابَعون'**
+  String get feedTabFollowing;
+
+  /// KL-033 primary tab; the default tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get feedTabPopular;
+
+  /// KL-033 primary tab: most recent first.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get feedTabNew;
+
+  /// Semantics/tooltip of the header search button; opens Discover.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث'**
+  String get feedSearch;
+
+  /// Empty Following tab: switches to the Popular tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الرائج'**
+  String get feedSeePopular;
+
+  /// No description provided for @feedPullToRefresh.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب للأسفل للتحديث.'**
+  String get feedPullToRefresh;
+
+  /// Home Following tab while there is no feed API.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشورات من تتابعهم'**
+  String get homeFollowingUnavailableTitle;
+
+  /// No description provided for @homeFollowingUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.'**
+  String get homeFollowingUnavailableBody;
+
+  /// Home Popular tab while there is no feed API.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصل المنشورات الرائجة في المرحلة 3'**
+  String get homePopularUnavailableTitle;
+
+  /// No description provided for @homePopularUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.'**
+  String get homePopularUnavailableBody;
+
+  /// Home New tab while there is no feed API.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصل المنشورات الجديدة في المرحلة 3'**
+  String get homeNewUnavailableTitle;
+
+  /// No description provided for @homeNewUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا أحدث المنشورات، الأحدث أولًا.'**
+  String get homeNewUnavailableBody;
+
+  /// No description provided for @homeEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد منشورات بعد'**
+  String get homeEmptyTitle;
+
+  /// No description provided for @homeFollowingEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد منشورات ممن تتابعهم بعد'**
+  String get homeFollowingEmptyTitle;
+
+  /// No description provided for @homeErrorTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المنشورات'**
+  String get homeErrorTitle;
+
+  /// The only category chip until categories come from the server (D36).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveHubChipAll;
+
+  /// Live hub Following tab while there is no live list API.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرف البث ممن تتابعهم'**
+  String get liveHubFollowingUnavailableTitle;
+
+  /// No description provided for @liveHubFollowingUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.'**
+  String get liveHubFollowingUnavailableBody;
+
+  /// Live hub Popular tab while there is no live list API.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصل غرف البث المباشر في المرحلة 6'**
+  String get liveHubPopularUnavailableTitle;
+
+  /// No description provided for @liveHubPopularUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.'**
+  String get liveHubPopularUnavailableBody;
+
+  /// Live hub New tab while there is no live list API.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصل غرف البث الجديدة في المرحلة 6'**
+  String get liveHubNewUnavailableTitle;
+
+  /// No description provided for @liveHubNewUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.'**
+  String get liveHubNewUnavailableBody;
+
+  /// No description provided for @liveHubEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد يبث مباشرة الآن'**
+  String get liveHubEmptyTitle;
+
+  /// No description provided for @liveHubFollowingEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد ممن تتابعهم يبث الآن'**
+  String get liveHubFollowingEmptyTitle;
+
+  /// No description provided for @liveHubErrorTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل غرف البث'**
+  String get liveHubErrorTitle;
+
+  /// Cover card chip shown instead of a viewer count below 1 viewer (VG-11).
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get liveCardNew;
+
+  /// Semantics of the multi-guest tag on a cover card.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{ضيف واحد} =2{ضيفان} few{{count} ضيوف} many{{count} ضيفًا} other{{count} ضيف}}'**
+  String liveMultiGuest(int count);
+
+  /// Cover card semantics with the room mode (PK or guests) appended.
+  ///
+  /// In ar, this message translates to:
+  /// **'{card}، {mode}'**
+  String liveCardSemanticsMode(String card, String mode);
+
+  /// Feed item time under one minute.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get feedPostJustNow;
 }
 
 class _AppLocalizationsDelegate

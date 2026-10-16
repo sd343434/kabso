@@ -5,6 +5,7 @@
 
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -63,6 +64,41 @@ List<LiveRoomCardData> liveRooms(AppLanguage language) {
       title: ar ? 'Morning coffee' : 'قهوة الصباح',
       viewerCount: 0,
       cover: brokenFixtureImage,
+      hostAvatar: avatarImage,
+    ),
+  ];
+}
+
+/// A populated Live hub tab (KL-033): every card variant — PK, multi-guest,
+/// New (0 viewers), long names, broken cover with avatar and with initials.
+List<LiveRoomCardData> hubRooms(AppLanguage language) {
+  final ar = language == AppLanguage.ar;
+  return [
+    ...liveRooms(language),
+    LiveRoomCardData(
+      hostName: ar ? 'ليان' : 'Layan',
+      title: ar ? 'أمسية شعر مع الضيوف' : 'Poetry night with guests',
+      viewerCount: 4321,
+      cover: coverBlue,
+      guestCount: 4,
+    ),
+    LiveRoomCardData(
+      hostName: ar ? 'يوسف' : 'Yousef',
+      title: ar ? 'ألعاب الليلة' : 'Game night',
+      viewerCount: 56,
+      cover: coverGold,
+    ),
+    LiveRoomCardData(
+      hostName: ar ? 'هدى' : 'Huda',
+      title: ar ? 'أول بث لي' : 'My first live',
+      viewerCount: 0,
+    ),
+    LiveRoomCardData(
+      hostName: ar ? 'كريم' : 'Karim',
+      title: ar ? 'تحدي PK الكبير' : 'The big PK',
+      viewerCount: 2000000000,
+      cover: coverRed,
+      inPk: true,
     ),
   ];
 }
@@ -166,3 +202,37 @@ Widget fakeVideoFrame() => DecoratedBox(
     image: DecorationImage(image: coverBlue, fit: BoxFit.cover),
   ),
 );
+
+/// Fixed "now" for feed fixtures; tests run feed widgets under
+/// `withClock(Clock.fixed(fixtureNow), …)` so relative times are stable.
+final DateTime fixtureNow = DateTime.utc(2026, 10, 16, 9);
+
+/// A populated Home feed tab (KL-033): text, photo and text + photo posts,
+/// mixed scripts.
+List<FeedPostData> feedPosts(AppLanguage language) {
+  final ar = language == AppLanguage.ar;
+  return [
+    FeedPostData(
+      authorName: ar ? 'سارة' : 'Sara',
+      authorAvatar: avatarImage,
+      postedAt: fixtureNow.subtract(const Duration(minutes: 12)),
+      text: ar
+          ? 'أول تجربة لي مع العود الليلة، شكرًا لكل من حضر البث'
+          : 'First time on the oud tonight, thanks to everyone who joined',
+      media: coverRed,
+      mediaAspect: 4 / 3,
+    ),
+    FeedPostData(
+      authorName: ar ? 'Omar' : 'عمر',
+      postedAt: fixtureNow.subtract(const Duration(hours: 3)),
+      text: ar ? 'Good morning from Amman' : 'صباح الخير من عمّان',
+    ),
+    FeedPostData(
+      authorName: ar ? 'نور الهدى عبد الرحمن' : 'Nour Al-Huda Abdulrahman',
+      authorAvatar: avatarImage,
+      postedAt: fixtureNow.subtract(const Duration(seconds: 20)),
+      media: coverGold,
+      mediaAspect: 1,
+    ),
+  ];
+}
