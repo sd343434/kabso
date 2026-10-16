@@ -286,7 +286,9 @@ the group name from `current_database()` (dynamic SQL with `format('%I')`), so t
 grants to `kabso_runtime_kabso_staging` in staging and to `kabso_runtime_kabso_prod` in
 production. A runtime login of one database therefore has no privilege — not even `CONNECT` — in
 any other database of the cluster (KL-007f KL7F-01). The database name may be at most 49 bytes
-(role names are limited to 63).
+(role names are limited to 63). `PUBLIC` keeps PostgreSQL's default `USAGE` on schema `public`
+(name lookup only, no `CREATE`, no privilege on any object in it); access is gated by `CONNECT`
+on the database, which `PUBLIC` does not have.
 
 **Where each piece lives (and why):**
 
