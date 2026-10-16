@@ -177,14 +177,18 @@ abstract final class AuthValidators {
   /// More than 3 consecutive combining marks ("zalgo").
   static final _tooManyMarks = RegExp(r'\p{M}{4,}', unicode: true);
 
-  /// v1.2.1: at least one letter, digit or emoji (`Extended_Pictographic`).
-  /// Emoji-only names are valid; punctuation/symbol-only names are not.
+  /// v1.2.1/v1.2.2: at least one letter, digit or emoji. The server tests
+  /// the RGI emoji set, which Dart's RegExp cannot express, so the client
+  /// is deliberately **more permissive**: `Extended_Pictographic`, plus
+  /// regional-indicator flags and keycaps (RGI emoji that are not
+  /// Extended_Pictographic). It must never reject what the server accepts;
+  /// the server's `invalid_format` maps to the same copy.
   static final _hasVisibleBase = RegExp(
     // The Dart VM's regexp engine supports the Extended_Pictographic binary
     // property (exercised by display_name_test); the analyzer's static
     // checker does not know it yet.
     // ignore: valid_regexps
-    r'[\p{L}\p{N}\p{Extended_Pictographic}]',
+    r'[\p{L}\p{N}\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u20E3]',
     unicode: true,
   );
 
