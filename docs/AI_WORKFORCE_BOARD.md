@@ -56,22 +56,15 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
-## Phase 1 integration gate (status 2026-10-15 ~14:50 UTC)
+## Phase 1 integration gate — PASSED 2026-10-16 (internal milestone)
 
-Integration HEAD: **`3179be1`** (all Wave 1 work + KL-006/007 deliverables + KL-010/010b/011/012).
+Gate commit **`3b80e0a`**: CI run 29 attempt 2 all 8 jobs success (each job result verified against
+the success|skipped allowlist), QA KL-006 **approve**, Security KL-007 **pass with conditions**.
+Report: `docs/PHASE1_REPORT.md`. Production readiness: **no** — see `docs/PRE_PRODUCTION_CHECKLIST.md`.
+`main` not yet created: pushing it was blocked by this session's permission policy (owner action).
 
-| Gate item | Evidence | State |
-| --------- | -------- | ----- |
-| API gates (CTO re-run on `3179be1`) | lint · prettier · tsc · unit **133/133 ×20 consecutive runs** · e2e **112/112 ×3 runs** · build · `pnpm audit --prod` no known vulns · gitleaks no leaks | ✅ |
-| Mobile gates (CTO re-run on `74f8ac7`) | lockfile enforced · no codegen drift · format 0/80 · analyze clean · test **252/252, 0 skipped** · Release Info.plist has no ATS exception | ✅ |
-| Remote CI | run 19 (`6d65966`) all 8 jobs ✅; **run 21 (`74f8ac7`): Android debug APK ❌** (`build.gradle.kts` script compile errors — KL-012-D1), all other jobs incl. iOS unsigned build ✅ | ❌ |
-| Security re-test (A7) | running on `3179be1`; SEC-020 verdict held until KL-012-D1 merges | ⏳ |
-| QA re-test (A6) | running on `3179be1` | ⏳ |
-| Device testing | not performed anywhere | ⛔ NOT VERIFIED |
-
-**Integration error (CTO):** KL-012 was merged and pushed before its Gradle changes had ever been
-compiled (A2 could not run Gradle: Maven Central 429). Rule D19: build-script changes that cannot
-be compiled locally must pass a CI build before they are merged to the integration branch.
+Post-gate integrated: contract v1.2 (`3ec65ca`; API unit 203/203, e2e 147/147, Flutter 347/347,
+CI run 36 green) — QA/Security re-test of v1.2 pending; v1.2.1 follow-up (KL-017b) in progress.
 
 **Closed defects:** D1 (gitleaks fixtures) — `e424d77`; KL-010-D1 (default-branch concurrency) — `a04201b`; KL-011-D1 (Argon2 cap: lazy dummy hash outside the limiter → uncapped work + first-call timing side channel; flaky test) — `0944980`.
 
@@ -159,6 +152,7 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D26 | 2026-10-15 | **Owner:** first launch follows device locale (en → English, ar → Arabic RTL, other → Arabic); explicit choice persisted; transactional emails in the right locale (KL-018) | i18n |
 | D27 | 2026-10-15 | **Owner:** approve KL-017 / QA-008 as contract v1.2 (ZWNJ/ZWJ allowed with placement rules, limits, zalgo + reserved-term rules) | i18n + abuse |
 | D28 | 2026-10-15 | `docs/PRE_PRODUCTION_CHECKLIST.md` is the single list of mandatory release conditions | Visibility of conditions |
+| D29 | 2026-10-16 | Phase 1 gate passed on `3b80e0a`; Wave 2 may start. Owner fidelity decision for live UI: BIGO LIVE interaction patterns and hierarchy with Kabso's own visual identity; references uploaded to `design/references/` | Owner answers 2026-10-15 |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
