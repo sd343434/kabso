@@ -24,17 +24,24 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
   `invalid_format`, v1.2.4 QA-010). `invalid_format` for C0/C1, bidi controls (incl. LRM U+200E,
   RLM U+200F, ALM U+061C, v1.2.3), U+200B, U+2060, U+FEFF; a single word mixing scripts
   (Unicode `Script_Extensions`; Common/Inherited ignored, e.g. Latin+Greek/Cyrillic, v1.2.3
-  SEC-024 — "Sara سارة" is two words and passes); ZWNJ/ZWJ not between two non-joiner, non-space characters; > 3 consecutive
+  SEC-024 — "Sara سارة" is two words and passes; v1.2.6 SEC-032: decimal digits of any script
+  are neutral and Latin may combine with Han/Hiragana/Katakana/Hangul as in UTS #39 Highly
+  Restrictive, so "Ali٣", "TOKYO東京" and "Kim김" pass); ZWNJ/ZWJ not between two non-joiner, non-space characters; > 3 consecutive
   combining marks (counted on the NFD form); no letter, digit or emoji (`RGI_Emoji`) grapheme at
   all — emoji-only names are valid (v1.2.1/v1.2.2). U+FEFF at either end is trimmed.
   `reserved_term` (v1.2.3), on the confusable skeleton split into words on non-letters/digits:
   (a) a reserved term (`RESERVED_DISPLAY_NAME_TERMS`, default = CONVENTIONS §6 list, v1.2.4:
-  without `staff`/`مشرف`) equals a whole word; (b) any single word **contains** a brand term
+  without `staff`/`مشرف`, v1.2.6: without `رسمي`) equals a whole word; (b) any single word **contains** a brand term
   (`RESERVED_DISPLAY_NAME_BRAND_TERMS`, default `kabso,كابسو`) anywhere; (c) the separator-free
-  name equals a reserved term. "Kab Sonia" and "Staff Sergeant" pass; "TheKabsoTeam" does not.
+  name equals a reserved term. Since v1.2.6 (SEC-031) rules (a)/(b) also see each
+  space-delimited chunk with its inner separators (`-` `.` `·` `_` …) removed and each run of
+  single-letter words concatenated, so "Kab-so Live", "K.a.b.s.o Fan", "K a b s o Team" and
+  "ك ا ب س و لايف" are reserved. "Kab Sonia", "Abc Kab Sonite", "Mary-Jane" and "Staff Sergeant"
+  pass; "TheKabsoTeam" and (accepted residual) "كابسولة" do not.
   The skeleton applies the pinned Unicode 17.0.0 `confusables.txt` (UTS #39, vendored with its
   sha256 under `apps/api/src/modules/users/data/`) both before and after case folding
-  (NFKC → map → fold → map), plus a small documented supplement (`confusables.ts`), and drops
+  (NFKC → map → fold → map), plus a small documented supplement (`confusables.ts`; v1.2.6
+  SEC-030 adds Latin small capitals U+1D00–U+1D22 and ʙ ɢ ʜ ɪ ʟ ɴ ʀ ʏ ꜰ ꜱ), and drops
   diacritics and tatweel. The reserved-term check runs after schema validation, in the
   registration service.
 - Passwords are normalized to Unicode NFC before length checks, hashing and verification. Argon2

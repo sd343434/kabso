@@ -188,7 +188,7 @@ export const envSchema = z
     LOGIN_RECENT_SUCCESS_TTL_SECONDS: positiveInt(30 * 24 * 3600),
     /**
      * Reserved display-name terms (comma-separated; matched after NFKC casefold + confusable
-     * skeleton). Defaults to the CONVENTIONS §6 list (v1.2.4: without `staff` and `مشرف`, QA-012).
+     * skeleton). Defaults to the CONVENTIONS §6 list (v1.2.4: without `staff` and `مشرف`, QA-012; v1.2.6: without `رسمي`, SEC-032).
      */
     /** Brand terms also matched as a prefix/suffix of the separator-free name (v1.2.1). */
     RESERVED_DISPLAY_NAME_BRAND_TERMS: z
@@ -202,7 +202,7 @@ export const envSchema = z
       ),
     RESERVED_DISPLAY_NAME_TERMS: z
       .string()
-      .default('kabso,admin,administrator,support,official,moderator,كابسو,الدعم,رسمي,الإدارة')
+      .default('kabso,admin,administrator,support,official,moderator,كابسو,الدعم,الإدارة')
       .transform((v) =>
         v
           .split(',')

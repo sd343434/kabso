@@ -41,7 +41,6 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
       'moderator',
       'كابسو',
       'الدعم',
-      'رسمي',
       'الإدارة',
     ]);
   });
@@ -180,7 +179,6 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     ['official', 'The Official One'],
     ['Arabic support + official', 'الدعم الرسمي'],
     ['Arabic Kabso', 'كابسو'],
-    ['Arabic with Persian yeh', 'رسمی'],
     ['Arabic with tashkeel', 'الدَّعم'],
     ['Arabic administration with hamza', 'فريق الإدارة'],
     ['Arabic with tatweel', 'الدعـــم'],
@@ -228,5 +226,57 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     expect(confusableSkeleton('Kаbso')).toBe(confusableSkeleton('kabso'));
     expect(confusableSkeleton('ADMlN')).toBe(confusableSkeleton('admin'));
     expect(containsReservedTerm('Sara', TERMS, BRANDS)).toBe(false);
+  });
+});
+
+describe('displayName v1.2.6 (KL-025: SEC-030/031/032)', () => {
+  const raw = (value: string) => rawDisplayNameIssue(value, TERMS, BRANDS);
+
+  it('SEC-032: drops رسمي from the default reserved terms', () => {
+    expect(TERMS).not.toContain('رسمي');
+    // A configured رسمي still matches its Persian-yeh spelling (moved from the default-list test).
+    expect(containsReservedTerm('رسمی', ['رسمي'])).toBe(true);
+  });
+
+  it.each([
+    ['all-Cyrillic lowercase (SEC-030)', 'кавѕо'],
+    ['all-Latin small capitals (SEC-030)', 'ᴋᴀʙꜱᴏ'],
+    ['small capitals for admin (SEC-030)', 'ᴀᴅᴍɪɴ'],
+    ['single letters + another word (SEC-031)', 'K a b s o Team'],
+    ['hyphen-joined (SEC-031)', 'Kab-so Live'],
+    ['dot-joined (SEC-031)', 'K.a.b.s.o Fan'],
+    ['middle-dot-joined (SEC-031)', 'Kab·so Live'],
+    ['Arabic single letters + another word (SEC-031)', 'ك ا ب س و لايف'],
+    ['underscore-joined generic term (SEC-031)', 'Ad_min Ali'],
+    ['accepted residual: Arabic word containing the brand', 'كابسولة'],
+  ])('reserves %s', (_label, value) => {
+    expect(raw(value)).toBe('reserved_term');
+  });
+
+  it.each([
+    'Kab Sonia',
+    'Abc Kab Sonite',
+    'Mary-Jane',
+    'Jean-Luc',
+    'رسمي',
+    'رسمي أحمد',
+    'Ali٣',
+    'Ahmed۲۰۲۴',
+    'TOKYO東京',
+    'Kim김',
+    'Ｊ太郎',
+    'iPhone大好き',
+  ])('allows %s', (value) => {
+    expect(raw(value)).toBeNull();
+    expect(rawDisplayNameIssue(value, [])).toBeNull();
+  });
+
+  it.each([
+    ['Latin + Cyrillic', 'Kаbso'],
+    ['Latin + Greek', 'ADΜIN'],
+    ['Latin + Cyrillic with digits', 'Pаvel2024'],
+    ['Hangul + Hiragana', '김さん'],
+  ])('still rejects mixed scripts in one word: %s', (_label, value) => {
+    expect(rawDisplayNameIssue(value, [])).toBe('invalid_format');
   });
 });
