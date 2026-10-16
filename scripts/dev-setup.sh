@@ -103,6 +103,13 @@ else
   chmod 600 .env
   ok "created .env from .env.example"
 fi
+if ! grep -q '^MIGRATION_DATABASE_URL=' .env; then
+  # .env from before KL-013 (single DB role). Not rewritten automatically: the DB volume needs
+  # the new roles too.
+  warn ".env predates the least-privilege DB roles (SEC-011): copy the PostgreSQL block from"
+  warn ".env.example (DATABASE_URL, MIGRATION_DATABASE_URL, KABSO_DB_*) and recreate the volume"
+  warn "with 'docker compose down -v' (deletes local data); see docs/DEPLOYMENT.md §5.1"
+fi
 
 # --- 3. Local secrets --------------------------------------------------------------------------
 # Each variable gets its own random value (never shared between purposes).
@@ -147,7 +154,7 @@ cat <<'EOF'
   API (apps/api):
     corepack enable
     pnpm install
-    pnpm --filter ./apps/api prisma:migrate:deploy   # applies migrations to DATABASE_URL
+    pnpm --filter ./apps/api prisma:migrate:deploy   # applies migrations as MIGRATION_DATABASE_URL
     pnpm --filter ./apps/api start:dev               # check apps/api/README for the exact script
     curl -s localhost:3000/health/ready
 

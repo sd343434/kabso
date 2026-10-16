@@ -13,13 +13,25 @@ services:
     image: postgres:16.15-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
+      # Local admin (superuser). Only the init script uses it; the API and migrations use the
+      # least-privilege roles below (SEC-011 / KL-013, docs/DEPLOYMENT.md §5.1).
       POSTGRES_DB: ${POSTGRES_DB:-kabso_dev}
       POSTGRES_USER: ${POSTGRES_USER:-kabso}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kabso_dev_password}
+      # Read by infra/postgres/initdb/10-kabso-roles.sh on FIRST start (empty volume) only.
+      KABSO_TEST_DB: ${KABSO_TEST_DB:-kabso_test}
+      KABSO_DB_MIGRATOR_USER: ${KABSO_DB_MIGRATOR_USER:-kabso_migrator}
+      KABSO_DB_MIGRATOR_PASSWORD: ${KABSO_DB_MIGRATOR_PASSWORD:-kabso_migrator_dev_password}
+      KABSO_DB_APP_USER: ${KABSO_DB_APP_USER:-kabso_app}
+      KABSO_DB_APP_PASSWORD: ${KABSO_DB_APP_PASSWORD:-kabso_app_dev_password}
+      # `prisma migrate dev` needs a shadow database. Local development only.
+      KABSO_DB_MIGRATOR_CREATEDB: "true"
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ./infra/postgres/bootstrap-roles.sql:/kabso/bootstrap-roles.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s

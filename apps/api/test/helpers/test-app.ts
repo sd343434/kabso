@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { Redis } from 'ioredis';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
@@ -15,6 +16,7 @@ import {
   type RegistrationCodeMail,
   type TokenMail,
 } from '../../src/modules/mail/mail-sender.js';
+import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { BackgroundTasks } from '../../src/common/background/background-tasks.js';
 
@@ -144,10 +146,40 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
   });
 }
 
-/** Removes every table row (the e2e database is dedicated to tests). */
-export async function resetDatabase(prisma: PrismaService): Promise<void> {
-  await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE pending_registrations, audit_logs, verification_tokens, sessions, user_settings, user_profiles, users CASCADE',
+/**
+ * Runs `fn` with a short-lived client connected as the MIGRATION role (MIGRATION_DATABASE_URL).
+ * The API under test uses the DML-only runtime role (SEC-011), which may not TRUNCATE or run DDL;
+ * test fixtures that need those rights go through this client.
+ */
+export async function withMigrationClient<T>(fn: (client: PrismaClient) => Promise<T>): Promise<T> {
+  const url = process.env.MIGRATION_DATABASE_URL;
+  if (!url) throw new Error('MIGRATION_DATABASE_URL is not set (see test/global-setup.ts)');
+  const client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 1 }) });
+  try {
+    return await fn(client);
+  } finally {
+    await client.$disconnect();
+  }
+}
+
+/**
+ * Removes every table row (the e2e database is dedicated to tests). Every application table is
+ * truncated, so tables added by later migrations are covered without editing this list.
+ */
+export async function resetDatabase(): Promise<void> {
+  await withMigrationClient((client) =>
+    client.$executeRawUnsafe(`
+      DO $$
+      DECLARE tables text;
+      BEGIN
+        SELECT string_agg(format('%I.%I', schemaname, tablename), ', ') INTO tables
+          FROM pg_tables
+         WHERE schemaname = current_schema() AND tablename <> '_prisma_migrations';
+        IF tables IS NOT NULL THEN
+          EXECUTE 'TRUNCATE TABLE ' || tables || ' CASCADE';
+        END IF;
+      END
+      $$`),
   );
 }
 
@@ -188,7 +220,7 @@ export async function createTestApp(
   configureApp(app, config);
   await app.init();
   const prisma = app.get(PrismaService);
-  await resetDatabase(prisma);
+  await resetDatabase();
 
   return {
     app,
