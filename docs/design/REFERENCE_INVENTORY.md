@@ -390,3 +390,4 @@ These are in addition to DESIGN_SYSTEM §12 P1–P19.
 | ID | Date | What | Use |
 | -- | ---- | ---- | --- |
 | OREF-01 | 2026-10-16 | A store marketing composite of 4 panels (Explore with Countries & Regions, live stream, multi-guest chat, live room with chat and PiP) | Patterns only: discovery by country, full-bleed media, host pill and follow, viewer avatars, chat bubbles, multi-guest seats, coin counter. It is marketing art, not screen captures, so no dimensions, colours or assets are taken from it |
+| OREF-02..06 | 2026-10-16 | Five real screenshots of the reference app (Discover grid, Hot list, Go-live setup, Messages, Me) | Patterns written up in `REFERENCE_PATTERNS_OREF_02_06.md`. The images show third-party users and are kept out of the repo and the artifacts |
