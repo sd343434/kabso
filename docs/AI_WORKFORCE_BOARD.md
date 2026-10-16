@@ -91,7 +91,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 
 | ID | Task | Owner | Pri | Status | Depends on | Reviewers |
 | -- | ---- | ----- | --- | ------ | ---------- | --------- |
-| KL-036 | Contract v1.3: live discovery, categories, room metadata + host lifecycle (go-live/end/heartbeat behind `LIVE_HOSTING_ENABLED`), public profile, follow; DB design note | A4 | P0 | IN_PROGRESS | — | A1, A7 |
+| KL-036 | Contract v1.3: live discovery, categories, room metadata + host lifecycle (go-live/end/heartbeat behind `LIVE_HOSTING_ENABLED`), public profile, follow; DB design note | A4 | P0 | DONE — merged, approved (D38) | — | A1, A7 |
 | KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | BACKLOG | KL-036 approved, KL-013 merged | A1, A6, A7 |
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | BACKLOG | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
@@ -216,6 +216,7 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D35 | 2026-10-16 | No discovery/live API exists and contracts are frozen for the sprint → production Home/Live show the redesigned structure with honest states; populated layouts are reviewed via deterministic fixtures (goldens, debug gallery) only | No mock data in production |
 | D36 | 2026-10-16 | **Owner answers to KL-032:** keep 5 tabs Home · Discover · Create · Live · Profile; Home = social feed with Following · Popular · New (default Popular), no wordmark, Nearby deferred; Live tab = live-discovery hub; PK split screen; non-dimming gift sheet. Categories and references unanswered → All chip only, reference-free approximation. Token proposals T-1–T-5 held in `KMetrics` until after redesign approval | Recorded in HOME_LIVE_LAYOUT_DECISIONS.md "Owner decisions" |
 | D37 | 2026-10-16 | **Owner directive:** start Phase 2 with real vertical slices. The design sprint (KL-033–KL-035) continues as the UI layer of slice 1. Live discovery lives in the **Live tab** (D36); Home stays the feed. Going live without a media provider (B1) is gated by `LIVE_HOSTING_ENABLED` (default off), so production never lists rooms that cannot play. Categories start empty: none are invented, and they are managed by admin later | No fabricated rooms; honest "unavailable" in production until B1 |
+| D38 | 2026-10-16 | Contract v1.3 approved as drafted by A4, including its additions: `GET /live/config`, `isPrivate` on profiles, and stale rooms reported as ENDED/HEARTBEAT_TIMEOUT. Partial indexes go in hand-written SQL migrations. Soft-delete must remove follow rows (KL-037/KL-014). Popular ≡ New until presence exists (owner informed) | Additive change; KL-037 waits for KL-013 |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
