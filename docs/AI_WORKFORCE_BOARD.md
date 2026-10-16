@@ -96,14 +96,16 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | INTEGRATED — merge of `91387a3`; CTO re-ran format/analyze/639 tests ✅; 74 goldens | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
 | KL-035a | Home + Live hub design review package: real screenshots (ar/en, 393 + 360) of the wired screens, before/after, remaining visual gaps; references comparison marked pending (none supplied) | A1 + A5 | P0 | BACKLOG | KL-038 | owner |
-| KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | BACKLOG | KL-037 | A1 |
+| KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | DONE — PASS WITH CONDITIONS (`bfa0d6d`): SEC-035 Medium, SEC-036 Medium, SEC-037 Low, SEC-038 Info → KL-045 | KL-037 | A1 |
+| KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | IN_PROGRESS | KL-040 | A1, A7 |
+| KL-045 | Fix SEC-035 (bounded batched sweep, no global sweep on request path, tx timeout, non-overlapping sweeper), SEC-036 (per KL-046), SEC-037 (username pre-validation → 404), SEC-038 (cursor bounds); A7 re-test | A3 | P0 | BACKLOG — after KL-046 and KL-013b | KL-046 | A7 |
 
 ### Mandatory release blockers (run alongside, never skipped)
 
 | ID | Task | Owner | Pri | Status | Checklist |
 | -- | ---- | ----- | --- | ------ | --------- |
 | KL-013 | Least-privilege runtime DB role + migration role, negative tests | A3 | P0 | INTEGRATED (merge after `9f1d6e7`): unit 339, e2e 391 (36 new role tests) run locally by A3; CTO re-ran typecheck/lint/unit. CI run 64 ✅; A7 KL-007f PASS WITH CONDITIONS. Not yet run: docker compose init (no daemon) | PP-01 |
-| KL-013b | KL-007f follow-up: KL7F-01 per-environment runtime group, KL7F-02 guard rejects extra memberships/predefined roles, KL7F-03 object-level grants in guard, KL7F-04 bootstrap in one transaction, KL7F-05 no plaintext passwords outside dev, KL7F-06 revoke EXECUTE on functions from PUBLIC by default, KL7F-09 docs (managed bootstrap, rotation) | A3 | P0 | BACKLOG — after KL-037 (same files) | PP-01 |
+| KL-013b | KL-007f follow-up: KL7F-01 per-environment runtime group, KL7F-02 guard rejects extra memberships/predefined roles, KL7F-03 object-level grants in guard, KL7F-04 bootstrap in one transaction, KL7F-05 no plaintext passwords outside dev, KL7F-06 revoke EXECUTE on functions from PUBLIC by default, KL7F-09 docs (managed bootstrap, rotation) | A3 | P0 | IN_PROGRESS | PP-01 |
 | KL-016b | Refresh theft resistance beyond 10 rotations: token generation counter / family revoke | A3 | P0 | BACKLOG (after KL-013) | PP-03 |
 | KL-026 | displayName residuals SEC-033/034 | A3 | P1 | BACKLOG (after KL-016b) | PP-26 |
 | KL-041 | Provider-agnostic human-challenge interface on the account-bucket path; adapter **disabled** until owner picks a provider (B11) | A3 + A7 | P1 | BLOCKED (owner: provider) — interface may be built | PP-05 |
