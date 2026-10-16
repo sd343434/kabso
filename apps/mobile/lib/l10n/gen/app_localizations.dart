@@ -985,6 +985,192 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رمز الخطأ: {requestId}'**
   String errorIdLabel(String requestId);
+
+  /// LIVE marker on cards and avatars (KL-022).
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get liveBadge;
+
+  /// PK marker (same in both locales).
+  ///
+  /// In ar, this message translates to:
+  /// **'PK'**
+  String get pkBadge;
+
+  /// Semantics: full viewer count; {formatted} is the exact grouped number (Latin digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا مشاهدين} =1{مشاهد واحد} =2{مشاهدان} few{{formatted} مشاهدين} many{{formatted} مشاهدًا} other{{formatted} مشاهد}}'**
+  String liveViewers(int count, String formatted);
+
+  /// No description provided for @liveCardSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'{host}، مباشر، {viewers}، {title}'**
+  String liveCardSemantics(String host, String viewers, String title);
+
+  /// No description provided for @liveCoverUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الغلاف'**
+  String get liveCoverUnavailable;
+
+  /// Avatar ring semantics suffix.
+  ///
+  /// In ar, this message translates to:
+  /// **'يبث مباشرة الآن'**
+  String get avatarLiveNow;
+
+  /// No description provided for @avatarStoryUnseen.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديه قصة جديدة'**
+  String get avatarStoryUnseen;
+
+  /// No description provided for @avatarStorySeen.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت مشاهدة القصة'**
+  String get avatarStorySeen;
+
+  /// No description provided for @liveFollow.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get liveFollow;
+
+  /// No description provided for @liveFollowing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتابعه'**
+  String get liveFollowing;
+
+  /// No description provided for @liveClose.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get liveClose;
+
+  /// No description provided for @liveCommentHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'قل شيئًا…'**
+  String get liveCommentHint;
+
+  /// No description provided for @liveGifts.
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا'**
+  String get liveGifts;
+
+  /// No description provided for @liveShare.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get liveShare;
+
+  /// Placeholder slot until streams exist (B1).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو البث'**
+  String get liveVideoPlaceholder;
+
+  /// No description provided for @chatJoined.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم {name}'**
+  String chatJoined(String name);
+
+  /// No description provided for @chatGiftSent.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل {name} {gift} ×{count}'**
+  String chatGiftSent(String name, String gift, int count);
+
+  /// No description provided for @giftPanelTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية'**
+  String get giftPanelTitle;
+
+  /// No description provided for @giftSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get giftSend;
+
+  /// Purchases are blocked on B5.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الهدايا قادم قريبًا.'**
+  String get giftSendComingSoon;
+
+  /// No description provided for @giftCombo.
+  ///
+  /// In ar, this message translates to:
+  /// **'×{count}'**
+  String giftCombo(int count);
+
+  /// No description provided for @giftCellSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'{gift}، السعر {price}'**
+  String giftCellSemantics(String gift, String price);
+
+  /// No description provided for @pkTimeLeft.
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ {time}'**
+  String pkTimeLeft(String time);
+
+  /// No description provided for @pkScoreSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'النتيجة {left} مقابل {right}'**
+  String pkScoreSemantics(String left, String right);
+
+  /// No description provided for @pkWin.
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز'**
+  String get pkWin;
+
+  /// No description provided for @pkLose.
+  ///
+  /// In ar, this message translates to:
+  /// **'خسارة'**
+  String get pkLose;
+
+  /// No description provided for @pkDraw.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعادل'**
+  String get pkDraw;
+
+  /// DESIGN_SYSTEM §3.3 compact counts (NBSP before Arabic suffix).
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} ألف'**
+  String compactThousand(String value);
+
+  /// No description provided for @compactMillion.
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} مليون'**
+  String compactMillion(String value);
+
+  /// No description provided for @compactBillion.
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} مليار'**
+  String compactBillion(String value);
+
+  /// Debug builds only.
+  ///
+  /// In ar, this message translates to:
+  /// **'معرض المكونات'**
+  String get debugComponentGallery;
 }
 
 class _AppLocalizationsDelegate

@@ -76,4 +76,56 @@ void main() {
       expect(l10nFor(AppLanguage.ar).relativeHoursAgo(3), 'منذ 3 س');
     });
   });
+
+  group('KFormat.compact (DESIGN_SYSTEM §3.3)', () {
+    final en = l10nFor(AppLanguage.en);
+    final ar = l10nFor(AppLanguage.ar);
+
+    test('exact with grouping below 10,000', () {
+      for (final (value, text) in const [
+        (0, '0'),
+        (987, '987'),
+        (1234, '1,234'),
+        (9999, '9,999'),
+      ]) {
+        expect(KFormat.compact(value, en), text);
+        expect(KFormat.compact(value, ar), text);
+      }
+    });
+
+    test('one decimal, floored, trailing .0 dropped', () {
+      for (final (value, enText, arText) in const [
+        (10000, '10K', '10 ألف'),
+        (12345, '12.3K', '12.3 ألف'),
+        (12399, '12.3K', '12.3 ألف'),
+        (120000, '120K', '120 ألف'),
+        (999999, '999.9K', '999.9 ألف'),
+        (1000000, '1M', '1 مليون'),
+        (1234567, '1.2M', '1.2 مليون'),
+        (1999999, '1.9M', '1.9 مليون'),
+        (999999999, '999.9M', '999.9 مليون'),
+        (2000000000, '2B', '2 مليار'),
+        (1234567890123, '1,234.5B', '1,234.5 مليار'),
+      ]) {
+        expect(KFormat.compact(value, en), enText, reason: '$value en');
+        expect(KFormat.compact(value, ar), arText, reason: '$value ar');
+        expect(KFormat.compact(value, ar), isNot(contains(_arabicIndic)));
+      }
+    });
+
+    test('negative counts show 0', () {
+      expect(KFormat.compact(-5, en), '0');
+    });
+
+    test('grouped keeps every digit', () {
+      expect(KFormat.grouped(0), '0');
+      expect(KFormat.grouped(12500), '12,500');
+      expect(KFormat.grouped(1234567), '1,234,567');
+      expect(KFormat.grouped(-1234), '-1,234');
+    });
+
+    test('bidiIsolate wraps in FSI … PDI', () {
+      expect(KFormat.bidiIsolate('sara'), '\u2068sara\u2069');
+    });
+  });
 }

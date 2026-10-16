@@ -525,4 +525,125 @@ class AppLocalizationsEn extends AppLocalizations {
   String errorIdLabel(String requestId) {
     return 'Error ID: $requestId';
   }
+
+  @override
+  String get liveBadge => 'LIVE';
+
+  @override
+  String get pkBadge => 'PK';
+
+  @override
+  String liveViewers(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted viewers',
+      one: '$formatted viewer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveCardSemantics(String host, String viewers, String title) {
+    return '$host, live, $viewers, $title';
+  }
+
+  @override
+  String get liveCoverUnavailable => 'Cover couldn\'t load';
+
+  @override
+  String get avatarLiveNow => 'live now';
+
+  @override
+  String get avatarStoryUnseen => 'has new story';
+
+  @override
+  String get avatarStorySeen => 'story viewed';
+
+  @override
+  String get liveFollow => 'Follow';
+
+  @override
+  String get liveFollowing => 'Following';
+
+  @override
+  String get liveClose => 'Close';
+
+  @override
+  String get liveCommentHint => 'Say something…';
+
+  @override
+  String get liveGifts => 'Gifts';
+
+  @override
+  String get liveShare => 'Share';
+
+  @override
+  String get liveVideoPlaceholder => 'Live video';
+
+  @override
+  String chatJoined(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String chatGiftSent(String name, String gift, int count) {
+    return '$name sent $gift ×$count';
+  }
+
+  @override
+  String get giftPanelTitle => 'Send a gift';
+
+  @override
+  String get giftSend => 'Send';
+
+  @override
+  String get giftSendComingSoon => 'Sending gifts is coming soon.';
+
+  @override
+  String giftCombo(int count) {
+    return '×$count';
+  }
+
+  @override
+  String giftCellSemantics(String gift, String price) {
+    return '$gift, price $price';
+  }
+
+  @override
+  String pkTimeLeft(String time) {
+    return '$time left';
+  }
+
+  @override
+  String pkScoreSemantics(String left, String right) {
+    return 'Score $left to $right';
+  }
+
+  @override
+  String get pkWin => 'Win';
+
+  @override
+  String get pkLose => 'Loss';
+
+  @override
+  String get pkDraw => 'Draw';
+
+  @override
+  String compactThousand(String value) {
+    return '${value}K';
+  }
+
+  @override
+  String compactMillion(String value) {
+    return '${value}M';
+  }
+
+  @override
+  String compactBillion(String value) {
+    return '${value}B';
+  }
+
+  @override
+  String get debugComponentGallery => 'Component gallery';
 }

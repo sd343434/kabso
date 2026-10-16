@@ -37,6 +37,40 @@ abstract final class KFormat {
     return date(value, localeTag);
   }
 
+  /// Exact count with `,` grouping and Latin digits, e.g. "12,345".
+  /// Used for screen-reader labels, coins and prices (never compacted).
+  static String grouped(int value) {
+    final digits = value.abs().toString();
+    final out = StringBuffer(value < 0 ? '-' : '');
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write(',');
+      out.write(digits[i]);
+    }
+    return out.toString();
+  }
+
+  /// Compact counter (DESIGN_SYSTEM §3.3): exact with grouping below 10,000;
+  /// above that one decimal, **floored** (never overstated), trailing ".0"
+  /// dropped, suffix from the ARB (`K`/`M`/`B`, `ألف`/`مليون`/`مليار` after a
+  /// no-break space). Negative values are shown as 0.
+  static String compact(int value, AppLocalizations l10n) {
+    if (value < 10000) return grouped(value < 0 ? 0 : value);
+    final (divisor, suffix) = switch (value) {
+      >= 1000000000 => (1000000000, l10n.compactBillion),
+      >= 1000000 => (1000000, l10n.compactMillion),
+      _ => (1000, l10n.compactThousand),
+    };
+    final tenths = value * 10 ~/ divisor;
+    final whole = grouped(tenths ~/ 10);
+    final decimal = tenths % 10;
+    return suffix(decimal == 0 ? whole : '$whole.$decimal');
+  }
+
+  /// Wraps user-generated text in first-strong isolates (U+2068 … U+2069)
+  /// so a name in the other script does not reorder the sentence around it
+  /// (DESIGN_SYSTEM §3.4).
+  static String bidiIsolate(String value) => '\u2068$value\u2069';
+
   static DateFormat _latin(DateFormat format) =>
       format..useNativeDigits = false;
 }
