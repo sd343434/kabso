@@ -16,6 +16,10 @@ class LocaleSync {
 
   final Ref _ref;
 
+  /// Guards against overlapping PATCH calls (e.g. a retry triggered by the
+  /// refresh that the PATCH itself caused).
+  bool _pushing = false;
+
   LanguageController get _language =>
       _ref.read(languageControllerProvider.notifier);
 
@@ -56,6 +60,8 @@ class LocaleSync {
   }
 
   Future<void> _push(AppLanguage language) async {
+    if (_pushing) return;
+    _pushing = true;
     try {
       final user = await _ref
           .read(authRepositoryProvider)
@@ -71,6 +77,8 @@ class LocaleSync {
         // Offline, timeout, 5xx, 429 (401 is handled globally): retry later.
         await _setPending(value: true);
       }
+    } finally {
+      _pushing = false;
     }
   }
 

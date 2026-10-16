@@ -4,6 +4,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/network/auth_tokens.dart';
+import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/core/network/token_manager.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -13,6 +16,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../helpers/contract_fixtures.dart';
 import '../../helpers/fakes.dart';
 
 void main() {
@@ -89,6 +93,13 @@ void main() {
                 secureTokenStoreProvider.overrideWithValue(
                   InMemoryTokenStore(),
                 ),
+                tokenManagerProvider.overrideWithValue(
+                  TokenManager(
+                    store: InMemoryTokenStore('sid.stored'),
+                    refreshCall: (_) async =>
+                        AuthTokens.fromJson(tokenPairJson()),
+                  ),
+                ),
               ],
             )
             // Let the session controller finish its (empty) restore.
@@ -134,6 +145,30 @@ void main() {
       await signIn('ar');
       expect(repo.localeUpdates, isEmpty);
       expect(prefs.getString(PreferenceKeys.languageCode), isNull);
+    });
+
+    test('a pending sync is retried after the next successful token '
+        'refresh', () async {
+      repo.updateLocaleFailure = const NetworkFailure.timeout();
+      await build(savedChoice: 'en');
+      await signIn('ar');
+      expect(prefs.getBool(PreferenceKeys.localeSyncPending), isTrue);
+
+      repo.updateLocaleFailure = null;
+      await container.read(tokenManagerProvider).refresh();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repo.localeUpdates, ['en', 'en']);
+      expect(prefs.getBool(PreferenceKeys.localeSyncPending), isNull);
+    });
+
+    test('a refresh without a pending sync sends nothing', () async {
+      await build(savedChoice: 'ar');
+      await signIn('ar');
+      await container.read(tokenManagerProvider).refresh();
+      await Future<void>.delayed(Duration.zero);
+      expect(repo.localeUpdates, isEmpty);
     });
 
     test(

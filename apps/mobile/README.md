@@ -157,6 +157,30 @@ lib/
 `HttpClientAdapter` boundary (`test/helpers/fake_http_adapter.dart`) with payloads shaped like
 openapi.yaml (`test/helpers/contract_fixtures.dart`); widget tests override providers.
 
+### Golden tests (G-26)
+
+- Tests: `test/goldens/*_golden_test.dart` (tag `golden`); images: `test/goldens/png/`, named
+  `<component>.<ar|en>.<phone|android>.png`. Live surfaces are dark-only.
+- Harness: `test/helpers/golden.dart`. `loadAppFonts()` loads the bundled Inter, IBM Plex Sans
+  Arabic and Material Icons (not the Ahem test font). Viewports are pinned to 393×852 @3x
+  (`phone`) and 360×800 @3x (`android`). Animations are disabled, images are in-memory PNGs
+  precached in `runAsync`, and data is seeded.
+- Fake data lives only in `test/fixtures/**`. `test/fixtures/fixtures_isolation_test.dart` fails
+  if `lib/` imports tests, fixtures or `flutter_test`. Production screens keep their empty
+  states.
+- Goldens are generated and compared **on Linux with the pinned Flutter (3.47.7)**. On macOS or
+  Windows, font rasterisation differs and local mismatches are informational. To regenerate,
+  use a dedicated commit with A5 reviewing the images:
+
+  ```sh
+  flutter test --update-goldens test/goldens/                              # all
+  flutter test --update-goldens test/goldens/live_components_golden_test.dart
+  ```
+
+- Component gallery (debug/profile builds only): Settings → "Component gallery", or route
+  `/debug/components`. It is registered behind `!kReleaseMode`, so release builds contain
+  neither the route nor the screen.
+
 ## What cannot be built or verified here
 
 The authoring environment has no Android SDK and no Xcode (blocker **B6**): no APK/IPA builds,

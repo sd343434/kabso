@@ -20,7 +20,13 @@ void main() {
       'family emoji (ZWJ sequence)': 'Layla 👨\u200D👩\u200D👧',
       'flag': 'Omar 🇯🇴',
       'skin tone': 'Sara 👋🏽',
-      'emoji only': '👨\u200D👩\u200D👧',
+      // v1.2.1: emoji-only names are valid (Extended_Pictographic).
+      'emoji only (ZWJ sequence)': '👨\u200D👩\u200D👧',
+      'single emoji': '😀',
+      // RGI emoji that are not Extended_Pictographic must still pass.
+      'flag only': '\u{1F1EF}\u{1F1F4}',
+      'keycap only': '#\uFE0F\u20E3',
+      'emoji with variation selector': '❤\uFE0F',
       'Arabic': 'ليلى عبد الرحمن',
       // 50 graphemes and 50 code points (≤ 100).
       'exactly 50 graphemes of emoji': '😀' * 50,
@@ -85,6 +91,39 @@ void main() {
         );
       });
     }
+
+    // v1.2.1: at least one letter, digit or emoji grapheme is required.
+    for (final (name, value) in [
+      ('punctuation only', '...'),
+      // "★★", "©", "™" are invalid on the server (RGI emoji test, v1.2.2);
+      // the client may be more permissive there, so they are not asserted.
+      ('em dash only', '—'),
+    ]) {
+      test('$name → invalid_format copy', () {
+        expect(
+          AuthValidators.displayNameIssue(value),
+          DisplayNameIssue.invalidFormat,
+        );
+        expect(
+          displayNameIssueMessage(
+            l10nFor(AppLanguage.en),
+            AuthValidators.displayNameIssue(value),
+          ),
+          l10nFor(AppLanguage.en).displayNameInvalid,
+        );
+      });
+    }
+
+    test('v1.2.1: U+FEFF at either end is trimmed before validation', () {
+      const name = '\uFEFFLayla\uFEFF';
+      expect(AuthValidators.displayNameIssue(name), isNull);
+      expect(AuthValidators.displayNameLength(name), 5);
+      expect(
+        AuthValidators.displayNameIssue('Lay\uFEFFla'),
+        DisplayNameIssue.invalidFormat,
+        reason: 'still rejected inside the name',
+      );
+    });
 
     test('3 combining marks are still fine', () {
       expect(AuthValidators.displayNameIssue('a\u0301\u0302\u0303'), isNull);

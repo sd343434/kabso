@@ -42,8 +42,20 @@ class KButton extends StatelessWidget {
         p.textPrimary,
         BorderSide(color: p.border),
       ),
-      KButtonVariant.ghost => (Colors.transparent, p.primary, BorderSide.none),
-      KButtonVariant.destructive => (p.error, p.onPrimary, BorderSide.none),
+      KButtonVariant.ghost => (
+        Colors.transparent,
+        p.primaryText,
+        BorderSide.none,
+      ),
+      // Text on a status fill (v1.1): dark `error` needs `onStatus`; light
+      // `error` is dark enough for white (both checked by the contrast test).
+      KButtonVariant.destructive => (
+        p.error,
+        Theme.of(context).brightness == Brightness.dark
+            ? KStatusColors.onStatus
+            : p.onPrimary,
+        BorderSide.none,
+      ),
     };
 
     final style = ButtonStyle(

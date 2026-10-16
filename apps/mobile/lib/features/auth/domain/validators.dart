@@ -152,8 +152,8 @@ abstract final class AuthValidators {
 
   /// Client-side mirror of the v1.2 displayName rules (CONVENTIONS §6,
   /// PHASE1_1_SCREENS §2). The server stays authoritative: it also NFC-
-  /// normalizes, rejects symbol-only names and checks reserved terms
-  /// (`reserved_term`), which the app never ships.
+  /// normalizes and checks reserved terms (`reserved_term`), which the app
+  /// never ships.
   static DisplayNameIssue? displayNameIssue(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return DisplayNameIssue.required;
@@ -177,9 +177,18 @@ abstract final class AuthValidators {
   /// More than 3 consecutive combining marks ("zalgo").
   static final _tooManyMarks = RegExp(r'\p{M}{4,}', unicode: true);
 
-  /// At least one code point that is not whitespace, a joiner or a mark.
+  /// v1.2.1/v1.2.2: at least one letter, digit or emoji. The server tests
+  /// the RGI emoji set, which Dart's RegExp cannot express, so the client
+  /// is deliberately **more permissive**: `Extended_Pictographic`, plus
+  /// regional-indicator flags and keycaps (RGI emoji that are not
+  /// Extended_Pictographic). It must never reject what the server accepts;
+  /// the server's `invalid_format` maps to the same copy.
   static final _hasVisibleBase = RegExp(
-    r'[^\s\p{M}\u200C\u200D]',
+    // The Dart VM's regexp engine supports the Extended_Pictographic binary
+    // property (exercised by display_name_test); the analyzer's static
+    // checker does not know it yet.
+    // ignore: valid_regexps
+    r'[\p{L}\p{N}\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u20E3]',
     unicode: true,
   );
 

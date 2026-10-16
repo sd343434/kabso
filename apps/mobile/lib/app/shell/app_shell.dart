@@ -136,32 +136,21 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final color = selected ? p.primary : p.textSecondary;
+    // Selected label/icon is red text → `primaryText` (v1.1).
+    final color = selected ? p.primaryText : p.textSecondary;
 
     final Widget visual;
     if (item.prominent) {
-      visual = AnimatedContainer(
-        duration: KMotion.of(context, KMotion.fast),
-        curve: KMotion.standard,
-        width: 52,
-        height: 40,
+      // G-21 / DESIGN_SYSTEM §9.6: a plain `primary` pill (the live
+      // gradient is reserved for live surfaces), 44×32, radius md.
+      visual = Container(
+        width: KSpacing.xxl + KSpacing.md,
+        height: KSpacing.xxl,
         decoration: BoxDecoration(
+          color: p.primary,
           borderRadius: BorderRadius.circular(KRadius.md),
-          gradient: const LinearGradient(
-            begin: AlignmentDirectional.topStart,
-            end: AlignmentDirectional.bottomEnd,
-            colors: KBrandColors.gradientLive,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: KBrandColors.red500.withValues(alpha: 0.45),
-                    blurRadius: 12,
-                  ),
-                ]
-              : null,
         ),
-        child: Icon(item.icon, color: p.onPrimary, size: 28),
+        child: Icon(item.icon, color: p.onPrimary, size: KSpacing.xl),
       );
     } else {
       visual = Column(

@@ -536,4 +536,129 @@ class AppLocalizationsAr extends AppLocalizations {
   String errorIdLabel(String requestId) {
     return 'رمز الخطأ: $requestId';
   }
+
+  @override
+  String get liveBadge => 'مباشر';
+
+  @override
+  String get pkBadge => 'PK';
+
+  @override
+  String liveViewers(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted مشاهد',
+      many: '$formatted مشاهدًا',
+      few: '$formatted مشاهدين',
+      two: 'مشاهدان',
+      one: 'مشاهد واحد',
+      zero: 'لا مشاهدين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveCardSemantics(String host, String viewers, String title) {
+    return '$host، مباشر، $viewers، $title';
+  }
+
+  @override
+  String get liveCoverUnavailable => 'تعذّر تحميل الغلاف';
+
+  @override
+  String get avatarLiveNow => 'يبث مباشرة الآن';
+
+  @override
+  String get avatarStoryUnseen => 'لديه قصة جديدة';
+
+  @override
+  String get avatarStorySeen => 'تمت مشاهدة القصة';
+
+  @override
+  String get liveFollow => 'متابعة';
+
+  @override
+  String get liveFollowing => 'تتابعه';
+
+  @override
+  String get liveClose => 'إغلاق';
+
+  @override
+  String get liveCommentHint => 'قل شيئًا…';
+
+  @override
+  String get liveGifts => 'الهدايا';
+
+  @override
+  String get liveShare => 'مشاركة';
+
+  @override
+  String get liveVideoPlaceholder => 'فيديو البث';
+
+  @override
+  String chatJoined(String name) {
+    return 'انضم $name';
+  }
+
+  @override
+  String chatGiftSent(String name, String gift, int count) {
+    return 'أرسل $name $gift ×$count';
+  }
+
+  @override
+  String get giftPanelTitle => 'أرسل هدية';
+
+  @override
+  String get giftSend => 'إرسال';
+
+  @override
+  String get giftSendComingSoon => 'إرسال الهدايا قادم قريبًا.';
+
+  @override
+  String giftCombo(int count) {
+    return '×$count';
+  }
+
+  @override
+  String giftCellSemantics(String gift, String price) {
+    return '$gift، السعر $price';
+  }
+
+  @override
+  String pkTimeLeft(String time) {
+    return 'متبقٍ $time';
+  }
+
+  @override
+  String pkScoreSemantics(String left, String right) {
+    return 'النتيجة $left مقابل $right';
+  }
+
+  @override
+  String get pkWin => 'فوز';
+
+  @override
+  String get pkLose => 'خسارة';
+
+  @override
+  String get pkDraw => 'تعادل';
+
+  @override
+  String compactThousand(String value) {
+    return '$value ألف';
+  }
+
+  @override
+  String compactMillion(String value) {
+    return '$value مليون';
+  }
+
+  @override
+  String compactBillion(String value) {
+    return '$value مليار';
+  }
+
+  @override
+  String get debugComponentGallery => 'معرض المكونات';
 }

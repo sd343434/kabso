@@ -308,5 +308,154 @@
         "type": "String"
       }
     }
+  },
+  "liveBadge": "مباشر",
+  "@liveBadge": {
+    "description": "LIVE marker on cards and avatars (KL-022)."
+  },
+  "pkBadge": "PK",
+  "@pkBadge": {
+    "description": "PK marker (same in both locales)."
+  },
+  "liveViewers": "{count, plural, =0{لا مشاهدين} =1{مشاهد واحد} =2{مشاهدان} few{{formatted} مشاهدين} many{{formatted} مشاهدًا} other{{formatted} مشاهد}}",
+  "@liveViewers": {
+    "description": "Semantics: full viewer count; {formatted} is the exact grouped number (Latin digits).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "formatted": {
+        "type": "String"
+      }
+    }
+  },
+  "liveCardSemantics": "{host}، مباشر، {viewers}، {title}",
+  "@liveCardSemantics": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      },
+      "viewers": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "liveCoverUnavailable": "تعذّر تحميل الغلاف",
+  "avatarLiveNow": "يبث مباشرة الآن",
+  "@avatarLiveNow": {
+    "description": "Avatar ring semantics suffix."
+  },
+  "avatarStoryUnseen": "لديه قصة جديدة",
+  "avatarStorySeen": "تمت مشاهدة القصة",
+  "liveFollow": "متابعة",
+  "liveFollowing": "تتابعه",
+  "liveClose": "إغلاق",
+  "liveCommentHint": "قل شيئًا…",
+  "liveGifts": "الهدايا",
+  "liveShare": "مشاركة",
+  "liveVideoPlaceholder": "فيديو البث",
+  "@liveVideoPlaceholder": {
+    "description": "Placeholder slot until streams exist (B1)."
+  },
+  "chatJoined": "انضم {name}",
+  "@chatJoined": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatGiftSent": "أرسل {name} {gift} ×{count}",
+  "@chatGiftSent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "gift": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "giftPanelTitle": "أرسل هدية",
+  "giftSend": "إرسال",
+  "giftSendComingSoon": "إرسال الهدايا قادم قريبًا.",
+  "@giftSendComingSoon": {
+    "description": "Purchases are blocked on B5."
+  },
+  "giftCombo": "×{count}",
+  "@giftCombo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "giftCellSemantics": "{gift}، السعر {price}",
+  "@giftCellSemantics": {
+    "placeholders": {
+      "gift": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "pkTimeLeft": "متبقٍ {time}",
+  "@pkTimeLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pkScoreSemantics": "النتيجة {left} مقابل {right}",
+  "@pkScoreSemantics": {
+    "placeholders": {
+      "left": {
+        "type": "String"
+      },
+      "right": {
+        "type": "String"
+      }
+    }
+  },
+  "pkWin": "فوز",
+  "pkLose": "خسارة",
+  "pkDraw": "تعادل",
+  "compactThousand": "{value} ألف",
+  "@compactThousand": {
+    "description": "DESIGN_SYSTEM §3.3 compact counts (NBSP before Arabic suffix).",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "compactMillion": "{value} مليون",
+  "@compactMillion": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "compactBillion": "{value} مليار",
+  "@compactBillion": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "debugComponentGallery": "معرض المكونات",
+  "@debugComponentGallery": {
+    "description": "Debug builds only."
   }
 }

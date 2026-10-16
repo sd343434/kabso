@@ -23,6 +23,7 @@ class TokenManager {
   final SecureTokenStore _store;
   final RefreshTokensCall _refreshCall;
   final _invalidations = StreamController<ErrorCode>.broadcast();
+  final _refreshed = StreamController<void>.broadcast();
 
   String? _accessToken;
   Future<String>? _inflight;
@@ -36,6 +37,10 @@ class TokenManager {
   /// Emits the failure code each time the session is invalidated by the
   /// server (not on a user-initiated sign-out).
   Stream<ErrorCode> get invalidations => _invalidations.stream;
+
+  /// Emits after each successful token refresh (single-flight: once per
+  /// refresh, however many requests waited for it).
+  Stream<void> get refreshed => _refreshed.stream;
 
   Future<bool> hasRefreshToken() async {
     final token = await _store.readRefreshToken();
@@ -99,8 +104,12 @@ class TokenManager {
       );
     }
     await saveTokens(tokens);
+    if (!_refreshed.isClosed) _refreshed.add(null);
     return tokens.accessToken;
   }
 
-  Future<void> dispose() => _invalidations.close();
+  Future<void> dispose() async {
+    await _invalidations.close();
+    await _refreshed.close();
+  }
 }

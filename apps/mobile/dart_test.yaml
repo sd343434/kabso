@@ -1,0 +1,4 @@
+tags:
+  # Pixel goldens (G-26). Compared only on the pinned Linux image; see
+  # test/helpers/golden.dart.
+  golden:

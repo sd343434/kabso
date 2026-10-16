@@ -17,6 +17,9 @@ abstract final class AppRoutes {
 
   static const settings = '/settings';
 
+  /// KL-022 component gallery. Registered only when `!kReleaseMode`.
+  static const debugComponents = '/debug/components';
+
   /// Reachable without a session.
   static const Set<String> publicAuthRoutes = {
     login,
