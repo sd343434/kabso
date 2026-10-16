@@ -47,7 +47,16 @@ class SessionController extends Notifier<AuthState> {
         .read(tokenManagerProvider)
         .invalidations
         .listen((reason) => state = Unauthenticated(reason: reason));
-    ref.onDispose(sub.cancel);
+    // PHASE1_1_SCREENS §3.4: a pending locale sync is also retried after
+    // the next successful token refresh (no-op when nothing is pending or
+    // no one is signed in).
+    final refreshed = ref
+        .read(tokenManagerProvider)
+        .refreshed
+        .listen((_) => unawaited(ref.read(localeSyncProvider).retryPending()));
+    ref
+      ..onDispose(sub.cancel)
+      ..onDispose(refreshed.cancel);
     scheduleMicrotask(restore);
     return const AuthRestoring();
   }
