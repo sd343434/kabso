@@ -1,8 +1,25 @@
 # Kabso Live — Home & Live Room Layout Decisions (KL-032)
 
-Status: **Proposal for owner review (design correction sprint, D34/D35).** Documentation only;
+Status: **Owner-reviewed 2026-10-16 (D36) — see "Owner decisions" first; design correction sprint, D34/D35.** Documentation only;
 nothing here is implemented. It pairs with the gap table in
 [`BIGO_INSPIRED_GAP_ANALYSIS.md`](BIGO_INSPIRED_GAP_ANALYSIS.md) (VG-xx).
+
+## Owner decisions (2026-10-16, D36) — these override the recommendations below
+
+| ID | Owner answer | Effect on this spec |
+| -- | ------------ | ------------------- |
+| HL-N1 | **Home · Discover · Create · Live · Profile, Home = feed** (recommendation *not* taken) | No route change. The **Live tab stays** and becomes the live-discovery hub: §1 HL-H3–HL-H6 (category chips, 2-column 3:4 grid, refresh/paging, states) apply to `/live`, not `/home`. **Home is redesigned as a social feed** (posts / short video). No `/inbox`; Create stays a tab page (the Create-sheet change was part of the rejected option). §2 bottom-nav *styling* (active dot, `textPrimary` labels, calmer chrome) still applies |
+| HL-H1/H2 | **Following · Popular · New, default Popular**; no wordmark on Home (stays on Splash/Login); Nearby deferred | Applies to the Home feed header. *Working assumption (to confirm at the before/after review, KL-035):* the Live hub uses the same three tabs over live rooms |
+| HL-L8 | **Split screen** PK | As specified in §3 HL-L8 |
+| HL-L6 | **Non-dimming** gift sheet | As specified in §3 HL-L6 |
+| Q7 categories | Not answered | Production shows only the **All / الكل** chip (no invented categories) |
+| Q8 references | Not answered | Sprint proceeds as a **documented reference-free approximation** (owner directive allows this); gap analysis §11 items stay unverified |
+| §5 tokens T-1–T-5 | Not a contract change in this sprint | Values live in `KMetrics` / component styles derived from existing tokens; T-1–T-5 return as a token contract proposal after owner approval of the redesign |
+
+Home feed (new, replaces §1 for `/home`): header = the three text tabs (HL-H2 style) + search
+icon → `/discover`. Body = full-width feed items. **No feed API exists** (posts / short video are
+later phases), so production renders the header and an honest compact unavailable state per tab;
+populated feed layouts are fixture-only (D35).
 
 **Ground rules**
 
