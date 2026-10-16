@@ -849,3 +849,79 @@ No tests were added for SEC-030/031/032 because they are open.
 3. **SEC-023 residual / B11** — owner lockout from new sources, and the email↔account oracle after an exhausted account bucket (CTO-accepted, tracked as B11). The race and refund semantics are fixed and not exploitable.
 4. **SEC-030 / SEC-031 / SEC-032** — displayName residuals (Low/Info), as above.
 5. Unchanged Phase 2 items: SEC-012 retention/cleanup jobs; SEC-028 timing (Info).
+
+---
+
+## 9. Re-test of SEC-030/031/032 (KL-007e, 2026-10-16) — candidate `b19ab0c`
+
+Contract v1.2.6 / v1.2.7 (KL-025, merge `578e9a4`).
+
+How I tested:
+- Worktree merged `claude/amazing-tesla-5aj3um` at `b19ab0c`.
+- Probes ran against the built `dist/` (`scratchpad/sec/dn3.mjs`). No server was needed (pure validation logic), so none was started.
+- Suites: API unit 323/323, API e2e 355/355 (incl. the new `test/security/kl007e-v126.e2e-spec.ts`).
+
+### 9.1 Results
+
+| ID | Result | Evidence |
+| -- | ------ | -------- |
+| SEC-030 | **FIXED** | `ᴋᴀʙꜱᴏ`, `кавѕо` and `ᴀᴅᴍɪɴ` → `reserved_term`. Small capitals are mapped before the first confusables pass (`confusables.ts` `SMALL_CAPITALS`). |
+| SEC-031 | **FIXED** | `K a b s o Team`, `Kab-so Live`, `K.a.b.s.o Fan`, `Kab·so Live`, `ك ا ب س و لايف`, `Ad-min Ali`, `A D M I N Ali` → `reserved_term`. The same holds for NBSP- and ideographic-space-split runs, fullwidth letters, `Kab/so`, `Kab+so`, `(Kab)(so)`, `K'a'b's'o`, `Kab🔥so` and `Kab⠀so` (braille blank). `Kab Sonia` and `Kab So Nia` stay accepted. |
+| SEC-032 | **FIXED** | `Ali٣`, `Ahmed۲۰۲۴`, `TOKYO東京`, `Kim김`, `Ｊ太郎`, `iPhone大好き` and `رسمي` → accepted. Latin + Cyrillic/Greek inside one word is still `invalid_format` (regression test). |
+| Accepted residuals (v1.2.6/v1.2.7) | Noted, not re-filed | `كابسولة` → `reserved_term`. Mixed partial splits are accepted: `Kabs o Live`, `Ka b so Live`, `Ka bs o Live`. |
+
+### 9.2 New residual findings (Low)
+
+**SEC-033 — Low — CWE-1007 — owner A3: an empty chunk breaks the single-letter run.**
+
+Where: `confusables.ts` `joinedWords()`. A space-delimited chunk that is empty after the skeleton
+calls `flush()`, which ends the run of single letters. Examples of such chunks: punctuation
+only, a lone combining mark, a tatweel, an emoji.
+
+PoC — all **ACCEPTED**:
+- `K . a b s o Live`
+- `K - a b s o Live`
+- `K ̃ a b s o Team` (U+0303 on its own chunk)
+- `ك ـ ا ب س و لايف` (tatweel chunk)
+- `K 🔥 a b s o Team`
+
+The first four still read as the brand.
+
+Fix: skip empty chunks (`continue` without `flush()`) when they sit between single-letter chunks.
+Only a chunk containing a multi-letter word should end a run.
+
+**SEC-034 — Low — CWE-1007 — owner A3: the v1.2.6 script relaxations re-admit look-alikes that the mixed-script rule used to catch.**
+
+1. **Decimal digits of any script are now script-neutral.** Zeros that render as a circle but are not in `confusables.txt` now pass inside a Latin word:
+   - `kabs᱐` (Ol Chiki U+1C50)
+   - `kabs᭐` (Balinese U+1B50)
+   - `kabs꧐` (Javanese U+A9D0)
+   - `kabs꯰` (Meetei Mayek U+ABF0)
+   - `kabs༠` (Tibetan U+0F20)
+   - `kabs᠐` (Mongolian U+1810)
+
+   An exhaustive scan of every Nd block found **57 zeros accepted in `kabs<0>`**. Most do not look like "o"; the ones above do. Under v1.2.5 all of them were `invalid_format` (mixed script).
+
+   Fix: make neutral only ASCII digits plus the digits SEC-032 needed (Arabic-Indic U+0660–0669, Extended Arabic-Indic U+06F0–06F9). Alternatively, map every Nd zero to `o` and every Nd one to `l` in the supplement.
+
+2. **Latin + Han/Hangul/Bopomofo/Katakana in one word.** CJK strokes and circles that look like Latin letters pass:
+   - `kabsㅇ` (Hangul ieung U+3147), `kabsᄋ` (U+110B)
+   - `admㅣn` (Hangul I U+3163)
+   - `admㄧn` (Bopomofo I U+3127)
+   - `adm丨n` (Han U+4E28)
+   - weaker: `kabsロ`, `kabs口`, `admエn`
+
+   Fix: add these to the supplement: ㅇ ᄋ ᆼ → o; ㅣ ᅵ ㄧ 丨 → l; optionally ロ 口 → o. Or allow the Latin + CJK combination only when the Latin part of the word is not a prefix or suffix of a reserved term.
+
+**Info — new false positives from joining (rare):**
+- A brand straddling a hyphen inside a compound name is now reserved: `Ali Kab-Sonia`, `Abakab-Sorensen`.
+- Initials joined by rule (c) (`S. U. P. Port`, `Ad Min`) were already reserved before v1.2.6.
+- No false positives found on `J R R Tolkien`, `محمد و علي`, `O.K. Computer`, `K. Abson`, `Ka B. Sonnet`, `D. J. Kab`, `A. D. Minh`, `Ad-Minh Tran`, `Sup-Porter`.
+
+### 9.3 Final PP-21 verdict: **PASS**
+
+- Every finding from KL-007c and KL-007d (SEC-024, SEC-030, SEC-031, SEC-032) is fixed with evidence, and there are no new false positives on real names.
+- The two new residuals (SEC-033, SEC-034) are Low. Each needs a deliberately crafted string, and their fixes are a few lines each; the reserved-term rule is also defence in depth behind moderation and verified badges.
+- I recommend fixing them before public launch, but they do not gate PP-21.
+
+Regression tests: `apps/api/test/security/kl007e-v126.e2e-spec.ts`. Every SEC-030/031 spoof above is rejected; the SEC-032 names and no-false-positive names are accepted; Latin + Cyrillic/Greek in one word is still invalid. No tests encode SEC-033/034.
