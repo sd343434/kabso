@@ -5,7 +5,9 @@ Status: **two passes.**
 - **§7 reviews the build after KL-047** (`27bfd44`). It records what KL-047 fixed, the remaining
   gaps, KL-047's design decisions, and the prioritized next changes.
 
-**Read §7 for the current state.**
+- **§8 reviews the live room** (KL-034, `b3c1911`), captured in KL-035b.
+
+**Read §7 for the current Home and Live hub, and §8 for the live room.**
 
 Author: A5 (product design), with A1. Date: 2026-10-16.
 
@@ -507,3 +509,169 @@ See [README §8.5](review/2026-10-16-home-live/README.md#85-states-not-captured-
 
 Reference comparison remains **pending — no authorized references supplied** (§6). No
 similarity to any other app is claimed.
+
+---
+
+## 8. Live room (KL-034, `b3c1911`)
+
+### Provenance and labels
+
+**Screenshots:** [`review/2026-10-16-live-room/`](review/2026-10-16-live-room/). The README
+there has the steps.
+
+**Builds**
+- **App:** `b3c1911`, which contains KL-034 `c683631`.
+- **API:** the same commit, run on the **existing schema**. `prisma migrate deploy` was not
+  run, because the new grant-only migration needs an admin bootstrap this environment doesn't
+  have.
+- **API boot:** it logged a non-enforced runtime-role warning; no other behaviour difference
+  was observed.
+
+**Abbreviations:** `R/` = `review/2026-10-16-live-room/local-api/` (local API data; `-simulated`
+and `-proxy-502` stems are simulated conditions). `RF/` = `review/2026-10-16-live-room/fixtures/`
+(test fixture renders).
+
+### 8.1 Screenshots by state
+
+| State | Label | Files |
+| ----- | ----- | ----- |
+| Room opened from a hub card: video-unavailable stage, host pill with Follow, title chip, chat notice, gift button | Local API data | `R/room.live` (no category); the category chip shows in `R/room.ended-while-open` ("# Local test: Games") |
+| Follow tapped (real API) | Local API data | `R/room.followed` |
+| Host sheet ("Following"), then unfollowed (real API) | Local API data | `R/room.host-sheet`, `R/room.host-sheet-unfollowed` |
+| Gift sheet, non-dimming, Send disabled | Local API data | `R/room.gifts` |
+| Loading | Simulated (held request) | `R/room.loading` |
+| Ended, stale card | Local API data | `R/room.ended-stale-card`, `R/room.ended-reopened` |
+| Ended while the room is open | Local API data | `R/room.ended-while-open` (393): still shows live |
+| Not found (deep link) | Local API data | `R/room.not-found-deep-link` |
+| Offline | Simulated | `R/room.offline-simulated` |
+| Error 5xx | Simulated (proxy 502) | `R/room.error-proxy-502` |
+| Video playing, chat, viewers, share, PK split, multi-guest, weak / reconnecting / camera off | Test fixture | `RF/room.populated`, `room.pk.split`, `room.multi_guest`, `room.state.*` |
+
+The states that could not be captured, and why, are in the
+[room README](review/2026-10-16-live-room/README.md#states-not-captured-from-the-running-app).
+
+### 8.2 KL-034 deviations from the layout spec, recorded
+
+| Deviation | Spec | What KL-034 does | Assessment |
+| --------- | ---- | ---------------- | ---------- |
+| PK bar position | HL-L8: score bar in its own 24 dp band directly under the header, above the panes | The bar is drawn **on the top edge of the panes** (`RF/room.pk.split`); the timer sits just below it on the seam | Acceptable. It saves vertical space and still mirrors in RTL (the host score is at the right in ar). Fixture-only until PK exists |
+| Host second line colour | HL-L2: 12/400 `textSecondary` | **White** ("0 followers" / "لا متابعين") | Agreed. Secondary grey on the translucent pill over unknown video would fail contrast |
+| Empty chat | HL-L5: one welcome system line "Welcome to {host}'s live" | An **honest notice**: "Chat isn't open yet. Messages will appear here.", and **no composer** | Agreed. A welcome line would imply chat works |
+| Action bar | HL-L7: comment pill + share + gift | **Gift only**: no comment pill (no chat API), no share (no room-link domain, B7) | Agreed in principle (no dead controls, VG-31). The lone bottom-end button leaves the bottom-start empty (RR-08) |
+| Ended overlay | HL-L10: overlay with Follow and "Back to live rooms" | The overlay **covers the header**, so the close button is dimmed and not the exit; "Back to live rooms" is the only way out | Acceptable as a decision. Users who reach for the top close button find it inert (RR-06) |
+
+### 8.3 What works well
+
+- **Honest at every layer.**
+  - Video says "Live video isn't available yet".
+  - Chat says it isn't open.
+  - Gifts show Kabso's own preview art with no prices and a disabled Send with the reason.
+  - There is no viewer count without presence.
+  - Nothing implies a feature that doesn't exist.
+- **Real data end to end.**
+  - Host name, follower count, title and category come from the API.
+  - Follow and unfollow round-trip through the real API (0 → 1 → 0 followers in the captures),
+    with the chip collapsing after Follow.
+- **Header.**
+  - The two-line host pill with a white second line is legible.
+  - The close button is 32 dp in a 48 dp target.
+  - The title chip and the category chip (`#`) sit under the pill.
+- **Sheets do not dim the stage (HL-L6).**
+  - The gift sheet keeps the room visible above it.
+  - Gift names sit under 4 clear tiles.
+  - The reason text is at the start, and Send at the end.
+- **Failure states.**
+  - Not found, offline and error each have a specific icon, title and body.
+  - Offline and error offer Try again plus "Back to live rooms".
+  - Error is red-tinted, while offline and not-found are neutral.
+- **Ended overlay.** It names the host, shows the API's real end reason ("The host ended this
+  live."), and offers Follow when the viewer doesn't follow yet.
+- **RTL.**
+  - The pill moves to the right and close to the left.
+  - The info chips start at the right.
+  - The chat notice is right-aligned.
+  - The gift grid runs right to left (قلب first at the right).
+  - Send sits at the left with the reason text at the right.
+  - A Latin title in an Arabic room ("Learning Arabic calligraphy, lesson 3") renders correctly
+    in its chip when it fits.
+
+### 8.4 Weaknesses
+
+1. **An open room never learns it ended (RR-01).** `R/room.ended-while-open`: 15 s after the
+   host ended the room through the API, the screen still shows the room as live. Only closing
+   and reopening shows "This live has ended". There is no refresh, polling or realtime event
+   while the room is open.
+2. **Host sheet is narrow (RR-02).**
+   - In the web build it is about 190 dp wide (content-hugging), floating in the lower middle,
+     not a full-width sheet like the gift sheet.
+   - It looks unfinished next to the gift sheet.
+   - It covers the chat notice partly.
+   - Device rendering is unverified.
+3. **Follow chip touches the text (RR-03).**
+   - In the host pill the red Follow chip butts against the name and follower line with no gap,
+     in both directions (`R/room.live.*`, a crop at 393/360).
+   - At 360 in ar, "Nora Test" runs directly into "متابعة +".
+4. **Toggle wording (RR-04).** The host-sheet toggle reads "Following / تتابعه" with a check.
+   Tapping it unfollows immediately with no "Unfollow" wording or confirmation.
+5. **Loading is nearly blank (RR-05).** `R/room.loading` shows a pill skeleton on a gradient,
+   with no progress cue or title skeleton. After a second it reads as frozen.
+6. **Inert close on the ended overlay (RR-06).** The close button is visible but dimmed under the
+   overlay; the deviation is accepted, but the affordance is confusing.
+7. **Empty stage (RR-07).** While video is unavailable, the screen is a dark gradient with a
+   small centred message and a chat notice. The stage message is small for the space it owns. This is expected until B1, but the room has no visual focus.
+8. **Unbalanced action bar (RR-08).** A single gold gift button at the bottom end; the bottom
+   start is empty. The chat notice bubble sits above it at 75 % width.
+9. **Fixture chat still records joins as history (RR-09).** In `RF/room.populated`, "رنا joined"
+   is a chat line. The VG-29 entry banner is not implemented, so this matters only when chat
+   arrives.
+10. **Title chip bidi risk (RR-10).** The room title chip and category chip use the same
+    `Text` pattern as the hub cards (RG-04). Titles that fit render correctly. A title long
+    enough to truncate would show the same misplaced ellipsis. This was not observed with the
+    current local titles.
+
+### 8.5 Typography, spacing, density
+
+| Area | Observation |
+| ---- | ----------- |
+| Host pill | `KMetrics.hostPillHeight` 40, `followChipHeight` 28. Bold white name over a white second line. Gap between text and chip: 0 (RR-03) |
+| Info chips | Pill chips on scrim. The `#` category chip follows the title chip |
+| Stage message | Small icon, bold title and a two-line secondary body, centred at about 45 % of height |
+| Chat notice | A scrim bubble, `chatWidthFactor` 0.75. It wraps to 2 lines at 393 en and fits on 1 line in ar |
+| Gift sheet | About 30 % of the height. Tiles 4 across with names under them. Disabled Send at the end |
+| Ended overlay | Large avatar, name, title, reason line, Follow (primary), Back (secondary), centred |
+
+### 8.6 Gaps
+
+Paths are under `apps/mobile/lib/`.
+
+| ID | Gap | Severity | Files / widgets | Evidence |
+| -- | --- | -------- | --------------- | -------- |
+| RR-01 | An open room does not detect that it ended | Medium | `features/live/application/live_room_provider.dart` (`liveRoomProvider`, no refresh), `features/live/live_room_screen.dart` (`LiveRoomScreen`, `_RoomView`) | `R/room.ended-while-open` |
+| RR-02 | Host sheet renders content-width (about 190 dp), not full width | Medium | `features/live/live_room_screen.dart` (`showHostSheet`, `_HostSheet`: the outer `Container` has no width or stretch) | `R/room.host-sheet.*` |
+| RR-03 | Follow chip has no gap from the name and follower text | Low | `features/live/presentation/widgets/live_room_scaffold.dart` (`KHostPill`, `_FollowChip`) | `R/room.live.*` |
+| RR-04 | Unfollow is a one-tap "Following" toggle with no Unfollow wording | Low | `features/live/live_room_screen.dart` (`_FollowButton`), `l10n/app_{en,ar}.arb` | `R/room.host-sheet.*` |
+| RR-05 | Loading state is nearly blank | Low | `features/live/live_room_screen.dart` (`_LoadingRoom`), `live_room_scaffold.dart` (`KHostPillSkeleton`) | `R/room.loading.*` |
+| RR-06 | Ended overlay leaves an inert, dimmed close button (accepted deviation; affordance issue) | Low | `features/live/presentation/widgets/live_room_states.dart` (`KRoomEndedOverlay`), `live_room_scaffold.dart` (`KLiveRoomScaffold` cover layer) | `R/room.ended-*` |
+| RR-07 | Stage message is small; no focal point while video is unavailable | Low | `live_room_states.dart` (`KRoomVideoUnavailable`, `_StageMessage`) | `R/room.live.*` |
+| RR-08 | Gift-only action bar is unbalanced | Low | `live_room_scaffold.dart` (`KRoomActionBar`) | `R/room.live.*` |
+| RR-09 | Join notices are chat history (VG-29 entry banner missing) | Low (fixture-only today) | `features/live/presentation/widgets/live_chat_overlay.dart` (`KLiveChatOverlay`) | `RF/room.populated.*` |
+| RR-10 | Title and category chips share the RG-04 bidi truncation risk | Low | `live_room_scaffold.dart` (`KRoomInfoRow`, `_InfoChip`) | not observed (titles fit) |
+| RR-11 | Covers and avatars absent (RG-03): every host is an initial letter in pill, sheet and overlay | High (blocked on uploads, D44) | `live_room_scaffold.dart` (`KHostPill`), `live_room_states.dart` (`KRoomEndedOverlay`) | all `R/*` |
+
+### 8.7 Prioritized changes
+
+| # | Pri | Gap | Change | Acceptance criterion |
+| - | --- | --- | ------ | -------------------- |
+| L1 | P0 | RR-01 | While the room is open, re-request `GET /live/rooms/{id}` on a bounded interval (e.g. the heartbeat interval) and on app resume, until realtime events exist | With the room open, ending it through the API shows the ended overlay within one interval (≤ 15 s locally). Widget test with a fake repository switching LIVE → ENDED. No request loop while the screen is closed |
+| L2 | P0 | RR-02 | Make the host sheet full width (match the gift sheet) | At 393 and 360 the sheet spans the screen width minus 0 dp, with corners at the top only. Golden `room.host_sheet` ar/en × 393/360 |
+| L3 | P1 | RR-03 | Add a `sm` gap between the pill text and the Follow chip; keep ≥ 8 visible name characters at 360 | The crop at 360 ar/en shows ≥ 8 dp between the text and the chip. The existing `host_pill_width_test` is extended |
+| L4 | P1 | RR-04 | In the host sheet show "Unfollow / إلغاء المتابعة" as the action when following (or a confirm step) | The sheet's button label states the action that happens on tap. Widget test |
+| L5 | P1 | RR-05 | Loading: add a title-chip skeleton and the stage spinner after 300 ms | `R/room.loading` re-capture shows a visible progress cue. Reduce motion = static skeleton |
+| L6 | P2 | RR-06 | Ended overlay: either keep the close button active above the overlay, or hide it entirely | No visible-but-inert control on the ended overlay (A5 sign-off on the capture) |
+| L7 | P2 | RR-07 | Stage message: 48 dp icon and 18/600 title (match the hub states), placed at the optical centre | Stage message legible at arm's length; consistent with the KL-047 composed states |
+| L8 | P2 | RR-10 | Apply the RG-04 fix (N1) to `KRoomInfoRow` too | A long Latin title in ar truncates with a trailing "…". Golden |
+| L9 | P2 | RR-09 | Entry banner for joins (VG-29) when chat arrives | Per VG-29 |
+| — | — | RR-08, RR-11 | Revisit when chat/share exist (RR-08) and when uploads ship (RR-11, D44) | — |
+
+**Reference comparison: pending — no authorized references supplied.** The owner's reference
+image is not in this repository and was not used. No similarity to any other app is claimed.
