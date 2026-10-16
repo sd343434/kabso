@@ -97,13 +97,14 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | DONE — APPROVE WITH CONDITIONS (`6a504eb`): API black-box 1,392/1,393 (the failure is QA-001), real app against the local API 5/5, Flutter 639/639; QA-001/002 → KL-046 contract patch, QA-003 (offline state) → KL-035a gap list | KL-037, KL-038 | A1 |
 | KL-035a | Home + Live review package | A1 + A5 | P0 | DONE — before (`04ffd09`, 92 PNGs) + after KL-047 (`27bfd44`, 102 PNGs), real app in Chromium; `docs/design/KABSO_LIVE_VISUAL_REVIEW.md` §7 (gaps RG-01..19, next changes N1–N12) | KL-038 | owner |
 | KL-047 | Owner-directed polish of Home (feed) + Live discovery | A2 | P0 | INTEGRATED — merge of `f5fb4f0`; CTO re-run: format/analyze ✅, 695/695 tests, 50 goldens changed or added. Supersedes VG-03/HL-H6 compact top-third states and VG-10 (LIVE badge now on cards); search hidden (`FeedTabsScaffold.searchAvailable`) until a search API exists | KL-038 | A1, A5, A6 |
-| KL-048 | Contract v1.4: media uploads (avatar + room cover; provider-agnostic S3-compatible presigned upload, validation, moderation hook; disabled until owner approves provider/cost) and optional user country (ISO 3166-1) + `country` discovery filter / Countries & Regions section | A4 | P0 | IN_PROGRESS | D44 | A1, A7 |
+| KL-048 | Contract v1.4: media uploads, countries, SEC-039/040, heartbeat headroom | A4 | P0 | APPROVED (D45) on branch `a4/kl-048-contract-v1.4` @ `24a1b35`; lint valid. Merges **together with** the KL-049 implementation (the API contract tests would fail otherwise) | D44 | A1, A7 |
+| KL-049 | API: implement v1.4: media module (S3-compatible adapter for Cloudflare R2, disabled), image processing, moderation gate (`none` → owner-only), countries, SEC-039 hygiene data, cleanup jobs | A3 | P0 | IN_PROGRESS — branched from the contract branch | KL-048 | A1, A6, A7 |
 - deliberate states with working actions; owner empty-state copy; retry re-requests; offline state (QA-003);
 - LIVE badge on cards (owner; reverses VG-10); category on cards;
 - search hidden until a search feature exists; no phase copy; no fabricated content | A2 | P0 | IN_PROGRESS | KL-038 | A1, A5, A6 |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | DONE — PASS WITH CONDITIONS (`bfa0d6d`): SEC-035 Medium, SEC-036 Medium, SEC-037 Low, SEC-038 Info → KL-045 | KL-037 | A1 |
 | KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | DONE — merged, approved (D43); lint valid (2 known warnings) | KL-040 | A1, A7 |
-| KL-045 | Implement v1.3.1: SEC-035 batched sweeper/no writes on list, SEC-036 Unicode 17 hygiene, SEC-037, SEC-038, QA-002 | A3 | P0 | INTEGRATED — merge of `4af9512`; CTO re-run: lint/format/typecheck/build ✅, unit 713/713, e2e 460/460 (40k stale rooms: list median 10.7 ms, no writes). Pending: A7 re-test, PP-32 load test | KL-046 | A7 |
+| KL-045 | Implement v1.3.1: SEC-035 batched sweeper/no writes on list, SEC-036 Unicode 17 hygiene, SEC-037, SEC-038, QA-002 | A3 | P0 | INTEGRATED — merge of `4af9512`; CTO re-run: lint/format/typecheck/build ✅, unit 713/713, e2e 460/460 (40k stale rooms: list median 10.7 ms, no writes). A7 KL-040b PASS (`0b90bb4`): SEC-035..038 FIXED; SEC-035 cleared from the security side (100k stale rooms: list median ≤ 8.4 ms, no writes). New SEC-039 Low, SEC-040 Info → KL-048 contract. Pending: PP-32 load test | KL-046 | A7 |
 
 ### Mandatory release blockers (run alongside, never skipped)
 
@@ -237,6 +238,16 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D42 | 2026-10-16 | KL-037 review decisions:
 | D43 | 2026-10-16 | Contract v1.3.1 approved:
 | D44 | 2026-10-16 | **Owner supplied a reference image:** a BIGO LIVE store marketing composite. It is kept **outside the repo** (public, D40) and treated as low-resolution marketing material, not a screen capture, so no measurements are taken from it. Owner decisions:
+| D45 | 2026-10-16 | Contract v1.4.0 approved, with these owner answers:
+- **Storage:** Cloudflare R2. No account is created and nothing is activated until the owner supplies credentials and approves the cost.
+- **Moderation:** no provider yet, so uploads stay visible to their owner only (`PENDING`); `allow_all` stays dev-only.
+- **Country names:** CLDR 48 names unchanged (including PS). XK excluded by default.
+
+CTO decisions:
+- Accept the extra tightening of inner spaces (SEC-039 family).
+- Accept the IVD 2022-09-13 pin; KL-049 verifies it against the latest published release.
+- Image processing runs in a bounded, sandboxed path; A7 reviews it.
+- Merge the contract only together with its implementation | Uploads stay off in production until provider credentials, a moderation decision and an A7 review exist |
 1. Add avatar and room-cover uploads. The storage provider is to be chosen; an S3-compatible adapter is built and stays disabled until the owner approves the provider, cost and credentials.
 2. Start KL-034, the live room redesign, following the reference's patterns: full-bleed video, host pill with follow, viewer avatars, chat, gifts.
 3. Add a Countries & Regions discovery section. The user chooses their country (optional); location is never inferred.

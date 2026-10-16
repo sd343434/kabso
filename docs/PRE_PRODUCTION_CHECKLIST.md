@@ -29,8 +29,9 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | -- | --------- | ---- | ----------- | ------ |
 | PP-20 | Real email delivery (SMTP/provider, SPF/DKIM) — required by verify-first registration and password reset | B2 | A8 | ⛔ |
 | PP-21 | displayName Unicode rules incl. ZWNJ/ZWJ, length, zalgo, reserved terms (contract v1.2.3) | KL-017, KL-024, KL-025 | A6 + A7 | ✅ A7 KL-007e PASS (`5b773ab`): SEC-024/030/031/032 fixed with evidence; no false positives on ordinary names |
-| PP-27 | Live discovery hardening from KL-040: SEC-035 (stale-sweep scalability, must be fixed and load-tested before `LIVE_HOSTING_ENABLED=true`), SEC-036 (invisible/format characters in names and titles), SEC-037, SEC-038 | KL-045, KL-046 | A7 | ⛔ |
+| PP-27 | Live discovery hardening from KL-040: SEC-035 (stale sweep), SEC-036, SEC-037, SEC-038; plus KL-040b residuals SEC-039 (Low, hidden variation-selector channel) and SEC-040 (Info) | KL-045, KL-048 | A7 | ⏳ SEC-035..038 FIXED and re-tested (KL-040b `0b90bb4`); SEC-035 cleared from the security side, but `LIVE_HOSTING_ENABLED=true` still needs PP-32 and B1. SEC-039/040 open |
 | PP-26 | displayName hardening residuals: SEC-033 (empty chunk breaks single-letter joining) and SEC-034 (non-ASCII digit zeros and CJK strokes as Latin look-alikes) | KL-026 | A7 | ⛔ Low, before public launch |
+| PP-28 | Media uploads: storage provider credentials (B12), moderation provider and illegal-content process (B13), A7 review of the upload and image-processing pipeline, before `MEDIA_UPLOADS_ENABLED=true` | KL-048, KL-049 | A7 + owner | ⛔ |
 | PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ✅ A7 PASS (KL-007c/d); A6 PASS incl. QA-011 fix (KL-006d) |
 | PP-23 | App identity, privacy/terms URLs, support contact | B7 | owner | ⛔ |
 | PP-24 | Brand assets | B8 | owner | ⛔ |
