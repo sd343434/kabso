@@ -530,3 +530,218 @@ Residual notes (Info, owner A2/A8):
 production or public exposure:
 - **SEC-011** (least-privilege DB role, KL-013).
 - The scheduled Low items **SEC-022**, **SEC-023** and **SEC-003a** (CTO).
+
+---
+
+## 7. v1.2 review (KL-007c, 2026-10-16) — candidate `ed84dd4`
+
+Scope: contract v1.2 / v1.2.1 / v1.2.2 as implemented. That covers:
+- verify-first registration (B9 / D24, PP-02);
+- the SEC-022 / SEC-023 / SEC-003a fixes;
+- displayName v1.2.2 (PP-21);
+- `PATCH /me` and the mobile changes (PP-22).
+
+How I tested:
+- Worktree merged `claude/amazing-tesla-5aj3um` at `ed84dd4`.
+- Resources: `kabso_sec_test`, Redis db 13, API on :3102. Each server was stopped by its recorded PID after checking its working directory.
+- Temporary files are only in the scratchpad `sec/` directory: `v1.sh`–`v4.sh`, `timing.py`, `dn.mjs`, `run-api.sh`.
+- Suites: API unit 233/233; API e2e 166/166 (incl. 41 in `test/security/`, 3 consecutive green runs of that directory).
+- `pnpm audit --prod`: no known vulnerabilities. gitleaks (`detect --source .`): no leaks.
+
+### 7.1 Verify-first registration (PP-02)
+
+| Check | Result | Evidence |
+| ----- | ------ | -------- |
+| Status / body / headers, registered vs new email | **Equal** | Both return `202 {"status":"verification_pending"}`, `Content-Length: 33`, the same ETag `W/"21-4Ssjy…"`. Headers are identical apart from Date and X-Request-Id (`v1.sh`). |
+| Timing, `register`, real Argon2 | **Equal** | 80 + 80 interleaved samples in random order. Existing email: median 47.1 ms (p25 44.7, p90 56.9). New email: median 47.7 ms (p25 44.8, p90 53.0). Δmedian −0.6 ms; Mann-Whitney z = +0.45, p = 0.65 (`timing.py 80`). |
+| Timing, `register/resend` and `register/verify` | **Sub-ms difference** (SEC-028) | First-time rate-limit keys on both sides, loopback.<br>• resend, live pending vs unknown: 2.8 vs 3.0 ms median, z = −3.09, p = 0.002.<br>• verify, live pending + wrong code vs unknown email: 5.9 vs 6.2 ms, z = −2.51, p = 0.012.<br>This reveals *pending* state only, not account existence (registered vs unknown email on verify: p = 0.43). |
+| Rate-limit behaviour | **Equal** | `register:email` (3/h) and `register:ip` are consumed before branching and are keyed on the request email, so a registered and an unknown email get the same limits. |
+| Verify error uniformity | **Uniform** | These all return the identical `422 {"code":"TOKEN_INVALID","message":"Token is invalid."}`: unknown email, registered email without a pending, wrong code, and the correct code after the attempts are exhausted. A malformed code (7 digits, fullwidth digits) → 400 `invalid_format`, identical for every email. |
+| Mail side channel | **OK** | The account-exists notice goes to the owner in the account's locale, at most 1/h (Redis `SET NX`). The code mail goes to the requester's address. The attacker sees neither. |
+| Code generation | **OK** | `crypto.randomInt(0, 10^8)`, zero-padded (`registration.service.ts:372-374`), uniform CSPRNG. |
+| Code storage | **OK** | HMAC-SHA-256 over `email\ncode` under `HKDF-SHA256(RATE_LIMIT_KEY_SECRET, salt "kabso", info "registration-code/v1")` (`:80-82`, `:109-111`). The DB row contains neither the code nor a plain SHA-256 of it (regression test). Key separation from the rate-limit HMAC is by HKDF `info`, which is cryptographically sound. Operational coupling is noted in SEC-029. |
+| Attempt counting under concurrency | **OK** | Atomic `UPDATE … WHERE attempts < 5 … RETURNING` claims an attempt before comparing (`:213-218`). PoC: 40 parallel wrong codes → exactly 4 `wrong_code` + 1 `attempts_exhausted` for that pending, the row is deleted, and the correct code afterwards → 422. Regression test added. |
+| Two concurrent verifies | **OK** | 10 parallel verifies with the correct code → `1 × 201, 9 × 422`, exactly one user row (`createAccount` claims the row with `deleteMany` inside the transaction). |
+| Register vs verify race | **OK** | Verify (correct code) in parallel with register (same email, new username) → verify 201, register 202 (it took the existing-account branch), 1 user, 0 pending. |
+| Redis down | **Fail-closed** | `register`, `register/verify` and `register/resend` → 503 `SERVICE_UNAVAILABLE`; no pending row is written (`v4.sh`). |
+| Background mail task | **OK** | `BackgroundTasks.run` defers to `setImmediate`, logs failures through `safeErrorLog`, and is awaited on shutdown. |
+| LogMailSender in production | **OK** | `MAIL_TRANSPORT=log` is still refused by the production schema (re-run). As a second layer, codes and links are scrubbed when `isProduction` (`log-mail-sender.ts`, `mail.spec.ts` "never logs the code in production"). |
+
+Brute-force math (defaults):
+- **Per pending:** 5 checks.
+- **Per email:** fresh codes come from `register` (3/h per email) and `register/resend` (3/h per email; resend also resets the attempts). That is ≤ 6 codes × 5 = **≤ 30 checks/h per targeted email**. P(success) ≈ 3 × 10⁻⁷ per hour, ≈ 2.6 × 10⁻³ per year of continuous effort, and every code triggers a mail to the real owner.
+- **Untargeted** (any address): an attacker IP can create 5 pendings/h (register limit), i.e. ≤ 25 checks/h. With 1,000 IPs that is 2.5 × 10⁴ checks/h → about 2 accounts per year that carry someone else's address as "verified". The real owner can still take such an account over through `password/forgot`.
+- Acceptable; see SEC-027 for a cheap hardening.
+
+### 7.2 Findings
+
+**SEC-024 — Medium — CWE-1007 (Insufficient Visual Distinction of Homoglyphs) — owner A3 (+ CTO for the terms list): reserved-term check bypassed by uppercase homoglyphs and missing confusables.**
+
+Where: `confusables.ts:128-129`. The skeleton lowercases *before* mapping. Uppercase Greek and
+Cyrillic letters that look exactly like Latin capitals lowercase to letters that are not in
+`CONFUSABLES`, so the mapping never sees them.
+
+PoC (`dn.mjs`, run against the built candidate) — all **ACCEPTED**:
+- Uppercase homoglyphs: `ADΜIN` (Greek Μ U+039C), `ADМIN` (Cyrillic М U+041C), `KAΒSO` (Greek Β U+0392), `ADMIΝ` (Greek Ν U+039D).
+- Lowercase look-alikes missing from the table: `kabsσ` (σ), `kabsօ` (Armenian U+0585), `kabsⲟ` (Coptic), `kabs໐` (Lao zero), `ᴋabso` (U+1D0B), `kabꜱo` (U+A731), `ᏦABSO` (Cherokee), `ꓗABSO` (Lisu).
+- Arabic: `كابسۆ` (U+06C6 for و), `ػابسو` (U+063B for ك).
+
+The controls still work: fullwidth, Cyrillic а, spaced, KabsoFan, keheh, tatweel, ZWJ, presentation forms, `adrnin`, combining marks → `reserved_term` (regression tests added for these).
+
+Impact: staff or brand impersonation in a live-streaming app (scams such as "ADΜIN: send coins to verify").
+
+Fix:
+1. Map before *and* after case folding, or follow UTS #39 exactly (NFD → confusables mapping on the original case → NFD; then casefold).
+2. Generate `CONFUSABLES` from `confusables.txt` instead of a hand-picked subset. Vendor the file with a pinned SHA-256 (it is ~600 kB of data; a build script can produce a compact JSON for Latin/Greek/Cyrillic/Arabic/Armenian/Cherokee/Lisu targets).
+3. Add the UTS #39 §5.2 mixed-script restriction ("Moderately Restrictive": a single word may not mix Latin with Greek/Cyrillic, or Arabic with other scripts). This closes most of the long tail without an exhaustive table.
+
+Assessment of the hand-written subset: the reasons given (no maintained npm package, unicode.org unreachable from the build environment) are factual. The algorithm structure is sound, and applying the same function to the input and to the terms is correct. But the subset is too small and the case-ordering bug defeats it with standard capital-letter homoglyphs. A vendored data file with a checksum is the right fix — a package is not required.
+
+**SEC-025 — Low — CWE-204 (Observable Response Discrepancy) — owner A3 / CTO-contract: pending-registration email oracle via the username check.**
+
+Where: `users.service.ts:198-210`. `isUsernameTaken(username, exceptEmail)` ignores a live
+pending registration that belongs to the request's own email.
+
+PoC (`v1.sh`): `carol@example.com` has a pending registration holding username `carol01`.
+- `register(guess@…, carol01)` → 409 `USERNAME_TAKEN`
+- `register(carol@example.com, carol01)` → 202
+
+The 202 confirms that this email is mid-registration with that username. The attacker's request
+also **replaces** Carol's pending registration, so her code becomes invalid. Usernames of accounts
+are not affected (an account's username is taken for every email, including its own; verified).
+
+Fix:
+- Do not special-case the same email. Treat a username held by *any* live pending registration as taken, except when the request carries the same email **and** the same username — and make that case also replace the row silently (the response is 202 either way).
+- Or evaluate username availability *after* the email branch and return 202 for any email whose pending registration already holds that username.
+
+**SEC-026 — Low — CWE-400 / business logic — owner A3 + CTO-contract: indefinite username squatting without owning a mailbox; targeted sign-up DoS.**
+
+Where: `registration.service.ts:279-284`. `resend` sets `expiresAt = now + 30 min` and resets
+`attempts`.
+
+PoC: the pending registration for `carol01` had `expires_at` 09:09:11.677. After `resend` it was
+09:09:13.845 with `attempts = 0`. One resend every 25 minutes (limit 3/h per email) keeps a
+username reserved forever, with any made-up address. The username stays unavailable to everyone
+else, including `users/username-availability`.
+
+Related: `register:email` (3/h) is shared by the address owner and an attacker. An attacker who
+spends the 3 slots for a victim's address (also replacing the victim's pending, see SEC-025)
+makes the owner's own `register` return 429 for that hour.
+
+Fix:
+- Cap a pending registration's total lifetime (e.g. `created_at + 30 min`, or at most 2 h); resend should not extend it.
+- Count replacements per email separately from the owner's resend.
+- Optionally do not reserve the username until the first code check succeeds (the contract's anti-duplicate goal is still met by the unique index at verify).
+
+**SEC-027 — Low — CWE-307 — owner A3: no per-email budget for verify attempts.**
+
+Only `register_verify:ip` (10/15 min) applies. Per email the attempt budget is bounded only
+indirectly, through `register`/`resend` replacements (≤ 30 checks/h, §7.1).
+
+Fix: add a per-email verify budget (e.g. 15 checks / 24 h, counting failures) and alert on
+`auth.registration.verify_failed` bursts per email.
+
+**SEC-028 — Info — CWE-208 — owner A3: sub-millisecond timing differences on `register/resend` and `register/verify` reveal whether a pending registration exists.**
+
+Measured on loopback: Δmedian 0.2–0.3 ms, p ≤ 0.012 with 80 samples per side. Internet jitter makes
+this impractical, and SEC-025 already leaks pending state more directly. It does **not** reveal
+account existence.
+
+Optional fix: do the same Redis/DB work on both branches (e.g. a dummy `updateMany` for unknown
+emails), or move all of resend's work into the background task, as `register` already does.
+
+**SEC-029 — Info — owner A3 / A8: code key derived from `RATE_LIMIT_KEY_SECRET`.**
+
+The HKDF separation is correct, but the coupling has operational consequences:
+- Rotating the rate-limit key silently invalidates every pending code (≤ 30 min impact).
+- A non-production process without the variable falls back to a random per-process key (`app-config.ts`), so multi-replica staging cannot verify codes issued by another replica.
+
+Fix: document both effects in DEPLOYMENT, or introduce `REGISTRATION_CODE_KEY_SECRET` (required in production).
+
+**SEC-022 (re-test) — PARTIAL — Low — CWE-287 — owner CTO-contract + A3.**
+
+PoC (`v2.sh`):
+- Thief rotations 2 / 5 / 10, then the victim presents RT0 → session `REFRESH_REUSE`; the thief's next refresh → 401. Audit records `rotationsAgo` 2 / 5 / 10. **Fixed for ≤ 10.**
+- 11 or 12 rotations → the victim's RT0 → 401 but the session stays **live** and the thief keeps rotating. Eleven rotations took 172 ms and stay within the 60/15 min refresh limit.
+
+Bounded history therefore still lets a thief evade detection at negligible cost.
+
+Fix options:
+- Embed a monotonically increasing generation in the token (`<sid>.<gen>.<secret>`). Any presented token with `gen < current` and a valid HMAC/hash is reuse. Only the generation counter needs to be stored.
+- Or enforce a minimum refresh interval (e.g. ≥ 60 s between rotations), so 11 rotations take ≥ 10 min — longer than a typical victim refresh gap.
+
+A regression test pins the ≤ 10 behaviour.
+
+**SEC-023 (re-test) — PARTIAL — Low — CWE-645 / CWE-204 / CWE-362 — owner A3 + CTO-contract.**
+
+PoC (`v3.sh`, defaults, `TRUST_PROXY=loopback`):
+- **Fixed (owner lockout from trusted sources):** 25 failures from 25 IPs → `20 × 401, 5 × 429`. The owner from a previously successful source with the correct password → **OK**.
+- **Still open:**
+  - The owner from a *new* source → 429 (owners logging in on a new network stay locked for up to 15 min).
+  - The email↔account oracle remains: after the bucket is exhausted, `alice@example.com` → 429 while an unregistered email → 401.
+- **Race (A3's non-atomic peek/increment) — exploitable:**
+  - 60 parallel wrong passwords from 60 IPs against a fresh account (limit 20 failures) → `39 × 401, 10 × 429, 11 × 503`.
+  - 39 password guesses were actually checked (39 `auth.login.failure` rows), about **2×** the limit in one burst. Only the Argon2 queue cap (4 + 16) bounded it.
+  - The overshoot scales with the number of API replicas (each has its own Argon2 cap), and the burst can be repeated every window.
+- **Trusted-source sharing:** a source address is shared behind CGNAT/NAT. An attacker on the owner's trusted IPv4 bypasses the account bucket and is limited only by IP+account (10/15 min).
+
+Fix:
+- Reserve before checking: `INCR` the account bucket atomically when the attempt starts (refuse if the result exceeds the max); `DECR` it again after a successful login. This keeps "failures only" semantics without a race.
+- Narrow the trusted source to source **and** device (a signed device id stored with the session) rather than the IP alone.
+
+**SEC-003a (re-test) — PARTIAL — Low — CWE-348 — owner A3.**
+
+`env.schema.ts:218-235` now refuses hop counts > 3 and `/0` CIDRs. PoC (production schema):
+- These **are still accepted**:
+  - `0.0.0.0/1,128.0.0.0/1` and `::/1,8000::/1` — they cover every address.
+  - `::ffff:0:0/96` — trusts every IPv4 client on a dual-stack listener.
+- Correctly accepted: `3`, `1`, `10.0.0.0/8`. Refused: `true`, `4`, `0.0.0.0/0`, `::/0`, `0.0.0.0/00`.
+
+Fix: refuse IPv4 prefixes shorter than /8 and IPv6 prefixes shorter than /32, and `::ffff:0:0/96` itself, in production. Or compute the union and refuse configurations that cover public address space.
+
+**displayName — other checks (PP-21):**
+- **Word-boundary design gaps (Info, CTO-contract):** these are accepted by design (v1.2.2 rule b covers only prefixes/suffixes): `TheKabsoTeam`, `فريقكابسوالرسمي` ("Kabso official team" written as one word), `OfficialSupport` (two reserved terms glued together), `admin1`. Consider "brand anywhere inside a word" for the two brand terms, which have few false positives, and splitting on Latin case changes (camelCase).
+- **Bidi marks (Info):** U+200E LRM, U+200F RLM and U+061C ALM are accepted (only overrides and isolates are banned). They cannot reorder text the way overrides can, but they can make two names render identically. Strip them, or ban them outside Arabic-script context.
+- **DoS:** fine. Worst case is 4.0 ms per call for a 100 kB combining-mark string. The 100 kB body limit applies first, and the code-point check runs before grapheme segmentation. Regression test with a 250 ms bound.
+
+### 7.3 `PATCH /me` and mobile (PP-22)
+
+| Check | Result | Evidence |
+| ----- | ------ | -------- |
+| `PATCH /me` auth | **OK** | No token → 401 `AUTH_UNAUTHENTICATED`. Rate limit 30/h per user. |
+| `PATCH /me` mass assignment | **OK** | `updateMeSchema = z.strictObject({ locale })`. `role`, `email`, `username`, `displayName`, `__proto__` → 400 `unknown_field`; `locale:"fr"` → `invalid_value`; `[]` → `invalid_type`. DB afterwards: `role = USER`, email/username unchanged. Only `user_profiles.locale` is written (`users.service.ts` `updateLocale`). Regression test added. |
+| Code-entry paste sanitization | **OK** | `code_field.dart` `normalizeCodeDigits` keeps ASCII digits and maps Arabic-Indic and Extended Arabic-Indic digits to ASCII; everything else is dropped (spaces, NBSP, bidi marks, letters). The value is capped at 8 digits. A paste that is not exactly 8 digits is flagged `_pasteInvalid` and not auto-submitted. The field is forced LTR. The server independently enforces `^[0-9]{8}$`. |
+| Locale sync | **OK** | `locale_sync.dart`: `PATCH /me` only with a value from `AppLanguage`. It stores only the boolean `pref.localeSyncPending` in shared_preferences. 400 drops the retry; other failures retry later. |
+| Registration draft | **OK (Info)** | `registration_flow.dart` keeps email, username, displayName and **password** in Riverpod memory only, while the flow is open. It is never persisted and is cleared on success or exit. Acceptable; consider clearing the password from the draft once the code screen is shown, if "Change email" does not need it. |
+| Debug gallery unreachable in release | **OK** | `app_router.dart:66-72`: the route is registered only `if (!kReleaseMode)`. `kReleaseMode` is a compile-time constant, so the route and `ComponentGalleryScreen` are tree-shaken. The only other entry point, `settings_screen.dart:115-122`, is also `!kReleaseMode`. The screen asserts `!kReleaseMode`. The route is not in `publicAuthRoutes`, so even in debug it needs a session. |
+| Test fixtures not in `lib/` | **OK** | No `flutter_test`, `test/` or `helpers/` imports, `contract_fixtures` or fake HTTP adapters in `lib/`. The only sample data lives in `features/debug` (debug-only, tree-shaken) and in `live_view_data.dart` (data classes, no credentials). No hard-coded emails or passwords in `lib/` (grep). |
+
+### 7.4 Controls verified as effective (v1.2)
+
+- Constant register response, with equal Argon2 cost and equal latency (statistically indistinguishable).
+- Uniform 422 on every verify failure.
+- CSPRNG 8-digit code, stored as an HKDF-keyed HMAC.
+- Atomic attempt claim (≤ 5 checks under 40-way concurrency).
+- Single account under 10-way concurrent verify.
+- Register/verify race safe.
+- Fail-closed without Redis.
+- Owner notice throttled; production log transport refused and scrubbed.
+- SEC-022 for ≤ 10 rotations.
+- SEC-023 failures-only counting and trusted-source bypass.
+- SEC-003a for `true`, `/0` and hop counts > 3.
+- `PATCH /me` strict schema plus auth.
+- displayName controls (fullwidth, single-script Cyrillic lowercase, spacing, brand prefix/suffix, Persian/Arabic variants, tatweel, joiners, presentation forms, marks); bounded DoS cost.
+- Mobile paste sanitization; release-only exclusion of the debug gallery.
+
+Regression tests added: `apps/api/test/security/kl007c-v12.e2e-spec.ts` (18 tests, all passing on `ed84dd4`).
+
+### 7.5 Verdicts
+
+| Package | Verdict | Conditions |
+| ------- | ------- | ---------- |
+| **PP-02** verify-first registration | **PASS WITH CONDITIONS** | B9 itself is met: account existence is not revealed through status, body, headers, timing or rate limits. Before public launch: fix SEC-025 (pending-email oracle) and SEC-026 (unbounded reservation via resend). SEC-027/028/029 to the backlog. |
+| **PP-21** displayName v1.2.2 | **FAIL (one Medium finding)** | SEC-024: trivial uppercase-homoglyph bypasses of the reserved terms (`ADΜIN`, `KAΒSO`) defeat the purpose of the rule. Re-test after the case-ordering fix plus a generated confusables table or a mixed-script restriction. Everything else in PP-21 passes. |
+| **PP-22** PATCH /me, locale, mobile | **PASS** | No findings. Info: shorten how long the password stays in the registration draft. |
+
+Carry-over (unchanged gate items): SEC-011 least-privilege DB role. SEC-022, SEC-023 and SEC-003a
+are PARTIAL (Low) and are documented above with their remaining fixes.
