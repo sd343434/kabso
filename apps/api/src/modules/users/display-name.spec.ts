@@ -179,12 +179,18 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
   });
 
   // Contract v1.2.1: whole words of the skeleton, plus brand prefix/suffix without separators.
-  it.each(['Badminton Club', 'Supporter', 'Staffordshire', 'Officially', 'Administrated'])(
-    'accepts reserved terms inside ordinary words: %s',
-    (name) => {
-      expect(check(name)).toBeNull();
-    },
-  );
+  it.each([
+    'Badminton Club',
+    'Supporter',
+    'Staffordshire',
+    'Officially',
+    'Administrated',
+    // v1.2.2: a brand split across words is not reserved.
+    'Kab Sonia',
+    'Abc Kab Sonite',
+  ])('accepts reserved terms inside ordinary words: %s', (name) => {
+    expect(check(name)).toBeNull();
+  });
 
   it.each([
     ['Kabso Live', 'Kabso Live'],
@@ -193,9 +199,14 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     ['Admin', 'Admin'],
     ['Arabic support', 'الدعم الفني'],
     ['Arabic moderator', 'مشرف'],
-    ['brand suffix', 'TheKabso'],
-    ['brand prefix', 'KabsoFan'],
-    ['Arabic brand suffix', 'فريقكابسو'],
+    ['brand suffix (b)', 'TheKabso'],
+    ['brand prefix (b)', 'KabsoFan'],
+    ['Arabic brand suffix (b)', 'فريقكابسو'],
+    // v1.2.2 rule (b) applied literally: one word starting with the brand is reserved.
+    ['brand prefix inside an ordinary-looking word (b)', 'Abc Kabsonite'],
+    ['spaced brand, whole name equals a term (c)', 'K a b s o'],
+    ['spaced non-brand term, whole name equals a term (c)', 'A d m i n'],
+    ['dotted term (c)', 'S.T.A.F.F'],
   ])('rejects whole-word reserved terms and brand prefix/suffix: %s', (_label, name) => {
     expect(check(name)).toBe('reserved_term');
   });

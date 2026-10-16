@@ -136,11 +136,13 @@ const NON_WORD = /[^\p{L}\p{N}]+/u;
 const NON_WORD_GLOBAL = /[^\p{L}\p{N}]+/gu;
 
 /**
- * Reserved-term rule (contract v1.2.1 §6), evaluated on the NFKC-casefolded confusable skeleton:
- *  - a reserved term equals a WHOLE WORD of the name (words are split on any non-letter/digit),
- *    so "Kabso Live", "kabso_official", "Admin" match but "Badminton" or "Supporter" do not;
- *  - or the name with all separators removed STARTS or ENDS with a brand term, so spaced or
- *    glued spellings such as "K a b s o" and "TheKabso" match.
+ * Reserved-term rule (contract v1.2.2 §6), evaluated on the NFKC-casefolded confusable skeleton
+ * split into words on any non-letter/digit:
+ *  (a) a reserved term equals a WHOLE WORD ("Kabso Live", "kabso_official", "Admin");
+ *  (b) ANY SINGLE WORD starts or ends with a brand term ("TheKabso", "KabsoFan");
+ *  (c) the whole name with separators removed EQUALS a reserved term ("K a b s o").
+ * Substrings inside ordinary words ("Badminton", "Supporter") and brand fragments split across
+ * words ("Kab Sonia") are allowed.
  */
 export function containsReservedTerm(
   name: string,
@@ -148,14 +150,12 @@ export function containsReservedTerm(
   brandTerms: readonly string[] = [],
 ): boolean {
   const skeleton = confusableSkeleton(name);
-  const words = new Set(skeleton.split(NON_WORD).filter(Boolean));
-  const termWords = reservedTerms
-    .map((term) => confusableSkeleton(term).replace(NON_WORD_GLOBAL, ''))
-    .filter(Boolean);
-  if (termWords.some((term) => words.has(term))) return true;
+  const words = skeleton.split(NON_WORD).filter(Boolean);
+  const toWord = (term: string) => confusableSkeleton(term).replace(NON_WORD_GLOBAL, '');
+  const terms = new Set(reservedTerms.map(toWord).filter(Boolean));
+  const brands = brandTerms.map(toWord).filter(Boolean);
 
-  const joined = skeleton.replace(NON_WORD_GLOBAL, '');
-  return brandTerms
-    .map((term) => confusableSkeleton(term).replace(NON_WORD_GLOBAL, ''))
-    .some((brand) => brand.length > 0 && (joined.startsWith(brand) || joined.endsWith(brand)));
+  if (words.some((word) => terms.has(word))) return true; // (a)
+  if (words.some((word) => brands.some((b) => word.startsWith(b) || word.endsWith(b)))) return true; // (b)
+  return terms.has(words.join('')); // (c)
 }
