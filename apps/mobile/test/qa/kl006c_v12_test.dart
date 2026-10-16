@@ -53,8 +53,6 @@ Future<ProviderContainer> _pumpApp(
   return ProviderScope.containerOf(tester.element(find.byType(KabsoApp)));
 }
 
-const _skipQa011 = bool.fromEnvironment('QA_SKIP_011', defaultValue: true);
-
 void main() {
   group('PP-22 first launch follows the device locale (full app)', () {
     for (final (device, expected, dir) in [
@@ -250,10 +248,6 @@ void main() {
               'pending=$pending',
         );
       },
-      skip: _skipQa011
-          ? 'QA-011 (owner A2): LocaleSync._push drops a change made while a '
-                'PATCH is in flight; remove this skip with the fix (D16)'
-          : null,
     );
   });
 }

@@ -102,6 +102,10 @@ abstract final class KMetrics {
   /// Viewer avatars shown in the room's viewer strip before the count.
   static const int viewerStripMax = 3;
 
+  /// QA-009: below this screen width the viewer strip drops its avatars
+  /// (count chip only) so the host name keeps ≥ ~8 visible characters.
+  static const double viewerAvatarsMinScreenWidth = 430;
+
   /// Disabled content opacity (§9.8 / §9.5: 38 %).
   static const double disabledOpacity = 0.38;
 }
