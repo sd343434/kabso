@@ -58,7 +58,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-030 | Design sprint 1/6 — capture current UI (headless render of the real app, 393×852 @3x, ar/en) → `docs/design/audit/2026-10-16-before/` | A2 | P0 | DONE `94a299d` | — | A1 |
 | KL-031 | Design sprint 2/6 — `docs/design/BIGO_INSPIRED_GAP_ANALYSIS.md` (current vs intended, location, priority, acceptance criteria; no invented reference measurements) | A5 | P0 | DONE `bd79f0a` | KL-030 | A1 |
 | KL-032 | Design sprint 3/6 — Home + Live room layout decisions presented to owner | A5 + A1 | P0 | DONE — owner answered 2026-10-16 (D36) | KL-031 | owner |
-| KL-033 | Design sprint 4/6 — Home **feed** redesign + Live-tab discovery hub (per D36; production: structure + honest states; populated layout via fixtures in goldens/gallery only) | A2 | P0 | IN_PROGRESS | KL-032 | A5, A6 |
+| KL-033 | Design sprint 4/6 — Home **feed** redesign + Live-tab discovery hub (per D36; production: structure + honest states; populated layout via fixtures in goldens/gallery only) | A2 | P0 | DONE — merged; CTO re-ran format/analyze/555 tests ✅; 58 goldens; after captures in `docs/design/audit/2026-10-16-after/` | KL-032 | A5, A6 |
 | KL-034 | Design sprint 5/6 — Live room redesign (video area, host, viewers, chat, gifts, PK, poor connectivity / no video / empty chat) | A2 | P0 | BACKLOG | KL-033 | A5, A6 |
 | KL-035 | Design sprint 6/6 — goldens ar/en at 393 + 360, before/after review package for owner approval | A2 + A1 | P0 | BACKLOG | KL-034 | owner |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
@@ -93,7 +93,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | -- | ---- | ----- | --- | ------ | ---------- | --------- |
 | KL-036 | Contract v1.3: live discovery, categories, room metadata + host lifecycle (go-live/end/heartbeat behind `LIVE_HOSTING_ENABLED`), public profile, follow; DB design note | A4 | P0 | DONE — merged, approved (D38) | — | A1, A7 |
 | KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | BACKLOG | KL-036 approved, KL-013 merged | A1, A6, A7 |
-| KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | BACKLOG | KL-033, KL-036 | A1, A5, A6 |
+| KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | IN_PROGRESS | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | BACKLOG | KL-037 | A1 |
 
