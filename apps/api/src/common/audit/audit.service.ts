@@ -21,6 +21,12 @@ export enum AuditAction {
   PASSWORD_RESET_REQUESTED = 'auth.password.reset_requested',
   PASSWORD_RESET = 'auth.password.reset',
   SESSION_REVOKED = 'auth.session.revoke',
+  // Contract v1.3 (CONVENTIONS §10.3). Heartbeats are not audited.
+  LIVE_ROOM_START = 'live.room.start',
+  /** Host end or suspension; `metadata.reason` carries the end reason. */
+  LIVE_ROOM_END = 'live.room.end',
+  /** Ended for a stale heartbeat (sweeper or a read path). */
+  LIVE_ROOM_TIMEOUT = 'live.room.timeout',
 }
 
 export interface AuditEntry {
@@ -64,5 +70,11 @@ export class AuditService {
   /** Writes inside the caller's transaction (a failure aborts the transaction). */
   async recordIn(tx: Prisma.TransactionClient, entry: AuditEntry): Promise<void> {
     await tx.auditLog.create({ data: toRow(entry) });
+  }
+
+  /** Writes several entries inside the caller's transaction. */
+  async recordManyIn(tx: Prisma.TransactionClient, entries: readonly AuditEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    await tx.auditLog.createMany({ data: entries.map(toRow) });
   }
 }

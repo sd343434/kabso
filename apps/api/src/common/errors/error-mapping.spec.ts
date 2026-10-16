@@ -7,6 +7,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { AppException } from './app-exception.js';
 import { ERROR_HTTP_STATUS, ErrorCode } from './error-codes.js';
 import { mapException, toEnvelope } from './error-mapping.js';
@@ -30,6 +32,9 @@ describe('ErrorCode', () => {
         'RATE_LIMITED',
         'INTERNAL_ERROR',
         'SERVICE_UNAVAILABLE',
+        'LIVE_ROOM_ALREADY_ACTIVE',
+        'LIVE_ROOM_ENDED',
+        'LIVE_HOSTING_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -48,7 +53,22 @@ describe('ErrorCode', () => {
       RATE_LIMITED: 429,
       INTERNAL_ERROR: 500,
       SERVICE_UNAVAILABLE: 503,
+      LIVE_ROOM_ALREADY_ACTIVE: 409,
+      LIVE_ROOM_ENDED: 409,
+      LIVE_HOSTING_UNAVAILABLE: 503,
     });
+  });
+
+  it('matches the code table in docs/contracts/CONVENTIONS.md §4 (codes and HTTP statuses)', () => {
+    const conventions = readFileSync(
+      fileURLToPath(new URL('../../../../../docs/contracts/CONVENTIONS.md', import.meta.url)),
+      'utf8',
+    );
+    const table = Object.fromEntries(
+      [...conventions.matchAll(/^\| (\d{3}) \| `([A-Z_]+)` \|/gm)].map((m) => [m[2], Number(m[1])]),
+    );
+    expect(Object.keys(table).length).toBeGreaterThanOrEqual(18);
+    expect({ ...ERROR_HTTP_STATUS }).toEqual(table);
   });
 });
 

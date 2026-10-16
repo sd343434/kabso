@@ -85,22 +85,42 @@ function longestMarkRun(chars: readonly string[]): number {
   return longest;
 }
 
-/** Returns the first rule violated by an already-normalized display name, or null. */
-export function displayNameIssue(
+export type TextHygieneIssue = 'too_short' | 'too_long' | 'invalid_format';
+
+/**
+ * The character-hygiene part of the displayName rules, shared with live-room titles
+ * (CONVENTIONS §10.3): emptiness, banned characters, length in graphemes and code points, joiner
+ * placement, zalgo cap and "at least one letter, digit or emoji". Expects a normalized value.
+ * It deliberately excludes the identity rules (reserved terms, confusables, mixed scripts).
+ */
+export function textHygieneIssue(
   value: string,
-  reservedTerms: readonly string[],
-  brandTerms: readonly string[] = [],
-): DisplayNameIssue | null {
+  limits: { readonly maxGraphemes: number; readonly maxCodePoints: number },
+): TextHygieneIssue | null {
   if (value.length === 0) return 'too_short';
   if (BANNED.test(value)) return 'invalid_format';
   const chars = [...value];
-  if (chars.length > DISPLAY_NAME_MAX_CODE_POINTS || graphemeCount(value) > DISPLAY_NAME_MAX_GRAPHEMES) {
+  if (chars.length > limits.maxCodePoints || graphemeCount(value) > limits.maxGraphemes) {
     return 'too_long';
   }
   if (!joinersWellPlaced(chars)) return 'invalid_format';
   // Counted on the decomposed form so precomposition (NFC) cannot hide a stacked mark.
   if (longestMarkRun([...value.normalize('NFD')]) > MAX_CONSECUTIVE_COMBINING_MARKS) return 'invalid_format';
   if (!LETTER_OR_DIGIT.test(value) && !EMOJI.test(value)) return 'invalid_format';
+  return null;
+}
+
+/** Returns the first rule violated by an already-normalized display name, or null. */
+export function displayNameIssue(
+  value: string,
+  reservedTerms: readonly string[],
+  brandTerms: readonly string[] = [],
+): DisplayNameIssue | null {
+  const hygiene = textHygieneIssue(value, {
+    maxGraphemes: DISPLAY_NAME_MAX_GRAPHEMES,
+    maxCodePoints: DISPLAY_NAME_MAX_CODE_POINTS,
+  });
+  if (hygiene) return hygiene;
   // Reserved terms first (when configured), so a homoglyph spoof reports `reserved_term`; the
   // schema stage (no terms) reports the same spoof as a mixed-script `invalid_format`.
   if (containsReservedTerm(value, reservedTerms, brandTerms)) return 'reserved_term';

@@ -1,4 +1,4 @@
-# Kabso Live — API Specification (contract v1.2)
+# Kabso Live — API Specification (contract v1.3)
 
 The machine-readable contract is [`contracts/openapi.yaml`](contracts/openapi.yaml); transport,
 error, auth and rate-limit rules are in [`contracts/CONVENTIONS.md`](contracts/CONVENTIONS.md).
@@ -82,6 +82,16 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 | `GET /me` | bearer | per user | `Me` |
 | `PATCH /me` | bearer | 30/h per user + per user | v1.2 (KL-018): strict body `{"locale":"ar"\|"en"}` → 200 `Me`; the stored locale is used for account mail (notice, password reset, security mail). |
 | `GET /users/username-availability` | public | per IP | malformed → 400; reserved, taken by an account or held by a live pending registration → `available:false` |
+| `GET /users/{username}` | bearer | 300/15 min per user (`users:profile`, replaces the default bucket) | v1.3 (KL-037). `PublicProfile`. One query filtered on `status = 'ACTIVE'`; malformed, unknown, reserved, pending-only, SUSPENDED and DELETED → the identical 404 `NOT_FOUND` (no 400). Counts are `count(*)` of follow rows; `isFollowing` false when `isSelf`; `liveRoomId` = the user's LIVE room with a fresh heartbeat (a stale one met here is ended). Never email, role, status, locale or createdAt. |
+| `PUT /users/{username}/follow` | bearer | 60/h + 300/day per user, **shared** with DELETE (`follow:h`, `follow:d`; no-op calls count; rejections logged) | v1.3. One transaction: the caller and the target are locked `FOR SHARE` and must be ACTIVE (target missing/suspended/deleted/malformed → 404); self → 400 `username`/`invalid_value`; private target → 403 `AUTH_FORBIDDEN`; `INSERT … ON CONFLICT DO NOTHING` → 200 `{isFollowing:true, followerCount}`. No audit per edge. |
+| `DELETE /users/{username}/follow` | bearer | shared with PUT | v1.3. As PUT, but no 403 for private targets; missing edge → 200 `{isFollowing:false, followerCount}`. |
+| `GET /live/config` | bearer | per user | v1.3. `{hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds}` from `LIVE_HOSTING_ENABLED`, `LIVE_HEARTBEAT_INTERVAL_SECONDS`, `LIVE_HEARTBEAT_STALE_SECONDS`. |
+| `GET /live/categories` | bearer | per user | v1.3. `{data:[LiveCategory]}` (no `page`): active rows by `sortOrder`, `slug`; at most 100. Empty until categories are created (none seeded). `name`: primary subtag of the first `Accept-Language` entry if `ar`/`en`, else the caller's stored locale. |
+| `GET /live/rooms?tab&category&cursor&limit` | bearer | 300/15 min per user (`live:list`, replaces the default bucket) | v1.3. Keyset pages over LIVE rooms with a fresh heartbeat and an ACTIVE host; stale LIVE rooms are ended first (read path). Orders: `popular` viewerCount, startedAt, id (desc); `new`/`following` startedAt, id (desc). `category` filters every tab; unknown/inactive → 200 empty; malformed → 400 `category`. Cursor = base64url JSON payload `.` HMAC-SHA-256 tag (128 bit) under HKDF(`LIVE_CURSOR_KEY` or `RATE_LIMIT_KEY_SECRET`, info `live-cursor/v1`); bound to tab, category and (for `following`) the caller; any mismatch, bad tag, bad version or bad encoding → 400 `cursor`/`invalid_value`. The Following query joins `follows` (documented read-only exception). |
+| `POST /live/rooms` | bearer | 10/h and 30/day per user (`live:start:h`, `live:start:d`; counted before the hosting switch) | v1.3. Order: hosting switch (503 `LIVE_HOSTING_UNAVAILABLE`, no `Retry-After`) → strict body (`title` 1–80 graphemes / ≤ 160 code points with the displayName character-hygiene rules but no reserved-term/confusable/mixed-script rules; no `mode`) → verified email (else 403) → active `categorySlug` (else 400 `invalid_value`) → transaction: end the caller's stale LIVE room (`HEARTBEAT_TIMEOUT`), insert; the partial unique index `live_rooms_one_live_per_host` turns a fresh room or a parallel winner into 409 `LIVE_ROOM_ALREADY_ACTIVE`. 201 `LiveRoom`; audit `live.room.start`. |
+| `GET /live/rooms/{roomId}` | bearer | per user | v1.3. Also ENDED rooms; a stale LIVE room is ended and returned as ENDED/`HEARTBEAT_TIMEOUT` (`endedAt` = last heartbeat). Unknown, malformed or non-ACTIVE host → identical 404. |
+| `POST /live/rooms/{roomId}/heartbeat` | bearer | 12/min per user (`live:heartbeat`) | v1.3. Hosting switch first (503). `UPDATE … WHERE host = caller AND status = 'LIVE' AND fresh`; else: not the caller's / unknown / malformed → 404; caller's stale LIVE room → ended (`HEARTBEAT_TIMEOUT`) + 409 `LIVE_ROOM_ENDED`; ENDED → 409. 204. Not audited. |
+| `POST /live/rooms/{roomId}/end` | bearer | 30/h per user (`live:end`) | v1.3. Host only (else 404), idempotent (ENDED keeps reason and time), allowed while hosting is off. A room that is already stale ends as `HEARTBEAT_TIMEOUT`, otherwise `HOST_ENDED` with `endedAt` = now. 200 `LiveRoom`; audit `live.room.end` (`reason`). |
 
 ## Audit events
 
@@ -91,3 +101,22 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 \| `bad_password` \| `suspended`), `auth.login.rate_limited`, `auth.logout`, `auth.refresh.reuse`,
 `auth.refresh.invalid_secret` (CONVENTIONS §6 `refresh.invalid_secret`), `auth.email.verified`,
 `auth.password.reset_requested`, `auth.password.reset`, `auth.session.revoke`.
+v1.3: `live.room.start`, `live.room.end` (`metadata.reason`: `HOST_ENDED` | `HOST_SUSPENDED`),
+`live.room.timeout` (sweeper or read path; `actor_user_id` null), all with
+`target_type = 'live_room'`. Heartbeats and follow edges are not audited.
+
+## Live rooms: freshness, sweeper and account status (v1.3)
+
+- Fresh = `last_heartbeat_at > now − LIVE_HEARTBEAT_STALE_SECONDS` (45 s). "Now" comes from an
+  injectable `Clock` (system clock in production; tests move a fake clock instead of sleeping).
+- Stale LIVE rooms are ended (`HEARTBEAT_TIMEOUT`, `ended_at = last_heartbeat_at`) by an
+  in-process sweeper every `LIVE_SWEEP_INTERVAL_SECONDS` (15 s; safe on several instances) and
+  by every read path that meets one (list, room detail, profile `liveRoomId`, go-live, end,
+  heartbeat). Every transition is one `UPDATE … WHERE status = 'LIVE'`, so concurrent end,
+  timeout and suspension have exactly one winner, audited once.
+- `AccountLifecycleService` (no HTTP route yet: no admin API / account deletion in v1.3):
+  `suspend` sets SUSPENDED and ends the LIVE room with `HOST_SUSPENDED` (follows kept);
+  `softDelete` sets DELETED + `deleted_at` and deletes every follow row of the user in both
+  directions (cascades fire only on hard deletion); its LIVE room is hidden at once by the
+  ACTIVE-host filter and timed out by the sweeper. Ops procedures and the future admin/KL-014
+  flows must go through this service instead of updating `users.status` directly.

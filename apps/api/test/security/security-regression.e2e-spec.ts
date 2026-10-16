@@ -20,6 +20,9 @@ import { IS_PUBLIC_KEY } from '../../src/modules/auth/public.decorator.js';
 import { HealthController } from '../../src/modules/health/health.controller.js';
 import { MAIL_SENDER } from '../../src/modules/mail/mail-sender.js';
 import { UsersController } from '../../src/modules/users/users.controller.js';
+import { LiveController } from '../../src/modules/live/live.controller.js';
+import { FollowsController } from '../../src/modules/social/follows.controller.js';
+import { PublicProfileController } from '../../src/modules/users/profiles/public-profile.controller.js';
 import {
   buildTestConfig,
   CapturingMailSender,
@@ -84,7 +87,15 @@ function declaredRoutes(controllers: readonly (abstract new (...args: never[]) =
   return routes;
 }
 
-const CONTROLLERS = [AuthController, UsersController, HealthController] as const;
+const CONTROLLERS = [
+  AuthController,
+  UsersController,
+  HealthController,
+  // Contract v1.3 (KL-037): every new route requires a token.
+  LiveController,
+  FollowsController,
+  PublicProfileController,
+] as const;
 
 describe('KL-007 security regression', () => {
   let ctx: TestContext;
@@ -123,7 +134,9 @@ describe('KL-007 security regression', () => {
       expect(protectedRoutes.length).toBeGreaterThanOrEqual(5);
       for (const route of protectedRoutes) {
         const path = route.path.replace(/:[A-Za-z]+/g, '0192f1c2-0000-7000-8000-000000000000');
-        const res = await ctx.http[route.method.toLowerCase() as 'get' | 'post' | 'delete'](path).send({});
+        const res = await ctx.http[route.method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](
+          path,
+        ).send({});
         expect({ route: route.key, status: res.status, code: res.body?.error?.code }).toEqual({
           route: route.key,
           status: 401,

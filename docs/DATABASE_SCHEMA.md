@@ -96,6 +96,22 @@ ones of the same purpose), `created_at`. Indexes: `(user_id, purpose)`, `(expire
 identifiers), `ip`, `request_id`, `created_at`. Indexes: `(actor_user_id, created_at DESC)`,
 `(action, created_at DESC)`, `(target_type, target_id)`.
 
+### `live_categories`, `live_rooms`, `follows` (v1.3, KL-037)
+
+Migration `20261016123000_live_discovery`; design and column list in
+[`contracts/DB_PHASE2_DISCOVERY.md`](contracts/DB_PHASE2_DISCOVERY.md) (implemented as written).
+Owners: `live` module (`live_categories`, `live_rooms`), `social` module (`follows`). No seed
+data. CHECKs: `live_categories_slug_format`, `live_categories_name_{ar,en}_length`,
+`live_rooms_end_state`, `live_rooms_time_order`, `live_rooms_title_length`,
+`live_rooms_viewer_count_nonneg`, `follows_no_self_follow`. Partial indexes
+(`WHERE status = 'LIVE'`): `live_rooms_one_live_per_host` (UNIQUE), `live_rooms_live_popular_idx`,
+`live_rooms_live_new_idx`, `live_rooms_live_cat_popular_idx`, `live_rooms_live_cat_new_idx`,
+`live_rooms_live_heartbeat_idx`. They are hand-written in the migration **and** declared in
+`schema.prisma` with the Prisma 7.10 preview feature `partialIndexes` (predicate exactly as
+PostgreSQL stores it, `status = 'LIVE'::live_room_status`): without the declaration
+`prisma migrate dev` generates `DROP INDEX` for all six (verified in KL-037); with it,
+`migrate diff` and `migrate dev --create-only` report no change. Keep both in sync.
+
 ## Lookup paths → indexes
 
 | Lookup | Index |
@@ -109,6 +125,11 @@ identifiers), `ip`, `request_id`, `created_at`. Indexes: `(actor_user_id, create
 | sessions of a user, newest first | `sessions_user_id_created_at_idx` |
 | token by hash | `verification_tokens_token_hash_key` |
 | outstanding tokens of a user | `verification_tokens_user_id_purpose_idx` |
+| one LIVE room per host; host's LIVE room (`liveRoomId`) | `live_rooms_one_live_per_host` |
+| `tab=popular` / `new` / `following` keyset (± category) | `live_rooms_live_{popular,new,cat_popular,cat_new}_idx` |
+| stale-room sweep | `live_rooms_live_heartbeat_idx` |
+| whom a user follows (Following tab, `followingCount`, `isFollowing`) | `follows_pkey` |
+| followers of a user (`followerCount`) | `follows_followee_id_created_at_idx` |
 
 ## Database roles and rules for new migrations (SEC-011 / KL-013)
 

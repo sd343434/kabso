@@ -13,7 +13,11 @@ import { AccessTokenGuard } from './modules/auth/access-token.guard.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { LiveModule } from './modules/live/live.module.js';
+import { SocialModule } from './modules/social/social.module.js';
+import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { ClockModule } from './common/time/clock.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -32,8 +36,14 @@ export class AppModule {
         BackgroundTasksModule,
         MailModule,
         HealthModule,
+        ClockModule,
         UsersModule,
         AuthModule,
+        // v1.3. PublicProfileModule (GET users/:username) after UsersModule, so the static
+        // users/username-availability route is registered first.
+        LiveModule,
+        SocialModule,
+        PublicProfileModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
