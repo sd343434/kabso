@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/auth_redirect.dart';
@@ -10,6 +11,7 @@ import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
+import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
@@ -61,6 +63,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
       ),
+      // Debug/profile only; `kReleaseMode` is a compile-time constant, so
+      // the route and the gallery are tree-shaken out of release builds.
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugComponents,
+          builder: (_, _) => const ComponentGalleryScreen(),
+        ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(navigationShell: shell),
         branches: [

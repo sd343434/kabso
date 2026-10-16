@@ -177,6 +177,10 @@ openapi.yaml (`test/helpers/contract_fixtures.dart`); widget tests override prov
   flutter test --update-goldens test/goldens/live_components_golden_test.dart
   ```
 
+- Component gallery (debug/profile builds only): Settings → "Component gallery", or route
+  `/debug/components`. It is registered behind `!kReleaseMode`, so release builds contain
+  neither the route nor the screen.
+
 ## What cannot be built or verified here
 
 The authoring environment has no Android SDK and no Xcode (blocker **B6**): no APK/IPA builds,

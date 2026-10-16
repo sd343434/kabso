@@ -1,5 +1,8 @@
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
@@ -107,6 +110,16 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => _confirmLogout(context, ref),
           ),
+          // KL-022: developer entry to the component gallery (never in
+          // release builds).
+          if (!kReleaseMode)
+            ListTile(
+              key: const Key('settings.debug.components'),
+              leading: const Icon(Icons.widgets_outlined),
+              title: Text(l10n.debugComponentGallery),
+              onTap: () =>
+                  GoRouter.maybeOf(context)?.push(AppRoutes.debugComponents),
+            ),
         ],
       ),
     );
