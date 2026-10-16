@@ -7,6 +7,7 @@
 | Candidate tested | `b973d7b` (Merge KL-003), which contains KL-002 `f45b867`, KL-002-D1 `217cad6`, KL-004 and KL-005 |
 | Re-test | `3179be1` (KL-011 + KL-012 fixes, contract v1.1). See **§8**, which supersedes §4 and §7 for defect status. |
 | v1.2 re-test (KL-006c) | `ed84dd4` (contract v1.2 / v1.2.1 / v1.2.2, openapi 1.2.0). See **§9**. |
+| Fix confirmation (KL-006d) | `0051b3a` (contract v1.2.3 / v1.2.4 / v1.2.5). See **§10**. |
 | Contract | `CONVENTIONS.md` v1.0.3, `openapi.yaml` 1.0.0-phase1 |
 | Environment | Node 22.22.0, pnpm 10.28.0, PostgreSQL 16 (`kabso_qa_test`), Redis 7 (db 14), Flutter 3.47.7 / Dart 3.13.5. No Android SDK or Xcode. |
 
@@ -675,3 +676,124 @@ No file was edited or deleted.
 - PP-22 is verified except for **QA-011**, which A2 should fix before PP-22 is ticked.
 - QA-009 must be fixed before the live components are wired into production screens.
 - No Blocker or High defects.
+
+## 10. KL-006d — fix confirmation on `0051b3a` (2026-10-16)
+
+- **Integration:** `git merge --no-edit claude/amazing-tesla-5aj3um` fast-forwarded to **`0051b3a`** (contract v1.2.3 / v1.2.4 / v1.2.5).
+- **My earlier commit:** `c757e1b` is an ancestor.
+- **Resources:** `kabso_qa_test`, Redis db 14, API on :3101 (PID 32517, stopped by PID).
+- **Temp files:** `scratchpad/qa/` only.
+
+### 10.1 Gates (re-run by A6)
+
+| Gate | Result |
+| ---- | ------ |
+| API `prisma:generate` / `lint` / `format:check` / `typecheck` / `build` | all exit 0 |
+| API unit | **297/297** (20 files), as expected |
+| API e2e | **248/248** (12 files), as expected; migration `20261016085446_pending_total_attempts` applied |
+| Mobile `pub get`, `build_runner`, drift (`git status` empty), `dart format` | OK, 0 changed |
+| `flutter analyze` | "No issues found!" |
+| `flutter test` (as integrated) | **466 passed, 0 skipped**, as expected; the QA-011 test runs unskipped |
+| `flutter test` (+ new `test/qa/kl006d_test.dart`, 10 tests) | **476 passed, 0 skipped** |
+| `flutter test --tags golden` | **28/28** |
+| v1.2 black-box (`bb12.mjs` verify/names/locale) | **99/99** |
+| Adapted regression suite (`blackbox12.mjs`, `V11=1`) | **148/148** |
+| New v1.2.3/v1.2.4 black-box (`bb12d.mjs`) | **19/19** |
+| Timing, new vs existing email (N=40) | new mean 47.4 / median 46.1 ms; existing mean 48.1 / median 46.0 ms; Welch t −0.60. **No oracle.** |
+
+### 10.2 Defect verdicts
+
+| ID | Verdict | Evidence |
+| -- | ------- | -------- |
+| QA-009 | **FIXED** | See note 1. |
+| QA-010 | **FIXED** | See note 2. |
+| QA-011 | **FIXED** | See note 3. |
+| QA-012 | **FIXED** | Black-box: `"Staff Sergeant"` → 202, `"مشرف علي"` → 202. CONVENTIONS v1.2.4 drops `staff` and `مشرف`. Brand and other terms are still enforced (`"MyKabsoFan"`, `"Moderator Sam"`, `"فريق الإدارة"` → `reserved_term`). |
+
+**Note 1: QA-009.**
+- I reviewed all 12 regenerated goldens: `room_viewer` / `room_pk` / `room_gifts` × en/ar × phone (393 dp) / android (360 dp).
+- **Host name:** "Sara" / "سارة" is shown in full at 360 and 393 dp.
+- **Viewer strip:** only the count chip; the facepile is hidden below 430 dp.
+- **Unchanged:** mirroring (host pill at start, close at end), Latin digits, PK sides and the disabled gift Send all match the earlier review. There is no new clipping.
+- **New independent tests** use the long names "Nour Al-Huda Abdulrahman" / "نور الهدى عبد الرحمن" (`kl006d_test.dart`):
+
+  | Width | Visible host name | Viewer avatars |
+  | ----- | ----------------- | -------------- |
+  | 360 dp | ≥ 8 characters | hidden |
+  | 393 dp | ≥ 8 characters | hidden |
+  | 430 dp | ≥ 8 characters | shown |
+
+  No exceptions in any case.
+
+**Note 2: QA-010.**
+- Black-box: `"   "` and `" \t "` → 400 `{"field":"displayName","issue":"invalid_format"}`.
+- **A3's edit to my `kl006-contract.e2e-spec.ts` is CONFIRMED.** It is a one-line expectation change from `too_short` to `invalid_format`, with a comment citing v1.2.4. It matches the contract and the fix, and nothing else in the file changed (`git diff c757e1b 0051b3a`).
+
+**Note 3: QA-011.**
+- **My test change is CONFIRMED.** `git diff c757e1b 0051b3a -- apps/mobile/test/qa` shows the only change to `kl006c_v12_test.dart` is removing `_skipQa011` and the `skip:` argument.
+- The test passes unskipped.
+- **Fix review:** `LocaleSync._push` now queues the latest choice in `_next`. A call made while a PATCH is in flight sets the durable pending flag and returns. The loop then pushes the queued value, and the flag is cleared only when nothing newer is queued.
+- **New strict A6 tests:**
+  - en → ar mid-flight: server ends on `ar`, PATCH sequence `[en, ar]`, no pending flag, session user `ar`;
+  - en → ar → en: server ends on `en`, at most 3 PATCHes.
+
+### 10.3 Contract v1.2.3 behaviours from a user's view
+
+| Behaviour | Verdict | Evidence |
+| --------- | ------- | -------- |
+| Register 409 for a pending username → "Resend code" (KL-024m) | **PASS**, with QA-013 below | See note 4. |
+| Verify cap → 429 countdown | **PASS** | See note 5. |
+| 2 h pending lifetime | **PASS** | See note 6. |
+| Mixed-script names → `invalid_format` copy | **PASS** | See note 7. |
+
+**Note 4: the "Resend code" journey.**
+- **Server:** the same email plus its own pending username → **409 `USERNAME_TAKEN`**, byte-identical (minus requestId) to the 409 another email gets, so the email is not confirmed. The owner can continue with `register/resend` → verify 201.
+- **App (new A6 full-app test):**
+  1. register → code screen;
+  2. "Change email" → resubmit the same data → 409;
+  3. the reserved-username panel appears with the neutral hint, which never says the email has an account;
+  4. "Resend code" → `resendRegistrationCode` → code screen;
+  5. typing the 8 digits auto-submits → Home.
+- Editing the username hides the panel.
+
+**Note 5: verify cap.**
+- **Server:** 15 wrong verifies for one email across re-registrations → all 422; the 16th → **429 `RATE_LIMITED`, `Retry-After: 86396`** (24 h window).
+- **Attempts across resends:** 10 wrong attempts across 2 resends delete the pending registration, and the latest correct code → 422.
+- **App:** A2's `register_code_test` › "v1.2.3: attempts cap → 429 on verify blocks entry…" is green. The countdown uses `h:mm:ss` for waits over 1 h (`KFormat.countdown`).
+
+**Note 6: 2 h pending lifetime.**
+- A resend at creation + 1 h 59 min caps `expires_at` at creation + 2 h (60 s left), instead of adding 30 min.
+- After the cap passes, resend → 202 with **no new code**, and the last code → 422.
+- (A first version of this check hand-set `expires_at` beyond the cap in the DB. That state is unreachable through the API, so I replaced the check and do not count it as a defect.)
+
+**Note 7: mixed-script names.**
+- Black-box: `"аdmin"` (Cyrillic а) and `"Laylο"` (Greek ο) → `invalid_format`. Separate-script words (`"Layla ليلى"`) → 202. LRM, RLM and ALM → `invalid_format`.
+- **App:** `invalid_format` → `displayNameInvalid` ("This name has characters that can't be used…"), verified by the `kl006c_v12_test` server-issue tests in ar and en.
+- **Probe changes since §9.3:** Greek-ο "Kabsο" and "аdmin" now get `invalid_format` (mixed-script) instead of `reserved_term`. `كابسۆ` is now `reserved_term`, which closes the §9.8 informational gap.
+
+### 10.4 New finding
+
+**QA-013 (Low; A2 + A5 decision).** The "Resend code" option exists only while the in-memory registration draft matches the email and username.
+- **When it is missing:** after an app restart, or on another device, the owner of a pending username who registers again gets a plain "taken" state with no resend.
+- **Why it could be shown:** `register/resend` always returns a constant 202 and the hint copy is neutral, so offering the panel on every 409 (whenever an email is filled in) would reveal nothing.
+- **Workaround today:** choose another username, which replaces the pending registration, or wait for the 2 h cap.
+- **Repro (app):**
+  1. register;
+  2. kill the app;
+  3. reopen it and register with the same email and username.
+- **Expected:** "Resend code" is offered.
+- **Actual:** only "taken" is shown.
+
+### 10.5 Recommendation (KL-006d)
+
+**Approve.**
+- QA-009, QA-010, QA-011 and QA-012 are verified fixed by A6's own runs.
+- A3's and A2's edits to A6 test files are confirmed.
+- The v1.2.3 / v1.2.4 behaviours work from the user's view.
+- The regression is fully green: API 297/248; Flutter 476 with 0 skipped, plus 28 goldens; black-box 99 + 148 + 19.
+- QA-013 is Low and non-blocking.
+
+**Still NOT VERIFIED:**
+- release-build absence of `/debug/components`;
+- device runs;
+- KL-012-D1 (APK compile in CI).
