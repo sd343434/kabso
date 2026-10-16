@@ -9,7 +9,9 @@ rate-limit wording (§7, D42), the heartbeat 503 code (D41), body-parsing order 
 follow on private accounts (§10.6, QA-002); items marked *(v1.3.1)*. **v1.4.0 — proposed
 2026-10-16 (KL-048, owner decision D44), awaiting CTO approval**: image uploads for avatars and
 live-room covers behind `MEDIA_UPLOADS_ENABLED` (default off, no provider activated) and an
-optional, user-chosen country with a discovery filter (§11; items marked *(v1.4)*). Data design:
+optional, user-chosen country with a discovery filter (§11; items marked *(v1.4)*); also the
+KL-040b residuals SEC-039 (variation selectors and spaces in text hygiene, §6) and SEC-040 (path
+decoding before auth, §4), and the heartbeat headroom wording (§7). Data design:
 [`DB_PHASE2_DISCOVERY.md`](DB_PHASE2_DISCOVERY.md), [`DB_PHASE2_MEDIA.md`](DB_PHASE2_MEDIA.md).
 Changes require a contract-change proposal recorded in
 `docs/AI_WORKFORCE_BOARD.md` (Decision Log), a compatibility note, and coordinated updates to
@@ -78,6 +80,18 @@ All non-2xx responses use one envelope:
   type is not parsed at all; it reaches the route as a missing body and fails at the normal
   body-validation step of that route. Every check order written elsewhere in this contract
   (§10, `openapi.yaml`) starts **after** body parsing.
+  *(v1.4, SEC-040)* **Path decoding runs first too.** A path segment whose percent-encoding does
+  not decode (a malformed `%` escape, or bytes that are not valid UTF-8) is rejected by the
+  framework's URL decoding, before routing, authentication and rate limiting. The answer is 400
+  `VALIDATION_FAILED`, the constant envelope with no field-specific detail, even without a token.
+  This is documented, not changed:
+  - the response depends only on the request's own bytes, never on stored data or on the caller,
+    so it reveals nothing (the same argument as QA-001);
+  - the "malformed → 404" rules (`username`, `roomId`, `sessionId`, `uploadId`) apply to
+    segments that decode; an undecodable segment never reaches the route, so there is nothing to
+    hide yet;
+  - forcing a 404 would mean special-casing a framework error ahead of routing, for no security
+    gain. Clients never send such paths: they percent-encode valid UTF-8.
 - A suspended user's still-valid access token receives 401 `AUTH_UNAUTHENTICATED` on protected
   routes; `ACCOUNT_SUSPENDED` (403) is returned only by login and refresh.
 - Never leak stack traces, SQL, or whether an email exists (see AUTH codes below).
@@ -238,7 +252,12 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
      - `DerivedCoreProperties.txt` (`Default_Ignorable_Code_Point`);
      - `extracted/DerivedGeneralCategory.txt` (General_Category);
      - `PropList.txt` (`Variation_Selector`);
-     - Unicode Emoji 17.0 `emoji-sequences.txt` and `emoji-zwj-sequences.txt` (the RGI emoji set).
+     - Unicode Emoji 17.0 `emoji-sequences.txt` and `emoji-zwj-sequences.txt` (the RGI emoji set);
+     - *(v1.4, SEC-039)* `StandardizedVariants.txt` (UCD 17.0.0) and
+       `emoji/emoji-variation-sequences.txt` (UCD 17.0.0);
+     - *(v1.4, SEC-039)* the Ideographic Variation Database **2022-09-13**, file
+       `IVD_Sequences.txt` (every registered collection: Adobe-Japan1, Hanyo-Denshi, Moji_Joho,
+       MSARG, KRName, …). If a newer IVD release is published, moving to it is a contract patch.
 
      The API **vendors** these files: pinned, with their sha256 recorded next to them, as for
      `confusables.txt` (v1.2.5). It builds its tables from them and downloads nothing at runtime.
@@ -251,7 +270,15 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
      - it has `Default_Ignorable_Code_Point = Yes`;
      - it is on the **blank look-alike list**: the Hangul fillers U+115F, U+1160, U+3164, U+FFA0;
        U+2800 BRAILLE PATTERN BLANK; U+FFFC OBJECT REPLACEMENT CHARACTER; U+1D159 MUSICAL SYMBOL
-       NULL NOTEHEAD. The list is part of the contract; it changes only by contract patch.
+       NULL NOTEHEAD; *(v1.4, SEC-039)* U+16FE4 KHITAN SMALL SCRIPT FILLER. The list is part of the
+       contract; it changes only by contract patch;
+     - *(v1.4, SEC-039)* it is a **space other than** U+0020, U+00A0, U+202F or U+3000 (rule 4).
+       The v1.4 review of other filler-like or invisible-rendering characters found the rest
+       already rejected by rule 2: CGJ U+034F, Khmer U+17B4/U+17B5, Mongolian U+180E, the musical
+       format characters U+1D173–U+1D17A, the Egyptian hieroglyph format controls
+       U+13430–U+1343F, the shorthand format controls U+1BCA0–U+1BCA3, the invisible operators
+       U+2061–U+2064 and the interlinear annotation characters U+FFF9–U+FFFB (all `Cf` or
+       `Default_Ignorable_Code_Point`).
   3. **Allowed exceptions.** These are the only default-ignorable or format characters accepted:
      - **Inside an RGI emoji.** Any code point inside a grapheme cluster that is exactly one RGI
        emoji sequence (rule 1 data): ZWJ and VS16 in emoji sequences, and the tag characters
@@ -260,17 +287,39 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
      - **ZWNJ U+200C and ZWJ U+200D** elsewhere: the placement rule above (between two
        non-joiner, non-space characters).
      - **Variation selectors** elsewhere (`Variation_Selector = Yes`: U+180B–U+180D, U+180F,
-       U+FE00–U+FE0F, U+E0100–U+E01EF): only directly after a base character, meaning a code
-       point of General_Category `L*`, `N*`, `S*` or `P*` that rule 2 does not reject. So there is
-       at most one per base character, and never one at the start, after a space, after a mark, or
-       after another selector. This covers text or emoji presentation (U+2665 U+FE0E), CJK ideographic
-       variation sequences and Mongolian free variation selectors.
+       U+FE00–U+FE0F, U+E0100–U+E01EF). *(v1.4, SEC-039)* A selector is accepted only when the
+       pair (the code point directly before it, the selector) is **listed** in one of:
+       - `StandardizedVariants.txt`: standardized variation sequences, including the CJK
+         compatibility ideograph variants and the Mongolian free variation selectors;
+       - `emoji-variation-sequences.txt`: text or emoji presentation (U+FE0E / U+FE0F), e.g.
+         U+2665 U+FE0E;
+       - the IVD's `IVD_Sequences.txt`: registered ideographic variation sequences.
+
+       Any other selector is rejected, wherever it is, including after a Latin, Arabic or other
+       letter for which no sequence is registered. There is still at most one per base, and never
+       one at the start, after a space, after a mark or after another selector. The check runs on
+       the NFC form; the bases of these sequences are stable under NFC.
+
+       *Why:* before v1.4 one selector could follow any base character. With 256 selectors that is
+       an invisible one-byte-per-character channel in names and titles. A listed sequence chooses
+       between at most a few registered glyph forms of one base, which is a visible choice, not a
+       hidden byte.
+
+       *What CJK users keep:* with the IVD included, registered Japanese and Korean name variants
+       (e.g. 葛 U+845B U+E0100, the many registered forms of 邉 U+9089) stay valid. Only sequences
+       that are not registered in the pinned IVD release are refused; a newer IVD release needs a
+       contract patch.
   4. **Spaces.** Space separators (`Zs`: U+0020, U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and
-     U+3000 IDEOGRAPHIC SPACE) are handled as before. They are allowed inside a value and removed at
-     either end by trimming. They never count as a letter, and a joiner may not touch them. A value
-     made only of spaces is `invalid_format` (v1.2.4). U+3000 is **not** a blank look-alike: it is
-     the usual separator in CJK names. Line and paragraph separators (`Zl`, `Zp`) and U+180E are not
-     spaces and are rejected by rule 2.
+     U+3000 IDEOGRAPHIC SPACE) are removed at either end by trimming. They never count as a letter,
+     and a joiner may not touch them. A value made only of spaces is `invalid_format` (v1.2.4).
+     U+3000 is **not** a blank look-alike: it is the usual separator in CJK names. Line and
+     paragraph separators (`Zl`, `Zp`) and U+180E are not spaces and are rejected by rule 2.
+     *(v1.4, SEC-039)* **Inside** a value only U+0020, U+00A0 NO-BREAK SPACE, U+202F NARROW
+     NO-BREAK SPACE (Mongolian suffixes) and U+3000 are allowed. U+1680, U+2000–U+200A and U+205F
+     are rejected (`invalid_format`): they have no role in names or titles, and choosing among a
+     dozen look-alike widths is another invisible channel. Accepted residual: U+0020 versus U+00A0
+     is still an invisible one-bit choice per space; names are at most 50 graphemes, so this stays
+     tiny.
   5. **Letter test.** The "at least one letter, digit or RGI emoji" rule (v1.2.1) counts only code
      points that pass rule 2. Fillers and blank look-alikes **never count as letters**, whatever
      their General_Category in a later Unicode version. The RGI emoji test uses the rule 1 data.
@@ -287,13 +336,28 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
      flags; the Scotland tag-sequence flag;
      skin-tone modifiers; accented Latin; digits only; U+00A0 inside a name; non-blank braille
      patterns. Every RGI emoji sequence in the rule 1 data must pass after a name.
+     *(v1.4, SEC-039)* Also: Japanese names with registered IVS, e.g. `葛󠄀飾 北斎` (U+845B U+E0100)
+     and a name using a Moji_Joho sequence on 邉 U+9089 taken from the pinned IVD file;
+     ❤️ U+2764 U+FE0F and ♥︎ U+2665 U+FE0E inside and after a name; the keycaps `#️⃣` U+0023
+     U+FE0F U+20E3 and `1️⃣`; a digit with its listed text/emoji selector (U+0031 U+FE0E); a CJK
+     compatibility standardized variant from `StandardizedVariants.txt`; a Mongolian name whose
+     letter carries a listed free variation selector; U+202F inside a Mongolian name; U+3000 in
+     `山田　太郎`. Every sequence in the three rule 1 variation files must pass when its base is
+     valid on its own.
   8. **Must be rejected** (each alone and inside a name): U+3164, U+115F, U+1160, U+FFA0; U+00AD;
      U+034F; U+2061–U+2064; U+180E; any tag character outside an RGI emoji (including a black flag
      followed by non-RGI tags) and U+E0001; U+2028, U+2029; U+FFF9–U+FFFB; U+1D173–U+1D17A;
      U+2800; U+FFFC; U+1D159; private-use and unassigned code points; lone surrogates; U+17B4,
      U+17B5; U+1BCA0–U+1BCA3; U+0600–U+0605; a variation selector at the start, after a space,
      after another selector, or after a mark; everything rejected before v1.3.1.
-  9. **Tightening, applied on write.** The rules are checked when a value is submitted:
+     *(v1.4, SEC-039)* Also: U+16FE4 (alone, after a letter, inside a name); any selector
+     U+FE00–U+FE0F or U+E0100–U+E01EF after a Latin, Arabic, Cyrillic, Hebrew or Hangul letter for
+     which no sequence is listed (e.g. `a` U+FE00, `م` U+E0100); a selector after a CJK ideograph
+     that is not registered for that ideograph in the pinned IVD; U+2764 or U+2665 followed by a
+     selector other than U+FE0E/U+FE0F; a listed sequence followed by a second selector; U+1680,
+     U+2000–U+200A and U+205F inside a name or title.
+  9. **Tightening, applied on write.** *(v1.4)* The SEC-039 changes follow the same rule. The
+     rules are checked when a value is submitted:
      `POST /auth/register` (`displayName`) and `POST /live/rooms` (`title`). No endpoint edits a
      `displayName` in v1.3; a future one must apply these rules. Stored values that no longer pass
      are **not rewritten**: they stay readable and are returned unchanged on every read. A pending
@@ -318,7 +382,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
 | `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
-| `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
+| `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min, so the default gives 3× headroom for retries). *(v1.4)* The required minimum is **2×**: in production the API refuses to boot when `RATE_LIMIT_LIVE_HEARTBEAT_USER` allows fewer than 2 × the beats that `LIVE_HEARTBEAT_INTERVAL_SECONDS` produces in the window. So a shorter interval (e.g. 5 s = 12 / min) needs a larger bucket (≥ 24 / min). 3× is the default, 2× the floor |
 | `POST /live/rooms/{roomId}/end` *(v1.3)* | 30 / hour per user |
 | `PUT` + `DELETE /users/{username}/follow` *(v1.3)* | one shared bucket per user: 60 / hour and 300 / day; idempotent no-op calls count too (anti follow/unfollow churn) |
 | `POST /media/uploads` *(v1.4)* | 20 / hour and 60 / day per user; declared bytes ≤ `MEDIA_DAILY_BYTES_PER_USER` (default 100 MiB) / day per user; at most `MEDIA_MAX_PENDING_PER_USER` (default 5) uploads in `AWAITING_UPLOAD` per user (429, `Retry-After` = until the oldest expires). Counted **before** the `MEDIA_UPLOADS_ENABLED` check |
@@ -419,7 +483,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.2.7 | 2026-10-16 | KL-025 clarifications: small capitals are mapped before the first confusables pass (the Unicode table sends ᴍ→ʍ otherwise); separator/single-letter joining applies to all reserved terms, not only the brand ("Ad-min Ali" reserved). Accepted residual: mixed partial splits such as "Kabs o Live" are allowed (catching them would also block names like "Kab Sonia"); handled by moderation. | Clarification; no shape change. |
 | v1.3.0 | 2026-10-16 | **Approved (KL-036, D38).** Phase 2 slice 1 — live discovery (D37): `GET /live/config`, `GET /live/categories` (bounded, empty until admin-created), `GET /live/rooms?tab=popular\|new\|following&category&cursor&limit`, `GET /live/rooms/{roomId}`; host lifecycle behind `LIVE_HOSTING_ENABLED` (default off): `POST /live/rooms`, `POST /live/rooms/{roomId}/heartbeat`, `POST /live/rooms/{roomId}/end`; `GET /users/{username}` (`PublicProfile`), `PUT`/`DELETE /users/{username}/follow`. New codes `LIVE_ROOM_ALREADY_ACTIVE` (409), `LIVE_ROOM_ENDED` (409), `LIVE_HOSTING_UNAVAILABLE` (503) (§4); signed cursors and server-bounded unpaginated lists (§5); new rate limits (§7); table ownership (§8); rules in §10. Tables `live_categories`, `live_rooms`, `follows` (`DB_PHASE2_DISCOVERY.md`). | **Additive**: no existing path, schema or code changes. Mobile maps the three new codes (unknown codes already fall back) and dedupes pages by id. API (KL-037) needs KL-013 merged first. |
 | v1.3.1 | 2026-10-16 | KL-040 follow-ups (KL-046). (SEC-036) Text hygiene for `displayName` and live-room titles moves from a fixed list to rules over vendored Unicode 17.0.0 data: `Default_Ignorable_Code_Point`, General_Category Cc/Cf/Zl/Zp/Co/Cs/Cn and a blank look-alike list (Hangul fillers, U+2800, U+FFFC, U+1D159) are rejected. Exceptions: code points inside an RGI emoji (Emoji 17.0), ZWNJ/ZWJ under the existing placement rule, and one variation selector directly after a base character. Spaces unchanged (U+3000 is a space); fillers never count as letters; identity rules unchanged (§6). (SEC-035) Reads filter stale rooms and `GET /live/rooms` writes nothing; the background sweeper ends stale rooms in bounded, non-overlapping batches; room detail and profile compute the timed-out view or end that single room (§10.2; supersedes D42 item 4). (D42) §7 states which endpoint limits replace the per-user default (v1.3 rows) and which count both (`PATCH /me`, `email/resend`). (D41) `heartbeatLiveRoom` 503 names `LIVE_HOSTING_UNAVAILABLE`. (QA-001) §4: body parsing (malformed JSON, size limit) rejects before authentication on every route; check orders in §10 and `openapi.yaml` start after it; a non-JSON content type fails at body validation. (QA-002) `PUT` follow by an existing follower of a private account → idempotent 200, no edge created; a new follow stays 403 (§10.5, §10.6). | **Tightening**, applied on write only: `register` and go-live can now return 400 `invalid_format` for values accepted before. QA-001 documents existing behaviour. QA-002 changes the response from 403 to 200 for an existing follower of a private account; this cannot happen yet, because no endpoint makes an account private in v1.3. Stored names and titles are not rewritten and stay readable. No shape change; responses for stale rooms unchanged. Mobile: no change needed (it already maps `invalid_format`; client pre-validation may stay more permissive, the server is authoritative). |
-| v1.4.0 | 2026-10-16 | **Proposed (KL-048, D44), awaiting CTO approval.** (1) Image uploads for avatars and live-room covers (§11.1–§11.6, §11.10–§11.12): `GET /media/config`, `POST /media/uploads` (presigned PUT to S3-compatible storage), `POST /media/uploads/{uploadId}/complete` (server verification, metadata strip, re-encode to WebP derivatives), `GET /media/uploads/{uploadId}`; avatar via `PATCH /me {avatarUploadId}`; cover via `coverUploadId` on `POST /live/rooms` and new `PUT /live/rooms/{roomId}/cover`; moderation states with owner-only visibility until APPROVED; all behind `MEDIA_UPLOADS_ENABLED` (default false). (2) Optional, user-chosen country (§11.7–§11.9): `PATCH /me {country}`, `country` on `Me`, `PublicProfile` and `LiveRoomSummary`, `GET /live/rooms?country=`, `GET /live/countries` (real counts), `GET /countries` (localized list); no IP geolocation. (3) New response fields `avatarThumbUrl` (`Me`, `UserSummary`, `PublicProfile`), `avatarModeration` (`Me`), `coverThumbUrl` (`LiveRoomSummary`), `coverModeration` (`LiveRoom`, host only). (4) `PATCH /me` body: every property optional, at least one required. (5) New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_UPLOAD_REJECTED` (422), `MEDIA_UPLOAD_NOT_RECEIVED` (409), `MEDIA_UPLOAD_EXPIRED` (410) (§4). (6) D43: `unsupported_encoding` and `unsupported_charset` added to the §4 issue vocabulary. (7) Rate limits (§7), ownership (§8), cursor payload gains `country` (§10.4). Data design: `DB_PHASE2_MEDIA.md`. | **Additive.** No path, code or field is removed or renamed; `avatarUrl` and `coverUrl` keep their names and types and stay null until uploads are enabled and an image is approved. `PATCH /me` accepts every v1.2 body unchanged. Response objects gain fields (clients ignore unknown fields). Cursors issued by v1.3 stay valid for requests without `country`. Mobile: map the four new codes; hide upload controls while `uploadsEnabled = false`; render images only from allow-listed hosts (§11.10). API needs one additive migration (`DB_PHASE2_MEDIA.md` §5). No storage or moderation provider is activated by this version. |
+| v1.4.0 | 2026-10-16 | **Proposed (KL-048, D44), awaiting CTO approval.** (1) Image uploads for avatars and live-room covers (§11.1–§11.6, §11.10–§11.12): `GET /media/config`, `POST /media/uploads` (presigned PUT to S3-compatible storage), `POST /media/uploads/{uploadId}/complete` (server verification, metadata strip, re-encode to WebP derivatives), `GET /media/uploads/{uploadId}`; avatar via `PATCH /me {avatarUploadId}`; cover via `coverUploadId` on `POST /live/rooms` and new `PUT /live/rooms/{roomId}/cover`; moderation states with owner-only visibility until APPROVED; all behind `MEDIA_UPLOADS_ENABLED` (default false). (2) Optional, user-chosen country (§11.7–§11.9): `PATCH /me {country}`, `country` on `Me`, `PublicProfile` and `LiveRoomSummary`, `GET /live/rooms?country=`, `GET /live/countries` (real counts), `GET /countries` (localized list); no IP geolocation. (3) New response fields `avatarThumbUrl` (`Me`, `UserSummary`, `PublicProfile`), `avatarModeration` (`Me`), `coverThumbUrl` (`LiveRoomSummary`), `coverModeration` (`LiveRoom`, host only). (4) `PATCH /me` body: every property optional, at least one required. (5) New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_UPLOAD_REJECTED` (422), `MEDIA_UPLOAD_NOT_RECEIVED` (409), `MEDIA_UPLOAD_EXPIRED` (410) (§4). (6) D43: `unsupported_encoding` and `unsupported_charset` added to the §4 issue vocabulary. (7) Rate limits (§7), ownership (§8), cursor payload gains `country` (§10.4). Data design: `DB_PHASE2_MEDIA.md`. (8) KL-040b residuals (CTO): **SEC-039** (§6 text hygiene) — a variation selector is accepted only as part of a sequence listed in the newly vendored `StandardizedVariants.txt`, `emoji-variation-sequences.txt` (UCD 17.0.0) or IVD 2022-09-13 `IVD_Sequences.txt`; U+16FE4 joins the blank look-alike list; inside a value only the spaces U+0020, U+00A0, U+202F and U+3000 are allowed; must-pass and must-fail lists extended. **SEC-040** (§4) — an undecodable percent-encoded path segment gets 400 `VALIDATION_FAILED` before auth; documented, not changed. (9) §7: heartbeat headroom is 3× by default with a 2× floor enforced at boot in production (matches the implementation). | **Additive** for the API surface; SEC-039 is a **tightening applied on write only**, like v1.3.1: `register` and go-live can return 400 `invalid_format` for a name or title with an unlisted variation selector, U+16FE4 or an unusual space, and stored values are not rewritten. No path, code or field is removed or renamed; `avatarUrl` and `coverUrl` keep their names and types and stay null until uploads are enabled and an image is approved. `PATCH /me` accepts every v1.2 body unchanged. Response objects gain fields (clients ignore unknown fields). Cursors issued by v1.3 stay valid for requests without `country`. Mobile: map the four new codes; hide upload controls while `uploadsEnabled = false`; render images only from allow-listed hosts (§11.10). API needs one additive migration (`DB_PHASE2_MEDIA.md` §5). No storage or moderation provider is activated by this version. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.60.0`, pinned in `tools/redocly`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and

@@ -1168,7 +1168,10 @@ components:
         Unicode 17.0.0 data rejects default-ignorable, Cc/Cf/Zl/Zp/Co/Cs/Cn code points and blank
         look-alikes (Hangul fillers, U+2800, U+FFFC, U+1D159), except inside an RGI emoji, ZWNJ/ZWJ
         as above, and one variation selector after a base character (`invalid_format`). Checked on
-        write; stored names are not rewritten.
+        write; stored names are not rewritten. v1.4 (SEC-039): a variation selector is accepted
+        only as part of a sequence listed in StandardizedVariants.txt, emoji-variation-sequences.txt
+        or the IVD 2022-09-13; U+16FE4 is a blank look-alike; inside the name only the spaces
+        U+0020, U+00A0, U+202F and U+3000 are allowed (CONVENTIONS §6).
     VerificationPending:
       type: object
       required: [status]
@@ -1368,8 +1371,9 @@ components:
         v1.3 (CONVENTIONS §10.3): NFC, trimmed, 1–80 grapheme clusters and ≤ 160 code points.
         The displayName character-hygiene rules apply (control/bidi/zero-width bans, ZWNJ/ZWJ
         placement, zalgo cap, at least one letter/digit/emoji) → `invalid_format`, including the
-        v1.3.1 text-hygiene rules (CONVENTIONS §6, SEC-036). The reserved-term/brand rule and the
-        mixed-script rule do **not** apply.
+        v1.3.1 text-hygiene rules (CONVENTIONS §6, SEC-036) as tightened in v1.4 (SEC-039: listed
+        variation sequences only, U+16FE4, restricted inner spaces). The reserved-term/brand rule
+        and the mixed-script rule do **not** apply.
     LiveRoomSummary:
       type: object
       required: [id, title, mode, viewerCount, startedAt, coverUrl, coverThumbUrl, category, country, host]
