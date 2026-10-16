@@ -5,7 +5,17 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'src/generated/**', 'eslint.config.mjs'] },
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'src/generated/**',
+      'src/modules/users/data/confusables.generated.ts',
+      // Plain Node build script (not part of the TS project).
+      'scripts/**',
+      'eslint.config.mjs',
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

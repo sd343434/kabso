@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { ipv6Hextets } from '../common/http/request-context.js';
 import { availableParallelism } from 'node:os';
 import { z } from 'zod';
 import { MIN_SECRET_BYTES, productionSecretProblem } from './secret-strength.js';
@@ -30,6 +31,24 @@ const rateLimit = (fallback: string) =>
 
 const positiveInt = (fallback: number) => z.coerce.number().int().positive().default(fallback);
 const nonNegativeInt = (fallback: number) => z.coerce.number().int().min(0).default(fallback);
+
+/**
+ * SEC-003a (contract v1.2.3): a trusted-proxy range is too broad for production when it is an
+ * IPv4 prefix shorter than /8, an IPv6 prefix shorter than /32, or an IPv4-mapped IPv6 range
+ * (`::ffff:a.b.c.d/n`, n ≥ 96) whose IPv4 equivalent is shorter than /8 (e.g. `::ffff:0:0/96`).
+ */
+export function isOverlyBroadProxyRange(entry: string): boolean {
+  const [address = '', prefixText] = entry.split('/');
+  if (prefixText === undefined) return false;
+  const prefix = Number(prefixText);
+  const family = isIP(address);
+  if (family === 4) return prefix < 8;
+  if (family !== 6) return false;
+  const groups = ipv6Hextets(address);
+  const mapped = groups !== null && groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff;
+  if (mapped && prefix >= 96) return prefix - 96 < 8;
+  return prefix < 32;
+}
 
 const TRUST_PROXY_KEYWORDS = new Set(['loopback', 'linklocal', 'uniquelocal']);
 
@@ -143,12 +162,24 @@ export const envSchema = z
     // v1.2 (CONVENTIONS §7)
     RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),
+    RATE_LIMIT_REGISTER_VERIFY_EMAIL: rateLimit('15/86400'),
     RATE_LIMIT_REGISTER_RESEND_EMAIL: rateLimit('3/3600'),
     RATE_LIMIT_REGISTER_RESEND_IP: rateLimit('10/3600'),
     RATE_LIMIT_UPDATE_ME_USER: rateLimit('30/3600'),
 
     /** Pending registration lifetime (contract: 30 min). */
     REGISTRATION_TTL_SECONDS: positiveInt(30 * 60),
+    /** Absolute lifetime of a pending registration from creation; resend never extends it (2 h). */
+    REGISTRATION_MAX_LIFETIME_SECONDS: positiveInt(2 * 3600),
+    /**
+     * Optional dedicated key for registration-code HMACs (SEC-029). When unset, the key is derived
+     * from RATE_LIMIT_KEY_SECRET. Changing either invalidates every live pending code.
+     */
+    REGISTRATION_CODE_KEY: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
+      .optional(),
     /** At most one "account already exists" notice per account per interval (contract: 1 h). */
     REGISTRATION_NOTICE_INTERVAL_SECONDS: positiveInt(3600),
     /** Periodic deletion of expired pending registrations; 0 disables the job. */
@@ -157,7 +188,7 @@ export const envSchema = z
     LOGIN_RECENT_SUCCESS_TTL_SECONDS: positiveInt(30 * 24 * 3600),
     /**
      * Reserved display-name terms (comma-separated; matched after NFKC casefold + confusable
-     * skeleton). Defaults to the CONVENTIONS §6 list.
+     * skeleton). Defaults to the CONVENTIONS §6 list (v1.2.4: without `staff` and `مشرف`, QA-012).
      */
     /** Brand terms also matched as a prefix/suffix of the separator-free name (v1.2.1). */
     RESERVED_DISPLAY_NAME_BRAND_TERMS: z
@@ -171,7 +202,7 @@ export const envSchema = z
       ),
     RESERVED_DISPLAY_NAME_TERMS: z
       .string()
-      .default('kabso,admin,administrator,support,official,moderator,staff,كابسو,الدعم,رسمي,مشرف,الإدارة')
+      .default('kabso,admin,administrator,support,official,moderator,كابسو,الدعم,رسمي,الإدارة')
       .transform((v) =>
         v
           .split(',')
@@ -214,7 +245,19 @@ export const envSchema = z
         }
       }
 
-      // SEC-003a: hop counts above 3 and catch-all /0 ranges trust client-supplied headers.
+      if (env.REGISTRATION_CODE_KEY !== undefined) {
+        const codeKeyProblem = productionSecretProblem(env.REGISTRATION_CODE_KEY);
+        if (codeKeyProblem) {
+          ctx.addIssue({ code: 'custom', path: ['REGISTRATION_CODE_KEY'], message: codeKeyProblem });
+        } else if ([env.JWT_ACCESS_SECRET, env.RATE_LIMIT_KEY_SECRET].includes(env.REGISTRATION_CODE_KEY)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['REGISTRATION_CODE_KEY'],
+            message: 'must differ from JWT_ACCESS_SECRET and RATE_LIMIT_KEY_SECRET',
+          });
+        }
+      }
+      // SEC-003a: hop counts above 3 and overly broad ranges trust client-supplied headers.
       if (typeof env.TRUST_PROXY === 'number' && env.TRUST_PROXY > 3) {
         ctx.addIssue({
           code: 'custom',
@@ -223,12 +266,14 @@ export const envSchema = z
         });
       }
       if (Array.isArray(env.TRUST_PROXY)) {
-        const catchAll = env.TRUST_PROXY.filter((entry) => /\/0+$/.test(entry));
-        if (catchAll.length > 0) {
+        const tooBroad = env.TRUST_PROXY.filter(isOverlyBroadProxyRange);
+        if (tooBroad.length > 0) {
           ctx.addIssue({
             code: 'custom',
             path: ['TRUST_PROXY'],
-            message: `/0 ranges trust every address and are refused in production: ${catchAll.join(', ')}`,
+            message:
+              'ranges broader than IPv4 /8 or IPv6 /32 (incl. ::ffff:0:0/96) trust client-supplied ' +
+              `headers and are refused in production: ${tooBroad.join(', ')}`,
           });
         }
       }

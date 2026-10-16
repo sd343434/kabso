@@ -24,6 +24,8 @@ export type VerificationPendingDto = typeof VERIFICATION_PENDING;
 
 /** Code checks per pending registration before it is deleted (contract: 5). */
 export const MAX_CODE_ATTEMPTS = 5;
+/** Code checks per pending registration across resends (contract v1.2.3, SEC-026). */
+export const MAX_TOTAL_ATTEMPTS = 10;
 const CODE_DIGITS = 8;
 
 /** Internal (never returned) reasons for `auth.registration.verify_failed`. */
@@ -34,6 +36,7 @@ interface ClaimedPending {
   id: string;
   code_hash: string;
   attempts: number;
+  total_attempts: number;
   username: string;
   display_name: string;
   locale: string;
@@ -75,10 +78,18 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     @Inject(MAIL_SENDER) private readonly mail: MailSender,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
-    // Codes are stored as HMAC-SHA-256 under a key derived (HKDF) from RATE_LIMIT_KEY_SECRET, so
-    // a database leak alone does not allow brute-forcing the 10^8 code space offline.
+    // Codes are stored as HMAC-SHA-256 under a key derived (HKDF) from REGISTRATION_CODE_KEY when
+    // set (SEC-029), else from RATE_LIMIT_KEY_SECRET, so a database leak alone does not allow
+    // brute-forcing the 10^8 code space offline. Rotating the source key invalidates every live
+    // pending code (users request a new one with register/resend).
     this.codeKey = Buffer.from(
-      hkdfSync('sha256', config.rateLimitKeySecret, 'kabso', 'registration-code/v1', 32),
+      hkdfSync(
+        'sha256',
+        config.registration.codeKey ?? config.rateLimitKeySecret,
+        'kabso',
+        'registration-code/v1',
+        32,
+      ),
     );
   }
 
@@ -123,8 +134,9 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       throw AppException.validation([{ field: 'displayName', issue: 'reserved_term' }]);
     }
     if (isReservedUsername(input.username)) throw new AppException(ErrorCode.USERNAME_TAKEN);
-    // Usernames are public: an account or another email's live pending registration holds it.
-    if (await this.users.isUsernameTaken(input.username, input.email, now)) {
+    // Usernames are public: an account or ANY live pending registration holds it — including one
+    // for this same email, so the 409 never confirms that an email is mid-registration (SEC-025).
+    if (await this.users.isUsernameTaken(input.username, undefined, now)) {
       throw new AppException(ErrorCode.USERNAME_TAKEN);
     }
 
@@ -208,13 +220,14 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
     let pendingId: string | null = null;
     try {
-      // Consume one attempt atomically BEFORE comparing, so at most 5 codes are ever checked
-      // per pending registration, even under concurrency.
+      // Consume one attempt atomically BEFORE comparing, so at most 5 checks per code and 10 per
+      // pending registration across resends (SEC-026) ever happen, even under concurrency.
       const rows = await this.prisma.$queryRaw<ClaimedPending[]>`
         UPDATE "pending_registrations"
-        SET "attempts" = "attempts" + 1, "updated_at" = ${now}
-        WHERE "email" = ${input.email} AND "expires_at" > ${now} AND "attempts" < ${MAX_CODE_ATTEMPTS}
-        RETURNING "id", "code_hash", "attempts", "username", "display_name", "locale",
+        SET "attempts" = "attempts" + 1, "total_attempts" = "total_attempts" + 1, "updated_at" = ${now}
+        WHERE "email" = ${input.email} AND "expires_at" > ${now}
+          AND "attempts" < ${MAX_CODE_ATTEMPTS} AND "total_attempts" < ${MAX_TOTAL_ATTEMPTS}
+        RETURNING "id", "code_hash", "attempts", "total_attempts", "username", "display_name", "locale",
                   "password_hash", "device_name", "platform", "app_version"`;
       const pending = rows[0];
       if (!pending) {
@@ -222,7 +235,11 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.pendingRegistration.deleteMany({
           where: {
             email: input.email,
-            OR: [{ expiresAt: { lte: now } }, { attempts: { gte: MAX_CODE_ATTEMPTS } }],
+            OR: [
+              { expiresAt: { lte: now } },
+              { attempts: { gte: MAX_CODE_ATTEMPTS } },
+              { totalAttempts: { gte: MAX_TOTAL_ATTEMPTS } },
+            ],
           },
         });
         throw new VerifyFailed('no_live_pending');
@@ -230,7 +247,7 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       pendingId = pending.id;
 
       if (!hashesEqual(this.codeHash(input.email, input.code), pending.code_hash)) {
-        if (pending.attempts >= MAX_CODE_ATTEMPTS) {
+        if (pending.attempts >= MAX_CODE_ATTEMPTS || pending.total_attempts >= MAX_TOTAL_ATTEMPTS) {
           await this.prisma.pendingRegistration.deleteMany({ where: { id: pending.id } });
           throw new VerifyFailed('attempts_exhausted');
         }
@@ -272,12 +289,20 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
       const now = new Date();
       const pending = await this.prisma.pendingRegistration.findFirst({
         where: { email, expiresAt: { gt: now } },
-        select: { id: true, locale: true },
+        select: { id: true, locale: true, createdAt: true },
       });
       if (!pending) return;
       const code = this.newCode();
-      const expiresAt = new Date(now.getTime() + this.config.registration.ttlSeconds * 1000);
-      // A new code invalidates the old one (single code hash per row) and resets the attempts.
+      // SEC-026: a new code never extends the pending registration past its absolute lifetime.
+      const expiresAt = new Date(
+        Math.min(
+          now.getTime() + this.config.registration.ttlSeconds * 1000,
+          pending.createdAt.getTime() + this.config.registration.maxLifetimeSeconds * 1000,
+        ),
+      );
+      if (expiresAt <= now) return;
+      // A new code invalidates the old one (single code hash per row) and resets the per-code
+      // attempts; `totalAttempts` keeps counting across codes.
       const updated = await this.prisma.pendingRegistration.updateMany({
         where: { id: pending.id, expiresAt: { gt: now } },
         data: { codeHash: this.codeHash(email, code), attempts: 0, expiresAt },

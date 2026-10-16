@@ -83,7 +83,11 @@ export class AuthController {
   @Public()
   @Post('register/verify')
   @HttpCode(201)
-  @RateLimit({ bucket: 'register_verify:ip', rule: 'registerVerifyIp', key: (req) => clientIpBucket(req) })
+  @RateLimit(
+    { bucket: 'register_verify:ip', rule: 'registerVerifyIp', key: (req) => clientIpBucket(req) },
+    // SEC-027: 15 checks / day per email (counted before the check, atomic INCR).
+    { bucket: 'register_verify:email', rule: 'registerVerifyEmail', key: (req) => bodyField(req, 'email') },
+  )
   registerVerify(
     @Body(new ZodValidationPipe(registerVerifySchema)) body: RegisterVerifyInput,
     @Req() req: AppRequest,

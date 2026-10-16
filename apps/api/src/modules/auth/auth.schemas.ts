@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
-import { displayNameIssue, normalizeDisplayName } from '../users/display-name.js';
+import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
 import { passwordPolicyIssue } from './password-policy.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
@@ -64,11 +64,11 @@ export const deviceInfoSchema = z.strictObject({
 export const displayNameSchema = z
   .string()
   .max(1000)
-  .transform(normalizeDisplayName)
-  .superRefine((value, ctx) => {
-    const issue = displayNameIssue(value, []);
+  .superRefine((raw, ctx) => {
+    const issue = rawDisplayNameIssue(raw, []);
     if (issue) ctx.addIssue({ code: 'custom', message: `displayName ${issue}`, params: { issue } });
-  });
+  })
+  .transform(normalizeDisplayName);
 
 export const registerSchema = z.strictObject({
   email: emailSchema,

@@ -25,6 +25,14 @@ end
 return { count, ttl }
 `;
 
+const REFUND_SCRIPT = `
+local count = tonumber(redis.call('GET', KEYS[1]) or '0')
+if count > 0 then
+  redis.call('DECR', KEYS[1])
+end
+return count
+`;
+
 export interface RateLimitResult {
   readonly allowed: boolean;
   readonly count: number;
@@ -82,23 +90,15 @@ export class RateLimitService {
   }
 
   /**
-   * Checks a bucket without counting (SEC-023: the login account bucket counts failures only,
-   * via {@link hit} after a failed attempt). Throws RATE_LIMITED when already exhausted.
+   * Gives back one hit of a counter reserved by {@link consume}/{@link hit} (increment-before-check
+   * pattern, contract v1.2.3 §7). Never goes below zero and keeps the window's TTL.
    */
-  async assertNotExhausted(bucket: string, subject: string, rule: RateLimitRule): Promise<void> {
-    const redisKey = this.keyFor(bucket, subject);
-    let count: string | null;
-    let ttlMs: number;
+  async refund(bucket: string, subject: string): Promise<void> {
     try {
-      [count, ttlMs] = await Promise.all([this.redis.get(redisKey), this.redis.pttl(redisKey)]);
+      await this.redis.eval(REFUND_SCRIPT, 1, this.keyFor(bucket, subject));
     } catch (err) {
       this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
       throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
-    }
-    if (count !== null && Number(count) >= rule.max) {
-      throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
-        'Retry-After': String(Math.max(1, Math.ceil(ttlMs / 1000))),
-      });
     }
   }
 

@@ -43,6 +43,12 @@ export interface RequestMeta {
   readonly acceptLanguage?: MailLocale | undefined;
 }
 
+interface LoginLimits {
+  readonly account: string;
+  /** True while this attempt holds a slot in the account bucket. */
+  reserved: boolean;
+}
+
 /** Redis flag bucket: "this source logged into this account recently" (SEC-023). */
 const RECENT_SUCCESS_BUCKET = 'login:recent_success';
 
@@ -71,13 +77,19 @@ export class AuthService {
     const candidate = await this.users.findLoginCandidate(identifier);
     const limits = await this.checkLoginLimits(candidate?.id ?? null, identifier, identifierType, meta);
 
-    const passwordOk = candidate
-      ? await this.passwords.verify(candidate.passwordHash, input.password)
-      : await this.passwords.verifyAgainstDummy(input.password);
+    let passwordOk: boolean;
+    try {
+      passwordOk = candidate
+        ? await this.passwords.verify(candidate.passwordHash, input.password)
+        : await this.passwords.verifyAgainstDummy(input.password);
+    } catch (err) {
+      // No password was checked (e.g. Argon2 cap → 503): give the reserved slot back.
+      await this.refundAccountAttempt(limits);
+      throw err;
+    }
 
     if (!candidate || !passwordOk || candidate.status === 'DELETED') {
-      // SEC-023: the account bucket counts failed attempts only.
-      await this.rateLimits.hit('login:account', limits.account, this.config.rateLimits.loginAccount);
+      // SEC-023: the failed attempt keeps the account-bucket slot reserved before the check.
       await this.audit.record({
         action: AuditAction.LOGIN_FAILURE,
         actorUserId: candidate?.id ?? null,
@@ -87,6 +99,8 @@ export class AuthService {
       });
       throw new AppException(ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
+    // The password was right: this was not a failed guess (contract §7: failures only).
+    await this.refundAccountAttempt(limits);
     if (candidate.status === 'SUSPENDED') {
       await this.audit.record({
         action: AuditAction.LOGIN_FAILURE,
@@ -278,16 +292,18 @@ export class AuthService {
    * before any Argon2 work. Email and username of one account share the key (the user id);
    * unknown identifiers are keyed on the normalized identifier.
    *  - per IP+account: every attempt counts;
-   *  - per account across IPs: only FAILED attempts count (recorded by the caller after a
-   *    failure); a source (IPv4 / IPv6 /64) that logged into this account successfully within
-   *    LOGIN_RECENT_SUCCESS_TTL_SECONDS bypasses this bucket, so the owner is not locked out.
+   *  - per account across IPs: only FAILED attempts count. The slot is reserved with an atomic
+   *    INCR before the Argon2 check (refused when the result exceeds the limit) and refunded
+   *    (DECR) when the password turns out to be correct, so concurrent guesses can never exceed
+   *    the limit (contract v1.2.3 §7, SEC-023 race). A source (IPv4 / IPv6 /64) that logged into
+   *    this account successfully within LOGIN_RECENT_SUCCESS_TTL_SECONDS bypasses this bucket.
    */
   private async checkLoginLimits(
     userId: string | null,
     identifier: { email: string } | { username: string },
     identifierType: 'email' | 'username',
     meta: RequestMeta,
-  ): Promise<{ account: string; trustedSource: boolean }> {
+  ): Promise<LoginLimits> {
     const account = userId
       ? `user:${userId}`
       : 'email' in identifier
@@ -303,13 +319,9 @@ export class AuthService {
         userId !== null &&
         (await this.rateLimits.hasFlag(RECENT_SUCCESS_BUCKET, `${userId}|${meta.ipBucket}`));
       if (!trustedSource) {
-        await this.rateLimits.assertNotExhausted(
-          'login:account',
-          account,
-          this.config.rateLimits.loginAccount,
-        );
+        await this.rateLimits.consume('login:account', account, this.config.rateLimits.loginAccount);
       }
-      return { account, trustedSource };
+      return { account, reserved: !trustedSource };
     } catch (err) {
       if (err instanceof AppException && err.code === ErrorCode.RATE_LIMITED) {
         await this.audit.record({
@@ -322,6 +334,12 @@ export class AuthService {
       }
       throw err;
     }
+  }
+
+  private async refundAccountAttempt(limits: LoginLimits): Promise<void> {
+    if (!limits.reserved) return;
+    limits.reserved = false;
+    await this.rateLimits.refund('login:account', limits.account);
   }
 
   /** Marks this source (IP / IPv6 /64, HMAC-keyed in Redis) as recently successful (SEC-023). */

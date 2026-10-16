@@ -44,12 +44,16 @@ export interface AppConfig {
     readonly publicIp: RateLimitRule;
     readonly registerEmail: RateLimitRule;
     readonly registerVerifyIp: RateLimitRule;
+    readonly registerVerifyEmail: RateLimitRule;
     readonly registerResendEmail: RateLimitRule;
     readonly registerResendIp: RateLimitRule;
     readonly updateMeUser: RateLimitRule;
   };
   readonly registration: {
     readonly ttlSeconds: number;
+    readonly maxLifetimeSeconds: number;
+    /** Dedicated code-HMAC key source (SEC-029); falls back to rateLimitKeySecret. */
+    readonly codeKey: string | undefined;
     readonly noticeIntervalSeconds: number;
     readonly cleanupIntervalSeconds: number;
   };
@@ -117,12 +121,15 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       publicIp: e.RATE_LIMIT_PUBLIC_IP,
       registerEmail: e.RATE_LIMIT_REGISTER_EMAIL,
       registerVerifyIp: e.RATE_LIMIT_REGISTER_VERIFY_IP,
+      registerVerifyEmail: e.RATE_LIMIT_REGISTER_VERIFY_EMAIL,
       registerResendEmail: e.RATE_LIMIT_REGISTER_RESEND_EMAIL,
       registerResendIp: e.RATE_LIMIT_REGISTER_RESEND_IP,
       updateMeUser: e.RATE_LIMIT_UPDATE_ME_USER,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,
+      maxLifetimeSeconds: e.REGISTRATION_MAX_LIFETIME_SECONDS,
+      codeKey: e.REGISTRATION_CODE_KEY,
       noticeIntervalSeconds: e.REGISTRATION_NOTICE_INTERVAL_SECONDS,
       cleanupIntervalSeconds: e.REGISTRATION_CLEANUP_INTERVAL_SECONDS,
     },

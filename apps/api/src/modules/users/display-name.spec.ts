@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
 import { confusableSkeleton, containsReservedTerm } from './confusables.js';
-import { displayNameIssue, graphemeCount, normalizeDisplayName } from './display-name.js';
+import {
+  displayNameIssue,
+  graphemeCount,
+  normalizeDisplayName,
+  rawDisplayNameIssue,
+} from './display-name.js';
 
 // Invisible characters are built from code points so the source stays readable.
 const cp = (...points: number[]) => String.fromCodePoint(...points);
@@ -34,11 +39,9 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
       'support',
       'official',
       'moderator',
-      'staff',
       'كابسو',
       'الدعم',
       'رسمي',
-      'مشرف',
       'الإدارة',
     ]);
   });
@@ -88,9 +91,16 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     expect(check(`${hundred}c`)).toBe('too_long');
   });
 
-  it('rejects empty and whitespace-only names as too_short', () => {
-    expect(check('')).toBe('too_short');
-    expect(check('   ')).toBe('too_short');
+  it('rejects the empty name as too_short and whitespace-only names as invalid_format (v1.2.4)', () => {
+    expect(rawDisplayNameIssue('', TERMS, BRANDS)).toBe('too_short');
+    expect(rawDisplayNameIssue('   ', TERMS, BRANDS)).toBe('invalid_format');
+    expect(rawDisplayNameIssue(`${cp(0x3000)}\t `, TERMS, BRANDS)).toBe('invalid_format');
+    expect(rawDisplayNameIssue('  Sara  ', TERMS, BRANDS)).toBeNull();
+  });
+
+  // v1.2.4 (QA-012): `staff` and `مشرف` are no longer reserved (common in real names).
+  it.each(['Staff Sergeant', 'مشرف علي', 'staff', 'مشرف'])('accepts %s', (name) => {
+    expect(check(name)).toBeNull();
   });
 
   it.each([
@@ -173,7 +183,7 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     ['Arabic with Persian yeh', 'رسمی'],
     ['Arabic with tashkeel', 'الدَّعم'],
     ['Arabic administration with hamza', 'فريق الإدارة'],
-    ['Arabic with tatweel', 'مشـــرف'],
+    ['Arabic with tatweel', 'الدعـــم'],
   ])('rejects reserved terms (NFKC casefold + confusable skeleton): %s', (_label, name) => {
     expect(check(name)).toBe('reserved_term');
   });
@@ -198,7 +208,6 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     ['Cyrillic а, spaced', 'K а b s o'],
     ['Admin', 'Admin'],
     ['Arabic support', 'الدعم الفني'],
-    ['Arabic moderator', 'مشرف'],
     ['brand suffix (b)', 'TheKabso'],
     ['brand prefix (b)', 'KabsoFan'],
     ['Arabic brand suffix (b)', 'فريقكابسو'],
@@ -206,7 +215,7 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     ['brand prefix inside an ordinary-looking word (b)', 'Abc Kabsonite'],
     ['spaced brand, whole name equals a term (c)', 'K a b s o'],
     ['spaced non-brand term, whole name equals a term (c)', 'A d m i n'],
-    ['dotted term (c)', 'S.T.A.F.F'],
+    ['dotted term (c)', 'A.D.M.I.N'],
   ])('rejects whole-word reserved terms and brand prefix/suffix: %s', (_label, name) => {
     expect(check(name)).toBe('reserved_term');
   });

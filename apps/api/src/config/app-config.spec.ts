@@ -189,4 +189,69 @@ describe('loadConfig', () => {
       expect(loadConfig({ ...base, TRUST_PROXY: '5' }).http.trustProxy).toBe(5);
     });
   });
+
+  describe('v1.2.3 (SEC-003a broad ranges, SEC-029 code key)', () => {
+    const hex = () => randomBytes(32).toString('hex');
+    const prod = (extra: Record<string, string>) => ({
+      ...base,
+      NODE_ENV: 'production',
+      JWT_ACCESS_SECRET: hex(),
+      RATE_LIMIT_KEY_SECRET: hex(),
+      ...extra,
+    });
+    const problemsFor = (env: Record<string, string>, key: string) => {
+      try {
+        loadConfig(env);
+        return [];
+      } catch (err) {
+        return (err as ConfigValidationError).problems.filter((p) => p.startsWith(key));
+      }
+    };
+
+    it.each([
+      '0.0.0.0/1,128.0.0.0/1',
+      '10.0.0.0/7',
+      '::/1,8000::/1',
+      '2001:db8::/31',
+      '::ffff:0:0/96',
+      '::ffff:0.0.0.0/100',
+    ])('refuses TRUST_PROXY=%s in production', (value) => {
+      expect(problemsFor(prod({ TRUST_PROXY: value }), 'TRUST_PROXY')).toHaveLength(1);
+    });
+
+    it.each(['10.0.0.0/8', '2001:db8::/32', '::ffff:10.0.0.0/104', '192.0.2.7', '::1', '2'])(
+      'accepts TRUST_PROXY=%s in production',
+      (value) => {
+        expect(problemsFor(prod({ TRUST_PROXY: value }), 'TRUST_PROXY')).toEqual([]);
+      },
+    );
+
+    it('REGISTRATION_CODE_KEY is optional, strength-checked and distinct in production', () => {
+      expect(loadConfig(base).registration.codeKey).toBeUndefined();
+      const key = hex();
+      expect(loadConfig({ ...base, REGISTRATION_CODE_KEY: key }).registration.codeKey).toBe(key);
+      expect(
+        problemsFor(prod({ REGISTRATION_CODE_KEY: 'short' }), 'REGISTRATION_CODE_KEY').length,
+      ).toBeGreaterThan(0);
+      expect(
+        problemsFor(prod({ REGISTRATION_CODE_KEY: 'b'.repeat(64) }), 'REGISTRATION_CODE_KEY'),
+      ).toHaveLength(1);
+      const shared = hex();
+      expect(
+        problemsFor(
+          prod({ RATE_LIMIT_KEY_SECRET: shared, REGISTRATION_CODE_KEY: shared }),
+          'REGISTRATION_CODE_KEY',
+        ),
+      ).toHaveLength(1);
+      expect(problemsFor(prod({ REGISTRATION_CODE_KEY: hex() }), 'REGISTRATION_CODE_KEY')).toEqual([]);
+    });
+
+    it('defaults: pending lifetime 2 h, verify budget 15/day per email', () => {
+      const config = loadConfig(base);
+      expect(config.registration.maxLifetimeSeconds).toBe(7200);
+      expect(config.rateLimits.registerVerifyEmail).toEqual({ max: 15, windowSeconds: 86400 });
+      expect(config.reservedDisplayNameTerms).not.toContain('staff');
+      expect(config.reservedDisplayNameTerms).not.toContain('مشرف');
+    });
+  });
 });
