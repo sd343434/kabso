@@ -12,7 +12,8 @@ import 'package:material_ui/material_ui.dart';
 ///   grid leaves it off).
 /// - top-end: room mode tag, only when true: PK (solid) or multi-guest.
 /// - bottom: 50 % scrim, host (`bodyStrong`) and title (`caption`), 1 line
-///   each.
+///   each; with a cover, a `sm` host avatar before them (D39: creator
+///   identity on every card).
 /// - missing or broken cover: the host avatar on `surfaceRaised`, no error
 ///   text (VG-13).
 /// - press: scales to 0.98 for `durationFast` (instant with reduce motion).
@@ -109,21 +110,30 @@ class KLiveCoverCard extends StatelessWidget {
               start: KSpacing.sm,
               end: KSpacing.sm,
               bottom: KSpacing.sm,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  Text(
-                    room.hostName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.bodyStrong.copyWith(color: white),
-                  ),
-                  Text(
-                    room.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.caption.copyWith(color: white),
+                  // D39: the creator is identifiable on every card. Without
+                  // a (working) cover the large fallback avatar shows them.
+                  if (cover != null) _CoverHostAvatar(room: room, cover: cover),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          room.hostName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.bodyStrong.copyWith(color: white),
+                        ),
+                        Text(
+                          room.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.caption.copyWith(color: white),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -266,4 +276,69 @@ class _CoverFallback extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The `sm` host avatar before the host name on a card with a cover (D39).
+/// Hidden once the cover fails to load: the fallback then shows the large
+/// avatar, and one avatar per card is enough.
+class _CoverHostAvatar extends StatefulWidget {
+  const new({required this.room, required this.cover});
+
+  final LiveRoomCardData room;
+  final ImageProvider cover;
+
+  @override
+  State<_CoverHostAvatar> createState() => _CoverHostAvatarState();
+}
+
+class _CoverHostAvatarState extends State<_CoverHostAvatar> {
+  ImageStream? _stream;
+  late final ImageStreamListener _listener = ImageStreamListener(
+    (_, _) {},
+    onError: (_, _) {
+      if (mounted && !_failed) setState(() => _failed = true);
+    },
+  );
+  bool _failed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(_CoverHostAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cover != widget.cover) {
+      _failed = false;
+      _resolve();
+    }
+  }
+
+  void _resolve() {
+    final stream = widget.cover.resolve(createLocalImageConfiguration(context));
+    if (stream.key == _stream?.key) return;
+    _stream?.removeListener(_listener);
+    _stream = stream..addListener(_listener);
+  }
+
+  @override
+  void dispose() {
+    _stream?.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: KSpacing.xs),
+      child: KAvatar(
+        name: widget.room.hostName,
+        image: widget.room.hostAvatar,
+        size: KSizes.avatarSm,
+      ),
+    );
+  }
 }

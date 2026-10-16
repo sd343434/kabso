@@ -956,6 +956,24 @@ abstract class AppLocalizations {
   /// **'حدث خطأ غير متوقع. حاول مرة أخرى.'**
   String get errorUnknown;
 
+  /// LIVE_HOSTING_UNAVAILABLE (503, v1.3): going live is switched off by server config. Not transient.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر غير متاح بعد.'**
+  String get errorLiveHostingUnavailable;
+
+  /// LIVE_ROOM_ALREADY_ACTIVE (409, v1.3): go-live refused because the caller already has a live room.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك بث مباشر قائم بالفعل. تابعه أو أنهِه أولًا.'**
+  String get errorLiveRoomAlreadyActive;
+
+  /// LIVE_ROOM_ENDED (409, v1.3): the room is no longer live.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى هذا البث.'**
+  String get errorLiveRoomEnded;
+
   /// No description provided for @errorIdLabel.
   ///
   /// In ar, this message translates to:
@@ -1196,7 +1214,7 @@ abstract class AppLocalizations {
   /// **'اسحب للأسفل للتحديث.'**
   String get feedPullToRefresh;
 
-  /// Home Following tab while there is no feed API.
+  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
   ///
   /// In ar, this message translates to:
   /// **'منشورات من تتابعهم'**
@@ -1205,25 +1223,25 @@ abstract class AppLocalizations {
   /// No description provided for @homeFollowingUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.'**
+  /// **'قريبًا: ستظهر هنا منشورات من تتابعهم.'**
   String get homeFollowingUnavailableBody;
 
-  /// Home Popular tab while there is no feed API.
+  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
   ///
   /// In ar, this message translates to:
-  /// **'تصل المنشورات الرائجة في المرحلة 3'**
+  /// **'المنشورات الرائجة قادمة قريبًا'**
   String get homePopularUnavailableTitle;
 
   /// No description provided for @homePopularUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.'**
+  /// **'ستظهر هنا المنشورات الأكثر إعجابًا.'**
   String get homePopularUnavailableBody;
 
-  /// Home New tab while there is no feed API.
+  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
   ///
   /// In ar, this message translates to:
-  /// **'تصل المنشورات الجديدة في المرحلة 3'**
+  /// **'المنشورات الجديدة قادمة قريبًا'**
   String get homeNewUnavailableTitle;
 
   /// No description provided for @homeNewUnavailableBody.
@@ -1256,7 +1274,7 @@ abstract class AppLocalizations {
   /// **'الكل'**
   String get liveHubChipAll;
 
-  /// Live hub Following tab while there is no live list API.
+  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
   ///
   /// In ar, this message translates to:
   /// **'غرف البث ممن تتابعهم'**
@@ -1265,13 +1283,13 @@ abstract class AppLocalizations {
   /// No description provided for @liveHubFollowingUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.'**
+  /// **'البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.'**
   String get liveHubFollowingUnavailableBody;
 
-  /// Live hub Popular tab while there is no live list API.
+  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
   ///
   /// In ar, this message translates to:
-  /// **'تصل غرف البث المباشر في المرحلة 6'**
+  /// **'غرف البث المباشر غير متاحة بعد'**
   String get liveHubPopularUnavailableTitle;
 
   /// No description provided for @liveHubPopularUnavailableBody.
@@ -1280,10 +1298,10 @@ abstract class AppLocalizations {
   /// **'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.'**
   String get liveHubPopularUnavailableBody;
 
-  /// Live hub New tab while there is no live list API.
+  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
   ///
   /// In ar, this message translates to:
-  /// **'تصل غرف البث الجديدة في المرحلة 6'**
+  /// **'غرف البث الجديدة غير متاحة بعد'**
   String get liveHubNewUnavailableTitle;
 
   /// No description provided for @liveHubNewUnavailableBody.
@@ -1309,6 +1327,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحميل غرف البث'**
   String get liveHubErrorTitle;
+
+  /// HL-H5 inline footer error when the next page of live rooms fails; followed by a Retry button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المزيد'**
+  String get liveHubLoadMoreFailed;
+
+  /// HL-H5 end-of-list caption of a live room list (no 'all caught up').
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب للأسفل لعرض بثوث جديدة'**
+  String get liveHubListEnd;
 
   /// Cover card chip shown instead of a viewer count below 1 viewer (VG-11).
   ///

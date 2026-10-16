@@ -162,6 +162,22 @@ void main() {
       expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
     });
 
+    testWidgets('D39: a card with a cover shows a small host avatar and '
+        'the host name', (tester) async {
+      final room = LiveRoomCardData(
+        hostName: 'Sara',
+        title: 't',
+        viewerCount: 0,
+        cover: coverRed,
+      );
+      await pumpComponent(tester, card(room));
+      await precacheImages(tester);
+      final avatar = tester.widget<KAvatar>(find.byType(KAvatar));
+      expect(avatar.size, KSizes.avatarSm);
+      expect(avatar.name, 'Sara');
+      expect(find.text('Sara'), findsOneWidget);
+    });
+
     testWidgets('VG-44: press scales to 0.98, instant with reduce motion', (
       tester,
     ) async {

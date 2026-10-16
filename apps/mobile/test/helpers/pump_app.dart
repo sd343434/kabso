@@ -5,9 +5,12 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'fake_live_repository.dart';
 
 /// Shared preferences with an explicit language.
 Future<SharedPreferences> testPrefs({String language = 'en'}) {
@@ -18,10 +21,14 @@ Future<SharedPreferences> testPrefs({String language = 'en'}) {
 }
 
 /// Pumps the whole app (router, theme, l10n) with [overrides].
+///
+/// Live discovery talks to [liveRepository] (default: hosting switched
+/// off, the production state today), never to the network.
 Future<void> pumpKabsoApp(
   WidgetTester tester, {
   required List<Override> overrides,
   String language = 'en',
+  LiveRepository? liveRepository,
 }) async {
   final prefs = await testPrefs(language: language);
   await tester.pumpWidget(
@@ -29,6 +36,9 @@ Future<void> pumpKabsoApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        liveRepositoryProvider.overrideWithValue(
+          liveRepository ?? FakeLiveRepository(hostingEnabled: false),
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),

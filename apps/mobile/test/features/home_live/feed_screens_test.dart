@@ -19,14 +19,15 @@ import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
-import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
+import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -68,19 +69,33 @@ bool _selected(WidgetTester tester, String label) =>
         .isSelected ==
     Tristate.isTrue;
 
+/// Pumps [screen]; live discovery answers from [live] (default: hosting
+/// switched off, the production state today).
 Future<void> _pump(
   WidgetTester tester,
   Widget screen, {
   AppLanguage language = AppLanguage.en,
   List<Override> overrides = const [],
+  FakeLiveRepository? live,
 }) async {
-  await pumpScreen(tester, screen, language: language, overrides: overrides);
+  await pumpScreen(
+    tester,
+    screen,
+    language: language,
+    overrides: [
+      ...liveOverrides(
+        live ?? FakeLiveRepository(hostingEnabled: false),
+        language: language,
+      ),
+      ...overrides,
+    ],
+  );
   await tester.pumpAndSettle();
 }
 
 void main() {
   group('production providers are honest (D35)', () {
-    test('every Home and Live tab is unavailable, never sample data', () {
+    test('every Home tab is unavailable, never sample data', () {
       final container = ProviderContainer.test();
       for (final tab in FeedTab.values) {
         expect(
@@ -88,13 +103,9 @@ void main() {
           isA<FeedUnavailable<FeedPostData>>(),
           reason: 'home $tab',
         );
-        expect(
-          container.read(liveRoomsProvider(tab)).value,
-          isA<FeedUnavailable<LiveRoomCardData>>(),
-          reason: 'live $tab',
-        );
       }
     });
+    // Live tabs: test/features/live/live_rooms_controller_test.dart.
   });
 
   for (final (:name, :screen) in _screens) {
@@ -213,7 +224,13 @@ void main() {
         // Top third of the region below the header, not centred.
         final region = 852 - header.bottom;
         expect(block.center.dy - header.bottom, lessThan(region / 3));
-        expect(find.byType(RefreshIndicator), findsNothing);
+        // Home has no feed API, so nothing to refresh. The Live hub's
+        // unavailable state comes from GET /live/config, which can change:
+        // pull-to-refresh re-checks it (KL-038).
+        expect(
+          find.byType(RefreshIndicator),
+          name == 'live' ? findsOneWidget : findsNothing,
+        );
       });
     });
   }
@@ -280,12 +297,7 @@ void main() {
         await _pump(
           tester,
           const LiveScreen(),
-          overrides: [
-            liveRoomsProvider.overrideWith(
-              (ref, tab) =>
-                  FeedItems<LiveRoomCardData>(hubRooms(AppLanguage.en)),
-            ),
-          ],
+          live: FakeLiveRepository(rooms: (_) => apiPage(apiRooms(8))),
         );
         final size = tester.getSize(find.byType(KLiveCoverCard).first);
         expect(size.width, closeTo(cardWidth, 0.01));
@@ -305,11 +317,9 @@ void main() {
       await pumpScreen(
         tester,
         const LiveScreen(),
-        overrides: [
-          liveRoomsProvider.overrideWith(
-            (ref, tab) => Completer<FeedLoad<LiveRoomCardData>>().future,
-          ),
-        ],
+        overrides: liveOverrides(
+          FakeLiveRepository(configGate: Completer<void>()),
+        ),
       );
       await tester.pump(const Duration(milliseconds: 250));
       expect(find.byType(KLiveCoverCardSkeleton), findsNothing);
@@ -324,15 +334,7 @@ void main() {
       tester,
     ) async {
       final l10n = l10nFor(AppLanguage.en);
-      await _pump(
-        tester,
-        const LiveScreen(),
-        overrides: [
-          liveRoomsProvider.overrideWith(
-            (ref, tab) => const FeedItems<LiveRoomCardData>([]),
-          ),
-        ],
-      );
+      await _pump(tester, const LiveScreen(), live: FakeLiveRepository());
       expect(find.text(l10n.liveHubEmptyTitle), findsOneWidget);
       expect(find.text(l10n.feedSeePopular), findsNothing);
 
@@ -348,46 +350,37 @@ void main() {
       tester,
     ) async {
       final l10n = l10nFor(AppLanguage.en);
-      var calls = 0;
-      await _pump(
-        tester,
-        const LiveScreen(),
-        overrides: [
-          liveRoomsProvider.overrideWith((ref, tab) {
-            if (tab == FeedTab.popular) calls++;
-            throw const NetworkFailure.offline();
-          }),
-        ],
-      );
+      final live = FakeLiveRepository()
+        ..configFailure = const NetworkFailure.offline();
+      await _pump(tester, const LiveScreen(), live: live);
       expect(find.text(l10n.liveHubErrorTitle), findsOneWidget);
       expect(find.text(l10n.errorNetworkOffline), findsOneWidget);
       expect(find.byType(RefreshIndicator), findsOneWidget);
-      final before = calls;
+      final before = live.configCalls;
+      live.configFailure = null;
       await tester.tap(find.text(l10n.actionRetry));
       await tester.pumpAndSettle();
-      expect(calls, before + 1);
+      expect(live.configCalls, before + 1);
+      expect(find.text(l10n.liveHubEmptyTitle), findsOneWidget);
     });
 
     testWidgets('populated: pull-to-refresh reloads the tab', (tester) async {
-      var calls = 0;
-      await _pump(
-        tester,
-        const LiveScreen(),
-        overrides: [
-          liveRoomsProvider.overrideWith((ref, tab) {
-            if (tab == FeedTab.popular) calls++;
-            return FeedItems<LiveRoomCardData>(hubRooms(AppLanguage.en));
-          }),
-        ],
-      );
-      final before = calls;
+      final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(6)));
+      await _pump(tester, const LiveScreen(), live: live);
+      int popularCalls() =>
+          live.requests.where((r) => r.tab == LiveRoomsTab.popular).length;
+      final before = popularCalls();
+      final configBefore = live.configCalls;
       await tester.fling(
         find.byType(KLiveCoverCard).first,
         const Offset(0, 400),
         1000,
       );
       await tester.pumpAndSettle();
-      expect(calls, before + 1);
+      expect(popularCalls(), before + 1);
+      // Refresh re-checks the hosting switch.
+      expect(live.configCalls, greaterThan(configBefore));
+      expect(live.requests.last.cursor, isNull);
     });
   });
 

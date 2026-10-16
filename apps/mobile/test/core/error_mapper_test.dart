@@ -25,6 +25,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.rateLimited: 429,
   ErrorCode.internalError: 500,
   ErrorCode.serviceUnavailable: 503,
+  ErrorCode.liveHostingUnavailable: 503,
+  ErrorCode.liveRoomAlreadyActive: 409,
+  ErrorCode.liveRoomEnded: 409,
 };
 
 DioException _badResponse(
@@ -66,6 +69,10 @@ void main() {
           'RATE_LIMITED',
           'INTERNAL_ERROR',
           'SERVICE_UNAVAILABLE',
+          // v1.3
+          'LIVE_HOSTING_UNAVAILABLE',
+          'LIVE_ROOM_ALREADY_ACTIVE',
+          'LIVE_ROOM_ENDED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');
