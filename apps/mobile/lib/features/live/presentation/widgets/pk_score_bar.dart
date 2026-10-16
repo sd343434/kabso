@@ -16,6 +16,7 @@ class KPkScoreBar extends StatelessWidget {
     super.key,
     this.timeLeft,
     this.result,
+    this.showStatus = true,
   });
 
   final int hostScore;
@@ -24,6 +25,10 @@ class KPkScoreBar extends StatelessWidget {
 
   /// Non-null once the battle is over (host's point of view).
   final PkResult? result;
+
+  /// Shows the timer or result chip under the bar. The split layout
+  /// (`KPkLayout`) puts them on the pane seam and the panes instead.
+  final bool showStatus;
 
   double get _hostShare {
     final total = hostScore + opponentScore;
@@ -89,11 +94,13 @@ class KPkScoreBar extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: KSpacing.xs),
-          if (result != null)
-            _ResultChip(result: result)
-          else if (timeLeft != null)
-            _TimerChip(timeLeft: timeLeft),
+          if (showStatus && (result != null || timeLeft != null)) ...[
+            const SizedBox(height: KSpacing.xs),
+            if (result != null)
+              KPkResultChip(result: result)
+            else if (timeLeft != null)
+              KPkTimerChip(timeLeft: timeLeft),
+          ],
         ],
       ),
     );
@@ -125,22 +132,26 @@ class _Side extends StatelessWidget {
   );
 }
 
-class _TimerChip extends StatelessWidget {
-  const new({required this.timeLeft});
+/// PK time left. In the final `KMetrics.pkUrgentThreshold` the label turns
+/// bold; with [urgentTint] (the seam timer, VG-38) the chip also takes the
+/// `error` fill with `onStatus` text (static, so reduce motion is moot).
+class KPkTimerChip extends StatelessWidget {
+  const new({required this.timeLeft, super.key, this.urgentTint = false});
 
   final Duration timeLeft;
+  final bool urgentTint;
 
   @override
   Widget build(BuildContext context) {
-    final white = KPalette.dark.textPrimary;
-    // Final 10 s: label switches to bold (no colour change on video).
     final urgent = timeLeft <= KMetrics.pkUrgentThreshold;
+    final tinted = urgent && urgentTint;
+    final white = tinted ? KStatusColors.onStatus : KPalette.dark.textPrimary;
     final style = context.textStyles.label.copyWith(
       color: white,
       fontWeight: urgent ? FontWeight.w700 : null,
     );
     return _Pill(
-      color: KPalette.dark.scrim,
+      color: tinted ? KPalette.dark.error : KPalette.dark.scrim,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -162,8 +173,9 @@ class _TimerChip extends StatelessWidget {
   }
 }
 
-class _ResultChip extends StatelessWidget {
-  const new({required this.result});
+/// PK outcome chip (from the point of view of the side it labels).
+class KPkResultChip extends StatelessWidget {
+  const new({required this.result, super.key});
 
   final PkResult result;
 

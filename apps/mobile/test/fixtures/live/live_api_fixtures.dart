@@ -4,6 +4,7 @@
 
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/profile/domain/profile_models.dart';
 
 /// `getLiveConfig` example (hosting off: production today).
 Map<String, Object?> liveConfigJson({bool hostingEnabled = false}) => {
@@ -139,3 +140,56 @@ LiveRoomPage apiPage(List<LiveRoomSummary> rooms, {String? nextCursor}) =>
       data: rooms,
       page: PageInfo(nextCursor: nextCursor, hasMore: nextCursor != null),
     );
+
+/// `getLiveRoom`: room [id] as v1.3.1 returns it today (viewerCount 0, no
+/// cover, no avatar), hosted by `host0` (Sara / سارة). [status] ENDED takes
+/// [endReason] (default HOST_ENDED).
+LiveRoom apiRoom({
+  String id = 'room-0',
+  bool ar = false,
+  LiveRoomStatus status = LiveRoomStatus.live,
+  LiveRoomEndReason? endReason,
+  LiveCategory? category,
+  int viewerCount = 0,
+}) {
+  final ended = status == LiveRoomStatus.ended;
+  return LiveRoom(
+    id: id,
+    title: ar ? 'أمسية موسيقى عربية' : 'Arabic music night',
+    mode: LiveRoomMode.solo,
+    viewerCount: viewerCount,
+    startedAt: DateTime.utc(2026, 10, 16, 19),
+    coverUrl: null,
+    category: category,
+    host: UserSummary(
+      id: 'user-0',
+      username: 'host0',
+      displayName: ar ? 'سارة' : 'Sara',
+      avatarUrl: null,
+    ),
+    status: status,
+    endedAt: ended ? DateTime.utc(2026, 10, 16, 20, 12) : null,
+    endReason: ended ? endReason ?? LiveRoomEndReason.hostEnded : null,
+  );
+}
+
+/// `getPublicProfile` for [apiRoom]'s host.
+PublicProfile apiProfile({
+  bool ar = false,
+  bool isFollowing = false,
+  int followerCount = 1234,
+  bool isSelf = false,
+  bool isPrivate = false,
+}) => PublicProfile(
+  id: 'user-0',
+  username: 'host0',
+  displayName: ar ? 'سارة' : 'Sara',
+  avatarUrl: null,
+  bio: ar ? 'موسيقى عربية كل مساء' : 'Arabic music every evening',
+  isPrivate: isPrivate,
+  followerCount: followerCount,
+  followingCount: 40,
+  isFollowing: isFollowing,
+  isSelf: isSelf,
+  liveRoomId: 'room-0',
+);

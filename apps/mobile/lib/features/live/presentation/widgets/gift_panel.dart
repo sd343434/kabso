@@ -11,8 +11,10 @@ import 'package:material_ui/material_ui.dart';
 /// `size.giftGridColumns` (4) grid with `sm` gaps, a selected cell with a
 /// 1.5 dp `gold` outline on `surfaceOverlay`, and the ×N combo counter.
 ///
-/// Sending is **disabled**: purchases and gifting are blocked on B5, so the
-/// footer shows a disabled Send button and a "coming soon" caption.
+/// Sending is **disabled**: there is no gift catalogue, wallet or send API
+/// (purchases are blocked on B5), so the footer shows a disabled Send button
+/// with the reason. Production shows [preview] items (Kabso's own art, no
+/// prices); prices and balances exist only in test fixtures.
 class KGiftPanel extends StatelessWidget {
   const new({
     required this.gifts,
@@ -31,7 +33,9 @@ class KGiftPanel extends StatelessWidget {
   final int comboCount;
   final VoidCallback? onClose;
 
-  /// Shows the panel as a modal bottom sheet (scrim, drag to dismiss).
+  /// Shows the panel as a room sheet: **non-dimming** (owner decision D36,
+  /// HL-L6, VG-33), so the stream stays visible; a tap outside or a drag
+  /// down closes it.
   static Future<void> show(
     BuildContext context, {
     required WidgetBuilder builder,
@@ -39,13 +43,26 @@ class KGiftPanel extends StatelessWidget {
     context: context,
     isScrollControlled: true,
     backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
-    barrierColor: KPalette.dark.scrim,
+    barrierColor: KMetrics.roomSheetBarrier,
     constraints: BoxConstraints(
       maxHeight:
-          MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
+          MediaQuery.sizeOf(context).height * KMetrics.giftSheetMaxHeightFactor,
     ),
     builder: (context) => KLiveSurface(child: builder(context)),
   );
+
+  /// The items production shows until a gift catalogue exists: Kabso's own
+  /// placeholder art with localized names and **no price**.
+  static List<GiftItemData> preview(AppLocalizations l10n) => [
+    GiftItemData(id: 'heart', name: l10n.giftNameHeart, shape: GiftShape.heart),
+    GiftItemData(id: 'star', name: l10n.giftNameStar, shape: GiftShape.star),
+    GiftItemData(
+      id: 'diamond',
+      name: l10n.giftNameDiamond,
+      shape: GiftShape.diamond,
+    ),
+    GiftItemData(id: 'crown', name: l10n.giftNameCrown, shape: GiftShape.crown),
+  ];
 
   @override
   Widget build(BuildContext context) =>
@@ -101,15 +118,14 @@ class KGiftPanel extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+            Flexible(
               child: GridView.count(
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
                 crossAxisCount: KSizes.giftGridColumns,
                 mainAxisSpacing: KSpacing.sm,
                 crossAxisSpacing: KSpacing.sm,
                 childAspectRatio: KMetrics.giftCellAspect,
                 shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
                 children: [
                   for (final gift in gifts)
                     _GiftCell(
@@ -200,11 +216,16 @@ class _GiftCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final text = context.textStyles;
-    final price = KFormat.grouped(gift.price);
+    final rawPrice = gift.price;
+    final price = rawPrice == null ? null : KFormat.grouped(rawPrice);
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     return Semantics(
       button: true,
       selected: selected,
-      label: context.l10n.giftCellSemantics(gift.name, price),
+      label: price == null
+          ? gift.name
+          : context.l10n.giftCellSemantics(gift.name, price),
       child: ExcludeSemantics(
         child: Material(
           color: selected ? p.surfaceOverlay : p.surfaceRaised,
@@ -222,33 +243,49 @@ class _GiftCell extends StatelessWidget {
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsets.all(KSpacing.xs),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  KGiftArt(shape: gift.shape),
-                  const SizedBox(height: KSpacing.xs),
-                  Text(
-                    gift.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.caption.copyWith(color: p.textPrimary),
+              // VG-34: names wrap to 2 lines; a cell that still does not fit
+              // (large text) scales down instead of overflowing.
+              child: LayoutBuilder(
+                builder: (context, constraints) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        KGiftArt(shape: gift.shape),
+                        const SizedBox(height: KSpacing.xs),
+                        Text(
+                          gift.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          textScaler: scaler,
+                          style: text.caption.copyWith(color: p.textPrimary),
+                        ),
+                        if (price != null)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.monetization_on,
+                                size: KMetrics.iconXs,
+                                color: KBrandColors.gold,
+                              ),
+                              const SizedBox(width: KSpacing.xxs),
+                              Text(
+                                price,
+                                textScaler: scaler,
+                                style: text.caption.copyWith(
+                                  color: KBrandColors.gold,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        size: KMetrics.iconXs,
-                        color: KBrandColors.gold,
-                      ),
-                      const SizedBox(width: KSpacing.xxs),
-                      Text(
-                        price,
-                        style: text.caption.copyWith(color: KBrandColors.gold),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ),

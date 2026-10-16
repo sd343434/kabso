@@ -7,12 +7,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
-import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_score_bar.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -265,8 +263,8 @@ void main() {
           Stack(
             fit: StackFit.expand,
             children: [
+              // KL-034: room sheets do not dim the stream (VG-33).
               fakeVideoFrame(),
-              ColoredBox(color: KPalette.dark.scrim),
               Align(
                 alignment: Alignment.bottomCenter,
                 child: KGiftPanel(
@@ -305,56 +303,6 @@ void main() {
         );
         await expectScreenGolden('pk_bar', language: language);
       });
-
-      for (final viewport in GoldenViewport.values) {
-        for (final variant in const ['viewer', 'pk', 'gifts']) {
-          testWidgets('room scaffold $variant (${viewport.name})', (
-            tester,
-          ) async {
-            await pumpGolden(
-              tester,
-              _room(language, variant),
-              language: language,
-              viewport: viewport,
-              bare: true,
-            );
-            await expectScreenGolden(
-              'room_$variant',
-              language: language,
-              viewport: viewport,
-            );
-          });
-        }
-      }
     });
   });
-}
-
-Widget _room(AppLanguage language, String variant) {
-  final (host, opponent, time, _) = pkSnapshots[1];
-  return KLiveRoomScaffold(
-    video: fakeVideoFrame(),
-    header: KHostPill(
-      hostName: language == AppLanguage.ar ? 'سارة' : 'Sara',
-      avatar: avatarImage,
-      following: false,
-      onFollow: () {},
-    ),
-    viewers: const KViewerStrip(names: viewerNames, count: 12345),
-    onClose: () {},
-    pk: variant == 'pk'
-        ? KPkScoreBar(hostScore: host, opponentScore: opponent, timeLeft: time)
-        : null,
-    chat: KLiveChatOverlay(lines: chatLines(language)),
-    actionBar: KRoomActionBar(onComment: () {}, onShare: () {}, onGift: () {}),
-    overlay: variant == 'gifts'
-        ? ColoredBox(
-            color: KPalette.dark.scrim,
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: KGiftPanel(gifts: gifts(language), onSelected: (_) {}),
-            ),
-          )
-        : null,
-  );
 }

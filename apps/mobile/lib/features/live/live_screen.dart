@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
@@ -105,6 +107,10 @@ class _LiveHubPage extends ConsumerWidget {
       onLoadMore: () => unawaited(controller.loadMore()),
       onRetryLoadMore: () => unawaited(controller.retryLoadMore()),
       onSelectTab: onSelectTab,
+      onOpenRoom: (room) {
+        final id = room.roomId;
+        if (id != null) unawaited(context.push<void>(AppRoutes.liveRoom(id)));
+      },
       refreshWhenUnavailable: true,
     );
   }
@@ -187,8 +193,8 @@ class LiveHubBody extends StatelessWidget {
   final VoidCallback? onLoadMore;
   final VoidCallback? onRetryLoadMore;
 
-  /// Opens a room. `null` until the room screen exists (slice 2, KL-034):
-  /// cards are then not announced or drawn as buttons.
+  /// Opens a room (`/live/room/:roomId`, KL-034). `null` (gallery,
+  /// goldens): cards are not announced or drawn as buttons.
   final ValueChanged<LiveRoomCardData>? onOpenRoom;
 
   final bool refreshWhenUnavailable;

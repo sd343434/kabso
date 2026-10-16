@@ -1091,7 +1091,7 @@ abstract class AppLocalizations {
   /// Purchases are blocked on B5.
   ///
   /// In ar, this message translates to:
-  /// **'إرسال الهدايا قادم قريبًا.'**
+  /// **'لا يمكن إرسال الهدايا بعد.'**
   String get giftSendComingSoon;
 
   /// No description provided for @giftCombo.
@@ -1411,6 +1411,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{card}، {category}'**
   String liveCardSemanticsCategory(String card, String category);
+
+  /// Room stage while no video can play (no media provider).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو البث غير متاح بعد'**
+  String get liveRoomVideoUnavailableTitle;
+
+  /// No description provided for @liveRoomVideoUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تشغيل الفيديو في التطبيق بعد. تفاصيل الغرفة هنا مباشرة.'**
+  String get liveRoomVideoUnavailableBody;
+
+  /// Honest empty chat: there is no chat API yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة غير متاحة بعد. ستظهر الرسائل هنا.'**
+  String get liveRoomChatUnavailable;
+
+  /// Host follower count from the public profile; {formatted} is compact (Latin digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا متابعين} =1{متابع واحد} =2{متابعان} few{{formatted} متابعين} many{{formatted} متابعًا} other{{formatted} متابع}}'**
+  String liveRoomFollowers(int count, String formatted);
+
+  /// No description provided for @liveRoomHostSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'{host}، ملف المضيف'**
+  String liveRoomHostSemantics(String host);
+
+  /// No description provided for @liveRoomUsername.
+  ///
+  /// In ar, this message translates to:
+  /// **'@{username}'**
+  String liveRoomUsername(String username);
+
+  /// No description provided for @liveRoomCategory.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفئة: {category}'**
+  String liveRoomCategory(String category);
+
+  /// No description provided for @liveRoomEndedTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى هذا البث'**
+  String get liveRoomEndedTitle;
+
+  /// No description provided for @liveRoomEndedByHost.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنهى المضيف هذا البث.'**
+  String get liveRoomEndedByHost;
+
+  /// No description provided for @liveRoomEndedTimeout.
+  ///
+  /// In ar, this message translates to:
+  /// **'توقف البث بعد انقطاع اتصال المضيف.'**
+  String get liveRoomEndedTimeout;
+
+  /// No description provided for @liveRoomEndedOther.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد هذا البث متاحًا.'**
+  String get liveRoomEndedOther;
+
+  /// No description provided for @liveRoomBackToLive.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى البثوث'**
+  String get liveRoomBackToLive;
+
+  /// No description provided for @liveRoomNotFoundTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البث غير متاح'**
+  String get liveRoomNotFoundTitle;
+
+  /// No description provided for @liveRoomNotFoundBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربما انتهى أو تمت إزالته.'**
+  String get liveRoomNotFoundBody;
+
+  /// No description provided for @liveRoomErrorTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح هذا البث'**
+  String get liveRoomErrorTitle;
+
+  /// Semantics while the room loads.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ فتح البث'**
+  String get liveRoomLoading;
+
+  /// No description provided for @liveRoomWeakConnection.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتصال ضعيف'**
+  String get liveRoomWeakConnection;
+
+  /// No description provided for @liveRoomReconnecting.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ إعادة الاتصال…'**
+  String get liveRoomReconnecting;
+
+  /// No description provided for @liveRoomCameraOff.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا متوقفة'**
+  String get liveRoomCameraOff;
+
+  /// No description provided for @giftNameHeart.
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب'**
+  String get giftNameHeart;
+
+  /// No description provided for @giftNameStar.
+  ///
+  /// In ar, this message translates to:
+  /// **'نجمة'**
+  String get giftNameStar;
+
+  /// No description provided for @giftNameDiamond.
+  ///
+  /// In ar, this message translates to:
+  /// **'ماسة'**
+  String get giftNameDiamond;
+
+  /// No description provided for @giftNameCrown.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاج'**
+  String get giftNameCrown;
+
+  /// Kabso PK mark on the seam between the panes.
+  ///
+  /// In ar, this message translates to:
+  /// **'VS'**
+  String get pkVersus;
+
+  /// No description provided for @pkSupporters.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبرز الداعمين: {names}'**
+  String pkSupporters(String names);
+
+  /// No description provided for @multiGuestOpenSeat.
+  ///
+  /// In ar, this message translates to:
+  /// **'مقعد شاغر'**
+  String get multiGuestOpenSeat;
+
+  /// No description provided for @multiGuestMicOff.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، الميكروفون مغلق'**
+  String multiGuestMicOff(String name);
+
+  /// No description provided for @multiGuestHost.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف'**
+  String get multiGuestHost;
 }
 
 class _AppLocalizationsDelegate

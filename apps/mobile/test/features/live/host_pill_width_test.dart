@@ -22,11 +22,7 @@ void main() {
         await pumpGolden(
           tester,
           KLiveRoomScaffold(
-            header: KHostPill(
-              hostName: host,
-              following: false,
-              onFollow: () {},
-            ),
+            header: KHostPill(hostName: host, onFollow: () {}),
             viewers: const KViewerStrip(names: viewerNames, count: 12345),
             onClose: () {},
             chat: KLiveChatOverlay(lines: chatLines(language)),

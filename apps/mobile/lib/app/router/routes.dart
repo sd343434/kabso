@@ -13,6 +13,14 @@ abstract final class AppRoutes {
   static const discover = '/discover';
   static const create = '/create';
   static const live = '/live';
+
+  /// KL-034: a live room, nested under the Live branch but shown above the
+  /// shell (no bottom nav on full-screen live surfaces, HL-N1 §2).
+  static const liveRoomSegment = 'room/:roomId';
+
+  /// The location of the live room [roomId].
+  static String liveRoom(String roomId) =>
+      '$live/room/${Uri.encodeComponent(roomId)}';
   static const profile = '/profile';
 
   static const settings = '/settings';

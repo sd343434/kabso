@@ -301,7 +301,9 @@ void main() {
   });
 
   group('cards', () {
-    testWidgets('not interactive until the room screen exists', (tester) async {
+    testWidgets('KL-034: API cards are buttons that open their room', (
+      tester,
+    ) async {
       await _pump(
         tester,
         FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2))),
@@ -309,12 +311,15 @@ void main() {
       final card = find.byType(KLiveCoverCard).first;
       expect(
         find.descendant(of: card, matching: find.byType(InkWell)),
-        findsNothing,
+        findsOneWidget,
       );
       expect(
         tester.getSemantics(card).getSemanticsData().flagsCollection.isButton,
-        isFalse,
+        isTrue,
       );
+      // The card carries the API room id (the route is tested in
+      // live_room_test.dart).
+      expect(tester.widget<KLiveCoverCard>(card).room.roomId, 'room-0');
     });
 
     testWidgets('creator identity and "New" from the API room (D39)', (
@@ -393,16 +398,18 @@ void main() {
     // states, actions, cards, badges, nav, retry and error copy), not only
     // the home*/liveHub* keys. Rendered text is also checked state by state
     // in test/features/home_live/kl047_polish_test.dart.
-    test('Home and Live copy has no development phases', () {
+    // KL-034 adds the live room: every live*, gift*, pk*, chat* and
+    // multiGuest* string (room states, sheets, PK, seats); its rendered text
+    // is checked state by state in live_room_test.dart.
+    test('Home, Live and live room copy has no development phases', () {
       const prefixes = [
         'home',
-        'liveHub',
+        'live',
         'feed',
-        'liveCard',
-        'liveBadge',
-        'liveViewers',
-        'liveMultiGuest',
-        'pkBadge',
+        'gift',
+        'pk',
+        'chat',
+        'multiGuest',
         'compact',
         'nav',
         'actionRetry',
@@ -417,7 +424,7 @@ void main() {
           expect(value, isNot(contains(phase)), reason: '$file $key');
         }
       }
-      expect(checked, greaterThan(100));
+      expect(checked, greaterThan(150));
     });
 
     test('the three v1.3 live codes have their own messages', () {

@@ -591,7 +591,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get giftSend => 'Send';
 
   @override
-  String get giftSendComingSoon => 'Sending gifts is coming soon.';
+  String get giftSendComingSoon => 'Gifts can\'t be sent yet.';
 
   @override
   String giftCombo(int count) {
@@ -785,4 +785,109 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveCardSemanticsCategory(String card, String category) {
     return '$card, $category';
   }
+
+  @override
+  String get liveRoomVideoUnavailableTitle => 'Live video isn\'t available yet';
+
+  @override
+  String get liveRoomVideoUnavailableBody =>
+      'Video can\'t play in the app yet. The room details here are live.';
+
+  @override
+  String get liveRoomChatUnavailable =>
+      'Chat isn\'t open yet. Messages will appear here.';
+
+  @override
+  String liveRoomFollowers(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted followers',
+      one: '$formatted follower',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveRoomHostSemantics(String host) {
+    return '$host, host profile';
+  }
+
+  @override
+  String liveRoomUsername(String username) {
+    return '@$username';
+  }
+
+  @override
+  String liveRoomCategory(String category) {
+    return 'Category: $category';
+  }
+
+  @override
+  String get liveRoomEndedTitle => 'This live has ended';
+
+  @override
+  String get liveRoomEndedByHost => 'The host ended this live.';
+
+  @override
+  String get liveRoomEndedTimeout =>
+      'The live stopped after the host\'s connection was lost.';
+
+  @override
+  String get liveRoomEndedOther => 'This live is no longer available.';
+
+  @override
+  String get liveRoomBackToLive => 'Back to live rooms';
+
+  @override
+  String get liveRoomNotFoundTitle => 'This live isn\'t available';
+
+  @override
+  String get liveRoomNotFoundBody => 'It may have ended or been removed.';
+
+  @override
+  String get liveRoomErrorTitle => 'Couldn\'t open this live';
+
+  @override
+  String get liveRoomLoading => 'Opening the live';
+
+  @override
+  String get liveRoomWeakConnection => 'Weak connection';
+
+  @override
+  String get liveRoomReconnecting => 'Reconnecting…';
+
+  @override
+  String get liveRoomCameraOff => 'Camera is off';
+
+  @override
+  String get giftNameHeart => 'Heart';
+
+  @override
+  String get giftNameStar => 'Star';
+
+  @override
+  String get giftNameDiamond => 'Diamond';
+
+  @override
+  String get giftNameCrown => 'Crown';
+
+  @override
+  String get pkVersus => 'VS';
+
+  @override
+  String pkSupporters(String names) {
+    return 'Top supporters: $names';
+  }
+
+  @override
+  String get multiGuestOpenSeat => 'Open seat';
+
+  @override
+  String multiGuestMicOff(String name) {
+    return '$name, microphone off';
+  }
+
+  @override
+  String get multiGuestHost => 'Host';
 }

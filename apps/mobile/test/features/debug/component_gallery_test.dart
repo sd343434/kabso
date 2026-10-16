@@ -41,6 +41,42 @@ void main() {
     expect(find.bySemanticsLabel('Following'), findsOneWidget);
   });
 
+  testWidgets('KL-034: every room layout and state demo opens', (tester) async {
+    tester.view
+      ..physicalSize = const Size(393, 852) * 3
+      ..devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await pumpComponent(tester, const ComponentGalleryScreen());
+    for (final name in [
+      'pk',
+      'multiGuest',
+      'weak',
+      'reconnecting',
+      'cameraOff',
+      'videoUnavailable',
+      'ended',
+    ]) {
+      final button = find.byKey(Key('gallery.room.$name'));
+      await tester.scrollUntilVisible(
+        button,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveRoomScaffold), findsOneWidget, reason: name);
+      expect(tester.takeException(), isNull, reason: name);
+      // The ended overlay is modal: its own button leaves.
+      await tester.tap(
+        name == 'ended'
+            ? find.text('Back to live rooms')
+            : find.bySemanticsLabel('Close').first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveRoomScaffold), findsNothing, reason: name);
+    }
+  });
+
   test('the gallery route is only registered outside release mode', () {
     // Tests run in debug mode; the release guard is checked in the source.
     expect(kReleaseMode, isFalse);
