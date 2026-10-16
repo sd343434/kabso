@@ -1,12 +1,16 @@
 {
-  "$comment": "Kabso Live core design tokens v1 (authoritative). Flutter implements these 1:1 in lib/design_system/tokens. Design spec: docs/design/DESIGN_SYSTEM.md. Colors are sRGB hex: #RRGGBB, or #AARRGGBB (alpha first, Flutter Color order) where 8 digits are used, e.g. scrim #B3000000 = black at 70% opacity. Changes via contract proposal only.",
+  "$comment": "Kabso Live core design tokens v1.1 (authoritative). Flutter implements these 1:1 in lib/design_system/tokens. Design spec: docs/design/DESIGN_SYSTEM.md. Colors are sRGB hex: #RRGGBB, or #AARRGGBB (alpha first, Flutter Color order) where 8 digits are used, e.g. scrim #B3000000 = black at 70% opacity. Changes via contract proposal only.",
   "color": {
     "brand": {
       "red500": "#E50914",
       "red400": "#FF3B47",
       "red600": "#B80710",
       "red700": "#8A050C",
-      "gradientLive": ["#FF3B47", "#E50914", "#8A050C"],
+      "gradientLive": [
+        "#FF3B47",
+        "#E50914",
+        "#8A050C"
+      ],
       "gold": "#F5C451"
     },
     "dark": {
@@ -17,14 +21,17 @@
       "border": "#34343D",
       "textPrimary": "#FFFFFF",
       "textSecondary": "#B4B4BE",
-      "textTertiary": "#7A7A86",
+      "textTertiary": "#92929E",
       "primary": "#E50914",
       "onPrimary": "#FFFFFF",
       "success": "#2ECC71",
       "warning": "#F5A623",
       "error": "#FF5A5F",
       "info": "#4DA3FF",
-      "scrim": "#B3000000"
+      "scrim": "#B3000000",
+      "primaryText": "#FF3B47",
+      "borderStrong": "#70707C",
+      "focusRing": "#FF3B47"
     },
     "light": {
       "background": "#FFFFFF",
@@ -34,35 +41,84 @@
       "border": "#DCDCE2",
       "textPrimary": "#0B0B0D",
       "textSecondary": "#4A4A55",
-      "textTertiary": "#7A7A86",
+      "textTertiary": "#666671",
       "primary": "#C8080F",
       "onPrimary": "#FFFFFF",
-      "success": "#1E9E57",
-      "warning": "#C77D00",
-      "error": "#D92D36",
-      "info": "#1F6FD1",
-      "scrim": "#99000000"
+      "success": "#137A43",
+      "warning": "#955C00",
+      "error": "#C4242D",
+      "info": "#1A64BF",
+      "scrim": "#99000000",
+      "primaryText": "#C8080F",
+      "borderStrong": "#85858F",
+      "focusRing": "#C8080F"
     },
     "live": {
       "badge": "#E50914",
       "pkLeft": "#FF3B6B",
-      "pkRight": "#3B8BFF"
-    }
+      "pkRight": "#3B8BFF",
+      "chatScrim": "#99000000"
+    },
+    "onStatus": "#0B0B0D"
   },
-  "spacing": { "xxs": 2, "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32, "xxxl": 48 },
-  "radius": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "pill": 999 },
+  "spacing": {
+    "xxs": 2,
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "xxl": 32,
+    "xxxl": 48
+  },
+  "radius": {
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "pill": 999
+  },
   "typography": {
     "fontFamilyLatin": "Inter",
     "fontFamilyArabic": "IBM Plex Sans Arabic",
     "fontLicense": "Both OFL-1.1; bundle as assets (no runtime font download).",
     "scale": {
-      "display": { "size": 32, "weight": 700, "height": 1.2 },
-      "headline": { "size": 24, "weight": 700, "height": 1.25 },
-      "title": { "size": 18, "weight": 600, "height": 1.3 },
-      "body": { "size": 15, "weight": 400, "height": 1.45 },
-      "bodyStrong": { "size": 15, "weight": 600, "height": 1.45 },
-      "label": { "size": 13, "weight": 600, "height": 1.3 },
-      "caption": { "size": 12, "weight": 400, "height": 1.35 }
+      "display": {
+        "size": 32,
+        "weight": 700,
+        "height": 1.2
+      },
+      "headline": {
+        "size": 24,
+        "weight": 700,
+        "height": 1.25
+      },
+      "title": {
+        "size": 18,
+        "weight": 600,
+        "height": 1.3
+      },
+      "body": {
+        "size": 15,
+        "weight": 400,
+        "height": 1.45
+      },
+      "bodyStrong": {
+        "size": 15,
+        "weight": 600,
+        "height": 1.45
+      },
+      "label": {
+        "size": 13,
+        "weight": 600,
+        "height": 1.3
+      },
+      "caption": {
+        "size": 12,
+        "weight": 400,
+        "height": 1.35
+      }
     }
   },
   "motion": {
@@ -70,7 +126,8 @@
     "durationBaseMs": 220,
     "durationSlowMs": 360,
     "curveStandard": "easeOutCubic",
-    "respectReduceMotion": true
+    "respectReduceMotion": true,
+    "giftComboBumpMs": 120
   },
   "size": {
     "minTouchTarget": 48,
@@ -79,6 +136,9 @@
     "avatarLg": 88,
     "storyRing": 68,
     "bottomNavHeight": 64,
-    "buttonHeight": 52
-  }
+    "buttonHeight": 52,
+    "liveCardAspect": 0.75,
+    "giftGridColumns": 4
+  },
+  "$version": "1.1"
 }
