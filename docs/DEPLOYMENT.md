@@ -45,8 +45,9 @@ shellcheck 0.11.0 reports no findings.
 
 - Credentials are dev defaults overridable from `.env`; database `kabso_dev`, admin user `kabso`.
   On the first start of an empty volume `infra/postgres/initdb/10-kabso-roles.sh` creates the
-  migration role `kabso_migrator`, the runtime role `kabso_app` and the e2e database
-  `kabso_test` (§5.1). The API uses `kabso_app`, Prisma's CLI `kabso_migrator`.
+  migration role `kabso_migrator`, the runtime logins `kabso_app` (`kabso_dev`) and
+  `kabso_app_test` (the e2e database `kabso_test`) and their per-database groups (§5.1). The API
+  uses `kabso_app`, Prisma's CLI `kabso_migrator`.
 - The file validates with `docker compose config` (Compose v5.6.0 CLI, no daemon needed), but
   the containers have **not** been started in the authoring environment (no Docker daemon).
 - **MinIO image note:** upstream MinIO no longer publishes community container images
@@ -237,11 +238,13 @@ and starve DNS and fs work.
   signs every user out. `RATE_LIMIT_KEY_SECRET` (HMAC key for rate-limit buckets, required in
   production, distinct from the JWT key) can rotate at any time; rotation only resets
   counters. Generate both with `openssl rand -base64 48`. Database passwords rotate through
-  the secret manager, followed by a rolling restart.
+  the secret manager and the bootstrap script; the runtime login rotates without downtime via
+  a second login (§5.1).
 - **Database roles (SEC-011 / KL-013):** the API uses a least-privilege runtime role (DML
   only, `DATABASE_URL`); migrations run as a separate migration role (`MIGRATION_DATABASE_URL`,
   given only to the migration job). Both passwords live in the secret manager and are set by
-  `infra/postgres/bootstrap-roles.sql`, which reads them from the environment. See §5.1.
+  `infra/postgres/bootstrap-roles.sql` (from SCRAM verifiers outside development), which reads
+  them from the environment. Zero-downtime rotation of the runtime login: §5.1.
 
 ## 5. Database migrations — [DESIGNED]
 
@@ -264,98 +267,188 @@ and starve DNS and fs work.
 - Destructive or locking migrations need a review note in the PR: the expected lock, the
   table size, and the rollback.
 
-### 5.1 Database roles (SEC-011) — [IMPLEMENTED (KL-013); compose init UNVERIFIED]
+### 5.1 Database roles (SEC-011) — [IMPLEMENTED (KL-013, KL-013b); compose init UNVERIFIED]
 
-The API never connects as the schema owner. Three kinds of roles, per environment:
+The API never connects as the schema owner. Roles, **per database** (one database per
+environment; several databases may share one PostgreSQL cluster):
 
 | Role | Login | Used by | Rights |
 | ---- | ----- | ------- | ------ |
-| migration role (`KABSO_DB_MIGRATOR_USER`, default `kabso_migrator`) | yes | the pre-deploy migration job only (`prisma migrate deploy`, `MIGRATION_DATABASE_URL`) | owns schema `public` and every table, sequence and type in it; DDL; `CONNECT, TEMPORARY, CREATE` on the database. No `SUPERUSER`, `CREATEROLE`, `REPLICATION`, `BYPASSRLS`; `CREATEDB` only in local dev (shadow database of `prisma migrate dev`) |
-| `kabso_runtime` | **no** (group) | holds the runtime grants; the fixed name migrations grant to | `CONNECT`; `USAGE` on `public`; `SELECT, INSERT, UPDATE, DELETE` on app tables; `INSERT, SELECT` only on `audit_logs`; `USAGE, SELECT` on sequences; nothing on `_prisma_migrations`; no `TRUNCATE`, `REFERENCES`, `TRIGGER`, `CREATE`, ownership |
-| runtime role (`KABSO_DB_APP_USER`, default `kabso_app`) | yes | API pods (`DATABASE_URL`) | member of `kabso_runtime` and nothing else; all role attributes off |
+| migration role (`KABSO_DB_MIGRATOR_USER`, default `kabso_migrator`) | yes | the pre-deploy migration job only (`prisma migrate deploy`, `MIGRATION_DATABASE_URL`) | owns schema `public` and every table, sequence, type and function in it; DDL; `CONNECT, TEMPORARY, CREATE` on its database. No `SUPERUSER`, `CREATEROLE`, `REPLICATION`, `BYPASSRLS`; `CREATEDB` only in local dev (shadow database of `prisma migrate dev`). Outside development it must not be used by any other database |
+| `kabso_runtime_<database>` (e.g. `kabso_runtime_kabso_prod`) | **no** (group) | holds the runtime grants of THIS database | `CONNECT` on this database only; `USAGE` on `public`; `SELECT, INSERT, UPDATE, DELETE` on app tables; `INSERT, SELECT` only on `audit_logs`; `USAGE, SELECT` on sequences; nothing on `_prisma_migrations`; no `TEMPORARY`, `TRUNCATE`, `REFERENCES`, `TRIGGER`, `CREATE`, `EXECUTE` on functions, ownership or grant options |
+| runtime login (`KABSO_DB_APP_USER`, default `kabso_app`) | yes | API pods (`DATABASE_URL`) | member of `kabso_runtime_<database>` and nothing else; all role attributes off; one login per database (never shared between environments) |
+| `kabso_runtime` | no | legacy (KL-013) | cluster-wide group of the first implementation. Still created because migration `20261016120000` grants to it; migration `20261016130000` and the bootstrap leave it with no members and no privileges in a migrated database |
 | bootstrap / admin (local `POSTGRES_USER`, managed-service master user) | break-glass only | environment bootstrap, password rotation | creates the roles; never used by the API or by migrations |
 
-**Why a NOLOGIN group:** migrations are committed SQL, so they may only reference names that are
-the same in every environment and carry no secret. They grant to `kabso_runtime`; the login role
-that actually connects is configurable per environment and its password lives only in the secret
-manager. A second login role can be added to the group for zero-downtime credential rotation.
+**Why a NOLOGIN group per database:** migrations are committed SQL, so they may only reference
+names that carry no secret and no environment-specific value. Migration `20261016130000` derives
+the group name from `current_database()` (dynamic SQL with `format('%I')`), so the same migration
+grants to `kabso_runtime_kabso_staging` in staging and to `kabso_runtime_kabso_prod` in
+production. A runtime login of one database therefore has no privilege — not even `CONNECT` — in
+any other database of the cluster (KL-007f KL7F-01). The database name may be at most 49 bytes
+(role names are limited to 63).
 
 **Where each piece lives (and why):**
 
 1. **Role creation and passwords — bootstrap script, not a migration:**
-   `infra/postgres/bootstrap-roles.sql`, run by an admin. Creating roles needs `CREATEROLE`,
-   which the migration role must not have, and passwords must never be in git. The script reads
-   role names and passwords from the environment (`\getenv`: `KABSO_DB_MIGRATOR_USER`,
-   `KABSO_DB_MIGRATOR_PASSWORD`, `KABSO_DB_APP_USER`, `KABSO_DB_APP_PASSWORD`), so they do not
-   appear on the command line either. It is idempotent and re-sets both passwords on every run,
-   so it is also the rotation procedure. It also sets the database/schema ownership and
-   privileges, and finally verifies the role attributes (fails if any is unsafe).
-2. **Grants on schema objects — Prisma migration** `20261016120000_runtime_role_grants` (runs
-   as the migration role, so it lives with the schema it protects): grants on existing tables
-   and sequences, revokes on `_prisma_migrations` and `UPDATE, DELETE` on `audit_logs`, and
-   `ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA public` for tables and sequences
-   created later. It refuses to run if `kabso_runtime` is missing, if it runs as a superuser, or
-   if the current role does not own schema `public` (default privileges only follow the role
-   that creates objects).
+   `infra/postgres/bootstrap-roles.sql`, run by an admin with `psql` 15 or later. Creating roles
+   needs `CREATEROLE`, which the migration role must not have, and passwords must never be in git.
+   The script reads everything from the environment (`\getenv`), so nothing appears on the command
+   line:
+
+   | Variable | Meaning |
+   | -------- | ------- |
+   | `KABSO_DB_ENV` | `development` (compose, CI, e2e) or `staging` / `production`. **Unset means production.** Outside development: passwords must be SCRAM verifiers, the known dev/CI default passwords are refused even as verifiers, `CREATEDB` is refused, and a migration role used by another database is refused |
+   | `KABSO_DB_MODE` | `bootstrap` (default), `add-runtime-login`, `retire-runtime-login` (rotation, below) |
+   | `KABSO_DB_MIGRATOR_USER`, `KABSO_DB_MIGRATOR_PASSWORD` | migration role (bootstrap mode) |
+   | `KABSO_DB_APP_USER`, `KABSO_DB_APP_PASSWORD` | runtime login |
+   | `KABSO_DB_MIGRATOR_CREATEDB` | `true` only for local dev |
+
+   The whole run is **one transaction**: it validates every input and every pre-existing role
+   first (no unsafe attributes, no `NOLOGIN` role turned into a login, no membership in other
+   roles, no ownership or privileges in other databases, the runtime login owns nothing), then
+   creates/updates the roles, the database ACL (`PUBLIC` gets nothing, the group `CONNECT` only)
+   and the owner of `public`, and finally verifies the result. Any error rolls everything back.
+   It is idempotent and re-sets the passwords on every run.
+2. **Grants on schema objects — Prisma migrations** (run as the migration role, so they live
+   with the schema they protect): `20261016120000_runtime_role_grants` (KL-013) and
+   `20261016130000_per_database_runtime_group` (KL-013b), which moves every runtime grant from
+   the legacy group to `kabso_runtime_<database>` (same privileges per table, so `audit_logs`
+   stays append-only), sets `ALTER DEFAULT PRIVILEGES` for tables and sequences created later,
+   revokes `EXECUTE` on functions from `PUBLIC` (existing ones and, through global default
+   privileges, future ones), and removes everything the legacy group held. It refuses to run
+   unless the current role **is** the owner of schema `public` (not merely a member of it) and
+   reaches no superuser / `CREATEROLE` / `BYPASSRLS` / `REPLICATION` role, and it refuses if the
+   group does not exist (bootstrap first).
+
+**Passwords outside development (KL7F-05):** pass SCRAM-SHA-256 verifiers, never clear text, so
+no clear-text password is ever part of an SQL statement the server could log. Generate a
+verifier from the password (read from stdin, not argv):
 
 ```bash
-# Once per environment (and per database), as the admin; values from the secret manager:
-export KABSO_DB_MIGRATOR_USER=kabso_migrator KABSO_DB_MIGRATOR_PASSWORD=...   # from secrets
-export KABSO_DB_APP_USER=kabso_app           KABSO_DB_APP_PASSWORD=...        # from secrets
+read -rs PW && printf '%s' "$PW" | node infra/postgres/scram-verifier.mjs; unset PW
+# -> SCRAM-SHA-256$4096:<salt>$<StoredKey>:<ServerKey>   (goes into KABSO_DB_*_PASSWORD)
+# The clear-text password goes only into the DATABASE_URL / MIGRATION_DATABASE_URL secrets.
+```
+
+When the admin is a superuser, the script also turns statement logging off for its own
+transaction (`log_statement`, `log_min_error_statement`, `log_min_duration_statement`). A
+managed-service master usually may not; if the server logs every statement and the script cannot
+change that, it refuses to run.
+
+```bash
+# Once per database, as the admin; values from the secret manager:
+export KABSO_DB_ENV=production
+export KABSO_DB_MIGRATOR_USER=kabso_migrator_prod KABSO_DB_MIGRATOR_PASSWORD='SCRAM-SHA-256$...'
+export KABSO_DB_APP_USER=kabso_app_prod           KABSO_DB_APP_PASSWORD='SCRAM-SHA-256$...'
 psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/postgres/bootstrap-roles.sql
 
 # Every deploy, pre-deploy job:
-MIGRATION_DATABASE_URL=postgresql://kabso_migrator:...@host/kabso pnpm --filter ./apps/api prisma:migrate:deploy
-# API pods get only DATABASE_URL=postgresql://kabso_app:...@host/kabso
+MIGRATION_DATABASE_URL=postgresql://kabso_migrator_prod:...@host/kabso_prod pnpm --filter ./apps/api prisma:migrate:deploy
+# API pods get only DATABASE_URL=postgresql://kabso_app_prod:...@host/kabso_prod
 ```
 
-Managed services: the master user is not a superuser. It needs to be able to `SET ROLE` to the
-migration role for `ALTER SCHEMA public OWNER TO ...` (on PostgreSQL 16 grant it membership
-first, e.g. `GRANT kabso_migrator TO <master>`), and the database should be owned by the master
-or the migration role, never by the runtime role. A password may be given as a pre-computed
-`SCRAM-SHA-256$...` verifier so the clear text never reaches the server log.
+**Managed services (KL7F-09):** the master user is not a superuser but has `CREATEROLE` and owns
+the database. On PostgreSQL 16 changing the owner of `public` requires the right to `SET ROLE`
+to the migration role; the script grants that to the master itself (`WITH INHERIT FALSE, SET
+TRUE`) for the duration of the transaction and revokes it again before `COMMIT`, so no manual
+`GRANT` and no re-run is needed. The database must be owned by the master or the migration role,
+never by the runtime login (the script refuses that).
 
-**Rules for future migrations** (also in `docs/DATABASE_SCHEMA.md`):
+**Migrating a database bootstrapped with the KL-013 layout** (`kabso_runtime`), e.g. staging if
+it was set up before KL-013b. All three steps belong to one maintenance window; the API keeps
+working throughout:
+
+1. Re-run the bootstrap (new script) for the database. It creates `kabso_runtime_<database>`,
+   adds the runtime login to it, revokes `CONNECT` of `kabso_runtime` (and of `PUBLIC`) on this
+   database and keeps the login's legacy membership for now (the new group has no table grants
+   yet; the script says so in a NOTICE).
+2. `prisma migrate deploy` — applies `20261016130000`, which copies the grants to the new group
+   and removes them from `kabso_runtime`.
+3. Re-run the bootstrap. It now removes the legacy `kabso_runtime` membership and verifies the
+   final layout. The boot guard rejects a login that is still in `kabso_runtime`, so do not
+   restart API pods between steps 1 and 3 in production.
+
+If `migrate deploy` runs before step 1, the migration stops with `role "kabso_runtime_<database>"
+does not exist` and changes nothing, but Prisma records it as failed: run `prisma migrate resolve
+--rolled-back 20261016130000_per_database_runtime_group` (migration role), then step 1, then
+deploy again.
+
+Repeat for every database of the cluster. A runtime login that served several databases must be
+split first (one login per database): the bootstrap refuses a login that is already a member of
+another database's group or has privileges in another database.
+
+**Zero-downtime password rotation (runtime login):** use a second login and switch:
+
+1. Add the new login (no other change):
+   `KABSO_DB_MODE=add-runtime-login KABSO_DB_APP_USER=kabso_app_prod_b KABSO_DB_APP_PASSWORD='SCRAM-SHA-256$...' psql "$ADMIN_DATABASE_URL" -v ON_ERROR_STOP=1 -f infra/postgres/bootstrap-roles.sql`
+2. Put the new `DATABASE_URL` into the secret manager and do a rolling restart; wait until no
+   session of the old login remains (`pg_stat_activity`).
+3. Retire the old login: `KABSO_DB_MODE=retire-runtime-login KABSO_DB_APP_USER=kabso_app_prod psql ...`
+   (removes it from the group, sets `NOLOGIN` and clears its password; refuses if it is the
+   group's last login). Drop it later with `DROP ROLE` once it is no longer needed.
+
+The next rotation goes back from `_b` to the first name. The migration role is only used by the
+short pre-deploy job: rotate it by re-running the bootstrap (mode `bootstrap`) with a new
+verifier between deploys.
+
+**Rules for future migrations** (also in `docs/DATABASE_SCHEMA.md`, with the reusable guard):
 
 - Migrations **must run as the migration role**: default privileges only apply to objects that
-  role creates. New tables (`live_rooms`, `live_categories`, `follows`, ...) then need no
-  `GRANT`. A table that must be append-only or read-only gets an explicit `REVOKE` in the
-  migration that creates it. Never grant `TRUNCATE`, `REFERENCES`, `TRIGGER` or ownership to
-  `kabso_runtime`, and never name a login role or password in a migration.
+  role creates. New tables then need no `GRANT`. A table that must be append-only or read-only
+  gets an explicit `REVOKE` in the migration that creates it (dynamic SQL on
+  `'kabso_runtime_' || current_database()`). Never grant `TRUNCATE`, `REFERENCES`, `TRIGGER`,
+  grant options or ownership to the runtime group, and never name a login role or password in a
+  migration. A function the API must call needs an explicit `GRANT EXECUTE` to the group.
 
-**Boot-time guard [IMPLEMENTED]:** after connecting, the API inspects its own role
-(`src/prisma/runtime-role-check.ts`): superuser, `CREATEROLE`, `CREATEDB`, `REPLICATION`,
-`BYPASSRLS`, owning (directly or through membership) any non-system schema or relation, `CREATE`
-on a schema or on the database, or `TRUNCATE`/`REFERENCES`/`TRIGGER` on any table. With
-`NODE_ENV=production` any finding — or failing to inspect the role — logs
-`db.runtime_role_check failed — refusing to start. …` at fatal level and aborts the boot (fail
-closed, no override). Outside production the same finding is a warning so older single-role
-dev setups still start.
+**Boot-time guard [IMPLEMENTED]:** after connecting, the API inspects its own role and **every
+role it can reach through membership** — including `SET`-only memberships with `INHERIT FALSE`
+(`src/prisma/runtime-role-check.ts`). It is refused when: it (or a reachable role) is a superuser
+or has `CREATEROLE`, `CREATEDB`, `REPLICATION` or `BYPASSRLS`; it can reach any role other than
+itself and `kabso_runtime_<current database>` (e.g. `pg_read_all_data`, `pg_write_server_files`,
+`pg_execute_server_program`, `pg_database_owner`, the migration role, the legacy `kabso_runtime`);
+it is not a member of that group; it owns any non-system schema or relation; it may `CREATE` in a
+schema or the database, or create `TEMPORARY` tables; it holds `TRUNCATE`/`REFERENCES`/`TRIGGER`
+on a table, `UPDATE`/`DELETE` (also column-level) on `audit_logs`, any privilege on
+`_prisma_migrations`, or a grant option on any table, schema, function or the database; or it
+owns, or holds privileges in, another database. With `NODE_ENV=production` any finding — or
+failing to inspect the role — logs `db.runtime_role_check failed — refusing to start. …` at fatal
+level and aborts the boot (fail closed, no override). Outside production the same finding is a
+warning so older single-role dev setups still start.
+
+**Accepted PostgreSQL limits (KL7F-07):** every login may change its own password and its own
+role-level settings (`ALTER ROLE CURRENT_USER SET ...`), and may create large objects; PostgreSQL
+has no privilege to prevent this. Consequences: per-role timeouts set with `ALTER ROLE` (below)
+are advisory, not a security control; the runtime login's password lives only in the secret
+manager, so a changed password shows up as failed connections, not as silent access. Large
+objects are not used by the API.
 
 **Where it runs:**
 
-- **Local compose:** `infra/postgres/initdb/10-kabso-roles.sh` runs the bootstrap on the first
-  start of an empty volume for `kabso_dev` and `kabso_test` (values from `.env`, `CREATEDB` for
-  the shadow database). An existing volume from before KL-013 has no roles: run
-  `docker compose down -v` (deletes local data) or the bootstrap by hand. **UNVERIFIED** in a
-  container (no Docker daemon in the authoring environment); the script and SQL were run
-  against a local PostgreSQL 16.
+- **Local compose:** `infra/postgres/initdb/10-kabso-roles.sh` runs the bootstrap
+  (`KABSO_DB_ENV=development`) on the first start of an empty volume: `kabso_dev` with runtime
+  login `kabso_app`, `kabso_test` with its own runtime login `kabso_app_test` (one login per
+  database); both share `kabso_migrator` (`CREATEDB` for the shadow database). An existing volume
+  needs the migration steps above (or `docker compose down -v`, which deletes local data).
+  **UNVERIFIED** in a container (no Docker daemon in the authoring environment).
 - **CI:** step "Bootstrap database roles" runs the same SQL inside the service container as the
-  admin user, then `migrate deploy` uses `MIGRATION_DATABASE_URL` and the unit/e2e suites use
-  the runtime role (`DATABASE_URL`).
+  admin user (`KABSO_DB_ENV=development`), then `migrate deploy` uses `MIGRATION_DATABASE_URL`
+  and the unit/e2e suites use the runtime login (`DATABASE_URL`). The e2e step also gets the
+  admin URL (`KABSO_TEST_ADMIN_DATABASE_URL`) and runs the bootstrap with the runner's `psql` for
+  the KL-013b tests.
 - **E2E suite:** needs both URLs for the same `*_test` database and refuses to run if they use
   the same role. It migrates and truncates as the migration role; the API under test is the
-  runtime role. `test/security/kl013-db-roles.e2e-spec.ts` proves that `CREATE TABLE`,
-  `ALTER TABLE`, `DROP TABLE`, `TRUNCATE`, `CREATE ROLE`, `GRANT` and other DDL fail, DML
-  works, `audit_logs` is append-only, a table created later by the migration role is
-  DML-accessible but not DDL-accessible, and the boot guard rejects the owner role.
-- **Staging / production:** bootstrap once per environment as above before the first
-  migration. **No staging or production deployment before KL-013 is merged and verified
-  (PP-01).**
+  runtime login. `test/security/kl013-db-roles.e2e-spec.ts` proves that DDL, `TRUNCATE`,
+  `CREATE ROLE`, `GRANT` and the like fail, DML works, `audit_logs` is append-only, a table
+  created later is DML- but not DDL-accessible, functions are not executable by `PUBLIC`, and the
+  boot guard rejects the owner role, reachable predefined/`CREATEROLE` roles and object-level
+  grants. With an admin URL it also creates a second database and proves cross-database
+  isolation, the bootstrap's refusals, its atomicity and the rotation modes.
+- **Staging / production:** bootstrap once per database as above before the first migration.
 
-Optional hardening not applied by the script (tune per environment): `ALTER ROLE kabso_app SET
-statement_timeout = '15s'`, `idle_in_transaction_session_timeout = '30s'` and a
-`CONNECTION LIMIT`.
+Optional hardening not applied by the script (tune per environment; see KL7F-07): `ALTER ROLE
+kabso_app_prod SET statement_timeout = '15s'`, `idle_in_transaction_session_timeout = '30s'` and
+a `CONNECTION LIMIT`.
 
 ## 6. Observability baseline
 
@@ -425,10 +518,10 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
   GitHub yet.
 - The Docker Compose services have never been started (no daemon in the authoring
   environment).
-- KL-013: the compose init script (`infra/postgres/initdb/10-kabso-roles.sh`) and the CI
-  "Bootstrap database roles" step (`docker exec` into the service container) have not run in a
-  container yet; the same script and SQL were run against a local PostgreSQL 16.15 cluster. The
-  first CI run proves the workflow step (decision D19).
+- KL-013 / KL-013b: the compose init script (`infra/postgres/initdb/10-kabso-roles.sh`) has
+  not run in a container yet. KL-013b's bootstrap script, its admin-only e2e tests (which need
+  `psql` >= 15 on the CI runner) and the CI "Bootstrap database roles" step are first proven by
+  CI (decision D19); see the KL-013b report for what was run locally.
 - The Android debug APK and unsigned iOS build compile in CI (run 13); neither has been
   installed on a device or emulator.
 - The Dependabot `cooldown` / `ignore` settings were validated against the published schema;

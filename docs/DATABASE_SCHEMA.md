@@ -131,25 +131,67 @@ PostgreSQL stores it, `status = 'LIVE'::live_room_status`): without the declarat
 | whom a user follows (Following tab, `followingCount`, `isFollowing`) | `follows_pkey` |
 | followers of a user (`followerCount`) | `follows_followee_id_created_at_idx` |
 
-## Database roles and rules for new migrations (SEC-011 / KL-013)
+## Database roles and rules for new migrations (SEC-011 / KL-013, KL-013b)
 
-The API connects as a DML-only runtime role (member of the NOLOGIN group `kabso_runtime`);
-migrations run as the migration role that owns schema `public`. Details and bootstrap:
-`docs/DEPLOYMENT.md` §5.1.
+The API connects as a DML-only runtime login, member of the NOLOGIN group of its own database,
+`kabso_runtime_<database>` (e.g. `kabso_runtime_kabso_prod`); migrations run as the migration role
+that owns schema `public`. Details, bootstrap and rotation: `docs/DEPLOYMENT.md` §5.1. The
+cluster-wide `kabso_runtime` of KL-013 is legacy: it keeps no members and no privileges in a
+migrated database; never grant to it.
 
 Every new migration must follow these rules:
 
 1. **Run it as the migration role** (`MIGRATION_DATABASE_URL`). Migration
-   `20261016120000_runtime_role_grants` set `ALTER DEFAULT PRIVILEGES` for that role, so every
-   table and sequence it creates later (`live_rooms`, `live_categories`, `follows`, ...) is
-   automatically `SELECT, INSERT, UPDATE, DELETE` (tables) / `USAGE, SELECT` (sequences) for
-   `kabso_runtime`. **No `GRANT` is needed for an ordinary table.**
-2. **Never grant DDL-like rights** (`TRUNCATE`, `REFERENCES`, `TRIGGER`, ownership, `CREATE`) to
-   `kabso_runtime`; the API refuses to boot in production if it holds any of them.
-3. **Append-only or read-only tables** need an explicit `REVOKE` in the migration that creates
-   them, e.g. `REVOKE UPDATE, DELETE ON TABLE "x" FROM kabso_runtime;` (as for `audit_logs`).
-4. **Never reference a login role or a password** in a migration; grant to `kabso_runtime` only.
-5. Do not change object ownership or create objects in another schema without updating the
+   `20261016130000_per_database_runtime_group` set `ALTER DEFAULT PRIVILEGES` for that role, so
+   every table and sequence it creates later is automatically `SELECT, INSERT, UPDATE, DELETE`
+   (tables) / `USAGE, SELECT` (sequences) for the database's runtime group. **No `GRANT` is
+   needed for an ordinary table.**
+2. **Never grant DDL-like rights** (`TRUNCATE`, `REFERENCES`, `TRIGGER`, ownership, `CREATE`,
+   `TEMPORARY`, `WITH GRANT OPTION`) to the runtime group; the API refuses to boot in production
+   if its login holds any of them, directly or through any role it can reach.
+3. **The group name is per database**: never write it literally. Derive it in the migration
+   and use it only through `format('%I')`, e.g. for an append-only or read-only table:
+
+   ```sql
+   DO $$
+   BEGIN
+     EXECUTE format('REVOKE UPDATE, DELETE ON TABLE public.x FROM %I',
+                    'kabso_runtime_' || current_database());
+   END
+   $$;
+   ```
+
+   (as `audit_logs`; the boot guard also checks `audit_logs` specifically). A function the API
+   must call needs an explicit `GRANT EXECUTE` the same way: functions are not executable by
+   `PUBLIC` (global default privileges of the migration role).
+4. **Never reference a login role or a password** in a migration.
+5. A migration that grants or revokes privileges, or depends on default privileges, starts with
+   the **migration-role guard** below (also in `20261016130000`). It refuses superusers and
+   anything that can reach a superuser / `CREATEROLE` / `BYPASSRLS` / `REPLICATION` role, and
+   requires the current role to **be** the owner of schema `public` — a mere member of the owner
+   would get default privileges registered for the wrong role:
+
+   ```sql
+   DO $$
+   BEGIN
+     IF EXISTS (SELECT 1 FROM pg_roles r
+                 WHERE pg_has_role(current_user, r.oid, 'MEMBER')
+                   AND (r.rolsuper OR r.rolcreaterole OR r.rolbypassrls OR r.rolreplication)) THEN
+       RAISE EXCEPTION 'migrations must run as the migration role, not as "%"', current_user;
+     END IF;
+     -- (Not in the shadow database of `prisma migrate dev`, which has no _prisma_migrations and
+     -- whose schema is owned by pg_database_owner.)
+     IF to_regclass('public._prisma_migrations') IS NOT NULL
+        AND current_user <> (SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'public') THEN
+       RAISE EXCEPTION 'migrations must run as the owner of schema public, not as "%"', current_user;
+     END IF;
+   END
+   $$;
+   ```
+
+   `prisma.config.ts` already falls back to `DATABASE_URL` only for single-role dev setups; the
+   runtime login cannot run DDL, so a missing `MIGRATION_DATABASE_URL` fails closed.
+6. Do not change object ownership or create objects in another schema without updating the
    bootstrap and the e2e check `test/security/kl013-db-roles.e2e-spec.ts` ("every application
    table grants DML to the runtime role"), which fails if a table is missing its grants.
 

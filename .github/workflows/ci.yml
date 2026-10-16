@@ -167,10 +167,11 @@ jobs:
           KABSO_DB_MIGRATOR_PASSWORD: ci_migrator_password_not_secret
           KABSO_DB_APP_USER: kabso_app
           KABSO_DB_APP_PASSWORD: ci_app_password_not_secret
+          KABSO_DB_ENV: development
         run: >-
           docker exec -i
           -e KABSO_DB_MIGRATOR_USER -e KABSO_DB_MIGRATOR_PASSWORD
-          -e KABSO_DB_APP_USER -e KABSO_DB_APP_PASSWORD
+          -e KABSO_DB_APP_USER -e KABSO_DB_APP_PASSWORD -e KABSO_DB_ENV
           "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U kabso -d kabso_test -f -
           < infra/postgres/bootstrap-roles.sql
       - name: Apply migrations (migrate deploy, migration role)
@@ -184,7 +185,13 @@ jobs:
       - name: Unit tests
         run: pnpm --filter ./apps/api test
       - name: E2E tests (real Postgres + Redis, runtime role)
-        run: pnpm --filter ./apps/api test:e2e
+        env:
+          # KL-013b role tests create scratch databases/roles and run the bootstrap with the
+          # runner's psql (>= 15 for \getenv) as the service container's admin.
+          KABSO_TEST_ADMIN_DATABASE_URL: postgresql://kabso:ci_test_password_not_secret@localhost:5432/kabso_test
+        run: |
+          psql --version
+          pnpm --filter ./apps/api test:e2e
       - name: Build
         run: pnpm --filter ./apps/api build
 
