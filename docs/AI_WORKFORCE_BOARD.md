@@ -55,6 +55,12 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-020 | Repository governance: repo private; `main` created from the gate-verified commit and made default; branch protection (required `CI OK`, reviewed PRs) | owner (settings) + A1 | P0 | IN_PROGRESS — history scan ✅; settings require owner (no API access from this session) | Phase 1 gate | A1 |
 | KL-022 | Live UI P0 components + golden infrastructure (pattern fidelity, Kabso identity; debug gallery only, not in production screens) | A2 | P0 | INTEGRATED `ed84dd4` — 440 tests, 28 goldens, CI green; QA review pending | KL-021 | A6, A5 |
 | KL-026 | displayName residuals SEC-033/SEC-034 (Low) | A3 | P2 | BACKLOG — before public launch (PP-26) | — | A7 |
+| KL-030 | Design sprint 1/6 — capture current UI (headless render of the real app, 393×852 @3x, ar/en) → `docs/design/audit/2026-10-16-before/` | A2 | P0 | IN_PROGRESS | — | A1 |
+| KL-031 | Design sprint 2/6 — `docs/design/BIGO_INSPIRED_GAP_ANALYSIS.md` (current vs intended, location, priority, acceptance criteria; no invented reference measurements) | A5 | P0 | BACKLOG | KL-030 | A1 |
+| KL-032 | Design sprint 3/6 — Home + Live room layout decisions presented to owner | A5 + A1 | P0 | BACKLOG | KL-031 | owner |
+| KL-033 | Design sprint 4/6 — Home redesign (production: structure + honest states; populated layout via fixtures in goldens/gallery only) | A2 | P0 | BACKLOG | KL-032 | A5, A6 |
+| KL-034 | Design sprint 5/6 — Live room redesign (video area, host, viewers, chat, gifts, PK, poor connectivity / no video / empty chat) | A2 | P0 | BACKLOG | KL-033 | A5, A6 |
+| KL-035 | Design sprint 6/6 — goldens ar/en at 393 + 360, before/after review package for owner approval | A2 + A1 | P0 | BACKLOG | KL-034 | owner |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
@@ -159,6 +165,8 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D31 | 2026-10-16 | Goldens run inside the normal `flutter test` CI job; pinned Flutter 3.47.7 on ubuntu-24.04 matched local goldens (CI run 38874588220). Revisit only if the runner image changes | Evidence: mobile job green with 28 goldens |
 | D32 | 2026-10-16 | Component-only measurements stay in `lib/design_system/tokens/component_metrics.dart`; promoted to `design-tokens.json` only when shared by 2+ components or the backend | Avoid contract churn |
 | D33 | 2026-10-16 | Chat usernames white (gold over chat scrim on a white frame = 3.53:1); gold only for gift icon; tab indicator fades instead of sliding | Contrast + simplicity (A2/A5) |
+| D34 | 2026-10-16 | **Owner directive:** design correction sprint (KL-030…035); Phase 2 feature expansion paused until Home + Live room are redesigned and owner-approved. No backend/contract/security changes in the sprint | Visual gap to the intended live-streaming experience |
+| D35 | 2026-10-16 | No discovery/live API exists and contracts are frozen for the sprint → production Home/Live show the redesigned structure with honest states; populated layouts are reviewed via deterministic fixtures (goldens, debug gallery) only | No mock data in production |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
