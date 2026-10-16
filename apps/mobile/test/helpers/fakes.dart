@@ -75,6 +75,9 @@ class FakeAuthRepository implements AuthRepository {
   final List<String> verifyCalls = [];
   final List<AppFailure> verifyFailures = [];
   int resendCalls = 0;
+
+  /// Emails sent to `register/resend`.
+  final List<String> resendEmails = [];
   AppFailure? resendFailure;
 
   /// Locales sent with `PATCH /me`.
@@ -124,6 +127,7 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> resendRegistrationCode(String email) async {
     resendCalls++;
+    resendEmails.add(email);
     final failure = resendFailure;
     if (failure != null) throw failure;
   }

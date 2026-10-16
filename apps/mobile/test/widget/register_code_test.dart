@@ -480,12 +480,77 @@ void main() {
       expect(find.text('اختر اسم مستخدم آخر'), findsOneWidget);
     });
 
-    testWidgets('another email: plain "taken", no resend option', (
-      tester,
-    ) async {
-      final l10n = await submitAgain(tester, email: 'other@example.com');
-      expect(find.byKey(RegisterScreen.usernameReservedKey), findsNothing);
+    testWidgets('QA-013: another email also gets the hint; Resend uses the '
+        'email in the form', (tester) async {
+      final l10n = await submitAgain(tester, email: ' Other@Example.com ');
+      expect(find.byKey(RegisterScreen.usernameReservedKey), findsOneWidget);
       expect(find.text(l10n.errorUsernameTaken), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.tap(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.pumpAndSettle();
+      expect(repo.resendEmails, ['other@example.com']);
+      expect(find.byType(RegisterCodeScreen), findsOneWidget);
+      expect(find.textContaining('other@example.com'), findsWidgets);
+    });
+
+    testWidgets('QA-013 repro: register → app killed (fresh state) → same '
+        'email + username → 409 → hint → Resend → code screen, then verify '
+        'signs in', (tester) async {
+      // First run: register (202) opens the code screen.
+      await openCodeScreen(tester);
+      expect(repo.registerCalls, 1);
+
+      // "Kill" the app: a brand-new widget tree and ProviderScope, so the
+      // in-memory draft is gone.
+      await tester.pumpWidget(const SizedBox.shrink());
+      repo.registerFailure = usernameTaken;
+      await pumpKabsoApp(
+        tester,
+        overrides: [
+          authRepositoryProvider.overrideWithValue(repo),
+          secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+          usernameDebounceProvider.overrideWithValue(Duration.zero),
+        ],
+      );
+      await tester.pumpAndSettle();
+      final l10n = l10nFor(AppLanguage.en);
+      await tester.ensureVisible(find.text(l10n.loginCreateAccount));
+      await tester.tap(find.text(l10n.loginCreateAccount));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(RegisterScreen.emailKey),
+        'layla@example.com',
+      );
+      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
+      await tester.enterText(
+        find.byKey(RegisterScreen.passwordKey),
+        'pa55word!',
+      );
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
+      await tester.tap(find.byKey(RegisterScreen.submitKey));
+      await tester.pumpAndSettle();
+
+      expect(repo.registerCalls, 2);
+      expect(find.byKey(RegisterScreen.usernameReservedKey), findsOneWidget);
+      expect(find.text(l10n.registerUsernameReservedHint), findsOneWidget);
+      expect(find.byKey(RegisterScreen.chooseAnotherKey), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.tap(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.pumpAndSettle();
+      expect(repo.resendEmails, ['layla@example.com']);
+      expect(find.byType(RegisterCodeScreen), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(RegisterCodeScreen.codeFieldKey),
+        '12345678',
+      );
+      await tester.pumpAndSettle();
+      expect(repo.verifyCalls, ['12345678']);
+      expect(find.byType(RegisterCodeScreen), findsNothing);
     });
   });
 

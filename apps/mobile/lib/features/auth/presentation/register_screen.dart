@@ -48,10 +48,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   final _usernameFocus = FocusNode();
 
-  /// v1.2.3 (SEC-025): `USERNAME_TAKEN` for the email + username of the
-  /// registration this user already started (the 409 is identical for
-  /// everyone, so only the in-memory draft tells us it may be their own
-  /// reservation). Offers "Resend code" next to "Choose another username".
+  /// v1.2.3 (SEC-025) / QA-013: after **every** `USERNAME_TAKEN` on submit
+  /// Register shows the neutral hint with "Resend code" and "Choose another
+  /// username". The 409 is identical for everyone and the in-memory draft
+  /// is lost when the app is killed, so the client cannot tell whether the
+  /// reservation is the user's own. Resend is safe because it always
+  /// answers a constant 202.
   bool _maybeOwnReservation = false;
   bool _resending = false;
   AppFailure? _resendFailure;
@@ -111,11 +113,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       draft.email == AuthValidators.normalizeEmail(_email.text) &&
       draft.username == AuthValidators.normalizeUsername(_username.text);
 
-  /// "Resend code": `register/resend` for the draft's email, then back to
-  /// the code screen with a fresh cooldown.
+  /// "Resend code": `register/resend` for the email in the form, then the
+  /// code screen with a fresh cooldown. If the form matches the in-memory
+  /// draft, that draft is kept; otherwise (e.g. after an app kill) a new
+  /// draft is built from the form so the code screen can verify.
   Future<void> _resendCode() async {
-    final draft = ref.read(registrationFlowProvider);
-    if (draft == null || _resending) return;
+    if (_resending) return;
+    final flow = ref.read(registrationFlowProvider.notifier);
+    final existing = ref.read(registrationFlowProvider);
+    final draft = _matchesDraft(existing)
+        ? existing!
+        : RegistrationDraft(
+            email: AuthValidators.normalizeEmail(_email.text),
+            username: AuthValidators.normalizeUsername(_username.text),
+            displayName: _displayName.text,
+            password: _password.text,
+            codeSentAt: clock.now(),
+          );
     setState(() {
       _resending = true;
       _resendFailure = null;
@@ -125,7 +139,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .read(authRepositoryProvider)
           .resendRegistrationCode(draft.email);
       if (!mounted) return;
-      ref.read(registrationFlowProvider.notifier).codeResent(clock.now());
+      if (identical(draft, existing)) {
+        flow.codeResent(clock.now());
+      } else {
+        flow.draft = draft.copyWith(codeSentAt: clock.now());
+      }
       setState(() {
         _resending = false;
         _maybeOwnReservation = false;
@@ -194,9 +212,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     });
     if (failure.code == ErrorCode.usernameTaken) {
-      final own = _matchesDraft(ref.read(registrationFlowProvider));
       setState(() {
-        _maybeOwnReservation = own;
+        // QA-013: always offered (see [_maybeOwnReservation]).
+        _maybeOwnReservation = true;
         _resendFailure = null;
       });
       ref
