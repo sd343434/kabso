@@ -59,7 +59,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-031 | Design sprint 2/6 — `docs/design/BIGO_INSPIRED_GAP_ANALYSIS.md` (current vs intended, location, priority, acceptance criteria; no invented reference measurements) | A5 | P0 | DONE `bd79f0a` | KL-030 | A1 |
 | KL-032 | Design sprint 3/6 — Home + Live room layout decisions presented to owner | A5 + A1 | P0 | DONE — owner answered 2026-10-16 (D36) | KL-031 | owner |
 | KL-033 | Design sprint 4/6 — Home **feed** redesign + Live-tab discovery hub (per D36; production: structure + honest states; populated layout via fixtures in goldens/gallery only) | A2 | P0 | DONE — merged; CTO re-ran format/analyze/555 tests ✅; 58 goldens; after captures in `docs/design/audit/2026-10-16-after/` | KL-032 | A5, A6 |
-| KL-034 | Design sprint 5/6 — Live room redesign (video area, host, viewers, chat, gifts, PK, poor connectivity / no video / empty chat) | A2 | P0 | ON HOLD — until the Home + Live design review is approved (D39) | KL-033 | A5, A6 |
+| KL-034 | Live room redesign (video area, host pill + follow, viewers, chat, gifts UI, PK split, room states) in Kabso identity | A2 | P0 | IN_PROGRESS — owner approved 2026-10-16 (D44); video stays unavailable until B1; gifts UI only (no purchases, B5) | KL-035a | A5, A6 |
 | KL-035 | Design sprint 6/6 — goldens ar/en at 393 + 360, before/after review package for owner approval | A2 + A1 | P0 | BACKLOG | KL-034 | owner |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
@@ -95,8 +95,9 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | INTEGRATED — merge of `59b3592`; CTO review + re-run: lint/format/typecheck/build ✅, unit 436/436, e2e 442/442 (real PG16, migrator + runtime roles) | KL-036 approved, KL-013 merged | A1, A6, A7 |
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | INTEGRATED — merge of `91387a3`; CTO re-ran format/analyze/639 tests ✅; 74 goldens | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | DONE — APPROVE WITH CONDITIONS (`6a504eb`): API black-box 1,392/1,393 (the failure is QA-001), real app against the local API 5/5, Flutter 639/639; QA-001/002 → KL-046 contract patch, QA-003 (offline state) → KL-035a gap list | KL-037, KL-038 | A1 |
-| KL-035a | Home + Live review package | A1 + A5 | P0 | IN_PROGRESS — part 1 (before, HEAD `04ffd09`) merged: 92 PNGs from the real app in Chromium; part 2 (after KL-047) capturing | KL-038 | owner |
+| KL-035a | Home + Live review package | A1 + A5 | P0 | DONE — before (`04ffd09`, 92 PNGs) + after KL-047 (`27bfd44`, 102 PNGs), real app in Chromium; `docs/design/KABSO_LIVE_VISUAL_REVIEW.md` §7 (gaps RG-01..19, next changes N1–N12) | KL-038 | owner |
 | KL-047 | Owner-directed polish of Home (feed) + Live discovery | A2 | P0 | INTEGRATED — merge of `f5fb4f0`; CTO re-run: format/analyze ✅, 695/695 tests, 50 goldens changed or added. Supersedes VG-03/HL-H6 compact top-third states and VG-10 (LIVE badge now on cards); search hidden (`FeedTabsScaffold.searchAvailable`) until a search API exists | KL-038 | A1, A5, A6 |
+| KL-048 | Contract v1.4: media uploads (avatar + room cover; provider-agnostic S3-compatible presigned upload, validation, moderation hook; disabled until owner approves provider/cost) and optional user country (ISO 3166-1) + `country` discovery filter / Countries & Regions section | A4 | P0 | IN_PROGRESS | D44 | A1, A7 |
 - deliberate states with working actions; owner empty-state copy; retry re-requests; offline state (QA-003);
 - LIVE badge on cards (owner; reverses VG-10); category on cards;
 - search hidden until a search feature exists; no phase copy; no fabricated content | A2 | P0 | IN_PROGRESS | KL-038 | A1, A5, A6 |
@@ -235,6 +236,11 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D41 | 2026-10-16 | Pull-to-refresh is enabled on the Live hub "unavailable" state, overriding HL-H6: that state now comes from a server switch, so a refresh must re-check `GET /live/config`. Home keeps it disabled. Background refresh failures (tab re-select, app resume) are silent; pull-to-refresh failures show a snack. Contract doc nit: the heartbeat 503 should reference `LIVE_HOSTING_UNAVAILABLE` explicitly; fix in the next contract patch | KL-038 report |
 | D42 | 2026-10-16 | KL-037 review decisions:
 | D43 | 2026-10-16 | Contract v1.3.1 approved:
+| D44 | 2026-10-16 | **Owner supplied a reference image:** a BIGO LIVE store marketing composite. It is kept **outside the repo** (public, D40) and treated as low-resolution marketing material, not a screen capture, so no measurements are taken from it. Owner decisions:
+1. Add avatar and room-cover uploads. The storage provider is to be chosen; an S3-compatible adapter is built and stays disabled until the owner approves the provider, cost and credentials.
+2. Start KL-034, the live room redesign, following the reference's patterns: full-bleed video, host pill with follow, viewer avatars, chat, gifts.
+3. Add a Countries & Regions discovery section. The user chooses their country (optional); location is never inferred.
+4. Keep Kabso's red identity; no teal/purple palette | Feature freeze lifted for these items only |
 - **SEC-036:** property-based hygiene (Unicode 17 vendored, sha256-pinned). Tightening applies on write only.
 - **SEC-035:** reads filter stale rooms and do no unbounded writes; the sweeper ends them in bounded batches. Supersedes D42 item 4.
 - **§7:** the replace/both/default rate-limit table is written out.

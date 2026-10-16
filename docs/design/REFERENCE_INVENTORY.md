@@ -384,3 +384,9 @@ the Phase 6 API.
 - `motion.giftComboBumpMs` = 120.
 
 These are in addition to DESIGN_SYSTEM §12 P1–P19.
+
+## Owner-supplied references (log; images are NOT in this repository, D40/D44)
+
+| ID | Date | What | Use |
+| -- | ---- | ---- | --- |
+| OREF-01 | 2026-10-16 | A store marketing composite of 4 panels (Explore with Countries & Regions, live stream, multi-guest chat, live room with chat and PiP) | Patterns only: discovery by country, full-bleed media, host pill and follow, viewer avatars, chat bubbles, multi-guest seats, coin counter. It is marketing art, not screen captures, so no dimensions, colours or assets are taken from it |
