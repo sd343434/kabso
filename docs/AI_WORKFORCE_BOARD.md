@@ -92,7 +92,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | ID | Task | Owner | Pri | Status | Depends on | Reviewers |
 | -- | ---- | ----- | --- | ------ | ---------- | --------- |
 | KL-036 | Contract v1.3: live discovery, categories, room metadata + host lifecycle (go-live/end/heartbeat behind `LIVE_HOSTING_ENABLED`), public profile, follow; DB design note | A4 | P0 | DONE — merged, approved (D38) | — | A1, A7 |
-| KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | BACKLOG | KL-036 approved, KL-013 merged | A1, A6, A7 |
+| KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | INTEGRATED — merge of `59b3592`; CTO review + re-run: lint/format/typecheck/build ✅, unit 436/436, e2e 442/442 (real PG16, migrator + runtime roles) | KL-036 approved, KL-013 merged | A1, A6, A7 |
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | INTEGRATED — merge of `91387a3`; CTO re-ran format/analyze/639 tests ✅; 74 goldens | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
 | KL-035a | Home + Live hub design review package: real screenshots (ar/en, 393 + 360) of the wired screens, before/after, remaining visual gaps; references comparison marked pending (none supplied) | A1 + A5 | P0 | BACKLOG | KL-038 | owner |
@@ -227,6 +227,12 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 - The Home + Live design review must finish before gifts, PK, reels or other features. KL-034 (room/gift/PK visuals) is on hold until that review | Resolves KL-036 open question 5 |
 | D40 | 2026-10-16 | **Repository is public:** no reference screenshots, secrets or sensitive security material are committed until it is private. `design/references/` is git-ignored. New security reviews (KL-040 onward) commit only a summary (finding id, severity, status, fixed-in commit). Exploit steps for still-open findings stay out of the repo until fixed or the repo is private. Existing history is not rewritten | Owner instruction 2026-10-16; PP-11 stays open and visible |
 | D41 | 2026-10-16 | Pull-to-refresh is enabled on the Live hub "unavailable" state, overriding HL-H6: that state now comes from a server switch, so a refresh must re-check `GET /live/config`. Home keeps it disabled. Background refresh failures (tab re-select, app resume) are silent; pull-to-refresh failures show a snack. Contract doc nit: the heartbeat 503 should reference `LIVE_HOSTING_UNAVAILABLE` explicitly; fix in the next contract patch | KL-038 report |
+| D42 | 2026-10-16 | KL-037 review decisions:
+1. `LIVE_CURSOR_KEY` is optional. When unset it is derived by HKDF (`live-cursor/v1`) from `RATE_LIMIT_KEY_SECRET`, matching the `REGISTRATION_CODE_KEY` pattern. When set it is strength-checked in production.
+2. Rate limits: v1.3 routes follow CONVENTIONS §7 (the endpoint bucket replaces the per-user default). Older routes still count both buckets, which is stricter and therefore safe. §7 wording is clarified in the next contract patch.
+3. Acknowledged a second read-only cross-module exception: the room list reads `users`/`user_profiles` for the ACTIVE-host filter and the host summary.
+4. The per-request stale sweep (one UPDATE) is accepted for v1.3. Its cost is measured in the PP-32 load test.
+5. `AccountLifecycleService.suspend/softDelete` has no HTTP route yet. The future admin work and KL-014 must call it; ops procedures must not bypass it. | Contract-conformant; no contract change needed for 1/3/4 |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
