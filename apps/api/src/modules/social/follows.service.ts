@@ -3,6 +3,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isValidUsername } from '../users/username.js';
 import { UsersService } from '../users/users.service.js';
 
 /** `FollowState` (openapi v1.3). */
@@ -14,6 +15,14 @@ export interface FollowStateDto {
 export interface FollowCounts {
   followerCount: number;
   followingCount: number;
+}
+
+/**
+ * SEC-037: a path username that is not well-formed (§6 pattern and length; e.g. one containing a
+ * NUL byte) is the contract's 404 and never reaches the database.
+ */
+function assertWellFormed(username: string): void {
+  if (!isValidUsername(username)) throw new AppException(ErrorCode.NOT_FOUND);
 }
 
 /**
@@ -44,16 +53,24 @@ export class FollowsService {
     return target;
   }
 
-  /** `PUT /users/{username}/follow`: an existing edge is a no-op (200); private target → 403. */
+  /**
+   * `PUT /users/{username}/follow`: an existing edge is a no-op (200), also on a private target
+   * (v1.3.1, QA-002: the existing-edge check comes before the private check); a new follow of a
+   * private target → 403.
+   */
   async follow(callerId: string, username: string): Promise<FollowStateDto> {
+    assertWellFormed(username);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.lockPair(tx, callerId, username);
-      // v1.3: no follow requests yet, so private accounts cannot gain new followers.
-      if (target.isPrivate) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
-      await tx.follow.createMany({
-        data: [{ followerId: callerId, followeeId: target.id }],
-        skipDuplicates: true,
-      });
+      const existing = await tx.follow.count({ where: { followerId: callerId, followeeId: target.id } });
+      if (existing === 0) {
+        // v1.3: no follow requests yet, so private accounts cannot gain new followers.
+        if (target.isPrivate) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
+        await tx.follow.createMany({
+          data: [{ followerId: callerId, followeeId: target.id }],
+          skipDuplicates: true,
+        });
+      }
       return {
         isFollowing: true,
         followerCount: await tx.follow.count({ where: { followeeId: target.id } }),
@@ -63,6 +80,7 @@ export class FollowsService {
 
   /** `DELETE /users/{username}/follow`: a missing edge is a no-op (200); private targets allowed. */
   async unfollow(callerId: string, username: string): Promise<FollowStateDto> {
+    assertWellFormed(username);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.lockPair(tx, callerId, username);
       await tx.follow.deleteMany({ where: { followerId: callerId, followeeId: target.id } });
