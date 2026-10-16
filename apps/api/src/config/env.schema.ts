@@ -29,8 +29,31 @@ const rateLimit = (fallback: string) =>
       return { max, windowSeconds };
     });
 
-const positiveInt = (fallback: number) => z.coerce.number().int().positive().default(fallback);
-const nonNegativeInt = (fallback: number) => z.coerce.number().int().min(0).default(fallback);
+/**
+ * A plain decimal integer setting: digits only, no sign, exponent, hex prefix, padding or leading
+ * zeros (`z.coerce.number()` accepted `1e3`, `0x10`, ` 15 ` and the empty string as 0). Bounded.
+ */
+export const intSetting = (fallback: number, min: number, max: number = Number.MAX_SAFE_INTEGER) =>
+  z
+    .string()
+    .regex(/^(0|[1-9][0-9]{0,15})$/, 'must be a plain decimal integer (digits only)')
+    .default(String(fallback))
+    .transform(Number)
+    .pipe(z.number().int().min(min).max(max));
+
+const positiveInt = (fallback: number) => intSetting(fallback, 1);
+const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
+
+/** SEC-035: bounds of LIVE_SWEEP_BATCH_SIZE (rooms ended per sweeper transaction). */
+export const LIVE_SWEEP_BATCH_SIZE_MIN = 1;
+export const LIVE_SWEEP_BATCH_SIZE_MAX = 5000;
+
+/**
+ * Heartbeat headroom: in production the per-user heartbeat bucket must allow at least this many
+ * times the expected cadence (one beat per LIVE_HEARTBEAT_INTERVAL_SECONDS), so client retries
+ * never hit 429 (CONVENTIONS §7: 12 / min at a 15 s cadence = 3×).
+ */
+export const HEARTBEAT_RATE_LIMIT_HEADROOM = 2;
 
 /**
  * SEC-003a (contract v1.2.3): a trusted-proxy range is too broad for production when it is an
@@ -94,7 +117,7 @@ const trustProxy = z
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    PORT: intSetting(3000, 1, 65535),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
     DATABASE_URL: z
@@ -186,11 +209,16 @@ export const envSchema = z
       .default('false')
       .transform((v) => v === 'true'),
     /** Heartbeat cadence the client is told to use (GET /live/config). */
-    LIVE_HEARTBEAT_INTERVAL_SECONDS: z.coerce.number().int().min(5).max(60).default(15),
+    LIVE_HEARTBEAT_INTERVAL_SECONDS: intSetting(15, 5, 60),
     /** A LIVE room without a heartbeat for this long is stale (never listed, ended). */
-    LIVE_HEARTBEAT_STALE_SECONDS: z.coerce.number().int().positive().max(3600).default(45),
+    LIVE_HEARTBEAT_STALE_SECONDS: intSetting(45, 1, 3600),
     /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
-    LIVE_SWEEP_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(15),
+    LIVE_SWEEP_INTERVAL_SECONDS: intSetting(15, 0, 3600),
+    /**
+     * SEC-035 (CONVENTIONS §10.2, D43): the sweeper ends at most this many stale rooms per batch,
+     * each batch in its own short transaction. Bounded so one batch always fits its timeout.
+     */
+    LIVE_SWEEP_BATCH_SIZE: intSetting(500, LIVE_SWEEP_BATCH_SIZE_MIN, LIVE_SWEEP_BATCH_SIZE_MAX),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `live-cursor/v1`) that signs list
      * cursors (CONVENTIONS §10.4; same pattern as REGISTRATION_CODE_KEY). When unset, the key is
@@ -249,7 +277,7 @@ export const envSchema = z
       ),
 
     /** Concurrent Argon2 operations per process (SEC-002); default = available CPUs. */
-    ARGON2_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(256).default(availableParallelism()),
+    ARGON2_MAX_CONCURRENCY: intSetting(Math.min(availableParallelism(), 256), 1, 256),
     /** Operations allowed to wait for a slot; beyond this → 503 SERVICE_UNAVAILABLE. */
     ARGON2_MAX_QUEUE: nonNegativeInt(availableParallelism() * 4),
   })
@@ -317,6 +345,20 @@ export const envSchema = z
             message: 'must differ from JWT_ACCESS_SECRET, RATE_LIMIT_KEY_SECRET and REGISTRATION_CODE_KEY',
           });
         }
+      }
+      // Heartbeat headroom (KL-040 observation): a short cadence with the default bucket would
+      // leave no room for retries and end live rooms with 429s.
+      const beat = env.RATE_LIMIT_LIVE_HEARTBEAT_USER;
+      const expected = Math.ceil(beat.windowSeconds / env.LIVE_HEARTBEAT_INTERVAL_SECONDS);
+      if (beat.max < HEARTBEAT_RATE_LIMIT_HEADROOM * expected) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['RATE_LIMIT_LIVE_HEARTBEAT_USER'],
+          message:
+            `allows ${beat.max} per ${beat.windowSeconds} s, but a ${env.LIVE_HEARTBEAT_INTERVAL_SECONDS} s ` +
+            `heartbeat cadence needs at least ${HEARTBEAT_RATE_LIMIT_HEADROOM * expected} ` +
+            `(${HEARTBEAT_RATE_LIMIT_HEADROOM}× headroom for retries)`,
+        });
       }
       if (env.LIVE_SWEEP_INTERVAL_SECONDS === 0) {
         ctx.addIssue({

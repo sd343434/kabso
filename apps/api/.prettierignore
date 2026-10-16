@@ -5,3 +5,4 @@ src/generated
 prisma/migrations
 pnpm-lock.yaml
 src/modules/users/data/confusables.generated.ts
+src/modules/users/data/text-hygiene.generated.ts

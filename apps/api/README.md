@@ -101,12 +101,19 @@ full list. Notable rules:
   heartbeat answer 503 `LIVE_HOSTING_UNAVAILABLE` unless exactly `true`; turning it on in
   staging/production needs owner approval, B1), `LIVE_HEARTBEAT_INTERVAL_SECONDS` (15, 5–60),
   `LIVE_HEARTBEAT_STALE_SECONDS` (45, ≥ 2 × interval), `LIVE_SWEEP_INTERVAL_SECONDS` (15; 0
-  disables the in-process stale-room sweeper and is refused in production), `LIVE_CURSOR_KEY`
+  disables the in-process stale-room sweeper and is refused in production),
+  `LIVE_SWEEP_BATCH_SIZE` (500, 1–5000; v1.3.1 / SEC-035: the sweeper ends stale rooms in batches
+  of this size, each in its own transaction with explicit timeouts, never overlapping within an
+  instance, and stops a run after 100 batches or 10 s; lists only filter stale rooms), `LIVE_CURSOR_KEY`
   (optional source of the list-cursor HMAC key, HKDF info `live-cursor/v1`; unset → derived from
   `RATE_LIMIT_KEY_SECRET`; in production a set value must pass the secret checks and differ from
   the other secrets; rotation only invalidates outstanding cursors) and the v1.3 per-user limits
   `RATE_LIMIT_LIVE_*` / `RATE_LIMIT_PROFILE_USER` / `RATE_LIMIT_FOLLOW_*` (each replaces the
-  default authenticated bucket for its endpoint).
+  default authenticated bucket for its endpoint; in production `RATE_LIMIT_LIVE_HEARTBEAT_USER`
+  must allow at least 2 × the heartbeat cadence). Numeric settings accept plain decimal integers
+  only (no exponent, hex, sign, padding or empty value).
+- Text hygiene for `displayName` and live-room titles (contract v1.3.1 §6, SEC-036) uses vendored
+  Unicode 17.0.0 / Emoji 17.0 data compiled into tables; see `src/modules/users/data/README.md`.
 - `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
   rules, must differ from the JWT secret); generated per process when unset elsewhere.
 - `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):

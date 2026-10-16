@@ -362,6 +362,68 @@ describe('loadConfig', () => {
       expect(problemsFor(prod({ LIVE_CURSOR_KEY: hex() }), 'LIVE_CURSOR_KEY')).toEqual([]);
     });
 
+    it('LIVE_SWEEP_BATCH_SIZE defaults to 500 and is bounded (SEC-035)', () => {
+      expect(loadConfig(base).live.sweepBatchSize).toBe(500);
+      expect(loadConfig({ ...base, LIVE_SWEEP_BATCH_SIZE: '1' }).live.sweepBatchSize).toBe(1);
+      expect(loadConfig({ ...base, LIVE_SWEEP_BATCH_SIZE: '5000' }).live.sweepBatchSize).toBe(5000);
+      for (const value of ['0', '5001', '-1', '1e3', '', ' 500', '500.0']) {
+        expect(problemsFor({ ...base, LIVE_SWEEP_BATCH_SIZE: value }, 'LIVE_SWEEP_BATCH_SIZE')).toHaveLength(
+          1,
+        );
+      }
+    });
+
+    it('numeric settings accept plain decimal integers only (no exponent, hex, padding or empty)', () => {
+      expect(
+        loadConfig({ ...base, LIVE_HEARTBEAT_INTERVAL_SECONDS: '10', LIVE_HEARTBEAT_STALE_SECONDS: '30' })
+          .live,
+      ).toMatchObject({ heartbeatIntervalSeconds: 10, heartbeatStaleSeconds: 30 });
+      for (const [name, value] of [
+        ['LIVE_HEARTBEAT_INTERVAL_SECONDS', '1e1'],
+        ['LIVE_HEARTBEAT_INTERVAL_SECONDS', '0x10'],
+        ['LIVE_HEARTBEAT_INTERVAL_SECONDS', ' 15'],
+        ['LIVE_HEARTBEAT_INTERVAL_SECONDS', '015'],
+        ['LIVE_SWEEP_INTERVAL_SECONDS', ''],
+        ['LIVE_HEARTBEAT_STALE_SECONDS', '45.0'],
+        ['PORT', '+3000'],
+        ['JWT_ACCESS_TTL_SECONDS', '9e2'],
+        ['ARGON2_MAX_QUEUE', '-0'],
+      ] as const) {
+        expect(problemsFor({ ...base, [name]: value }, name)).toHaveLength(1);
+      }
+      expect(loadConfig({ ...base, PORT: '8080', JWT_ACCESS_TTL_SECONDS: '600' })).toMatchObject({
+        port: 8080,
+        jwt: { accessTtlSeconds: 600 },
+      });
+    });
+
+    it('production requires 2× heartbeat headroom in the heartbeat bucket', () => {
+      expect(problemsFor(prod(), 'RATE_LIMIT_LIVE_HEARTBEAT_USER')).toEqual([]); // 12/60 at 15 s = 3×
+      expect(
+        problemsFor(prod({ LIVE_HEARTBEAT_INTERVAL_SECONDS: '10' }), 'RATE_LIMIT_LIVE_HEARTBEAT_USER'),
+      ).toEqual([]); // 12/60 at 10 s = 2×
+      expect(
+        problemsFor(
+          prod({ LIVE_HEARTBEAT_INTERVAL_SECONDS: '5', LIVE_HEARTBEAT_STALE_SECONDS: '15' }),
+          'RATE_LIMIT_LIVE_HEARTBEAT_USER',
+        ),
+      ).toHaveLength(1); // 12/60 at 5 s = 1×
+      expect(
+        problemsFor(
+          prod({
+            LIVE_HEARTBEAT_INTERVAL_SECONDS: '5',
+            LIVE_HEARTBEAT_STALE_SECONDS: '15',
+            RATE_LIMIT_LIVE_HEARTBEAT_USER: '24/60',
+          }),
+          'RATE_LIMIT_LIVE_HEARTBEAT_USER',
+        ),
+      ).toEqual([]);
+      // Outside production a tight bucket stays possible (rate-limit tests).
+      expect(
+        problemsFor({ ...base, RATE_LIMIT_LIVE_HEARTBEAT_USER: '2/60' }, 'RATE_LIMIT_LIVE_HEARTBEAT_USER'),
+      ).toEqual([]);
+    });
+
     it('the cursor key source falls back to RATE_LIMIT_KEY_SECRET', () => {
       const rate = hex();
       expect(loadConfig({ ...base, RATE_LIMIT_KEY_SECRET: rate }).live.cursorKey).toBe(rate);

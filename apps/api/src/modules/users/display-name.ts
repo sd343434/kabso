@@ -1,19 +1,22 @@
 import { containsReservedTerm } from './confusables.js';
 import { hasMixedScriptWord } from './script-mixing.js';
+import { isMark, scanHygiene, trimHygiene } from './text-hygiene.js';
 
 /**
- * `displayName` rules (contract v1.2 §6, KL-017 / QA-008).
+ * `displayName` rules (contract v1.2 §6, KL-017 / QA-008; text hygiene v1.3.1, SEC-036).
  *
- * Value: NFC-normalized, trimmed. Limits: 1–50 grapheme clusters and ≤ 100 code points.
+ * Value: NFC-normalized, trimmed (space separators and U+FEFF at either end). Limits: 1–50
+ * grapheme clusters and ≤ 100 code points.
  * `invalid_format`:
- *  - a single word mixing scripts (Script_Extensions, Common/Inherited ignored; v1.2.3);
- *  - LRM U+200E, RLM U+200F, ALM U+061C (v1.2.3);
- *  - C0/C1 controls and DEL, bidi override/isolate (U+202A–U+202E, U+2066–U+2069), U+200B,
- *    U+2060, U+FEFF;
+ *  - a code point rejected by the text-hygiene rules (CONVENTIONS §6 v1.3.1; `text-hygiene.ts`):
+ *    General_Category Cc/Cf/Zl/Zp/Co/Cs/Cn, Default_Ignorable_Code_Point, the blank look-alikes,
+ *    except inside an RGI emoji, a well-placed ZWNJ/ZWJ, or one variation selector after a base.
+ *    This covers every character banned before v1.3.1 (controls, bidi controls, LRM/RLM/ALM,
+ *    U+200B, U+2060, an inner U+FEFF);
  *  - ZWNJ (U+200C) / ZWJ (U+200D) not placed between two non-joiner, non-space characters;
  *  - more than 3 consecutive combining marks ("zalgo"), counted on the NFD form;
- *  - no letter, digit or emoji at all (only whitespace, joiners, marks, symbols/punctuation).
- * U+FEFF at either end is removed by trimming; inside the name it is rejected (v1.2.1).
+ *  - no letter, digit or RGI emoji at all (only spaces, joiners, marks, symbols/punctuation);
+ *  - a single word mixing scripts (Script_Extensions, Common/Inherited ignored; v1.2.3).
  * `reserved_term`: whole-word reserved term or brand prefix/suffix on the confusable skeleton.
  */
 export const DISPLAY_NAME_MAX_GRAPHEMES = 50;
@@ -22,25 +25,11 @@ export const MAX_CONSECUTIVE_COMBINING_MARKS = 3;
 
 export type DisplayNameIssue = 'too_short' | 'too_long' | 'invalid_format' | 'reserved_term';
 
-// v1.2.3 adds the bidi marks LRM U+200E, RLM U+200F and ALM U+061C.
-// eslint-disable-next-line no-control-regex -- intentionally matching control characters
-const BANNED = /[\u0000-\u001f\u007f-\u009f\u061c\u200b\u200e\u200f\u2060\u202a-\u202e\u2066-\u2069\ufeff]/u;
-const JOINER = /[\u200c\u200d]/u;
-const SPACE = /[\s\p{Z}]/u;
-const MARK = /\p{M}/u;
-const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
-/**
- * Emoji grapheme (contract v1.2.1: "letter, digit or emoji"). `RGI_Emoji` (the Unicode
- * recommended emoji set, incl. ZWJ, flag, keycap and skin-tone sequences) is used rather than raw
- * `Extended_Pictographic`, which also contains text-presentation symbols such as ★ © ™ that the
- * contract wants rejected as symbol-only names. Built at runtime: the `v` flag needs ES2024.
- */
-const EMOJI = new RegExp('\\p{RGI_Emoji}', 'v');
-
 const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
 
+/** NFC, then trims space separators (Zs) and U+FEFF at either end (§6 text hygiene, rule 4). */
 export function normalizeDisplayName(raw: string): string {
-  return raw.normalize('NFC').trim();
+  return trimHygiene(raw.normalize('NFC'));
 }
 
 /**
@@ -64,22 +53,11 @@ export function graphemeCount(value: string): number {
   return count;
 }
 
-function joinersWellPlaced(chars: readonly string[]): boolean {
-  for (let i = 0; i < chars.length; i += 1) {
-    if (!JOINER.test(chars[i]!)) continue;
-    const before = chars[i - 1];
-    const after = chars[i + 1];
-    if (before === undefined || after === undefined) return false;
-    if (JOINER.test(before) || JOINER.test(after) || SPACE.test(before) || SPACE.test(after)) return false;
-  }
-  return true;
-}
-
-function longestMarkRun(chars: readonly string[]): number {
+function longestMarkRun(value: string): number {
   let longest = 0;
   let run = 0;
-  for (const ch of chars) {
-    run = MARK.test(ch) ? run + 1 : 0;
+  for (const ch of value) {
+    run = isMark(ch.codePointAt(0)!) ? run + 1 : 0;
     longest = Math.max(longest, run);
   }
   return longest;
@@ -89,8 +67,9 @@ export type TextHygieneIssue = 'too_short' | 'too_long' | 'invalid_format';
 
 /**
  * The character-hygiene part of the displayName rules, shared with live-room titles
- * (CONVENTIONS §10.3): emptiness, banned characters, length in graphemes and code points, joiner
- * placement, zalgo cap and "at least one letter, digit or emoji". Expects a normalized value.
+ * (CONVENTIONS §6 text hygiene, §10.3): emptiness, rejected code points, length in graphemes and
+ * code points, joiner placement, zalgo cap and "at least one letter, digit or RGI emoji". Expects
+ * a normalized value ({@link normalizeDisplayName}).
  * It deliberately excludes the identity rules (reserved terms, confusables, mixed scripts).
  */
 export function textHygieneIssue(
@@ -98,15 +77,16 @@ export function textHygieneIssue(
   limits: { readonly maxGraphemes: number; readonly maxCodePoints: number },
 ): TextHygieneIssue | null {
   if (value.length === 0) return 'too_short';
-  if (BANNED.test(value)) return 'invalid_format';
-  const chars = [...value];
-  if (chars.length > limits.maxCodePoints || graphemeCount(value) > limits.maxGraphemes) {
+  const scan = scanHygiene(value);
+  if (scan.rejected) return 'invalid_format';
+  if ([...value].length > limits.maxCodePoints || graphemeCount(value) > limits.maxGraphemes) {
     return 'too_long';
   }
-  if (!joinersWellPlaced(chars)) return 'invalid_format';
-  // Counted on the decomposed form so precomposition (NFC) cannot hide a stacked mark.
-  if (longestMarkRun([...value.normalize('NFD')]) > MAX_CONSECUTIVE_COMBINING_MARKS) return 'invalid_format';
-  if (!LETTER_OR_DIGIT.test(value) && !EMOJI.test(value)) return 'invalid_format';
+  if (scan.misplacedJoiner) return 'invalid_format';
+  // Counted on the decomposed form so precomposition (NFC) cannot hide a stacked mark. Variation
+  // selectors are marks (Mn) and count too (§6 rule 6).
+  if (longestMarkRun(value.normalize('NFD')) > MAX_CONSECUTIVE_COMBINING_MARKS) return 'invalid_format';
+  if (!scan.hasLetterDigitOrEmoji) return 'invalid_format';
   return null;
 }
 
