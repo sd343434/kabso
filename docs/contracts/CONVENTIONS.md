@@ -173,10 +173,18 @@ return the resource object directly (no `data` wrapper).
   non-space characters (not leading/trailing, never adjacent to another joiner or whitespace).
   `device.*` fields still reject all zero-width characters. Rejected with `invalid_format`: names
   consisting only of whitespace, joiners, combining marks or symbols; more than **3** consecutive
-  combining marks ("zalgo"); the bans above. Rejected with `issue: "reserved_term"`: names whose
-  NFKC-casefolded, confusable-skeleton form (Unicode TS #39) contains a reserved term
+  combining marks ("zalgo", counted on the NFD form); the bans above. *(v1.2.1)* A name must
+  contain at least one letter, digit **or emoji** grapheme (`Extended_Pictographic`); emoji-only
+  names are valid, punctuation/symbol-only names are not. U+FEFF at either end is removed by
+  trimming before validation; inside the name it is rejected. Rejected with
+  `issue: "reserved_term"`: *(v1.2.1)* names where, after NFKC casefold and confusable skeleton
+  (Unicode TS #39), a reserved term equals a **whole word** (split on any non-letter/digit), or
+  where the name with separators removed **starts or ends with** a brand term (`kabso`,
+  `كابسو`). Substrings inside ordinary words (e.g. "Badminton", "Supporter") are allowed. Terms
   (`kabso`, `admin`, `administrator`, `support`, `official`, `moderator`, `staff`, `كابسو`,
-  `الدعم`, `رسمي`, `مشرف`, `الإدارة`; list is server configuration).
+  `الدعم`, `رسمي`, `مشرف`, `الإدارة`; list is server configuration). `reserved_term` is evaluated
+  after schema validation; audit actions use the `auth.registration.*` prefix; the
+  `register/resend` code mail uses `Accept-Language`, else the pending registration's locale.
 - **Locale *(v1.2, KL-018)*:** `locale` is `ar` or `en`. The client sends the locale it is
   displaying in `register` (and `Accept-Language` on every request). `PATCH /api/v1/me`
   `{"locale": "ar"|"en"}` persists an explicit user choice. Transactional email language:
@@ -236,6 +244,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.0.4 | 2026-10-15 | Clarifications from KL-003 (A2): design-tokens 8-digit hex is `#AARRGGBB`; username length bound must be checked in addition to the regex. KNOWN_LIMITATIONS B7 corrected to the actual placeholder id `com.kabso.kabso_live`. | Documentation only; matches implemented behavior. |
 | v1.1 | 2026-10-15 | Security review KL-007 decisions (D13): refresh revocation only for the previous secret (SEC-001) + documented concurrent-refresh fail-safe (SEC-004); NFC password normalization (SEC-016); Argon2 concurrency cap → 503 (SEC-002); per-account login limit, IPv6 /64 bucketing, HMAC rate-limit keys, no `trust proxy = true` in production (SEC-002/003/009/010); `Cache-Control: no-store` (SEC-006); control/bidi/zero-width characters rejected in free text (SEC-008); registration enumeration recorded as accepted Phase 1 risk with launch blocker B9 (SEC-018). | Behavioral tightening; no request/response shape change. Clients: unchanged except they may now see 503 on login/register under load (already a defined code). |
 | v1.2 | 2026-10-15 | **Approved, in implementation.** Owner decisions: verify-first registration — `register` → 202 constant body, new `register/verify` (8-digit code) and `register/resend`, pending registrations with username reservation, `EMAIL_TAKEN` no longer returned by register (B9); displayName allows ZWNJ/ZWJ with placement rules, grapheme/code-point limits, zalgo and reserved-term (`reserved_term` issue) rules (KL-017/QA-008); `PATCH /me` locale + email-locale rules (KL-018); refresh reuse across last 10 rotated secrets (SEC-022); failed-only account bucket + recent-success bypass (SEC-023); `/0` CIDR and hop > 3 refused in production (SEC-003a). | **Breaking:** `POST /auth/register` 201 `AuthResponse` → 202; clients must add the code-entry step. Backend (A3) and mobile (A2) ship together in one integration; no released clients exist. |
+| v1.2.1 | 2026-10-16 | Clarifications from KL-019/017 implementation: reserved terms match whole words (+ brand prefix/suffix), not substrings; emoji-only displayNames valid, punctuation-only invalid; zalgo counted on NFD; edge U+FEFF trimmed; `reserved_term` after schema validation; resend mail locale; audit prefix `auth.registration.*`. | Behavioral clarification; no shape change. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
