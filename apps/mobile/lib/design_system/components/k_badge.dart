@@ -5,43 +5,76 @@ import 'package:kabso_live/design_system/tokens/tokens.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-enum KBadgeVariant { live, pk }
+enum KBadgeVariant { live, pk, newRoom, multiGuest }
 
-/// Non-interactive status badge (DESIGN_SYSTEM §9.5): `live` ("LIVE" /
-/// "مباشر" on `live.badge`) and `pk` ("PK" on the live gradient). Both use
-/// a white `label` at weight 700 (4.79:1 on `live.badge`).
+/// Non-interactive status badge (DESIGN_SYSTEM §9.5, VG-11/12/16), 20 dp
+/// high, white `label` at weight 700:
+///
+/// - `live`: "LIVE" / "مباشر" on `live.badge` (4.79:1). Only where live and
+///   non-live content mix (profile, search, avatars), not in live grids.
+/// - `pk`: "PK" on a **solid** `brand.red600` fill (6.8:1); gradients are
+///   reserved for the avatar live ring (VG-16).
+/// - `newRoom`: "New" / "جديد" on `scrim`, shown instead of a viewer count
+///   below 1 viewer (VG-11).
+/// - `multiGuest`: seats glyph + guest [count] on `scrim` (VG-12).
 class KBadge extends StatelessWidget {
-  const new({required this.variant, super.key});
+  const new({required this.variant, super.key}) : count = null;
 
-  const new live({super.key}) : variant = KBadgeVariant.live;
+  const new live({super.key}) : variant = KBadgeVariant.live, count = null;
 
-  const new pk({super.key}) : variant = KBadgeVariant.pk;
+  const new pk({super.key}) : variant = KBadgeVariant.pk, count = null;
+
+  const new newRoom({super.key})
+    : variant = KBadgeVariant.newRoom,
+      count = null;
+
+  const new multiGuest({required int this.count, super.key})
+    : variant = KBadgeVariant.multiGuest;
 
   final KBadgeVariant variant;
+
+  /// Guests on stage (`multiGuest` only).
+  final int? count;
+
+  /// Solid PK fill (VG-16).
+  static const Color pkFill = KBrandColors.red600;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final white = KPalette.dark.textPrimary;
+    final guests = count ?? 0;
     final text = switch (variant) {
       KBadgeVariant.live => l10n.liveBadge,
       KBadgeVariant.pk => l10n.pkBadge,
+      KBadgeVariant.newRoom => l10n.liveCardNew,
+      KBadgeVariant.multiGuest => KFormat.grouped(guests),
     };
+    final semantics = variant == KBadgeVariant.multiGuest
+        ? l10n.liveMultiGuest(guests)
+        : text;
     final decoration = switch (variant) {
       KBadgeVariant.live => BoxDecoration(
         color: KLiveColors.badge,
         borderRadius: BorderRadius.circular(KRadius.xs),
       ),
       KBadgeVariant.pk => BoxDecoration(
+        color: pkFill,
         borderRadius: BorderRadius.circular(KRadius.xs),
-        gradient: const LinearGradient(
-          begin: AlignmentDirectional.centerStart,
-          end: AlignmentDirectional.centerEnd,
-          colors: KBrandColors.gradientLive,
-        ),
+      ),
+      KBadgeVariant.newRoom || KBadgeVariant.multiGuest => BoxDecoration(
+        color: KPalette.dark.scrim,
+        borderRadius: BorderRadius.circular(KRadius.pill),
       ),
     };
+    final label = Text(
+      text,
+      maxLines: 1,
+      textScaler: TextScaler.noScaling,
+      style: _badgeText(context),
+    );
     return Semantics(
-      label: text,
+      label: semantics,
       container: true,
       child: ExcludeSemantics(
         child: Container(
@@ -53,12 +86,20 @@ class KBadge extends StatelessWidget {
           // Hug the label horizontally, centre it in the fixed height.
           child: Center(
             widthFactor: 1,
-            child: Text(
-              text,
-              maxLines: 1,
-              textScaler: TextScaler.noScaling,
-              style: _badgeText(context),
-            ),
+            child: variant == KBadgeVariant.multiGuest
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.groups_outlined,
+                        size: KMetrics.iconXs,
+                        color: white,
+                      ),
+                      const SizedBox(width: KSpacing.xs),
+                      label,
+                    ],
+                  )
+                : label,
           ),
         ),
       ),

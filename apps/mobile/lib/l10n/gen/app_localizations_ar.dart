@@ -315,13 +315,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navProfile => 'حسابي';
 
   @override
-  String get homeComingTitle => 'خلاصتك في الطريق';
-
-  @override
-  String get homeComingBody =>
-      'ستتوفر متابعة الأشخاص وخلاصتك الرئيسية في المرحلة 2، والمنشورات في المرحلة 3.';
-
-  @override
   String get discoverComingTitle => 'الاستكشاف قادم';
 
   @override
@@ -334,13 +327,6 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get createComingBody =>
       'تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.';
-
-  @override
-  String get liveComingTitle => 'غرف البث المباشر قادمة';
-
-  @override
-  String get liveComingBody =>
-      'تتوفر مشاهدة البث المباشر واستضافته في المرحلة 6، ومعارك PK والهدايا في المرحلة 7.';
 
   @override
   String profileUsername(String username) {
@@ -564,9 +550,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get liveCoverUnavailable => 'تعذّر تحميل الغلاف';
-
-  @override
   String get avatarLiveNow => 'يبث مباشرة الآن';
 
   @override
@@ -671,4 +654,112 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get registerChooseAnotherUsername => 'اختر اسم مستخدم آخر';
+
+  @override
+  String get feedTabFollowing => 'متابَعون';
+
+  @override
+  String get feedTabPopular => 'رائج';
+
+  @override
+  String get feedTabNew => 'جديد';
+
+  @override
+  String get feedSearch => 'بحث';
+
+  @override
+  String get feedSeePopular => 'عرض الرائج';
+
+  @override
+  String get feedPullToRefresh => 'اسحب للأسفل للتحديث.';
+
+  @override
+  String get homeFollowingUnavailableTitle => 'منشورات من تتابعهم';
+
+  @override
+  String get homeFollowingUnavailableBody =>
+      'تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.';
+
+  @override
+  String get homePopularUnavailableTitle =>
+      'تصل المنشورات الرائجة في المرحلة 3';
+
+  @override
+  String get homePopularUnavailableBody =>
+      'ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.';
+
+  @override
+  String get homeNewUnavailableTitle => 'تصل المنشورات الجديدة في المرحلة 3';
+
+  @override
+  String get homeNewUnavailableBody =>
+      'ستظهر هنا أحدث المنشورات، الأحدث أولًا.';
+
+  @override
+  String get homeEmptyTitle => 'لا توجد منشورات بعد';
+
+  @override
+  String get homeFollowingEmptyTitle => 'لا توجد منشورات ممن تتابعهم بعد';
+
+  @override
+  String get homeErrorTitle => 'تعذّر تحميل المنشورات';
+
+  @override
+  String get liveHubChipAll => 'الكل';
+
+  @override
+  String get liveHubFollowingUnavailableTitle => 'غرف البث ممن تتابعهم';
+
+  @override
+  String get liveHubFollowingUnavailableBody =>
+      'تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.';
+
+  @override
+  String get liveHubPopularUnavailableTitle =>
+      'تصل غرف البث المباشر في المرحلة 6';
+
+  @override
+  String get liveHubPopularUnavailableBody =>
+      'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.';
+
+  @override
+  String get liveHubNewUnavailableTitle => 'تصل غرف البث الجديدة في المرحلة 6';
+
+  @override
+  String get liveHubNewUnavailableBody =>
+      'ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.';
+
+  @override
+  String get liveHubEmptyTitle => 'لا أحد يبث مباشرة الآن';
+
+  @override
+  String get liveHubFollowingEmptyTitle => 'لا أحد ممن تتابعهم يبث الآن';
+
+  @override
+  String get liveHubErrorTitle => 'تعذّر تحميل غرف البث';
+
+  @override
+  String get liveCardNew => 'جديد';
+
+  @override
+  String liveMultiGuest(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ضيف',
+      many: '$count ضيفًا',
+      few: '$count ضيوف',
+      two: 'ضيفان',
+      one: 'ضيف واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveCardSemanticsMode(String card, String mode) {
+    return '$card، $mode';
+  }
+
+  @override
+  String get feedPostJustNow => 'الآن';
 }

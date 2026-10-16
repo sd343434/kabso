@@ -2,9 +2,15 @@
 // lives outside test/). It renders the REAL app (KabsoApp:
 // MaterialApp.router, GoRouter, StatefulShellRoute, theme, l10n, bundled
 // fonts) headlessly at 393×852 @3x, with fake repositories at the
-// repository boundary, and writes PNGs to docs/design/audit/<date>-before/.
+// repository boundary, and writes PNGs to docs/design/audit/<set>/
+// (default `2026-10-16-before`; choose another set with UI_AUDIT_SET).
 //
 //   cd apps/mobile && flutter test tool/ui_audit/
+//
+// KL-033 "after" captures of Home and Live (same viewport and names):
+//
+//   flutter test tool/ui_audit/ --dart-define=UI_AUDIT_SET=2026-10-16-after \
+//     --name '(home|live)'
 //
 // These are headless Flutter renders, not device screenshots.
 
@@ -32,7 +38,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../test/helpers/fakes.dart';
 import '../../test/helpers/golden.dart';
 
-const _outDir = '../../docs/design/audit/2026-10-16-before';
+const _set = String.fromEnvironment(
+  'UI_AUDIT_SET',
+  defaultValue: '2026-10-16-before',
+);
+const _outDir = '../../docs/design/audit/$_set';
 const ValueKey<String> _boundary = ValueKey('ui-audit-boundary');
 
 /// Fixed "now" so relative times (Settings → sessions) are stable.

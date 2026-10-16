@@ -108,4 +108,44 @@ abstract final class KMetrics {
 
   /// Disabled content opacity (§9.8 / §9.5: 38 %).
   static const double disabledOpacity = 0.38;
+
+  // KL-033 Home feed / Live hub (HOME_LIVE_LAYOUT_DECISIONS §5). Held here
+  // instead of the token contract until the owner approves the redesign
+  // (D36: proposals T-1–T-5 are not contract changes in this sprint).
+
+  /// T-3 proposal: header bar with the primary tabs and search.
+  static const double topBarHeight = KSizes.minTouchTarget;
+
+  /// T-2 proposal: primary tabs clamp text scaling so the 48 dp header
+  /// keeps its height (the screen-reader label is never clamped).
+  static const double topBarMaxTextScale = 1.3;
+
+  /// HL-H2 short indicator under the selected primary tab.
+  static const double tabIndicatorWidth = KSpacing.lg;
+  static const double tabIndicatorHeight = strokeLarge;
+
+  /// HL-H3 filter chip: 32 dp visual inside a 48 dp hit area.
+  static const double chipHeight = KSpacing.xxl;
+
+  /// HL-H4 live grid: side padding and column/row gap.
+  static const double liveGridPadding = KSpacing.sm;
+  static const double liveGridGap = KSpacing.xs;
+
+  /// HL-H6 loading: skeleton cards (3 rows of 2).
+  static const int liveGridSkeletonCount = 6;
+
+  /// HL-H6 loading skeletons appear only after this delay (no flash).
+  static const Duration loadingRevealDelay = Duration(milliseconds: 300);
+
+  /// §2 bottom nav: active-destination dot above the icon.
+  static const double navDotSize = KSpacing.xs;
+
+  /// VG-03 compact empty/error state icon (no circle container).
+  static const double compactStateIcon = KSpacing.xxxl;
+
+  /// VG-44 card press feedback.
+  static const double cardPressedScale = 0.98;
+
+  /// T-5 proposal alias: feed post media without its own aspect ratio.
+  static const double feedMediaAspect = KSizes.liveCardAspect;
 }

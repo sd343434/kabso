@@ -301,13 +301,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navProfile => 'Profile';
 
   @override
-  String get homeComingTitle => 'Your feed is on its way';
-
-  @override
-  String get homeComingBody =>
-      'Following people and your home feed arrive in Phase 2; posts in Phase 3.';
-
-  @override
   String get discoverComingTitle => 'Discover is coming';
 
   @override
@@ -320,13 +313,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get createComingBody =>
       'Posts arrive in Phase 3, stories in Phase 4, short videos in Phase 5 and going live in Phase 6.';
-
-  @override
-  String get liveComingTitle => 'Live rooms are coming';
-
-  @override
-  String get liveComingBody =>
-      'Watching and hosting live streams arrive in Phase 6; PK battles and gifts in Phase 7.';
 
   @override
   String profileUsername(String username) {
@@ -549,9 +535,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get liveCoverUnavailable => 'Cover couldn\'t load';
-
-  @override
   String get avatarLiveNow => 'live now';
 
   @override
@@ -656,4 +639,108 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get registerChooseAnotherUsername => 'Choose another username';
+
+  @override
+  String get feedTabFollowing => 'Following';
+
+  @override
+  String get feedTabPopular => 'Popular';
+
+  @override
+  String get feedTabNew => 'New';
+
+  @override
+  String get feedSearch => 'Search';
+
+  @override
+  String get feedSeePopular => 'See popular';
+
+  @override
+  String get feedPullToRefresh => 'Pull down to refresh.';
+
+  @override
+  String get homeFollowingUnavailableTitle => 'Posts from people you follow';
+
+  @override
+  String get homeFollowingUnavailableBody =>
+      'Following arrives in Phase 2 and posts in Phase 3.';
+
+  @override
+  String get homePopularUnavailableTitle => 'Popular posts arrive in Phase 3';
+
+  @override
+  String get homePopularUnavailableBody =>
+      'Posts people enjoy most will appear here, and short videos from Phase 5.';
+
+  @override
+  String get homeNewUnavailableTitle => 'New posts arrive in Phase 3';
+
+  @override
+  String get homeNewUnavailableBody =>
+      'The latest posts will appear here, newest first.';
+
+  @override
+  String get homeEmptyTitle => 'No posts yet';
+
+  @override
+  String get homeFollowingEmptyTitle => 'No posts from people you follow yet';
+
+  @override
+  String get homeErrorTitle => 'Couldn\'t load posts';
+
+  @override
+  String get liveHubChipAll => 'All';
+
+  @override
+  String get liveHubFollowingUnavailableTitle =>
+      'Live rooms from people you follow';
+
+  @override
+  String get liveHubFollowingUnavailableBody =>
+      'Following arrives in Phase 2, and their live rooms in Phase 6.';
+
+  @override
+  String get liveHubPopularUnavailableTitle => 'Live rooms arrive in Phase 6';
+
+  @override
+  String get liveHubPopularUnavailableBody =>
+      'People who are live right now will appear here.';
+
+  @override
+  String get liveHubNewUnavailableTitle => 'New live rooms arrive in Phase 6';
+
+  @override
+  String get liveHubNewUnavailableBody =>
+      'Rooms that just started will appear here, so new hosts get seen.';
+
+  @override
+  String get liveHubEmptyTitle => 'No one is live right now';
+
+  @override
+  String get liveHubFollowingEmptyTitle => 'No one you follow is live';
+
+  @override
+  String get liveHubErrorTitle => 'Couldn\'t load live rooms';
+
+  @override
+  String get liveCardNew => 'New';
+
+  @override
+  String liveMultiGuest(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count guests',
+      one: '$count guest',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveCardSemanticsMode(String card, String mode) {
+    return '$card, $mode';
+  }
+
+  @override
+  String get feedPostJustNow => 'Just now';
 }

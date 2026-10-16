@@ -4,15 +4,31 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Live room tile (DESIGN_SYSTEM §9.10, G-01): 3:4 cover, radius `sm`,
-/// 2 dp live-gradient top accent, LIVE + viewers at top-start, PK at
-/// top-end, bottom scrim with host (`bodyStrong`) and title (`caption`,
-/// one line). Announced as "{host}, live, {n} viewers, {title}".
+/// Live room tile (DESIGN_SYSTEM §9.10, HOME_LIVE_LAYOUT_DECISIONS §6):
+/// 3:4 cover, radius `sm`, no accent line (VG-10).
+///
+/// - top-start: viewer chip, or "New" below 1 viewer (VG-11); the LIVE badge
+///   only with [showLiveBadge] (mixed live/non-live contexts — a live-only
+///   grid leaves it off).
+/// - top-end: room mode tag, only when true: PK (solid) or multi-guest.
+/// - bottom: 50 % scrim, host (`bodyStrong`) and title (`caption`), 1 line
+///   each.
+/// - missing or broken cover: the host avatar on `surfaceRaised`, no error
+///   text (VG-13).
+/// - press: scales to 0.98 for `durationFast` (instant with reduce motion).
+///
+/// Announced as "{host}, live, {n viewers | New}, {title}[, {mode}]".
 class KLiveCoverCard extends StatelessWidget {
-  const new({required this.room, super.key, this.onTap});
+  const new({
+    required this.room,
+    super.key,
+    this.onTap,
+    this.showLiveBadge = false,
+  });
 
   final LiveRoomCardData room;
   final VoidCallback? onTap;
+  final bool showLiveBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -20,11 +36,30 @@ class KLiveCoverCard extends StatelessWidget {
     final text = context.textStyles;
     final white = KPalette.dark.textPrimary;
     final cover = room.cover;
-    final semantics = l10n.liveCardSemantics(
+    final isNew = room.viewerCount < 1;
+    final guests = room.guestCount;
+    final mode = room.inPk
+        ? l10n.pkBadge
+        : guests == null
+        ? null
+        : l10n.liveMultiGuest(guests);
+    final base = l10n.liveCardSemantics(
       room.hostName,
-      l10n.liveViewers(room.viewerCount, KFormat.grouped(room.viewerCount)),
+      isNew
+          ? l10n.liveCardNew
+          : l10n.liveViewers(
+              room.viewerCount,
+              KFormat.grouped(room.viewerCount),
+            ),
       room.title,
     );
+    final semantics = mode == null
+        ? base
+        : l10n.liveCardSemanticsMode(base, mode);
+    final fallback = _CoverFallback(room: room);
+    final Widget viewers = isNew
+        ? const KBadge.newRoom()
+        : KViewerCountChip(count: room.viewerCount);
 
     return Semantics(
       button: onTap != null,
@@ -35,40 +70,40 @@ class KLiveCoverCard extends StatelessWidget {
           onTap: onTap,
           children: [
             if (cover == null)
-              const _CoverUnavailable()
+              fallback
             else
               Image(
                 image: cover,
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
-                errorBuilder: (_, _, _) => const _CoverUnavailable(),
+                errorBuilder: (_, _, _) => fallback,
               ),
             const _BottomScrim(),
-            const PositionedDirectional(
-              top: 0,
-              start: 0,
-              end: 0,
-              height: KMetrics.stroke,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: AlignmentDirectional.centerStart,
-                    end: AlignmentDirectional.centerEnd,
-                    colors: KBrandColors.gradientLive,
-                  ),
-                ),
-              ),
-            ),
             PositionedDirectional(
               top: KSpacing.sm,
               start: KSpacing.sm,
-              child: KLiveWithViewers(count: room.viewerCount),
+              child: showLiveBadge
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const KBadge.live(),
+                        const SizedBox(width: KSpacing.xs),
+                        viewers,
+                      ],
+                    )
+                  : viewers,
             ),
             if (room.inPk)
               const PositionedDirectional(
                 top: KSpacing.sm,
                 end: KSpacing.sm,
                 child: KBadge.pk(),
+              )
+            else if (guests != null)
+              PositionedDirectional(
+                top: KSpacing.sm,
+                end: KSpacing.sm,
+                child: KBadge.multiGuest(count: guests),
               ),
             PositionedDirectional(
               start: KSpacing.sm,
@@ -114,9 +149,9 @@ class KLiveCoverCardSkeleton extends StatelessWidget {
         top: KSpacing.sm,
         start: KSpacing.sm,
         child: KSkeleton(
-          width: KSizes.avatarLg,
+          width: KSizes.avatarMd,
           height: KMetrics.badgeHeight,
-          radius: KRadius.xs,
+          radius: KRadius.pill,
         ),
       ),
       PositionedDirectional(
@@ -137,7 +172,7 @@ class KLiveCoverCardSkeleton extends StatelessWidget {
   );
 }
 
-class _CardFrame extends StatelessWidget {
+class _CardFrame extends StatefulWidget {
   const new({required this.children, this.onTap, this.skeleton = false});
 
   final List<Widget> children;
@@ -145,24 +180,44 @@ class _CardFrame extends StatelessWidget {
   final bool skeleton;
 
   @override
-  Widget build(BuildContext context) => AspectRatio(
-    aspectRatio: KSizes.liveCardAspect,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(KRadius.sm),
-      child: Material(
-        color: skeleton
-            ? context.palette.surface
-            : context.palette.surfaceRaised,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ...children,
-            if (onTap != null) InkWell(onTap: onTap),
-          ],
+  State<_CardFrame> createState() => _CardFrameState();
+}
+
+class _CardFrameState extends State<_CardFrame> {
+  bool _pressed = false;
+
+  void _press(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = widget.onTap;
+    return AnimatedScale(
+      scale: _pressed ? KMetrics.cardPressedScale : 1,
+      duration: KMotion.of(context, KMotion.fast),
+      curve: KMotion.standard,
+      child: AspectRatio(
+        aspectRatio: KSizes.liveCardAspect,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(KRadius.sm),
+          child: Material(
+            color: widget.skeleton
+                ? context.palette.surface
+                : context.palette.surfaceRaised,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ...widget.children,
+                if (onTap != null)
+                  InkWell(onTap: onTap, onHighlightChanged: _press),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _BottomScrim extends StatelessWidget {
@@ -190,38 +245,25 @@ class _BottomScrim extends StatelessWidget {
   );
 }
 
-/// Media failed or missing (§9.10 error): `surfaceOverlay` block with a
-/// broken-image icon and a short caption.
-class _CoverUnavailable extends StatelessWidget {
-  const new();
+/// Missing or broken cover (VG-13): the host avatar (`lg`, initials when
+/// there is no photo) on `surfaceRaised`. A broken cover is not something
+/// the viewer can act on, so there is no error text.
+class _CoverFallback extends StatelessWidget {
+  const new({required this.room});
+
+  final LiveRoomCardData room;
 
   @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    return ColoredBox(
-      color: p.surfaceOverlay,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(KSpacing.sm),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.broken_image_outlined,
-                size: KMetrics.iconLg,
-                color: p.textSecondary,
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                context.l10n.liveCoverUnavailable,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: context.textStyles.caption,
-              ),
-            ],
-          ),
-        ),
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.palette.surfaceRaised,
+    child: Align(
+      // Slightly above centre so the avatar clears the bottom text.
+      alignment: const AlignmentDirectional(0, -0.3),
+      child: KAvatar(
+        name: room.hostName,
+        image: room.hostAvatar,
+        size: KSizes.avatarLg,
       ),
-    );
-  }
+    ),
+  );
 }
