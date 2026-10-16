@@ -59,7 +59,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-031 | Design sprint 2/6 — `docs/design/BIGO_INSPIRED_GAP_ANALYSIS.md` (current vs intended, location, priority, acceptance criteria; no invented reference measurements) | A5 | P0 | DONE `bd79f0a` | KL-030 | A1 |
 | KL-032 | Design sprint 3/6 — Home + Live room layout decisions presented to owner | A5 + A1 | P0 | DONE — owner answered 2026-10-16 (D36) | KL-031 | owner |
 | KL-033 | Design sprint 4/6 — Home **feed** redesign + Live-tab discovery hub (per D36; production: structure + honest states; populated layout via fixtures in goldens/gallery only) | A2 | P0 | DONE — merged; CTO re-ran format/analyze/555 tests ✅; 58 goldens; after captures in `docs/design/audit/2026-10-16-after/` | KL-032 | A5, A6 |
-| KL-034 | Design sprint 5/6 — Live room redesign (video area, host, viewers, chat, gifts, PK, poor connectivity / no video / empty chat) | A2 | P0 | BACKLOG | KL-033 | A5, A6 |
+| KL-034 | Design sprint 5/6 — Live room redesign (video area, host, viewers, chat, gifts, PK, poor connectivity / no video / empty chat) | A2 | P0 | ON HOLD — until the Home + Live design review is approved (D39) | KL-033 | A5, A6 |
 | KL-035 | Design sprint 6/6 — goldens ar/en at 393 + 360, before/after review package for owner approval | A2 + A1 | P0 | BACKLOG | KL-034 | owner |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
@@ -95,6 +95,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | BACKLOG | KL-036 approved, KL-013 merged | A1, A6, A7 |
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | IN_PROGRESS | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
+| KL-035a | Home + Live hub design review package: real screenshots (ar/en, 393 + 360) of the wired screens, before/after, remaining visual gaps; references comparison marked pending (none supplied) | A1 + A5 | P0 | BACKLOG | KL-038 | owner |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | BACKLOG | KL-037 | A1 |
 
 ### Mandatory release blockers (run alongside, never skipped)
@@ -217,6 +218,13 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D36 | 2026-10-16 | **Owner answers to KL-032:** keep 5 tabs Home · Discover · Create · Live · Profile; Home = social feed with Following · Popular · New (default Popular), no wordmark, Nearby deferred; Live tab = live-discovery hub; PK split screen; non-dimming gift sheet. Categories and references unanswered → All chip only, reference-free approximation. Token proposals T-1–T-5 held in `KMetrics` until after redesign approval | Recorded in HOME_LIVE_LAYOUT_DECISIONS.md "Owner decisions" |
 | D37 | 2026-10-16 | **Owner directive:** start Phase 2 with real vertical slices. The design sprint (KL-033–KL-035) continues as the UI layer of slice 1. Live discovery lives in the **Live tab** (D36); Home stays the feed. Going live without a media provider (B1) is gated by `LIVE_HOSTING_ENABLED` (default off), so production never lists rooms that cannot play. Categories start empty: none are invented, and they are managed by admin later | No fabricated rooms; honest "unavailable" in production until B1 |
 | D38 | 2026-10-16 | Contract v1.3 approved as drafted by A4, including its additions: `GET /live/config`, `isPrivate` on profiles, and stale rooms reported as ENDED/HEARTBEAT_TIMEOUT. Partial indexes go in hand-written SQL migrations. Soft-delete must remove follow rows (KL-037/KL-014). Popular ≡ New until presence exists (owner informed) | Additive change; KL-037 waits for KL-013 |
+| D39 | 2026-10-16 | **Owner confirmed** D36:
+- Home = social feed; Live = dedicated live-discovery hub, opening on Popular, with Following · Popular · New tabs.
+- The two tabs must not share the same room grid.
+- Polished discovery: clear thumbnails, creator identity, category navigation, search.
+- No fabricated rooms, viewer counts, categories or online status in production; fixtures only in tests and previews.
+- The Home + Live design review must finish before gifts, PK, reels or other features. KL-034 (room/gift/PK visuals) is on hold until that review | Resolves KL-036 open question 5 |
+| D40 | 2026-10-16 | **Repository is public:** no reference screenshots, secrets or sensitive security material are committed until it is private. `design/references/` is git-ignored. New security reviews (KL-040 onward) commit only a summary (finding id, severity, status, fixed-in commit). Exploit steps for still-open findings stay out of the repo until fixed or the repo is private. Existing history is not rewritten | Owner instruction 2026-10-16; PP-11 stays open and visible |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)

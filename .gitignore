@@ -36,3 +36,6 @@ Thumbs.db
 
 # Local Redis snapshots
 *.rdb
+
+# D40: reference screenshots never committed while the repository is public
+/design/references/

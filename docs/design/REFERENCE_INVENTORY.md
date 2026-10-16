@@ -272,7 +272,7 @@ committing. Prefer the capturer's own test accounts and rooms they host themselv
 | Format | PNG, full screen including the status bar (it is masked during comparison). No crops, no annotations (annotate in a separate `_notes.md`) |
 | Locale | Each state in **Arabic (RTL)** and **English** where the reference app supports both; otherwise note "en only" |
 | Theme | The reference app's default theme; note if a dark/light switch exists |
-| Location | `design/references/<screen>/<state>_<locale>.png` at the repo root, **outside `apps/`**. Proposed for Git LFS or a private storage bucket; decision for DevOps (A8) |
+| Location | **Not in this repository while it is public (D40).** The owner shares references privately (outside Git); agents keep them only in local scratch space, and `design/references/` is git-ignored as a guard. Only text notes with no images or measurements copied from them are committed. Once the repo is private, the previous plan (`design/references/<screen>/<state>_<locale>.png`, Git LFS or a private bucket) can be reconsidered |
 | Naming | lowercase kebab-case. `<screen>` from the list below; `<state>` describes the state; `<locale>` is `ar` or `en`. Example: `design/references/live-room/pk-in-progress-2min_ar.png` |
 | Video (optional) | Short screen recordings (`.mp4`, ≤ 15 s) for motion (gift combo, PK countdown, room swipe), stored as `<state>_<locale>.mp4` |
 
