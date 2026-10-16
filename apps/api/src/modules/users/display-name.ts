@@ -10,7 +10,9 @@ import { isMark, scanHygiene, trimHygiene } from './text-hygiene.js';
  * `invalid_format`:
  *  - a code point rejected by the text-hygiene rules (CONVENTIONS §6 v1.3.1; `text-hygiene.ts`):
  *    General_Category Cc/Cf/Zl/Zp/Co/Cs/Cn, Default_Ignorable_Code_Point, the blank look-alikes,
- *    except inside an RGI emoji, a well-placed ZWNJ/ZWJ, or one variation selector after a base.
+ *    except inside an RGI emoji, a well-placed ZWNJ/ZWJ, or a listed variation sequence (v1.4,
+ *    SEC-039: StandardizedVariants, emoji-variation-sequences, IVD); inner spaces other than
+ *    U+0020, U+00A0, U+202F and U+3000 and the filler U+16FE4 are rejected too.
  *    This covers every character banned before v1.3.1 (controls, bidi controls, LRM/RLM/ALM,
  *    U+200B, U+2060, an inner U+FEFF);
  *  - ZWNJ (U+200C) / ZWJ (U+200D) not placed between two non-joiner, non-space characters;

@@ -12,6 +12,7 @@ export default tseslint.config(
       'src/generated/**',
       'src/modules/users/data/confusables.generated.ts',
       'src/modules/users/data/text-hygiene.generated.ts',
+      'src/modules/countries/data/countries.generated.ts',
       // Plain Node build script (not part of the TS project).
       'scripts/**',
       'eslint.config.mjs',

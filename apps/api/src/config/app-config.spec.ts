@@ -434,4 +434,159 @@ describe('loadConfig', () => {
       expect(problemsFor({ ...base, LIVE_CURSOR_KEY: 'short' }, 'LIVE_CURSOR_KEY')).toHaveLength(1);
     });
   });
+  describe('media uploads (contract v1.4, KL-049)', () => {
+    const hex = () => randomBytes(32).toString('hex');
+    const storage = () => ({
+      MEDIA_STORAGE_ENDPOINT: 'https://account.r2.example.invalid',
+      MEDIA_STORAGE_REGION: 'auto',
+      MEDIA_STORAGE_INCOMING_BUCKET: 'kabso-incoming',
+      MEDIA_STORAGE_PUBLIC_BUCKET: 'kabso-public',
+      MEDIA_STORAGE_ACCESS_KEY_ID: `id${randomBytes(8).toString('hex')}`,
+      MEDIA_STORAGE_SECRET_ACCESS_KEY: randomBytes(30).toString('base64url'),
+      MEDIA_PUBLIC_BASE_URL: 'https://media.kabso-cdn.example',
+    });
+    const prod = (extra: Record<string, string> = {}) => ({
+      ...base,
+      NODE_ENV: 'production',
+      MAIL_TRANSPORT: 'log',
+      JWT_ACCESS_SECRET: hex(),
+      RATE_LIMIT_KEY_SECRET: hex(),
+      ...extra,
+    });
+    const problems = (env: Record<string, string>) => {
+      try {
+        loadConfig(env);
+        return [];
+      } catch (err) {
+        return (err as ConfigValidationError).problems.filter((p) => p.startsWith('MEDIA_'));
+      }
+    };
+
+    it('defaults: uploads off, moderation none, no storage, contract limits and CONVENTIONS §7 rates', () => {
+      const config = loadConfig(base);
+      expect(config.media).toEqual({
+        uploadsEnabled: false,
+        moderationProvider: 'none',
+        storage: null,
+        publicBaseUrl: null,
+        uploadUrlTtlSeconds: 600,
+        maxPendingPerUser: 5,
+        dailyBytesPerUser: 104_857_600,
+        processMaxConcurrency: 2,
+        processTimeoutMs: 10_000,
+        unattachedTtlHours: 24,
+        deleteGraceHours: 24,
+        endedRoomCoverTtlHours: 24,
+        cleanupIntervalSeconds: 300,
+        cleanupBatchSize: 500,
+      });
+      expect(config.rateLimits).toMatchObject({
+        mediaUploadHourUser: { max: 20, windowSeconds: 3600 },
+        mediaUploadDayUser: { max: 60, windowSeconds: 86400 },
+        mediaCompleteUser: { max: 30, windowSeconds: 3600 },
+        liveCoverUser: { max: 20, windowSeconds: 3600 },
+        liveCountriesUser: { max: 300, windowSeconds: 900 },
+      });
+    });
+
+    it('MEDIA_UPLOADS_ENABLED=true refuses to boot with an incomplete storage configuration', () => {
+      expect(
+        problems({ ...base, MEDIA_UPLOADS_ENABLED: 'true' })
+          .map((p) => p.split(':')[0])
+          .sort(),
+      ).toEqual(
+        [
+          'MEDIA_PUBLIC_BASE_URL',
+          'MEDIA_STORAGE_ACCESS_KEY_ID',
+          'MEDIA_STORAGE_INCOMING_BUCKET',
+          'MEDIA_STORAGE_PUBLIC_BUCKET',
+          'MEDIA_STORAGE_REGION',
+          'MEDIA_STORAGE_SECRET_ACCESS_KEY',
+        ].sort(),
+      );
+      for (const missing of Object.keys(storage()).filter((k) => k !== 'MEDIA_STORAGE_ENDPOINT')) {
+        const env: Record<string, string> = { ...base, ...storage(), MEDIA_UPLOADS_ENABLED: 'true' };
+        delete env[missing];
+        expect(problems(env).length, missing).toBeGreaterThan(0);
+      }
+      const config = loadConfig({ ...base, ...storage(), MEDIA_UPLOADS_ENABLED: 'true' });
+      expect(config.media.uploadsEnabled).toBe(true);
+      expect(config.media.storage).toMatchObject({
+        region: 'auto',
+        incomingBucket: 'kabso-incoming',
+        forcePathStyle: false,
+      });
+      expect(config.media.publicBaseUrl).toBe('https://media.kabso-cdn.example');
+    });
+
+    it('never echoes the storage secret in a validation error', () => {
+      const secret = randomBytes(30).toString('base64url');
+      try {
+        loadConfig({
+          ...base,
+          ...storage(),
+          MEDIA_STORAGE_SECRET_ACCESS_KEY: secret,
+          MEDIA_UPLOADS_ENABLED: 'yes',
+        });
+        throw new Error('expected a failure');
+      } catch (err) {
+        expect((err as Error).message).not.toContain(secret);
+      }
+    });
+
+    it('validates buckets, URLs and switches', () => {
+      expect(problems({ ...base, MEDIA_UPLOADS_ENABLED: 'TRUE' })).toHaveLength(1);
+      expect(problems({ ...base, MEDIA_MODERATION_PROVIDER: 'aws' })).toHaveLength(1);
+      expect(problems({ ...base, ...storage(), MEDIA_STORAGE_PUBLIC_BUCKET: 'kabso-incoming' })).toHaveLength(
+        1,
+      );
+      expect(problems({ ...base, MEDIA_STORAGE_INCOMING_BUCKET: 'Bad_Bucket' })).toHaveLength(1);
+      expect(problems({ ...base, MEDIA_PUBLIC_BASE_URL: 'https://cdn.example/x?y=1' })).toHaveLength(1);
+      expect(problems({ ...base, MEDIA_PUBLIC_BASE_URL: 'https://user:pw@cdn.example' })).toHaveLength(1);
+      expect(problems({ ...base, MEDIA_PUBLIC_BASE_URL: 'ftp://cdn.example' })).toHaveLength(1);
+      expect(problems({ ...base, MEDIA_STORAGE_ACCESS_KEY_ID: 'only-the-id' })).toHaveLength(1);
+      expect(
+        loadConfig({ ...base, MEDIA_PUBLIC_BASE_URL: 'https://cdn.example/media/' }).media.publicBaseUrl,
+      ).toBe('https://cdn.example/media');
+      for (const [name, bad] of [
+        ['MEDIA_UPLOAD_URL_TTL_SECONDS', '901'],
+        ['MEDIA_UPLOAD_URL_TTL_SECONDS', '59'],
+        ['MEDIA_MAX_PENDING_PER_USER', '21'],
+        ['MEDIA_DAILY_BYTES_PER_USER', '1000'],
+        ['MEDIA_PROCESS_MAX_CONCURRENCY', '0'],
+        ['MEDIA_PROCESS_TIMEOUT_MS', '999'],
+        ['MEDIA_UNATTACHED_TTL_HOURS', '169'],
+        ['MEDIA_DELETE_GRACE_HOURS', '0'],
+        ['MEDIA_ENDED_ROOM_COVER_TTL_HOURS', '169'],
+        ['MEDIA_CLEANUP_INTERVAL_SECONDS', '30'],
+        ['MEDIA_CLEANUP_BATCH_SIZE', '5001'],
+      ] as const) {
+        expect(problems({ ...base, [name]: bad }), `${name}=${bad}`).toHaveLength(1);
+      }
+      expect(loadConfig({ ...base, MEDIA_CLEANUP_INTERVAL_SECONDS: '0' }).media.cleanupIntervalSeconds).toBe(
+        0,
+      );
+    });
+
+    it('production: allow_all moderation is refused (it is dev/test only)', () => {
+      expect(problems(prod({ MEDIA_MODERATION_PROVIDER: 'allow_all' }))).toEqual([
+        expect.stringMatching(/^MEDIA_MODERATION_PROVIDER: .*refused in production/),
+      ]);
+      expect(problems({ ...base, MEDIA_MODERATION_PROVIDER: 'allow_all' })).toEqual([]);
+    });
+
+    it('production: https storage endpoint and media host, on a host other than the API', () => {
+      expect(problems(prod({ ...storage(), MEDIA_UPLOADS_ENABLED: 'true' }))).toEqual([]);
+      expect(problems(prod({ ...storage(), MEDIA_STORAGE_ENDPOINT: 'http://storage.example' }))).toHaveLength(
+        1,
+      );
+      expect(
+        problems(prod({ ...storage(), MEDIA_PUBLIC_BASE_URL: 'http://media.kabso-cdn.example' })),
+      ).toHaveLength(1);
+      expect(problems(prod({ ...storage(), MEDIA_PUBLIC_BASE_URL: 'https://kabso.example/media' }))).toEqual([
+        expect.stringMatching(/^MEDIA_PUBLIC_BASE_URL: must be on a host other than the API host/),
+      ]);
+      expect(problems(prod({ MEDIA_CLEANUP_INTERVAL_SECONDS: '0' }))).toHaveLength(1);
+    });
+  });
 });

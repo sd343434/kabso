@@ -33,7 +33,7 @@ const ME_REQUIRED = [
   'isPrivate',
   'createdAt',
 ];
-const ME_OPTIONAL = ['bio', 'avatarUrl'];
+const ME_OPTIONAL = ['bio', 'avatarUrl', 'avatarThumbUrl', 'avatarModeration', 'country'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];
 const SESSION_REQUIRED = ['id', 'current', 'createdAt', 'lastUsedAt'];
 const SESSION_OPTIONAL = ['deviceName', 'platform', 'appVersion', 'ipCountry'];

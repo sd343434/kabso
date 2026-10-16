@@ -11,7 +11,11 @@ export interface PublicProfileDto {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** v1.4 */
+  avatarThumbUrl: string | null;
   bio: string | null;
+  /** v1.4: the user's chosen country, else null. */
+  country: string | null;
   isPrivate: boolean;
   followerCount: number;
   followingCount: number;
@@ -34,7 +38,7 @@ export class PublicProfileService {
   ) {}
 
   async get(callerId: string, username: string): Promise<PublicProfileDto> {
-    const user = await this.users.findActivePublicUser(username);
+    const user = await this.users.findActivePublicUser(username, callerId);
     // Malformed, unknown, pending-only, SUSPENDED and DELETED: the same 404 body.
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const isSelf = user.id === callerId;
@@ -48,7 +52,9 @@ export class PublicProfileService {
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      avatarThumbUrl: user.avatarThumbUrl,
       bio: user.bio,
+      country: user.country,
       isPrivate: user.isPrivate,
       followerCount: counts.followerCount,
       followingCount: counts.followingCount,

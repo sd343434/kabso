@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { languageFromAcceptLanguage, type ContentLanguage } from '../../common/http/content-language.js';
 import { clientIp, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
 import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
@@ -10,13 +10,17 @@ import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.s
 import {
   LiveRoomsService,
   type LiveConfigDto,
+  type LiveCountryDto,
   type LiveRoomDto,
   type LiveRoomPageDto,
   type RequestMeta,
 } from './live-rooms.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
-/** Live discovery and host lifecycle (contract v1.3, CONVENTIONS §10). Every route needs a token. */
+/**
+ * Live discovery and host lifecycle (contract v1.3, CONVENTIONS §10); covers and countries
+ * (v1.4, §11.4, §11.9). Every route needs a token.
+ */
 @Controller('live')
 export class LiveController {
   constructor(
@@ -83,7 +87,7 @@ export class LiveController {
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
   ): Promise<LiveRoomDto> {
-    return this.rooms.getRoom(roomId, await this.language(req, auth));
+    return this.rooms.getRoom(roomId, await this.language(req, auth), auth.userId);
   }
 
   @Post('rooms/:roomId/heartbeat')
@@ -91,6 +95,32 @@ export class LiveController {
   @RateLimit({ bucket: 'live:heartbeat', rule: 'liveHeartbeatUser', key: byUserId, replacesDefault: true })
   async heartbeat(@CurrentAuth() auth: AuthContext, @Param('roomId') roomId: string): Promise<void> {
     await this.rooms.heartbeat(auth.userId, roomId);
+  }
+
+  /**
+   * v1.4: replace or remove the cover of the caller's LIVE room. The body is validated by the
+   * service after the LIVE_HOSTING_ENABLED check (openapi check order).
+   */
+  @Put('rooms/:roomId/cover')
+  @HttpCode(200)
+  @RateLimit({ bucket: 'live:cover', rule: 'liveCoverUser', key: byUserId, replacesDefault: true })
+  async setCover(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveRoomDto> {
+    return this.rooms.setCover(auth.userId, roomId, body, await this.language(req, auth), this.meta(req));
+  }
+
+  /** v1.4: countries with live rooms right now, with real counts (bounded, unpaginated). */
+  @Get('countries')
+  @RateLimit({ bucket: 'live:countries', rule: 'liveCountriesUser', key: byUserId, replacesDefault: true })
+  async listCountries(
+    @CurrentAuth() auth: AuthContext,
+    @Req() req: AppRequest,
+  ): Promise<{ data: LiveCountryDto[] }> {
+    return { data: await this.rooms.listCountries(await this.language(req, auth)) };
   }
 
   @Post('rooms/:roomId/end')

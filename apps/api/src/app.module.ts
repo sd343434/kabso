@@ -13,7 +13,9 @@ import { AccessTokenGuard } from './modules/auth/access-token.guard.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { CountriesModule } from './modules/countries/countries.module.js';
 import { LiveModule } from './modules/live/live.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -44,6 +46,9 @@ export class AppModule {
         LiveModule,
         SocialModule,
         PublicProfileModule,
+        // v1.4 (CONVENTIONS §11)
+        MediaModule,
+        CountriesModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

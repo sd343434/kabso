@@ -213,7 +213,7 @@ describe('KL-013 runtime role DML', () => {
     expect(rows.length).toBeGreaterThanOrEqual(10);
     // KL-037: the v1.3 tables came through default privileges (no GRANT in their migration).
     expect(rows.map((r) => r.table)).toEqual(
-      expect.arrayContaining(['live_categories', 'live_rooms', 'follows']),
+      expect.arrayContaining(['live_categories', 'live_rooms', 'follows', 'media_objects']),
     );
     for (const row of rows) {
       const appendOnly = row.table === 'audit_logs';
@@ -363,6 +363,178 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_rooms_title_length',
       'live_rooms_viewer_count_nonneg',
     ]);
+  });
+});
+
+describe('KL-049 v1.4 table media_objects and new columns under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000b001',
+    media: '0192f1c2-0000-7000-8000-00000000b002',
+    room: '0192f1c2-0000-7000-8000-00000000b003',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM media_objects WHERE id = '${ids.media}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${ids.user}'`);
+    });
+  });
+
+  it('media_objects is owned by the migration role and got DML through default privileges (no GRANT)', async () => {
+    const owner = await scalar<string>(
+      runtime,
+      `SELECT pg_get_userbyid(c.relowner)::text AS v FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'media_objects'`,
+    );
+    expect(owner).toBe(migrationUser);
+    const privs = await runtime.$queryRawUnsafe<
+      { s: boolean; i: boolean; u: boolean; d: boolean; t: boolean }[]
+    >(`
+      SELECT has_table_privilege('media_objects', 'SELECT') AS s, has_table_privilege('media_objects', 'INSERT') AS i,
+             has_table_privilege('media_objects', 'UPDATE') AS u, has_table_privilege('media_objects', 'DELETE') AS d,
+             has_table_privilege('media_objects', 'TRUNCATE') AS t`);
+    expect(privs).toEqual([{ s: true, i: true, u: true, d: true, t: false }]);
+    // The grant came from this database's group (KL-013b), not from PUBLIC or the legacy group.
+    const grantees = await runtime.$queryRawUnsafe<{ grantee: string }[]>(`
+      SELECT DISTINCT pg_get_userbyid(a.grantee)::text AS grantee
+        FROM pg_class c CROSS JOIN LATERAL aclexplode(c.relacl) a
+       WHERE c.relname = 'media_objects' AND a.grantee <> c.relowner`);
+    expect(grantees.map((g) => g.grantee)).toEqual([RUNTIME_GROUP]);
+    const file = readFileSync(
+      new URL('../../prisma/migrations/20261016140000_media_and_countries/migration.sql', import.meta.url),
+      'utf8',
+    );
+    expect(
+      file.split('\n').filter((line) => !line.startsWith('--') && /\b(GRANT|REVOKE)\b/i.test(line)),
+    ).toEqual([]);
+  });
+
+  it('the runtime role can SELECT, INSERT, UPDATE and DELETE media_objects and write the new columns', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${ids.user}', 'kl049-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO user_profiles (user_id, username, display_name, updated_at) VALUES ('${ids.user}', 'kl049_${suffix}', 'Probe', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO media_objects (id, owner_user_id, purpose, declared_content_type, declared_bytes, incoming_key, upload_expires_at, updated_at)
+       VALUES ('${ids.media}', '${ids.user}', 'AVATAR'::media_purpose, 'image/jpeg', 1000, 'in/${ids.media}/probe', now(), now())`,
+    );
+    expect(
+      await runtimeExec(
+        `UPDATE media_objects SET status = 'READY'::media_status, public_token = 'AAAAAAAAAAAAAAAAAAAAAA', width = 512, height = 512,
+                thumb_width = 128, thumb_height = 128, completed_at = now(), attached_at = now(),
+                moderation_status = 'PENDING'::media_moderation_status WHERE id = '${ids.media}'`,
+      ),
+    ).toBe(1);
+    expect(
+      await runtimeExec(
+        `UPDATE user_profiles SET avatar_media_id = '${ids.media}', country = 'SA' WHERE user_id = '${ids.user}'`,
+      ),
+    ).toBe(1);
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, country, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', 'SA', now())`,
+    );
+    expect(
+      Number(
+        await scalar<bigint>(runtime, `SELECT count(*) AS v FROM media_objects WHERE id = '${ids.media}'`),
+      ),
+    ).toBe(1);
+    // ON DELETE SET NULL on both references.
+    expect(await runtimeExec(`DELETE FROM media_objects WHERE id = '${ids.media}'`)).toBe(1);
+    expect(
+      await scalar<string | null>(
+        runtime,
+        `SELECT avatar_media_id::text AS v FROM user_profiles WHERE user_id = '${ids.user}'`,
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['TRUNCATE media_objects', 'TRUNCATE TABLE media_objects'],
+    ['ALTER TABLE media_objects', 'ALTER TABLE media_objects ADD COLUMN kl049_forbidden int'],
+    ['DROP CONSTRAINT', 'ALTER TABLE media_objects DROP CONSTRAINT media_objects_ready_shape'],
+    ['DROP INDEX', 'DROP INDEX media_objects_owner_pending_idx'],
+    ['ALTER TYPE', "ALTER TYPE media_status ADD VALUE 'QUARANTINED'"],
+    ['DROP TABLE', 'DROP TABLE media_objects'],
+    [
+      'ALTER TABLE user_profiles DROP CONSTRAINT',
+      'ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_country_format',
+    ],
+  ])('%s is refused', async (_name, sql) => {
+    await expect(runtimeExec(sql)).rejects.toThrow(PERMISSION_DENIED);
+  });
+
+  it('the hand-written partial indexes and CHECK constraints exist', async () => {
+    const indexes = await runtime.$queryRawUnsafe<{ name: string; def: string }[]>(`
+      SELECT indexname::text AS name, indexdef AS def FROM pg_indexes
+       WHERE schemaname = 'public' AND tablename IN ('media_objects', 'live_rooms', 'user_profiles')`);
+    const byName = Object.fromEntries(indexes.map((i) => [i.name, i.def]));
+    expect(byName.media_objects_owner_pending_idx).toMatch(
+      /WHERE \(status = 'AWAITING_UPLOAD'::media_status\)$/,
+    );
+    expect(byName.media_objects_awaiting_expiry_idx).toMatch(
+      /WHERE \(status = 'AWAITING_UPLOAD'::media_status\)$/,
+    );
+    expect(byName.media_objects_unattached_idx).toMatch(
+      /WHERE \(\(status = 'READY'::media_status\) AND \(attached_at IS NULL\)\)$/,
+    );
+    expect(byName.media_objects_detached_idx).toMatch(
+      /WHERE \(\(status = 'READY'::media_status\) AND \(detached_at IS NOT NULL\)\)$/,
+    );
+    expect(byName.media_objects_moderation_pending_idx).toMatch(
+      /moderation_status = 'PENDING'::media_moderation_status/,
+    );
+    expect(byName.media_objects_rejected_idx).toMatch(
+      /moderation_status = 'REJECTED'::media_moderation_status/,
+    );
+    expect(byName.media_objects_terminal_idx).toMatch(
+      /status = ANY \(ARRAY\['FAILED'::media_status, 'EXPIRED'::media_status, 'DELETED'::media_status\]\)/,
+    );
+    for (const name of ['live_rooms_live_country_new_idx', 'live_rooms_live_country_popular_idx']) {
+      expect(byName[name], name).toMatch(
+        /WHERE \(\(status = 'LIVE'::live_room_status\) AND \(country IS NOT NULL\)\)$/,
+      );
+    }
+    for (const name of [
+      'media_objects_incoming_key_key',
+      'media_objects_public_token_key',
+      'user_profiles_avatar_media_id_key',
+      'live_rooms_cover_media_id_key',
+    ]) {
+      expect(byName[name], name).toMatch(/^CREATE UNIQUE INDEX/);
+    }
+    expect(byName.media_objects_owner_created_idx).toBeDefined();
+    const checks = await runtime.$queryRawUnsafe<{ name: string; validated: boolean }[]>(`
+      SELECT conname::text AS name, convalidated AS validated FROM pg_constraint
+       WHERE contype IN ('c', 'f')
+         AND conrelid IN ('media_objects'::regclass, 'user_profiles'::regclass, 'live_rooms'::regclass)
+         AND conname IN ('media_objects_content_type', 'media_objects_declared_bytes', 'media_objects_ready_shape',
+                         'media_objects_failed_shape', 'media_objects_attach_order', 'user_profiles_country_format',
+                         'live_rooms_country_format', 'user_profiles_avatar_media_id_fkey',
+                         'live_rooms_cover_media_id_fkey', 'media_objects_owner_user_id_fkey')
+       ORDER BY 1`);
+    expect(checks).toHaveLength(10);
+    expect(checks.every((c) => c.validated)).toBe(true);
+  });
+
+  it('the CHECK constraints refuse malformed rows', async () => {
+    await expect(
+      runtimeExec(`UPDATE user_profiles SET country = 'sa' WHERE user_id = '${ids.user}'`),
+    ).rejects.toThrow(/user_profiles_country_format|check constraint/i);
+    await expect(
+      runtimeExec(
+        `INSERT INTO media_objects (id, owner_user_id, purpose, declared_content_type, declared_bytes, incoming_key, upload_expires_at, updated_at)
+         VALUES ('0192f1c2-0000-7000-8000-00000000b0ff', '${ids.user}', 'AVATAR'::media_purpose, 'image/gif', 10, 'in/x/gif', now(), now())`,
+      ),
+    ).rejects.toThrow(/media_objects_content_type|check constraint/i);
+    await expect(
+      runtimeExec(
+        `INSERT INTO media_objects (id, owner_user_id, purpose, status, declared_content_type, declared_bytes, incoming_key, upload_expires_at, updated_at)
+         VALUES ('0192f1c2-0000-7000-8000-00000000b0fe', '${ids.user}', 'AVATAR'::media_purpose, 'READY'::media_status, 'image/png', 10, 'in/x/ready', now(), now())`,
+      ),
+    ).rejects.toThrow(/media_objects_ready_shape|check constraint/i);
   });
 });
 

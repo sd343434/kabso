@@ -42,6 +42,67 @@ export const intSetting = (fallback: number, min: number, max: number = Number.M
     .pipe(z.number().int().min(min).max(max));
 
 const positiveInt = (fallback: number) => intSetting(fallback, 1);
+
+/** `"true"` / `"false"` switch (default as given). */
+const booleanSwitch = (fallback: 'true' | 'false') =>
+  z
+    .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+    .default(fallback)
+    .transform((v) => v === 'true');
+
+/** An optional, non-empty trimmed string (empty means unset). */
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v === undefined || v === '' ? undefined : v));
+
+/** An optional absolute http(s) URL without query, fragment or credentials (empty means unset). */
+const optionalBaseUrl = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined || v === '') return undefined;
+    let url: URL;
+    try {
+      url = new URL(v);
+    } catch {
+      ctx.addIssue({ code: 'custom', message: 'must be an absolute URL' });
+      return z.NEVER;
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      ctx.addIssue({ code: 'custom', message: 'must be an http(s) URL' });
+      return z.NEVER;
+    }
+    if (url.search !== '' || url.hash !== '' || v.includes('?') || v.includes('#')) {
+      ctx.addIssue({ code: 'custom', message: 'must not have a query or fragment' });
+      return z.NEVER;
+    }
+    if (url.username !== '' || url.password !== '') {
+      ctx.addIssue({ code: 'custom', message: 'must not contain credentials' });
+      return z.NEVER;
+    }
+    return `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+  });
+
+/** S3 bucket name (the DNS-compatible subset accepted by S3 and Cloudflare R2); empty means unset. */
+const optionalBucket = optionalText(63).refine(
+  (v) => v === undefined || /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(v),
+  'must be a valid bucket name',
+);
+
+/** Storage settings required when MEDIA_UPLOADS_ENABLED=true (DB_PHASE2_MEDIA §5). */
+export const MEDIA_STORAGE_REQUIRED = [
+  'MEDIA_STORAGE_REGION',
+  'MEDIA_STORAGE_INCOMING_BUCKET',
+  'MEDIA_STORAGE_PUBLIC_BUCKET',
+  'MEDIA_STORAGE_ACCESS_KEY_ID',
+  'MEDIA_STORAGE_SECRET_ACCESS_KEY',
+  'MEDIA_PUBLIC_BASE_URL',
+] as const;
 const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
 
 /** SEC-035: bounds of LIVE_SWEEP_BATCH_SIZE (rooms ended per sweeper transaction). */
@@ -198,6 +259,47 @@ export const envSchema = z
     RATE_LIMIT_LIVE_END_USER: rateLimit('30/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
+    // v1.4 (CONVENTIONS §7): per-user buckets that replace the default authenticated bucket.
+    RATE_LIMIT_MEDIA_UPLOAD_HOUR_USER: rateLimit('20/3600'),
+    RATE_LIMIT_MEDIA_UPLOAD_DAY_USER: rateLimit('60/86400'),
+    RATE_LIMIT_MEDIA_COMPLETE_USER: rateLimit('30/3600'),
+    RATE_LIMIT_LIVE_COVER_USER: rateLimit('20/3600'),
+    RATE_LIMIT_LIVE_COUNTRIES_USER: rateLimit('300/900'),
+
+    // ---- v1.4 media uploads (CONVENTIONS §11, DB_PHASE2_MEDIA §5) ------------------------------
+    /**
+     * Uploads are available only when exactly "true". Default off (D44/D45: no storage provider is
+     * activated). "true" requires every storage setting below, otherwise the API refuses to boot.
+     */
+    MEDIA_UPLOADS_ENABLED: booleanSwitch('false'),
+    /** `none`: images stay PENDING (owner-only). `allow_all`: dev/test only, refused in production. */
+    MEDIA_MODERATION_PROVIDER: z.enum(['none', 'allow_all']).default('none'),
+    /** S3-compatible endpoint (e.g. Cloudflare R2). Unset = the SDK's AWS default. https in production. */
+    MEDIA_STORAGE_ENDPOINT: optionalBaseUrl,
+    MEDIA_STORAGE_REGION: optionalText(64),
+    MEDIA_STORAGE_FORCE_PATH_STYLE: booleanSwitch('false'),
+    MEDIA_STORAGE_INCOMING_BUCKET: optionalBucket,
+    MEDIA_STORAGE_PUBLIC_BUCKET: optionalBucket,
+    /** Secret (secret manager, PP-09). No default, never logged. */
+    MEDIA_STORAGE_ACCESS_KEY_ID: optionalText(256),
+    /** Secret (secret manager, PP-09). No default, never logged. */
+    MEDIA_STORAGE_SECRET_ACCESS_KEY: optionalText(256),
+    /** Base of every public image URL (CDN / custom domain); https and not the API host in production. */
+    MEDIA_PUBLIC_BASE_URL: optionalBaseUrl,
+    MEDIA_UPLOAD_URL_TTL_SECONDS: intSetting(600, 60, 900),
+    MEDIA_MAX_PENDING_PER_USER: intSetting(5, 1, 20),
+    MEDIA_DAILY_BYTES_PER_USER: intSetting(104_857_600, 10_485_760, 1_073_741_824),
+    MEDIA_PROCESS_MAX_CONCURRENCY: intSetting(2, 1, 16),
+    MEDIA_PROCESS_TIMEOUT_MS: intSetting(10_000, 1000, 60_000),
+    MEDIA_UNATTACHED_TTL_HOURS: intSetting(24, 1, 168),
+    MEDIA_DELETE_GRACE_HOURS: intSetting(24, 1, 168),
+    MEDIA_ENDED_ROOM_COVER_TTL_HOURS: intSetting(24, 0, 168),
+    /** Period of the media cleanup job: 60–3600 s; 0 disables it (tests only; refused in production). */
+    MEDIA_CLEANUP_INTERVAL_SECONDS: intSetting(300, 0, 3600).refine(
+      (v) => v === 0 || v >= 60,
+      'must be 0 (disabled) or 60–3600',
+    ),
+    MEDIA_CLEANUP_BATCH_SIZE: intSetting(500, 1, 5000),
 
     /**
      * v1.3 (CONVENTIONS §10, B1): going live and heartbeats are refused with 503
@@ -295,6 +397,77 @@ export const envSchema = z
         path: ['LIVE_HEARTBEAT_STALE_SECONDS'],
         message: 'must be at least 2 × LIVE_HEARTBEAT_INTERVAL_SECONDS',
       });
+    }
+    // v1.4 (CONVENTIONS §11.1, DB_PHASE2_MEDIA §5): "enabled but not configured" cannot happen.
+    if (env.MEDIA_UPLOADS_ENABLED) {
+      for (const name of MEDIA_STORAGE_REQUIRED) {
+        if (env[name] === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [name],
+            message: 'is required when MEDIA_UPLOADS_ENABLED=true',
+          });
+        }
+      }
+    }
+    if (
+      env.MEDIA_STORAGE_INCOMING_BUCKET !== undefined &&
+      env.MEDIA_STORAGE_INCOMING_BUCKET === env.MEDIA_STORAGE_PUBLIC_BUCKET
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MEDIA_STORAGE_INCOMING_BUCKET'],
+        message: 'must differ from MEDIA_STORAGE_PUBLIC_BUCKET',
+      });
+    }
+    if (
+      (env.MEDIA_STORAGE_ACCESS_KEY_ID === undefined) !==
+      (env.MEDIA_STORAGE_SECRET_ACCESS_KEY === undefined)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MEDIA_STORAGE_SECRET_ACCESS_KEY'],
+        message: 'MEDIA_STORAGE_ACCESS_KEY_ID and MEDIA_STORAGE_SECRET_ACCESS_KEY must be set together',
+      });
+    }
+    if (env.NODE_ENV === 'production') {
+      if (env.MEDIA_MODERATION_PROVIDER === 'allow_all') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MEDIA_MODERATION_PROVIDER'],
+          message: '"allow_all" approves images without any content check and is refused in production',
+        });
+      }
+      if (env.MEDIA_STORAGE_ENDPOINT !== undefined && !env.MEDIA_STORAGE_ENDPOINT.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MEDIA_STORAGE_ENDPOINT'],
+          message: 'must be https in production',
+        });
+      }
+      if (env.MEDIA_PUBLIC_BASE_URL !== undefined) {
+        const base = new URL(env.MEDIA_PUBLIC_BASE_URL);
+        if (base.protocol !== 'https:') {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['MEDIA_PUBLIC_BASE_URL'],
+            message: 'must be https in production',
+          });
+        } else if (base.hostname.toLowerCase() === new URL(env.APP_PUBLIC_URL).hostname.toLowerCase()) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['MEDIA_PUBLIC_BASE_URL'],
+            message: 'must be on a host other than the API host (APP_PUBLIC_URL): media is served cookieless',
+          });
+        }
+      }
+      if (env.MEDIA_CLEANUP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MEDIA_CLEANUP_INTERVAL_SECONDS'],
+          message: 'the media cleanup job cannot be disabled in production',
+        });
+      }
     }
     if (env.NODE_ENV === 'production') {
       const jwtProblem = productionSecretProblem(env.JWT_ACCESS_SECRET);

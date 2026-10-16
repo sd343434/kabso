@@ -27,6 +27,17 @@ export enum AuditAction {
   LIVE_ROOM_END = 'live.room.end',
   /** Ended for a stale heartbeat (sweeper or a read path). */
   LIVE_ROOM_TIMEOUT = 'live.room.timeout',
+  // Contract v1.4 (CONVENTIONS §11.4, §11.5, §11.7). No audit row for a declare or an expiry.
+  MEDIA_UPLOAD_COMPLETE = 'media.upload.complete',
+  /** Verification failure (`metadata.issue`). */
+  MEDIA_UPLOAD_REJECT = 'media.upload.reject',
+  MEDIA_AVATAR_SET = 'media.avatar.set',
+  MEDIA_AVATAR_REMOVE = 'media.avatar.remove',
+  MEDIA_COVER_SET = 'media.cover.set',
+  MEDIA_COVER_REMOVE = 'media.cover.remove',
+  MEDIA_MODERATION_REJECT = 'media.moderation.reject',
+  /** Records only that the country changed, never the value (no history, §11.7). */
+  USERS_COUNTRY_UPDATE = 'users.country.update',
 }
 
 export interface AuditEntry {

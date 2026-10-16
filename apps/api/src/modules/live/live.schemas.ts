@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
+import { COUNTRY_CODE_PATTERN } from '../countries/countries.service.js';
+import { uploadIdSchema } from '../media/media.schemas.js';
 import { LIVE_TABS } from './live-cursor.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml v1.3 (strict objects: unknown fields fail
@@ -38,10 +40,22 @@ export const liveTitleSchema = z
   })
   .transform(normalizeDisplayName);
 
-/** `StartLiveRoomRequest`: only SOLO rooms exist, so there is no `mode` (→ `unknown_field`). */
+/** v1.4 `CountryCode`: uppercase ISO 3166-1 alpha-2 (list membership is checked separately). */
+export const countryCodeSchema = z.string().regex(COUNTRY_CODE_PATTERN);
+
+/**
+ * `StartLiveRoomRequest`: only SOLO rooms exist, so there is no `mode` (→ `unknown_field`); the
+ * room's country comes from the host's profile, so there is no `country` either (v1.4).
+ */
 export const startLiveRoomSchema = z.strictObject({
   title: liveTitleSchema,
   categorySlug: categorySlugSchema.optional(),
+  coverUploadId: uploadIdSchema.optional(),
+});
+
+/** v1.4 `SetLiveRoomCoverRequest`: an upload id, or null to remove the cover. */
+export const setLiveRoomCoverSchema = z.strictObject({
+  coverUploadId: uploadIdSchema.nullable(),
 });
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;
 
@@ -56,6 +70,7 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   // string first, so a missing tab reports `required` (a bare enum reports `invalid_value`).
   tab: z.string().pipe(z.enum(LIVE_TABS)),
   category: categorySlugSchema.optional(),
+  country: countryCodeSchema.optional(),
   cursor: z.string().min(1).max(512).optional(),
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });

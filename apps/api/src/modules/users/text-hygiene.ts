@@ -1,4 +1,13 @@
-import { DI_DATA, GC_DATA, RGI_DATA, VS_DATA } from './data/text-hygiene.generated.js';
+import {
+  DI_DATA,
+  GC_DATA,
+  IVD_DATA,
+  IVD_RELEASE,
+  RGI_DATA,
+  UI_DATA,
+  VARIATION_DATA,
+  VS_DATA,
+} from './data/text-hygiene.generated.js';
 
 /**
  * Text hygiene for `displayName` and live-room titles (CONVENTIONS §6 "Text hygiene", v1.3.1,
@@ -10,8 +19,18 @@ import { DI_DATA, GC_DATA, RGI_DATA, VS_DATA } from './data/text-hygiene.generat
  * Rule 2 rejects a code point whose General_Category is Cc, Cf, Zl, Zp, Co, Cs or Cn, that has
  * Default_Ignorable_Code_Point = Yes, or that is on the blank look-alike list. Rule 3 allows only:
  * any code point inside an RGI emoji cluster; ZWNJ/ZWJ between two non-joiner, non-space
- * characters; one variation selector directly after a base character (L*, N*, S*, P* not rejected
- * by rule 2).
+ * characters; a variation selector only as part of a LISTED variation sequence (v1.4, SEC-039):
+ * the pair (code point before it, selector) appears in StandardizedVariants.txt,
+ * emoji-variation-sequences.txt or the IVD. Rule 2 also rejects every space separator other than
+ * U+0020, U+00A0, U+202F and U+3000 inside a value (v1.4, rule 4) and U+16FE4 (blank list).
+ *
+ * IVD (KL-049): the IVD 2022-09-13 `IVD_Sequences.txt` named by the contract could not be fetched
+ * from a verifiable source in the build environment, so it is not vendored yet
+ * (`IVD_RELEASE === null`). Until it is, an ideographic variation selector (U+E0100..U+E01EF) is
+ * accepted after a Unified_Ideograph base: registered Japanese/Korean names keep working, but an
+ * unregistered sequence on an ideograph is not rejected (a documented deviation from §6 rule 3,
+ * limited to CJK ideograph bases). Vendoring the file and regenerating switches to the
+ * registered-pairs rule with no code change.
  */
 
 /** General_Category groups: L N M S P, Z = Zs only, X = Cc Cf Zl Zp Co Cs Cn. */
@@ -20,7 +39,12 @@ export type CategoryGroup = 'L' | 'N' | 'M' | 'S' | 'P' | 'Z' | 'X';
 /** Contract §6 rule 2: the blank look-alike list (changes only by contract patch). */
 export const BLANK_LOOKALIKES: ReadonlySet<number> = new Set([
   0x115f, 0x1160, 0x3164, 0xffa0, 0x2800, 0xfffc, 0x1d159,
+  // v1.4 (SEC-039): KHITAN SMALL SCRIPT FILLER
+  0x16fe4,
 ]);
+
+/** §6 rule 4 (v1.4, SEC-039): the only space separators allowed inside a value. */
+export const ALLOWED_INNER_SPACES: ReadonlySet<number> = new Set([0x20, 0xa0, 0x202f, 0x3000]);
 
 const ZWNJ = 0x200c;
 const ZWJ = 0x200d;
@@ -47,6 +71,39 @@ function parseRanges(data: string): Uint32Array {
 
 const DEFAULT_IGNORABLE = parseRanges(DI_DATA);
 const VARIATION_SELECTORS = parseRanges(VS_DATA);
+const UNIFIED_IDEOGRAPHS = parseRanges(UI_DATA);
+
+/** "BASE:SEL,SEL;…" → Map<base, Set<selector>>; `offset` is added to each selector. */
+function parsePairs(data: string, offset: number): Map<number, Set<number>> {
+  const map = new Map<number, Set<number>>();
+  if (data === '') return map;
+  for (const record of data.split(';')) {
+    const [base = '', selectors = ''] = record.split(':');
+    map.set(parseInt(base, 16), new Set(selectors.split(',').map((h) => parseInt(h, 16) + offset)));
+  }
+  return map;
+}
+
+/** SEC-039: StandardizedVariants.txt + emoji-variation-sequences.txt (UCD 17.0.0). */
+const LISTED_VARIATIONS = parsePairs(VARIATION_DATA, 0);
+/** SEC-039: registered ideographic variation sequences (empty while the IVD is not vendored). */
+const IVD_SEQUENCES = parsePairs(IVD_DATA, 0xe0100);
+
+/** Whether the IVD is vendored; false means the interim Unified_Ideograph rule is active. */
+export const IVD_VENDORED = IVD_RELEASE !== null;
+
+/** Number of bases with a listed (non-IVD) variation sequence. */
+export const LISTED_VARIATION_BASES = LISTED_VARIATIONS.size;
+
+/** Every listed (non-IVD) variation sequence as [base, selector] (for tests). */
+export function* listedVariationSequences(): Generator<[number, number]> {
+  for (const [base, selectors] of LISTED_VARIATIONS) for (const sel of selectors) yield [base, sel];
+}
+
+/** Every registered IVD sequence as [base, selector] (empty while the IVD is not vendored). */
+export function* ivdSequences(): Generator<[number, number]> {
+  for (const [base, selectors] of IVD_SEQUENCES) for (const sel of selectors) yield [base, sel];
+}
 
 function inRanges(ranges: Uint32Array, cp: number): boolean {
   let lo = 0;
@@ -105,9 +162,37 @@ export function isVariationSelector(cp: number): boolean {
   return inRanges(VARIATION_SELECTORS, cp);
 }
 
-/** Rule 2 (before the rule 3 exceptions). */
+export function isUnifiedIdeograph(cp: number): boolean {
+  return inRanges(UNIFIED_IDEOGRAPHS, cp);
+}
+
+const IVS_FIRST = 0xe0100;
+const IVS_LAST = 0xe01ef;
+
+/**
+ * §6 rule 3 (v1.4, SEC-039): the pair (base, selector) is a listed variation sequence. With the IVD
+ * not vendored, an ideographic variation selector after a Unified_Ideograph is accepted (interim,
+ * see the module comment).
+ */
+export function isListedVariationSequence(base: number, selector: number): boolean {
+  if (LISTED_VARIATIONS.get(base)?.has(selector)) return true;
+  if (selector < IVS_FIRST || selector > IVS_LAST) return false;
+  if (IVD_VENDORED) return IVD_SEQUENCES.get(base)?.has(selector) ?? false;
+  return isUnifiedIdeograph(base);
+}
+
+/**
+ * Rule 2 (before the rule 3 exceptions), including the v1.4 inner-space rule: a space separator
+ * other than U+0020, U+00A0, U+202F and U+3000 (edges are trimmed before this runs).
+ */
 export function isRejectedCodePoint(cp: number): boolean {
-  return categoryGroup(cp) === 'X' || isDefaultIgnorable(cp) || BLANK_LOOKALIKES.has(cp);
+  const group = categoryGroup(cp);
+  return (
+    group === 'X' ||
+    (group === 'Z' && !ALLOWED_INNER_SPACES.has(cp)) ||
+    isDefaultIgnorable(cp) ||
+    BLANK_LOOKALIKES.has(cp)
+  );
 }
 
 /** Space separator (Zs), rule 4. */
@@ -200,7 +285,19 @@ export function scanHygiene(value: string): HygieneScan {
       }
       continue;
     }
-    if (isVariationSelector(cp) && isBase(cps[k - 1])) continue;
+    if (isVariationSelector(cp)) {
+      const before = cps[k - 1];
+      // SEC-039: only a listed sequence; never at the start, after a space or after a selector
+      // (no listed sequence has one of those as its base). After a mark only when that exact pair
+      // is listed: the single case in UCD 17.0.0 is U+1031 U+FE00 (Myanmar vowel sign E, Mc).
+      if (
+        before !== undefined &&
+        (isBase(before) || (isMark(before) && !isRejectedCodePoint(before))) &&
+        isListedVariationSequence(before, cp)
+      ) {
+        continue;
+      }
+    }
     rejected = true;
   }
   return { rejected, misplacedJoiner, hasLetterDigitOrEmoji: hasLetter || hasEmoji };
