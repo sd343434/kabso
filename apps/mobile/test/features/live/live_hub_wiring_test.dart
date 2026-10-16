@@ -389,14 +389,35 @@ void main() {
       };
     }
 
-    test('Home and Live hub copy has no stale phase numbers', () {
+    // KL-047: every string family the Home and Live screens render (tabs,
+    // states, actions, cards, badges, nav, retry and error copy), not only
+    // the home*/liveHub* keys. Rendered text is also checked state by state
+    // in test/features/home_live/kl047_polish_test.dart.
+    test('Home and Live copy has no development phases', () {
+      const prefixes = [
+        'home',
+        'liveHub',
+        'feed',
+        'liveCard',
+        'liveBadge',
+        'liveViewers',
+        'liveMultiGuest',
+        'pkBadge',
+        'compact',
+        'nav',
+        'actionRetry',
+        'error',
+      ];
+      final phase = RegExp('phase|المرحلة|مرحلة', caseSensitive: false);
+      var checked = 0;
       for (final file in ['app_en.arb', 'app_ar.arb']) {
         for (final MapEntry(:key, :value) in values(file).entries) {
-          if (!key.startsWith('home') && !key.startsWith('liveHub')) continue;
-          expect(value, isNot(contains('Phase')), reason: '$file $key');
-          expect(value, isNot(contains('المرحلة')), reason: '$file $key');
+          if (!prefixes.any(key.startsWith)) continue;
+          checked++;
+          expect(value, isNot(contains(phase)), reason: '$file $key');
         }
       }
+      expect(checked, greaterThan(100));
     });
 
     test('the three v1.3 live codes have their own messages', () {

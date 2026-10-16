@@ -42,6 +42,7 @@ List<LiveRoomCardData> liveRooms(AppLanguage language) {
       title: ar ? 'سهرة موسيقى عربية' : 'Arabic music night',
       viewerCount: 12345,
       cover: coverRed,
+      categoryName: ar ? 'موسيقى' : 'Music',
     ),
     LiveRoomCardData(
       hostName: ar ? 'خالد' : 'Khalid',
@@ -87,6 +88,7 @@ List<LiveRoomCardData> hubRooms(AppLanguage language) {
       title: ar ? 'ألعاب الليلة' : 'Game night',
       viewerCount: 56,
       cover: coverGold,
+      categoryName: ar ? 'ألعاب' : 'Games',
     ),
     LiveRoomCardData(
       hostName: ar ? 'هدى' : 'Huda',

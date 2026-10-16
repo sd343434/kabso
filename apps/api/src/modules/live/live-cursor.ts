@@ -36,13 +36,22 @@ export interface CursorPosition {
   readonly id: string;
 }
 
+/**
+ * SEC-038: every sort key must be a value the keyset query can bind without a database error,
+ * even in a validly signed payload. `n` is a PostgreSQL `int4` (`viewer_count`). `s` is epoch
+ * milliseconds between 1970-01-01 and 9999-12-31T23:59:59.999Z, so `toISOString()` yields a
+ * four-digit year that `timestamptz` accepts (larger JavaScript dates serialize as `+275760-…`).
+ */
+export const CURSOR_MAX_VIEWER_COUNT = 2_147_483_647;
+export const CURSOR_MAX_STARTED_AT_MS = Date.UTC(9999, 11, 31, 23, 59, 59, 999);
+
 const payloadSchema = z.strictObject({
   v: z.number(),
   t: z.enum(LIVE_TABS),
   c: z.string().max(32).nullable(),
   u: z.string().regex(UUID).nullable(),
-  n: z.number().int().min(0).max(2_147_483_647),
-  s: z.number().int().min(0).max(8_640_000_000_000_000),
+  n: z.number().int().min(0).max(CURSOR_MAX_VIEWER_COUNT),
+  s: z.number().int().min(0).max(CURSOR_MAX_STARTED_AT_MS),
   i: z.string().regex(UUID),
 });
 

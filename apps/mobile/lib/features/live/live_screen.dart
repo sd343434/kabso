@@ -4,6 +4,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
@@ -17,7 +18,11 @@ import 'package:material_ui/material_ui.dart';
 /// HL-H3–H6): Following · Popular · New over live rooms (opens on Popular),
 /// category chips on Popular and a 2-column 3:4 grid, all from the v1.3 API
 /// (`liveRoomsProvider`). While the server has hosting switched off every
-/// tab shows its own compact unavailable state.
+/// tab shows its own unavailable state with Try again (re-checks the
+/// config). No search control until search exists (KL-047).
+///
+/// Another screen can ask for a segment through `liveHubTabRequestProvider`
+/// (Home's "Watch live streams").
 ///
 /// Freshness (HL-H5): re-tapping the selected tab re-fetches it; returning
 /// to the app after more than [resumeRefreshAfter] re-fetches every loaded
@@ -65,6 +70,7 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 
   @override
   Widget build(BuildContext context) => FeedTabsScaffold(
+    requestedTab: ref.watch(liveHubTabRequestProvider),
     onReselect: (tab) => unawaited(
       ref
           .read(liveRoomsProvider(tab).notifier)
@@ -72,15 +78,15 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
           .catchError((Object _) {}),
     ),
     pageBuilder: (context, tab, selectTab) =>
-        _LiveHubPage(tab: tab, onSeePopular: () => selectTab(FeedTab.popular)),
+        _LiveHubPage(tab: tab, onSelectTab: selectTab),
   );
 }
 
 class _LiveHubPage extends ConsumerWidget {
-  const new({required this.tab, required this.onSeePopular});
+  const new({required this.tab, required this.onSelectTab});
 
   final FeedTab tab;
-  final VoidCallback onSeePopular;
+  final ValueChanged<FeedTab> onSelectTab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,13 +104,17 @@ class _LiveHubPage extends ConsumerWidget {
       onRetry: () => unawaited(controller.retry()),
       onLoadMore: () => unawaited(controller.loadMore()),
       onRetryLoadMore: () => unawaited(controller.retryLoadMore()),
-      onSeePopular: onSeePopular,
+      onSelectTab: onSelectTab,
       refreshWhenUnavailable: true,
     );
   }
 }
 
 /// Maps a tab's [LiveHubState] to what the grid region shows.
+///
+/// A reload ("Try again") of a tab that shows nothing yet (unavailable,
+/// empty or failed) is loading: its old empty or unavailable state is not
+/// shown while the new request runs.
 AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
   AsyncValue<LiveHubState> async,
 ) => switch (async) {
@@ -112,6 +122,12 @@ AsyncValue<FeedLoad<LiveRoomCardData>> liveHubContent(
     error,
     stackTrace ?? StackTrace.empty,
   ),
+  AsyncValue(
+    isLoading: true,
+    value: LiveHubState(:final hostingEnabled, :final rooms),
+  )
+      when !hostingEnabled || rooms.isEmpty =>
+    const AsyncLoading(),
   AsyncValue(value: LiveHubState(hostingEnabled: false)) => const AsyncData(
     FeedUnavailable(),
   ),
@@ -139,7 +155,7 @@ class LiveHubBody extends StatelessWidget {
     required this.content,
     required this.onRefresh,
     required this.onRetry,
-    required this.onSeePopular,
+    required this.onSelectTab,
     super.key,
     this.categories = const [],
     this.selectedCategory,
@@ -153,8 +169,12 @@ class LiveHubBody extends StatelessWidget {
   final FeedTab tab;
   final AsyncValue<FeedLoad<LiveRoomCardData>> content;
   final Future<void> Function() onRefresh;
+
+  /// Re-runs the failed or empty load (config, categories, first page).
   final VoidCallback onRetry;
-  final VoidCallback onSeePopular;
+
+  /// Switches the header to another tab ("See popular", "See new streams").
+  final ValueChanged<FeedTab> onSelectTab;
 
   /// Active server categories (Popular only). The row always starts with
   /// "All"; it is interactive only when there is something to switch to.
@@ -193,13 +213,30 @@ class LiveHubBody extends StatelessWidget {
         FeedTab.popular => l10n.liveHubPopularUnavailableBody,
         FeedTab.latest => l10n.liveHubNewUnavailableBody,
       },
-      emptyIcon: Icons.sensors_off_outlined,
+      // D41: hosting is a server switch; Try again re-checks it.
+      unavailableActionLabel: l10n.actionRetry,
+      onUnavailableAction: onRetry,
+      emptyIcon: following ? Icons.group_outlined : Icons.sensors_off_outlined,
       emptyTitle: following
           ? l10n.liveHubFollowingEmptyTitle
           : l10n.liveHubEmptyTitle,
-      emptyBody: l10n.feedPullToRefresh,
-      emptyActionLabel: following ? l10n.feedSeePopular : null,
-      onEmptyAction: following ? onSeePopular : null,
+      emptyBody: following
+          ? l10n.liveHubFollowingEmptyBody
+          : l10n.liveHubEmptyBody,
+      // Following: "See popular" first; elsewhere re-request the list, and
+      // on Popular also offer the New tab.
+      emptyActionLabel: following ? l10n.feedSeePopular : l10n.actionRetry,
+      onEmptyAction: following ? () => onSelectTab(FeedTab.popular) : onRetry,
+      emptySecondaryActionLabel: switch (tab) {
+        FeedTab.following => l10n.actionRetry,
+        FeedTab.popular => l10n.liveHubSeeNew,
+        FeedTab.latest => null,
+      },
+      onEmptySecondaryAction: switch (tab) {
+        FeedTab.following => onRetry,
+        FeedTab.popular => () => onSelectTab(FeedTab.latest),
+        FeedTab.latest => null,
+      },
       errorTitle: l10n.liveHubErrorTitle,
       loadMoreFailed: l10n.liveHubLoadMoreFailed,
       endOfList: l10n.liveHubListEnd,
@@ -215,7 +252,11 @@ class LiveHubBody extends StatelessWidget {
       refreshWhenUnavailable: refreshWhenUnavailable,
       // HL-H3: categories on Popular only, as defined by the server; none
       // are invented. "All" alone is not interactive (nothing to switch to).
-      header: tab == FeedTab.popular ? _chips(context) : null,
+      // KL-047: no chip row while live streaming is unavailable (nothing to
+      // filter).
+      header: tab == FeedTab.popular && content.value is! FeedUnavailable
+          ? _chips(context)
+          : null,
       loadingSliver: _grid([
         for (var i = 0; i < KMetrics.liveGridSkeletonCount; i++)
           const KLiveCoverCardSkeleton(),

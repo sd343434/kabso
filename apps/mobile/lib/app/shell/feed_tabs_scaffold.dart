@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -18,8 +19,8 @@ typedef FeedTabPageBuilder = Widget Function(
 ///
 /// - a 48 dp header on `background` (no title, wordmark, divider or
 ///   decorative icons): [KPrimaryTabs] Following · Popular · New at the start
-///   and a search button (24 dp icon, 48 dp target) at the end that opens
-///   Discover;
+///   and, only while [searchAvailable], a search button (24 dp icon, 48 dp
+///   target) at the end that opens Discover;
 /// - one page per tab below it, swiped horizontally in the reading direction
 ///   (RTL: the next tab is to the left). Tapping a tab moves the pager
 ///   (instantly with reduce motion).
@@ -30,13 +31,30 @@ class FeedTabsScaffold extends StatefulWidget {
     this.initialTab = FeedTab.initial,
     this.onSearch,
     this.onReselect,
+    this.showSearch = searchAvailable,
+    this.requestedTab,
   });
 
   static const searchKey = Key('feed.search');
   static const pagerKey = Key('feed.pager');
 
+  /// KL-047: there is no search capability yet (no search API; `/discover`
+  /// is a placeholder), so the header shows no search control: an inert
+  /// control must not pass for a finished feature. This is the one switch
+  /// to flip when search exists.
+  static const bool searchAvailable = false;
+
   final FeedTabPageBuilder pageBuilder;
   final FeedTab initialTab;
+
+  /// Whether the header shows the search button (defaults to
+  /// [searchAvailable]).
+  final bool showSearch;
+
+  /// Shows the requested tab: as the first tab when the scaffold is first
+  /// built, and by switching to it whenever a newer request arrives (e.g.
+  /// Home's "Watch live streams" opening the Live hub on Following).
+  final FeedTabRequest? requestedTab;
 
   /// Defaults to `context.go(AppRoutes.discover)`.
   final VoidCallback? onSearch;
@@ -50,10 +68,18 @@ class FeedTabsScaffold extends StatefulWidget {
 }
 
 class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
-  late FeedTab _tab = widget.initialTab;
-  late final PageController _pages = PageController(
-    initialPage: widget.initialTab.index,
-  );
+  late FeedTab _tab = widget.requestedTab?.tab ?? widget.initialTab;
+  late final PageController _pages = PageController(initialPage: _tab.index);
+
+  @override
+  void didUpdateWidget(FeedTabsScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final request = widget.requestedTab;
+    if (request != null && request != oldWidget.requestedTab) {
+      // A request is not a re-select: never re-fetch the current tab.
+      if (request.tab != _tab) _select(request.tab);
+    }
+  }
 
   @override
   void dispose() {
@@ -105,20 +131,23 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
                       onSelected: (i) => _select(FeedTab.values[i]),
                     ),
                   ),
-                  IconButton(
-                    key: FeedTabsScaffold.searchKey,
-                    tooltip: l10n.feedSearch,
-                    iconSize: KMetrics.iconMd,
-                    color: p.textPrimary,
-                    constraints: const BoxConstraints.tightFor(
-                      width: KSizes.minTouchTarget,
-                      height: KSizes.minTouchTarget,
+                  if (widget.showSearch) ...[
+                    IconButton(
+                      key: FeedTabsScaffold.searchKey,
+                      tooltip: l10n.feedSearch,
+                      iconSize: KMetrics.iconMd,
+                      color: p.textPrimary,
+                      constraints: const BoxConstraints.tightFor(
+                        width: KSizes.minTouchTarget,
+                        height: KSizes.minTouchTarget,
+                      ),
+                      onPressed:
+                          widget.onSearch ??
+                          () => context.go(AppRoutes.discover),
+                      icon: const Icon(Icons.search_rounded),
                     ),
-                    onPressed:
-                        widget.onSearch ?? () => context.go(AppRoutes.discover),
-                    icon: const Icon(Icons.search_rounded),
-                  ),
-                  const SizedBox(width: KSpacing.xs),
+                    const SizedBox(width: KSpacing.xs),
+                  ],
                 ],
               ),
             ),

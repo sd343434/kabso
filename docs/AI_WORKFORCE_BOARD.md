@@ -95,21 +95,21 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | INTEGRATED — merge of `59b3592`; CTO review + re-run: lint/format/typecheck/build ✅, unit 436/436, e2e 442/442 (real PG16, migrator + runtime roles) | KL-036 approved, KL-013 merged | A1, A6, A7 |
 | KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | INTEGRATED — merge of `91387a3`; CTO re-ran format/analyze/639 tests ✅; 74 goldens | KL-033, KL-036 | A1, A5, A6 |
 | KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | DONE — APPROVE WITH CONDITIONS (`6a504eb`): API black-box 1,392/1,393 (the failure is QA-001), real app against the local API 5/5, Flutter 639/639; QA-001/002 → KL-046 contract patch, QA-003 (offline state) → KL-035a gap list | KL-037, KL-038 | A1 |
-| KL-035a | Home + Live hub design review package: real screenshots (ar/en, 393 + 360) of the wired screens, before/after, remaining visual gaps; references comparison marked pending (none supplied) | A1 + A5 | P0 | IN_PROGRESS | KL-038 | owner |
-| KL-047 | Owner-directed polish of Home (feed) + Live discovery:
+| KL-035a | Home + Live review package | A1 + A5 | P0 | IN_PROGRESS — part 1 (before, HEAD `04ffd09`) merged: 92 PNGs from the real app in Chromium; part 2 (after KL-047) capturing | KL-038 | owner |
+| KL-047 | Owner-directed polish of Home (feed) + Live discovery | A2 | P0 | INTEGRATED — merge of `f5fb4f0`; CTO re-run: format/analyze ✅, 695/695 tests, 50 goldens changed or added. Supersedes VG-03/HL-H6 compact top-third states and VG-10 (LIVE badge now on cards); search hidden (`FeedTabsScaffold.searchAvailable`) until a search API exists | KL-038 | A1, A5, A6 |
 - deliberate states with working actions; owner empty-state copy; retry re-requests; offline state (QA-003);
 - LIVE badge on cards (owner; reverses VG-10); category on cards;
 - search hidden until a search feature exists; no phase copy; no fabricated content | A2 | P0 | IN_PROGRESS | KL-038 | A1, A5, A6 |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | DONE — PASS WITH CONDITIONS (`bfa0d6d`): SEC-035 Medium, SEC-036 Medium, SEC-037 Low, SEC-038 Info → KL-045 | KL-037 | A1 |
 | KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | DONE — merged, approved (D43); lint valid (2 known warnings) | KL-040 | A1, A7 |
-| KL-045 | Fix SEC-035 (bounded batched sweep, no global sweep on request path, tx timeout, non-overlapping sweeper), SEC-036 (per KL-046), SEC-037 (username pre-validation → 404), SEC-038 (cursor bounds); A7 re-test | A3 | P0 | IN_PROGRESS (parallel with KL-013b; disjoint files) | KL-046 | A7 |
+| KL-045 | Implement v1.3.1: SEC-035 batched sweeper/no writes on list, SEC-036 Unicode 17 hygiene, SEC-037, SEC-038, QA-002 | A3 | P0 | INTEGRATED — merge of `4af9512`; CTO re-run: lint/format/typecheck/build ✅, unit 713/713, e2e 460/460 (40k stale rooms: list median 10.7 ms, no writes). Pending: A7 re-test, PP-32 load test | KL-046 | A7 |
 
 ### Mandatory release blockers (run alongside, never skipped)
 
 | ID | Task | Owner | Pri | Status | Checklist |
 | -- | ---- | ----- | --- | ------ | --------- |
 | KL-013 | Least-privilege runtime DB role + migration role, negative tests | A3 | P0 | INTEGRATED (merge after `9f1d6e7`): unit 339, e2e 391 (36 new role tests) run locally by A3; CTO re-ran typecheck/lint/unit. CI run 64 ✅; A7 KL-007f PASS WITH CONDITIONS. Not yet run: docker compose init (no daemon) | PP-01 |
-| KL-013b | KL-007f follow-ups (KL7F-01..09): per-database runtime group, guard checks reachable roles and object grants, transactional bootstrap, SCRAM verifiers outside dev, EXECUTE revoked from PUBLIC, rotation modes | A3 | P0 | COMMITTED, NOT INTEGRATED — `39e53f1` on `a3/kl-013b-db-roles`. Lint/format/typecheck/build ✅, unit 451 ✅. **e2e, bootstrap happy paths and `migrate deploy` never ran:** no local admin connection (credential lookup correctly blocked). Held off the default branch until verified (owner decision needed: CI verification branch or local admin access) | PP-01 |
+| KL-013b | KL-007f follow-ups (KL7F-01..09) | A3 | P0 | VERIFYING — `39e53f1` merged onto HEAD in isolated branch `claude/verify-kl-013b` (`34fe93a`) for CI (owner-approved); not on the default branch | PP-01 |
 | KL-016b | Refresh theft resistance beyond 10 rotations: token generation counter / family revoke | A3 | P0 | BACKLOG (after KL-013) | PP-03 |
 | KL-026 | displayName residuals SEC-033/034 | A3 | P1 | BACKLOG (after KL-016b) | PP-26 |
 | KL-041 | Provider-agnostic human-challenge interface on the account-bucket path; adapter **disabled** until owner picks a provider (B11) | A3 + A7 | P1 | BLOCKED (owner: provider) — interface may be built | PP-05 |

@@ -64,6 +64,8 @@ export interface AppConfig {
     readonly heartbeatStaleSeconds: number;
     /** 0 = sweeper disabled (tests; refused in production). */
     readonly sweepIntervalSeconds: number;
+    /** Stale rooms ended per sweeper batch (SEC-035; LIVE_SWEEP_BATCH_SIZE). */
+    readonly sweepBatchSize: number;
     /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
     readonly cursorKey: string;
   };
@@ -158,6 +160,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,
       heartbeatStaleSeconds: e.LIVE_HEARTBEAT_STALE_SECONDS,
       sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,
+      sweepBatchSize: e.LIVE_SWEEP_BATCH_SIZE,
       cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
     },
     registration: {

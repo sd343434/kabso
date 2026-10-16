@@ -9,8 +9,8 @@ export class PublicProfileController {
   constructor(private readonly profiles: PublicProfileService) {}
 
   /**
-   * `GET /users/{username}` (v1.3). No validation of `username`: a malformed name is simply not
-   * found (404, never 400). `GET /users/username-availability` is registered first (UsersModule is
+   * `GET /users/{username}` (v1.3). A malformed `username` is not found (404, never 400 or 500);
+   * the users service checks the format before querying (SEC-037). `GET /users/username-availability` is registered first (UsersModule is
    * imported before this module) and cannot be a username anyway (`-` is not allowed).
    */
   @Get(':username')

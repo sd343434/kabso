@@ -246,12 +246,14 @@ export class UsersService {
   }
 
   /**
-   * The public identity of an ACTIVE user by username, else null (contract v1.3 §10.5). One query
-   * filtered on `status = 'ACTIVE'` whatever the input (also for malformed names, which simply
-   * match nothing), so unknown, pending-only, SUSPENDED and DELETED are indistinguishable and the
-   * response time does not depend on the reason.
+   * The public identity of an ACTIVE user by username, else null (contract v1.3 §10.5). A name
+   * that is not a well-formed username (§6 pattern and length) is not found without querying
+   * (SEC-037: a NUL byte or other invalid text must never reach the driver). Otherwise one query
+   * filtered on `status = 'ACTIVE'`, so unknown, pending-only, SUSPENDED and DELETED are
+   * indistinguishable and the response time does not depend on the reason.
    */
   async findActivePublicUser(username: string): Promise<PublicUser | null> {
+    if (!isValidUsername(username)) return null;
     const profile = await this.prisma.userProfile.findFirst({
       where: { username, user: { status: 'ACTIVE' } },
       select: {
@@ -280,6 +282,7 @@ export class UsersService {
    * for the caller's transaction, so a follow edge can never be written to a DELETED account.
    */
   async lockActiveByUsername(tx: Prisma.TransactionClient, username: string): Promise<LockedUser | null> {
+    if (!isValidUsername(username)) return null; // SEC-037: never query with a malformed name
     const rows = await tx.$queryRaw<{ id: string; is_private: boolean | null }[]>`
       SELECT u.id::text AS id, s.is_private
         FROM user_profiles p

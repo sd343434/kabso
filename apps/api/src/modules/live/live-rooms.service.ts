@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuditAction, AuditService, type AuditEntry } from '../../common/audit/audit.service.js';
 import { AppException } from '../../common/errors/app-exception.js';
@@ -103,6 +104,51 @@ const ROOM_SELECT = Prisma.sql`
 
 const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
 
+/**
+ * Explicit interactive-transaction limits for every live-room transaction (SEC-035): Prisma's
+ * default 5 s timeout is never relied on, and a slow statement is cancelled by the server
+ * (`statement_timeout`) before the client-side timeout rolls the transaction back.
+ */
+export const LIVE_TX_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;
+const LIVE_STATEMENT_TIMEOUT_MS = 8_000;
+
+/** Per-run budget of the sweeper (SEC-035): whichever is reached first ends the run. */
+export const SWEEP_MAX_BATCHES_PER_RUN = 100;
+export const SWEEP_RUN_BUDGET_MS = 10_000;
+
+/** Why a sweeper run stopped. */
+export type SweepStop = 'drained' | 'batch_budget' | 'time_budget' | 'already_running' | 'stopped';
+
+export interface SweepResult {
+  /** Rooms this run ended (HEARTBEAT_TIMEOUT). */
+  readonly ended: number;
+  /** Batches (transactions) this run committed. */
+  readonly batches: number;
+  readonly stoppedBy: SweepStop;
+}
+
+export interface SweepOptions {
+  readonly maxBatches?: number;
+  readonly budgetMs?: number;
+}
+
+/** Error class and driver/Prisma code for failure logs (enough to triage without the message). */
+export function errorClassAndCode(err: unknown): { errorClass: string; code: string | null } {
+  let errorClass: string = typeof err;
+  if (err === null) errorClass = 'null';
+  else if (err instanceof Error) errorClass = err.constructor.name || err.name;
+  const candidates: unknown[] = [];
+  if (err !== null && typeof err === 'object') {
+    const e = err as { code?: unknown; cause?: { code?: unknown; originalCode?: unknown } };
+    candidates.push(e.code, e.cause?.originalCode, e.cause?.code);
+  }
+  const code = candidates.find((c): c is string | number => typeof c === 'string' || typeof c === 'number');
+  return {
+    errorClass: errorClass.slice(0, 100),
+    code: code === undefined ? null : String(code).slice(0, 64),
+  };
+}
+
 function ts(date: Date): string {
   return date.toISOString();
 }
@@ -135,8 +181,11 @@ function notFound(): AppException {
  * lifecycle (go-live, heartbeat, end) behind LIVE_HOSTING_ENABLED (CONVENTIONS §10).
  *
  * Freshness: a LIVE room is fresh while `last_heartbeat_at > now − LIVE_HEARTBEAT_STALE_SECONDS`
- * (server clock, injectable for tests). Stale rooms are never reported as LIVE: the sweeper and
- * every read path that meets one end it (`HEARTBEAT_TIMEOUT`, `ended_at = last_heartbeat_at`).
+ * (server clock, injectable for tests). Stale rooms are never reported as LIVE (CONVENTIONS §10.2,
+ * v1.3.1 / SEC-035): every query applies the freshness predicate itself, so a room the sweeper has
+ * not reached yet is still never shown as LIVE. The list writes nothing; room detail, the profile's
+ * `liveRoomId` and the host's own write paths end only that one room; the background sweeper ends
+ * the rest in bounded batches (`HEARTBEAT_TIMEOUT`, `ended_at = last_heartbeat_at`).
  * Every state change is a single `UPDATE … WHERE status = 'LIVE'`, so concurrent end, timeout
  * and suspension resolve to exactly one winner, and the partial unique index
  * `live_rooms_one_live_per_host` guarantees at most one LIVE room per host.
@@ -146,6 +195,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LiveRoomsService.name);
   private readonly cursors: LiveCursorCodec;
   private sweepTimer: NodeJS.Timeout | undefined;
+  private sweepInFlight: Promise<SweepResult> | null = null;
+  private stopped = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -159,19 +210,41 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit(): void {
-    const seconds = this.config.live.sweepIntervalSeconds;
-    if (seconds > 0) {
-      this.sweepTimer = setInterval(() => {
-        void this.sweepStale().catch((err: unknown) =>
-          this.logger.error({ error: safeErrorLog(err) }, 'Stale live-room sweep failed'),
-        );
-      }, seconds * 1000);
-      this.sweepTimer.unref();
-    }
+    if (this.config.live.sweepIntervalSeconds > 0) this.scheduleSweep();
   }
 
-  onModuleDestroy(): void {
-    if (this.sweepTimer) clearInterval(this.sweepTimer);
+  async onModuleDestroy(): Promise<void> {
+    this.stopped = true;
+    if (this.sweepTimer) clearTimeout(this.sweepTimer);
+    // Let a running batch commit before Prisma disconnects.
+    await this.sweepInFlight?.catch(() => undefined);
+  }
+
+  /**
+   * The next run is scheduled only after the previous one has finished (one timer at a time), so
+   * runs never overlap in this instance; {@link runSweep} also refuses to start while one runs.
+   */
+  private scheduleSweep(): void {
+    if (this.stopped) return;
+    this.sweepTimer = setTimeout(() => {
+      void this.runSweep()
+        .then((result) => {
+          if (result.stoppedBy === 'batch_budget' || result.stoppedBy === 'time_budget') {
+            this.logger.warn(
+              { ended: result.ended, batches: result.batches, stoppedBy: result.stoppedBy },
+              'Stale live-room sweep stopped at its per-run budget; the rest waits for the next run',
+            );
+          }
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            { ...errorClassAndCode(err), error: safeErrorLog(err) },
+            'Stale live-room sweep failed',
+          ),
+        )
+        .finally(() => this.scheduleSweep());
+    }, this.config.live.sweepIntervalSeconds * 1000);
+    this.sweepTimer.unref();
   }
 
   getConfig(): LiveConfigDto {
@@ -192,22 +265,15 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Stale handling --------------------------------------------------------------------------
 
-  /**
-   * Ends every stale LIVE room matching `scope` (all when null) with HEARTBEAT_TIMEOUT and
-   * `ended_at = last_heartbeat_at`, auditing `live.room.timeout` for the rooms this call ended.
-   */
-  private async endStaleIn(
+  private async setStatementTimeout(tx: Prisma.TransactionClient): Promise<void> {
+    await tx.$queryRaw`SELECT set_config('statement_timeout', ${String(LIVE_STATEMENT_TIMEOUT_MS)}, true)`;
+  }
+
+  /** Audits `live.room.timeout` for the rooms a statement just ended. */
+  private async auditTimeouts(
     tx: Prisma.TransactionClient,
-    scope: Prisma.Sql | null,
-    now: Date,
-  ): Promise<number> {
-    const rows = await tx.$queryRaw<{ id: string; host_user_id: string }[]>`
-      UPDATE live_rooms
-         SET status = 'ENDED', end_reason = 'HEARTBEAT_TIMEOUT', ended_at = last_heartbeat_at,
-             updated_at = ${ts(now)}::timestamptz
-       WHERE status = 'LIVE' AND last_heartbeat_at <= ${ts(this.cutoff(now))}::timestamptz
-             ${scope ? Prisma.sql`AND ${scope}` : Prisma.empty}
-   RETURNING id::text AS id, host_user_id::text AS host_user_id`;
+    rows: readonly { id: string; host_user_id: string }[],
+  ): Promise<void> {
     await this.audit.recordManyIn(
       tx,
       rows.map((row): AuditEntry => ({
@@ -217,19 +283,106 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         metadata: { reason: 'HEARTBEAT_TIMEOUT', hostUserId: row.host_user_id },
       })),
     );
-    return rows.length;
-  }
-
-  private async endStale(scope: Prisma.Sql | null, now: Date): Promise<number> {
-    return this.prisma.$transaction((tx) => this.endStaleIn(tx, scope, now));
   }
 
   /**
-   * The periodic sweeper (every LIVE_SWEEP_INTERVAL_SECONDS per API instance). Idempotent and safe
-   * to run concurrently on several instances (the `status = 'LIVE'` guard). Returns rooms ended.
+   * Ends the stale LIVE room matching `scope` (one room id, or one host, who has at most one LIVE
+   * room) with HEARTBEAT_TIMEOUT and `ended_at = last_heartbeat_at`, auditing `live.room.timeout`
+   * for the room this call ended. Never unscoped: the sweeper ends rooms in bounded batches
+   * ({@link endStaleBatch}).
    */
+  private async endStaleIn(tx: Prisma.TransactionClient, scope: Prisma.Sql, now: Date): Promise<number> {
+    const rows = await tx.$queryRaw<{ id: string; host_user_id: string }[]>`
+      UPDATE live_rooms
+         SET status = 'ENDED', end_reason = 'HEARTBEAT_TIMEOUT', ended_at = last_heartbeat_at,
+             updated_at = ${ts(now)}::timestamptz
+       WHERE status = 'LIVE' AND last_heartbeat_at <= ${ts(this.cutoff(now))}::timestamptz AND ${scope}
+   RETURNING id::text AS id, host_user_id::text AS host_user_id`;
+    await this.auditTimeouts(tx, rows);
+    return rows.length;
+  }
+
+  /** {@link endStaleIn} for one room in its own short transaction. */
+  private async endStaleOne(scope: Prisma.Sql, now: Date): Promise<number> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      return this.endStaleIn(tx, scope, now);
+    }, LIVE_TX_OPTIONS);
+  }
+
+  /**
+   * One sweeper batch in its own transaction (DB_PHASE2_DISCOVERY §4): locks at most `batchSize`
+   * stale LIVE rows, oldest heartbeat first (`live_rooms_live_heartbeat_idx`), skipping rows
+   * another transaction holds (`SKIP LOCKED`, so concurrent instances never wait on each other),
+   * ends exactly those rows under the `status = 'LIVE'` guard and audits them.
+   *
+   * Two statements rather than one `UPDATE … FROM (SELECT … FOR UPDATE)`: without table
+   * statistics (e.g. right after a bulk change) PostgreSQL plans that join as a nested loop over
+   * every LIVE row per batch row, which took seconds per batch at 40k rows. `id = ANY($ids)` is a
+   * single pass. Returns the number of rows the batch locked (= ended: the locks are held).
+   */
+  private async endStaleBatch(now: Date, batchSize: number): Promise<number> {
+    const cutoff = ts(this.cutoff(now));
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id::text AS id FROM live_rooms
+         WHERE status = 'LIVE' AND last_heartbeat_at <= ${cutoff}::timestamptz
+         ORDER BY last_heartbeat_at
+         LIMIT ${batchSize}
+           FOR UPDATE SKIP LOCKED`;
+      if (locked.length === 0) return 0;
+      const rows = await tx.$queryRaw<{ id: string; host_user_id: string }[]>`
+        UPDATE live_rooms
+           SET status = 'ENDED', end_reason = 'HEARTBEAT_TIMEOUT', ended_at = last_heartbeat_at,
+               updated_at = ${ts(now)}::timestamptz
+         WHERE id = ANY(${locked.map((row) => row.id)}::uuid[])
+           AND status = 'LIVE' AND last_heartbeat_at <= ${cutoff}::timestamptz
+     RETURNING id::text AS id, host_user_id::text AS host_user_id`;
+      await this.auditTimeouts(tx, rows);
+      return locked.length;
+    }, LIVE_TX_OPTIONS);
+  }
+
+  /**
+   * One sweeper run (CONVENTIONS §10.2, SEC-035): batches of LIVE_SWEEP_BATCH_SIZE rooms, each in
+   * its own transaction, until a batch ends fewer rooms than the batch size (drained) or the per-run
+   * budget (batch count or wall time) is spent; the rest waits for the next run. A call while a run
+   * is in progress in this instance does nothing (`already_running`). Several instances may sweep
+   * at once: `SKIP LOCKED` and the `status = 'LIVE'` guard end each room exactly once.
+   */
+  async runSweep(options: SweepOptions = {}): Promise<SweepResult> {
+    if (this.sweepInFlight) return { ended: 0, batches: 0, stoppedBy: 'already_running' };
+    const run = this.sweepLoop(options);
+    this.sweepInFlight = run;
+    try {
+      return await run;
+    } finally {
+      this.sweepInFlight = null;
+    }
+  }
+
+  private async sweepLoop(options: SweepOptions): Promise<SweepResult> {
+    const batchSize = this.config.live.sweepBatchSize;
+    const maxBatches = options.maxBatches ?? SWEEP_MAX_BATCHES_PER_RUN;
+    const budgetMs = options.budgetMs ?? SWEEP_RUN_BUDGET_MS;
+    const startedAt = performance.now();
+    let ended = 0;
+    let batches = 0;
+    for (;;) {
+      if (this.stopped) return { ended, batches, stoppedBy: 'stopped' };
+      if (batches >= maxBatches) return { ended, batches, stoppedBy: 'batch_budget' };
+      if (performance.now() - startedAt >= budgetMs) return { ended, batches, stoppedBy: 'time_budget' };
+      const count = await this.endStaleBatch(this.clock.now(), batchSize);
+      ended += count;
+      batches += 1;
+      if (count < batchSize) return { ended, batches, stoppedBy: 'drained' };
+    }
+  }
+
+  /** One sweeper run with the default budget; returns the number of rooms it ended. */
   async sweepStale(): Promise<number> {
-    return this.endStale(null, this.clock.now());
+    return (await this.runSweep()).ended;
   }
 
   // ---- Reads -----------------------------------------------------------------------------------
@@ -278,7 +431,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `GET /live/rooms` (§10.4): LIVE, fresh, ACTIVE host; keyset pagination with a signed cursor.
-   * Stale rooms are ended first (read path, §10.2), so a page never contains one.
+   * Stale rooms are filtered out by the freshness predicate; the list performs no writes (§10.2).
    */
   async listRooms(
     callerId: string,
@@ -292,9 +445,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       if (!position) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
 
+    // Reads filter stale rooms and write nothing (SEC-035): the freshness predicate below is what
+    // hides a room the sweeper has not ended yet.
     const now = this.clock.now();
-    await this.endStale(null, now);
-
     const conditions: Prisma.Sql[] = [
       Prisma.sql`r.status = 'LIVE'`,
       Prisma.sql`r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz`,
@@ -340,7 +493,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
-   * rooms are the same 404. A stale LIVE room is ended first and returned as ENDED.
+   * rooms are the same 404. A stale LIVE room is ended (that single room) and returned as ENDED.
    */
   async getRoom(roomId: string, lang: ContentLanguage): Promise<LiveRoomDto> {
     if (!isUuid(roomId)) throw notFound();
@@ -348,7 +501,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (!row || row.host_status !== 'ACTIVE') throw notFound();
     const now = this.clock.now();
     if (row.status === 'LIVE' && !this.isFresh(row.last_heartbeat_at, now)) {
-      await this.endStale(Prisma.sql`id = ${roomId}::uuid`, now);
+      await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
       row = await this.selectRoom(roomId);
       if (!row || row.host_status !== 'ACTIVE') throw notFound();
     }
@@ -357,8 +510,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Id of the host's LIVE room with a fresh heartbeat, else null (`PublicProfile.liveRoomId`).
-   * A stale LIVE room found here is ended (read path, §10.2). The caller has already established
-   * that the host is ACTIVE.
+   * A stale LIVE room found here is ended (that single room, §10.2). The caller has already
+   * established that the host is ACTIVE.
    */
   async freshLiveRoomIdOf(hostUserId: string): Promise<string | null> {
     const room = await this.prisma.liveRoom.findFirst({
@@ -368,7 +521,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (!room) return null;
     const now = this.clock.now();
     if (this.isFresh(room.lastHeartbeatAt, now)) return room.id;
-    await this.endStale(Prisma.sql`id = ${room.id}::uuid`, now);
+    await this.endStaleOne(Prisma.sql`id = ${room.id}::uuid`, now);
     return null;
   }
 
@@ -406,6 +559,13 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     let roomId: string;
     try {
       roomId = await this.prisma.$transaction(async (tx) => {
+        await this.setStatementTimeout(tx);
+        // Re-check (and share-lock) the host inside the transaction: a suspension that commits
+        // first refuses the go-live; a later one waits for this transaction and then ends the new
+        // room as HOST_SUSPENDED (KL-040 observation).
+        if (!(await this.users.lockActiveById(tx, callerId))) {
+          throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+        }
         await this.endStaleIn(tx, Prisma.sql`host_user_id = ${callerId}::uuid`, now);
         const room = await tx.liveRoom.create({
           data: {
@@ -427,7 +587,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           requestId: meta.requestId,
         });
         return room.id;
-      });
+      }, LIVE_TX_OPTIONS);
     } catch (err) {
       const index = violatedUniqueIndex(err);
       if (index === ONE_LIVE_PER_HOST_INDEX || index === 'host_user_id') {
@@ -463,7 +623,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (!room) throw notFound(); // not the host, or no such room: never reveal ownership
     if (room.status === 'LIVE') {
       if (this.isFresh(room.lastHeartbeatAt, now)) return; // clock skew between instances; still live
-      await this.endStale(Prisma.sql`id = ${roomId}::uuid`, now);
+      await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
     }
     throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
   }
@@ -485,6 +645,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
       await this.endStaleIn(tx, Prisma.sql`id = ${roomId}::uuid`, now);
       const ended = await tx.$queryRaw<{ id: string }[]>`
         UPDATE live_rooms
@@ -492,6 +653,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                ended_at = GREATEST(${ts(now)}::timestamptz, last_heartbeat_at),
                updated_at = ${ts(now)}::timestamptz
          WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid AND status = 'LIVE'
+           AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
      RETURNING id::text AS id`;
       if (ended.length === 1) {
         await this.audit.recordIn(tx, {
@@ -504,7 +666,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           requestId: meta.requestId,
         });
       }
-    });
+    }, LIVE_TX_OPTIONS);
     const row = await this.selectRoom(roomId);
     if (!row) throw notFound();
     return this.toRoom(row, lang);
@@ -524,6 +686,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
              ended_at = GREATEST(${ts(now)}::timestamptz, last_heartbeat_at),
              updated_at = ${ts(now)}::timestamptz
        WHERE host_user_id = ${hostUserId}::uuid AND status = 'LIVE'
+         AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
     await this.audit.recordManyIn(
       tx,

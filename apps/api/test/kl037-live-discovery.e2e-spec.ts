@@ -598,7 +598,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
       await ctx.prisma.liveCategory.deleteMany({});
     });
 
-    it('lists only fresh LIVE rooms of ACTIVE hosts and ends the stale ones it meets', async () => {
+    // v1.3.1 (SEC-035): the list filters stale rooms and writes nothing; the sweeper ends them.
+    it('lists only fresh LIVE rooms of ACTIVE hosts and does not end the stale ones it skips', async () => {
       const viewer = await signup(ctx);
       const fresh = await signup(ctx);
       const stale = await signup(ctx);
@@ -612,6 +613,12 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
       const res = await list(viewer, { tab: 'new' });
       expectContract(res, 'listLiveRooms');
       expect(res.body.data.map((r: { id: string }) => r.id)).toEqual([freshRoom]);
+      expect(await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: staleRoom } })).toMatchObject({
+        status: 'LIVE',
+        endReason: null,
+      });
+      expect(await ctx.prisma.auditLog.count({ where: { targetId: staleRoom } })).toBe(1); // start only
+      expect(await rooms.sweepStale()).toBe(1);
       expect(await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: staleRoom } })).toMatchObject({
         status: 'ENDED',
         endReason: 'HEARTBEAT_TIMEOUT',

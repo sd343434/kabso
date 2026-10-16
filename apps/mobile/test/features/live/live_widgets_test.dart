@@ -32,7 +32,9 @@ void main() {
         card(liveRooms(AppLanguage.en).first, onTap: () => taps++),
       );
       expect(
-        find.bySemanticsLabel('Sara, live, 12,345 viewers, Arabic music night'),
+        find.bySemanticsLabel(
+          'Sara, live, 12,345 viewers, Arabic music night, Music',
+        ),
         findsOneWidget,
       );
       final size = tester.getSize(find.byType(KLiveCoverCard));
@@ -41,12 +43,25 @@ void main() {
       expect(taps, 1);
     });
 
-    testWidgets('VG-10: grid cards have no LIVE badge and no accent line; '
-        'mixed contexts opt in to the badge', (tester) async {
+    testWidgets('KL-047: cards carry a small LIVE badge (owner request, '
+        'reversing VG-10) and no accent line; showLiveBadge opts out', (
+      tester,
+    ) async {
       final room = liveRooms(AppLanguage.en).first;
       await pumpComponent(tester, card(room));
-      expect(find.byType(KBadge), findsNothing);
+      expect(badge(KBadgeVariant.live), findsOneWidget);
+      expect(find.byType(KBadge), findsOneWidget);
       expect(find.byType(KViewerCountChip), findsOneWidget);
+      // Small and consistent with KBadge: the 20 dp badge height, before
+      // the viewer chip at the top-start.
+      expect(
+        tester.getSize(badge(KBadgeVariant.live)).height,
+        KMetrics.badgeHeight,
+      );
+      expect(
+        tester.getCenter(badge(KBadgeVariant.live)).dx,
+        lessThan(tester.getCenter(find.byType(KViewerCountChip)).dx),
+      );
       // No gradient anywhere except the bottom scrim (the old accent line
       // was a live-gradient strip at the top).
       final gradients = tester
@@ -65,11 +80,11 @@ void main() {
         Center(
           child: SizedBox(
             width: 180,
-            child: KLiveCoverCard(room: room, showLiveBadge: true),
+            child: KLiveCoverCard(room: room, showLiveBadge: false),
           ),
         ),
       );
-      expect(badge(KBadgeVariant.live), findsOneWidget);
+      expect(badge(KBadgeVariant.live), findsNothing);
     });
 
     testWidgets('VG-11: 0 viewers shows "New", 1 viewer shows "1"', (

@@ -1,6 +1,13 @@
 import { createHmac, hkdfSync, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { cursorScope, LiveCursorCodec, type CursorPosition, type CursorScope } from './live-cursor.js';
+import {
+  CURSOR_MAX_STARTED_AT_MS,
+  CURSOR_MAX_VIEWER_COUNT,
+  cursorScope,
+  LiveCursorCodec,
+  type CursorPosition,
+  type CursorScope,
+} from './live-cursor.js';
 
 const USER = '0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80';
 const OTHER = '0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f81';
@@ -100,6 +107,31 @@ describe('LiveCursorCodec', () => {
     expect(codec.decode(forge({ ...good, n: -1 }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, s: 'yesterday' }), scope)).toBeNull();
     expect(codec.decode(forge({ ...good, extra: 1 }), scope)).toBeNull();
+  });
+
+  it('SEC-038: bounds the sort keys to values the database accepts', () => {
+    const scope = cursorScope('popular', undefined, USER);
+    const good = { v: 1, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };
+    expect(
+      codec.decode(forge({ ...good, n: CURSOR_MAX_VIEWER_COUNT, s: CURSOR_MAX_STARTED_AT_MS }), scope),
+    ).toEqual({
+      viewerCount: CURSOR_MAX_VIEWER_COUNT,
+      startedAt: new Date(CURSOR_MAX_STARTED_AT_MS),
+      id: ROOM,
+    });
+    expect(new Date(CURSOR_MAX_STARTED_AT_MS).toISOString()).toBe('9999-12-31T23:59:59.999Z');
+    for (const bad of [
+      { n: CURSOR_MAX_VIEWER_COUNT + 1 },
+      { n: 1.5 },
+      { n: -1 },
+      { s: CURSOR_MAX_STARTED_AT_MS + 1 },
+      { s: 8_640_000_000_000_000 },
+      { s: -1 },
+      { s: 1e300 },
+      { s: 0.5 },
+    ]) {
+      expect(codec.decode(forge({ ...good, ...bad }), scope)).toBeNull();
+    }
     expect(codec.decode(forge('just a string'), scope)).toBeNull();
     // Not JSON at all, but correctly signed.
     const k = Buffer.from(hkdfSync('sha256', key, 'kabso', 'live-cursor/v1', 32));

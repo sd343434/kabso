@@ -1214,40 +1214,40 @@ abstract class AppLocalizations {
   /// **'اسحب للأسفل للتحديث.'**
   String get feedPullToRefresh;
 
-  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
+  /// Home Following tab while there is no posts API. Warm, honest, product copy. No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'منشورات من تتابعهم'**
+  /// **'ابقَ قريبًا ممن تتابعهم'**
   String get homeFollowingUnavailableTitle;
 
   /// No description provided for @homeFollowingUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'قريبًا: ستظهر هنا منشورات من تتابعهم.'**
+  /// **'ستظهر هنا قريبًا منشورات من تتابعهم. وحتى ذلك الحين، شاهد من يبث منهم مباشرة الآن.'**
   String get homeFollowingUnavailableBody;
 
-  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
+  /// Home Popular tab while there is no posts API. No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'المنشورات الرائجة قادمة قريبًا'**
+  /// **'المنشورات في الطريق'**
   String get homePopularUnavailableTitle;
 
   /// No description provided for @homePopularUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'ستظهر هنا المنشورات الأكثر إعجابًا.'**
+  /// **'قريبًا ستظهر هنا المنشورات التي يتحدث عنها الجميع. وحتى ذلك الحين، انضم إلى بث مباشر.'**
   String get homePopularUnavailableBody;
 
-  /// Home tab while there is no feed API. Honest and neutral: no phase numbers.
+  /// Home New tab while there is no posts API. No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'المنشورات الجديدة قادمة قريبًا'**
+  /// **'منشورات جديدة قريبًا'**
   String get homeNewUnavailableTitle;
 
   /// No description provided for @homeNewUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'ستظهر هنا أحدث المنشورات، الأحدث أولًا.'**
+  /// **'ستصل هنا أحدث منشورات المجتمع أولًا بأول. والآن، اكتشف من بدأ البث للتو.'**
   String get homeNewUnavailableBody;
 
   /// No description provided for @homeEmptyTitle.
@@ -1274,46 +1274,46 @@ abstract class AppLocalizations {
   /// **'الكل'**
   String get liveHubChipAll;
 
-  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
+  /// Live hub Following tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'غرف البث ممن تتابعهم'**
+  /// **'بثوث من تتابعهم'**
   String get liveHubFollowingUnavailableTitle;
 
   /// No description provided for @liveHubFollowingUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.'**
+  /// **'البث المباشر غير متاح بعد. عند إتاحته سترى هنا من يبث ممن تتابعهم.'**
   String get liveHubFollowingUnavailableBody;
 
-  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
+  /// Live hub Popular tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'غرف البث المباشر غير متاحة بعد'**
+  /// **'البث المباشر غير متاح بعد'**
   String get liveHubPopularUnavailableTitle;
 
   /// No description provided for @liveHubPopularUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.'**
+  /// **'نعمل على تجهيزه. عند إتاحته ستظهر هنا البثوث الأكثر مشاهدة.'**
   String get liveHubPopularUnavailableBody;
 
-  /// Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers.
+  /// Live hub New tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047).
   ///
   /// In ar, this message translates to:
-  /// **'غرف البث الجديدة غير متاحة بعد'**
+  /// **'هنا تبدأ البثوث الجديدة'**
   String get liveHubNewUnavailableTitle;
 
   /// No description provided for @liveHubNewUnavailableBody.
   ///
   /// In ar, this message translates to:
-  /// **'ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.'**
+  /// **'البث المباشر غير متاح بعد. عند إتاحته ستظهر هنا البثوث التي بدأت للتو أولًا.'**
   String get liveHubNewUnavailableBody;
 
-  /// No description provided for @liveHubEmptyTitle.
+  /// KL-047 owner copy: Popular/New, successful response with zero rooms.
   ///
   /// In ar, this message translates to:
-  /// **'لا أحد يبث مباشرة الآن'**
+  /// **'لا توجد بثوث مباشرة الآن'**
   String get liveHubEmptyTitle;
 
   /// No description provided for @liveHubFollowingEmptyTitle.
@@ -1325,7 +1325,7 @@ abstract class AppLocalizations {
   /// No description provided for @liveHubErrorTitle.
   ///
   /// In ar, this message translates to:
-  /// **'تعذّر تحميل غرف البث'**
+  /// **'تعذّر تحميل البثوث المباشرة'**
   String get liveHubErrorTitle;
 
   /// HL-H5 inline footer error when the next page of live rooms fails; followed by a Retry button.
@@ -1363,6 +1363,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الآن'**
   String get feedPostJustNow;
+
+  /// KL-047 / QA-003: Home and Live region when a load failed with the client-only NETWORK_OFFLINE; followed by Try again.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت غير متصل بالإنترنت'**
+  String get feedOfflineTitle;
+
+  /// No description provided for @feedOfflineBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من اتصالك ثم أعد المحاولة.'**
+  String get feedOfflineBody;
+
+  /// KL-047 primary action on Home Popular/New: opens the Live tab (same Popular/New tab).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهد البث المباشر'**
+  String get homeWatchLive;
+
+  /// KL-047 primary action on Home Following: opens the Live tab on Following.
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهد من يبث الآن'**
+  String get homeSeeWhoIsLive;
+
+  /// KL-047 owner copy, under liveHubEmptyTitle; followed by Try again (re-requests the list).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفقّد البثوث الجديدة أو حاول مرة أخرى لاحقًا.'**
+  String get liveHubEmptyBody;
+
+  /// KL-047 secondary action on the empty Popular tab: switches to the New tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض البثوث الجديدة'**
+  String get liveHubSeeNew;
+
+  /// Under liveHubFollowingEmptyTitle; followed by See popular.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يبدأ من تتابعهم البث، ستجدهم هنا.'**
+  String get liveHubFollowingEmptyBody;
+
+  /// Cover card semantics with the room category name appended (KL-047).
+  ///
+  /// In ar, this message translates to:
+  /// **'{card}، {category}'**
+  String liveCardSemanticsCategory(String card, String category);
 }
 
 class _AppLocalizationsDelegate
