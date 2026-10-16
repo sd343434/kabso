@@ -174,13 +174,14 @@ return the resource object directly (no `data` wrapper).
   `device.*` fields still reject all zero-width characters. Rejected with `invalid_format`: names
   consisting only of whitespace, joiners, combining marks or symbols; more than **3** consecutive
   combining marks ("zalgo", counted on the NFD form); the bans above. *(v1.2.1)* A name must
-  contain at least one letter, digit **or emoji** grapheme (`Extended_Pictographic`); emoji-only
+  contain at least one letter, digit **or emoji** grapheme (*(v1.2.2)* Unicode RGI emoji set, `\p{RGI_Emoji}` — not `Extended_Pictographic`, which also includes text symbols such as ★ © ™); emoji-only
   names are valid, punctuation/symbol-only names are not. U+FEFF at either end is removed by
   trimming before validation; inside the name it is rejected. Rejected with
   `issue: "reserved_term"`: *(v1.2.1)* names where, after NFKC casefold and confusable skeleton
-  (Unicode TS #39), a reserved term equals a **whole word** (split on any non-letter/digit), or
-  where the name with separators removed **starts or ends with** a brand term (`kabso`,
-  `كابسو`). Substrings inside ordinary words (e.g. "Badminton", "Supporter") are allowed. Terms
+  (Unicode TS #39), *(v1.2.2)* (a) a reserved term equals a **whole word** (split on any
+  non-letter/digit), or (b) **any single word starts or ends with** a brand term (`kabso`,
+  `كابسو`; e.g. "TheKabso", "KabsoFan"), or (c) the whole name with separators removed **equals**
+  a reserved term (catches spaced-out "K a b s o"). Names such as "Kab Sonia" are allowed. Substrings inside ordinary words (e.g. "Badminton", "Supporter") are allowed. Terms
   (`kabso`, `admin`, `administrator`, `support`, `official`, `moderator`, `staff`, `كابسو`,
   `الدعم`, `رسمي`, `مشرف`, `الإدارة`; list is server configuration). `reserved_term` is evaluated
   after schema validation; audit actions use the `auth.registration.*` prefix; the
@@ -246,6 +247,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.2 | 2026-10-15 | **Approved, in implementation.** Owner decisions: verify-first registration — `register` → 202 constant body, new `register/verify` (8-digit code) and `register/resend`, pending registrations with username reservation, `EMAIL_TAKEN` no longer returned by register (B9); displayName allows ZWNJ/ZWJ with placement rules, grapheme/code-point limits, zalgo and reserved-term (`reserved_term` issue) rules (KL-017/QA-008); `PATCH /me` locale + email-locale rules (KL-018); refresh reuse across last 10 rotated secrets (SEC-022); failed-only account bucket + recent-success bypass (SEC-023); `/0` CIDR and hop > 3 refused in production (SEC-003a). | **Breaking:** `POST /auth/register` 201 `AuthResponse` → 202; clients must add the code-entry step. Backend (A3) and mobile (A2) ship together in one integration; no released clients exist. |
 | v1.2.1 | 2026-10-16 | Clarifications from KL-019/017 implementation: reserved terms match whole words (+ brand prefix/suffix), not substrings; emoji-only displayNames valid, punctuation-only invalid; zalgo counted on NFD; edge U+FEFF trimmed; `reserved_term` after schema validation; resend mail locale; audit prefix `auth.registration.*`. | Behavioral clarification; no shape change. |
 | tokens v1.1 | 2026-10-16 | `design-tokens.json` v1.1: approved accessibility fixes KL-009 (P1 dark/P2 light `textTertiary`, P3/P4 `primaryText`, P5–P8 light status colors, P9 `borderStrong`, P11 `focusRing`, P14 `onStatus`) and KL-021 live-UI tokens (`color.live.chatScrim` #99000000, `size.liveCardAspect` 0.75, `size.giftGridColumns` 4, `motion.giftComboBumpMs` 120). | Additive except changed values of `textTertiary` and light status colors (contrast fixes); Flutter applies them in one change set (KL-009 + KL-022). |
+| v1.2.2 | 2026-10-16 | displayName: emoji test uses the RGI emoji set (★ © ™ are not emoji); brand rule applies per word (prefix/suffix) plus whole-name equality, so "Kab Sonia" passes. Clients may pre-validate more permissively; the server is authoritative. | Clarification; no shape change. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
