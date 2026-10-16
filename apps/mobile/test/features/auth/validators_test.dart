@@ -118,13 +118,14 @@ void main() {
       );
     });
 
-    test('display name 1–50 after trimming', () {
-      expect(AuthValidators.displayName('  '), _required);
-      expect(AuthValidators.displayName('ليلى'), isNull);
-      expect(AuthValidators.displayName('x' * 50), isNull);
+    test('display name: required after trimming; 50 graphemes is the limit '
+        '(v1.2 replaces the old 50 UTF-16 units check)', () {
+      expect(AuthValidators.displayNameIssue('  '), DisplayNameIssue.required);
+      expect(AuthValidators.displayNameIssue('ليلى'), isNull);
+      expect(AuthValidators.displayNameIssue('x' * 50), isNull);
       expect(
-        AuthValidators.displayName('x' * 51),
-        const ValidationError(ValidationIssue.tooLong, 50),
+        AuthValidators.displayNameIssue('x' * 51),
+        DisplayNameIssue.tooLong,
       );
     });
   });

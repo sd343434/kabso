@@ -15,4 +15,8 @@ abstract final class PreferenceKeys {
   /// Set after the first launch of this installation (see
   /// `clearSecureStorageOnFreshInstall`). Not sensitive.
   static const installed = 'pref.installed';
+
+  /// Set while a `PATCH /me {"locale"}` still has to reach the server
+  /// (PHASE1_1_SCREENS §3.4). Not sensitive.
+  static const localeSyncPending = 'pref.localeSyncPending';
 }

@@ -6,6 +6,7 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -27,6 +28,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _identifier = TextEditingController();
   final _password = TextEditingController();
   AutovalidateMode _autovalidate = AutovalidateMode.disabled;
+
+  @override
+  void initState() {
+    super.initState();
+    // e.g. "Log in" from the registration code screen prefills the email.
+    final prefill = ref.read(loginPrefillProvider);
+    if (prefill != null) {
+      _identifier.text = prefill;
+      // Consume it after the first frame (providers can't change mid-build).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(loginPrefillProvider.notifier).identifier = null;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -61,6 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthScaffold(
       title: l10n.loginTitle,
       subtitle: l10n.loginSubtitle,
+      actions: [AuthLanguageSwitch(enabled: !submitting)],
       child: RetryCountdown(
         key: ObjectKey(submission),
         failure: submission is SubmissionFailed ? submission.failure : null,

@@ -10,6 +10,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -82,8 +83,14 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
               selected: {language},
-              onSelectionChanged: (s) =>
-                  ref.read(languageControllerProvider.notifier).select(s.first),
+              onSelectionChanged: (s) async {
+                // Apply locally first, then persist on the account
+                // (PHASE1_1_SCREENS §3.3/§3.4).
+                await ref
+                    .read(languageControllerProvider.notifier)
+                    .select(s.first);
+                await ref.read(localeSyncProvider).languageChanged();
+              },
             ),
           ),
           const SizedBox(height: KSpacing.xl),
@@ -125,9 +132,14 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (confirmed ?? false) {
-      await ref.read(sessionControllerProvider.notifier).logout();
-    }
+    if (!(confirmed ?? false) || !context.mounted) return;
+    final done = l10n.logoutDone;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    await ref.read(sessionControllerProvider.notifier).logout();
+    // Shown on the Login screen (root messenger survives the navigation).
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(done)));
   }
 }
 
@@ -342,8 +354,9 @@ class _SessionTile extends ConsumerWidget {
             child: Text(l10n.actionCancel),
           ),
           TextButton(
+            key: const Key('session.revoke.confirm'),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l10n.sessionsRevoke),
+            child: Text(l10n.sessionsRevokeConfirm),
           ),
         ],
       ),

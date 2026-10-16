@@ -21,13 +21,43 @@ class AuthRemoteDataSource {
     return AuthResponseDto.fromJson(res.data!);
   });
 
-  Future<AuthResponseDto> register(RegisterRequestDto body) => _guard(() async {
-    final res = await _dio.post<Map<String, dynamic>>(
-      '/auth/register',
-      data: body.toJson(),
-      options: publicEndpoint(),
+  /// v1.2: always `202 {"status":"verification_pending"}` on success.
+  Future<VerificationPendingDto> register(RegisterRequestDto body) =>
+      _guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/auth/register',
+          data: body.toJson(),
+          options: publicEndpoint(),
+        );
+        return VerificationPendingDto.fromJson(res.data!);
+      });
+
+  Future<AuthResponseDto> verifyRegistration(RegisterVerifyRequestDto body) =>
+      _guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/auth/register/verify',
+          data: body.toJson(),
+          options: publicEndpoint(),
+        );
+        return AuthResponseDto.fromJson(res.data!);
+      });
+
+  Future<VerificationPendingDto> resendRegistrationCode(String email) =>
+      _guard(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/auth/register/resend',
+          data: {'email': email},
+          options: publicEndpoint(),
+        );
+        return VerificationPendingDto.fromJson(res.data!);
+      });
+
+  Future<MeDto> updateMe({required String locale}) => _guard(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      '/me',
+      data: {'locale': locale},
     );
-    return AuthResponseDto.fromJson(res.data!);
+    return MeDto.fromJson(res.data!);
   });
 
   Future<void> logout() => _guard(() => _dio.post<void>('/auth/logout'));
@@ -54,9 +84,6 @@ class AuthRemoteDataSource {
       options: publicEndpoint(),
     ),
   );
-
-  Future<void> resendVerificationEmail() =>
-      _guard(() => _dio.post<void>('/auth/email/resend'));
 
   Future<SessionListDto> listSessions() => _guard(() async {
     final res = await _dio.get<Map<String, dynamic>>('/auth/sessions');

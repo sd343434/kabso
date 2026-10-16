@@ -41,14 +41,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<User> register({
+  Future<void> register({
     required String email,
     required String password,
     required String username,
     required String displayName,
     required String locale,
   }) async {
-    final res = await _remote.register(
+    await _remote.register(
       RegisterRequestDto(
         email: AuthValidators.normalizeEmail(email),
         password: password,
@@ -58,9 +58,32 @@ class AuthRepositoryImpl implements AuthRepository {
         device: _device,
       ),
     );
+  }
+
+  @override
+  Future<User> verifyRegistration({
+    required String email,
+    required String code,
+  }) async {
+    final res = await _remote.verifyRegistration(
+      RegisterVerifyRequestDto(
+        email: AuthValidators.normalizeEmail(email),
+        code: code,
+        device: _device,
+      ),
+    );
     await _tokens.saveTokens(res.tokens);
     return res.user.toEntity();
   }
+
+  @override
+  Future<void> resendRegistrationCode(String email) async {
+    await _remote.resendRegistrationCode(AuthValidators.normalizeEmail(email));
+  }
+
+  @override
+  Future<User> updateLocale(String locale) async =>
+      (await _remote.updateMe(locale: locale)).toEntity();
 
   @override
   Future<void> logout() async {
@@ -95,9 +118,6 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> requestPasswordReset(String email) =>
       _remote.forgotPassword(AuthValidators.normalizeEmail(email));
-
-  @override
-  Future<void> resendVerificationEmail() => _remote.resendVerificationEmail();
 
   @override
   Future<List<Session>> listSessions() async {

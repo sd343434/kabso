@@ -15,8 +15,14 @@ void main() {
         expect(generic, isNotEmpty);
       });
 
+      // v1.2 (D24): EMAIL_TAKEN is never shown as such; an old server's
+      // EMAIL_TAKEN gets the generic message.
+      test('EMAIL_TAKEN shows the generic message', () {
+        expect(errorCodeMessage(l10n, ErrorCode.emailTaken), generic);
+      });
+
       for (final code in ErrorCode.values.where(
-        (c) => c != ErrorCode.unknown,
+        (c) => c != ErrorCode.unknown && c != ErrorCode.emailTaken,
       )) {
         test('${code.wire} has its own message', () {
           final message = errorCodeMessage(l10n, code);
@@ -25,12 +31,18 @@ void main() {
         });
       }
 
-      test('messages are distinct per code', () {
-        final messages = {
-          for (final c in ErrorCode.values) c: errorCodeMessage(l10n, c),
-        };
-        final unique = messages.values.toSet();
-        expect(unique.length, ErrorCode.values.length);
+      test('messages are distinct per code, except the spec-shared ones', () {
+        // PHASE1_1_SCREENS §5.1/§5.6: AUTH_UNAUTHENTICATED and
+        // AUTH_REFRESH_INVALID share "Your session has ended…".
+        expect(
+          errorCodeMessage(l10n, ErrorCode.authUnauthenticated),
+          errorCodeMessage(l10n, ErrorCode.authRefreshInvalid),
+        );
+        final distinct = ErrorCode.values.where(
+          (c) => c != ErrorCode.emailTaken && c != ErrorCode.authRefreshInvalid,
+        );
+        final unique = {for (final c in distinct) errorCodeMessage(l10n, c)};
+        expect(unique.length, distinct.length);
       });
 
       test('failureMessage uses the failure code', () {

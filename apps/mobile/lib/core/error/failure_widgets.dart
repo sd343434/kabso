@@ -73,6 +73,64 @@ class _RetryCountdownState extends State<RetryCountdown> {
   Widget build(BuildContext context) => widget.builder(context, _remaining());
 }
 
+/// Rebuilds every second until [until] (e.g. a resend cooldown), passing the
+/// remaining time (zero once passed or when [until] is `null`).
+class DeadlineCountdown extends StatefulWidget {
+  const new({required this.until, required this.builder, super.key});
+
+  final DateTime? until;
+  final Widget Function(BuildContext context, Duration remaining) builder;
+
+  @override
+  State<DeadlineCountdown> createState() => _DeadlineCountdownState();
+}
+
+class _DeadlineCountdownState extends State<DeadlineCountdown> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _arm();
+  }
+
+  @override
+  void didUpdateWidget(DeadlineCountdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.until != widget.until) _arm();
+  }
+
+  void _arm() {
+    _timer?.cancel();
+    _timer = null;
+    if (_remaining() > Duration.zero) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (_remaining() <= Duration.zero) {
+          _timer?.cancel();
+          _timer = null;
+        }
+        setState(() {});
+      });
+    }
+  }
+
+  Duration _remaining() {
+    final until = widget.until;
+    if (until == null) return Duration.zero;
+    final left = until.difference(clock.now());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _remaining());
+}
+
 /// Form-level error banner (PHASE1_SCREENS §1/§10): localized message, live
 /// `Retry-After` countdown and a selectable Error ID where the spec asks for
 /// one.

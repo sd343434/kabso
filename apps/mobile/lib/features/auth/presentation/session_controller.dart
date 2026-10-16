@@ -5,6 +5,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
+import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 
 /// Global authentication state. Drives the router's redirect guard.
 sealed class AuthState {
@@ -25,13 +26,9 @@ final class AuthRestoreFailed extends AuthState {
 }
 
 final class Authenticated extends AuthState {
-  const new(this.user, {this.justRegistered = false});
+  const new(this.user);
 
   final User user;
-
-  /// `true` right after registration, until the verify-email notice is
-  /// acknowledged.
-  final bool justRegistered;
 }
 
 final class Unauthenticated extends AuthState {
@@ -63,6 +60,7 @@ class SessionController extends Notifier<AuthState> {
       final user = await ref.read(authRepositoryProvider).restoreSession();
       if (!ref.mounted) return;
       state = user == null ? const Unauthenticated() : Authenticated(user);
+      if (user != null) unawaited(ref.read(localeSyncProvider).retryPending());
     } on AppFailure catch (failure) {
       if (!ref.mounted) return;
       final sessionGone =
@@ -86,22 +84,18 @@ class SessionController extends Notifier<AuthState> {
     }
   }
 
-  void signedIn(User user, {bool justRegistered = false}) {
-    state = Authenticated(user, justRegistered: justRegistered);
+  /// After login 200 or register/verify 201. Then syncs the language with
+  /// the account (PHASE1_1_SCREENS §3.4) in the background.
+  void signedIn(User user) {
+    state = Authenticated(user);
+    unawaited(ref.read(localeSyncProvider).afterSignIn(user));
   }
 
   /// Replaces the user (e.g. after a fresh `GET /me`).
   void updateUser(User user) {
     final current = state;
     if (current is Authenticated && current.user != user) {
-      state = Authenticated(user, justRegistered: current.justRegistered);
-    }
-  }
-
-  void acknowledgeRegistration() {
-    final current = state;
-    if (current is Authenticated && current.justRegistered) {
-      state = Authenticated(current.user);
+      state = Authenticated(user);
     }
   }
 

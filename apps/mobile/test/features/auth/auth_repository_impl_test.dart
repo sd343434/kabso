@@ -119,33 +119,125 @@ void main() {
     });
   });
 
-  test(
-    'register posts RegisterRequest with normalized email and locale',
-    () async {
+  test('v1.2 register posts RegisterRequest (normalized email, locale) and '
+      'creates no session (202 VerificationPending)', () async {
+    http.on(
+      'POST',
+      '$_base/auth/register',
+      (_) => const FakeResponse(202, body: {'status': 'verification_pending'}),
+    );
+
+    await repo.register(
+      email: '  Layla@Example.COM ',
+      password: 'pa55word!',
+      username: 'layla.k',
+      displayName: ' ليلى ',
+      locale: 'ar',
+    );
+
+    expect(http.requests.single.data, {
+      'email': 'layla@example.com',
+      'password': 'pa55word!',
+      'username': 'layla.k',
+      'displayName': 'ليلى',
+      'locale': 'ar',
+      'device': {'platform': 'android', 'appVersion': '1.2.3'},
+    });
+    // No tokens before the code is verified.
+    expect(store.refreshToken, isNull);
+    expect(container.read(tokenManagerProvider).accessToken, isNull);
+  });
+
+  group('v1.2 register/verify', () {
+    test('posts {email, code, device}, stores the session, returns the '
+        'user', () async {
       http.on(
         'POST',
-        '$_base/auth/register',
-        (_) => FakeResponse(201, body: authResponseJson()),
+        '$_base/auth/register/verify',
+        (_) => FakeResponse(
+          201,
+          body: authResponseJson(
+            user: meJson(emailVerified: true, displayName: 'Layla'),
+            tokens: tokenPairJson(accessToken: 'acc', refreshToken: 'sid.s'),
+          ),
+        ),
       );
 
-      final user = await repo.register(
-        email: '  Layla@Example.COM ',
-        password: 'pa55word!',
-        username: 'layla.k',
-        displayName: ' ليلى ',
-        locale: 'ar',
+      final user = await repo.verifyRegistration(
+        email: ' Layla@Example.COM ',
+        code: '48210937',
       );
 
-      expect(http.requests.single.data, {
+      final req = http.requests.single;
+      expect(req.headers.containsKey('Authorization'), isFalse);
+      expect(req.data, {
         'email': 'layla@example.com',
-        'password': 'pa55word!',
-        'username': 'layla.k',
-        'displayName': 'ليلى',
-        'locale': 'ar',
+        'code': '48210937',
         'device': {'platform': 'android', 'appVersion': '1.2.3'},
       });
-      expect(user.displayName, 'ليلى');
-      expect(store.refreshToken, 'sid-1.secret-1');
+      expect(user.displayName, 'Layla');
+      expect(user.emailVerified, isTrue);
+      expect(store.refreshToken, 'sid.s');
+      expect(container.read(tokenManagerProvider).accessToken, 'acc');
+    });
+
+    for (final (status, code, expected) in [
+      (422, 'TOKEN_INVALID', ErrorCode.tokenInvalid),
+      (409, 'USERNAME_TAKEN', ErrorCode.usernameTaken),
+      (429, 'RATE_LIMITED', ErrorCode.rateLimited),
+      (503, 'SERVICE_UNAVAILABLE', ErrorCode.serviceUnavailable),
+    ]) {
+      test('$status $code is mapped and stores nothing', () async {
+        http.on(
+          'POST',
+          '$_base/auth/register/verify',
+          (_) => FakeResponse(status, body: errorEnvelope(code, 'x')),
+        );
+        await expectLater(
+          repo.verifyRegistration(email: 'a@b.co', code: '00000000'),
+          throwsA(isA<ServerFailure>().having((f) => f.code, 'code', expected)),
+        );
+        expect(store.refreshToken, isNull);
+        expect(http.requestsTo('POST', '$_base/auth/refresh'), isEmpty);
+      });
+    }
+
+    test('resend posts the normalized email (always 202)', () async {
+      http.on(
+        'POST',
+        '$_base/auth/register/resend',
+        (_) =>
+            const FakeResponse(202, body: {'status': 'verification_pending'}),
+      );
+      await repo.resendRegistrationCode(' A@B.co ');
+      expect(http.requests.single.data, {'email': 'a@b.co'});
+    });
+  });
+
+  test(
+    'v1.2 updateLocale sends PATCH /me {"locale"} with the bearer',
+    () async {
+      await build(storedRefreshToken: 'sid.old');
+      http
+        ..on(
+          'POST',
+          '$_base/auth/refresh',
+          (_) => FakeResponse(200, body: tokenPairJson(accessToken: 'acc')),
+        )
+        ..on('GET', '$_base/me', (_) => FakeResponse(200, body: meJson()))
+        ..on(
+          'PATCH',
+          '$_base/me',
+          (o) => FakeResponse(200, body: meJson(locale: 'en')),
+        );
+      await repo.restoreSession();
+
+      final user = await repo.updateLocale('en');
+
+      final req = http.requestsTo('PATCH', '$_base/me').single;
+      expect(req.data, {'locale': 'en'});
+      expect(req.headers['Authorization'], 'Bearer acc');
+      expect(user.locale, 'en');
     },
   );
 
@@ -154,7 +246,8 @@ void main() {
       ..on(
         'POST',
         '$_base/auth/register',
-        (_) => FakeResponse(201, body: authResponseJson()),
+        (_) =>
+            const FakeResponse(202, body: {'status': 'verification_pending'}),
       )
       ..on(
         'GET',
@@ -332,16 +425,6 @@ void main() {
     );
     await repo.requestPasswordReset(' Layla@Example.com ');
     expect(http.requests.single.data, {'email': 'layla@example.com'});
-  });
-
-  test('resendVerificationEmail posts to /auth/email/resend (202)', () async {
-    http.on(
-      'POST',
-      '$_base/auth/email/resend',
-      (_) => const FakeResponse.noContent(202),
-    );
-    await repo.resendVerificationEmail();
-    expect(http.requestsTo('POST', '$_base/auth/email/resend'), hasLength(1));
   });
 
   test('listSessions maps SessionInfo', () async {

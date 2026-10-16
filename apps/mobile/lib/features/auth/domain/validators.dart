@@ -3,6 +3,9 @@
 library;
 
 import 'package:flutter/foundation.dart' show immutable;
+// `String.characters` (grapheme clusters) from package:characters, which
+// Flutter re-exports; no extra dependency.
+import 'package:flutter/widgets.dart' show StringCharacters;
 
 enum ValidationIssue { required, tooShort, tooLong, invalidFormat }
 
@@ -10,6 +13,9 @@ enum ValidationIssue { required, tooShort, tooLong, invalidFormat }
 /// spec's precedence order: bad characters → too short → too long → bad
 /// edges.
 enum UsernameIssue { required, badChars, tooShort, tooLong, badEdges }
+
+/// Client-side displayName problems (PHASE1_1_SCREENS §2).
+enum DisplayNameIssue { required, tooLong, invalidFormat }
 
 /// A failed validation with the bound that was violated (if any).
 @immutable
@@ -50,7 +56,12 @@ abstract final class AuthRules {
   static const identifierMax = 254;
 
   static const displayNameMin = 1;
+
+  /// Grapheme clusters (v1.2).
   static const displayNameMax = 50;
+
+  /// Unicode code points (v1.2).
+  static const displayNameMaxCodePoints = 100;
 }
 
 abstract final class AuthValidators {
@@ -135,16 +146,61 @@ abstract final class AuthValidators {
     return null;
   }
 
-  static ValidationError? displayName(String? value) {
+  /// Number of user-perceived characters (grapheme clusters) in a display
+  /// name, after trimming. This is what the `{count}/50` counter shows.
+  static int displayNameLength(String value) => value.trim().characters.length;
+
+  /// Client-side mirror of the v1.2 displayName rules (CONVENTIONS §6,
+  /// PHASE1_1_SCREENS §2). The server stays authoritative: it also NFC-
+  /// normalizes, rejects symbol-only names and checks reserved terms
+  /// (`reserved_term`), which the app never ships.
+  static DisplayNameIssue? displayNameIssue(String? value) {
     final v = (value ?? '').trim();
-    if (v.isEmpty) return const ValidationError(ValidationIssue.required);
-    if (v.length > AuthRules.displayNameMax) {
-      return const ValidationError(
-        ValidationIssue.tooLong,
-        AuthRules.displayNameMax,
-      );
+    if (v.isEmpty) return DisplayNameIssue.required;
+    if (v.characters.length > AuthRules.displayNameMax ||
+        v.runes.length > AuthRules.displayNameMaxCodePoints) {
+      return DisplayNameIssue.tooLong;
     }
+    if (_displayNameBanned.hasMatch(v)) return DisplayNameIssue.invalidFormat;
+    if (_tooManyMarks.hasMatch(v)) return DisplayNameIssue.invalidFormat;
+    if (!_hasJoinersInPlace(v)) return DisplayNameIssue.invalidFormat;
+    if (!_hasVisibleBase.hasMatch(v)) return DisplayNameIssue.invalidFormat;
     return null;
+  }
+
+  /// C0/C1 controls, bidi overrides/isolates, U+200B, U+2060, U+FEFF.
+  static final _displayNameBanned = RegExp(
+    '[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069'
+    '\u200B\u2060\uFEFF]',
+  );
+
+  /// More than 3 consecutive combining marks ("zalgo").
+  static final _tooManyMarks = RegExp(r'\p{M}{4,}', unicode: true);
+
+  /// At least one code point that is not whitespace, a joiner or a mark.
+  static final _hasVisibleBase = RegExp(
+    r'[^\s\p{M}\u200C\u200D]',
+    unicode: true,
+  );
+
+  static const _zwnj = 0x200C;
+  static const _zwj = 0x200D;
+
+  /// ZWNJ/ZWJ must sit between two characters that are neither joiners nor
+  /// whitespace (not leading/trailing, never doubled, never next to a space).
+  static bool _hasJoinersInPlace(String v) {
+    final cps = v.runes.toList(growable: false);
+    bool isJoiner(int cp) => cp == _zwnj || cp == _zwj;
+    bool isSpace(int cp) => String.fromCharCode(cp).trim().isEmpty;
+    for (var i = 0; i < cps.length; i++) {
+      if (!isJoiner(cps[i])) continue;
+      if (i == 0 || i == cps.length - 1) return false;
+      final before = cps[i - 1];
+      final after = cps[i + 1];
+      if (isJoiner(before) || isJoiner(after)) return false;
+      if (isSpace(before) || isSpace(after)) return false;
+    }
+    return true;
   }
 
   /// The specific [UsernameIssue] for [value], or `null` when it matches

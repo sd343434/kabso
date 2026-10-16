@@ -6,6 +6,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
+import 'package:kabso_live/app/router/app_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -15,10 +17,10 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/auth/presentation/register_code_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
-import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
-import 'package:kabso_live/features/auth/presentation/verify_email_notice_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -348,15 +350,24 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('${language.name}: verify-email notice', (tester) async {
-        // Signed out (login screen), then registration completes.
+      // Contract v1.2 retired the verify-email notice (PHASE1_1_SCREENS §0);
+      // its replacement in the registration flow is the code-entry screen.
+      testWidgets('${language.name}: registration code entry', (tester) async {
+        // Signed out (login screen), then a register 202 opened the flow.
         final r = _Repo();
         final container = await app(tester, language, r);
         container
-            .read(sessionControllerProvider.notifier)
-            .signedIn(testUser(emailVerified: false), justRegistered: true);
+            .read(registrationFlowProvider.notifier)
+            .draft = RegistrationDraft(
+          email: 'layla@example.com',
+          username: 'layla',
+          displayName: 'ليلى',
+          password: 'pa55word!',
+          codeSentAt: DateTime.now(),
+        );
+        container.read(routerProvider).go(AppRoutes.registerCode);
         await tester.pumpAndSettle();
-        expect(find.byType(VerifyEmailNoticeScreen), findsOneWidget);
+        expect(find.byType(RegisterCodeScreen), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 

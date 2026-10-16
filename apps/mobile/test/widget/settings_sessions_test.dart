@@ -123,7 +123,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text(l10n.sessionsRevoke),
+        matching: find.text(l10n.sessionsRevokeConfirm),
       ),
     );
     await tester.pumpAndSettle();

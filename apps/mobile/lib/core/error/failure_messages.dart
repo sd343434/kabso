@@ -15,7 +15,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.authForbidden => l10n.errorAuthForbidden,
     ErrorCode.accountSuspended => l10n.errorAccountSuspended,
     ErrorCode.notFound => l10n.errorNotFound,
-    ErrorCode.emailTaken => l10n.errorEmailTaken,
+    // v1.2 (D24): registration never reveals email use. If an old server
+    // still sends EMAIL_TAKEN, show the generic message.
+    ErrorCode.emailTaken => l10n.errorUnknown,
     ErrorCode.usernameTaken => l10n.errorUsernameTaken,
     ErrorCode.idempotencyConflict => l10n.errorIdempotencyConflict,
     ErrorCode.tokenExpired => l10n.errorTokenExpired,

@@ -67,6 +67,19 @@ class FakeAuthRepository implements AuthRepository {
   Duration availabilityDelay;
 
   final List<String> availabilityChecks = [];
+
+  /// Locales sent with `register`.
+  final List<String> registerLocales = [];
+
+  /// Codes sent to `register/verify`; failures are consumed in order.
+  final List<String> verifyCalls = [];
+  final List<AppFailure> verifyFailures = [];
+  int resendCalls = 0;
+  AppFailure? resendFailure;
+
+  /// Locales sent with `PATCH /me`.
+  final List<String> localeUpdates = [];
+  AppFailure? updateLocaleFailure;
   int logoutCalls = 0;
   int getMeCalls = 0;
 
@@ -85,7 +98,7 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<User> register({
+  Future<void> register({
     required String email,
     required String password,
     required String username,
@@ -93,9 +106,34 @@ class FakeAuthRepository implements AuthRepository {
     required String locale,
   }) async {
     registerCalls++;
+    registerLocales.add(locale);
     final failure = registerFailure;
     if (failure != null) throw failure;
+  }
+
+  @override
+  Future<User> verifyRegistration({
+    required String email,
+    required String code,
+  }) async {
+    verifyCalls.add(code);
+    if (verifyFailures.isNotEmpty) throw verifyFailures.removeAt(0);
     return me;
+  }
+
+  @override
+  Future<void> resendRegistrationCode(String email) async {
+    resendCalls++;
+    final failure = resendFailure;
+    if (failure != null) throw failure;
+  }
+
+  @override
+  Future<User> updateLocale(String locale) async {
+    localeUpdates.add(locale);
+    final failure = updateLocaleFailure;
+    if (failure != null) throw failure;
+    return me = me.copyWith(locale: locale);
   }
 
   @override
@@ -125,9 +163,6 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> requestPasswordReset(String email) async {}
-
-  @override
-  Future<void> resendVerificationEmail() async {}
 
   @override
   Future<List<Session>> listSessions() async => const [];

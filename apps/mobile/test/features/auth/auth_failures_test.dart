@@ -59,7 +59,8 @@ void main() {
     expect(failure.authFieldIssues, isEmpty);
   });
 
-  test('*_TAKEN codes map to their field', () {
+  test('USERNAME_TAKEN maps to the username; EMAIL_TAKEN maps to no field '
+      '(v1.2, D24: registration never reveals email use)', () {
     const email = ServerFailure(
       code: ErrorCode.emailTaken,
       rawCode: 'EMAIL_TAKEN',
@@ -70,7 +71,7 @@ void main() {
       rawCode: 'USERNAME_TAKEN',
       debugMessage: 'taken',
     );
-    expect(email.authFields, {AuthField.email});
+    expect(email.authFields, isEmpty);
     expect(username.authFields, {AuthField.username});
     expect(const NetworkFailure.offline().authFields, isEmpty);
   });
