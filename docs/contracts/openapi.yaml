@@ -1,13 +1,16 @@
 openapi: 3.1.0
 info:
   title: Kabso Live API
-  version: 1.3.1
+  version: 1.4.0
   description: |
     Authoritative HTTP contract. Conventions (errors, pagination, auth, rate limits) are defined in
     CONVENTIONS.md and apply to every operation. Phase 1 scope: health, authentication, sessions,
     current user. v1.3 (Phase 2 slice 1, KL-036) adds live discovery, the host lifecycle of live
     rooms (behind `LIVE_HOSTING_ENABLED`), public profiles and follow (CONVENTIONS §10; data design
-    in DB_PHASE2_DISCOVERY.md). Later phases append paths; existing shapes change only via
+    in DB_PHASE2_DISCOVERY.md). v1.4 (KL-048, owner decision D44) adds image uploads for avatars
+    and live-room covers (behind `MEDIA_UPLOADS_ENABLED`, default off; no storage provider is
+    activated) and an optional, user-chosen country with a discovery filter (CONVENTIONS §11; data
+    design in DB_PHASE2_MEDIA.md). Later phases append paths; existing shapes change only via
     contract proposal.
 servers:
   - url: http://localhost:3000
@@ -24,7 +27,11 @@ tags:
   - name: users
     description: "Public user lookups, public profiles and follow."
   - name: live
-    description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3)."
+    description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3); covers and the country filter (v1.4)."
+  - name: media
+    description: "Image uploads for avatars and live-room covers (v1.4, behind MEDIA_UPLOADS_ENABLED)."
+  - name: reference
+    description: "Static reference data: the list of selectable countries (v1.4)."
 paths:
   /health/live:
     get:
@@ -334,17 +341,39 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale)"
+      summary: "Update the caller's profile and preferences (v1.2: locale; v1.4: avatar, country)"
+      description: |
+        Partial update; at least one property is required and every property is optional
+        (v1.4 relaxes the v1.2 body, where `locale` was required, so a v1.2 client keeps working).
+        The update is all-or-nothing: if any property fails, nothing is changed.
+        - `avatarUploadId` (v1.4, CONVENTIONS §11.4): the id of the caller's own upload with
+          `purpose = avatar` and `status = READY` that is not attached anywhere yet. Anything else
+          (unknown, another user's, wrong purpose, not READY, already attached, REJECTED) →
+          400 `VALIDATION_FAILED` (`field "avatarUploadId"`, `issue "invalid_value"`). `null`
+          removes the avatar. A non-null value while `MEDIA_UPLOADS_ENABLED=false` → 503
+          `MEDIA_UPLOADS_UNAVAILABLE`; `null` is always accepted.
+        - `country` (v1.4, CONVENTIONS §11.7): ISO 3166-1 alpha-2 code from the vendored list
+          (`listCountries`), or `null` to clear it. Only ever what the user chose; never inferred.
+          A well-formed code that is not on the list → 400 (`field "country"`,
+          `issue "invalid_value"`).
+
+        Check order after body parsing: auth → rate limit → body schema → `avatarUploadId`
+        feature gate (503) → `avatarUploadId` and `country` values (400).
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [locale]
-              additionalProperties: false
-              properties:
-                locale: { $ref: '#/components/schemas/Locale' }
+            schema: { $ref: '#/components/schemas/UpdateMeRequest' }
+            examples:
+              locale:
+                summary: v1.2 body (still valid)
+                value: { locale: ar }
+              avatarAndCountry:
+                summary: Set an uploaded avatar and a country
+                value: { avatarUploadId: 0192f1e0-2222-7bbb-8ccc-0d0e0f101112, country: SA }
+              clear:
+                summary: Remove the avatar and clear the country
+                value: { avatarUploadId: null, country: null }
       responses:
         '200':
           description: Updated user.
@@ -354,6 +383,11 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: MEDIA_UPLOADS_UNAVAILABLE (a non-null `avatarUploadId` while uploads are disabled) or SERVICE_UNAVAILABLE.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
 
   /api/v1/users/username-availability:
     get:
@@ -391,6 +425,8 @@ paths:
         `NOT_FOUND` (no distinction, and no 400 for a malformed name). `liveRoomId` is set only
         while the user has a LIVE room with a fresh heartbeat (§10.2). The static route
         `/users/username-availability` cannot collide: `-` is not allowed in usernames.
+        v1.4: `avatarUrl` / `avatarThumbUrl` follow the moderation visibility rule (§11.5: a
+        PENDING avatar is shown only when `isSelf`); `country` is null unless the user chose one.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -407,7 +443,9 @@ paths:
                     username: layla.k
                     displayName: ليلى
                     avatarUrl: null
+                    avatarThumbUrl: null
                     bio: null
+                    country: null
                     isPrivate: false
                     followerCount: 12
                     followingCount: 40
@@ -530,7 +568,8 @@ paths:
         id desc. `category` filters every tab. A well-formed slug that is unknown or inactive
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
         `id`** (HL-H5). While `viewerCount` is always 0 (no presence yet), `popular` orders like
-        `new`.
+        `new`. v1.4: `country` filters every tab by the room's country (the host's chosen
+        country, CONVENTIONS §11.8) and is bound into the cursor; it combines with `category`.
       parameters:
         - name: tab
           in: query
@@ -541,6 +580,11 @@ paths:
           required: false
           description: 'Category slug. Malformed → 400 `VALIDATION_FAILED` (`field "category"`).'
           schema: { $ref: '#/components/schemas/CategorySlug' }
+        - name: country
+          in: query
+          required: false
+          description: 'v1.4. ISO 3166-1 alpha-2 code (uppercase). Malformed → 400 `VALIDATION_FAILED` (`field "country"`, `issue "invalid_format"`); well-formed but not on the vendored list → 400 (`issue "invalid_value"`). Rooms whose host chose no country never match a country filter.'
+          schema: { $ref: '#/components/schemas/CountryCode' }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -565,15 +609,18 @@ paths:
                         viewerCount: 0
                         startedAt: '2026-10-16T19:00:00.000Z'
                         coverUrl: null
+                        coverThumbUrl: null
                         category: null
+                        country: null
                         host:
                           id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80
                           username: layla.k
                           displayName: ليلى
                           avatarUrl: null
+                          avatarThumbUrl: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, malformed or unlisted `country` (v1.4), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -597,12 +644,17 @@ paths:
         client resumes the room found via `getPublicProfile` (own username → `liveRoomId`).
         Requires a verified email (every v1.2+ account is verified at creation; a legacy
         unverified account gets 403 `AUTH_FORBIDDEN`).
+        v1.4: optional `coverUploadId` (CONVENTIONS §11.4). It is checked after `categorySlug`:
+        a non-null value while `MEDIA_UPLOADS_ENABLED=false` → 503 `MEDIA_UPLOADS_UNAVAILABLE`;
+        a value that is not the caller's own unattached READY `room_cover` upload → 400
+        (`field "coverUploadId"`, `issue "invalid_value"`). The room's `country` is copied from
+        the host's profile at go-live (§11.8); the request has no `country` field.
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/StartLiveRoomRequest' }
-            example: { title: سهرة طرب, categorySlug: music }
+            example: { title: سهرة طرب, categorySlug: music, coverUploadId: 0192f1e0-3333-7ccc-8ddd-0e0f10111213 }
       responses:
         '201':
           description: Room created; the caller starts heartbeats at the cadence from `getLiveConfig`.
@@ -619,7 +671,7 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '429': { $ref: '#/components/responses/Error' }
         '503':
-          description: LIVE_HOSTING_UNAVAILABLE (hosting disabled by config) or SERVICE_UNAVAILABLE (dependency down).
+          description: LIVE_HOSTING_UNAVAILABLE (hosting disabled by config), MEDIA_UPLOADS_UNAVAILABLE (v1.4; `coverUploadId` sent while uploads are disabled) or SERVICE_UNAVAILABLE (dependency down).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -652,15 +704,19 @@ paths:
                     viewerCount: 0
                     startedAt: '2026-10-16T19:00:00.000Z'
                     coverUrl: null
+                    coverThumbUrl: null
                     category: { slug: music, name: موسيقى }
+                    country: null
                     host:
                       id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80
                       username: layla.k
                       displayName: ليلى
                       avatarUrl: null
+                      avatarThumbUrl: null
                     status: ENDED
                     endedAt: '2026-10-16T20:12:45.120Z'
                     endReason: HOST_ENDED
+                    coverModeration: null
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -720,6 +776,286 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/cover:
+    put:
+      tags: [live]
+      operationId: setLiveRoomCover
+      summary: "Replace or remove the cover of the caller's LIVE room (v1.4)"
+      description: |
+        CONVENTIONS §11.4. Host only. Body `{coverUploadId}`: the caller's own unattached READY
+        `room_cover` upload, or `null` to remove the cover. The previous cover is detached and
+        deleted after the grace period (§11.6). Title and category stay fixed after go-live
+        (§10.3); only the cover can change.
+
+        Check order after body parsing: auth → rate limit → `LIVE_HOSTING_ENABLED` (else 503
+        `LIVE_HOSTING_UNAVAILABLE`, for every caller, before the ownership check) → body schema →
+        room exists and the caller is the host (else 404 `NOT_FOUND`; malformed id too) → room is
+        LIVE with a fresh heartbeat (else 409 `LIVE_ROOM_ENDED`; a stale room is ended with
+        `HEARTBEAT_TIMEOUT` as in `heartbeatLiveRoom`) → a non-null `coverUploadId` while
+        `MEDIA_UPLOADS_ENABLED=false` → 503 `MEDIA_UPLOADS_UNAVAILABLE` → upload valid (else 400,
+        `field "coverUploadId"`, `issue "invalid_value"`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetLiveRoomCoverRequest' }
+            example: { coverUploadId: 0192f1e0-3333-7ccc-8ddd-0e0f10111213 }
+      responses:
+        '200':
+          description: The room with its new cover (the host sees a PENDING cover; others see it once APPROVED).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoom' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: LIVE_ROOM_ENDED — the room is no longer live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: LIVE_HOSTING_UNAVAILABLE, MEDIA_UPLOADS_UNAVAILABLE or SERVICE_UNAVAILABLE.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /api/v1/live/countries:
+    get:
+      tags: [live]
+      operationId: listLiveCountries
+      summary: "Countries that have listed live rooms right now, with real counts (bounded; v1.4)"
+      description: |
+        CONVENTIONS §11.9. One row per country with at least one room that `listLiveRooms` would
+        list (status LIVE, fresh heartbeat, ACTIVE host) and a non-null room country. Rooms whose
+        host chose no country are not counted anywhere. `liveRoomCount` is a real count over that
+        predicate; it may be cached for at most `LIVE_HEARTBEAT_INTERVAL_SECONDS` (15 s), so it can
+        briefly differ from the list. Ordered by `liveRoomCount` desc, then `code` asc. Bounded by
+        the vendored country list (≤ 300), so unpaginated. `name` is localized like category names
+        (§10.1). Empty while nobody is live (always, while `LIVE_HOSTING_ENABLED=false`).
+      responses:
+        '200':
+          description: Countries with live rooms (possibly empty).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 300
+                    items: { $ref: '#/components/schemas/LiveCountry' }
+              examples:
+                empty:
+                  summary: Nobody is live (production today)
+                  value: { data: [] }
+                two:
+                  summary: Two countries with live rooms (Accept-Language ar)
+                  value:
+                    data:
+                      - { code: SA, name: المملكة العربية السعودية, liveRoomCount: 3 }
+                      - { code: EG, name: مصر, liveRoomCount: 1 }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/countries:
+    get:
+      tags: [reference]
+      operationId: listCountries
+      summary: "All selectable countries with localized names (bounded; v1.4)"
+      description: |
+        CONVENTIONS §11.7. The vendored ISO 3166-1 alpha-2 list with names from the pinned CLDR
+        release, localized like category names (§10.1) and sorted by the localized name with the
+        locale's collation. Used by the profile country picker. Static per server release.
+      responses:
+        '200':
+          description: Every selectable country.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 300
+                    items: { $ref: '#/components/schemas/Country' }
+              example:
+                data:
+                  - { code: AE, name: United Arab Emirates }
+                  - { code: EG, name: Egypt }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/media/config:
+    get:
+      tags: [media]
+      operationId: getMediaConfig
+      summary: "Upload feature switch and limits (v1.4)"
+      description: |
+        Lets the client hide every upload control when `uploadsEnabled = false` and pre-check a
+        file before asking for an upload (CONVENTIONS §11.2). The server re-checks everything;
+        these values are informational for the client. Image hosts are **not** taken from here:
+        the client allow-lists hosts from its own build configuration (§11.10).
+      responses:
+        '200':
+          description: Current media configuration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaConfig' }
+              example:
+                uploadsEnabled: false
+                allowedContentTypes: [image/jpeg, image/png, image/webp]
+                maxPixels: 40000000
+                maxSidePixels: 8192
+                purposes:
+                  avatar: { maxBytes: 5242880, minWidth: 128, minHeight: 128, aspectRatio: '1:1' }
+                  room_cover: { maxBytes: 10485760, minWidth: 480, minHeight: 640, aspectRatio: '3:4' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/media/uploads:
+    post:
+      tags: [media]
+      operationId: createMediaUpload
+      summary: "Declare an image upload and get a short-lived presigned PUT URL (v1.4)"
+      description: |
+        CONVENTIONS §11.3. Step 1 of 3. Check order after body parsing: auth → rate limits
+        (counted before the feature gate, like go-live) → `MEDIA_UPLOADS_ENABLED` (else 503
+        `MEDIA_UPLOADS_UNAVAILABLE`, no `Retry-After`) → body schema (`byteSize` above the
+        purpose limit → `too_big`) → for `room_cover`, `LIVE_HOSTING_ENABLED` (else 503
+        `LIVE_HOSTING_UNAVAILABLE`) → the caller has fewer than `MEDIA_MAX_PENDING_PER_USER`
+        uploads in `AWAITING_UPLOAD` (else 429 `RATE_LIMITED` with `Retry-After` = seconds until
+        the oldest one expires).
+
+        Step 2: the client sends the file bytes with `method` to `url`, with **exactly** the
+        `headers` returned (they are part of the signature; `Content-Length` must equal
+        `byteSize`). The URL is valid until `expiresAt` and only for that one object. The client
+        sends no bearer token to storage. Step 3: `completeMediaUpload`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMediaUploadRequest' }
+            example: { purpose: avatar, contentType: image/jpeg, byteSize: 734003 }
+      responses:
+        '201':
+          description: Upload declared; send the bytes to the presigned URL.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUploadTicket' }
+              example:
+                uploadId: 0192f1e0-2222-7bbb-8ccc-0d0e0f101112
+                purpose: avatar
+                method: PUT
+                url: https://storage.example.invalid/incoming/0192f1e0-2222-7bbb-8ccc-0d0e0f101112?X-Amz-Signature=redacted
+                headers: { Content-Type: image/jpeg, Content-Length: '734003' }
+                expiresAt: '2026-10-16T19:10:00.000Z'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: MEDIA_UPLOADS_UNAVAILABLE (uploads disabled or storage not configured), LIVE_HOSTING_UNAVAILABLE (`room_cover` while hosting is disabled) or SERVICE_UNAVAILABLE.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /api/v1/media/uploads/{uploadId}:
+    get:
+      tags: [media]
+      operationId: getMediaUpload
+      summary: "Get the state of one of the caller's uploads (v1.4)"
+      description: |
+        Owner only: another user's upload, an unknown id or a malformed id → 404 `NOT_FOUND`.
+        Used to show "under review" and to learn a moderation result (§11.5). Works while
+        uploads are disabled (read-only).
+      parameters:
+        - $ref: '#/components/parameters/UploadIdPath'
+      responses:
+        '200':
+          description: The upload.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUpload' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/media/uploads/{uploadId}/complete:
+    post:
+      tags: [media]
+      operationId: completeMediaUpload
+      summary: "Verify and process an uploaded image (v1.4)"
+      description: |
+        CONVENTIONS §11.3. Step 3 of 3. No request body. Synchronous: the server reads the
+        object it signed for (never a client-supplied URL), checks size, real type by magic
+        bytes, dimensions and pixel count before decoding, decodes with only the JPEG/PNG/WebP
+        decoders, applies EXIF orientation, converts to sRGB, strips all metadata, re-encodes the
+        derivatives (§11.2) to the public store, deletes the original and returns `READY`.
+        Moderation then runs asynchronously (`moderationStatus`).
+
+        Check order: auth → rate limit → `MEDIA_UPLOADS_ENABLED` (503) → owner (else 404, also
+        for unknown or malformed ids) → state:
+        - `READY` (already completed) → 200 with the same body (idempotent);
+        - `FAILED` → 422 `MEDIA_UPLOAD_REJECTED` again, with the original details;
+        - `EXPIRED`, or `AWAITING_UPLOAD` past its expiry → 410 `MEDIA_UPLOAD_EXPIRED`;
+        - `AWAITING_UPLOAD` and no object in storage yet → 409 `MEDIA_UPLOAD_NOT_RECEIVED`
+          (retry after the PUT finishes; the upload stays usable until it expires);
+        - verification fails → 422 `MEDIA_UPLOAD_REJECTED`, the upload becomes `FAILED` and
+          the object is deleted;
+        - image processing saturated → 503 `SERVICE_UNAVAILABLE` with `Retry-After`.
+      parameters:
+        - $ref: '#/components/parameters/UploadIdPath'
+      responses:
+        '200':
+          description: The processed upload (status READY), ready to attach.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUpload' }
+              example:
+                uploadId: 0192f1e0-2222-7bbb-8ccc-0d0e0f101112
+                purpose: avatar
+                status: READY
+                moderationStatus: PENDING
+                width: 512
+                height: 512
+                url: https://media.example.invalid/a/Yk3vQm9xT2sY8aE3k9Lzwq/512.webp
+                thumbUrl: https://media.example.invalid/a/Yk3vQm9xT2sY8aE3k9Lzwq/128.webp
+                attached: false
+                expiresAt: '2026-10-17T19:02:00.000Z'
+                failure: null
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: MEDIA_UPLOAD_NOT_RECEIVED — no object at the signed location yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '410':
+          description: MEDIA_UPLOAD_EXPIRED — the upload window closed; declare a new upload.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422':
+          description: |
+            MEDIA_UPLOAD_REJECTED — the file failed verification. `details` has one entry with
+            `field "file"` and `issue` one of `too_big` (bytes, or pixels/side over the limit),
+            `too_small` (below the minimum dimensions), `invalid_format` (real type differs from
+            the declared type, unsupported type, animated image, undecodable or truncated data).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: MEDIA_UPLOADS_UNAVAILABLE or SERVICE_UNAVAILABLE (with `Retry-After` when image processing is saturated).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -749,6 +1085,12 @@ components:
       in: path
       required: true
       description: A malformed id is treated as not found (404), never 400.
+      schema: { type: string, format: uuid }
+    UploadIdPath:
+      name: uploadId
+      in: path
+      required: true
+      description: The caller's own upload id (v1.4). Another user's, unknown or malformed → 404, never 400 or 403.
       schema: { type: string, format: uuid }
   responses:
     Error:
@@ -876,11 +1218,47 @@ components:
         username: { $ref: '#/components/schemas/Username' }
         displayName: { type: string }
         bio: { type: [string, 'null'], maxLength: 300 }
-        avatarUrl: { type: [string, 'null'], format: uri }
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — the caller's avatar (512 px), including while its moderation is PENDING (CONVENTIONS §11.5).
+        avatarThumbUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — 128 px derivative of the same avatar; null exactly when `avatarUrl` is null.
+        avatarModeration:
+          description: v1.4 — moderation state of the caller's current avatar; null when there is no avatar.
+          oneOf:
+            - { $ref: '#/components/schemas/ModerationStatus' }
+            - { type: 'null' }
+        country:
+          description: v1.4 — the country the user chose (CONVENTIONS §11.7); null unless set.
+          oneOf:
+            - { $ref: '#/components/schemas/CountryCode' }
+            - { type: 'null' }
         locale: { $ref: '#/components/schemas/Locale' }
         role: { type: string, enum: [USER, ADMIN] }
         isPrivate: { type: boolean }
         createdAt: { type: string, format: date-time }
+    UpdateMeRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      description: |
+        v1.4: every property optional, at least one required, all-or-nothing (v1.2 required
+        `locale`; a body with only `locale` is still valid). An empty object → 400
+        `VALIDATION_FAILED` (`field ""`, `issue "required"`).
+      properties:
+        locale: { $ref: '#/components/schemas/Locale' }
+        avatarUploadId:
+          type: [string, 'null']
+          format: uuid
+          description: v1.4 — the caller's own unattached READY `avatar` upload; null removes the avatar (CONVENTIONS §11.4).
+        country:
+          description: v1.4 — ISO 3166-1 alpha-2 code from `listCountries`, or null to clear (CONVENTIONS §11.7).
+          oneOf:
+            - { $ref: '#/components/schemas/CountryCode' }
+            - { type: 'null' }
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -902,21 +1280,37 @@ components:
     UserSummary:
       type: object
       description: Minimal public identity of a user (v1.3). Never contains an email.
-      required: [id, username, displayName, avatarUrl]
+      required: [id, username, displayName, avatarUrl, avatarThumbUrl]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
         displayName: { type: string }
-        avatarUrl: { type: [string, 'null'], format: uri }
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — 512 px avatar; null when none, or when it is not visible to the caller (moderation, CONVENTIONS §11.5).
+        avatarThumbUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — 128 px derivative; null exactly when `avatarUrl` is null.
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isSelf, liveRoomId]
+      required: [id, username, displayName, avatarUrl, avatarThumbUrl, bio, country, isPrivate, followerCount, followingCount, isFollowing, isSelf, liveRoomId]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
         displayName: { type: string }
-        avatarUrl: { type: [string, 'null'], format: uri }
+        avatarUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — as in `UserSummary` (a PENDING avatar is visible only when `isSelf`).
+        avatarThumbUrl: { type: [string, 'null'], format: uri }
         bio: { type: [string, 'null'], maxLength: 300 }
+        country:
+          description: v1.4 — the country the user chose to show (CONVENTIONS §11.7); null unless set. Never inferred.
+          oneOf:
+            - { $ref: '#/components/schemas/CountryCode' }
+            - { type: 'null' }
         isPrivate:
           type: boolean
           description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
@@ -978,7 +1372,7 @@ components:
         mixed-script rule do **not** apply.
     LiveRoomSummary:
       type: object
-      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host]
+      required: [id, title, mode, viewerCount, startedAt, coverUrl, coverThumbUrl, category, country, host]
       properties:
         id: { type: string, format: uuid }
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
@@ -991,24 +1385,41 @@ components:
         coverUrl:
           type: [string, 'null']
           format: uri
-          description: Always null in v1.3 (no upload yet); the card falls back to the host avatar.
+          description: |
+            Always null in v1.3 (no upload). v1.4: the 960×1280 cover; null when the room has no
+            cover or the cover is not visible to the caller (moderation, CONVENTIONS §11.5). The
+            card then falls back to the host avatar / the C2 tinted fallback.
+        coverThumbUrl:
+          type: [string, 'null']
+          format: uri
+          description: v1.4 — 480×640 derivative of the same cover; null exactly when `coverUrl` is null.
         category:
           description: Null when the room has no category.
           oneOf:
             - { $ref: '#/components/schemas/LiveCategory' }
+            - { type: 'null' }
+        country:
+          description: v1.4 — the host's chosen country, copied at go-live and kept in sync while LIVE (CONVENTIONS §11.8); null when the host chose none.
+          oneOf:
+            - { $ref: '#/components/schemas/CountryCode' }
             - { type: 'null' }
         host: { $ref: '#/components/schemas/UserSummary' }
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason]
+          required: [status, endedAt, endReason, coverModeration]
           properties:
             status: { type: string, enum: [LIVE, ENDED] }
             endedAt: { type: [string, 'null'], format: date-time }
             endReason:
               type: [string, 'null']
               enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, null]
+            coverModeration:
+              description: v1.4 — moderation state of the room's cover, sent **only to the host**; null for every other caller and when there is no cover.
+              oneOf:
+                - { $ref: '#/components/schemas/ModerationStatus' }
+                - { type: 'null' }
     LiveRoomPage:
       type: object
       required: [data, page]
@@ -1024,5 +1435,161 @@ components:
       properties:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug: { $ref: '#/components/schemas/CategorySlug' }
+        coverUploadId:
+          type: string
+          format: uuid
+          description: v1.4 — optional; the caller's own unattached READY `room_cover` upload (CONVENTIONS §11.4).
+    SetLiveRoomCoverRequest:
+      type: object
+      required: [coverUploadId]
+      additionalProperties: false
+      properties:
+        coverUploadId:
+          type: [string, 'null']
+          format: uuid
+          description: The caller's own unattached READY `room_cover` upload, or null to remove the cover.
+    CountryCode:
+      type: string
+      minLength: 2
+      maxLength: 2
+      pattern: '^[A-Z]{2}$'
+      description: |
+        v1.4. ISO 3166-1 alpha-2, uppercase, and on the vendored list (CONVENTIONS §11.7; the
+        pattern alone is not enough). Clients never derive it from IP, SIM, phone number or
+        device region.
+    Country:
+      type: object
+      required: [code, name]
+      properties:
+        code: { $ref: '#/components/schemas/CountryCode' }
+        name:
+          type: string
+          maxLength: 80
+          description: Localized by `Accept-Language` (ar|en), else the caller's stored locale, else ar (as CONVENTIONS §10.1).
+    LiveCountry:
+      allOf:
+        - { $ref: '#/components/schemas/Country' }
+        - type: object
+          required: [liveRoomCount]
+          properties:
+            liveRoomCount:
+              type: integer
+              minimum: 1
+              description: Rooms with this country that `listLiveRooms` would list now (may lag up to 15 s).
+    ModerationStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+      description: v1.4 (CONVENTIONS §11.5). Clients render an unrecognised future value as PENDING.
+    MediaPurpose:
+      type: string
+      enum: [avatar, room_cover]
+    MediaContentType:
+      type: string
+      enum: [image/jpeg, image/png, image/webp]
+      description: v1.4. HEIC/HEIF, GIF, SVG, AVIF and every other type are refused (CONVENTIONS §11.2).
+    MediaPurposeLimits:
+      type: object
+      required: [maxBytes, minWidth, minHeight, aspectRatio]
+      properties:
+        maxBytes: { type: integer, minimum: 1 }
+        minWidth:
+          type: integer
+          minimum: 1
+          description: Minimum width of the largest centred crop at `aspectRatio`.
+        minHeight: { type: integer, minimum: 1 }
+        aspectRatio:
+          type: string
+          enum: ['1:1', '3:4']
+          description: The server centre-crops to this ratio; the client should let the user crop first.
+    MediaConfig:
+      type: object
+      required: [uploadsEnabled, allowedContentTypes, maxPixels, maxSidePixels, purposes]
+      properties:
+        uploadsEnabled:
+          type: boolean
+          description: Server config `MEDIA_UPLOADS_ENABLED` (default false; true only with storage configured). When false the client hides every upload control.
+        allowedContentTypes:
+          type: array
+          items: { $ref: '#/components/schemas/MediaContentType' }
+        maxPixels: { type: integer, minimum: 1, description: 'Width × height limit, checked from the header before decoding.' }
+        maxSidePixels: { type: integer, minimum: 1 }
+        purposes:
+          type: object
+          required: [avatar, room_cover]
+          properties:
+            avatar: { $ref: '#/components/schemas/MediaPurposeLimits' }
+            room_cover: { $ref: '#/components/schemas/MediaPurposeLimits' }
+    CreateMediaUploadRequest:
+      type: object
+      required: [purpose, contentType, byteSize]
+      additionalProperties: false
+      properties:
+        purpose: { $ref: '#/components/schemas/MediaPurpose' }
+        contentType: { $ref: '#/components/schemas/MediaContentType' }
+        byteSize:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+          description: Exact size of the file in bytes. Above the purpose's `maxBytes` → 400 `too_big`.
+    MediaUploadTicket:
+      type: object
+      required: [uploadId, purpose, method, url, headers, expiresAt]
+      properties:
+        uploadId: { type: string, format: uuid }
+        purpose: { $ref: '#/components/schemas/MediaPurpose' }
+        method:
+          type: string
+          enum: [PUT]
+          description: Only presigned PUT in v1.4 (works on every S3-compatible store, CONVENTIONS §11.3).
+        url:
+          type: string
+          format: uri
+          description: Presigned storage URL, https in production. Secret-bearing; the client never logs it.
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          description: Headers the client must send exactly (signed). Includes `Content-Type` and `Content-Length`.
+        expiresAt: { type: string, format: date-time }
+    MediaUploadFailure:
+      type: object
+      required: [field, issue]
+      properties:
+        field: { type: string, enum: [file] }
+        issue: { type: string, enum: [too_big, too_small, invalid_format] }
+    MediaUpload:
+      type: object
+      required: [uploadId, purpose, status, moderationStatus, width, height, url, thumbUrl, attached, expiresAt, failure]
+      description: v1.4 — one of the caller's uploads (owner-only view).
+      properties:
+        uploadId: { type: string, format: uuid }
+        purpose: { $ref: '#/components/schemas/MediaPurpose' }
+        status:
+          type: string
+          enum: [AWAITING_UPLOAD, READY, FAILED, EXPIRED, DELETED]
+          description: CONVENTIONS §11.3/§11.6. Clients treat an unrecognised future value as not usable.
+        moderationStatus:
+          description: Null until READY.
+          oneOf:
+            - { $ref: '#/components/schemas/ModerationStatus' }
+            - { type: 'null' }
+        width: { type: [integer, 'null'], minimum: 1, description: Width of the main derivative; null until READY. }
+        height: { type: [integer, 'null'], minimum: 1 }
+        url:
+          type: [string, 'null']
+          format: uri
+          description: Main derivative (avatar 512 px, cover 960×1280) for the owner's preview; null unless READY. Allowed hosts only (§11.10).
+        thumbUrl: { type: [string, 'null'], format: uri }
+        attached:
+          type: boolean
+          description: True once used as an avatar or room cover (an upload is attached at most once).
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: AWAITING_UPLOAD — end of the upload window; READY and not attached — when it is deleted if never attached; otherwise null.
+        failure:
+          description: Set only when FAILED.
+          oneOf:
+            - { $ref: '#/components/schemas/MediaUploadFailure' }
+            - { type: 'null' }
 security:
   - bearerAuth: []
