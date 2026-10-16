@@ -140,6 +140,11 @@ abstract final class KMetrics {
   /// §2 bottom nav: active-destination dot above the icon.
   static const double navDotSize = KSpacing.xs;
 
+  /// KL-047: vertical placement of a feed region's state block in the space
+  /// under the header (`Alignment.y`: −1 top, 0 centre). Slightly above the
+  /// centre so the block reads as composed, not dropped into a void.
+  static const double regionStateAlignmentY = -0.25;
+
   /// VG-03 compact empty/error state icon (no circle container).
   static const double compactStateIcon = KSpacing.xxxl;
 

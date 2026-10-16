@@ -10,8 +10,9 @@ enum KBadgeVariant { live, pk, newRoom, multiGuest }
 /// Non-interactive status badge (DESIGN_SYSTEM §9.5, VG-11/12/16), 20 dp
 /// high, white `label` at weight 700:
 ///
-/// - `live`: "LIVE" / "مباشر" on `live.badge` (4.79:1). Only where live and
-///   non-live content mix (profile, search, avatars), not in live grids.
+/// - `live`: "LIVE" / "مباشر" on `live.badge` (4.79:1). Where live and
+///   non-live content mix (profile, search, avatars) and, since KL-047 (owner
+///   request, reversing VG-10), on live grid cards too.
 /// - `pk`: "PK" on a **solid** `brand.red600` fill (6.8:1); gradients are
 ///   reserved for the avatar live ring (VG-16).
 /// - `newRoom`: "New" / "جديد" on `scrim`, shown instead of a viewer count

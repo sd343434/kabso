@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -9,8 +10,10 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Copy and icons for one tab's non-content states (HL-H6). Every tab has
-/// its own unavailable copy.
+/// Copy, icons and actions for one tab's non-content states (HL-H6,
+/// KL-047). Every tab has its own unavailable copy. Every action must do
+/// something real (switch tab, open a route, re-request); there are no
+/// decorative buttons.
 @immutable
 class FeedRegionCopy {
   const new({
@@ -21,8 +24,14 @@ class FeedRegionCopy {
     required this.emptyTitle,
     required this.emptyBody,
     required this.errorTitle,
+    this.unavailableActionLabel,
+    this.unavailableActionIcon,
+    this.onUnavailableAction,
     this.emptyActionLabel,
+    this.emptyActionIcon,
     this.onEmptyAction,
+    this.emptySecondaryActionLabel,
+    this.onEmptySecondaryAction,
     this.loadMoreFailed,
     this.endOfList,
   });
@@ -35,9 +44,20 @@ class FeedRegionCopy {
   final String emptyBody;
   final String errorTitle;
 
-  /// Optional real action on the empty state (e.g. "See popular").
+  /// The unavailable state's main action (e.g. Home "Watch live streams",
+  /// Live "Try again" re-checking `GET /live/config`).
+  final String? unavailableActionLabel;
+  final IconData? unavailableActionIcon;
+  final VoidCallback? onUnavailableAction;
+
+  /// The empty state's main action (e.g. "Try again", "See popular").
   final String? emptyActionLabel;
+  final IconData? emptyActionIcon;
   final VoidCallback? onEmptyAction;
+
+  /// Optional second action on the empty state (e.g. "See new streams").
+  final String? emptySecondaryActionLabel;
+  final VoidCallback? onEmptySecondaryAction;
 
   /// Paginated lists (HL-H5): the inline footer error text ("Couldn't load
   /// more") and the end-of-list caption. `null` for unpaginated content.
@@ -49,13 +69,22 @@ class FeedRegionCopy {
 /// floating [header] (e.g. the category chips, which scroll away and come
 /// back on a reverse scroll) above the tab's content or its state:
 ///
-/// | content | shows |
-/// | ------- | ----- |
-/// | loading | [loadingSliver], revealed after 300 ms (no flash) |
-/// | [FeedUnavailable] | compact unavailable state; no pull-to-refresh |
-/// | empty [FeedItems] | compact empty state (+ optional action) |
-/// | error | compact error state with Try again + Error ID |
-/// | [FeedItems] | [itemsSliver] |
+/// | content (checked in this order) | shows |
+/// | ------------------------------- | ----- |
+/// | non-empty [FeedItems] | [itemsSliver] |
+/// | error, not reloading | offline state (QA-003) or error state |
+/// | loading (also a reload of an empty/unavailable/failed tab) | [loadingSliver], revealed after 300 ms (no flash) |
+/// | empty [FeedItems] | empty state with its actions |
+/// | [FeedUnavailable] | unavailable state with its action |
+///
+/// The offline state is for the client-only `NETWORK_OFFLINE`; every other
+/// failure gets the error state with Try again and the Error ID. So the
+/// empty state is never shown while loading or after an error.
+///
+/// KL-047: a state is not a lone line in a void. It fills the space under
+/// the header and its block (88 dp icon disc, title, body, actions) sits a
+/// little above the optical centre (`KMetrics.regionStateAlignmentY`); with
+/// large text it grows and scrolls instead of overflowing.
 ///
 /// Pull-to-refresh calls [onRefresh] only where a data source exists
 /// (items, empty or error; also unavailable with [refreshWhenUnavailable],
@@ -84,6 +113,10 @@ class FeedRegion<T> extends StatelessWidget {
 
   static const loadMoreErrorKey = Key('feed.loadMoreError');
   static const endOfListKey = Key('feed.endOfList');
+  static const unavailableKey = Key('feed.unavailable');
+  static const emptyKey = Key('feed.empty');
+  static const errorKey = Key('feed.error');
+  static const offlineKey = Key('feed.offline');
 
   final AsyncValue<FeedLoad<T>> content;
   final FeedRegionCopy copy;
@@ -103,36 +136,70 @@ class FeedRegion<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final body = switch (content) {
+    final failure = switch (content) {
+      AsyncValue(:final error?, isLoading: false) => toAppFailure(error),
+      _ => null,
+    };
+    final state = switch (content) {
       AsyncValue(value: FeedItems<T>(:final items)) when items.isNotEmpty =>
+        null,
+      _ when failure?.code == ErrorCode.networkOffline => KEmptyState(
+        key: offlineKey,
+        embedded: true,
+        icon: Icons.wifi_off_rounded,
+        iconColor: context.palette.textSecondary,
+        title: l10n.feedOfflineTitle,
+        message: l10n.feedOfflineBody,
+        actionLabel: l10n.actionRetry,
+        onAction: onRetry,
+        actionVariant: KButtonVariant.primary,
+      ),
+      _ when failure != null => FailureErrorState(
+        key: errorKey,
+        embedded: true,
+        title: copy.errorTitle,
+        failure: failure,
+        onRetry: onRetry,
+        retryVariant: KButtonVariant.primary,
+      ),
+      AsyncValue(isLoading: true) => null,
+      AsyncValue(value: FeedItems<T>()) => KEmptyState(
+        key: emptyKey,
+        embedded: true,
+        icon: copy.emptyIcon,
+        title: copy.emptyTitle,
+        message: copy.emptyBody,
+        actionLabel: copy.emptyActionLabel,
+        actionIcon: copy.emptyActionIcon,
+        onAction: copy.onEmptyAction,
+        actionVariant: KButtonVariant.primary,
+        secondaryActionLabel: copy.emptySecondaryActionLabel,
+        onSecondaryAction: copy.onEmptySecondaryAction,
+      ),
+      AsyncValue(value: FeedUnavailable<T>()) => KEmptyState(
+        key: unavailableKey,
+        embedded: true,
+        icon: copy.unavailableIcon,
+        title: copy.unavailableTitle,
+        message: copy.unavailableBody,
+        actionLabel: copy.unavailableActionLabel,
+        actionIcon: copy.unavailableActionIcon,
+        onAction: copy.onUnavailableAction,
+        actionVariant: KButtonVariant.primary,
+      ),
+      _ => null,
+    };
+    final body = switch ((state, content)) {
+      (final state?, _) => SliverFillRemaining(
+        hasScrollBody: false,
+        child: Align(
+          alignment: const Alignment(0, KMetrics.regionStateAlignmentY),
+          child: state,
+        ),
+      ),
+      (_, AsyncValue(value: FeedItems<T>(:final items)))
+          when items.isNotEmpty =>
         itemsSliver(items),
-      AsyncValue(value: FeedItems<T>()) => _box(
-        KEmptyState(
-          compact: true,
-          icon: copy.emptyIcon,
-          title: copy.emptyTitle,
-          message: copy.emptyBody,
-          actionLabel: copy.emptyActionLabel,
-          onAction: copy.onEmptyAction,
-        ),
-      ),
-      AsyncValue(value: FeedUnavailable<T>()) => _box(
-        KEmptyState(
-          key: const Key('feed.unavailable'),
-          compact: true,
-          icon: copy.unavailableIcon,
-          title: copy.unavailableTitle,
-          message: copy.unavailableBody,
-        ),
-      ),
-      AsyncValue(:final error?, isLoading: false) => _box(
-        FailureErrorState(
-          compact: true,
-          title: copy.errorTitle,
-          failure: toAppFailure(error),
-          onRetry: onRetry,
-        ),
-      ),
       _ => _DelayedSliver(child: loadingSliver),
     };
     final refreshable =
@@ -165,7 +232,9 @@ class FeedRegion<T> extends StatelessWidget {
         if (header case final header?) SliverFloatingHeader(child: header),
         body,
         ?footer,
-        const SliverToBoxAdapter(child: SizedBox(height: KSpacing.lg)),
+        // A state already fills the rest of the region.
+        if (state == null)
+          const SliverToBoxAdapter(child: SizedBox(height: KSpacing.lg)),
       ],
     );
     final region = switch (onLoadMore) {

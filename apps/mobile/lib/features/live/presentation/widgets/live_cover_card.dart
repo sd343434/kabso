@@ -7,25 +7,32 @@ import 'package:material_ui/material_ui.dart';
 /// Live room tile (DESIGN_SYSTEM §9.10, HOME_LIVE_LAYOUT_DECISIONS §6):
 /// 3:4 cover, radius `sm`, no accent line (VG-10).
 ///
-/// - top-start: viewer chip, or "New" below 1 viewer (VG-11); the LIVE badge
-///   only with [showLiveBadge] (mixed live/non-live contexts — a live-only
-///   grid leaves it off).
+/// - top-start: the LIVE badge (KL-047 owner request, reversing VG-10's
+///   "no LIVE badge in grids"; [showLiveBadge] turns it off), then the viewer
+///   chip only when at least 1 viewer is reported, otherwise "New" (VG-11):
+///   a count is never invented. The group scales down rather than run into
+///   the mode tag on narrow cards.
 /// - top-end: room mode tag, only when true: PK (solid) or multi-guest.
-/// - bottom: 50 % scrim, host (`bodyStrong`) and title (`caption`), 1 line
-///   each; with a cover, a `sm` host avatar before them (D39: creator
-///   identity on every card).
+/// - bottom: 50 % scrim, host (`bodyStrong`), title (`caption`) and the
+///   category name when the room has one (`caption` after a `#` glyph),
+///   1 line each; with
+///   a cover, a `sm` host avatar before them (D39: creator identity on every
+///   card).
 /// - missing or broken cover: the host avatar on `surfaceRaised`, no error
 ///   text (VG-13).
 /// - press: scales to 0.98 for `durationFast` (instant with reduce motion).
 ///
-/// Announced as "{host}, live, {n viewers | New}, {title}[, {mode}]".
+/// Announced as "{host}, live, {n viewers | New}, {title}[, {mode}]
+/// [, {category}]".
 class KLiveCoverCard extends StatelessWidget {
   const new({
     required this.room,
     super.key,
     this.onTap,
-    this.showLiveBadge = false,
+    this.showLiveBadge = true,
   });
+
+  static const categoryKey = Key('liveCard.category');
 
   final LiveRoomCardData room;
   final VoidCallback? onTap;
@@ -54,9 +61,14 @@ class KLiveCoverCard extends StatelessWidget {
             ),
       room.title,
     );
-    final semantics = mode == null
+    final withMode = mode == null
         ? base
         : l10n.liveCardSemanticsMode(base, mode);
+    final category = room.categoryName;
+    final hasCategory = category != null && category.isNotEmpty;
+    final semantics = hasCategory
+        ? l10n.liveCardSemanticsCategory(withMode, category)
+        : withMode;
     final fallback = _CoverFallback(room: room);
     final Widget viewers = isNew
         ? const KBadge.newRoom()
@@ -83,29 +95,35 @@ class KLiveCoverCard extends StatelessWidget {
             PositionedDirectional(
               top: KSpacing.sm,
               start: KSpacing.sm,
-              child: showLiveBadge
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const KBadge.live(),
-                        const SizedBox(width: KSpacing.xs),
-                        viewers,
-                      ],
-                    )
-                  : viewers,
-            ),
-            if (room.inPk)
-              const PositionedDirectional(
-                top: KSpacing.sm,
-                end: KSpacing.sm,
-                child: KBadge.pk(),
-              )
-            else if (guests != null)
-              PositionedDirectional(
-                top: KSpacing.sm,
-                end: KSpacing.sm,
-                child: KBadge.multiGuest(count: guests),
+              end: KSpacing.sm,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showLiveBadge) ...[
+                            const KBadge.live(),
+                            const SizedBox(width: KSpacing.xs),
+                          ],
+                          viewers,
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (room.inPk) ...[
+                    const SizedBox(width: KSpacing.xs),
+                    const KBadge.pk(),
+                  ] else if (guests != null) ...[
+                    const SizedBox(width: KSpacing.xs),
+                    KBadge.multiGuest(count: guests),
+                  ],
+                ],
               ),
+            ),
             PositionedDirectional(
               start: KSpacing.sm,
               end: KSpacing.sm,
@@ -132,6 +150,26 @@ class KLiveCoverCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: text.caption.copyWith(color: white),
                         ),
+                        if (hasCategory)
+                          Row(
+                            key: KLiveCoverCard.categoryKey,
+                            children: [
+                              Icon(
+                                Icons.tag_rounded,
+                                size: KMetrics.iconXs,
+                                color: white,
+                              ),
+                              const SizedBox(width: KSpacing.xxs),
+                              Flexible(
+                                child: Text(
+                                  category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.caption.copyWith(color: white),
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

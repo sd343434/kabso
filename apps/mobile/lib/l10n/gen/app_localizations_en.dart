@@ -669,25 +669,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedPullToRefresh => 'Pull down to refresh.';
 
   @override
-  String get homeFollowingUnavailableTitle => 'Posts from people you follow';
+  String get homeFollowingUnavailableTitle => 'Stay close to your people';
 
   @override
   String get homeFollowingUnavailableBody =>
-      'Coming soon: posts from people you follow will appear here.';
+      'Posts from people you follow will appear here soon. Meanwhile, see who\'s live right now.';
 
   @override
-  String get homePopularUnavailableTitle => 'Popular posts are coming soon';
+  String get homePopularUnavailableTitle => 'Posts are on their way';
 
   @override
   String get homePopularUnavailableBody =>
-      'Posts people enjoy most will appear here.';
+      'Soon the posts everyone is talking about will show up here. Until then, join a live stream.';
 
   @override
-  String get homeNewUnavailableTitle => 'New posts are coming soon';
+  String get homeNewUnavailableTitle => 'Fresh posts, coming soon';
 
   @override
   String get homeNewUnavailableBody =>
-      'The latest posts will appear here, newest first.';
+      'The newest posts from the community will land here first. For now, see who just went live.';
 
   @override
   String get homeEmptyTitle => 'No posts yet';
@@ -702,43 +702,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveHubChipAll => 'All';
 
   @override
-  String get liveHubFollowingUnavailableTitle =>
-      'Live rooms from people you follow';
+  String get liveHubFollowingUnavailableTitle => 'Live from people you follow';
 
   @override
   String get liveHubFollowingUnavailableBody =>
-      'Live rooms aren\'t available yet. Rooms from people you follow will appear here once they are.';
+      'Live streaming isn\'t open yet. Once it is, you\'ll see here when people you follow go live.';
 
   @override
-  String get liveHubPopularUnavailableTitle =>
-      'Live rooms aren\'t available yet';
+  String get liveHubPopularUnavailableTitle => 'Live streaming isn\'t open yet';
 
   @override
   String get liveHubPopularUnavailableBody =>
-      'People who are live right now will appear here.';
+      'We\'re getting it ready. When it opens, the most-watched streams will appear here.';
 
   @override
-  String get liveHubNewUnavailableTitle =>
-      'New live rooms aren\'t available yet';
+  String get liveHubNewUnavailableTitle => 'New streams will start here';
 
   @override
   String get liveHubNewUnavailableBody =>
-      'Rooms that just started will appear here, so new hosts get seen.';
+      'Live streaming isn\'t open yet. Once it is, streams that just started will appear here first.';
 
   @override
-  String get liveHubEmptyTitle => 'No one is live right now';
+  String get liveHubEmptyTitle => 'No live streams right now';
 
   @override
   String get liveHubFollowingEmptyTitle => 'No one you follow is live';
 
   @override
-  String get liveHubErrorTitle => 'Couldn\'t load live rooms';
+  String get liveHubErrorTitle => 'Couldn\'t load live streams';
 
   @override
   String get liveHubLoadMoreFailed => 'Couldn\'t load more';
 
   @override
-  String get liveHubListEnd => 'Pull down for new live rooms';
+  String get liveHubListEnd => 'Pull down for new streams';
 
   @override
   String get liveCardNew => 'New';
@@ -761,4 +758,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get feedPostJustNow => 'Just now';
+
+  @override
+  String get feedOfflineTitle => 'You\'re offline';
+
+  @override
+  String get feedOfflineBody => 'Check your connection, then try again.';
+
+  @override
+  String get homeWatchLive => 'Watch live streams';
+
+  @override
+  String get homeSeeWhoIsLive => 'See who\'s live';
+
+  @override
+  String get liveHubEmptyBody => 'Explore new streams or check back later.';
+
+  @override
+  String get liveHubSeeNew => 'See new streams';
+
+  @override
+  String get liveHubFollowingEmptyBody =>
+      'When people you follow go live, you\'ll find them here.';
+
+  @override
+  String liveCardSemanticsCategory(String card, String category) {
+    return '$card, $category';
+  }
 }

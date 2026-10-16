@@ -163,6 +163,8 @@ class FailureErrorState extends StatelessWidget {
     required this.onRetry,
     super.key,
     this.compact = false,
+    this.embedded = false,
+    this.retryVariant = KButtonVariant.secondary,
   });
 
   final String title;
@@ -171,6 +173,11 @@ class FailureErrorState extends StatelessWidget {
 
   /// In-place variant inside a screen's structure (VG-03).
   final bool compact;
+
+  /// Placed by its parent (see `KEmptyState.embedded`).
+  final bool embedded;
+
+  final KButtonVariant retryVariant;
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +190,8 @@ class FailureErrorState extends StatelessWidget {
       onRetry: onRetry,
       detail: id == null ? null : l10n.errorIdLabel(id),
       compact: compact,
+      embedded: embedded,
+      retryVariant: retryVariant,
     );
   }
 }

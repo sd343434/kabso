@@ -119,10 +119,11 @@ void main() {
               children: [
                 for (final room in liveRooms(language))
                   KLiveCoverCard(room: room, onTap: () {}),
-                // Mixed (live + non-live) contexts opt in to the LIVE badge.
+                // KL-047: the LIVE badge is on by default; this card shows
+                // the opt-out.
                 KLiveCoverCard(
                   room: liveRooms(language).first,
-                  showLiveBadge: true,
+                  showLiveBadge: false,
                 ),
                 const KLiveCoverCardSkeleton(),
               ],

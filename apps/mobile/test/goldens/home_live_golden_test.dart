@@ -1,6 +1,10 @@
 // KL-033 screen goldens: the Home feed and the Live hub with the shell's
 // bottom nav, in ar and en at 393×852 and 360×800 @3x, dark theme.
 //
+// KL-047: no search control in the header; states are composed blocks
+// (88 dp disc, title, body, primary action) placed in the space under the
+// header; LIVE badge and category name on cards; an offline state.
+//
 // Live hub states run the real controller against a fake repository
 // (KL-038, contract v1.3); `live_hub.populated` renders the pure hub body
 // with designed fixture covers. Data comes from test fixtures only (D35). The phone viewport carries iPhone-class insets (59 / 34, the
@@ -167,7 +171,7 @@ void main() {
                 content: AsyncData(FeedItems(hubRooms(language))),
                 onRefresh: () async {},
                 onRetry: () {},
-                onSeePopular: () {},
+                onSelectTab: (_) {},
               ),
             ),
             navIndex: _liveIndex,
@@ -188,7 +192,13 @@ void main() {
                 categories: apiCategories(ar: language == AppLanguage.ar),
                 rooms: (request) => request.cursor == null
                     ? apiPage(
-                        apiRooms(6, ar: language == AppLanguage.ar),
+                        apiRooms(
+                          6,
+                          ar: language == AppLanguage.ar,
+                          categories: apiCategories(
+                            ar: language == AppLanguage.ar,
+                          ),
+                        ),
                         nextCursor: 'c1',
                       )
                     : Completer<LiveRoomPage>().future,
@@ -210,6 +220,21 @@ void main() {
             ),
             // Skeletons appear after the 300 ms reveal delay.
             extraPump: const Duration(milliseconds: 400),
+          );
+        });
+
+        // QA-003: the client-only NETWORK_OFFLINE has its own state.
+        testWidgets('live_hub.offline ($vp)', (tester) async {
+          await golden(
+            tester,
+            'live_hub.offline',
+            screen: const LiveScreen(),
+            navIndex: _liveIndex,
+            overrides: liveOverrides(
+              FakeLiveRepository()
+                ..configFailure = const NetworkFailure.offline(),
+              language: language,
+            ),
           );
         });
 
