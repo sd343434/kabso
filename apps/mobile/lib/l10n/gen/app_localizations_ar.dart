@@ -519,6 +519,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorUnknown => 'حدث خطأ غير متوقع. حاول مرة أخرى.';
 
   @override
+  String get errorLiveHostingUnavailable => 'البث المباشر غير متاح بعد.';
+
+  @override
+  String get errorLiveRoomAlreadyActive =>
+      'لديك بث مباشر قائم بالفعل. تابعه أو أنهِه أولًا.';
+
+  @override
+  String get errorLiveRoomEnded => 'انتهى هذا البث.';
+
+  @override
   String errorIdLabel(String requestId) {
     return 'رمز الخطأ: $requestId';
   }
@@ -678,18 +688,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get homeFollowingUnavailableBody =>
-      'تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.';
+      'قريبًا: ستظهر هنا منشورات من تتابعهم.';
 
   @override
-  String get homePopularUnavailableTitle =>
-      'تصل المنشورات الرائجة في المرحلة 3';
+  String get homePopularUnavailableTitle => 'المنشورات الرائجة قادمة قريبًا';
 
   @override
   String get homePopularUnavailableBody =>
-      'ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.';
+      'ستظهر هنا المنشورات الأكثر إعجابًا.';
 
   @override
-  String get homeNewUnavailableTitle => 'تصل المنشورات الجديدة في المرحلة 3';
+  String get homeNewUnavailableTitle => 'المنشورات الجديدة قادمة قريبًا';
 
   @override
   String get homeNewUnavailableBody =>
@@ -712,18 +721,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveHubFollowingUnavailableBody =>
-      'تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.';
+      'البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.';
 
   @override
-  String get liveHubPopularUnavailableTitle =>
-      'تصل غرف البث المباشر في المرحلة 6';
+  String get liveHubPopularUnavailableTitle => 'غرف البث المباشر غير متاحة بعد';
 
   @override
   String get liveHubPopularUnavailableBody =>
       'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.';
 
   @override
-  String get liveHubNewUnavailableTitle => 'تصل غرف البث الجديدة في المرحلة 6';
+  String get liveHubNewUnavailableTitle => 'غرف البث الجديدة غير متاحة بعد';
 
   @override
   String get liveHubNewUnavailableBody =>
@@ -737,6 +745,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveHubErrorTitle => 'تعذّر تحميل غرف البث';
+
+  @override
+  String get liveHubLoadMoreFailed => 'تعذّر تحميل المزيد';
+
+  @override
+  String get liveHubListEnd => 'اسحب للأسفل لعرض بثوث جديدة';
 
   @override
   String get liveCardNew => 'جديد';

@@ -297,6 +297,18 @@
   "errorNetworkOffline": "لا يوجد اتصال بالإنترنت. تحقّق من اتصالك وحاول مجددًا.",
   "errorNetworkTimeout": "استغرق الاتصال وقتًا طويلًا. حاول مرة أخرى.",
   "errorUnknown": "حدث خطأ غير متوقع. حاول مرة أخرى.",
+  "errorLiveHostingUnavailable": "البث المباشر غير متاح بعد.",
+  "@errorLiveHostingUnavailable": {
+    "description": "LIVE_HOSTING_UNAVAILABLE (503, v1.3): going live is switched off by server config. Not transient."
+  },
+  "errorLiveRoomAlreadyActive": "لديك بث مباشر قائم بالفعل. تابعه أو أنهِه أولًا.",
+  "@errorLiveRoomAlreadyActive": {
+    "description": "LIVE_ROOM_ALREADY_ACTIVE (409, v1.3): go-live refused because the caller already has a live room."
+  },
+  "errorLiveRoomEnded": "انتهى هذا البث.",
+  "@errorLiveRoomEnded": {
+    "description": "LIVE_ROOM_ENDED (409, v1.3): the room is no longer live."
+  },
   "errorIdLabel": "رمز الخطأ: {requestId}",
   "@errorIdLabel": {
     "placeholders": {
@@ -482,17 +494,17 @@
   "feedPullToRefresh": "اسحب للأسفل للتحديث.",
   "homeFollowingUnavailableTitle": "منشورات من تتابعهم",
   "@homeFollowingUnavailableTitle": {
-    "description": "Home Following tab while there is no feed API."
+    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
   },
-  "homeFollowingUnavailableBody": "تتوفر المتابعة في المرحلة 2 والمنشورات في المرحلة 3.",
-  "homePopularUnavailableTitle": "تصل المنشورات الرائجة في المرحلة 3",
+  "homeFollowingUnavailableBody": "قريبًا: ستظهر هنا منشورات من تتابعهم.",
+  "homePopularUnavailableTitle": "المنشورات الرائجة قادمة قريبًا",
   "@homePopularUnavailableTitle": {
-    "description": "Home Popular tab while there is no feed API."
+    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
   },
-  "homePopularUnavailableBody": "ستظهر هنا المنشورات الأكثر إعجابًا، والفيديوهات القصيرة ابتداءً من المرحلة 5.",
-  "homeNewUnavailableTitle": "تصل المنشورات الجديدة في المرحلة 3",
+  "homePopularUnavailableBody": "ستظهر هنا المنشورات الأكثر إعجابًا.",
+  "homeNewUnavailableTitle": "المنشورات الجديدة قادمة قريبًا",
   "@homeNewUnavailableTitle": {
-    "description": "Home New tab while there is no feed API."
+    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
   },
   "homeNewUnavailableBody": "ستظهر هنا أحدث المنشورات، الأحدث أولًا.",
   "homeEmptyTitle": "لا توجد منشورات بعد",
@@ -504,22 +516,30 @@
   },
   "liveHubFollowingUnavailableTitle": "غرف البث ممن تتابعهم",
   "@liveHubFollowingUnavailableTitle": {
-    "description": "Live hub Following tab while there is no live list API."
+    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
   },
-  "liveHubFollowingUnavailableBody": "تتوفر المتابعة في المرحلة 2، وغرف البث الخاصة بمن تتابعهم في المرحلة 6.",
-  "liveHubPopularUnavailableTitle": "تصل غرف البث المباشر في المرحلة 6",
+  "liveHubFollowingUnavailableBody": "البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.",
+  "liveHubPopularUnavailableTitle": "غرف البث المباشر غير متاحة بعد",
   "@liveHubPopularUnavailableTitle": {
-    "description": "Live hub Popular tab while there is no live list API."
+    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
   },
   "liveHubPopularUnavailableBody": "سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.",
-  "liveHubNewUnavailableTitle": "تصل غرف البث الجديدة في المرحلة 6",
+  "liveHubNewUnavailableTitle": "غرف البث الجديدة غير متاحة بعد",
   "@liveHubNewUnavailableTitle": {
-    "description": "Live hub New tab while there is no live list API."
+    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
   },
   "liveHubNewUnavailableBody": "ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.",
   "liveHubEmptyTitle": "لا أحد يبث مباشرة الآن",
   "liveHubFollowingEmptyTitle": "لا أحد ممن تتابعهم يبث الآن",
   "liveHubErrorTitle": "تعذّر تحميل غرف البث",
+  "liveHubLoadMoreFailed": "تعذّر تحميل المزيد",
+  "@liveHubLoadMoreFailed": {
+    "description": "HL-H5 inline footer error when the next page of live rooms fails; followed by a Retry button."
+  },
+  "liveHubListEnd": "اسحب للأسفل لعرض بثوث جديدة",
+  "@liveHubListEnd": {
+    "description": "HL-H5 end-of-list caption of a live room list (no 'all caught up')."
+  },
   "liveCardNew": "جديد",
   "@liveCardNew": {
     "description": "Cover card chip shown instead of a viewer count below 1 viewer (VG-11)."

@@ -14,9 +14,11 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../helpers/fake_live_repository.dart';
 import '../helpers/fakes.dart';
 
 class _Repo extends FakeAuthRepository {
@@ -58,6 +60,9 @@ Future<void> _pumpApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        liveRepositoryProvider.overrideWithValue(
+          FakeLiveRepository(hostingEnabled: false),
+        ),
         authRepositoryProvider.overrideWithValue(
           _Repo(
             storedUser: signedIn

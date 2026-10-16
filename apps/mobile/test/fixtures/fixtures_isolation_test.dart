@@ -38,6 +38,16 @@ void main() {
       'hubRooms(',
       'feedPosts(',
       'fixtureNow',
+      // KL-038 (test/fixtures/live/live_api_fixtures.dart,
+      // test/helpers/fake_live_repository.dart).
+      'apiRooms(',
+      'apiPage(',
+      'apiCategories(',
+      'liveRoomSummaryJson(',
+      'liveRoomPageJson(',
+      'publicProfileJson(',
+      'FakeLiveRepository',
+      'liveOverrides(',
     ];
     final offenders = <String>[];
     for (final file
@@ -48,6 +58,40 @@ void main() {
       final source = file.readAsStringSync();
       for (final name in names) {
         if (source.contains(name)) offenders.add('${file.path}: $name');
+      }
+    }
+    expect(offenders, isEmpty, reason: offenders.join('\n'));
+  });
+
+  test('production code never constructs live rooms or categories', () {
+    // KL-038 (D35/D37): rooms, cards and categories reach the UI only from
+    // the v1.3 API (`LiveRoomCardData.fromSummary`). Literal construction is
+    // allowed in the debug gallery only (`!kReleaseMode`).
+    final literal = RegExp(
+      r'(?<![\w.])(LiveRoomCardData|LiveRoomSummary|LiveRoom|LiveCategory|UserSummary)\(',
+    );
+    final offenders = <String>[];
+    for (final file
+        in Directory('lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where(
+              (f) =>
+                  f.path.endsWith('.dart') &&
+                  !f.path.endsWith('.g.dart') &&
+                  !f.path.endsWith('.freezed.dart') &&
+                  !f.path.contains('features/debug/'),
+            )) {
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        if (line.trimLeft().startsWith('//')) continue;
+        if (!literal.hasMatch(line)) continue;
+        // The single mapping from an API room to a card.
+        final mapping =
+            file.path.endsWith('live_view_data.dart') &&
+            line.contains('return LiveRoomCardData(');
+        if (!mapping) offenders.add('${file.path}:${i + 1}: ${line.trim()}');
       }
     }
     expect(offenders, isEmpty, reason: offenders.join('\n'));

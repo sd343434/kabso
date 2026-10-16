@@ -1,9 +1,11 @@
 import 'package:kabso_live/design_system/theme/app_theme.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Presentation-only inputs for the live widgets (KL-022). There is no live
-/// API yet (Phase 6/7), so nothing in production builds these; tests use
-/// `test/fixtures/live/` and debug builds use the component gallery.
+/// Presentation-only inputs for the live widgets (KL-022). Production
+/// builds cover cards only from API rooms ([LiveRoomCardData.fromSummary]);
+/// tests use `test/fixtures/live/` and debug builds use the component
+/// gallery.
 
 /// One live room as shown on a cover card.
 @immutable
@@ -17,6 +19,26 @@ class LiveRoomCardData {
     this.inPk = false,
     this.guestCount,
   });
+
+  /// A room from `GET /live/rooms` (v1.3): the host's display name and
+  /// avatar, the real viewer count (always 0 until presence exists, so the
+  /// card shows "New"), and the cover when there is one (never in v1.3; the
+  /// card then shows the host avatar). Multi-guest rooms carry no guest
+  /// count in v1.3, so no seats tag is shown.
+  factory fromSummary(LiveRoomSummary room) {
+    final cover = room.coverUrl;
+    final avatar = room.host.avatarUrl;
+    return LiveRoomCardData(
+      hostName: room.host.displayName,
+      title: room.title,
+      viewerCount: room.viewerCount,
+      cover: cover == null || cover.isEmpty ? null : NetworkImage(cover),
+      hostAvatar: avatar == null || avatar.isEmpty
+          ? null
+          : NetworkImage(avatar),
+      inPk: room.mode == LiveRoomMode.pk,
+    );
+  }
 
   final String hostName;
   final String title;

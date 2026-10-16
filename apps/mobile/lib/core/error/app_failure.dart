@@ -20,6 +20,16 @@ enum ErrorCode {
   internalError('INTERNAL_ERROR'),
   serviceUnavailable('SERVICE_UNAVAILABLE'),
 
+  /// v1.3: going live / heartbeat refused because hosting is switched off by
+  /// server config (503, not transient, no `Retry-After`).
+  liveHostingUnavailable('LIVE_HOSTING_UNAVAILABLE'),
+
+  /// v1.3: go-live refused, the caller already has a LIVE room (409).
+  liveRoomAlreadyActive('LIVE_ROOM_ALREADY_ACTIVE'),
+
+  /// v1.3: heartbeat for a room that is no longer LIVE (409).
+  liveRoomEnded('LIVE_ROOM_ENDED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

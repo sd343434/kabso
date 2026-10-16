@@ -5,6 +5,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
@@ -286,9 +287,17 @@ class _HomeDemo extends StatelessWidget {
   );
 }
 
-/// Live hub with sample rooms on Popular and New; Following is empty.
-class _LiveHubDemo extends StatelessWidget {
+/// Live hub with sample rooms and sample categories on Popular and New;
+/// Following is empty.
+class _LiveHubDemo extends StatefulWidget {
   const new();
+
+  @override
+  State<_LiveHubDemo> createState() => _LiveHubDemoState();
+}
+
+class _LiveHubDemoState extends State<_LiveHubDemo> {
+  String? _category;
 
   @override
   Widget build(BuildContext context) => FeedTabsScaffold(
@@ -297,6 +306,9 @@ class _LiveHubDemo extends StatelessWidget {
       content: AsyncData(
         FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
       ),
+      categories: _Samples.liveCategories,
+      selectedCategory: _category,
+      onSelectCategory: (slug) => setState(() => _category = slug),
       onRefresh: () async {},
       onRetry: () {},
       onSeePopular: () => selectTab(FeedTab.popular),
@@ -324,6 +336,11 @@ abstract final class _Samples {
   static const host = 'Sample host';
   static const viewers = ['Viewer A', 'Viewer B', 'Viewer C'];
   static const categories = ['All', 'Music', 'Games', 'Chat', 'PK', 'New'];
+  static const liveCategories = [
+    LiveCategory(slug: 'sample-a', name: 'Sample A'),
+    LiveCategory(slug: 'sample-b', name: 'Sample B'),
+    LiveCategory(slug: 'sample-c', name: 'Sample C'),
+  ];
 
   static const rooms = [
     LiveRoomCardData(

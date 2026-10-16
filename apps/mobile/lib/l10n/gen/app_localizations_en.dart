@@ -508,6 +508,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorUnknown => 'Something unexpected happened. Please try again.';
 
   @override
+  String get errorLiveHostingUnavailable => 'Going live isn\'t available yet.';
+
+  @override
+  String get errorLiveRoomAlreadyActive =>
+      'You\'re already live in another room. Resume or end it first.';
+
+  @override
+  String get errorLiveRoomEnded => 'This live has ended.';
+
+  @override
   String errorIdLabel(String requestId) {
     return 'Error ID: $requestId';
   }
@@ -663,17 +673,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeFollowingUnavailableBody =>
-      'Following arrives in Phase 2 and posts in Phase 3.';
+      'Coming soon: posts from people you follow will appear here.';
 
   @override
-  String get homePopularUnavailableTitle => 'Popular posts arrive in Phase 3';
+  String get homePopularUnavailableTitle => 'Popular posts are coming soon';
 
   @override
   String get homePopularUnavailableBody =>
-      'Posts people enjoy most will appear here, and short videos from Phase 5.';
+      'Posts people enjoy most will appear here.';
 
   @override
-  String get homeNewUnavailableTitle => 'New posts arrive in Phase 3';
+  String get homeNewUnavailableTitle => 'New posts are coming soon';
 
   @override
   String get homeNewUnavailableBody =>
@@ -697,17 +707,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveHubFollowingUnavailableBody =>
-      'Following arrives in Phase 2, and their live rooms in Phase 6.';
+      'Live rooms aren\'t available yet. Rooms from people you follow will appear here once they are.';
 
   @override
-  String get liveHubPopularUnavailableTitle => 'Live rooms arrive in Phase 6';
+  String get liveHubPopularUnavailableTitle =>
+      'Live rooms aren\'t available yet';
 
   @override
   String get liveHubPopularUnavailableBody =>
       'People who are live right now will appear here.';
 
   @override
-  String get liveHubNewUnavailableTitle => 'New live rooms arrive in Phase 6';
+  String get liveHubNewUnavailableTitle =>
+      'New live rooms aren\'t available yet';
 
   @override
   String get liveHubNewUnavailableBody =>
@@ -721,6 +733,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveHubErrorTitle => 'Couldn\'t load live rooms';
+
+  @override
+  String get liveHubLoadMoreFailed => 'Couldn\'t load more';
+
+  @override
+  String get liveHubListEnd => 'Pull down for new live rooms';
 
   @override
   String get liveCardNew => 'New';

@@ -29,6 +29,7 @@ class FeedTabsScaffold extends StatefulWidget {
     super.key,
     this.initialTab = FeedTab.initial,
     this.onSearch,
+    this.onReselect,
   });
 
   static const searchKey = Key('feed.search');
@@ -39,6 +40,10 @@ class FeedTabsScaffold extends StatefulWidget {
 
   /// Defaults to `context.go(AppRoutes.discover)`.
   final VoidCallback? onSearch;
+
+  /// Tapping the tab that is already selected (e.g. the Live hub re-fetches,
+  /// HL-H5).
+  final ValueChanged<FeedTab>? onReselect;
 
   @override
   State<FeedTabsScaffold> createState() => _FeedTabsScaffoldState();
@@ -57,7 +62,10 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
   }
 
   void _select(FeedTab tab) {
-    if (tab == _tab) return;
+    if (tab == _tab) {
+      widget.onReselect?.call(tab);
+      return;
+    }
     setState(() => _tab = tab);
     final duration = KMotion.of(context, KMotion.base);
     if (duration == Duration.zero) {
