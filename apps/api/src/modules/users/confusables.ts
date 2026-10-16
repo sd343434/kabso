@@ -132,11 +132,30 @@ export function confusableSkeleton(input: string): string {
   return mapped.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFD');
 }
 
-/** True when the skeleton of `name` contains the skeleton of any reserved term. */
-export function containsReservedTerm(name: string, reservedTerms: readonly string[]): boolean {
+const NON_WORD = /[^\p{L}\p{N}]+/u;
+const NON_WORD_GLOBAL = /[^\p{L}\p{N}]+/gu;
+
+/**
+ * Reserved-term rule (contract v1.2.1 §6), evaluated on the NFKC-casefolded confusable skeleton:
+ *  - a reserved term equals a WHOLE WORD of the name (words are split on any non-letter/digit),
+ *    so "Kabso Live", "kabso_official", "Admin" match but "Badminton" or "Supporter" do not;
+ *  - or the name with all separators removed STARTS or ENDS with a brand term, so spaced or
+ *    glued spellings such as "K a b s o" and "TheKabso" match.
+ */
+export function containsReservedTerm(
+  name: string,
+  reservedTerms: readonly string[],
+  brandTerms: readonly string[] = [],
+): boolean {
   const skeleton = confusableSkeleton(name);
-  return reservedTerms.some((term) => {
-    const termSkeleton = confusableSkeleton(term);
-    return termSkeleton.length > 0 && skeleton.includes(termSkeleton);
-  });
+  const words = new Set(skeleton.split(NON_WORD).filter(Boolean));
+  const termWords = reservedTerms
+    .map((term) => confusableSkeleton(term).replace(NON_WORD_GLOBAL, ''))
+    .filter(Boolean);
+  if (termWords.some((term) => words.has(term))) return true;
+
+  const joined = skeleton.replace(NON_WORD_GLOBAL, '');
+  return brandTerms
+    .map((term) => confusableSkeleton(term).replace(NON_WORD_GLOBAL, ''))
+    .some((brand) => brand.length > 0 && (joined.startsWith(brand) || joined.endsWith(brand)));
 }

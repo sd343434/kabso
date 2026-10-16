@@ -9,8 +9,9 @@ import { containsReservedTerm } from './confusables.js';
  *    U+2060, U+FEFF;
  *  - ZWNJ (U+200C) / ZWJ (U+200D) not placed between two non-joiner, non-space characters;
  *  - more than 3 consecutive combining marks ("zalgo"), counted on the NFD form;
- *  - no letter or digit at all (only whitespace, joiners, combining marks, symbols/punctuation).
- * `reserved_term`: the NFKC-casefolded confusable skeleton contains a reserved term.
+ *  - no letter, digit or emoji at all (only whitespace, joiners, marks, symbols/punctuation).
+ * U+FEFF at either end is removed by trimming; inside the name it is rejected (v1.2.1).
+ * `reserved_term`: whole-word reserved term or brand prefix/suffix on the confusable skeleton.
  */
 export const DISPLAY_NAME_MAX_GRAPHEMES = 50;
 export const DISPLAY_NAME_MAX_CODE_POINTS = 100;
@@ -24,6 +25,13 @@ const JOINER = /[\u200c\u200d]/u;
 const SPACE = /[\s\p{Z}]/u;
 const MARK = /\p{M}/u;
 const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+/**
+ * Emoji grapheme (contract v1.2.1: "letter, digit or emoji"). `RGI_Emoji` (the Unicode
+ * recommended emoji set, incl. ZWJ, flag, keycap and skin-tone sequences) is used rather than raw
+ * `Extended_Pictographic`, which also contains text-presentation symbols such as ★ © ™ that the
+ * contract wants rejected as symbol-only names. Built at runtime: the `v` flag needs ES2024.
+ */
+const EMOJI = new RegExp('\\p{RGI_Emoji}', 'v');
 
 const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
 
@@ -59,7 +67,11 @@ function longestMarkRun(chars: readonly string[]): number {
 }
 
 /** Returns the first rule violated by an already-normalized display name, or null. */
-export function displayNameIssue(value: string, reservedTerms: readonly string[]): DisplayNameIssue | null {
+export function displayNameIssue(
+  value: string,
+  reservedTerms: readonly string[],
+  brandTerms: readonly string[] = [],
+): DisplayNameIssue | null {
   if (value.length === 0) return 'too_short';
   if (BANNED.test(value)) return 'invalid_format';
   const chars = [...value];
@@ -69,7 +81,7 @@ export function displayNameIssue(value: string, reservedTerms: readonly string[]
   if (!joinersWellPlaced(chars)) return 'invalid_format';
   // Counted on the decomposed form so precomposition (NFC) cannot hide a stacked mark.
   if (longestMarkRun([...value.normalize('NFD')]) > MAX_CONSECUTIVE_COMBINING_MARKS) return 'invalid_format';
-  if (!LETTER_OR_DIGIT.test(value)) return 'invalid_format';
-  if (containsReservedTerm(value, reservedTerms)) return 'reserved_term';
+  if (!LETTER_OR_DIGIT.test(value) && !EMOJI.test(value)) return 'invalid_format';
+  if (containsReservedTerm(value, reservedTerms, brandTerms)) return 'reserved_term';
   return null;
 }

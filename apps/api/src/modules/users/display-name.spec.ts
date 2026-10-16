@@ -14,14 +14,16 @@ const WJ = cp(0x2060);
 const BOM = cp(0xfeff);
 const COMBINING_ACUTE = cp(0x0301);
 
-const TERMS = loadConfig({
+const CONFIG = loadConfig({
   DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
   APP_PUBLIC_URL: 'http://localhost:3000',
-}).reservedDisplayNameTerms;
+});
+const TERMS = CONFIG.reservedDisplayNameTerms;
+const BRANDS = CONFIG.reservedDisplayNameBrandTerms;
 
-const check = (raw: string) => displayNameIssue(normalizeDisplayName(raw), TERMS);
+const check = (raw: string) => displayNameIssue(normalizeDisplayName(raw), TERMS, BRANDS);
 
 describe('displayName (contract v1.2 §6, KL-017)', () => {
   it('uses the CONVENTIONS §6 reserved terms by default', () => {
@@ -126,13 +128,33 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     expect(check(name)).toBe('invalid_format');
   });
 
+  // Contract v1.2.1: a name needs at least one letter, digit or emoji grapheme.
   it.each([
     ['symbols only', '★★★'],
-    ['emoji only', `${cp(0x1f600)}${cp(0x1f600)}`],
+    ['two stars', '★★'],
+    ['em dash', '—'],
     ['punctuation only', '...'],
     ['marks only', cp(0x0301, 0x0302)],
-  ])('rejects names without any letter or digit: %s', (_label, name) => {
+    ['text-presentation symbols', '©™'],
+  ])('rejects names without any letter, digit or emoji: %s', (_label, name) => {
     expect(check(name)).toBe('invalid_format');
+  });
+
+  it.each([
+    ['single emoji', cp(0x1f600)],
+    ['two emoji', `${cp(0x1f600)}${cp(0x1f600)}`],
+    ['family ZWJ sequence', `${cp(0x1f468)}${ZWJ}${cp(0x1f469)}${ZWJ}${cp(0x1f467)}`],
+    ['flag', cp(0x1f1f8, 0x1f1e6)],
+    ['skin tone', cp(0x1f44b, 0x1f3fd)],
+    ['heart with VS16', `${cp(0x2665)}${cp(0xfe0f)}`],
+  ])('accepts emoji-only names (v1.2.1): %s', (_label, name) => {
+    expect(check(name)).toBeNull();
+  });
+
+  it('trims U+FEFF at either end but rejects it inside the name (v1.2.1)', () => {
+    expect(normalizeDisplayName(`${BOM}Sara${BOM}`)).toBe('Sara');
+    expect(check(`${BOM}Sara${BOM}`)).toBeNull();
+    expect(check(`Sa${BOM}ra`)).toBe('invalid_format');
   });
 
   it.each([
@@ -156,9 +178,35 @@ describe('displayName (contract v1.2 §6, KL-017)', () => {
     expect(check(name)).toBe('reserved_term');
   });
 
+  // Contract v1.2.1: whole words of the skeleton, plus brand prefix/suffix without separators.
+  it.each(['Badminton Club', 'Supporter', 'Staffordshire', 'Officially', 'Administrated'])(
+    'accepts reserved terms inside ordinary words: %s',
+    (name) => {
+      expect(check(name)).toBeNull();
+    },
+  );
+
+  it.each([
+    ['Kabso Live', 'Kabso Live'],
+    ['underscore separated', 'kabso_official'],
+    ['Cyrillic а, spaced', 'K а b s o'],
+    ['Admin', 'Admin'],
+    ['Arabic support', 'الدعم الفني'],
+    ['Arabic moderator', 'مشرف'],
+    ['brand suffix', 'TheKabso'],
+    ['brand prefix', 'KabsoFan'],
+    ['Arabic brand suffix', 'فريقكابسو'],
+  ])('rejects whole-word reserved terms and brand prefix/suffix: %s', (_label, name) => {
+    expect(check(name)).toBe('reserved_term');
+  });
+
+  it('defaults the brand terms to kabso and كابسو', () => {
+    expect(BRANDS).toEqual(['kabso', 'كابسو']);
+  });
+
   it('computes the same skeleton for confusable spellings', () => {
     expect(confusableSkeleton('Kаbso')).toBe(confusableSkeleton('kabso'));
     expect(confusableSkeleton('ADMlN')).toBe(confusableSkeleton('admin'));
-    expect(containsReservedTerm('Sara', TERMS)).toBe(false);
+    expect(containsReservedTerm('Sara', TERMS, BRANDS)).toBe(false);
   });
 });

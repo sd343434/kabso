@@ -113,7 +113,13 @@ export class RegistrationService implements OnModuleInit, OnModuleDestroy {
   /** POST /auth/register → always 202 with a constant body (or 400/409/429/503). */
   async register(input: RegisterInput, meta: RequestMeta): Promise<VerificationPendingDto> {
     const now = new Date();
-    if (containsReservedTerm(input.displayName, this.config.reservedDisplayNameTerms)) {
+    if (
+      containsReservedTerm(
+        input.displayName,
+        this.config.reservedDisplayNameTerms,
+        this.config.reservedDisplayNameBrandTerms,
+      )
+    ) {
       throw AppException.validation([{ field: 'displayName', issue: 'reserved_term' }]);
     }
     if (isReservedUsername(input.username)) throw new AppException(ErrorCode.USERNAME_TAKEN);
