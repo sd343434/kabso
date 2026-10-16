@@ -54,6 +54,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-019 | Verify-first registration (owner decision B9, contract v1.2 §6): pending registrations, 8-digit code, `register/verify`, `register/resend`, account-exists notice email, username reservation, cleanup; mobile code-entry screen | A3 + A2 (+A5 copy) | P0 | READY | contract v1.2 | A7, A6 |
 | KL-020 | Repository governance: repo private; `main` created from the gate-verified commit and made default; branch protection (required `CI OK`, reviewed PRs) | owner (settings) + A1 | P0 | IN_PROGRESS — history scan ✅; settings require owner (no API access from this session) | Phase 1 gate | A1 |
 | KL-022 | Live UI P0 components + golden infrastructure (pattern fidelity, Kabso identity; debug gallery only, not in production screens) | A2 | P0 | INTEGRATED `ed84dd4` — 440 tests, 28 goldens, CI green; QA review pending | KL-021 | A6, A5 |
+| KL-026 | displayName residuals SEC-033/SEC-034 (Low) | A3 | P2 | BACKLOG — before public launch (PP-26) | — | A7 |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
 
