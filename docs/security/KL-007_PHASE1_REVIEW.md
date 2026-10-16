@@ -745,3 +745,107 @@ Regression tests added: `apps/api/test/security/kl007c-v12.e2e-spec.ts` (18 test
 
 Carry-over (unchanged gate items): SEC-011 least-privilege DB role. SEC-022, SEC-023 and SEC-003a
 are PARTIAL (Low) and are documented above with their remaining fixes.
+
+---
+
+## 8. Re-test of the KL-024 fixes (KL-007d, 2026-10-16) — candidate `0051b3a`
+
+Scope: contract §9 v1.2.3, v1.2.4 and v1.2.5.
+
+How I tested:
+- Worktree merged `claude/amazing-tesla-5aj3um` at `0051b3a`.
+- Resources: `kabso_sec_test` (migrations applied), Redis db 13, API on :3102. Each server was stopped by its recorded PID after a `readlink /proc/<pid>/cwd` check.
+- Scripts are only in the scratchpad `sec/` directory: `dn2.mjs`, `v5.sh`–`v7.sh`, `run-api.sh`.
+- Suites: API unit 297/297; API e2e 309/309, two consecutive runs (incl. 102 in `test/security/`).
+
+### 8.1 Per-finding results
+
+| ID | Result | Evidence |
+| -- | ------ | -------- |
+| SEC-024 | **FIXED** (residual Low: SEC-030, SEC-031) | All 14 KL-007c bypass strings are now rejected: the 4 uppercase homoglyphs, the 8 missing look-alikes and the 2 Arabic letters (12 `reserved_term`, plus mixed-script `invalid_format` where applicable; `dn2.mjs`). Brand inside a word (`TheKabsoTeam`, `فريقكابسوالرسمي`) → `reserved_term`.<br>New probes also rejected: all-Cyrillic `КАВЅО`, all-Cherokee `ᏦᎪᏴᏚᎾ`, math bold, circled letters, madda, harakat, Urdu letters, `Adm1n`, `Kab‌so`, `kabsօ fan`, `Kabso🔥`.<br>**Data:** `data/confusables.txt` sha256 `091c7f82fc39ef208faf8f94d29c244de99254675e09de163160c810d13ef22a` (local `sha256sum`), header "Version 17.0.0 / 2025-07-22", 6,565 `MA` lines. `confusables.spec.ts` checks the hash and that the generated table matches a fresh generation (unit tests pass). I cannot reach GitHub, so the upstream identity rests on the CTO's comparison.<br>**Supplement review:** `i→l`, `ĸ→k`, `U+063B/063C→ك`, `ة→ه` are applied identically to names and terms, so they can only make matching stricter. They are correct and needed (the UTS #39 table maps capital I and 1 to l but not i; κ/к/ᴋ map to ĸ).<br>**Ordering:** the mapping runs before *and* after case folding (`confusables.ts` `confusableSkeleton`), which fixes the KL-007c root cause.<br>**Mixed-script rule:** `script-mixing.ts` intersects augmented Script_Extensions per word and ignores Common/Inherited. Unknown (post-ICU) code points get a unique script, so they fail closed when mixed. |
+| SEC-025 | **FIXED** | Username held by a pending registration: other email → 409, *same* email → 409, identical body. The pending row is untouched (`v5.sh`). Regression test added. |
+| SEC-026 | **FIXED** (residual Info) | Resend at created_at + 115 min → `expires_at` = created_at + 2 h exactly. Resend at +121 min → nothing changes (returns early). `total_attempts` reaches 10 across codes (4 + resend + 4 + resend + 2), then the row is deleted and the fresh code from the last mail → 422 (`v5.sh`). Regression tests added.<br>Residual (Info): after the 2 h cap a squatter can register the same username again, since lazy deletion frees it on the next register. Holding a name now takes one new `register` per 2 h (the per-email and per-IP limits still apply). Acceptable. |
+| SEC-027 | **FIXED** | 17 verify attempts for one email from 17 different IPs → `15 × 422, 2 × 429` (`register_verify:email` 15/86400, counted before the check). Regression test added. A3's `RATE_LIMIT_REGISTER_VERIFY_EMAIL: GENEROUS` in `test/helpers/test-app.ts` is correct for my KL-007c concurrency test: that test is about the 5-checks-per-code cap, and still counts exactly ≤ 5 `wrong_code`/`attempts_exhausted` audit rows for its own pending (filtered by `targetId`). |
+| SEC-023 (race) | **FIXED** | 60 parallel wrong passwords from 60 IPs → `20 × 401, 40 × 429`; **exactly 20** password checks (20 `auth.login.failure` rows), down from 39 at KL-007c. Increment-before-check (`consume` = atomic INCR, refuse when > max). Regression test added (`TRUST_PROXY=loopback` + XFF, ≤ 20 checks). |
+| SEC-023 (refund semantics, v1.2.5 note 4) | **Not exploitable** | The refund `DECR`s one slot via Lua and never goes below 0 (`rate-limit.service.ts` `REFUND_SCRIPT`). It is called only for an attempt that holds a reservation (`limits.reserved`).<br>• **Argon2 503:** with `ARGON2_MAX_CONCURRENCY=1, QUEUE=0`, 5 bursts × 40 parallel wrong passwords gave `5/5/4/4/1 × 401`, the rest 503/429. **19 password checks in total** (≤ 20): a 503 refunds a slot for which no password was checked, so the attacker gains nothing.<br>• **SUSPENDED:** 19 wrong guesses, then 3 × correct password (`ACCOUNT_SUSPENDED` each, each refunding only its own slot), then 3 more wrong guesses → `401, 429, 429`. Failures stay capped at 20. The 403 confirms the password, but that is the contract's intended behaviour for suspended accounts (§4), not a new oracle. Repeating the correct password is bounded by the IP+account bucket (10/15 min).<br>• Edge: a refund that straddles a window boundary decrements the new window's counter (at most +1 guess per straddling success). Negligible. |
+| SEC-023 (residual) | **OPEN** (B11, accepted by CTO) | Owner from a new source with the correct password → 429 after an attack. The email↔account oracle remains: after exhaustion, `alice@` → 429 while an unknown email → 401 (`v5.sh`). Tracked as B11. |
+| SEC-003a | **FIXED** | Production schema refuses `0.0.0.0/1,128.0.0.0/1`, `::/1,8000::/1`, `::ffff:0:0/96`, `::ffff:0.0.0.0/96`, `0.0.0.0/7`, `2000::/16` and `4`; accepts `1`, `3`, `10.0.0.0/8`, `2001:db8::/32`, `loopback`.<br>I also probed `::/64`, `::ffff:0:0/64`, `::/80` (accepted by the schema). With the installed `proxy-addr@2.0.8` they do **not** trust IPv4 or IPv4-mapped clients (`compile(...)('203.0.113.9')` and `('::ffff:203.0.113.9')` → false), so there is no bypass. Only `::ffff:0:0/96` itself maps onto all of IPv4, and it is refused. Info: the validator's completeness relies on proxy-addr's mapping semantics; re-check on proxy-addr upgrades. |
+| SEC-029 | **FIXED** | Optional `REGISTRATION_CODE_KEY`: in production it must pass `productionSecretProblem` and differ from `JWT_ACCESS_SECRET` and `RATE_LIMIT_KEY_SECRET` (weak / equal values refused, random accepted). The HKDF uses it when set (`registration-code-key.spec.ts`). Rotation effects are documented in the env schema comment and CONVENTIONS v1.2.3. |
+| LRM / RLM / ALM | **FIXED** | U+200E, U+200F and U+061C in displayName → `invalid_format` (`display-name.ts` `BANNED`). Regression test added. |
+
+### 8.2 Residual findings (new)
+
+**SEC-030 — Low — CWE-1007 — owner A3: single-script small-capital spoofs.**
+
+The UTS #39 table does not map Latin small capitals to their letters. The Cyrillic в maps *to* ʙ.
+Single-script words therefore pass the mixed-script rule and keep a skeleton different from
+`kabso`.
+
+PoC (`dn2.mjs`):
+- `ᴋᴀʙꜱᴏ` (Latin small caps; reads clearly as KABSO) → **ACCEPTED**, skeleton `kᴀʙso`.
+- `кавѕо` (all-Cyrillic lowercase) → **ACCEPTED**, skeleton `kaʙso`.
+
+Not convincing, and not counted: `ΑΔΜΙΝ` and `Ѕиррогт`, which are visually distinct.
+
+Fix: add the Latin small capitals to `SUPPLEMENT` after folding (U+1D00–U+1D22, ʙ U+0299, ɢ U+0262,
+ʜ U+029C, ɪ U+026A, ʟ U+029F, ɴ U+0274, ʀ U+0280, ʏ U+028F, ꜰ U+A730, ꜱ U+A731) → base letter.
+Like the rest of the supplement, this only makes matching stricter.
+
+**SEC-031 — Low — CWE-1007 / design (CTO-contract): brand split by separators plus any other word.**
+
+Rule (c) only matches when the *whole* name equals a term once separators are removed. PoC —
+all **ACCEPTED**:
+- `K a b s o Team`
+- `Kab-so Live`
+- `K.a.b.s.o Fan`
+- `Kab·so Live`
+- `ك ا ب س و لايف`
+
+Fix (keeps "Kab Sonia" allowed):
+- Concatenate runs of words joined by non-space separators (`-`, `.`, `·`, `_`), and runs of single-letter words, before applying the brand-contains rule (b).
+
+**SEC-032 — Info — owner CTO-contract / A3: false positives in the new rules.**
+
+- **Mixed-script `invalid_format` on plausible nicknames:**
+  - Latin plus Arabic-Indic or Persian digits in one word (`Ali٣`, `Ahmed۲۰۲۴`).
+  - Latin plus CJK/Hangul (`TOKYO東京`, `Ｊ太郎`, `iPhone大好き`, `Kim김`).
+
+  UTS #39 "Highly Restrictive" allows Latin + Han + Hiragana + Katakana and Latin + Han + Hangul. Treating decimal digits (`\p{Nd}`) of any script as script-neutral would remove the digit cases.
+- **Brand-inside rule:** `كابسولة` (colloquial "capsule") and `Kabsoon` → `reserved_term`. That is the accepted cost of rule (b) for the two brand terms.
+- **Generic term `رسمي`:** rejected as a whole word, but "Rasmi" (رسمي) is also an Arabic given name. Consider dropping it from the list, as v1.2.4 did for `مشرف`.
+
+Legitimate names checked and **accepted**: `Sara سارة`, `محمد علي`, `Zoë Đorđević`,
+`Işık Yılmaz`, `Nguyễn Văn An`, `Γιώργος`, `Алексей Смирнов`, `田中さん`, `김민수`, `राम कुमार`,
+`שרה`, `می‌خواهم` (ZWNJ), `Kab Sonia`, `Badminton Club`, `Supporter`, `Stafford`, `مشرف`, `staff`,
+`Rasmi`, `DJ Ахмед`, `Ali🔥`, a family emoji, `O’Brien`, `Jean-Luc`.
+
+Cost: at most 3.4 ms per call for a 100 kB combining-mark string; 0.04 ms for a 100-code-point mixed-script name.
+
+### 8.3 Regression tests added (all passing at `0051b3a`)
+
+`apps/api/test/security/kl007d-v123.e2e-spec.ts`:
+- **SEC-024:** all 14 KL-007c spoofs plus 6 new ones rejected; LRM/RLM/ALM rejected; 20 legitimate multilingual names accepted.
+- **SEC-025:** identical 409 for the same and for another email.
+- **SEC-026:** the 2 h cap, and 10 checks across resends.
+- **SEC-027:** 15 per day per email.
+- **SEC-023:** 60 parallel → ≤ 20 password checks.
+- **SEC-003a:** ranges refused and accepted.
+- **SEC-029:** key validation.
+
+No tests were added for SEC-030/031/032 because they are open.
+
+### 8.4 Updated verdicts
+
+| Package | Verdict | Notes |
+| ------- | ------- | ----- |
+| **PP-02** verify-first registration | **PASS** | SEC-025, SEC-026, SEC-027 and SEC-029 are fixed with evidence. The KL-007c controls still hold (constant response, uniform 422, atomic attempts, fail-closed). SEC-028 (sub-ms pending-state timing) remains Info. |
+| **PP-21** displayName v1.2.2–v1.2.5 | **PASS WITH CONDITIONS** | The Medium (SEC-024) is fixed. Before public launch: SEC-030 (small-caps supplement, a one-line table addition) and a CTO decision on SEC-031 (separated brand plus another word) and SEC-032 (false positives on digits and CJK + Latin). |
+| **PP-22** `PATCH /me`, locale, mobile | **PASS** | Unchanged since KL-007c. |
+
+### 8.5 Open items for the pre-production checklist
+
+1. **SEC-011** — least-privilege runtime DB role (KL-013). **Blocker.**
+2. **SEC-022** — PARTIAL. A thief who rotates ≥ 11 times (≈ 170 ms) evades reuse detection. Fix: token generation number, or a minimum refresh interval.
+3. **SEC-023 residual / B11** — owner lockout from new sources, and the email↔account oracle after an exhausted account bucket (CTO-accepted, tracked as B11). The race and refund semantics are fixed and not exploitable.
+4. **SEC-030 / SEC-031 / SEC-032** — displayName residuals (Low/Info), as above.
+5. Unchanged Phase 2 items: SEC-012 retention/cleanup jobs; SEC-028 timing (Info).
