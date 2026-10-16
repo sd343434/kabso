@@ -1,13 +1,18 @@
 # Kabso Live: visual review of Home and Live discovery (KL-035a)
 
-Status: **review of current integrated HEAD, pre-KL-047.** This is the baseline for the
-KL-047 implementation pass; the same matrix will be re-captured on KL-047's build.
+Status: **two passes.**
+- §1–§6 review the integrated HEAD **before KL-047** (`04ffd09`).
+- **§7 reviews the build after KL-047** (`27bfd44`). It records what KL-047 fixed, the remaining
+  gaps, KL-047's design decisions, and the prioritized next changes.
+
+**Read §7 for the current state.**
+
 Author: A5 (product design), with A1. Date: 2026-10-16.
 
 | | |
 | --- | --- |
-| App revision | `04ffd09` (`claude/amazing-tesla-5aj3um`); a web `--profile` build of the unchanged `apps/mobile` sources |
-| API revision | `04ffd09`; `apps/api` built and run locally |
+| App revision | Before: `04ffd09`. After: `27bfd44` (KL-047 `f5fb4f0`, KL-045 `4af9512`). Each is a web `--profile` build of the unchanged `apps/mobile` sources at that commit |
+| API revision | Same commit as its app set; `apps/api` built and run locally on the same local data |
 | Screenshots | [`review/2026-10-16-home-live/`](review/2026-10-16-home-live/). The README there gives the exact commands, environment, data provenance and file index |
 | Viewports / locales | 393×852 and 360×800 @3x; `ar` (RTL) and `en` (LTR); dark theme |
 
@@ -20,7 +25,12 @@ Author: A5 (product design), with A1. Date: 2026-10-16.
 - **Test fixture**: [`fixtures/`](review/2026-10-16-home-live/fixtures/). Golden renders of
   fixture data; not live data.
 
-Below, `P/`, `L/` and `F/` abbreviate these three folders. A file stem such as
+The after set uses the same labels, in `head-27bfd44-after-kl047/{production,local-api}/` and
+`fixtures-after/`. Some captures are labelled **simulated** in their file name: a proxy 502, an
+offline network, or a held request (loading).
+
+Below, `P/`, `L/` and `F/` abbreviate the three before-set folders; §7 uses `A/` for the after
+set. A file stem such as
 `L/live.populated-popular` exists as `.{ar,en}.{393,360}.png`.
 
 No comparison with any third-party app is made or implied. Authorized references have not been
@@ -324,3 +334,176 @@ A comparison would need:
 - the same states at the same device sizes;
 - a structural side-by-side covering hierarchy, density and placement only, with no copied
   measurements or assets.
+
+---
+
+## 7. After KL-047 (`27bfd44`)
+
+The after screenshots are in
+[`review/2026-10-16-home-live/head-27bfd44-after-kl047/`](review/2026-10-16-home-live/head-27bfd44-after-kl047/).
+- **Same matrix:** ar/en × 393/360, the same local data and the same capture script as the
+  before set.
+- **Pairing:** the state-by-state before → after table is in
+  [README §8.2](review/2026-10-16-home-live/README.md#82-before--after-by-state).
+- **Abbreviation:** `A/` = `head-27bfd44-after-kl047/`.
+
+### 7.1 KL-047 design decisions (owner-directed), recorded
+
+| Decision | Replaces | Where |
+| -------- | -------- | ----- |
+| **Search hidden** until a search API exists | HL-H1/VG-05 search slot. D39 "search" is now **not met, by decision** | `apps/mobile/lib/app/shell/feed_tabs_scaffold.dart` (`FeedTabsScaffold.searchAvailable = false`, `showSearch`) |
+| **LIVE badge on** for grid cards | VG-10 (no LIVE badge in a live-only grid) | `apps/mobile/lib/features/live/presentation/widgets/live_cover_card.dart` (`KLiveCoverCard.showLiveBadge` defaults to true), `apps/mobile/lib/design_system/components/k_badge.dart` (`KBadge.live`) |
+| **Centred composed states:** 88 dp disc, tinted icon, warm copy, primary/secondary actions, at the optical centre of the region | VG-03 and HL-H6 compact placement (48 dp icon at the top third, no circle). §4 C7's "use the empty space honestly" is answered by the actions | `apps/mobile/lib/design_system/components/k_states.dart` (`KEmptyState`: `embedded`, `actionVariant`, `actionIcon`, `secondaryActionLabel`), `apps/mobile/lib/app/shell/feed_region.dart` (`FeedRegion`) |
+
+### 7.2 Home, after
+
+**Screenshots.** All are production behaviour unless marked:
+- `A/production/home.popular-unavailable`, `home.following-unavailable`,
+  `home.new-unavailable`;
+- the Home actions' result is local API data: `A/local-api/live.via-home-watch-live` (393) and
+  `live.via-home-see-who-is-live`.
+
+**What works now**
+- **A way forward.** Each tab now has a real primary action. "Watch live streams" (Popular, New)
+  and "See who's live" (Following) open the Live tab on the matching segment, through the real
+  `/live` route. This was verified in the captures: Popular lands on Live Popular, and Following
+  lands on Live Following with the 2 followed hosts.
+- **Copy.** Warm and honest, with no phase numbers. Each body ends with a pointer to live, which
+  matches the button.
+- **Composition.** The composed block (disc, title, body, button) sits at the optical centre. The
+  screen no longer reads as a line of text in a void.
+- **Header.** Only the three tabs; the selected tab hierarchy is unchanged and clear.
+- **RTL.** The button icon sits at the start (right) with the label after it. Mirroring is
+  correct.
+
+**Remaining weaknesses**
+- **Following icon (RG-19).** Home Following and Live Following still share `group_outlined`.
+- **Red saturation (RG-18).** A red-tinted icon, a red filled button and the red Create pill sit
+  in one screen.
+- **Arabic text weight (RG-12).** Unchanged: the Arabic body is visibly lighter than the English.
+- **Search (RG-16).** Hidden, so Home has no discovery entry other than Live.
+
+### 7.3 Live discovery, after
+
+**Screenshots**
+
+| Kind | Files |
+| ---- | ----- |
+| Production behaviour | `A/production/live.unavailable-{popular,following,new}` |
+| Local API data | `A/local-api/live.populated-{popular,following,new}`, `live.category-selected`, `live.scrolled-end`, `live.empty-popular`, `live.empty-new-via-see-new`, `live.empty-following`, `live.error-api-down` |
+| Simulated | `live.loading` (held requests), `live.offline-simulated`, `live.error-proxy-502` |
+| Test fixture | `fixtures-after/live.*` (adds `live.offline`) |
+
+**What works now**
+- **Category on cards (RG-05 fixed).** Each card names its topic ("# Local test: Music" /
+  "# محلي: موسيقى") when it has one. Rooms without a category show no empty slot.
+- **Offline state (RG-01 partly fixed).** A dedicated offline state: wifi-off icon,
+  "You're offline", Try again. It covers both a dropped network
+  (`A/local-api/live.offline-simulated`) and an unreachable API
+  (`A/local-api/live.error-api-down`).
+- **Hosting unavailable:**
+  - the chip row is gone (RG-08 fixed for this state);
+  - "Try again" re-checks the server switch;
+  - the copy explains that live streaming "isn't open yet".
+- **Empty states with real routes:**
+  - Popular: Try again + "See new streams", which switches to New;
+  - Following: "See popular" + Try again.
+- **Cards:** the LIVE badge (owner decision) makes the grid read as live at a glance, even
+  without covers.
+
+**Remaining weaknesses**
+1. **RG-04 still reproduces.** Latin titles on an Arabic UI:
+   - "…Learning Arabic calligraphy," (ar 393), "…Learning Arabic calligrap" (ar 360);
+   - the new category line uses the same `Text` pattern, so it is exposed too.
+2. **Badge stack (RG-10, denser).** Every card starts with two badges, red LIVE + white New.
+   - With 0 viewers everywhere, every card in view shows the same badge pair.
+   - On the New tab, "New" repeats the tab name on every card.
+3. **RG-09 not fixed.** The New-tab unavailable icon is still `new_releases_outlined`, now red on
+   a disc, so it looks like an alert.
+4. **RG-08, rest.** On Popular, loading, empty, offline and error still show the chip row. In
+   offline and error that is a lone "All". The Popular state block sits about 12 dp lower than
+   on Following/New.
+5. **Empty-state action order (RG-17).**
+   - "Try again" is the red primary button on an empty list, which is not a failure.
+   - On the New tab the body invites the user to "Explore new streams" while they are already
+     there.
+6. **Red saturation (RG-18).** In one viewport: red disc icons in states; red primary buttons;
+   the red selected chip; red LIVE badges ×6–8; the red Create pill. The calmer-chrome direction
+   (HL-N1 §2) is weakened.
+7. **Unchanged:**
+   - RG-03: no covers (cards are still grey tiles with a letter);
+   - RG-06: title truncation;
+   - RG-07: space under a short Following list;
+   - RG-11: Popular ≡ New;
+   - RG-13: skeleton contrast;
+   - RG-02: cards not tappable.
+
+**Typography, spacing, density, image ratio (after)**
+- **Grid geometry:** unchanged: 3:4, 8/4 dp.
+- **Card bottom block:** now three lines (name 15/600, title 12, `#` category 12), all white
+  on the scrim. That is readable, but on a no-cover card the text block plus the two-badge top
+  row leave the large letter avatar as the only focal point.
+- **State blocks:** an 88 dp disc, 18/600 title, 15 body and a filled button, vertically
+  centred. They are consistent across Home and Live.
+
+**RTL / LTR (after)**
+- Mirroring is correct throughout. The badge row starts at the right (مباشر, then جديد), and the
+  `#` glyph sits at the start of the category line.
+- The only defect is RG-04 (mixed-script `Text` direction).
+
+### 7.4 Gap status after KL-047
+
+| ID | Status | Note |
+| -- | ------ | ---- |
+| RG-01 | Partially fixed | Offline state added; no banner, no auto-retry on reconnect (no connectivity listener in `lib/`) |
+| RG-02 | Open | Slice 2 |
+| RG-03 | Open | Upload API |
+| RG-04 | **Still reproduces** | §7.3 item 1 |
+| RG-05 | **Fixed** | `#` category line |
+| RG-06 | Open | |
+| RG-07 | Partially fixed | Centred states with actions; short lists still leave a void |
+| RG-08 | Partially fixed | Fixed for unavailable only |
+| RG-09 | **Not fixed** | |
+| RG-10 | Open, denser | LIVE + New |
+| RG-11 | Open | API (D38) |
+| RG-12 | Open | |
+| RG-13 | Open | |
+| RG-14 | Superseded | 88 dp disc is the house style now (§7.1) |
+| RG-15 | Open (info) | |
+| RG-16 | New | Search hidden |
+| RG-17 | New | Empty-state action order and copy |
+| RG-18 | New | Red saturation |
+| RG-19 | New | Shared Following icon (was part of C8) |
+
+### 7.5 Prioritized changes after KL-047
+
+These replace §4 for planning. Paths are under `apps/mobile/`.
+
+| # | Pri | Gap | Change | Files / widgets | Acceptance criterion |
+| - | --- | --- | ------ | --------------- | -------------------- |
+| N1 | P0 | RG-04 | Lay out the card's name, title and category by their own content direction (first-strong detection or bidi isolates); align by content | `lib/features/live/presentation/widgets/live_cover_card.dart` (`KLiveCoverCard`, the name, title and category `Text`s) | In `ar`, "Learning Arabic calligraphy, lesson 3" renders LTR with a trailing "…" and the comma in place. In `en`, Arabic titles render RTL. Golden ar/en × 393/360 plus a widget test; re-capture `A/local-api/live.populated-popular.ar.393` has no leading "…" |
+| N2 | P0 | RG-10 | One top badge cluster per card. Keep LIVE (owner decision) and hide "New" when viewer counts are unavailable (all 0), or merge them as "LIVE · New". Never show "New" on the New tab | `live_cover_card.dart`, `lib/design_system/components/k_badge.dart` (`KBadge.live`, `KBadge.newRoom`), `lib/features/live/live_screen.dart` (pass the tab context) | On the New tab no card shows "New/جديد". On any tab a card shows at most one red element at its top. Widget test per tab; golden |
+| N3 | P1 | RG-09, RG-19 | Replace `new_releases_outlined` with a neutral "recent" glyph, and give Home Following and Live Following different icons | `live_screen.dart` (`LiveHubBody` `unavailableIcon`), `lib/features/home/home_screen.dart` (`HomeFeedBody` `unavailableIcon`) | No warning-like glyph in any state; the Home Following and Live Following icons differ (golden diff) |
+| N4 | P1 | RG-17 | Empty, not failed: make the primary action navigational ("See new streams" / "See popular") and demote "Try again" to secondary. Don't invite the user to "explore new streams" on the New tab | `live_screen.dart` (`FeedRegionCopy` empty action fields), `lib/l10n/app_{en,ar}.arb` (`liveHubEmptyBody`) | On Live empty Popular, the filled button navigates and Try again is ghost. On New the body does not reference New. Widget test plus A5 copy sign-off |
+| N5 | P1 | RG-01 | Offline banner under the header plus auto-retry on reconnect; keep the last grid under the banner | `lib/app/shell/feed_region.dart` (`FeedRegion`), `lib/features/live/application/live_rooms_provider.dart`, a connectivity source (new dependency; CTO approval) | With the network lost, the banner shows in ar/en. On reconnect the tab reloads without a tap. A previously loaded grid stays visible. Widget test with a fake connectivity stream |
+| N6 | P1 | RG-08 | Hide the chip row whenever the region is not showing rooms (loading without categories, empty, offline, error), or reserve the same header height on all tabs | `live_screen.dart` (`LiveHubBody.header`, `_chips`) | In `A/local-api/live.offline-simulated` and `live.error-proxy-502` no lone "All" chip shows. The state disc's centre y is equal (±1 dp) across the three tabs for the same state |
+| N7 | P1 | RG-18 | Reduce red to one accent per region: state icons in `textSecondary` on the disc (red only for error), and LIVE badges as small solid tags (no larger than today) | `lib/design_system/components/k_states.dart` (`KEmptyState.iconColor`), `lib/app/shell/feed_region.dart`, `k_badge.dart` | In `A/production/home.popular-unavailable` the only red elements are the button, the nav dot and the Create pill. A5 visual sign-off |
+| N8 | P1 | RG-03 | No-cover card: a deterministic token-palette tint per host and a smaller avatar (see §4 C2) | `live_cover_card.dart` (`_CoverFallback`), `lib/design_system/tokens/component_metrics.dart` | Adjacent cards are distinguishable without covers; the avatar is ≤ 56 dp; text contrast is ≥ 4.5:1 on every tint |
+| N9 | P2 | RG-12 | Arabic secondary text balance | `lib/design_system/tokens/tokens.dart`, `lib/design_system/theme/app_theme.dart`, `lib/design_system/components/k_tabs.dart` (`_Tab`) | Equal perceived weight in ar/en captures (A5 sign-off); no overflow at text scale 2.0 |
+| N10 | P2 | RG-13 | Skeleton contrast | `lib/design_system/components/k_skeleton.dart`, `KLiveCoverCardSkeleton` | Skeleton-to-background luminance contrast ≥ 1.3:1 |
+| N11 | P2 | RG-06 | 2-line title on no-cover cards | `live_cover_card.dart` | "Morning coffee and questions" fully visible at 360 on a no-cover card |
+| N12 | P2 | RG-07 | Under a short list (< 4 rooms), offer "See popular" below the end caption | `lib/app/shell/feed_region.dart` (`_EndOfList`), `live_screen.dart` | Live Following with 2 rooms shows the link; widget test |
+| — | — | RG-16 | Search returns when the search API exists (KL-047 decision) | `feed_tabs_scaffold.dart` (`searchAvailable`) | Flag flipped only together with a working Discover search |
+| — | — | RG-02 | Card tap: slice 2 (KL-034) | `live_screen.dart` (`onOpenRoom`), `live_cover_card.dart` (`_CardFrame`) | Per VG-44 |
+
+### 7.6 Not reproducible in the after set
+
+See [README §8.5](review/2026-10-16-home-live/README.md#85-states-not-captured-in-the-after-set).
+- **Paging footers:** with 8 rooms there is no second page.
+- **Not exercisable here:** pull-to-refresh and swipe.
+- **No such API data:** PK, multi-guest, viewer counts and covers.
+- **No feed API:** Home loading, empty and error.
+- **Not implemented:** the offline banner and auto-retry.
+
+Reference comparison remains **pending — no authorized references supplied** (§6). No
+similarity to any other app is claimed.
