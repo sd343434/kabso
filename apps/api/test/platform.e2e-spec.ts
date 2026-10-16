@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createTestApp, newUser, type TestContext } from './helpers/test-app.js';
+import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
 
 describe('platform', () => {
   let ctx: TestContext;
@@ -119,7 +119,8 @@ describe('rate limiting', () => {
   });
 
   it('authenticated requests are limited per user', async () => {
-    const reg = await ctx.http.post('/api/v1/auth/register').send(newUser());
+    // v1.2: tokens come from register → register/verify.
+    const { res: reg } = await registerVerified(ctx);
     expect(reg.status).toBe(201);
     const auth = { Authorization: `Bearer ${reg.body.tokens.accessToken as string}` };
     for (let i = 0; i < 4; i++) expect((await ctx.http.get('/api/v1/me').set(auth)).status).toBe(200);

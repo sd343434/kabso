@@ -61,6 +61,16 @@ full list. Notable rules:
 - `JWT_ACCESS_SECRET` ≥ 32 bytes. In `production` it must be base64/base64url decoding to
   ≥ 32 bytes and pass an entropy check (placeholders, typed passphrases, repeated or sequential
   characters are refused). Generate with `openssl rand -base64 48`.
+- `RATE_LIMIT_KEY_SECRET` also derives (HKDF, info `registration-code/v1`) the key that HMACs
+  registration codes. Outside production it is random per process when unset, so pending
+  registrations do not survive a restart unless it is set.
+- Verify-first registration (contract v1.2): `REGISTRATION_TTL_SECONDS` (1800),
+  `REGISTRATION_NOTICE_INTERVAL_SECONDS` (3600), `REGISTRATION_CLEANUP_INTERVAL_SECONDS` (600; an
+  in-process `setInterval` per API instance deletes expired `pending_registrations`; 0 disables;
+  register/verify also delete expired rows lazily). Post-response work (mail, notices) runs in
+  `BackgroundTasks`, drained on shutdown before Prisma/Redis disconnect.
+- `LOGIN_RECENT_SUCCESS_TTL_SECONDS` (30 days, SEC-023) and `RESERVED_DISPLAY_NAME_TERMS`
+  (KL-017; default = CONVENTIONS §6 list).
 - `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
   rules, must differ from the JWT secret); generated per process when unset elsewhere.
 - `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):
@@ -77,6 +87,8 @@ full list. Notable rules:
     Wrong if clients can also reach the API directly (they could then spoof the header).
   - a comma-separated list of proxy IPs/CIDRs (or `loopback`, `linklocal`, `uniquelocal`):
     preferred when the load balancer subnet is known.
+  - production also refuses `/0` ranges (`0.0.0.0/0`, `::/0`) and hop counts greater than 3
+    (SEC-003a).
   - `true` trusts the client-controlled left-most `X-Forwarded-For` and is **refused when
     `NODE_ENV=production`** (SEC-003). The effective value is logged at startup
     (`trust proxy = …`). Per-platform values belong in `docs/DEPLOYMENT.md` (A8).

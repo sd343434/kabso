@@ -4,7 +4,12 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 export enum AuditAction {
-  REGISTER = 'auth.register',
+  // Verify-first registration (contract v1.2 §6). Namespaced `auth.` like every other action.
+  REGISTRATION_PENDING_CREATED = 'auth.registration.pending_created',
+  REGISTRATION_REPLACED = 'auth.registration.replaced',
+  REGISTRATION_VERIFIED = 'auth.registration.verified',
+  REGISTRATION_VERIFY_FAILED = 'auth.registration.verify_failed',
+  REGISTRATION_EXISTING_EMAIL_NOTICE = 'auth.registration.existing_email_notice',
   LOGIN_SUCCESS = 'auth.login.success',
   LOGIN_FAILURE = 'auth.login.failure',
   LOGIN_RATE_LIMITED = 'auth.login.rate_limited',
@@ -29,6 +34,18 @@ export interface AuditEntry {
   readonly requestId?: string | null;
 }
 
+function toRow(entry: AuditEntry): Prisma.AuditLogUncheckedCreateInput {
+  return {
+    action: entry.action,
+    actorUserId: entry.actorUserId ?? null,
+    targetType: entry.targetType ?? null,
+    targetId: entry.targetId ?? null,
+    ...(entry.metadata ? { metadata: entry.metadata } : {}),
+    ip: entry.ip?.slice(0, 64) ?? null,
+    requestId: entry.requestId ?? null,
+  };
+}
+
 /** Append-only security audit trail. Failures to write are logged, never surfaced. */
 @Injectable()
 export class AuditService {
@@ -38,19 +55,14 @@ export class AuditService {
 
   async record(entry: AuditEntry): Promise<void> {
     try {
-      await this.prisma.auditLog.create({
-        data: {
-          action: entry.action,
-          actorUserId: entry.actorUserId ?? null,
-          targetType: entry.targetType ?? null,
-          targetId: entry.targetId ?? null,
-          ...(entry.metadata ? { metadata: entry.metadata } : {}),
-          ip: entry.ip?.slice(0, 64) ?? null,
-          requestId: entry.requestId ?? null,
-        },
-      });
+      await this.prisma.auditLog.create({ data: toRow(entry) });
     } catch (err) {
       this.logger.error({ error: safeErrorLog(err), action: entry.action }, 'Audit write failed');
     }
+  }
+
+  /** Writes inside the caller's transaction (a failure aborts the transaction). */
+  async recordIn(tx: Prisma.TransactionClient, entry: AuditEntry): Promise<void> {
+    await tx.auditLog.create({ data: toRow(entry) });
   }
 }

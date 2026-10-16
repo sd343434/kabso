@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
+import { displayNameIssue, normalizeDisplayName } from '../users/display-name.js';
 import { passwordPolicyIssue } from './password-policy.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml. All objects are strict
@@ -55,11 +56,25 @@ export const deviceInfoSchema = z.strictObject({
   appVersion: safeText(0, 32).optional(),
 });
 
+/**
+ * displayName (contract v1.2 §6): NFC + trim, 1–50 graphemes / ≤ 100 code points, joiner
+ * placement, zalgo and content rules. Reserved terms need server configuration and are checked
+ * by the registration service (`reserved_term`).
+ */
+export const displayNameSchema = z
+  .string()
+  .max(1000)
+  .transform(normalizeDisplayName)
+  .superRefine((value, ctx) => {
+    const issue = displayNameIssue(value, []);
+    if (issue) ctx.addIssue({ code: 'custom', message: `displayName ${issue}`, params: { issue } });
+  });
+
 export const registerSchema = z.strictObject({
   email: emailSchema,
   password: passwordSchema,
   username: usernameSchema,
-  displayName: safeText(1, 50),
+  displayName: displayNameSchema,
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
 });
@@ -83,6 +98,20 @@ const opaqueToken = z.string().min(10).max(200);
 export const refreshSchema = z.strictObject({ refreshToken: opaqueToken });
 export const verifyEmailSchema = z.strictObject({ token: opaqueToken });
 export const forgotPasswordSchema = z.strictObject({ email: emailSchema });
+
+/** 8-digit numeric registration code (contract v1.2 §6). */
+export const registrationCodeSchema = z.string().regex(/^[0-9]{8}$/);
+
+export const registerVerifySchema = z.strictObject({
+  email: emailSchema,
+  code: registrationCodeSchema,
+  device: deviceInfoSchema.optional(),
+});
+export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
+
+export const registerResendSchema = z.strictObject({ email: emailSchema });
+
+export const updateMeSchema = z.strictObject({ locale: localeSchema });
 export const resetPasswordSchema = z.strictObject({ token: opaqueToken, newPassword: passwordSchema });
 
 export type DeviceInfo = z.output<typeof deviceInfoSchema>;

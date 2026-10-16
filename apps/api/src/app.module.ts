@@ -2,6 +2,7 @@ import { Module, type DynamicModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditModule } from './common/audit/audit.module.js';
+import { BackgroundTasksModule } from './common/background/background-tasks.js';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { RateLimitGuard } from './common/rate-limit/rate-limit.guard.js';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module.js';
@@ -28,6 +29,7 @@ export class AppModule {
         RedisModule,
         RateLimitModule,
         AuditModule,
+        BackgroundTasksModule,
         MailModule,
         HealthModule,
         UsersModule,

@@ -61,6 +61,8 @@ export interface NewAccount {
   username: string;
   displayName: string;
   locale: 'ar' | 'en';
+  /** Set at creation for verify-first registration (contract v1.2). */
+  emailVerifiedAt?: Date;
 }
 
 export interface LoginCandidate {
@@ -77,13 +79,31 @@ export interface MailRecipient {
   locale: 'ar' | 'en';
 }
 
+/**
+ * Name of the unique index a Prisma P2002 error violated, or null. Driver adapters report it in
+ * `meta.driverAdapterError.cause.constraint.index`; the classic engine in `meta.target`. The
+ * error *message* is never inspected: it embeds the calling source code.
+ */
+export function violatedUniqueIndex(err: unknown): string | null {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') return null;
+  const meta = (err.meta ?? {}) as {
+    target?: unknown;
+    driverAdapterError?: { cause?: { constraint?: { index?: unknown; fields?: unknown } } };
+  };
+  const constraint = meta.driverAdapterError?.cause?.constraint;
+  if (typeof constraint?.index === 'string') return constraint.index;
+  if (Array.isArray(constraint?.fields)) return constraint.fields.join(',');
+  if (typeof meta.target === 'string') return meta.target;
+  if (Array.isArray(meta.target)) return meta.target.join(',');
+  return 'unknown';
+}
+
 /** Maps a Prisma unique violation to the conflicting contract code, if recognizable. */
 export function uniqueViolationCode(err: unknown): ErrorCode.EMAIL_TAKEN | ErrorCode.USERNAME_TAKEN | null {
-  if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') return null;
-  // Driver adapters report the constraint in different meta shapes; inspect all of it.
-  const haystack = `${JSON.stringify(err.meta ?? {})} ${err.message}`;
-  if (/users_email_key|\bemail\b/.test(haystack)) return ErrorCode.EMAIL_TAKEN;
-  if (/user_profiles_username_key|\busername\b/.test(haystack)) return ErrorCode.USERNAME_TAKEN;
+  const index = violatedUniqueIndex(err);
+  if (index === null) return null;
+  if (/users_email_key|^email$/.test(index)) return ErrorCode.EMAIL_TAKEN;
+  if (/user_profiles_username_key|^username$/.test(index)) return ErrorCode.USERNAME_TAKEN;
   return null;
 }
 
@@ -106,6 +126,7 @@ export class UsersService {
         data: {
           email: input.email,
           passwordHash: input.passwordHash,
+          emailVerifiedAt: input.emailVerifiedAt ?? null,
           profile: {
             create: { username: input.username, displayName: input.displayName, locale: input.locale },
           },
@@ -170,13 +191,33 @@ export class UsersService {
     await tx.user.updateMany({ where: { id: userId, emailVerifiedAt: null }, data: { emailVerifiedAt: at } });
   }
 
-  /** Reserved or malformed names are reported unavailable. */
+  /**
+   * True when an account has the username or a *live* pending registration (other than one for
+   * `exceptEmail`, which is about to be replaced) holds it (contract v1.2 §6 rule 7).
+   */
+  async isUsernameTaken(username: string, exceptEmail?: string, now: Date = new Date()): Promise<boolean> {
+    const [accounts, pending] = await Promise.all([
+      this.prisma.userProfile.count({ where: { username } }),
+      this.prisma.pendingRegistration.count({
+        where: {
+          username,
+          expiresAt: { gt: now },
+          ...(exceptEmail === undefined ? {} : { email: { not: exceptEmail } }),
+        },
+      }),
+    ]);
+    return accounts > 0 || pending > 0;
+  }
+
+  /** Reserved, malformed, taken or reserved-by-pending names are reported unavailable. */
   async isUsernameAvailable(username: string): Promise<boolean> {
     if (!isValidUsername(username) || isReservedUsername(username)) return false;
-    const existing = await this.prisma.userProfile.findUnique({
-      where: { username },
-      select: { userId: true },
-    });
-    return existing === null;
+    return !(await this.isUsernameTaken(username));
+  }
+
+  /** PATCH /me (contract v1.2, KL-018): persists an explicit locale choice. */
+  async updateLocale(userId: string, locale: 'ar' | 'en'): Promise<MeDto | null> {
+    const updated = await this.prisma.userProfile.updateMany({ where: { userId }, data: { locale } });
+    return updated.count === 0 ? null : this.getMe(userId);
   }
 }

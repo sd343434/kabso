@@ -154,4 +154,39 @@ describe('loadConfig', () => {
       expect(() => loadConfig({ ...base, ARGON2_MAX_CONCURRENCY: '0' })).toThrow(/ARGON2_MAX_CONCURRENCY/);
     });
   });
+
+  describe('SEC-003a (contract v1.2 §7)', () => {
+    const hex = () => randomBytes(32).toString('hex');
+    const prod = (trustProxy: string) => ({
+      ...base,
+      NODE_ENV: 'production',
+      JWT_ACCESS_SECRET: hex(),
+      RATE_LIMIT_KEY_SECRET: hex(),
+      TRUST_PROXY: trustProxy,
+    });
+    const trustProxyProblems = (env: Record<string, string>) => {
+      try {
+        loadConfig(env);
+        return [];
+      } catch (err) {
+        return (err as ConfigValidationError).problems.filter((p) => p.startsWith('TRUST_PROXY'));
+      }
+    };
+
+    it.each(['0.0.0.0/0', '::/0', '10.0.0.0/8, 0.0.0.0/0', '4', '10'])(
+      'refuses TRUST_PROXY=%s in production',
+      (value) => {
+        expect(trustProxyProblems(prod(value))).toHaveLength(1);
+      },
+    );
+
+    it.each(['1', '3', '10.0.0.0/8', '2001:db8::/32'])('accepts TRUST_PROXY=%s in production', (value) => {
+      expect(trustProxyProblems(prod(value))).toEqual([]);
+    });
+
+    it('still allows /0 and large hop counts outside production', () => {
+      expect(loadConfig({ ...base, TRUST_PROXY: '0.0.0.0/0' }).http.trustProxy).toEqual(['0.0.0.0/0']);
+      expect(loadConfig({ ...base, TRUST_PROXY: '5' }).http.trustProxy).toBe(5);
+    });
+  });
 });

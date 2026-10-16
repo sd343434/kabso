@@ -47,11 +47,14 @@ export type RotationOutcome =
       readonly sessionId: string;
       /** When the session was last rotated (measures concurrent-refresh false positives). */
       readonly lastRotatedAt: Date;
+      readonly rotationsAgo: number;
     }
   /** Some other non-matching secret: refused, session untouched. */
   | { readonly kind: 'invalid_secret'; readonly userId: string; readonly sessionId: string };
 
 const MAX_LISTED_SESSIONS = 50;
+/** Rotated refresh-secret hashes kept per session for reuse detection (contract v1.2, SEC-022). */
+export const ROTATED_HISTORY_SIZE = 10;
 const PLATFORMS = new Set(['android', 'ios', 'web', 'other']);
 
 function minDate(a: Date, b: Date): Date {
@@ -103,9 +106,10 @@ export class SessionsService {
 
   /**
    * Rotates a refresh token. The new secret is written with a compare-and-swap on the current
-   * hash, so two concurrent refreshes with the same token cannot both succeed. Presenting a
-   * secret that is not the current one for a live session is treated as reuse: the session is
-   * revoked (REFRESH_REUSE).
+   * hash, so two concurrent refreshes with the same token cannot both succeed. Presenting any of
+   * the last {@link ROTATED_HISTORY_SIZE} rotated secrets is reuse and revokes the session
+   * (REFRESH_REUSE, contract v1.2 SEC-022); a secret never issued for the session is refused
+   * without revoking (SEC-001).
    */
   async rotate(refreshToken: string, now: Date = new Date()): Promise<RotationOutcome> {
     const parsed = parseRefreshToken(refreshToken);
@@ -118,6 +122,7 @@ export class SessionsService {
         userId: true,
         refreshTokenHash: true,
         previousRefreshTokenHash: true,
+        rotatedRefreshTokenHashes: true,
         lastUsedAt: true,
         expiresAt: true,
         absoluteExpiresAt: true,
@@ -129,18 +134,20 @@ export class SessionsService {
 
     const presentedHash = sha256Hex(parsed.secret);
     if (!hashesEqual(presentedHash, session.refreshTokenHash)) {
-      const isPrevious =
-        session.previousRefreshTokenHash !== null &&
-        hashesEqual(presentedHash, session.previousRefreshTokenHash);
-      if (!isPrevious) {
-        // Guessed/garbage secret for a known sid (the sid is public: JWT claim, logs). Must not
+      const history = [session.previousRefreshTokenHash, ...session.rotatedRefreshTokenHashes];
+      // Compare against every entry (no early exit) to keep the check constant-time.
+      let rotatedIndex = -1;
+      history.forEach((hash, index) => {
+        if (hash !== null && hashesEqual(presentedHash, hash) && rotatedIndex === -1) rotatedIndex = index;
+      });
+      if (rotatedIndex === -1) {
+        // Never issued for this session (guessed/garbage secret for a known, public sid). Must not
         // revoke, or knowing a session id would be enough to force a logout (SEC-001).
         return { kind: 'invalid_secret', userId: session.userId, sessionId: session.id };
       }
-      // The immediately previous secret: genuine reuse → revoke (CONVENTIONS §6). Conditional on
-      // the previous hash still being the one presented, in case another rotation happened.
+      // A previously rotated secret: reuse → revoke (CONVENTIONS §6, SEC-022).
       const revoked = await this.prisma.session.updateMany({
-        where: { id: session.id, revokedAt: null, previousRefreshTokenHash: presentedHash },
+        where: { id: session.id, revokedAt: null },
         data: { revokedAt: now, revokedReason: RevokedReason.REFRESH_REUSE },
       });
       if (revoked.count === 0) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
@@ -149,6 +156,8 @@ export class SessionsService {
         userId: session.userId,
         sessionId: session.id,
         lastRotatedAt: session.lastUsedAt,
+        // 1 = the immediately previous secret, 2 = the one before it, … (≤ 10).
+        rotationsAgo: rotatedIndex === 0 ? 1 : rotatedIndex,
       };
     }
 
@@ -163,18 +172,22 @@ export class SessionsService {
       new Date(now.getTime() + this.config.refresh.ttlSeconds * 1000),
       session.absoluteExpiresAt,
     );
-    const swapped = await this.prisma.session.updateMany({
-      where: { id: session.id, refreshTokenHash: presentedHash, revokedAt: null },
-      data: {
-        refreshTokenHash: sha256Hex(secret),
-        previousRefreshTokenHash: presentedHash,
-        rotationCounter: { increment: 1 },
-        lastUsedAt: now,
-        expiresAt,
-      },
-    });
+    // Compare-and-swap on the current hash; the presented hash becomes the newest entry of the
+    // bounded rotation history (newest first, at most ROTATED_HISTORY_SIZE entries).
+    const swapped = await this.prisma.$executeRaw`
+      UPDATE "sessions"
+      SET "refresh_token_hash" = ${sha256Hex(secret)},
+          "previous_refresh_token_hash" = ${presentedHash},
+          "rotated_refresh_token_hashes" =
+            (array_prepend(${presentedHash}::char(64), COALESCE("rotated_refresh_token_hashes", '{}')))[1:${ROTATED_HISTORY_SIZE}::int],
+          "rotation_counter" = "rotation_counter" + 1,
+          "last_used_at" = ${now},
+          "expires_at" = ${expiresAt}
+      WHERE "id" = ${session.id}::uuid
+        AND "refresh_token_hash" = ${presentedHash}
+        AND "revoked_at" IS NULL`;
     // Lost the race against a concurrent refresh with the same token.
-    if (swapped.count !== 1) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
+    if (swapped !== 1) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
 
     return {
       kind: 'rotated',

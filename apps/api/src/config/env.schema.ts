@@ -140,6 +140,34 @@ export const envSchema = z
     RATE_LIMIT_AUTHENTICATED_USER: rateLimit('600/900'),
     RATE_LIMIT_EMAIL_RESEND_USER: rateLimit('5/3600'),
     RATE_LIMIT_PUBLIC_IP: rateLimit('300/900'),
+    // v1.2 (CONVENTIONS §7)
+    RATE_LIMIT_REGISTER_EMAIL: rateLimit('3/3600'),
+    RATE_LIMIT_REGISTER_VERIFY_IP: rateLimit('10/900'),
+    RATE_LIMIT_REGISTER_RESEND_EMAIL: rateLimit('3/3600'),
+    RATE_LIMIT_REGISTER_RESEND_IP: rateLimit('10/3600'),
+    RATE_LIMIT_UPDATE_ME_USER: rateLimit('30/3600'),
+
+    /** Pending registration lifetime (contract: 30 min). */
+    REGISTRATION_TTL_SECONDS: positiveInt(30 * 60),
+    /** At most one "account already exists" notice per account per interval (contract: 1 h). */
+    REGISTRATION_NOTICE_INTERVAL_SECONDS: positiveInt(3600),
+    /** Periodic deletion of expired pending registrations; 0 disables the job. */
+    REGISTRATION_CLEANUP_INTERVAL_SECONDS: nonNegativeInt(600),
+    /** A source that logged into an account within this window bypasses the account bucket. */
+    LOGIN_RECENT_SUCCESS_TTL_SECONDS: positiveInt(30 * 24 * 3600),
+    /**
+     * Reserved display-name terms (comma-separated; matched after NFKC casefold + confusable
+     * skeleton). Defaults to the CONVENTIONS §6 list.
+     */
+    RESERVED_DISPLAY_NAME_TERMS: z
+      .string()
+      .default('kabso,admin,administrator,support,official,moderator,staff,كابسو,الدعم,رسمي,مشرف,الإدارة')
+      .transform((v) =>
+        v
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+      ),
 
     /** Concurrent Argon2 operations per process (SEC-002); default = available CPUs. */
     ARGON2_MAX_CONCURRENCY: z.coerce.number().int().min(1).max(256).default(availableParallelism()),
@@ -176,6 +204,24 @@ export const envSchema = z
         }
       }
 
+      // SEC-003a: hop counts above 3 and catch-all /0 ranges trust client-supplied headers.
+      if (typeof env.TRUST_PROXY === 'number' && env.TRUST_PROXY > 3) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['TRUST_PROXY'],
+          message: 'hop counts greater than 3 are refused in production',
+        });
+      }
+      if (Array.isArray(env.TRUST_PROXY)) {
+        const catchAll = env.TRUST_PROXY.filter((entry) => /\/0+$/.test(entry));
+        if (catchAll.length > 0) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['TRUST_PROXY'],
+            message: `/0 ranges trust every address and are refused in production: ${catchAll.join(', ')}`,
+          });
+        }
+      }
       if (env.TRUST_PROXY === true) {
         ctx.addIssue({
           code: 'custom',

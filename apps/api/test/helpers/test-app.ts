@@ -7,39 +7,96 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { loadConfig, type AppConfig } from '../../src/config/app-config.js';
-import { MAIL_SENDER, type MailSender, type TokenMail } from '../../src/modules/mail/mail-sender.js';
+import {
+  MAIL_SENDER,
+  type AccountExistsMail,
+  type MailLocale,
+  type MailSender,
+  type RegistrationCodeMail,
+  type TokenMail,
+} from '../../src/modules/mail/mail-sender.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
+import { BackgroundTasks } from '../../src/common/background/background-tasks.js';
 
-export interface CapturedMail extends TokenMail {
-  readonly kind: 'verify' | 'reset';
+export type CapturedKind = 'verify' | 'reset' | 'code' | 'account_exists';
+
+/** Every captured mail; fields that do not apply to a kind are empty strings. */
+export interface CapturedMail {
+  readonly kind: CapturedKind;
+  readonly to: string;
+  readonly locale: MailLocale;
+  readonly token: string;
+  readonly link: string;
+  readonly code: string;
 }
 
-/** Test double for the MailSender port: records messages so tests can read the tokens. */
+/** Test double for the MailSender port: records messages so tests can read tokens and codes. */
 export class CapturingMailSender implements MailSender {
   readonly sent: CapturedMail[] = [];
 
   sendEmailVerification(mail: TokenMail): Promise<void> {
-    this.sent.push({ ...mail, kind: 'verify' });
+    this.sent.push({
+      kind: 'verify',
+      to: mail.to,
+      locale: mail.locale,
+      token: mail.token,
+      link: mail.link,
+      code: '',
+    });
     return Promise.resolve();
   }
 
   sendPasswordReset(mail: TokenMail): Promise<void> {
-    this.sent.push({ ...mail, kind: 'reset' });
+    this.sent.push({
+      kind: 'reset',
+      to: mail.to,
+      locale: mail.locale,
+      token: mail.token,
+      link: mail.link,
+      code: '',
+    });
     return Promise.resolve();
   }
 
-  last(to: string, kind: CapturedMail['kind']): CapturedMail | undefined {
-    return [...this.sent].reverse().find((m) => m.to === to && m.kind === kind);
+  sendRegistrationCode(mail: RegistrationCodeMail): Promise<void> {
+    this.sent.push({ kind: 'code', to: mail.to, locale: mail.locale, token: '', link: '', code: mail.code });
+    return Promise.resolve();
   }
 
-  /** Polls for a mail (forgot-password is processed after the 202 is sent). */
-  async waitFor(to: string, kind: CapturedMail['kind'], timeoutMs = 3000): Promise<CapturedMail> {
+  sendAccountExistsNotice(mail: AccountExistsMail): Promise<void> {
+    this.sent.push({
+      kind: 'account_exists',
+      to: mail.to,
+      locale: mail.locale,
+      token: '',
+      link: '',
+      code: '',
+    });
+    return Promise.resolve();
+  }
+
+  last(to: string, kind: CapturedKind, after = 0): CapturedMail | undefined {
+    return this.sent
+      .slice(after)
+      .reverse()
+      .find((m) => m.to === to && m.kind === kind);
+  }
+
+  count(to: string, kind: CapturedKind): number {
+    return this.sent.filter((m) => m.to === to && m.kind === kind).length;
+  }
+
+  /**
+   * Polls for a mail (registration, resend and forgot-password mail is sent after the response).
+   * `after` ignores mails captured before that index (use `mail.sent.length` before the request).
+   */
+  async waitFor(to: string, kind: CapturedKind, after = 0, timeoutMs = 3000): Promise<CapturedMail> {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      const mail = this.last(to, kind);
+      const mail = this.last(to, kind, after);
       if (mail) return mail;
       if (Date.now() > deadline) throw new Error(`No ${kind} mail for ${to}`);
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 10));
     }
   }
 }
@@ -77,6 +134,11 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_AUTHENTICATED_USER: GENEROUS,
     RATE_LIMIT_EMAIL_RESEND_USER: GENEROUS,
     RATE_LIMIT_PUBLIC_IP: GENEROUS,
+    RATE_LIMIT_REGISTER_EMAIL: GENEROUS,
+    RATE_LIMIT_REGISTER_VERIFY_IP: GENEROUS,
+    RATE_LIMIT_REGISTER_RESEND_EMAIL: GENEROUS,
+    RATE_LIMIT_REGISTER_RESEND_IP: GENEROUS,
+    RATE_LIMIT_UPDATE_ME_USER: GENEROUS,
     ...overrides,
   });
 }
@@ -84,7 +146,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
 /** Removes every table row (the e2e database is dedicated to tests). */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE audit_logs, verification_tokens, sessions, user_settings, user_profiles, users CASCADE',
+    'TRUNCATE TABLE pending_registrations, audit_logs, verification_tokens, sessions, user_settings, user_profiles, users CASCADE',
   );
 }
 
@@ -138,6 +200,41 @@ export async function createTestApp(
       await deleteRedisKeys(config.redis.url, config.redis.keyPrefix);
     },
   };
+}
+
+/** Waits until every background task (post-response work such as mail) has finished. */
+export async function settle(ctx: TestContext): Promise<void> {
+  await ctx.app.get(BackgroundTasks).idle();
+}
+
+export interface VerifiedRegistration {
+  readonly payload: ReturnType<typeof newUser>;
+  /** The `POST /auth/register/verify` response (201 AuthResponse on success). */
+  readonly res: request.Response;
+  readonly code: string;
+}
+
+/**
+ * v1.2 verify-first registration as one step: `register` (expects 202), read the emailed code,
+ * `register/verify`. Returns the verify response (201 AuthResponse), i.e. what `register`
+ * returned before contract v1.2.
+ */
+export async function registerVerified(
+  ctx: TestContext,
+  overrides: Partial<Record<string, unknown>> = {},
+): Promise<VerifiedRegistration> {
+  const payload = newUser(overrides);
+  const email = String(payload.email).trim().toLowerCase();
+  const before = ctx.mail.sent.length;
+  const reg = await ctx.http.post('/api/v1/auth/register').send(payload);
+  if (reg.status !== 202) {
+    throw new Error(`register returned ${reg.status}: ${JSON.stringify(reg.body)}`);
+  }
+  const mail = await ctx.mail.waitFor(email, 'code', before);
+  const res = await ctx.http
+    .post('/api/v1/auth/register/verify')
+    .send({ email, code: mail.code, ...(payload.device ? { device: payload.device } : {}) });
+  return { payload, res, code: mail.code };
 }
 
 let counter = 0;

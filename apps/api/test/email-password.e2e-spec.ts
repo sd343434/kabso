@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createTestApp, newUser, type TestContext } from './helpers/test-app.js';
+import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
 
 let ctx: TestContext;
 
@@ -11,10 +11,25 @@ afterAll(async () => {
   await ctx?.close();
 });
 
+/**
+ * Contract v1.2: accounts are created with a verified email (register → register/verify). The
+ * email/verify + email/resend flow remains for future address changes, so these tests mark the
+ * new account unverified and request a verification token through email/resend.
+ */
 async function register() {
-  const payload = newUser();
-  const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+  const { payload, res } = await registerVerified(ctx);
   expect(res.status).toBe(201);
+  expect(res.body.user.emailVerified).toBe(true);
+  await ctx.prisma.user.update({
+    where: { id: res.body.user.id as string },
+    data: { emailVerifiedAt: null },
+  });
+  const before = ctx.mail.sent.length;
+  const resend = await ctx.http
+    .post('/api/v1/auth/email/resend')
+    .set({ Authorization: `Bearer ${res.body.tokens.accessToken as string}` });
+  expect(resend.status).toBe(202);
+  await ctx.mail.waitFor(payload.email, 'verify', before);
   return {
     payload,
     userId: res.body.user.id as string,

@@ -25,6 +25,7 @@ import {
   CapturingMailSender,
   createTestApp,
   newUser,
+  registerVerified,
   type TestContext,
 } from '../helpers/test-app.js';
 
@@ -36,6 +37,9 @@ const PUBLIC_ALLOWLIST = [
   'GET /health/live',
   'GET /health/ready',
   'POST /api/v1/auth/register',
+  // Contract v1.2 (KL-019): verify-first registration adds two public routes.
+  'POST /api/v1/auth/register/verify',
+  'POST /api/v1/auth/register/resend',
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/refresh',
   'POST /api/v1/auth/email/verify',
@@ -95,9 +99,9 @@ describe('KL-007 security regression', () => {
 
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+  // Contract v1.2: an account (and tokens) exists only after register → register/verify.
   async function register(overrides: Partial<Record<string, unknown>> = {}) {
-    const payload = newUser(overrides);
-    const res = await ctx.http.post('/api/v1/auth/register').send(payload);
+    const { payload, res } = await registerVerified(ctx, overrides);
     expect(res.status).toBe(201);
     return { payload, body: res.body };
   }
@@ -182,12 +186,18 @@ describe('KL-007 security regression', () => {
       expect(session.refreshTokenHash).toBe(createHash('sha256').update(secret).digest('hex'));
       expect(JSON.stringify(session)).not.toContain(secret);
 
-      const mail = ctx.mail.last(body.user.email, 'verify');
-      expect(mail).toBeDefined();
+      // v1.2: accounts are created verified, so issue an email-verification token explicitly
+      // (the flow remains for future address changes) to check how it is stored.
+      await ctx.prisma.user.update({ where: { id: body.user.id }, data: { emailVerifiedAt: null } });
+      const before = ctx.mail.sent.length;
+      expect(
+        (await ctx.http.post('/api/v1/auth/email/resend').set(bearer(body.tokens.accessToken))).status,
+      ).toBe(202);
+      const mail = await ctx.mail.waitFor(body.user.email, 'verify', before);
       const rows = await ctx.prisma.verificationToken.findMany({ where: { userId: body.user.id } });
       expect(rows).toHaveLength(1);
-      expect(rows[0]!.tokenHash).toBe(createHash('sha256').update(mail!.token).digest('hex'));
-      expect(JSON.stringify(rows)).not.toContain(mail!.token);
+      expect(rows[0]!.tokenHash).toBe(createHash('sha256').update(mail.token).digest('hex'));
+      expect(JSON.stringify(rows)).not.toContain(mail.token);
 
       const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: body.user.id } });
       expect(user.passwordHash).toMatch(/^\$argon2id\$v=19\$m=19456,p=1,t=2\$/);
@@ -251,7 +261,7 @@ describe('KL-007 security regression', () => {
         expect(res.status).toBe(400);
       }
       const arabic = await ctx.http.post('/api/v1/auth/register').send(newUser({ displayName: 'محمد علي' }));
-      expect(arabic.status).toBe(201);
+      expect(arabic.status).toBe(202); // v1.2: register answers 202 (verify-first)
     });
 
     it('rejects __proto__ and other unknown keys in strict bodies', async () => {
@@ -285,7 +295,7 @@ describe('KL-007 rate limiting', () => {
         .send(newUser());
       statuses.push(res.status);
     }
-    expect(statuses).toEqual([201, 201, 429]);
+    expect(statuses).toEqual([202, 202, 429]); // v1.2: register answers 202 (verify-first)
   });
 
   it('stores only hashed subjects in Redis keys (no emails or identifiers)', async () => {
