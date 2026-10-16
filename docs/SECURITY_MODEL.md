@@ -85,7 +85,7 @@ Status: **M** = mitigated by an implemented control, **P** = partially mitigated
 | T18 | I | Cleartext transport from the app | Android cleartext only in `src/debug` manifest; iOS `NSAllowsLocalNetworking` in the shared Info.plist; default base URL is `http://10.0.2.2:3000` | P (SEC-007) |
 | T19 | I | Refresh token extracted from device / backups | Keychain `first_unlock_this_device` (no iCloud sync); Android Keystore-wrapped AES-GCM; `allowBackup=false` | M (SEC-019 notes) |
 | T20 | I | IDOR on sessions | Revoke `where {id, userId}`; foreign id → 404; list filtered by `userId` **[PoC]** | M |
-| T21 | I | DB-level data exposure (insider, SQLi elsewhere) | Hashes only for secrets; no least-privilege role | P (SEC-011) |
+| T21 | I | DB-level data exposure (insider, SQLi elsewhere) | Hashes only for secrets; DML-only runtime role (KL-013, verified KL-007f with conditions → KL-013b) | M (SEC-011) |
 | T22 | D | Argon2 CPU exhaustion via login/register | Per-IP limits; ~130 verifications/s per 4-core node **[PoC]**; no global concurrency cap | P (SEC-002) |
 | T23 | D | Forced logout of a victim | Any wrong secret with a known session id revokes the session **[PoC]** | O (SEC-001) |
 | T24 | D | Rate limiter bypass when Redis is down | Fails closed with 503 **[PoC]** | M |

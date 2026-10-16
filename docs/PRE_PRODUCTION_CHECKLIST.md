@@ -11,7 +11,7 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 
 | ID | Condition | Task | Verified by | Status |
 | -- | --------- | ---- | ----------- | ------ |
-| PP-01 | Least-privilege runtime DB role (DML only) + separate migration role; negative tests prove the runtime role cannot run DDL/TRUNCATE (SEC-011) | KL-013 | A7 | ⛔ |
+| PP-01 | Least-privilege runtime DB role (DML only) + separate migration role; negative tests prove the runtime role cannot run DDL/TRUNCATE (SEC-011) | KL-013, KL-013b | A7 | ⏳ KL-013 merged `466b66b` (CI run 64); A7 KL-007f PASS WITH CONDITIONS: KL7F-01 (cluster-wide group name), KL7F-02 (boot guard ignores memberships), KL7F-09 (docs) must be fixed before first deployment → KL-013b |
 | PP-02 | Verify-first registration — sign-up never reveals whether an email is registered (owner decision B9, contract v1.2) | KL-019, KL-024 | A7 + A6 | ✅ A7 KL-007d PASS (`c177a27`, merged `4ad9fd2`); A6 KL-006d approve, timing t=−0.60 (`634c1c1`, merged `9fa6e9a`). Real delivery still needs PP-20 |
 | PP-03 | Refresh reuse detection (SEC-022): last-10 history done; residual — a thief rotating > 10 times keeps the session; needs a token generation counter | KL-016b | A7 | ⛔ partial |
 | PP-04 | Login lockout/oracle: failed-only account bucket + recent-success bypass + atomic counter (SEC-023) | KL-016, KL-024 | A7 | ✅ race fixed (60 parallel → 20 checks), refunds not exploitable (KL-007d); residual oracle → PP-05 |

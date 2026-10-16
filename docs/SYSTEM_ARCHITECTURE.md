@@ -73,5 +73,6 @@ See `docs/SECURITY_MODEL.md` (Phase 1 deliverable of the Security specialist). H
 Argon2id, rotating refresh tokens with reuse detection, immediate revocation via session check,
 Redis rate limits, no enumeration via login/forgot-password (registration still reveals
 `EMAIL_TAKEN` — accepted Phase 1 risk, blocker B9), secrets only via env.
-**Not yet implemented:** least-privilege runtime DB role (KL-007 SEC-011; required before any
-production deployment). Full threat model: `docs/SECURITY_MODEL.md`.
+Least-privilege runtime DB role: implemented in KL-013 (runtime login in group `kabso_runtime`, DML
+only; migration role owns the schema; boot guard). Verified PASS WITH CONDITIONS (KL-007f); follow-up
+KL-013b before deployment. Full threat model: `docs/SECURITY_MODEL.md`.
