@@ -12,8 +12,8 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | ID | Condition | Task | Verified by | Status |
 | -- | --------- | ---- | ----------- | ------ |
 | PP-01 | Least-privilege runtime DB role (DML only) + separate migration role; negative tests prove the runtime role cannot run DDL/TRUNCATE (SEC-011) | KL-013 | A7 | ⛔ |
-| PP-02 | Verify-first registration — sign-up never reveals whether an email is registered (owner decision B9, contract v1.2) | KL-019 | A7 + A6 | ⏳ |
-| PP-03 | Refresh reuse detection across last 10 rotated secrets (SEC-022) | KL-016 | A7 | ⏳ |
+| PP-02 | Verify-first registration — sign-up never reveals whether an email is registered (owner decision B9, contract v1.2) | KL-019, KL-024 | A7 + A6 | ⏳ A7: pass with conditions (SEC-025/026 → KL-024); A6 re-test running |
+| PP-03 | Refresh reuse detection (SEC-022): last-10 history done; residual — a thief rotating > 10 times keeps the session; needs a token generation counter | KL-016b | A7 | ⛔ partial |
 | PP-04 | Login lockout/oracle: failed-only account bucket + recent-success bypass (SEC-023) | KL-016 | A7 | ⏳ |
 | PP-05 | CAPTCHA / step-up challenge replacing the account-bucket 429 (SEC-023 residual oracle) | B11 | A7 | ⛔ provider decision needed |
 | PP-06 | Refuse `/0` CIDRs and hop counts > 3 in production TRUST_PROXY (SEC-003a) | KL-016 | A7 | ⏳ |
@@ -28,8 +28,8 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | ID | Condition | Task | Verified by | Status |
 | -- | --------- | ---- | ----------- | ------ |
 | PP-20 | Real email delivery (SMTP/provider, SPF/DKIM) — required by verify-first registration and password reset | B2 | A8 | ⛔ |
-| PP-21 | displayName Unicode rules incl. ZWNJ/ZWJ, length, zalgo, reserved terms (contract v1.2) | KL-017 | A6 + A7 | ⏳ |
-| PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 | ⏳ |
+| PP-21 | displayName Unicode rules incl. ZWNJ/ZWJ, length, zalgo, reserved terms (contract v1.2.3) | KL-017, KL-024 | A6 + A7 | ⛔ A7 FAIL: SEC-024 homoglyph bypass (Medium) → KL-024 in progress |
+| PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ⏳ A7: pass; A6 re-test running |
 | PP-23 | App identity, privacy/terms URLs, support contact | B7 | owner | ⛔ |
 | PP-24 | Brand assets | B8 | owner | ⛔ |
 | PP-25 | Release signing from CI secrets (Android `key.properties`, iOS certificates); release job deletes key material | deploy | A8 + A7 | ⛔ |
