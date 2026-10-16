@@ -141,7 +141,9 @@ return the resource object directly (no `data` wrapper).
      and sends mail after the response is written (equal latency).
   3. **Email not registered:** store a *pending registration* (normalized email, username,
      displayName, locale, password hash, device info, code hash, attempt counter, expiry
-     **30 min**). **At most one live pending registration per email:** a new register call for the
+     **30 min**; *(v1.2.3, SEC-026)* absolute lifetime **2 h from creation** — resend issues a new
+     code but never extends `expiresAt` past that cap, and code attempts are counted per pending
+     registration across resends, max **10**). **At most one live pending registration per email:** a new register call for the
      same email replaces the previous one (new code; previous username reservation released), so
      a third party cannot block the address owner. Email the **8-digit numeric code** (CSPRNG,
      stored as HMAC-SHA-256) in the request locale.
@@ -159,14 +161,18 @@ return the resource object directly (no `data` wrapper).
   6. `POST /auth/register/resend` `{email}` → always `202` (new code if a live pending exists,
      which invalidates the old code; otherwise nothing).
   7. **Usernames held by live pending registrations count as taken** for `register` and
-     `users/username-availability`; reservations disappear when the pending expires or is
+     `users/username-availability` — *(v1.2.3, SEC-025)* for **every** register call, including one
+     with the same email as the pending registration (identical 409 regardless of email, so the
+     response never confirms the email). The address owner continues with `register/resend`
+     or registers with a different username; reservations disappear when the pending expires or is
      replaced. No account exists before verification, so unverified accounts can never log in and
      duplicate accounts cannot arise.
   8. Expired pending registrations are deleted lazily on access and by a periodic cleanup job.
   Until v1.2 is implemented, `EMAIL_TAKEN` remains a known pre-production blocker (B9).
 - Free-text fields (`displayName`, `device.name`, `device.appVersion`) reject C0/C1 control
   characters, bidi override/isolate characters (U+202A–U+202E, U+2066–U+2069), U+200B, U+2060
-  and U+FEFF with `issue: "invalid_format"`.
+  and U+FEFF with `issue: "invalid_format"`. *(v1.2.3)* `displayName` also rejects the bidi marks
+  LRM U+200E, RLM U+200F and ALM U+061C.
 - **`displayName` *(v1.2, KL-017 / QA-008)*:** NFC-normalized, trimmed; **1–50 grapheme
   clusters and ≤ 100 Unicode code points**. ZWNJ (U+200C) and ZWJ (U+200D) are **allowed**
   (Persian/Urdu/Kurdish orthography, emoji sequences) but must sit between two non-joiner,
@@ -178,8 +184,11 @@ return the resource object directly (no `data` wrapper).
   names are valid, punctuation/symbol-only names are not. U+FEFF at either end is removed by
   trimming before validation; inside the name it is rejected. Rejected with
   `issue: "reserved_term"`: *(v1.2.1)* names where, after NFKC casefold and confusable skeleton
-  (Unicode TS #39), *(v1.2.2)* (a) a reserved term equals a **whole word** (split on any
-  non-letter/digit), or (b) **any single word starts or ends with** a brand term (`kabso`,
+  (Unicode TS #39 — *(v1.2.3, SEC-024)* confusable mapping applied both **before and after**
+  case-folding, generated from a pinned, checksummed copy of Unicode `confusables.txt`; any single
+  word mixing scripts (e.g. Latin + Cyrillic/Greek, excluding Common/Inherited) is rejected with
+  `invalid_format`), *(v1.2.2)* (a) a reserved term equals a **whole word** (split on any
+  non-letter/digit), or (b) *(v1.2.3)* **any single word contains** a brand term (`kabso`,
   `كابسو`; e.g. "TheKabso", "KabsoFan"), or (c) the whole name with separators removed **equals**
   a reserved term (catches spaced-out "K a b s o"). Names such as "Kab Sonia" are allowed. Substrings inside ordinary words (e.g. "Badminton", "Supporter") are allowed. Terms
   (`kabso`, `admin`, `administrator`, `support`, `official`, `moderator`, `staff`, `كابسو`,
@@ -198,7 +207,7 @@ return the resource object directly (no `data` wrapper).
 | -------- | ----- |
 | `POST /auth/login` | 10 / 15 min per IP+account, 50 / 15 min per IP, **20 / 15 min per account across all IPs** (email and username of one account share the bucket; unknown identifiers are bucketed by normalized identifier). *(v1.2, SEC-023)* the account bucket counts **failed** attempts only, and a source (IPv4 / IPv6 /64) that logged into the account successfully within the last 30 days bypasses the account bucket (still subject to the IP+account bucket). |
 | `POST /auth/register` | 5 / hour per IP; *(v1.2)* 3 / hour per email |
-| `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per pending registration |
+| `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
@@ -211,7 +220,10 @@ IP-based buckets group IPv6 clients by their /64 prefix. Rate-limit keys are HMA
 the subject under a server-side key (no raw or plainly hashed emails/IPs in Redis). The client IP
 is derived only via an explicit trusted-proxy hop count or CIDR list; `trust proxy = true` is
 refused in production. *(v1.2, SEC-003a)* production also refuses `/0` CIDRs (`0.0.0.0/0`, `::/0`)
-and hop counts greater than 3.
+and hop counts greater than 3; *(v1.2.3)* also IPv4 prefixes shorter than /8, IPv6 prefixes shorter
+than /32, and `::ffff:0:0/96`. Rate-limit counters that gate expensive work are incremented
+**before** the check (atomic) and refunded on success, so concurrent requests cannot exceed the
+limit.
 
 *(v1.2, SEC-023 residual)* An exhausted account bucket still answers 429 while an unrelated
 identifier answers 401, which can link an email to a public username. Accepted only for internal
@@ -248,6 +260,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.2.1 | 2026-10-16 | Clarifications from KL-019/017 implementation: reserved terms match whole words (+ brand prefix/suffix), not substrings; emoji-only displayNames valid, punctuation-only invalid; zalgo counted on NFD; edge U+FEFF trimmed; `reserved_term` after schema validation; resend mail locale; audit prefix `auth.registration.*`. | Behavioral clarification; no shape change. |
 | tokens v1.1 | 2026-10-16 | `design-tokens.json` v1.1: approved accessibility fixes KL-009 (P1 dark/P2 light `textTertiary`, P3/P4 `primaryText`, P5–P8 light status colors, P9 `borderStrong`, P11 `focusRing`, P14 `onStatus`) and KL-021 live-UI tokens (`color.live.chatScrim` #99000000, `size.liveCardAspect` 0.75, `size.giftGridColumns` 4, `motion.giftComboBumpMs` 120). | Additive except changed values of `textTertiary` and light status colors (contrast fixes); Flutter applies them in one change set (KL-009 + KL-022). |
 | v1.2.2 | 2026-10-16 | displayName: emoji test uses the RGI emoji set (★ © ™ are not emoji); brand rule applies per word (prefix/suffix) plus whole-name equality, so "Kab Sonia" passes. Clients may pre-validate more permissively; the server is authoritative. | Clarification; no shape change. |
+| v1.2.3 | 2026-10-16 | KL-007c fixes: confusables both sides of case-fold + vendored `confusables.txt` + mixed-script words rejected (SEC-024); pending-username 409 for every caller (SEC-025); pending lifetime cap 2 h, resend never extends, attempts across resends ≤ 10 (SEC-026); verify 15/day/email (SEC-027); atomic increment-before-check counters (SEC-023 race); stricter TRUST_PROXY prefixes (SEC-003a); brand terms match inside words; LRM/RLM/ALM rejected. Optional `REGISTRATION_CODE_KEY` (SEC-029). | Behavioral; no shape change. Mobile: a 409 on register for a username the user reserved earlier must offer "Resend code". |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.57.0`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
