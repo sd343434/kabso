@@ -109,7 +109,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 | ID | Task | Owner | Pri | Status | Checklist |
 | -- | ---- | ----- | --- | ------ | --------- |
 | KL-013 | Least-privilege runtime DB role + migration role, negative tests | A3 | P0 | INTEGRATED (merge after `9f1d6e7`): unit 339, e2e 391 (36 new role tests) run locally by A3; CTO re-ran typecheck/lint/unit. CI run 64 ✅; A7 KL-007f PASS WITH CONDITIONS. Not yet run: docker compose init (no daemon) | PP-01 |
-| KL-013b | KL-007f follow-ups (KL7F-01..09) | A3 | P0 | VERIFYING — `39e53f1` merged onto HEAD in isolated branch `claude/verify-kl-013b` (`34fe93a`) for CI (owner-approved); not on the default branch | PP-01 |
+| KL-013b | KL-007f follow-ups (KL7F-01..09) | A3 | P0 | INTEGRATED — verified on isolated branch `claude/verify-kl-013b` (owner-approved): run 73 ✗ (2 test expectations) → fix `1f4c723` → run 75 ✅ → combined with HEAD `27bfd44` run 76 ✅ (unit 728, e2e 500 incl. 88 role tests); fast-forwarded to `2a161f0`. Decision: PUBLIC keeps USAGE on schema `public` (name lookup only; CONNECT is the gate). Pending: A7 re-verification of KL7F-01..09; managed-DB bootstrap untested | PP-01 |
 | KL-016b | Refresh theft resistance beyond 10 rotations: token generation counter / family revoke | A3 | P0 | BACKLOG (after KL-013) | PP-03 |
 | KL-026 | displayName residuals SEC-033/034 | A3 | P1 | BACKLOG (after KL-016b) | PP-26 |
 | KL-041 | Provider-agnostic human-challenge interface on the account-bucket path; adapter **disabled** until owner picks a provider (B11) | A3 + A7 | P1 | BLOCKED (owner: provider) — interface may be built | PP-05 |
