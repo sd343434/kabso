@@ -1,11 +1,14 @@
 openapi: 3.1.0
 info:
   title: Kabso Live API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Authoritative HTTP contract. Conventions (errors, pagination, auth, rate limits) are defined in
     CONVENTIONS.md and apply to every operation. Phase 1 scope: health, authentication, sessions,
-    current user. Later phases append paths; existing shapes change only via contract proposal.
+    current user. v1.3 (Phase 2 slice 1, KL-036) adds live discovery, the host lifecycle of live
+    rooms (behind `LIVE_HOSTING_ENABLED`), public profiles and follow (CONVENTIONS §10; data design
+    in DB_PHASE2_DISCOVERY.md). Later phases append paths; existing shapes change only via
+    contract proposal.
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -19,7 +22,9 @@ tags:
   - name: me
     description: "The authenticated user."
   - name: users
-    description: "Public user lookups."
+    description: "Public user lookups, public profiles and follow."
+  - name: live
+    description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3)."
 paths:
   /health/live:
     get:
@@ -375,12 +380,363 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/users/{username}:
+    get:
+      tags: [users]
+      operationId: getPublicProfile
+      summary: "Get a user's public profile (v1.3)"
+      description: |
+        CONVENTIONS §10.5. Never contains an email address. A malformed, unknown, reserved,
+        pending-registration-only, SUSPENDED or DELETED username returns the same 404
+        `NOT_FOUND` (no distinction, and no 400 for a malformed name). `liveRoomId` is set only
+        while the user has a LIVE room with a fresh heartbeat (§10.2). The static route
+        `/users/username-availability` cannot collide: `-` is not allowed in usernames.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The public profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+              examples:
+                otherUserLive:
+                  summary: Another user who is live now and is followed by the caller
+                  value:
+                    id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80
+                    username: layla.k
+                    displayName: ليلى
+                    avatarUrl: null
+                    bio: null
+                    isPrivate: false
+                    followerCount: 12
+                    followingCount: 40
+                    isFollowing: true
+                    isSelf: false
+                    liveRoomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/users/{username}/follow:
+    put:
+      tags: [users]
+      operationId: followUser
+      summary: "Follow a user (idempotent, v1.3)"
+      description: |
+        CONVENTIONS §10.6. Following someone already followed is a no-op that returns 200 with
+        the same body. Target unknown / suspended / deleted / malformed → 404 `NOT_FOUND`. The
+        caller's own username → 400 `VALIDATION_FAILED` (`field: "username"`,
+        `issue: "invalid_value"`). Target with `isPrivate = true` → 403 `AUTH_FORBIDDEN`
+        (follow requests are deferred).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The caller now follows the user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowState' }
+              example: { isFollowing: true, followerCount: 13 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [users]
+      operationId: unfollowUser
+      summary: "Unfollow a user (idempotent, v1.3)"
+      description: |
+        CONVENTIONS §10.6. Unfollowing someone not followed is a no-op that returns 200. Errors
+        as for `followUser`, except that a private target can always be unfollowed (no 403).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The caller does not follow the user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowState' }
+              example: { isFollowing: false, followerCount: 12 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/config:
+    get:
+      tags: [live]
+      operationId: getLiveConfig
+      summary: "Live feature switch and server-driven timings (v1.3)"
+      description: |
+        Lets the client render honest states (`hostingEnabled = false` → "Going live is not
+        available yet"; HL-H6 "Unavailable") and take the heartbeat cadence from the server
+        instead of hard-coding it (CONVENTIONS §10.3).
+      responses:
+        '200':
+          description: Current live configuration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveConfig' }
+              example:
+                hostingEnabled: false
+                heartbeatIntervalSeconds: 15
+                heartbeatStaleAfterSeconds: 45
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/categories:
+    get:
+      tags: [live]
+      operationId: listLiveCategories
+      summary: "List active live categories (bounded, not paginated; v1.3)"
+      description: |
+        Active categories ordered by `sortOrder` ascending, then `slug` ascending. The list is
+        server-curated and capped at 100 active rows (CONVENTIONS §10.1), so it is returned
+        whole with no `page` object. It is **empty** until categories are created (none are
+        seeded, D37). `name` is localized (§10.1).
+      responses:
+        '200':
+          description: Active categories (possibly empty).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 100
+                    items: { $ref: '#/components/schemas/LiveCategory' }
+              examples:
+                empty:
+                  summary: Production today (no categories created)
+                  value: { data: [] }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms:
+    get:
+      tags: [live]
+      operationId: listLiveRooms
+      summary: "List live rooms for a discovery tab (cursor-paginated; v1.3)"
+      description: |
+        CONVENTIONS §10.2 and §10.4. Only rooms with `status = LIVE`, a fresh heartbeat and an
+        `ACTIVE` host. Orderings: `popular` = viewerCount desc, startedAt desc, id desc; `new` =
+        startedAt desc, id desc; `following` = rooms of hosts the caller follows, startedAt desc,
+        id desc. `category` filters every tab. A well-formed slug that is unknown or inactive
+        returns an empty list (200). Rankings can change between pages; **clients dedupe by
+        `id`** (HL-H5). While `viewerCount` is always 0 (no presence yet), `popular` orders like
+        `new`.
+      parameters:
+        - name: tab
+          in: query
+          required: true
+          schema: { type: string, enum: [popular, new, following] }
+        - name: category
+          in: query
+          required: false
+          description: 'Category slug. Malformed → 400 `VALIDATION_FAILED` (`field "category"`).'
+          schema: { $ref: '#/components/schemas/CategorySlug' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of live rooms.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoomPage' }
+              examples:
+                empty:
+                  summary: Nobody is live
+                  value:
+                    data: []
+                    page: { nextCursor: null, hasMore: false }
+                onePage:
+                  summary: One room, more pages follow
+                  value:
+                    data:
+                      - id: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
+                        title: سهرة طرب
+                        mode: SOLO
+                        viewerCount: 0
+                        startedAt: '2026-10-16T19:00:00.000Z'
+                        coverUrl: null
+                        category: null
+                        host:
+                          id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80
+                          username: layla.k
+                          displayName: ليلى
+                          avatarUrl: null
+                    page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
+        '400':
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [live]
+      operationId: startLiveRoom
+      summary: "Go live: create the caller's LIVE room (v1.3, behind LIVE_HOSTING_ENABLED)"
+      description: |
+        CONVENTIONS §10.3. Checks, in order: auth → rate limit → `LIVE_HOSTING_ENABLED` (else
+        503 `LIVE_HOSTING_UNAVAILABLE`, no `Retry-After`) → body → `categorySlug` resolves to an
+        **active** category (else 400, `field "categorySlug"`, `issue "invalid_value"`) → the
+        caller has no LIVE room with a fresh heartbeat (else 409 `LIVE_ROOM_ALREADY_ACTIVE`; a
+        LIVE room with a stale heartbeat is ended with `HEARTBEAT_TIMEOUT` in the same
+        transaction and the new room is created). Only `SOLO` rooms can be created; the request
+        has no `mode`. No `Idempotency-Key`: a retry after a lost response gets 409 and the
+        client resumes the room found via `getPublicProfile` (own username → `liveRoomId`).
+        Requires a verified email (every v1.2+ account is verified at creation; a legacy
+        unverified account gets 403 `AUTH_FORBIDDEN`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartLiveRoomRequest' }
+            example: { title: سهرة طرب, categorySlug: music }
+      responses:
+        '201':
+          description: Room created; the caller starts heartbeats at the cadence from `getLiveConfig`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoom' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409':
+          description: LIVE_ROOM_ALREADY_ACTIVE — the caller already has a LIVE room with a fresh heartbeat.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503':
+          description: LIVE_HOSTING_UNAVAILABLE (hosting disabled by config) or SERVICE_UNAVAILABLE (dependency down).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /api/v1/live/rooms/{roomId}:
+    get:
+      tags: [live]
+      operationId: getLiveRoom
+      summary: "Get a live room, including ended rooms (v1.3)"
+      description: |
+        A LIVE room whose heartbeat is stale is never reported as LIVE: it is returned as
+        `ENDED` with `endReason = HEARTBEAT_TIMEOUT` (§10.2). Nonexistent rooms, malformed ids
+        and rooms whose host is not `ACTIVE` all return 404 `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The room.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoom' }
+              examples:
+                ended:
+                  summary: A room the host ended
+                  value:
+                    id: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
+                    title: سهرة طرب
+                    mode: SOLO
+                    viewerCount: 0
+                    startedAt: '2026-10-16T19:00:00.000Z'
+                    coverUrl: null
+                    category: { slug: music, name: موسيقى }
+                    host:
+                      id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80
+                      username: layla.k
+                      displayName: ليلى
+                      avatarUrl: null
+                    status: ENDED
+                    endedAt: '2026-10-16T20:12:45.120Z'
+                    endReason: HOST_ENDED
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/heartbeat:
+    post:
+      tags: [live]
+      operationId: heartbeatLiveRoom
+      summary: "Host keep-alive for a LIVE room (v1.3)"
+      description: |
+        Host only. Send every `heartbeatIntervalSeconds` (15 s); a room without a heartbeat for
+        `heartbeatStaleAfterSeconds` (45 s) disappears from lists and is ended with
+        `HEARTBEAT_TIMEOUT`. Not the host / nonexistent / malformed id → 404 `NOT_FOUND`. Room
+        already ended (host, timeout, suspension, admin) → 409 `LIVE_ROOM_ENDED`: the client
+        stops heartbeats and shows the ended state; it must go live again for a new room.
+        Hosting disabled by config → 503 `LIVE_HOSTING_UNAVAILABLE` (the room then times out).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Heartbeat recorded. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: LIVE_ROOM_ENDED — the room is no longer live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/end:
+    post:
+      tags: [live]
+      operationId: endLiveRoom
+      summary: "End the caller's live room (idempotent, v1.3)"
+      description: |
+        Host only. Ends a LIVE room with `endReason = HOST_ENDED` and returns it. Ending a room
+        that is already `ENDED` returns 200 with the room unchanged (its original `endReason`
+        and `endedAt` are kept). Allowed even when hosting is disabled. Not the host /
+        nonexistent / malformed id → 404 `NOT_FOUND`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The ended room.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoom' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque `page.nextCursor` from the previous page (CONVENTIONS §5, §10.4). Omit for the first page.
+      schema: { type: string, minLength: 1, maxLength: 512 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    UsernamePath:
+      name: username
+      in: path
+      required: true
+      description: Lowercase username. A malformed value is treated as not found (404), never 400.
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    RoomIdPath:
+      name: roomId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404), never 400.
+      schema: { type: string, format: uuid }
   responses:
     Error:
       description: Error envelope (see CONVENTIONS.md §4).
@@ -520,5 +876,135 @@ components:
         ipCountry: { type: [string, 'null'], description: Reserved; null in Phase 1. }
         createdAt: { type: string, format: date-time }
         lastUsedAt: { type: string, format: date-time }
+    PageInfo:
+      type: object
+      required: [nextCursor, hasMore]
+      properties:
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    UserSummary:
+      type: object
+      description: Minimal public identity of a user (v1.3). Never contains an email.
+      required: [id, username, displayName, avatarUrl]
+      properties:
+        id: { type: string, format: uuid }
+        username: { $ref: '#/components/schemas/Username' }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
+    PublicProfile:
+      type: object
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isSelf, liveRoomId]
+      properties:
+        id: { type: string, format: uuid }
+        username: { $ref: '#/components/schemas/Username' }
+        displayName: { type: string }
+        avatarUrl: { type: [string, 'null'], format: uri }
+        bio: { type: [string, 'null'], maxLength: 300 }
+        isPrivate:
+          type: boolean
+          description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
+        followerCount: { type: integer, minimum: 0 }
+        followingCount: { type: integer, minimum: 0 }
+        isFollowing:
+          type: boolean
+          description: Whether the caller follows this user (always false when isSelf).
+        isSelf: { type: boolean }
+        liveRoomId:
+          type: [string, 'null']
+          format: uuid
+          description: The user's LIVE room with a fresh heartbeat, else null.
+    FollowState:
+      type: object
+      required: [isFollowing, followerCount]
+      properties:
+        isFollowing: { type: boolean }
+        followerCount:
+          type: integer
+          minimum: 0
+          description: The target's follower count after the operation.
+    CategorySlug:
+      type: string
+      minLength: 2
+      maxLength: 32
+      pattern: '^[a-z0-9-]{2,32}$'
+    LiveCategory:
+      type: object
+      required: [slug, name]
+      properties:
+        slug: { $ref: '#/components/schemas/CategorySlug' }
+        name:
+          type: string
+          maxLength: 40
+          description: Localized by `Accept-Language` (ar|en), else the caller's stored locale (CONVENTIONS §10.1).
+    LiveConfig:
+      type: object
+      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds]
+      properties:
+        hostingEnabled:
+          type: boolean
+          description: Server config `LIVE_HOSTING_ENABLED` (default false until a media provider exists, B1).
+        heartbeatIntervalSeconds: { type: integer, minimum: 1, example: 15 }
+        heartbeatStaleAfterSeconds: { type: integer, minimum: 1, example: 45 }
+    LiveRoomMode:
+      type: string
+      enum: [SOLO, PK, MULTI]
+      description: Only SOLO rooms exist in v1.3. Clients render an unrecognised future value as SOLO.
+    LiveRoomTitle:
+      type: string
+      minLength: 1
+      maxLength: 160
+      description: |
+        v1.3 (CONVENTIONS §10.3): NFC, trimmed, 1–80 grapheme clusters and ≤ 160 code points.
+        The displayName character-hygiene rules apply (control/bidi/zero-width bans, ZWNJ/ZWJ
+        placement, zalgo cap, at least one letter/digit/emoji) → `invalid_format`. The
+        reserved-term/brand rule and the mixed-script rule do **not** apply.
+    LiveRoomSummary:
+      type: object
+      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host]
+      properties:
+        id: { type: string, format: uuid }
+        title: { $ref: '#/components/schemas/LiveRoomTitle' }
+        mode: { $ref: '#/components/schemas/LiveRoomMode' }
+        viewerCount:
+          type: integer
+          minimum: 0
+          description: Always 0 in v1.3 (no realtime presence yet); the card shows the "New" chip.
+        startedAt: { type: string, format: date-time }
+        coverUrl:
+          type: [string, 'null']
+          format: uri
+          description: Always null in v1.3 (no upload yet); the card falls back to the host avatar.
+        category:
+          description: Null when the room has no category.
+          oneOf:
+            - { $ref: '#/components/schemas/LiveCategory' }
+            - { type: 'null' }
+        host: { $ref: '#/components/schemas/UserSummary' }
+    LiveRoom:
+      allOf:
+        - { $ref: '#/components/schemas/LiveRoomSummary' }
+        - type: object
+          required: [status, endedAt, endReason]
+          properties:
+            status: { type: string, enum: [LIVE, ENDED] }
+            endedAt: { type: [string, 'null'], format: date-time }
+            endReason:
+              type: [string, 'null']
+              enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, null]
+    LiveRoomPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LiveRoomSummary' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    StartLiveRoomRequest:
+      type: object
+      required: [title]
+      additionalProperties: false
+      properties:
+        title: { $ref: '#/components/schemas/LiveRoomTitle' }
+        categorySlug: { $ref: '#/components/schemas/CategorySlug' }
 security:
   - bearerAuth: []
