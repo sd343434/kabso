@@ -103,7 +103,7 @@ Each is a vertical slice: contract → migration → API + tests → Flutter wir
 - search hidden until a search feature exists; no phase copy; no fabricated content | A2 | P0 | IN_PROGRESS | KL-038 | A1, A5, A6 |
 | KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | DONE — PASS WITH CONDITIONS (`bfa0d6d`): SEC-035 Medium, SEC-036 Medium, SEC-037 Low, SEC-038 Info → KL-045 | KL-037 | A1 |
 | KL-046 | Contract v1.3.1 patch: SEC-036 text-hygiene allow-list rules (displayName + titles); §10 stale handling (sweeper ends rooms, reads filter); §7 replace-vs-both wording (D42); heartbeat 503 → `LIVE_HOSTING_UNAVAILABLE` (D41) | A4 | P0 | DONE — merged, approved (D43); lint valid (2 known warnings) | KL-040 | A1, A7 |
-| KL-045 | Implement v1.3.1: SEC-035 batched sweeper/no writes on list, SEC-036 Unicode 17 hygiene, SEC-037, SEC-038, QA-002 | A3 | P0 | INTEGRATED — merge of `4af9512`; CTO re-run: lint/format/typecheck/build ✅, unit 713/713, e2e 460/460 (40k stale rooms: list median 10.7 ms, no writes). Pending: A7 re-test, PP-32 load test | KL-046 | A7 |
+| KL-045 | Implement v1.3.1: SEC-035 batched sweeper/no writes on list, SEC-036 Unicode 17 hygiene, SEC-037, SEC-038, QA-002 | A3 | P0 | INTEGRATED — merge of `4af9512`; CTO re-run: lint/format/typecheck/build ✅, unit 713/713, e2e 460/460 (40k stale rooms: list median 10.7 ms, no writes). A7 KL-040b PASS (`0b90bb4`): SEC-035..038 FIXED; SEC-035 cleared from the security side (100k stale rooms: list median ≤ 8.4 ms, no writes). New SEC-039 Low, SEC-040 Info → KL-048 contract. Pending: PP-32 load test | KL-046 | A7 |
 
 ### Mandatory release blockers (run alongside, never skipped)
 
