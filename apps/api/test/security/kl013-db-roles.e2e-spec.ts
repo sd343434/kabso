@@ -358,6 +358,8 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_ar_length',
       'live_categories_name_en_length',
       'live_categories_slug_format',
+      // KL-049 (v1.4): the room country snapshot is ISO 3166-1 alpha-2 shaped.
+      'live_rooms_country_format',
       'live_rooms_end_state',
       'live_rooms_time_order',
       'live_rooms_title_length',

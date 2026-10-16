@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Clock } from '../src/common/time/clock.js';
 import { MediaCleanupService } from '../src/modules/media/media-cleanup.service.js';
+import { detectContentType } from '../src/modules/media/image-header.js';
 import { MEDIA_STORAGE } from '../src/modules/media/media-storage.js';
 import { MediaService } from '../src/modules/media/media.service.js';
 import { AccountLifecycleService } from '../src/modules/users/profiles/account-lifecycle.service.js';
@@ -143,18 +144,22 @@ function client(ctx: () => TestContext, storage: InMemoryMediaStorage) {
   ) {
     const res = await declare(user, { purpose, contentType, byteSize: bytes.length });
     expectContract(res, 'createMediaUpload');
-    expect(res.status).toBe(201);
-    expect(storage.clientPut(res.body.url, res.body.headers, bytes)).toBe(200);
+    expect(res.status, `declare ${purpose} (${contentType}): ${JSON.stringify(res.body)}`).toBe(201);
+    expect(storage.clientPut(res.body.url, res.body.headers, bytes), 'fake storage PUT').toBe(200);
     return res;
   }
 
   /** A READY upload (declare → PUT → complete). */
   async function ready(user: TestUser, purpose: 'avatar' | 'room_cover', bytes?: Buffer): Promise<string> {
     const image = bytes ?? (purpose === 'avatar' ? await jpeg(600, 600) : await jpeg(960, 1280));
-    const declared = await declareAndPut(user, purpose, image);
+    // Declare the real type of the bytes (the API refuses a declared/detected mismatch).
+    const contentType = detectContentType(image);
+    expect(contentType, 'test image must be JPEG, PNG or WebP').not.toBeNull();
+    const declared = await declareAndPut(user, purpose, image, contentType!);
     const done = await complete(user, declared.body.uploadId);
     expectContract(done, 'completeMediaUpload');
-    expect(done.status).toBe(200);
+    // On failure the message carries the rejection (code and `details` issue).
+    expect(done.status, `complete ${purpose} (${contentType}): ${JSON.stringify(done.body)}`).toBe(200);
     return declared.body.uploadId as string;
   }
 

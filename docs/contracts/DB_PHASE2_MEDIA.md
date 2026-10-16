@@ -1,6 +1,7 @@
 # Kabso Live — Phase 2 data design: media uploads and countries
 
-Status: **proposed with contract v1.4.0 (KL-048, owner decision D44), awaiting CTO approval.**
+Status: **approved with contract v1.4.0 (KL-048, owner decision D44; approval D45); implemented by
+KL-049** (migration `20261016140000_media_and_countries`).
 This is a design note. The Prisma schema and migration are built by Backend (A3) in the
 implementation task that follows KL-048. HTTP behaviour is defined in
 [`CONVENTIONS.md`](CONVENTIONS.md) §11 and [`openapi.yaml`](openapi.yaml). It extends
