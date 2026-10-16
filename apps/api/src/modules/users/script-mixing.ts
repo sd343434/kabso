@@ -7,6 +7,11 @@
  * Han, Hiragana, Katakana, Hangul and Bopomofo are augmented as in UTS #39 (Japanese, Korean
  * and Han-with-Bopomofo writing mixes them legitimately). Names that mix scripts across
  * DIFFERENT words ("Sara سارة") are allowed.
+ *
+ * v1.2.6 (SEC-032): decimal digits of every script (`\p{Nd}`, e.g. ٣ ۲) are script-neutral, and
+ * Latin is augmented like UTS #39 "Highly Restrictive" (Latin + Han + Hiragana + Katakana,
+ * Latin + Han + Hangul, Latin + Han + Bopomofo), so "TOKYO東京" and "Kim김" pass while Latin
+ * mixed with Cyrillic or Greek is still rejected.
  */
 
 /** Unicode 16 scripts supported by the JS engine (Node 22), most common first. */
@@ -186,9 +191,11 @@ const SCRIPT_TESTS: readonly (readonly [string, RegExp])[] = SCRIPTS.map((name) 
   new RegExp(`\\p{Script_Extensions=${name}}`, 'u'),
 ]);
 const COMMON_OR_INHERITED = /[\p{Script=Common}\p{Script=Inherited}]/u;
+const DECIMAL_DIGIT = /\p{Nd}/u;
 const WORD_SEPARATOR = /[^\p{L}\p{N}\p{M}]+/u;
 
 const AUGMENT: Readonly<Record<string, readonly string[]>> = {
+  Latin: ['Jpan', 'Kore', 'Hanb'],
   Han: ['Jpan', 'Kore', 'Hanb'],
   Hiragana: ['Jpan'],
   Katakana: ['Jpan'],
@@ -203,6 +210,10 @@ export function scriptSet(ch: string): ReadonlySet<string> | null {
   const code = ch.codePointAt(0) ?? 0;
   const cached = cache.get(code);
   if (cached !== undefined) return cached;
+  if (DECIMAL_DIGIT.test(ch)) {
+    if (cache.size < 10_000) cache.set(code, null);
+    return null;
+  }
   const scripts = new Set<string>();
   for (const [name, test] of SCRIPT_TESTS) {
     if (test.test(ch)) {

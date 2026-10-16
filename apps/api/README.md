@@ -77,7 +77,8 @@ full list. Notable rules:
   register/verify also delete expired rows lazily). Post-response work (mail, notices) runs in
   `BackgroundTasks`, drained on shutdown before Prisma/Redis disconnect.
 - `LOGIN_RECENT_SUCCESS_TTL_SECONDS` (30 days, SEC-023) and `RESERVED_DISPLAY_NAME_TERMS`
-  (KL-017; default = CONVENTIONS §6 list, without `staff`/`مشرف` since v1.2.4; whole-word match) and
+  (KL-017; default = CONVENTIONS §6 list, without `staff`/`مشرف` since v1.2.4 and `رسمي` since
+  v1.2.6; whole-word match, also on separator-joined words and single-letter runs) and
   `RESERVED_DISPLAY_NAME_BRAND_TERMS` (default `kabso,كابسو`; matched anywhere inside a word,
   v1.2.3). Matching uses the vendored Unicode `confusables.txt` — see
   `src/modules/users/data/README.md` for its source, checksum and update steps.
