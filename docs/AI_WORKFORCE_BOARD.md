@@ -46,7 +46,7 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-010 | (DONE — verified by dispatch run 19, all 8 jobs; KL-010b `b1a2a94` merged) DevOps hardening: Dependabot ignore semver-major for postgres/redis (PRs #1, #2) + cooldown (SEC-015); CI concurrency must not cancel verification runs on `claude/**`; pin redocly via lockfile and service images by digest (SEC-021); TRUST_PROXY guidance per platform (SEC-003 docs) | A8 | P1 | READY | — | A1 |
 | KL-011 | Backend security fixes: SEC-001 (= QA-001), 002, 003, 004(doc), 005, 006, 008, 009, 010, 013, 014, 016, 017 per contract v1.1 + QA-002 | A3 | P0 | REVIEW — INTEGRATED `3179be1` (D1 Argon2-cap root cause fixed `0944980`); A7/A6 re-test running | contract v1.1 | A1, A7 re-test, A6 |
 | KL-012 | Mobile hardening SEC-007/019/020 + QA-003 (digits), QA-004 (text scale 2.0 ar), QA-005 (phase copy), QA-006 (spec wording), QA-007 (Retry-After countdown, error id); acceptance requires removing the 3 QA `skip:` markers | A2 | P0 | REVIEW — INTEGRATED `74f8ac7`; **D1 OPEN: Android `build.gradle.kts` fails to compile in CI run 21** (A2 fixing) | — | A1, A7 re-test |
-| KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P1 | BACKLOG — required before any deployment (B10) | KL-011 | A7 |
+| KL-013 | Least-privilege DB roles (runtime DML role + migration DDL role), SEC-011 | A3 + A8 | P0 | IN_PROGRESS — see Phase 2 blockers table (B10) | KL-011 | A7 |
 | KL-016 | (READY — contract v1.2 approved) Auth hardening before public exposure: SEC-022 (revoke on any secret in a bounded rotation history, e.g. last 10 — in contract v1.2 §6), SEC-023 (count only failed logins; recently-successful device bypasses account bucket; CAPTCHA step-up — needs contract v1.2 §7), SEC-003a (refuse `/0` CIDRs and hop counts > 3 in production) | A3 (+CTO contract) | P1 | BACKLOG — required before public exposure | KL-011 | A7, A6 |
 | KL-015 | Phase 1 polish: align remaining copy to PHASE1_SCREENS (72/167 en strings verbatim; §10 error copy, "Sign in"/"Log in", suspended → "contact support"), Create tab body names Story (4) + Live (6), deferred spec items (Create rows, "Log in instead" link, Profile "Joined") | A2 + A5 | P2 | BACKLOG | — | A6 |
 | KL-017 | QA-008: displayName rejects U+200C/U+200D (ZWNJ/ZWJ) — blocks Persian/Urdu/Kurdish names and emoji ZWJ sequences; proposed contract v1.2: allow U+200C/U+200D, keep bidi-override/isolate, U+200B, U+2060, U+FEFF bans; app pre-validates with a specific message | CTO (contract) + A3 + A2 | P1 | READY — owner approved; contract v1.2 written | — | A7, A6 |
@@ -63,6 +63,53 @@ on the integration branch with the other modules, regression suite green) ≠ **
 | KL-035 | Design sprint 6/6 — goldens ar/en at 393 + 360, before/after review package for owner approval | A2 + A1 | P0 | BACKLOG | KL-034 | owner |
 | KL-014 | Data retention: session/token cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | A3 | P2 | BACKLOG — Phase 2/11 | — | A7 |
 | KL-009 | Accessibility token fixes P1–P9, P11, P14 (design-tokens v1.1) | A2 (+A5 review) | P1 | BACKLOG | KL-003 merged | A1, A5, A6 |
+
+## Phase 2 — started 2026-10-16 (owner directive "Phase 2 execution")
+
+**Baseline (verified 2026-10-16):**
+- Integration branch `claude/amazing-tesla-5aj3um` (the GitHub default branch) at `ce957e7`; CI run 59 green.
+- It contains every accepted Phase 1 and v1.2 change: the last API change is `578e9a4` (KL-025) and the last mobile change is `c60b976` (KL-030).
+- The last runs that executed the API job and the mobile job are green (runs 55 and 57).
+- iOS build last ran in run 29 (dispatch/main only).
+- **GitHub reports the repository as `public`** (API, 2026-10-16).
+- **No `main` branch exists.**
+- No other branches on the remote except a Dependabot branch.
+- Internal milestone ≠ production-ready: see `PRE_PRODUCTION_CHECKLIST.md`.
+
+**Order (owner):**
+1. Home + live discovery.
+2. Live room foundation.
+3. Gifts + animations.
+4. PK.
+5. Creator profiles.
+6. Short video.
+7. Posts / stories / highlights.
+
+Each is a vertical slice: contract → migration → API + tests → Flutter wiring + goldens → QA → Security → CI green → docs.
+
+### Slice 1 — live discovery (vertical)
+
+| ID | Task | Owner | Pri | Status | Depends on | Reviewers |
+| -- | ---- | ----- | --- | ------ | ---------- | --------- |
+| KL-036 | Contract v1.3: live discovery, categories, room metadata + host lifecycle (go-live/end/heartbeat behind `LIVE_HOSTING_ENABLED`), public profile, follow; DB design note | A4 | P0 | IN_PROGRESS | — | A1, A7 |
+| KL-037 | API: `live` + `follows` modules, migration, unit + e2e tests | A3 | P0 | BACKLOG | KL-036 approved, KL-013 merged | A1, A6, A7 |
+| KL-038 | Flutter: wire the Live-tab hub (KL-033 UI) and Home's follow-dependent parts to the real endpoints; pagination, refresh, all states, goldens with fixtures | A2 | P0 | BACKLOG | KL-033, KL-036 | A1, A5, A6 |
+| KL-039 | QA: discovery user journey (API black-box + Flutter flows) | A6 | P0 | BACKLOG | KL-037, KL-038 | A1 |
+| KL-040 | Security review of the new endpoints (authz, enumeration, rate limits, input hygiene) | A7 | P0 | BACKLOG | KL-037 | A1 |
+
+### Mandatory release blockers (run alongside, never skipped)
+
+| ID | Task | Owner | Pri | Status | Checklist |
+| -- | ---- | ----- | --- | ------ | --------- |
+| KL-013 | Least-privilege runtime DB role + migration role, negative tests | A3 | P0 | IN_PROGRESS | PP-01 |
+| KL-016b | Refresh theft resistance beyond 10 rotations: token generation counter / family revoke | A3 | P0 | BACKLOG (after KL-013) | PP-03 |
+| KL-026 | displayName residuals SEC-033/034 | A3 | P1 | BACKLOG (after KL-016b) | PP-26 |
+| KL-041 | Provider-agnostic human-challenge interface on the account-bucket path; adapter **disabled** until owner picks a provider (B11) | A3 + A7 | P1 | BLOCKED (owner: provider) — interface may be built | PP-05 |
+| KL-042 | Transactional email adapter (SMTP/provider) behind the existing `MailSender`; not activated until owner approves provider, cost, domain (B2) | A3 + A8 | P1 | BLOCKED (owner: provider, domain) — adapter may be built | PP-20 |
+| KL-014 | Data retention jobs (SEC-012) | A3 | P1 | BACKLOG | PP-08 |
+| KL-043 | Real-device test pass (Android + iOS) | A6 | P0 | BLOCKED — no devices in this environment (B6) | PP-30 |
+| KL-020 | Repo private + `main` + branch protection | owner | P0 | BLOCKED — owner action in GitHub settings; repo still `public` | PP-11, PP-31 |
+| KL-044 | App identity (bundle id, domain, privacy/terms URLs, support contact) | owner | P1 | BLOCKED — owner values (B7) | PP-23 |
 
 ## Phase 1 integration gate — PASSED 2026-10-16 (internal milestone)
 
@@ -168,6 +215,7 @@ mobile: pub get, codegen-diff check, format check, analyze, test; contracts: Ope
 | D34 | 2026-10-16 | **Owner directive:** design correction sprint (KL-030…035); Phase 2 feature expansion paused until Home + Live room are redesigned and owner-approved. No backend/contract/security changes in the sprint | Visual gap to the intended live-streaming experience |
 | D35 | 2026-10-16 | No discovery/live API exists and contracts are frozen for the sprint → production Home/Live show the redesigned structure with honest states; populated layouts are reviewed via deterministic fixtures (goldens, debug gallery) only | No mock data in production |
 | D36 | 2026-10-16 | **Owner answers to KL-032:** keep 5 tabs Home · Discover · Create · Live · Profile; Home = social feed with Following · Popular · New (default Popular), no wordmark, Nearby deferred; Live tab = live-discovery hub; PK split screen; non-dimming gift sheet. Categories and references unanswered → All chip only, reference-free approximation. Token proposals T-1–T-5 held in `KMetrics` until after redesign approval | Recorded in HOME_LIVE_LAYOUT_DECISIONS.md "Owner decisions" |
+| D37 | 2026-10-16 | **Owner directive:** start Phase 2 with real vertical slices. The design sprint (KL-033–KL-035) continues as the UI layer of slice 1. Live discovery lives in the **Live tab** (D36); Home stays the feed. Going live without a media provider (B1) is gated by `LIVE_HOSTING_ENABLED` (default off), so production never lists rooms that cannot play. Categories start empty: none are invented, and they are managed by admin later | No fabricated rooms; honest "unavailable" in production until B1 |
 | D8 | 2026-10-15 | Token proposals P1–P9, P11, P14 approved as KL-009, applied only after KL-003 merges | Avoid moving target for in-flight Flutter work |
 
 ## Blockers (need human input)
