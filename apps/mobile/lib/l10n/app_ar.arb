@@ -492,21 +492,21 @@
     "description": "Empty Following tab: switches to the Popular tab."
   },
   "feedPullToRefresh": "اسحب للأسفل للتحديث.",
-  "homeFollowingUnavailableTitle": "منشورات من تتابعهم",
+  "homeFollowingUnavailableTitle": "ابقَ قريبًا ممن تتابعهم",
   "@homeFollowingUnavailableTitle": {
-    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
+    "description": "Home Following tab while there is no posts API. Warm, honest, product copy. No phase numbers or roadmap talk (KL-047)."
   },
-  "homeFollowingUnavailableBody": "قريبًا: ستظهر هنا منشورات من تتابعهم.",
-  "homePopularUnavailableTitle": "المنشورات الرائجة قادمة قريبًا",
+  "homeFollowingUnavailableBody": "ستظهر هنا قريبًا منشورات من تتابعهم. وحتى ذلك الحين، شاهد من يبث منهم مباشرة الآن.",
+  "homePopularUnavailableTitle": "المنشورات في الطريق",
   "@homePopularUnavailableTitle": {
-    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
+    "description": "Home Popular tab while there is no posts API. No phase numbers or roadmap talk (KL-047)."
   },
-  "homePopularUnavailableBody": "ستظهر هنا المنشورات الأكثر إعجابًا.",
-  "homeNewUnavailableTitle": "المنشورات الجديدة قادمة قريبًا",
+  "homePopularUnavailableBody": "قريبًا ستظهر هنا المنشورات التي يتحدث عنها الجميع. وحتى ذلك الحين، انضم إلى بث مباشر.",
+  "homeNewUnavailableTitle": "منشورات جديدة قريبًا",
   "@homeNewUnavailableTitle": {
-    "description": "Home tab while there is no feed API. Honest and neutral: no phase numbers."
+    "description": "Home New tab while there is no posts API. No phase numbers or roadmap talk (KL-047)."
   },
-  "homeNewUnavailableBody": "ستظهر هنا أحدث المنشورات، الأحدث أولًا.",
+  "homeNewUnavailableBody": "ستصل هنا أحدث منشورات المجتمع أولًا بأول. والآن، اكتشف من بدأ البث للتو.",
   "homeEmptyTitle": "لا توجد منشورات بعد",
   "homeFollowingEmptyTitle": "لا توجد منشورات ممن تتابعهم بعد",
   "homeErrorTitle": "تعذّر تحميل المنشورات",
@@ -514,24 +514,24 @@
   "@liveHubChipAll": {
     "description": "The only category chip until categories come from the server (D36)."
   },
-  "liveHubFollowingUnavailableTitle": "غرف البث ممن تتابعهم",
+  "liveHubFollowingUnavailableTitle": "بثوث من تتابعهم",
   "@liveHubFollowingUnavailableTitle": {
-    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
+    "description": "Live hub Following tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047)."
   },
-  "liveHubFollowingUnavailableBody": "البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.",
-  "liveHubPopularUnavailableTitle": "غرف البث المباشر غير متاحة بعد",
+  "liveHubFollowingUnavailableBody": "البث المباشر غير متاح بعد. عند إتاحته سترى هنا من يبث ممن تتابعهم.",
+  "liveHubPopularUnavailableTitle": "البث المباشر غير متاح بعد",
   "@liveHubPopularUnavailableTitle": {
-    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
+    "description": "Live hub Popular tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047)."
   },
-  "liveHubPopularUnavailableBody": "سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.",
-  "liveHubNewUnavailableTitle": "غرف البث الجديدة غير متاحة بعد",
+  "liveHubPopularUnavailableBody": "نعمل على تجهيزه. عند إتاحته ستظهر هنا البثوث الأكثر مشاهدة.",
+  "liveHubNewUnavailableTitle": "هنا تبدأ البثوث الجديدة",
   "@liveHubNewUnavailableTitle": {
-    "description": "Live hub tab while GET /live/config reports hostingEnabled = false (nobody can go live yet). No phase numbers."
+    "description": "Live hub New tab while GET /live/config reports hostingEnabled = false. Followed by Try again (re-checks the config). No phase numbers or roadmap talk (KL-047)."
   },
-  "liveHubNewUnavailableBody": "ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.",
-  "liveHubEmptyTitle": "لا أحد يبث مباشرة الآن",
+  "liveHubNewUnavailableBody": "البث المباشر غير متاح بعد. عند إتاحته ستظهر هنا البثوث التي بدأت للتو أولًا.",
+  "liveHubEmptyTitle": "لا توجد بثوث مباشرة الآن",
   "liveHubFollowingEmptyTitle": "لا أحد ممن تتابعهم يبث الآن",
-  "liveHubErrorTitle": "تعذّر تحميل غرف البث",
+  "liveHubErrorTitle": "تعذّر تحميل البثوث المباشرة",
   "liveHubLoadMoreFailed": "تعذّر تحميل المزيد",
   "@liveHubLoadMoreFailed": {
     "description": "HL-H5 inline footer error when the next page of live rooms fails; followed by a Retry button."
@@ -568,5 +568,45 @@
   "feedPostJustNow": "الآن",
   "@feedPostJustNow": {
     "description": "Feed item time under one minute."
+  },
+  "feedOfflineTitle": "أنت غير متصل بالإنترنت",
+  "@feedOfflineTitle": {
+    "description": "KL-047 / QA-003: Home and Live region when a load failed with the client-only NETWORK_OFFLINE; followed by Try again."
+  },
+  "feedOfflineBody": "تحقّق من اتصالك ثم أعد المحاولة.",
+  "homeWatchLive": "شاهد البث المباشر",
+  "@homeWatchLive": {
+    "description": "KL-047 primary action on Home Popular/New: opens the Live tab (same Popular/New tab)."
+  },
+  "homeSeeWhoIsLive": "شاهد من يبث الآن",
+  "@homeSeeWhoIsLive": {
+    "description": "KL-047 primary action on Home Following: opens the Live tab on Following."
+  },
+  "@liveHubEmptyTitle": {
+    "description": "KL-047 owner copy: Popular/New, successful response with zero rooms."
+  },
+  "liveHubEmptyBody": "تفقّد البثوث الجديدة أو حاول مرة أخرى لاحقًا.",
+  "@liveHubEmptyBody": {
+    "description": "KL-047 owner copy, under liveHubEmptyTitle; followed by Try again (re-requests the list)."
+  },
+  "liveHubSeeNew": "عرض البثوث الجديدة",
+  "@liveHubSeeNew": {
+    "description": "KL-047 secondary action on the empty Popular tab: switches to the New tab."
+  },
+  "liveHubFollowingEmptyBody": "عندما يبدأ من تتابعهم البث، ستجدهم هنا.",
+  "@liveHubFollowingEmptyBody": {
+    "description": "Under liveHubFollowingEmptyTitle; followed by See popular."
+  },
+  "liveCardSemanticsCategory": "{card}، {category}",
+  "@liveCardSemanticsCategory": {
+    "description": "Cover card semantics with the room category name appended (KL-047).",
+    "placeholders": {
+      "card": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -684,25 +684,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String get feedPullToRefresh => 'اسحب للأسفل للتحديث.';
 
   @override
-  String get homeFollowingUnavailableTitle => 'منشورات من تتابعهم';
+  String get homeFollowingUnavailableTitle => 'ابقَ قريبًا ممن تتابعهم';
 
   @override
   String get homeFollowingUnavailableBody =>
-      'قريبًا: ستظهر هنا منشورات من تتابعهم.';
+      'ستظهر هنا قريبًا منشورات من تتابعهم. وحتى ذلك الحين، شاهد من يبث منهم مباشرة الآن.';
 
   @override
-  String get homePopularUnavailableTitle => 'المنشورات الرائجة قادمة قريبًا';
+  String get homePopularUnavailableTitle => 'المنشورات في الطريق';
 
   @override
   String get homePopularUnavailableBody =>
-      'ستظهر هنا المنشورات الأكثر إعجابًا.';
+      'قريبًا ستظهر هنا المنشورات التي يتحدث عنها الجميع. وحتى ذلك الحين، انضم إلى بث مباشر.';
 
   @override
-  String get homeNewUnavailableTitle => 'المنشورات الجديدة قادمة قريبًا';
+  String get homeNewUnavailableTitle => 'منشورات جديدة قريبًا';
 
   @override
   String get homeNewUnavailableBody =>
-      'ستظهر هنا أحدث المنشورات، الأحدث أولًا.';
+      'ستصل هنا أحدث منشورات المجتمع أولًا بأول. والآن، اكتشف من بدأ البث للتو.';
 
   @override
   String get homeEmptyTitle => 'لا توجد منشورات بعد';
@@ -717,34 +717,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveHubChipAll => 'الكل';
 
   @override
-  String get liveHubFollowingUnavailableTitle => 'غرف البث ممن تتابعهم';
+  String get liveHubFollowingUnavailableTitle => 'بثوث من تتابعهم';
 
   @override
   String get liveHubFollowingUnavailableBody =>
-      'البث المباشر غير متاح بعد. ستظهر هنا غرف البث ممن تتابعهم عندما يصبح متاحًا.';
+      'البث المباشر غير متاح بعد. عند إتاحته سترى هنا من يبث ممن تتابعهم.';
 
   @override
-  String get liveHubPopularUnavailableTitle => 'غرف البث المباشر غير متاحة بعد';
+  String get liveHubPopularUnavailableTitle => 'البث المباشر غير متاح بعد';
 
   @override
   String get liveHubPopularUnavailableBody =>
-      'سيظهر هنا الأشخاص الذين يبثون مباشرة الآن.';
+      'نعمل على تجهيزه. عند إتاحته ستظهر هنا البثوث الأكثر مشاهدة.';
 
   @override
-  String get liveHubNewUnavailableTitle => 'غرف البث الجديدة غير متاحة بعد';
+  String get liveHubNewUnavailableTitle => 'هنا تبدأ البثوث الجديدة';
 
   @override
   String get liveHubNewUnavailableBody =>
-      'ستظهر هنا الغرف التي بدأت للتو، ليحظى المضيفون الجدد بفرصة الظهور.';
+      'البث المباشر غير متاح بعد. عند إتاحته ستظهر هنا البثوث التي بدأت للتو أولًا.';
 
   @override
-  String get liveHubEmptyTitle => 'لا أحد يبث مباشرة الآن';
+  String get liveHubEmptyTitle => 'لا توجد بثوث مباشرة الآن';
 
   @override
   String get liveHubFollowingEmptyTitle => 'لا أحد ممن تتابعهم يبث الآن';
 
   @override
-  String get liveHubErrorTitle => 'تعذّر تحميل غرف البث';
+  String get liveHubErrorTitle => 'تعذّر تحميل البثوث المباشرة';
 
   @override
   String get liveHubLoadMoreFailed => 'تعذّر تحميل المزيد';
@@ -776,4 +776,32 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get feedPostJustNow => 'الآن';
+
+  @override
+  String get feedOfflineTitle => 'أنت غير متصل بالإنترنت';
+
+  @override
+  String get feedOfflineBody => 'تحقّق من اتصالك ثم أعد المحاولة.';
+
+  @override
+  String get homeWatchLive => 'شاهد البث المباشر';
+
+  @override
+  String get homeSeeWhoIsLive => 'شاهد من يبث الآن';
+
+  @override
+  String get liveHubEmptyBody =>
+      'تفقّد البثوث الجديدة أو حاول مرة أخرى لاحقًا.';
+
+  @override
+  String get liveHubSeeNew => 'عرض البثوث الجديدة';
+
+  @override
+  String get liveHubFollowingEmptyBody =>
+      'عندما يبدأ من تتابعهم البث، ستجدهم هنا.';
+
+  @override
+  String liveCardSemanticsCategory(String card, String category) {
+    return '$card، $category';
+  }
 }

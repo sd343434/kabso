@@ -105,8 +105,14 @@ const _titlesAr = [
 ];
 
 /// [count] v1.3-realistic rooms (viewerCount 0, no cover, no avatar)
-/// with ids `room-<start + i>`.
-List<LiveRoomSummary> apiRooms(int count, {int start = 0, bool ar = false}) => [
+/// with ids `room-<start + i>`. With [categories], even-numbered rooms take
+/// them in turn and odd-numbered rooms have none.
+List<LiveRoomSummary> apiRooms(
+  int count, {
+  int start = 0,
+  bool ar = false,
+  List<LiveCategory> categories = const [],
+}) => [
   for (var i = start; i < start + count; i++)
     LiveRoomSummary(
       id: 'room-$i',
@@ -115,7 +121,9 @@ List<LiveRoomSummary> apiRooms(int count, {int start = 0, bool ar = false}) => [
       viewerCount: 0,
       startedAt: DateTime.utc(2026, 10, 16, 19).subtract(Duration(minutes: i)),
       coverUrl: null,
-      category: null,
+      category: categories.isEmpty || i.isOdd
+          ? null
+          : categories[(i ~/ 2) % categories.length],
       host: UserSummary(
         id: 'user-$i',
         username: 'host$i',

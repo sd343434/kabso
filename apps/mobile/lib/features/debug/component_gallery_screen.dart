@@ -100,7 +100,8 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
             childAspectRatio: KSizes.liveCardAspect,
             children: [
               for (final room in _Samples.rooms) KLiveCoverCard(room: room),
-              KLiveCoverCard(room: _Samples.rooms.first, showLiveBadge: true),
+              // Opt-out of the LIVE badge (KL-047: on by default).
+              KLiveCoverCard(room: _Samples.rooms.first, showLiveBadge: false),
               const KLiveCoverCardSkeleton(),
             ],
           ),
@@ -282,7 +283,9 @@ class _HomeDemo extends StatelessWidget {
       ),
       onRefresh: () async {},
       onRetry: () {},
-      onSeePopular: () => selectTab(FeedTab.popular),
+      onSelectTab: selectTab,
+      // The gallery has no shell: switch this demo's own tab instead.
+      onWatchLive: selectTab,
     ),
   );
 }
@@ -311,7 +314,7 @@ class _LiveHubDemoState extends State<_LiveHubDemo> {
       onSelectCategory: (slug) => setState(() => _category = slug),
       onRefresh: () async {},
       onRetry: () {},
-      onSeePopular: () => selectTab(FeedTab.popular),
+      onSelectTab: selectTab,
     ),
   );
 }
@@ -347,6 +350,7 @@ abstract final class _Samples {
       hostName: 'Sample host',
       title: 'Sample title (no cover)',
       viewerCount: 12345,
+      categoryName: 'Sample category',
     ),
     LiveRoomCardData(
       hostName: 'مضيف تجريبي',

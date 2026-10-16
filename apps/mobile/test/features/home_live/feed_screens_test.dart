@@ -1,5 +1,6 @@
 // KL-033: Home feed and Live hub behaviour (tabs, swipe, search, states,
-// provider honesty).
+// provider honesty). KL-047: search hidden until it exists, composed states
+// with real actions, LIVE badge on grid cards.
 
 import 'dart:async';
 import 'dart:ui' show Tristate;
@@ -8,6 +9,10 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/app.dart';
+import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -123,12 +128,15 @@ void main() {
         );
         expect(find.byType(AppBar), findsNothing);
         expect(find.byType(KLogo), findsNothing);
-        // VG-05: header is 48 dp with the tabs and the search button only.
+        // VG-05: header is 48 dp with the tabs only. KL-047: no search
+        // control while there is no search capability.
         expect(
           tester.getSize(find.byType(KPrimaryTabs)).height,
           KMetrics.topBarHeight,
         );
-        expect(find.byType(IconButton), findsOneWidget);
+        expect(FeedTabsScaffold.searchAvailable, isFalse);
+        expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
+        expect(find.byType(IconButton), findsNothing);
       });
 
       testWidgets('tapping a tab switches the page and its copy', (
@@ -186,44 +194,56 @@ void main() {
         testWidgets('header mirrors in ${language.name}', (tester) async {
           final l10n = l10nFor(language);
           await _pump(tester, screen, language: language);
-          final following = tester.getCenter(_tab(l10n.feedTabFollowing)).dx;
+          final following = tester.getRect(_tab(l10n.feedTabFollowing));
           final popular = tester.getCenter(_tab(l10n.feedTabPopular)).dx;
-          final search = tester
-              .getCenter(find.byKey(FeedTabsScaffold.searchKey))
-              .dx;
+          final width =
+              tester.view.physicalSize.width / tester.view.devicePixelRatio;
+          // Following sits at the reading start (RTL: the right edge).
           if (language == AppLanguage.ar) {
-            expect(following, greaterThan(popular));
-            expect(search, lessThan(popular));
+            expect(following.center.dx, greaterThan(popular));
+            expect(following.right, greaterThan(width - KSpacing.xxl));
           } else {
-            expect(following, lessThan(popular));
-            expect(search, greaterThan(popular));
+            expect(following.center.dx, lessThan(popular));
+            expect(following.left, lessThan(KSpacing.xxl));
           }
         });
       }
 
-      testWidgets('search: 48 dp target with a label', (tester) async {
-        await _pump(tester, screen);
-        final search = find.byKey(FeedTabsScaffold.searchKey);
-        expect(tester.getSize(search), const Size.square(48));
-        expect(find.byTooltip('Search'), findsOneWidget);
-      });
-
-      testWidgets('VG-03: the unavailable state is compact, under the '
-          'header, not centred, and has no pull-to-refresh', (tester) async {
+      testWidgets('KL-047: the unavailable state is a composed block with a '
+          'primary action, placed in the space under the header', (
+        tester,
+      ) async {
         await loadAppFonts();
         setViewport(tester, GoldenViewport.phone);
         await _pump(tester, screen);
         final state = find.byKey(const Key('feed.unavailable'));
-        // The visual block (icon → body) at real fonts, 393×852.
+        // The visual block (disc → actions) at real fonts, 393×852.
         final block = tester.getRect(
           find.descendant(of: state, matching: find.byType(Column)).first,
         );
-        expect(block.height, lessThanOrEqualTo(160));
         final header = tester.getRect(find.byType(KPrimaryTabs));
         expect(block.top, greaterThan(header.bottom));
-        // Top third of the region below the header, not centred.
+        // Not a line at the top of a void: the block's centre sits in the
+        // middle band of the region (a little above its centre), and it is
+        // horizontally centred.
         final region = 852 - header.bottom;
-        expect(block.center.dy - header.bottom, lessThan(region / 3));
+        final centre = (block.center.dy - header.bottom) / region;
+        expect(centre, inInclusiveRange(0.3, 0.5));
+        expect(block.center.dx, closeTo(393 / 2, 1));
+        expect(block.bottom, lessThan(852));
+        // 88 dp icon disc and one primary (filled) action.
+        expect(
+          find.descendant(of: state, matching: find.byType(KButton)),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<KButton>(
+                find.descendant(of: state, matching: find.byType(KButton)),
+              )
+              .variant,
+          KButtonVariant.primary,
+        );
         // Home has no feed API, so nothing to refresh. The Live hub's
         // unavailable state comes from GET /live/config, which can change:
         // pull-to-refresh re-checks it (KL-038).
@@ -235,12 +255,12 @@ void main() {
     });
   }
 
-  group('search opens Discover (full app)', () {
+  group('search (KL-047)', () {
     for (final (nav, key) in const [
       ('home', Key('nav.home')),
       ('live', Key('nav.live')),
     ]) {
-      testWidgets('from $nav', (tester) async {
+      testWidgets('hidden on $nav in the full app', (tester) async {
         await pumpKabsoApp(
           tester,
           overrides: [
@@ -253,7 +273,59 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(FeedTabsScaffold.searchKey));
+        expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
+        expect(find.byTooltip('Search'), findsNothing);
+      });
+    }
+
+    // The one switch (searchAvailable) re-enables it: the control is then
+    // a labelled 48 dp target at the reading end that opens Discover.
+    for (final language in AppLanguage.values) {
+      testWidgets('when enabled: 48 dp, labelled, at the reading end, opens '
+          'Discover (${language.name})', (tester) async {
+        final l10n = l10nFor(language);
+        final router = GoRouter(
+          initialLocation: AppRoutes.home,
+          routes: [
+            GoRoute(
+              path: AppRoutes.home,
+              builder: (_, _) => FeedTabsScaffold(
+                showSearch: true,
+                pageBuilder: (_, _, _) => const SizedBox.expand(),
+              ),
+            ),
+            GoRoute(
+              path: AppRoutes.discover,
+              builder: (_, _) => const DiscoverScreen(),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerConfig: router,
+            locale: language.locale,
+            supportedLocales: KabsoApp.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
+            ],
+            theme: buildAppTheme(
+              brightness: Brightness.dark,
+              locale: language.locale,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final search = find.byKey(FeedTabsScaffold.searchKey);
+        expect(tester.getSize(search), const Size.square(48));
+        expect(find.byTooltip(l10n.feedSearch), findsOneWidget);
+        final popular = tester.getCenter(_tab(l10n.feedTabPopular)).dx;
+        expect(
+          tester.getCenter(search).dx,
+          language == AppLanguage.ar ? lessThan(popular) : greaterThan(popular),
+        );
+        await tester.tap(search);
         await tester.pumpAndSettle();
         expect(find.byType(DiscoverScreen), findsOneWidget);
       });
@@ -261,11 +333,15 @@ void main() {
   });
 
   group('Live hub', () {
-    testWidgets('chip row: Popular only, a single non-interactive "All"', (
-      tester,
-    ) async {
+    testWidgets('chip row: Popular only, a single non-interactive "All"; '
+        'none while live streaming is unavailable', (tester) async {
       final l10n = l10nFor(AppLanguage.en);
       await _pump(tester, const LiveScreen());
+      // KL-047: nothing to filter while hosting is off.
+      expect(find.byKey(FeedRegion.unavailableKey), findsOneWidget);
+      expect(find.byType(KChip), findsNothing);
+
+      await _pump(tester, const LiveScreen(), live: FakeLiveRepository());
       expect(find.byType(KChip), findsOneWidget);
       expect(find.text(l10n.liveHubChipAll), findsOneWidget);
       expect(
@@ -302,13 +378,16 @@ void main() {
         final size = tester.getSize(find.byType(KLiveCoverCard).first);
         expect(size.width, closeTo(cardWidth, 0.01));
         expect(size.height, closeTo(cardHeight, 0.01));
-        // Grid cards carry no LIVE badge (VG-10).
+        // KL-047 (owner, reverses VG-10): every grid card has a LIVE badge.
+        final cards = find.byType(KLiveCoverCard).evaluate().length;
+        expect(cards, greaterThan(0));
         expect(
           find.byWidgetPredicate(
             (w) => w is KBadge && w.variant == KBadgeVariant.live,
           ),
-          findsNothing,
+          findsNWidgets(cards),
         );
+        expect(tester.takeException(), isNull);
       });
     }
 
@@ -346,15 +425,17 @@ void main() {
       expect(_selected(tester, l10n.feedTabPopular), isTrue);
     });
 
-    testWidgets('error: compact error with Try again that re-runs the load', (
-      tester,
-    ) async {
+    testWidgets('offline (QA-003): its own state with Try again that re-runs '
+        'the load', (tester) async {
       final l10n = l10nFor(AppLanguage.en);
       final live = FakeLiveRepository()
         ..configFailure = const NetworkFailure.offline();
       await _pump(tester, const LiveScreen(), live: live);
-      expect(find.text(l10n.liveHubErrorTitle), findsOneWidget);
-      expect(find.text(l10n.errorNetworkOffline), findsOneWidget);
+      expect(find.byKey(FeedRegion.offlineKey), findsOneWidget);
+      expect(find.text(l10n.feedOfflineTitle), findsOneWidget);
+      expect(find.text(l10n.feedOfflineBody), findsOneWidget);
+      expect(find.text(l10n.liveHubErrorTitle), findsNothing);
+      expect(find.byKey(FeedRegion.emptyKey), findsNothing);
       expect(find.byType(RefreshIndicator), findsOneWidget);
       final before = live.configCalls;
       live.configFailure = null;

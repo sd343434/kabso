@@ -18,13 +18,15 @@ class LiveRoomCardData {
     this.hostAvatar,
     this.inPk = false,
     this.guestCount,
+    this.categoryName,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
   /// avatar, the real viewer count (always 0 until presence exists, so the
-  /// card shows "New"), and the cover when there is one (never in v1.3; the
-  /// card then shows the host avatar). Multi-guest rooms carry no guest
-  /// count in v1.3, so no seats tag is shown.
+  /// card shows "New"), the cover when there is one (never in v1.3; the
+  /// card then shows the host avatar) and the server-localized category name
+  /// when the room has one. Multi-guest rooms carry no guest count in v1.3,
+  /// so no seats tag is shown.
   factory fromSummary(LiveRoomSummary room) {
     final cover = room.coverUrl;
     final avatar = room.host.avatarUrl;
@@ -37,6 +39,7 @@ class LiveRoomCardData {
           ? null
           : NetworkImage(avatar),
       inPk: room.mode == LiveRoomMode.pk,
+      categoryName: room.category?.name,
     );
   }
 
@@ -56,6 +59,10 @@ class LiveRoomCardData {
   /// Guests on stage in a multi-guest room; `null` when the room is not
   /// multi-guest (no tag is shown).
   final int? guestCount;
+
+  /// The room's category (already localized by the server); `null` when
+  /// it has none (nothing is shown).
+  final String? categoryName;
 }
 
 /// A line in the live chat overlay.
