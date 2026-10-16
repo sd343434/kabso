@@ -1171,6 +1171,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'معرض المكونات'**
   String get debugComponentGallery;
+
+  /// v1.2.3 SEC-025: 409 USERNAME_TAKEN for the username the user reserved in this flow.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا كنت قد بدأت التسجيل بهذا البريد واسم المستخدم، فقد يظل رمزك صالحًا. اطلب رمزًا جديدًا للمتابعة، أو اختر اسم مستخدم آخر.'**
+  String get registerUsernameReservedHint;
+
+  /// No description provided for @registerResendCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعد إرسال الرمز'**
+  String get registerResendCode;
+
+  /// No description provided for @registerChooseAnotherUsername.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر اسم مستخدم آخر'**
+  String get registerChooseAnotherUsername;
 }
 
 class _AppLocalizationsDelegate

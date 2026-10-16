@@ -7,6 +7,7 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
@@ -389,5 +390,144 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RegisterScreen), findsOneWidget);
     expect(find.byType(RegisterCodeScreen), findsNothing);
+  });
+
+  group('v1.2.3 (SEC-025): 409 USERNAME_TAKEN for your own reservation', () {
+    const usernameTaken = ServerFailure(
+      code: ErrorCode.usernameTaken,
+      rawCode: 'USERNAME_TAKEN',
+      debugMessage: 'taken',
+      statusCode: 409,
+    );
+
+    /// Code screen → "Change email" → submit the same email + username.
+    Future<AppLocalizations> submitAgain(
+      WidgetTester tester, {
+      AppLanguage language = AppLanguage.en,
+      String? email,
+    }) async {
+      final l10n = await openCodeScreen(tester, language: language);
+      await tester.tap(find.byKey(RegisterCodeScreen.changeEmailKey));
+      await tester.pumpAndSettle();
+      if (email != null) {
+        await tester.enterText(find.byKey(RegisterScreen.emailKey), email);
+      }
+      repo.registerFailure = usernameTaken;
+      await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
+      await tester.tap(find.byKey(RegisterScreen.submitKey));
+      await tester.pumpAndSettle();
+      return l10n;
+    }
+
+    testWidgets('offers "Resend code", which calls register/resend and '
+        'returns to the code screen', (tester) async {
+      final l10n = await submitAgain(tester);
+      expect(find.byKey(RegisterScreen.usernameReservedKey), findsOneWidget);
+      expect(find.text(l10n.registerUsernameReservedHint), findsOneWidget);
+      expect(find.text(l10n.registerResendCode), findsOneWidget);
+      expect(find.text(l10n.registerChooseAnotherUsername), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.tap(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.pumpAndSettle();
+      expect(repo.resendCalls, 1);
+      expect(repo.registerCalls, 2, reason: 'no third register call');
+      expect(find.byType(RegisterCodeScreen), findsOneWidget);
+    });
+
+    testWidgets('"Choose another username" clears and focuses the field', (
+      tester,
+    ) async {
+      await submitAgain(tester);
+      await tester.ensureVisible(find.byKey(RegisterScreen.chooseAnotherKey));
+      await tester.tap(find.byKey(RegisterScreen.chooseAnotherKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(RegisterScreen.usernameReservedKey), findsNothing);
+      final field = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(RegisterScreen.usernameKey),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(field.controller.text, isEmpty);
+      expect(field.focusNode.hasFocus, isTrue);
+      expect(repo.resendCalls, 0);
+    });
+
+    testWidgets('a failed resend shows the failure and keeps both options', (
+      tester,
+    ) async {
+      await submitAgain(tester);
+      repo.resendFailure = const ServerFailure(
+        code: ErrorCode.rateLimited,
+        rawCode: 'RATE_LIMITED',
+        debugMessage: 'slow',
+        statusCode: 429,
+        retryAfter: Duration(seconds: 30),
+      );
+      await tester.ensureVisible(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.tap(find.byKey(RegisterScreen.resendCodeKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(RegisterCodeScreen), findsNothing);
+      expect(find.byType(FailureBanner), findsOneWidget);
+      expect(find.byKey(RegisterScreen.chooseAnotherKey), findsOneWidget);
+    });
+
+    testWidgets('Arabic copy', (tester) async {
+      final l10n = await submitAgain(tester, language: AppLanguage.ar);
+      expect(find.text(l10n.registerUsernameReservedHint), findsOneWidget);
+      expect(find.text('أعد إرسال الرمز'), findsOneWidget);
+      expect(find.text('اختر اسم مستخدم آخر'), findsOneWidget);
+    });
+
+    testWidgets('another email: plain "taken", no resend option', (
+      tester,
+    ) async {
+      final l10n = await submitAgain(tester, email: 'other@example.com');
+      expect(find.byKey(RegisterScreen.usernameReservedKey), findsNothing);
+      expect(find.text(l10n.errorUsernameTaken), findsOneWidget);
+    });
+  });
+
+  testWidgets('v1.2.3: attempts cap → 429 on verify blocks entry for the '
+      'whole Retry-After (h:mm:ss), then allows it again', (tester) async {
+    final l10n = await openCodeScreen(tester);
+    // Wrong codes (422), then the per-email daily cap answers 429.
+    repo.verifyFailures.addAll([
+      _tokenInvalid,
+      const ServerFailure(
+        code: ErrorCode.rateLimited,
+        rawCode: 'RATE_LIMITED',
+        debugMessage: 'attempts exhausted',
+        statusCode: 429,
+        retryAfter: Duration(hours: 2, minutes: 5),
+      ),
+    ]);
+    await tester.enterText(
+      find.byKey(RegisterCodeScreen.codeFieldKey),
+      '11111111',
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(repo.verifyCalls, ['11111111']);
+    await tester.enterText(
+      find.byKey(RegisterCodeScreen.codeFieldKey),
+      '22222222',
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(repo.verifyCalls, ['11111111', '22222222']);
+    expect(find.text(l10n.errorRateLimitedRetryIn('2:05:00')), findsOneWidget);
+    TextField field() =>
+        tester.widget<TextField>(find.byKey(RegisterCodeScreen.codeFieldKey));
+    expect(field().enabled, isFalse);
+
+    await tester.pump(const Duration(hours: 1));
+    expect(find.text(l10n.errorRateLimitedRetryIn('1:05:00')), findsOneWidget);
+    expect(field().enabled, isFalse);
+    expect(repo.verifyCalls, hasLength(2));
+
+    await tester.pump(const Duration(hours: 1, minutes: 5));
+    expect(field().enabled, isTrue);
   });
 }

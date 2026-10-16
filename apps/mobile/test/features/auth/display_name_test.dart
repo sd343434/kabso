@@ -170,4 +170,22 @@ void main() {
       }
     });
   });
+
+  group('v1.2.3: bidi marks are rejected (invalid_format)', () {
+    for (final (name, mark) in const [
+      ('LRM', '‎'),
+      ('RLM', '‏'),
+      ('ALM', '؜'),
+    ]) {
+      test('$name inside, leading and trailing', () {
+        for (final value in ['سارة${mark}Sara', '${mark}Sara', 'Sara$mark']) {
+          expect(
+            AuthValidators.displayNameIssue(value),
+            DisplayNameIssue.invalidFormat,
+            reason: '$name in ${value.runes.toList()}',
+          );
+        }
+      });
+    }
+  });
 }

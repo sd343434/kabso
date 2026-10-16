@@ -178,5 +178,8 @@
   "compactThousand": "{value}K",
   "compactMillion": "{value}M",
   "compactBillion": "{value}B",
-  "debugComponentGallery": "Component gallery"
+  "debugComponentGallery": "Component gallery",
+  "registerUsernameReservedHint": "If you started signing up with this email and username, your code may still work. Get a new code to continue, or choose another username.",
+  "registerResendCode": "Resend code",
+  "registerChooseAnotherUsername": "Choose another username"
 }

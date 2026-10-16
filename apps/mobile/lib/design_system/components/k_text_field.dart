@@ -14,6 +14,7 @@ class KTextField extends StatefulWidget {
     required this.label,
     super.key,
     this.controller,
+    this.focusNode,
     this.errorText,
     this.helperText,
     this.status,
@@ -37,6 +38,7 @@ class KTextField extends StatefulWidget {
 
   final String label;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final String? errorText;
   final String? helperText;
 
@@ -88,6 +90,7 @@ class _KTextFieldState extends State<KTextField> {
         TextFormField(
           key: widget.fieldKey,
           controller: widget.controller,
+          focusNode: widget.focusNode,
           enabled: widget.enabled,
           obscureText: _obscured,
           enableSuggestions: !widget.obscure,
