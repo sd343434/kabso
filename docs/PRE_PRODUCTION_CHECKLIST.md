@@ -12,11 +12,11 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | ID | Condition | Task | Verified by | Status |
 | -- | --------- | ---- | ----------- | ------ |
 | PP-01 | Least-privilege runtime DB role (DML only) + separate migration role; negative tests prove the runtime role cannot run DDL/TRUNCATE (SEC-011) | KL-013 | A7 | ⛔ |
-| PP-02 | Verify-first registration — sign-up never reveals whether an email is registered (owner decision B9, contract v1.2) | KL-019, KL-024 | A7 + A6 | ⏳ A7: pass with conditions (SEC-025/026 → KL-024); A6 re-test running |
+| PP-02 | Verify-first registration — sign-up never reveals whether an email is registered (owner decision B9, contract v1.2) | KL-019, KL-024 | A7 + A6 | ✅ A7 KL-007d PASS (`c177a27`, merged `4ad9fd2`); A6 KL-006d approve, timing t=−0.60 (`634c1c1`, merged `9fa6e9a`). Real delivery still needs PP-20 |
 | PP-03 | Refresh reuse detection (SEC-022): last-10 history done; residual — a thief rotating > 10 times keeps the session; needs a token generation counter | KL-016b | A7 | ⛔ partial |
-| PP-04 | Login lockout/oracle: failed-only account bucket + recent-success bypass (SEC-023) | KL-016 | A7 | ⏳ |
+| PP-04 | Login lockout/oracle: failed-only account bucket + recent-success bypass + atomic counter (SEC-023) | KL-016, KL-024 | A7 | ✅ race fixed (60 parallel → 20 checks), refunds not exploitable (KL-007d); residual oracle → PP-05 |
 | PP-05 | CAPTCHA / step-up challenge replacing the account-bucket 429 (SEC-023 residual oracle) | B11 | A7 | ⛔ provider decision needed |
-| PP-06 | Refuse `/0` CIDRs and hop counts > 3 in production TRUST_PROXY (SEC-003a) | KL-016 | A7 | ⏳ |
+| PP-06 | Refuse over-broad TRUST_PROXY values in production (SEC-003a) | KL-016, KL-024 | A7 | ✅ KL-007d |
 | PP-07 | TRUST_PROXY value measured on the real platform with the spoofed-`X-Forwarded-For` check (DEPLOYMENT.md §3.1) | deploy | A8 + A7 | ⛔ |
 | PP-08 | Data retention: session/token/pending-registration cleanup jobs, IP/UA retention, audit pseudonymization on deletion (SEC-012) | KL-014 | A7 | ⛔ |
 | PP-09 | Production secrets from the secret manager: `JWT_ACCESS_SECRET`, `RATE_LIMIT_KEY_SECRET` (distinct, strength-checked at boot), DB passwords | deploy | A8 | ⛔ |
@@ -28,8 +28,8 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | ID | Condition | Task | Verified by | Status |
 | -- | --------- | ---- | ----------- | ------ |
 | PP-20 | Real email delivery (SMTP/provider, SPF/DKIM) — required by verify-first registration and password reset | B2 | A8 | ⛔ |
-| PP-21 | displayName Unicode rules incl. ZWNJ/ZWJ, length, zalgo, reserved terms (contract v1.2.3) | KL-017, KL-024 | A6 + A7 | ⛔ A7 FAIL: SEC-024 homoglyph bypass (Medium) → KL-024 in progress |
-| PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ⏳ A7: pass; A6 re-test running |
+| PP-21 | displayName Unicode rules incl. ZWNJ/ZWJ, length, zalgo, reserved terms (contract v1.2.3) | KL-017, KL-024, KL-025 | A6 + A7 | ⏳ SEC-024 fixed (A7 KL-007d); PASS WITH CONDITIONS — SEC-030/031/032 residuals → KL-025 in progress |
+| PP-22 | First-launch language follows device locale; explicit preference persisted; emails in the correct locale | KL-018 | A6 + A7 | ✅ A7 PASS (KL-007c/d); A6 PASS incl. QA-011 fix (KL-006d) |
 | PP-23 | App identity, privacy/terms URLs, support contact | B7 | owner | ⛔ |
 | PP-24 | Brand assets | B8 | owner | ⛔ |
 | PP-25 | Release signing from CI secrets (Android `key.properties`, iOS certificates); release job deletes key material | deploy | A8 + A7 | ⛔ |
