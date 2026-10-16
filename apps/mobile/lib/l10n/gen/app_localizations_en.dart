@@ -646,4 +646,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get debugComponentGallery => 'Component gallery';
+
+  @override
+  String get registerUsernameReservedHint =>
+      'If you started signing up with this email and username, your code may still work. Get a new code to continue, or choose another username.';
+
+  @override
+  String get registerResendCode => 'Resend code';
+
+  @override
+  String get registerChooseAnotherUsername => 'Choose another username';
 }

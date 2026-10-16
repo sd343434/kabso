@@ -457,5 +457,11 @@
   "debugComponentGallery": "معرض المكونات",
   "@debugComponentGallery": {
     "description": "Debug builds only."
-  }
+  },
+  "registerUsernameReservedHint": "إذا كنت قد بدأت التسجيل بهذا البريد واسم المستخدم، فقد يظل رمزك صالحًا. اطلب رمزًا جديدًا للمتابعة، أو اختر اسم مستخدم آخر.",
+  "@registerUsernameReservedHint": {
+    "description": "v1.2.3 SEC-025: 409 USERNAME_TAKEN for the username the user reserved in this flow."
+  },
+  "registerResendCode": "أعد إرسال الرمز",
+  "registerChooseAnotherUsername": "اختر اسم مستخدم آخر"
 }

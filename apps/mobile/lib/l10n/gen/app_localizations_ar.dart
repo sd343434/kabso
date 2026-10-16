@@ -661,4 +661,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get debugComponentGallery => 'معرض المكونات';
+
+  @override
+  String get registerUsernameReservedHint =>
+      'إذا كنت قد بدأت التسجيل بهذا البريد واسم المستخدم، فقد يظل رمزك صالحًا. اطلب رمزًا جديدًا للمتابعة، أو اختر اسم مستخدم آخر.';
+
+  @override
+  String get registerResendCode => 'أعد إرسال الرمز';
+
+  @override
+  String get registerChooseAnotherUsername => 'اختر اسم مستخدم آخر';
 }

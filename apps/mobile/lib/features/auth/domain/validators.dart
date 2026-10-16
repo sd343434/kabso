@@ -168,10 +168,11 @@ abstract final class AuthValidators {
     return null;
   }
 
-  /// C0/C1 controls, bidi overrides/isolates, U+200B, U+2060, U+FEFF.
+  /// C0/C1 controls, bidi overrides/isolates, U+200B, U+2060, U+FEFF and
+  /// (v1.2.3) the bidi marks LRM U+200E, RLM U+200F and ALM U+061C.
   static final _displayNameBanned = RegExp(
     '[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069'
-    '\u200B\u2060\uFEFF]',
+    '\u200B\u2060\uFEFF\u200E\u200F\u061C]',
   );
 
   /// More than 3 consecutive combining marks ("zalgo").

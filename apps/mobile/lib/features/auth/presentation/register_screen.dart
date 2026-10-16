@@ -1,10 +1,13 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
@@ -24,6 +27,9 @@ class RegisterScreen extends ConsumerStatefulWidget {
   static const usernameStatusKey = Key('register.usernameStatus');
   static const usernameLostKey = Key('register.usernameLost');
   static const codeNoticeKey = Key('register.codeNotice');
+  static const usernameReservedKey = Key('register.usernameReserved');
+  static const resendCodeKey = Key('register.resendCode');
+  static const chooseAnotherKey = Key('register.chooseAnother');
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -39,6 +45,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   /// Server-reported field errors, cleared when the field changes.
   final Map<AuthField, String> _serverErrors = {};
+
+  final _usernameFocus = FocusNode();
+
+  /// v1.2.3 (SEC-025): `USERNAME_TAKEN` for the email + username of the
+  /// registration this user already started (the 409 is identical for
+  /// everyone, so only the in-memory draft tells us it may be their own
+  /// reservation). Offers "Resend code" next to "Choose another username".
+  bool _maybeOwnReservation = false;
+  bool _resending = false;
+  AppFailure? _resendFailure;
 
   @override
   void initState() {
@@ -69,6 +85,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void dispose() {
     _displayName.removeListener(_onDisplayNameChanged);
+    _usernameFocus.dispose();
     _email.dispose();
     _username.dispose();
     _displayName.dispose();
@@ -80,6 +97,61 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (_serverErrors.containsKey(field)) {
       setState(() => _serverErrors.remove(field));
     }
+    if (_maybeOwnReservation &&
+        (field == AuthField.email || field == AuthField.username)) {
+      setState(() {
+        _maybeOwnReservation = false;
+        _resendFailure = null;
+      });
+    }
+  }
+
+  bool _matchesDraft(RegistrationDraft? draft) =>
+      draft != null &&
+      draft.email == AuthValidators.normalizeEmail(_email.text) &&
+      draft.username == AuthValidators.normalizeUsername(_username.text);
+
+  /// "Resend code": `register/resend` for the draft's email, then back to
+  /// the code screen with a fresh cooldown.
+  Future<void> _resendCode() async {
+    final draft = ref.read(registrationFlowProvider);
+    if (draft == null || _resending) return;
+    setState(() {
+      _resending = true;
+      _resendFailure = null;
+    });
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .resendRegistrationCode(draft.email);
+      if (!mounted) return;
+      ref.read(registrationFlowProvider.notifier).codeResent(clock.now());
+      setState(() {
+        _resending = false;
+        _maybeOwnReservation = false;
+        _serverErrors.remove(AuthField.username);
+      });
+      ref.read(usernameAvailabilityProvider.notifier).onChanged(draft.username);
+      await GoRouter.maybeOf(context)?.push(AppRoutes.registerCode);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _resendFailure = toAppFailure(e);
+      });
+    }
+  }
+
+  /// "Choose another username": clear the field and focus it.
+  void _chooseAnotherUsername() {
+    setState(() {
+      _maybeOwnReservation = false;
+      _resendFailure = null;
+      _serverErrors.remove(AuthField.username);
+    });
+    _username.clear();
+    ref.read(usernameAvailabilityProvider.notifier).onChanged('');
+    _usernameFocus.requestFocus();
   }
 
   Future<void> _submit() async {
@@ -122,6 +194,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     });
     if (failure.code == ErrorCode.usernameTaken) {
+      final own = _matchesDraft(ref.read(registrationFlowProvider));
+      setState(() {
+        _maybeOwnReservation = own;
+        _resendFailure = null;
+      });
       ref
           .read(usernameAvailabilityProvider.notifier)
           .markTaken(AuthValidators.normalizeUsername(_username.text));
@@ -195,6 +272,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               KTextField(
                 fieldKey: RegisterScreen.usernameKey,
                 controller: _username,
+                focusNode: _usernameFocus,
                 label: l10n.registerUsernameLabel,
                 helperText: l10n.registerUsernameHelper,
                 textInputAction: TextInputAction.next,
@@ -229,6 +307,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
               ),
+              if (_maybeOwnReservation) ...[
+                const SizedBox(height: KSpacing.md),
+                _OwnReservationPanel(
+                  resending: _resending,
+                  failure: _resendFailure,
+                  onResend: _resendCode,
+                  onChooseAnother: _chooseAnotherUsername,
+                ),
+              ],
               const SizedBox(height: KSpacing.lg),
               KTextField(
                 fieldKey: RegisterScreen.displayNameKey,
@@ -300,6 +387,56 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// v1.2.3: possible own reservation after `USERNAME_TAKEN`.
+class _OwnReservationPanel extends StatelessWidget {
+  const new({
+    required this.resending,
+    required this.failure,
+    required this.onResend,
+    required this.onChooseAnother,
+  });
+
+  final bool resending;
+  final AppFailure? failure;
+  final VoidCallback onResend;
+  final VoidCallback onChooseAnother;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final failure = this.failure;
+    return Column(
+      key: RegisterScreen.usernameReservedKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KInlineMessage(
+          message: l10n.registerUsernameReservedHint,
+          isError: false,
+        ),
+        if (failure != null) ...[
+          const SizedBox(height: KSpacing.sm),
+          FailureBanner(failure: failure),
+        ],
+        const SizedBox(height: KSpacing.sm),
+        KButton(
+          key: RegisterScreen.resendCodeKey,
+          label: l10n.registerResendCode,
+          variant: KButtonVariant.secondary,
+          loading: resending,
+          onPressed: onResend,
+        ),
+        const SizedBox(height: KSpacing.xs),
+        KButton(
+          key: RegisterScreen.chooseAnotherKey,
+          label: l10n.registerChooseAnotherUsername,
+          variant: KButtonVariant.ghost,
+          onPressed: resending ? null : onChooseAnother,
+        ),
+      ],
     );
   }
 }
