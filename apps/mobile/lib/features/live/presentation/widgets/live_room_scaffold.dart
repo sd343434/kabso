@@ -214,7 +214,9 @@ class KHostPill extends StatelessWidget {
 }
 
 /// Viewer strip: up to `KMetrics.viewerStripMax` overlapping avatars and
-/// the viewer count chip.
+/// the viewer count chip. On screens narrower than
+/// `KMetrics.viewerAvatarsMinScreenWidth` only the chip is shown, so the
+/// host name in the header keeps its room (QA-009).
 class KViewerStrip extends StatelessWidget {
   const new({required this.names, required this.count, super.key});
 
@@ -223,6 +225,9 @@ class KViewerStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact =
+        MediaQuery.sizeOf(context).width < KMetrics.viewerAvatarsMinScreenWidth;
+    if (compact) return KViewerCountChip(count: count);
     final shown = names.take(KMetrics.viewerStripMax).toList();
     const step = KSizes.avatarSm - KSpacing.md;
     return Row(

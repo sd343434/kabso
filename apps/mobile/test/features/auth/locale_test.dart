@@ -1,6 +1,8 @@
 // KL-018: first-launch language resolution and PATCH /me sync
 // (contract v1.2 §6 Locale, PHASE1_1_SCREENS §3).
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -11,6 +13,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:material_ui/material_ui.dart';
@@ -116,6 +119,36 @@ void main() {
     }
 
     setUp(() => repo = FakeAuthRepository());
+
+    test('QA-011: changes during an in-flight PATCH coalesce; the last '
+        'choice wins and the flag clears only when it lands', () async {
+      final gated = repo = _GatedLocaleRepo();
+      await build(savedChoice: 'ar');
+      await signIn('ar');
+      final language = container.read(languageControllerProvider.notifier);
+      final sync = container.read(localeSyncProvider);
+
+      await language.select(AppLanguage.en);
+      final first = sync.languageChanged(); // PATCH en, held open
+      await Future<void>.delayed(Duration.zero);
+      await language.select(AppLanguage.ar);
+      await sync.languageChanged(); // queued
+      await language.select(AppLanguage.en);
+      await sync.languageChanged(); // replaces the queued value
+      expect(prefs.getBool(PreferenceKeys.localeSyncPending), isTrue);
+      expect(gated.localeUpdates, ['en']);
+
+      gated.release();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(gated.localeUpdates, ['en', 'en'], reason: 'one follow-up only');
+      expect(prefs.getBool(PreferenceKeys.localeSyncPending), isTrue);
+
+      gated.release();
+      await first;
+      expect(container.read(currentUserProvider)?.locale, 'en');
+      expect(prefs.getBool(PreferenceKeys.localeSyncPending), isNull);
+    });
 
     test('saved choice differs from me.locale → PATCH /me', () async {
       await build(savedChoice: 'en');
@@ -229,4 +262,20 @@ void main() {
       expect(repo.localeUpdates, isEmpty);
     });
   });
+}
+
+/// Holds every PATCH /me open until [release] is called.
+class _GatedLocaleRepo extends FakeAuthRepository {
+  final List<Completer<void>> _gates = [];
+
+  void release() => _gates.removeAt(0).complete();
+
+  @override
+  Future<User> updateLocale(String locale) async {
+    localeUpdates.add(locale);
+    final gate = Completer<void>();
+    _gates.add(gate);
+    await gate.future;
+    return me = me.copyWith(locale: locale);
+  }
 }

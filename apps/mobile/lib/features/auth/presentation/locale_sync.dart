@@ -20,6 +20,11 @@ class LocaleSync {
   /// refresh that the PATCH itself caused).
   bool _pushing = false;
 
+  /// QA-011: the latest language requested while a PATCH is in flight.
+  /// Requests coalesce, so the **last** user choice always wins: it is
+  /// pushed as soon as the in-flight PATCH completes.
+  AppLanguage? _next;
+
   LanguageController get _language =>
       _ref.read(languageControllerProvider.notifier);
 
@@ -60,25 +65,48 @@ class LocaleSync {
   }
 
   Future<void> _push(AppLanguage language) async {
-    if (_pushing) return;
+    _next = language;
+    if (_pushing) {
+      // Durable until the queued value lands (survives an app kill).
+      await _setPending(value: true);
+      return;
+    }
     _pushing = true;
+    try {
+      for (var target = _next; target != null; target = _next) {
+        _next = null;
+        if (!await _pushOnce(target)) {
+          // Retryable failure: the flag is set; retryPending() later pushes
+          // whatever language is displayed then.
+          _next = null;
+          break;
+        }
+      }
+    } finally {
+      _pushing = false;
+    }
+  }
+
+  /// One PATCH. Returns `false` on a retryable failure.
+  Future<bool> _pushOnce(AppLanguage language) async {
     try {
       final user = await _ref
           .read(authRepositoryProvider)
           .updateLocale(language.name);
-      await _setPending(value: false);
+      // A newer choice is queued: keep the flag until it lands.
+      if (_next == null) await _setPending(value: false);
       _ref.read(sessionControllerProvider.notifier).updateUser(user);
+      return true;
     } on AppFailure catch (f) {
       if (f.code == ErrorCode.validationFailed) {
         // 400: retrying cannot help; drop the flag.
         AppLogger.warning('Locale sync rejected: ${f.code.wire}');
-        await _setPending(value: false);
-      } else {
-        // Offline, timeout, 5xx, 429 (401 is handled globally): retry later.
-        await _setPending(value: true);
+        if (_next == null) await _setPending(value: false);
+        return true;
       }
-    } finally {
-      _pushing = false;
+      // Offline, timeout, 5xx, 429 (401 is handled globally): retry later.
+      await _setPending(value: true);
+      return false;
     }
   }
 
