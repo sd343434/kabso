@@ -327,11 +327,23 @@ describe('KL-019 verify-first registration', () => {
   });
 
   it('rejects reserved display names with reserved_term', async () => {
-    for (const displayName of ['Kаbso', 'الدعم الرسمي', 'Official Support']) {
+    for (const displayName of ['Kаbso', 'الدعم الرسمي', 'Official Support', 'TheKabso', 'kabso_official']) {
       const res = await register(newUser({ displayName }));
       expect(res.status).toBe(400);
       expect(res.body.error.details).toEqual([{ field: 'displayName', issue: 'reserved_term' }]);
     }
+  });
+
+  // Contract v1.2.1: reserved terms only as whole words (or brand prefix/suffix).
+  it('accepts reserved terms inside ordinary words and emoji-only names end to end', async () => {
+    for (const displayName of ['Badminton Club', 'Supporter', String.fromCodePoint(0x1f600)]) {
+      const { res } = await registerVerified(ctx, { displayName });
+      expect(res.status).toBe(201);
+      expect(res.body.user.displayName).toBe(displayName);
+    }
+    const symbols = await register(newUser({ displayName: '...' }));
+    expect(symbols.status).toBe(400);
+    expect(symbols.body.error.details).toEqual([{ field: 'displayName', issue: 'invalid_format' }]);
   });
 
   it('accepts Persian names with ZWNJ and emoji ZWJ sequences end to end', async () => {

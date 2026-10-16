@@ -159,6 +159,16 @@ export const envSchema = z
      * Reserved display-name terms (comma-separated; matched after NFKC casefold + confusable
      * skeleton). Defaults to the CONVENTIONS §6 list.
      */
+    /** Brand terms also matched as a prefix/suffix of the separator-free name (v1.2.1). */
+    RESERVED_DISPLAY_NAME_BRAND_TERMS: z
+      .string()
+      .default('kabso,كابسو')
+      .transform((v) =>
+        v
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+      ),
     RESERVED_DISPLAY_NAME_TERMS: z
       .string()
       .default('kabso,admin,administrator,support,official,moderator,staff,كابسو,الدعم,رسمي,مشرف,الإدارة')

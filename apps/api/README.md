@@ -70,7 +70,8 @@ full list. Notable rules:
   register/verify also delete expired rows lazily). Post-response work (mail, notices) runs in
   `BackgroundTasks`, drained on shutdown before Prisma/Redis disconnect.
 - `LOGIN_RECENT_SUCCESS_TTL_SECONDS` (30 days, SEC-023) and `RESERVED_DISPLAY_NAME_TERMS`
-  (KL-017; default = CONVENTIONS §6 list).
+  (KL-017; default = CONVENTIONS §6 list; whole-word match) and
+  `RESERVED_DISPLAY_NAME_BRAND_TERMS` (default `kabso,كابسو`; prefix/suffix match, v1.2.1).
 - `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
   rules, must differ from the JWT secret); generated per process when unset elsewhere.
 - `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):

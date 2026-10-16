@@ -22,9 +22,12 @@ This page records **how the implementation (`apps/api`) authorizes and limits ea
 - `displayName` (v1.2, KL-017): NFC + trim; 1–50 grapheme clusters (`Intl.Segmenter`) and
   ≤ 100 code points (`too_short` / `too_long`). `invalid_format` for C0/C1, bidi controls, U+200B,
   U+2060, U+FEFF; ZWNJ/ZWJ not between two non-joiner, non-space characters; > 3 consecutive
-  combining marks (counted on the NFD form); no letter or digit at all. `reserved_term` when the
-  NFKC-casefolded confusable skeleton contains a reserved term (`RESERVED_DISPLAY_NAME_TERMS`,
-  default = CONVENTIONS §6 list). The skeleton uses a documented minimal UTS #39 mapping
+  combining marks (counted on the NFD form); no letter, digit or emoji (`RGI_Emoji`) grapheme at
+  all — emoji-only names are valid (v1.2.1). U+FEFF at either end is trimmed. `reserved_term`
+  (v1.2.1) when, on the NFKC-casefolded confusable skeleton, a reserved term
+  (`RESERVED_DISPLAY_NAME_TERMS`, default = CONVENTIONS §6 list) equals a whole word (split on
+  non-letters/digits), or the separator-free name starts or ends with a brand term
+  (`RESERVED_DISPLAY_NAME_BRAND_TERMS`, default `kabso,كابسو`). The skeleton uses a documented minimal UTS #39 mapping
   (`apps/api/src/modules/users/confusables.ts`) and also drops diacritics and tatweel. The
   reserved-term check runs after schema validation, in the registration service.
 - Passwords are normalized to Unicode NFC before length checks, hashing and verification. Argon2

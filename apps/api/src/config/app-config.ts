@@ -55,6 +55,7 @@ export interface AppConfig {
   };
   readonly loginRecentSuccessTtlSeconds: number;
   readonly reservedDisplayNameTerms: readonly string[];
+  readonly reservedDisplayNameBrandTerms: readonly string[];
 }
 
 export class ConfigValidationError extends Error {
@@ -127,5 +128,6 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     loginRecentSuccessTtlSeconds: e.LOGIN_RECENT_SUCCESS_TTL_SECONDS,
     reservedDisplayNameTerms: e.RESERVED_DISPLAY_NAME_TERMS,
+    reservedDisplayNameBrandTerms: e.RESERVED_DISPLAY_NAME_BRAND_TERMS,
   };
 }
