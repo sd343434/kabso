@@ -191,7 +191,8 @@ describe('KL-006 contract checks', () => {
     it('whitespace-only and control-character display names are rejected', async () => {
       const blank = await ctx.http.post('/api/v1/auth/register').send(newUser({ displayName: '   ' }));
       expectEnvelope(blank, 400, 'VALIDATION_FAILED');
-      expect(blank.body.error.details).toEqual([{ field: 'displayName', issue: 'too_short' }]);
+      // Contract v1.2.4 (QA-010): whitespace-only is invalid_format (was too_short).
+      expect(blank.body.error.details).toEqual([{ field: 'displayName', issue: 'invalid_format' }]);
 
       const control = await ctx.http.post('/api/v1/auth/register').send(newUser({ displayName: 'a\u0000b' }));
       expectEnvelope(control, 400, 'VALIDATION_FAILED');

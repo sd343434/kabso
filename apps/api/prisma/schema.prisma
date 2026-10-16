@@ -88,30 +88,30 @@ model UserSettings {
 }
 
 model Session {
-  id                       String    @id @default(uuid(7)) @db.Uuid
-  userId                   String    @map("user_id") @db.Uuid
+  id                        String    @id @default(uuid(7)) @db.Uuid
+  userId                    String    @map("user_id") @db.Uuid
   /// SHA-256 (hex) of the current refresh secret.
-  refreshTokenHash         String    @map("refresh_token_hash") @db.Char(64)
+  refreshTokenHash          String    @map("refresh_token_hash") @db.Char(64)
   /// SHA-256 (hex) of the immediately preceding secret (also element 1 of the history below).
-  previousRefreshTokenHash String?   @map("previous_refresh_token_hash") @db.Char(64)
+  previousRefreshTokenHash  String?   @map("previous_refresh_token_hash") @db.Char(64)
   /// SHA-256 (hex) of the last 10 rotated secrets, newest first (SEC-022). Presenting any of
   /// them is reuse and revokes the session. Bounded by the rotation SQL and a CHECK constraint.
-  rotatedRefreshTokenHashes String[] @default([]) @map("rotated_refresh_token_hashes") @db.Char(64)
+  rotatedRefreshTokenHashes String[]  @default([]) @map("rotated_refresh_token_hashes") @db.Char(64)
   /// Incremented on every rotation (compare-and-swap guard + diagnostics).
-  rotationCounter          Int       @default(0) @map("rotation_counter")
-  deviceName               String?   @map("device_name") @db.VarChar(100)
-  platform                 String?   @db.VarChar(16)
-  appVersion               String?   @map("app_version") @db.VarChar(32)
-  ip                       String?   @db.VarChar(64)
-  userAgent                String?   @map("user_agent") @db.VarChar(512)
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  lastUsedAt               DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  rotationCounter           Int       @default(0) @map("rotation_counter")
+  deviceName                String?   @map("device_name") @db.VarChar(100)
+  platform                  String?   @db.VarChar(16)
+  appVersion                String?   @map("app_version") @db.VarChar(32)
+  ip                        String?   @db.VarChar(64)
+  userAgent                 String?   @map("user_agent") @db.VarChar(512)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt                DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
   /// Sliding expiry (REFRESH_TTL_SECONDS from last rotation, capped by absoluteExpiresAt).
-  expiresAt                DateTime  @map("expires_at") @db.Timestamptz(3)
-  absoluteExpiresAt        DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
-  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(3)
+  expiresAt                 DateTime  @map("expires_at") @db.Timestamptz(3)
+  absoluteExpiresAt         DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
+  revokedAt                 DateTime? @map("revoked_at") @db.Timestamptz(3)
   /// LOGOUT | USER_REVOKED | REFRESH_REUSE | PASSWORD_RESET | ADMIN
-  revokedReason            String?   @map("revoked_reason") @db.VarChar(32)
+  revokedReason             String?   @map("revoked_reason") @db.VarChar(32)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -161,27 +161,29 @@ model AuditLog {
 /// Verify-first registration (contract v1.2 §6, KL-019). No account exists until the emailed code
 /// is verified. At most one row per email; a username held by a live row counts as taken.
 model PendingRegistration {
-  id           String   @id @default(uuid(7)) @db.Uuid
+  id            String   @id @default(uuid(7)) @db.Uuid
   /// Normalized (trimmed + lowercase).
-  email        String   @unique @db.VarChar(254)
+  email         String   @unique @db.VarChar(254)
   /// Lowercase; reserved while the row is live (format CHECK as for user_profiles).
-  username     String   @unique @db.VarChar(30)
-  displayName  String   @map("display_name") @db.VarChar(100)
-  locale       String   @db.VarChar(8)
+  username      String   @unique @db.VarChar(30)
+  displayName   String   @map("display_name") @db.VarChar(100)
+  locale        String   @db.VarChar(8)
   /// Argon2id PHC string of the chosen password (computed at register time).
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  deviceName   String?  @map("device_name") @db.VarChar(100)
-  platform     String?  @db.VarChar(16)
-  appVersion   String?  @map("app_version") @db.VarChar(32)
-  ip           String?  @db.VarChar(64)
-  userAgent    String?  @map("user_agent") @db.VarChar(512)
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  deviceName    String?  @map("device_name") @db.VarChar(100)
+  platform      String?  @db.VarChar(16)
+  appVersion    String?  @map("app_version") @db.VarChar(32)
+  ip            String?  @db.VarChar(64)
+  userAgent     String?  @map("user_agent") @db.VarChar(512)
   /// HMAC-SHA-256 (hex) of the 8-digit code, keyed by a key derived from RATE_LIMIT_KEY_SECRET.
-  codeHash     String   @map("code_hash") @db.Char(64)
-  /// Code checks consumed (max 5, then the row is deleted).
-  attempts     Int      @default(0)
-  expiresAt    DateTime @map("expires_at") @db.Timestamptz(3)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  codeHash      String   @map("code_hash") @db.Char(64)
+  /// Checks of the CURRENT code (max 5; reset when resend issues a new code).
+  attempts      Int      @default(0)
+  /// Checks across all codes of this pending registration (max 10, never reset; SEC-026).
+  totalAttempts Int      @default(0) @map("total_attempts")
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([expiresAt], map: "pending_registrations_expires_at_idx")
   @@map("pending_registrations")

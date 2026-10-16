@@ -61,17 +61,26 @@ full list. Notable rules:
 - `JWT_ACCESS_SECRET` ≥ 32 bytes. In `production` it must be base64/base64url decoding to
   ≥ 32 bytes and pass an entropy check (placeholders, typed passphrases, repeated or sequential
   characters are refused). Generate with `openssl rand -base64 48`.
-- `RATE_LIMIT_KEY_SECRET` also derives (HKDF, info `registration-code/v1`) the key that HMACs
-  registration codes. Outside production it is random per process when unset, so pending
-  registrations do not survive a restart unless it is set.
+- `REGISTRATION_CODE_KEY` (optional, ≥ 32 bytes, SEC-029): source of the key (HKDF, info
+  `registration-code/v1`) that HMACs registration codes. When unset, `RATE_LIMIT_KEY_SECRET` is
+  used instead (outside production that is random per process when unset, so pending
+  registrations do not survive a restart). In production it must pass the same secret checks and
+  differ from both other secrets. **Rotation:** changing the source key (or
+  `RATE_LIMIT_KEY_SECRET` while this is unset) invalidates every live pending code — verify then
+  answers the generic 422 and users request a new code with `register/resend` (pending rows
+  expire within 2 h anyway). Setting it lets `RATE_LIMIT_KEY_SECRET` rotate without that effect.
 - Verify-first registration (contract v1.2): `REGISTRATION_TTL_SECONDS` (1800),
+  `REGISTRATION_MAX_LIFETIME_SECONDS` (7200; absolute cap from creation, resend never extends it,
+  v1.2.3 SEC-026),
   `REGISTRATION_NOTICE_INTERVAL_SECONDS` (3600), `REGISTRATION_CLEANUP_INTERVAL_SECONDS` (600; an
   in-process `setInterval` per API instance deletes expired `pending_registrations`; 0 disables;
   register/verify also delete expired rows lazily). Post-response work (mail, notices) runs in
   `BackgroundTasks`, drained on shutdown before Prisma/Redis disconnect.
 - `LOGIN_RECENT_SUCCESS_TTL_SECONDS` (30 days, SEC-023) and `RESERVED_DISPLAY_NAME_TERMS`
-  (KL-017; default = CONVENTIONS §6 list; whole-word match) and
-  `RESERVED_DISPLAY_NAME_BRAND_TERMS` (default `kabso,كابسو`; per-word prefix/suffix match, v1.2.2).
+  (KL-017; default = CONVENTIONS §6 list, without `staff`/`مشرف` since v1.2.4; whole-word match) and
+  `RESERVED_DISPLAY_NAME_BRAND_TERMS` (default `kabso,كابسو`; matched anywhere inside a word,
+  v1.2.3). Matching uses the vendored Unicode `confusables.txt` — see
+  `src/modules/users/data/README.md` for its source, checksum and update steps.
 - `RATE_LIMIT_KEY_SECRET`: HMAC key for rate-limit Redis keys. Required in production (same
   rules, must differ from the JWT secret); generated per process when unset elsewhere.
 - `ARGON2_MAX_CONCURRENCY` (default CPU count) / `ARGON2_MAX_QUEUE` (default 4 × CPU count):
@@ -89,7 +98,8 @@ full list. Notable rules:
   - a comma-separated list of proxy IPs/CIDRs (or `loopback`, `linklocal`, `uniquelocal`):
     preferred when the load balancer subnet is known.
   - production also refuses `/0` ranges (`0.0.0.0/0`, `::/0`) and hop counts greater than 3
-    (SEC-003a).
+    (SEC-003a), and since v1.2.3 any IPv4 range broader than /8, IPv6 broader than /32, and
+    `::ffff:0:0/96` (all IPv4-mapped addresses).
   - `true` trusts the client-controlled left-most `X-Forwarded-For` and is **refused when
     `NODE_ENV=production`** (SEC-003). The effective value is logged at startup
     (`trust proxy = …`). Per-platform values belong in `docs/DEPLOYMENT.md` (A8).

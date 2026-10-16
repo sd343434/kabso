@@ -327,11 +327,25 @@ describe('KL-019 verify-first registration', () => {
   });
 
   it('rejects reserved display names with reserved_term', async () => {
-    for (const displayName of ['Kаbso', 'الدعم الرسمي', 'Official Support', 'TheKabso', 'kabso_official']) {
+    // v1.2.3: a Latin word with a Cyrillic а ("Kаbso") is now a mixed-script invalid_format at the
+    // schema stage (tested below); spaced homoglyphs still reach the reserved-term check.
+    for (const displayName of [
+      'K а b s o',
+      'الدعم الرسمي',
+      'Official Support',
+      'TheKabso',
+      'kabso_official',
+    ]) {
       const res = await register(newUser({ displayName }));
       expect(res.status).toBe(400);
       expect(res.body.error.details).toEqual([{ field: 'displayName', issue: 'reserved_term' }]);
     }
+  });
+
+  it('rejects a mixed-script homoglyph word with invalid_format (v1.2.3)', async () => {
+    const res = await register(newUser({ displayName: 'Kаbso' }));
+    expect(res.status).toBe(400);
+    expect(res.body.error.details).toEqual([{ field: 'displayName', issue: 'invalid_format' }]);
   });
 
   // Contract v1.2.1: reserved terms only as whole words (or brand prefix/suffix).

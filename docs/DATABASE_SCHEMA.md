@@ -72,8 +72,9 @@ No account exists until the emailed 8-digit code is verified (contract v1.2 §6)
 | password_hash | varchar(255) | Argon2id, computed at register time |
 | device_name / platform / app_version, ip, user_agent | varchar | from the register request; platform CHECK |
 | code_hash | char(64) | HMAC-SHA-256(key, `email \n code`); key = HKDF-SHA-256(`RATE_LIMIT_KEY_SECRET`, salt `kabso`, info `registration-code/v1`) |
-| attempts | int default 0 | consumed atomically before each comparison; CHECK 0–5; the row is deleted at 5 |
-| expires_at | timestamptz | created/renewed at now + 30 min (`REGISTRATION_TTL_SECONDS`) |
+| attempts | int default 0 | per code; consumed atomically before each comparison; CHECK 0–5; reset by resend |
+| total_attempts | int default 0 | per pending across resends (v1.2.3 SEC-026); CHECK `pending_registrations_total_attempts_range` 0–10; the row is deleted when `attempts` reaches 5 or `total_attempts` reaches 10 (migration `20261016085446_pending_total_attempts`) |
+| expires_at | timestamptz | created/renewed at now + 30 min (`REGISTRATION_TTL_SECONDS`), never past `created_at` + 2 h (`REGISTRATION_MAX_LIFETIME_SECONDS`) |
 | created_at / updated_at | timestamptz | |
 
 Index `(expires_at)` for the cleanup job (`REGISTRATION_CLEANUP_INTERVAL_SECONDS`, default 10 min)
