@@ -95,6 +95,8 @@ that one query.
   statements on these indexes, as is already done for the CHECKs.
 - The staleness predicate (`last_heartbeat_at > now() - interval`) is a residual filter on top of
   these indexes. The set of LIVE rooms is small, and the sweeper keeps stale rows out of it.
+  *(v1.3.1)* Reads must keep this predicate even though the sweeper exists: under a backlog,
+  stale rows can stay `LIVE` for longer than one sweep interval.
 
 | Name | Definition | Serves |
 | ---- | ---------- | ------ |
@@ -203,12 +205,21 @@ end, timeout and suspension resolve to exactly one winner):
   | cursor HMAC key | derived from an existing server secret via HKDF with a distinct label (the same pattern as `REGISTRATION_CODE_KEY` / `RATE_LIMIT_KEY_SECRET`) | — |
 
   KL-037 picks the source secret; A7 reviews it.
-- **Sweeper:**
-  - a periodic job in the API process, every `LIVE_SWEEP_INTERVAL_SECONDS`;
-  - one `UPDATE … WHERE status='LIVE' AND last_heartbeat_at <= now() - stale RETURNING id`;
-  - safe to run concurrently on several pods, because the `WHERE status='LIVE'` guard makes it
-    idempotent;
-  - it writes `live.room.timeout` audit rows for the returned ids.
+- **Sweeper** *(v1.3.1, SEC-035: bounded batches; CONVENTIONS §10.2)*:
+  - a periodic job in the API process, every `LIVE_SWEEP_INTERVAL_SECONDS`. A run starts only
+    after the previous run in the same process has finished (no overlap);
+  - each batch is its own short transaction. It selects at most a fixed number of stale LIVE rows
+    (a server constant or setting chosen in the implementation, in the hundreds), for example with
+    `SELECT id … WHERE status='LIVE' AND last_heartbeat_at <= now() - stale ORDER BY
+    last_heartbeat_at LIMIT n FOR UPDATE SKIP LOCKED`. It then ends exactly those rows with the
+    `status='LIVE'` guard, and writes `live.room.timeout` audit rows for the ids the update
+    returned;
+  - a run repeats batches until a batch ends fewer rows than the limit or a per-run budget (batch
+    count or time) is spent. The rest waits for the next run;
+  - safe to run concurrently on several pods: the `WHERE status='LIVE'` guard makes it idempotent,
+    and `SKIP LOCKED` keeps pods from waiting on each other;
+  - request handlers never run the sweep. `GET /live/rooms` filters with the freshness predicate
+    and writes nothing; room detail and profile either compute the timed-out view or end one room.
 
 ## 5. Runtime DB role grants (coordination with KL-013)
 
