@@ -1,12 +1,17 @@
 /**
- * KL-013 / SEC-011 / PP-01: least-privilege database roles, proven against real PostgreSQL.
+ * KL-013 / KL-013b / SEC-011 / PP-01: least-privilege database roles, proven against real
+ * PostgreSQL.
  *
- * DATABASE_URL is the DML-only runtime role (member of kabso_runtime) the API uses;
- * MIGRATION_DATABASE_URL is the migration/owner role. See infra/postgres/bootstrap-roles.sql and
- * docs/DEPLOYMENT.md §5.1.
+ * DATABASE_URL is the DML-only runtime login the API uses (member of this database's group
+ * `kabso_runtime_<database>` only); MIGRATION_DATABASE_URL is the migration/owner role. See
+ * infra/postgres/bootstrap-roles.sql and docs/DEPLOYMENT.md §5.1.
+ *
+ * The KL-013b tests that create databases and roles or run the bootstrap script need an admin
+ * connection (KABSO_TEST_ADMIN_DATABASE_URL, plus `psql` on PATH); they are required in CI.
  */
 import 'reflect-metadata';
-import { randomBytes } from 'node:crypto';
+import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
@@ -15,8 +20,21 @@ import {
   RUNTIME_ROLE_FACTS_SQL,
   UnsafeDatabaseRoleError,
   assessRuntimeRole,
+  runtimeRoleFactsSql,
   type RuntimeRoleFacts,
 } from '../../src/prisma/runtime-role-check.js';
+import {
+  ADMIN_URL,
+  connectError,
+  databaseOf,
+  ident,
+  lit,
+  migrateDeploy,
+  runBootstrap,
+  scramVerifier,
+  urlWith,
+  withClient,
+} from '../helpers/db-admin.js';
 import { buildTestConfig, withMigrationClient } from '../helpers/test-app.js';
 
 /** PostgreSQL insufficient_privilege (42501) as surfaced through Prisma's pg adapter. */
@@ -25,6 +43,10 @@ const PERMISSION_DENIED = /permission denied|must be owner|42501/i;
 const suffix = randomBytes(4).toString('hex');
 /** Table created by the MIGRATION role after the grant migration, like a future Phase 2 table. */
 const LATER_TABLE = `kl013_later_${suffix}`;
+
+/** This database and its runtime group (KL-013b: one group per database). */
+const DB = databaseOf(process.env.DATABASE_URL!);
+const RUNTIME_GROUP = `kabso_runtime_${DB}`;
 
 let runtime: PrismaClient;
 let runtimeUser: string;
@@ -104,7 +126,9 @@ describe('KL-013 runtime role cannot run DDL or administrative commands', () => 
 
   it('GRANT of role membership is refused', async () => {
     await expect(runtimeExec(`GRANT "${migrationUser}" TO CURRENT_USER`)).rejects.toThrow(PERMISSION_DENIED);
-    await expect(runtimeExec(`GRANT kabso_runtime TO "${migrationUser}"`)).rejects.toThrow(PERMISSION_DENIED);
+    await expect(runtimeExec(`GRANT ${ident(RUNTIME_GROUP)} TO "${migrationUser}"`)).rejects.toThrow(
+      PERMISSION_DENIED,
+    );
   });
 
   it('GRANT on an object without rights is refused', async () => {
@@ -372,5 +396,573 @@ describe('KL-013 boot-time guard (PrismaService)', () => {
     } finally {
       await prisma.onApplicationShutdown();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// KL-013b: fixes for the KL-007f findings
+// ---------------------------------------------------------------------------------------------
+
+type Sql = Pick<PrismaClient, '$queryRawUnsafe' | '$executeRawUnsafe'>;
+
+class Rollback extends Error {}
+
+/** Runs `fn` in a transaction that is always rolled back; returns what `fn` returned. */
+async function inRolledBackTx<T>(client: PrismaClient, fn: (tx: Sql) => Promise<T>): Promise<T> {
+  let result: { value: T } | undefined;
+  try {
+    await client.$transaction(async (tx) => {
+      result = { value: await fn(tx) };
+      throw new Rollback();
+    });
+  } catch (err) {
+    if (!(err instanceof Rollback)) throw err;
+  }
+  return result!.value;
+}
+
+/** The boot guard's facts for `role`, evaluated through `client`. */
+async function factsOf(client: Sql, role: string): Promise<RuntimeRoleFacts> {
+  const [row] = await client.$queryRawUnsafe<RuntimeRoleFacts[]>(runtimeRoleFactsSql(lit(role)));
+  return row!;
+}
+
+async function value<T>(client: Sql, sql: string): Promise<T> {
+  const rows = await client.$queryRawUnsafe<{ v: T }[]>(sql);
+  return rows[0]!.v;
+}
+
+describe('KL-013b KL7F-01: one runtime group per database', () => {
+  it('the runtime login is a member of this database group only and reaches no other database', async () => {
+    const [facts] = await runtime.$queryRawUnsafe<RuntimeRoleFacts[]>(RUNTIME_ROLE_FACTS_SQL);
+    expect(facts).toMatchObject({
+      runtimeGroup: RUNTIME_GROUP,
+      inRuntimeGroup: true,
+      unexpectedRoles: [],
+      otherDatabases: [],
+      databaseTemp: false,
+    });
+  });
+
+  it('the group is NOLOGIN and holds CONNECT on this database only', async () => {
+    const group = await runtime.$queryRawUnsafe<{ login: boolean; dbs: string[] }[]>(`
+      SELECT r.rolcanlogin AS login,
+             ARRAY(SELECT d.datname::text FROM pg_database d, aclexplode(d.datacl) a
+                    WHERE a.grantee = r.oid ORDER BY 1) AS dbs
+        FROM pg_roles r WHERE r.rolname = ${lit(RUNTIME_GROUP)}`);
+    expect(group).toEqual([{ login: false, dbs: [DB] }]);
+    expect(
+      await value<boolean>(
+        runtime,
+        `SELECT has_database_privilege(${lit(RUNTIME_GROUP)}, current_database(), 'TEMPORARY') AS v`,
+      ),
+    ).toBe(false);
+  });
+
+  it('PUBLIC and the legacy cluster-wide group kabso_runtime hold nothing in this database', async () => {
+    for (const priv of ['CONNECT', 'TEMPORARY', 'CREATE']) {
+      expect(
+        await value<boolean>(
+          runtime,
+          `SELECT has_database_privilege('public', current_database(), '${priv}') AS v`,
+        ),
+        priv,
+      ).toBe(false);
+    }
+    const legacy = await runtime.$queryRawUnsafe<
+      { db: boolean; tables: bigint; schema: boolean; defaults: bigint }[]
+    >(`
+      SELECT has_database_privilege(r.oid, current_database(), 'CONNECT, TEMPORARY, CREATE') AS db,
+             (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname = 'public'
+                 AND has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')) AS tables,
+             has_schema_privilege(r.oid, 'public', 'USAGE') AS schema,
+             (SELECT count(*) FROM pg_default_acl d, aclexplode(d.defaclacl) a WHERE a.grantee = r.oid) AS defaults
+        FROM pg_roles r WHERE r.rolname = 'kabso_runtime'`);
+    for (const row of legacy) {
+      expect({ ...row, tables: Number(row.tables), defaults: Number(row.defaults) }).toEqual({
+        db: false,
+        tables: 0,
+        schema: false,
+        defaults: 0,
+      });
+    }
+  });
+
+  it('future tables are granted to this database group (default privileges)', async () => {
+    const acl = await value<string>(
+      runtime,
+      `SELECT string_agg(a.privilege_type, ',' ORDER BY a.privilege_type) AS v
+         FROM pg_default_acl d, aclexplode(d.defaclacl) a
+        WHERE d.defaclobjtype = 'r' AND d.defaclnamespace = 'public'::regnamespace
+          AND a.grantee = ${lit(RUNTIME_GROUP)}::regrole`,
+    );
+    expect(acl).toBe('DELETE,INSERT,SELECT,UPDATE');
+  });
+});
+
+describe('KL-013b KL7F-03: the boot guard checks object-level grants', () => {
+  it.each([
+    [
+      'UPDATE on audit_logs',
+      'GRANT UPDATE ON audit_logs TO {login}',
+      /append-only rows: public\.audit_logs \(UPDATE\)/,
+    ],
+    [
+      'column UPDATE on audit_logs',
+      'GRANT UPDATE (action) ON audit_logs TO {login}',
+      /public\.audit_logs \(UPDATE\)/,
+    ],
+    [
+      'DELETE on audit_logs (via the group)',
+      'GRANT DELETE ON audit_logs TO {group}',
+      /public\.audit_logs \(DELETE\)/,
+    ],
+    [
+      'SELECT on _prisma_migrations',
+      'GRANT SELECT ON _prisma_migrations TO {login}',
+      /privileges on _prisma_migrations/,
+    ],
+    [
+      'column SELECT on _prisma_migrations',
+      'GRANT SELECT (id) ON _prisma_migrations TO {group}',
+      /_prisma_migrations/,
+    ],
+    [
+      'a grant option on a table',
+      'GRANT SELECT ON users TO {login} WITH GRANT OPTION',
+      /grant options on table public\.users/,
+    ],
+    [
+      'a grant option via the group',
+      'GRANT SELECT ON sessions TO {group} WITH GRANT OPTION',
+      /grant options on table public\.sessions/,
+    ],
+    [
+      'a grant option on the schema',
+      'GRANT USAGE ON SCHEMA public TO {login} WITH GRANT OPTION',
+      /grant options on schema public/,
+    ],
+  ])('%s is reported', async (_name, grant, expected) => {
+    const problems = await withMigrationClient((m) =>
+      inRolledBackTx(m, async (tx) => {
+        await tx.$executeRawUnsafe(
+          grant.replace('{login}', ident(runtimeUser)).replace('{group}', ident(RUNTIME_GROUP)),
+        );
+        return assessRuntimeRole(await factsOf(tx, runtimeUser));
+      }),
+    );
+    expect(problems.join('\n')).toMatch(expected);
+  });
+
+  it('the same inspection of the real runtime login is clean (grants above were rolled back)', async () => {
+    const facts = await withMigrationClient((m) => factsOf(m, runtimeUser));
+    expect(assessRuntimeRole(facts)).toEqual([]);
+  });
+});
+
+describe('KL-013b KL7F-06: functions are not executable by PUBLIC', () => {
+  it('no routine in schema public is executable by PUBLIC', async () => {
+    const count = await value<bigint>(
+      runtime,
+      `SELECT count(*) AS v FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND has_function_privilege('public', p.oid, 'EXECUTE')`,
+    );
+    expect(Number(count)).toBe(0);
+  });
+
+  it('a function the migration role creates later is executable by neither PUBLIC nor the runtime login', async () => {
+    const result = await withMigrationClient((m) =>
+      inRolledBackTx(m, async (tx) => {
+        await tx.$executeRawUnsafe(
+          `CREATE FUNCTION public.kl013b_later_fn() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$`,
+        );
+        return tx.$queryRawUnsafe<{ pub: boolean; app: boolean }[]>(`
+          SELECT has_function_privilege('public', 'public.kl013b_later_fn()', 'EXECUTE') AS pub,
+                 has_function_privilege(${lit(runtimeUser)}, 'public.kl013b_later_fn()', 'EXECUTE') AS app`);
+      }),
+    );
+    expect(result).toEqual([{ pub: false, app: false }]);
+  });
+});
+
+describe('KL-013b KL7F-08: the grant migration only runs as the schema owner', () => {
+  const file = readFileSync(
+    new URL(
+      '../../prisma/migrations/20261016130000_per_database_runtime_group/migration.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const doBlock = /^DO \$\$[\s\S]*?^\$\$;$/m.exec(file)![0];
+  const rest = file
+    .slice(file.indexOf(doBlock) + doBlock.length)
+    .split('\n')
+    .filter((line) => !line.startsWith('--'))
+    .join('\n')
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  it('is refused for the runtime login', async () => {
+    await expect(runtimeExec(doBlock)).rejects.toThrow(/must run as the owner of schema public/);
+  });
+
+  it('re-runs cleanly (idempotent) as the migration role', async () => {
+    expect(rest).toHaveLength(2);
+    const problems = await withMigrationClient((m) =>
+      inRolledBackTx(m, async (tx) => {
+        await tx.$executeRawUnsafe(doBlock);
+        for (const statement of rest) await tx.$executeRawUnsafe(statement);
+        return assessRuntimeRole(await factsOf(tx, runtimeUser));
+      }),
+    );
+    expect(problems).toEqual([]);
+  });
+});
+
+// ----------------------------- tests that need a PostgreSQL admin -----------------------------
+
+describe('KL-013b admin connection', () => {
+  it.runIf(process.env.CI === 'true')('KABSO_TEST_ADMIN_DATABASE_URL is set in CI', () => {
+    expect(ADMIN_URL).toBeDefined();
+  });
+});
+
+/** RFC 5802 verifier computed in-process (to feed the bootstrap a dev default in verifier form). */
+function verifierOf(password: string): string {
+  const salt = randomBytes(16);
+  const salted = pbkdf2Sync(password, salt, 4096, 32, 'sha256');
+  const stored = createHash('sha256')
+    .update(createHmac('sha256', salted).update('Client Key').digest())
+    .digest('base64');
+  const server = createHmac('sha256', salted).update('Server Key').digest('base64');
+  return `SCRAM-SHA-256$4096:${salt.toString('base64')}$${stored}:${server}`;
+}
+
+describe.runIf(ADMIN_URL)(
+  'KL-013b KL7F-02: memberships reachable from the runtime login are rejected',
+  () => {
+    const admin = () => urlWith(ADMIN_URL!, { db: DB });
+    const probe = `kl013b_probe_${suffix}`;
+    const createRoleHolder = `kl013b_cr_${suffix}`;
+    const loginProbe = `kl013b_login_${suffix}`;
+    const loginPassword = randomBytes(18).toString('hex');
+
+    beforeAll(async () => {
+      await withClient(admin(), async (a) => {
+        await a.$executeRawUnsafe(`CREATE ROLE ${ident(probe)} NOLOGIN`);
+        await a.$executeRawUnsafe(`GRANT ${ident(RUNTIME_GROUP)} TO ${ident(probe)}`);
+        await a.$executeRawUnsafe(`CREATE ROLE ${ident(createRoleHolder)} NOLOGIN CREATEROLE`);
+        await a.$executeRawUnsafe(`CREATE ROLE ${ident(loginProbe)} LOGIN PASSWORD ${lit(loginPassword)}`);
+        await a.$executeRawUnsafe(`GRANT ${ident(RUNTIME_GROUP)} TO ${ident(loginProbe)}`);
+      });
+    });
+
+    afterAll(async () => {
+      await withClient(admin(), async (a) => {
+        for (const role of [probe, createRoleHolder, loginProbe]) {
+          await a.$executeRawUnsafe(`DROP ROLE IF EXISTS ${ident(role)}`);
+        }
+      });
+    });
+
+    it('a plain member of the group is accepted (baseline)', async () => {
+      const facts = await withClient(admin(), (a) => factsOf(a, probe));
+      expect(assessRuntimeRole(facts)).toEqual([]);
+    });
+
+    it.each([
+      'pg_execute_server_program',
+      'pg_read_all_data',
+      'pg_write_all_data',
+      'pg_read_server_files',
+      'pg_write_server_files',
+      'kabso_runtime',
+    ])('membership in %s (SET TRUE, INHERIT FALSE) is rejected', async (role) => {
+      const problems = await withClient(admin(), (a) =>
+        inRolledBackTx(a, async (tx) => {
+          await tx.$executeRawUnsafe(`GRANT ${ident(role)} TO ${ident(probe)} WITH INHERIT FALSE, SET TRUE`);
+          return assessRuntimeRole(await factsOf(tx, probe));
+        }),
+      );
+      expect(problems.join('\n')).toMatch(new RegExp(`is a member of .*${role}`));
+    });
+
+    it('membership (even without SET or INHERIT) in a CREATEROLE role is rejected', async () => {
+      const facts = await withClient(admin(), (a) =>
+        inRolledBackTx(a, async (tx) => {
+          await tx.$executeRawUnsafe(
+            `GRANT ${ident(createRoleHolder)} TO ${ident(probe)} WITH INHERIT FALSE, SET FALSE`,
+          );
+          return factsOf(tx, probe);
+        }),
+      );
+      expect(facts.createRole).toBe(true);
+      expect(assessRuntimeRole(facts).join('\n')).toMatch(
+        /has CREATEROLE \(directly or through role membership\)/,
+      );
+    });
+
+    it('TEMPORARY on the database is rejected', async () => {
+      const problems = await withClient(admin(), (a) =>
+        inRolledBackTx(a, async (tx) => {
+          await tx.$executeRawUnsafe(`GRANT TEMPORARY ON DATABASE ${ident(DB)} TO ${ident(probe)}`);
+          return assessRuntimeRole(await factsOf(tx, probe));
+        }),
+      );
+      expect(problems.join('\n')).toMatch(/TEMPORARY tables/);
+    });
+
+    it('production boot refuses a login with a SET-only pg_read_all_data membership', async () => {
+      const url = urlWith(process.env.DATABASE_URL!, { user: loginProbe, password: loginPassword });
+      const boot = async () => {
+        const prisma = new PrismaService({
+          ...buildTestConfig({ LOG_LEVEL: 'silent' }),
+          databaseUrl: url,
+          isProduction: true,
+        });
+        try {
+          await prisma.onModuleInit();
+        } finally {
+          await prisma.$disconnect();
+        }
+      };
+      await expect(boot()).resolves.toBeUndefined();
+      await withClient(admin(), (a) =>
+        a.$executeRawUnsafe(`GRANT pg_read_all_data TO ${ident(loginProbe)} WITH INHERIT FALSE, SET TRUE`),
+      );
+      await expect(boot()).rejects.toThrow(/is a member of pg_read_all_data/);
+    });
+  },
+);
+
+describe.runIf(ADMIN_URL)('KL-013b bootstrap script: cross-database isolation, atomicity, rotation', () => {
+  const admin = (db = DB) => urlWith(ADMIN_URL!, { db });
+  const dbB = `kl013b_${suffix}_test`;
+  const dbC = `kl013b_${suffix}_c_test`;
+  const groupB = `kabso_runtime_${dbB}`;
+  const migB = `kl013b_mig_${suffix}`;
+  const appB = `kl013b_app_${suffix}`;
+  const app2 = `kl013b_app2_${suffix}`;
+  const nologin = `kl013b_nologin_${suffix}`;
+  const migC = `kl013b_migc_${suffix}`;
+  const appC = `kl013b_appc_${suffix}`;
+  const pw = { mig: randomBytes(16).toString('hex'), app: randomBytes(16).toString('hex') };
+  const app2Password = randomBytes(16).toString('hex');
+  const devEnv = () => ({
+    KABSO_DB_ENV: 'development',
+    KABSO_DB_MIGRATOR_USER: migB,
+    KABSO_DB_MIGRATOR_PASSWORD: pw.mig,
+    KABSO_DB_APP_USER: appB,
+    KABSO_DB_APP_PASSWORD: pw.app,
+  });
+  const urlB = (user: string, password: string) =>
+    urlWith(process.env.DATABASE_URL!, { db: dbB, user, password });
+
+  beforeAll(async () => {
+    await withClient(admin(), (a) => a.$executeRawUnsafe(`CREATE DATABASE ${ident(dbB)}`));
+    const boot = runBootstrap(ADMIN_URL!, dbB, devEnv());
+    expect(boot.output).not.toMatch(/ERROR/);
+    expect(boot.status).toBe(0);
+    const migrate = migrateDeploy(urlB(migB, pw.mig));
+    expect(migrate.status, migrate.output).toBe(0);
+  }, 120_000);
+
+  afterAll(async () => {
+    await withClient(admin(), async (a) => {
+      for (const db of [dbB, dbC])
+        await a.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${ident(db)} WITH (FORCE)`);
+      for (const role of [migB, appB, app2, nologin, groupB, migC, appC, `kabso_runtime_${dbC}`]) {
+        await a.$executeRawUnsafe(`DROP ROLE IF EXISTS ${ident(role)}`);
+      }
+    });
+  });
+
+  it('bootstrap + migrate deploy on an empty database give a runtime login that passes the guard', async () => {
+    const facts = await withClient(urlB(appB, pw.app), async (c) => {
+      const [row] = await c.$queryRawUnsafe<RuntimeRoleFacts[]>(RUNTIME_ROLE_FACTS_SQL);
+      return row!;
+    });
+    expect(facts.runtimeGroup).toBe(groupB);
+    expect(assessRuntimeRole(facts)).toEqual([]);
+  });
+
+  it("the runtime login of one database cannot connect to another one's (both directions)", async () => {
+    const denied = /permission denied for database|not have CONNECT/i;
+    expect(await connectError(urlWith(process.env.DATABASE_URL!, { db: dbB }))).toMatch(denied);
+    expect(await connectError(urlWith(process.env.DATABASE_URL!, { user: appB, password: pw.app }))).toMatch(
+      denied,
+    );
+  });
+
+  it('neither runtime group holds any privilege in the other database', async () => {
+    const rows = await withClient(admin(), (a) =>
+      a.$queryRawUnsafe<{ ab: boolean; ba: boolean }[]>(`
+        SELECT has_database_privilege(${lit(RUNTIME_GROUP)}, ${lit(dbB)}, 'CONNECT, TEMPORARY, CREATE') AS ab,
+               has_database_privilege(${lit(groupB)}, ${lit(DB)}, 'CONNECT, TEMPORARY, CREATE') AS ba`),
+    );
+    expect(rows).toEqual([{ ab: false, ba: false }]);
+  });
+
+  it('refuses a runtime login that already serves another database, and changes nothing', async () => {
+    const run = runBootstrap(ADMIN_URL!, dbB, {
+      ...devEnv(),
+      KABSO_DB_APP_USER: runtimeUser,
+      KABSO_DB_APP_PASSWORD: randomBytes(16).toString('hex'),
+    });
+    expect(run.status).not.toBe(0);
+    expect(run.output).toMatch(new RegExp(`is a member of ${RUNTIME_GROUP}`));
+    expect(await connectError(process.env.DATABASE_URL!)).toBeNull(); // password unchanged
+    const member = await withClient(admin(), (a) =>
+      value<boolean>(a, `SELECT pg_has_role(${lit(runtimeUser)}, ${lit(groupB)}, 'MEMBER') AS v`),
+    );
+    expect(member).toBe(false);
+  });
+
+  it('refuses when the group already holds privileges in another database', async () => {
+    await withClient(admin(), (a) =>
+      a.$executeRawUnsafe(`GRANT CONNECT ON DATABASE ${ident(DB)} TO ${ident(groupB)}`),
+    );
+    try {
+      const run = runBootstrap(ADMIN_URL!, dbB, devEnv());
+      expect(run.status).not.toBe(0);
+      expect(run.output).toMatch(/other database\(s\)/);
+    } finally {
+      await withClient(admin(), (a) =>
+        a.$executeRawUnsafe(`REVOKE CONNECT ON DATABASE ${ident(DB)} FROM ${ident(groupB)}`),
+      );
+    }
+  });
+
+  it('refuses to reset the password of a role used by another database (strict mode)', async () => {
+    const run = runBootstrap(ADMIN_URL!, dbB, {
+      KABSO_DB_ENV: 'production',
+      KABSO_DB_MIGRATOR_USER: migrationUser,
+      KABSO_DB_MIGRATOR_PASSWORD: verifierOf(randomBytes(16).toString('hex')),
+      KABSO_DB_APP_USER: appB,
+      KABSO_DB_APP_PASSWORD: verifierOf(pw.app),
+    });
+    expect(run.status).not.toBe(0);
+    expect(run.output).toMatch(/other database\(s\)/);
+    expect(await connectError(process.env.MIGRATION_DATABASE_URL!)).toBeNull();
+  });
+
+  it('refuses to turn an existing NOLOGIN role into a login (KL7F-04), and changes nothing', async () => {
+    await withClient(admin(), (a) => a.$executeRawUnsafe(`CREATE ROLE ${ident(nologin)} NOLOGIN`));
+    const run = runBootstrap(ADMIN_URL!, dbB, { ...devEnv(), KABSO_DB_APP_USER: nologin });
+    expect(run.status).not.toBe(0);
+    expect(run.output).toMatch(/is NOLOGIN; refusing/);
+    const state = await withClient(admin(), (a) =>
+      a.$queryRawUnsafe<{ login: boolean; member: boolean }[]>(`
+        SELECT rolcanlogin AS login, pg_has_role(oid, ${lit(groupB)}, 'MEMBER') AS member
+          FROM pg_roles WHERE rolname = ${lit(nologin)}`),
+    );
+    expect(state).toEqual([{ login: false, member: false }]);
+  });
+
+  it('is one transaction: a failure after the first changes leaves nothing behind (KL7F-04)', async () => {
+    await withClient(admin(), (a) => a.$executeRawUnsafe(`CREATE DATABASE ${ident(dbC)}`));
+    await withClient(admin(dbC), (a) => a.$executeRawUnsafe('DROP SCHEMA public'));
+    const run = runBootstrap(ADMIN_URL!, dbC, {
+      ...devEnv(),
+      KABSO_DB_MIGRATOR_USER: migC,
+      KABSO_DB_APP_USER: appC,
+    });
+    expect(run.status).not.toBe(0);
+    expect(run.output).toMatch(/schema "public" does not exist/);
+    const leftovers = await withClient(admin(), (a) =>
+      a.$queryRawUnsafe<{ roles: string[]; acl: string | null }[]>(`
+        SELECT ARRAY(SELECT rolname::text FROM pg_roles
+                      WHERE rolname IN (${lit(migC)}, ${lit(appC)}, ${lit(`kabso_runtime_${dbC}`)})) AS roles,
+               (SELECT datacl::text FROM pg_database WHERE datname = ${lit(dbC)}) AS acl`),
+    );
+    expect(leftovers).toEqual([{ roles: [], acl: null }]);
+  });
+
+  it('outside development only SCRAM verifiers are accepted, and dev defaults are refused', async () => {
+    const plain = runBootstrap(ADMIN_URL!, dbB, { ...devEnv(), KABSO_DB_ENV: 'production' });
+    expect(plain.status).not.toBe(0);
+    expect(plain.output).toMatch(/must be a SCRAM-SHA-256 verifier/);
+
+    expect(scramVerifier('kabso_app_dev_password').status).not.toBe(0);
+    const devDefault = runBootstrap(ADMIN_URL!, dbB, {
+      ...devEnv(),
+      KABSO_DB_ENV: 'production',
+      KABSO_DB_MIGRATOR_PASSWORD: verifierOf(pw.mig),
+      KABSO_DB_APP_PASSWORD: verifierOf('kabso_app_dev_password'),
+    });
+    expect(devDefault.status).not.toBe(0);
+    expect(devDefault.output).toMatch(/known development default/);
+    expect(await connectError(urlB(appB, pw.app))).toBeNull(); // nothing changed
+
+    // Rotation through the bootstrap with verifiers from infra/postgres/scram-verifier.mjs.
+    const next = { mig: randomBytes(16).toString('hex'), app: randomBytes(16).toString('hex') };
+    const verifiers = { mig: scramVerifier(next.mig), app: scramVerifier(next.app) };
+    expect(verifiers.app.status).toBe(0);
+    expect(verifiers.app.output).toMatch(/^SCRAM-SHA-256\$4096:/);
+    const strict = runBootstrap(ADMIN_URL!, dbB, {
+      ...devEnv(),
+      KABSO_DB_ENV: 'production',
+      KABSO_DB_MIGRATOR_PASSWORD: verifiers.mig.output,
+      KABSO_DB_APP_PASSWORD: verifiers.app.output,
+    });
+    expect(strict.output).not.toMatch(/ERROR/);
+    expect(strict.status).toBe(0);
+    expect(await connectError(urlB(appB, next.app))).toBeNull();
+    expect(await connectError(urlB(appB, pw.app))).toMatch(/password authentication failed/);
+    expect(await connectError(urlB(migB, next.mig))).toBeNull();
+    Object.assign(pw, next);
+  });
+
+  it('a re-run removes a legacy (KL-013) kabso_runtime membership and CONNECT', async () => {
+    await withClient(admin(), async (a) => {
+      await a.$executeRawUnsafe(`GRANT kabso_runtime TO ${ident(appB)}`);
+      await a.$executeRawUnsafe(`GRANT CONNECT ON DATABASE ${ident(dbB)} TO kabso_runtime`);
+    });
+    const run = runBootstrap(ADMIN_URL!, dbB, devEnv());
+    expect(run.output).not.toMatch(/ERROR/);
+    expect(run.status).toBe(0);
+    const state = await withClient(admin(), (a) =>
+      a.$queryRawUnsafe<{ member: boolean; connect: boolean }[]>(`
+        SELECT pg_has_role(${lit(appB)}, 'kabso_runtime', 'MEMBER') AS member,
+               has_database_privilege('kabso_runtime', ${lit(dbB)}, 'CONNECT') AS connect`),
+    );
+    expect(state).toEqual([{ member: false, connect: false }]);
+  });
+
+  it('zero-downtime rotation: add a second runtime login, retire the first, never the last', async () => {
+    const add = runBootstrap(ADMIN_URL!, dbB, {
+      KABSO_DB_MODE: 'add-runtime-login',
+      KABSO_DB_ENV: 'development',
+      KABSO_DB_APP_USER: app2,
+      KABSO_DB_APP_PASSWORD: app2Password,
+    });
+    expect(add.output).not.toMatch(/ERROR/);
+    expect(add.status).toBe(0);
+    await withClient(urlB(app2, app2Password), async (c) => {
+      const [row] = await c.$queryRawUnsafe<RuntimeRoleFacts[]>(RUNTIME_ROLE_FACTS_SQL);
+      expect(assessRuntimeRole(row!)).toEqual([]);
+      expect(Number(await value<bigint>(c, 'SELECT count(*) AS v FROM users'))).toBeGreaterThanOrEqual(0);
+    });
+
+    const retire = runBootstrap(ADMIN_URL!, dbB, {
+      KABSO_DB_MODE: 'retire-runtime-login',
+      KABSO_DB_ENV: 'development',
+      KABSO_DB_APP_USER: appB,
+    });
+    expect(retire.output).not.toMatch(/ERROR/);
+    expect(retire.status).toBe(0);
+    expect(await connectError(urlB(appB, pw.app))).toMatch(/not permitted to log in|permission denied/i);
+    expect(await connectError(urlB(app2, app2Password))).toBeNull();
+
+    const last = runBootstrap(ADMIN_URL!, dbB, {
+      KABSO_DB_MODE: 'retire-runtime-login',
+      KABSO_DB_ENV: 'development',
+      KABSO_DB_APP_USER: app2,
+    });
+    expect(last.status).not.toBe(0);
+    expect(last.output).toMatch(/last runtime login/);
+    expect(await connectError(urlB(app2, app2Password))).toBeNull();
   });
 });

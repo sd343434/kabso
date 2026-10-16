@@ -24,6 +24,11 @@ services:
       KABSO_DB_MIGRATOR_PASSWORD: ${KABSO_DB_MIGRATOR_PASSWORD:-kabso_migrator_dev_password}
       KABSO_DB_APP_USER: ${KABSO_DB_APP_USER:-kabso_app}
       KABSO_DB_APP_PASSWORD: ${KABSO_DB_APP_PASSWORD:-kabso_app_dev_password}
+      # One runtime login per database (KL-013b): the *_test database gets its own.
+      KABSO_DB_APP_TEST_USER: ${KABSO_DB_APP_TEST_USER:-kabso_app_test}
+      KABSO_DB_APP_TEST_PASSWORD: ${KABSO_DB_APP_TEST_PASSWORD:-kabso_app_test_dev_password}
+      # Clear-text dev passwords and a shared migration role are accepted only in development.
+      KABSO_DB_ENV: development
       # `prisma migrate dev` needs a shadow database. Local development only.
       KABSO_DB_MIGRATOR_CREATEDB: "true"
     ports:

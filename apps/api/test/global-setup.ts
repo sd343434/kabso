@@ -6,7 +6,7 @@ const apiRoot = fileURLToPath(new URL('..', import.meta.url));
 const USAGE =
   'test:e2e needs DATABASE_URL (runtime role), MIGRATION_DATABASE_URL (migration role) and ' +
   'REDIS_URL for the same *_test database, e.g.\n' +
-  '  DATABASE_URL=postgresql://kabso_app:<pw>@localhost:5432/kabso_test?schema=public \\\n' +
+  '  DATABASE_URL=postgresql://kabso_app_test:<pw>@localhost:5432/kabso_test?schema=public \\\n' +
   '  MIGRATION_DATABASE_URL=postgresql://kabso_migrator:<pw>@localhost:5432/kabso_test?schema=public \\\n' +
   '  REDIS_URL=redis://localhost:6379/15 pnpm test:e2e\n' +
   'Create the roles first with infra/postgres/bootstrap-roles.sql (docs/DEPLOYMENT.md §5.1).';

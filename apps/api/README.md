@@ -42,16 +42,18 @@ Prisma 7 does not read `.env` itself; `prisma.config.ts` loads `apps/api/.env` v
 ### E2E tests
 
 ```bash
-DATABASE_URL=postgresql://kabso_app:kabso_app_dev_password@localhost:5432/kabso_test?schema=public \
+DATABASE_URL=postgresql://kabso_app_test:kabso_app_test_dev_password@localhost:5432/kabso_test?schema=public \
 MIGRATION_DATABASE_URL=postgresql://kabso_migrator:kabso_migrator_dev_password@localhost:5432/kabso_test?schema=public \
 REDIS_URL=redis://localhost:6379/15 \
 pnpm test:e2e
+# optional: KABSO_TEST_ADMIN_DATABASE_URL=postgresql://kabso:kabso_dev_password@localhost:5432/kabso_test
+# runs the KL-013b tests that create scratch databases/roles and run the bootstrap (needs psql >= 15)
 ```
 
 - The API under test connects as the DML-only **runtime role** (`DATABASE_URL`); migrations and
   the per-file `TRUNCATE` run as the **migration role** (`MIGRATION_DATABASE_URL`). Both must
   point at the same database with different roles (SEC-011; docker compose creates `kabso_test`
-  and both roles on first start).
+  with its own runtime login `kabso_app_test` — one runtime login per database — on first start).
 - The global setup runs `prisma migrate deploy` itself (no separate step needed) and **refuses
   any database whose name does not end in `_test`**, because every test file truncates all
   tables.
@@ -66,9 +68,12 @@ list of problems if any is invalid (secret values are never printed). See `.env.
 full list. Notable rules:
 
 - `DATABASE_URL` is the least-privilege **runtime role** (SEC-011, docs/DEPLOYMENT.md §5.1).
-  After connecting, the API checks its own role (`src/prisma/runtime-role-check.ts`): superuser,
-  `CREATEROLE`/`CREATEDB`/`REPLICATION`/`BYPASSRLS`, owning any schema or table, `CREATE` on a
-  schema or the database, or `TRUNCATE`/`REFERENCES`/`TRIGGER` on a table. In `production` any
+  After connecting, the API checks its own role and every role it can reach through membership
+  (`src/prisma/runtime-role-check.ts`): superuser, `CREATEROLE`/`CREATEDB`/`REPLICATION`/
+  `BYPASSRLS`, any reachable role other than `kabso_runtime_<database>`, owning any schema or
+  table, `CREATE`/`TEMPORARY` on the database or `CREATE` on a schema, `TRUNCATE`/`REFERENCES`/
+  `TRIGGER` on a table, `UPDATE`/`DELETE` on `audit_logs`, access to `_prisma_migrations`, grant
+  options, or privileges in another database. In `production` any
   finding aborts the boot (`db.runtime_role_check failed — refusing to start`); elsewhere it is
   logged as a warning. `MIGRATION_DATABASE_URL` (the schema owner) is read only by the Prisma
   CLI (`prisma.config.ts`, falling back to `DATABASE_URL`) and must not be given to the API.

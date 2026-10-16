@@ -52,8 +52,8 @@ admin tooling, social/phone login, real email delivery (blocker B2).
 - **TB1 device ↔ API**: everything from the client is untrusted, including `X-Forwarded-For`,
   `X-Request-Id`, `Accept-Language`, `device.*`, `User-Agent`.
 - **TB2 proxy ↔ API**: client IP is trusted only as far as `TRUST_PROXY` says (SEC-003).
-- **TB3 API ↔ data stores**: the API currently connects with the same DB role that owns the
-  schema (SEC-011).
+- **TB3 API ↔ data stores**: the API connects as a DML-only runtime login of its own database;
+  migrations use a separate owner role (SEC-011, KL-013/KL-013b, `docs/DEPLOYMENT.md` §5.1).
 - **TB4 API ↔ mail**: the `log` transport writes token links to logs and is refused in production.
 - **TB5 CI ↔ third-party code**: actions pinned to SHAs, `contents: read`; dependencies pinned
   by `pnpm-lock.yaml` / `pubspec.lock`.
@@ -192,7 +192,8 @@ Status: **M** = mitigated by an implemented control, **P** = partially mitigated
 3. Username availability is public by design (usernames are public handles).
 4. No account lockout; brute force is bounded only by per-IP limits until SEC-002 is fixed.
 5. No session/token cleanup job, no audit retention policy (SEC-012).
-6. API connects with a schema-owning DB role (SEC-011) — **must be fixed before production**.
+6. Least-privilege DB roles (SEC-011): implemented (KL-013, KL-013b); re-verification of
+   KL-013b pending before the first deployment (PP-01).
 7. Rotating `JWT_ACCESS_SECRET` signs everyone out (no `kid`, documented in DEPLOYMENT §4).
 8. Email is not required to be verified before login (contract; mail delivery is blocked on B2).
 

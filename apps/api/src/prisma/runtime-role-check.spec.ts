@@ -9,6 +9,9 @@ import {
 
 const SAFE: RuntimeRoleFacts = {
   user: 'kabso_app',
+  runtimeGroup: 'kabso_runtime_kabso_test',
+  inRuntimeGroup: true,
+  unexpectedRoles: [],
   superuser: false,
   createRole: false,
   createDb: false,
@@ -18,7 +21,12 @@ const SAFE: RuntimeRoleFacts = {
   ownedRelations: [],
   creatableSchemas: [],
   databaseCreate: false,
+  databaseTemp: false,
   ddlLikeTablePrivileges: [],
+  appendOnlyViolations: [],
+  migrationHistoryAccess: false,
+  grantOptions: [],
+  otherDatabases: [],
 };
 
 function logger() {
@@ -41,10 +49,49 @@ describe('assessRuntimeRole (SEC-011)', () => {
     [{ creatableSchemas: ['public'] }, 'may CREATE objects in schema(s) public'],
     [{ databaseCreate: true }, 'may CREATE schemas in the database'],
     [{ ddlLikeTablePrivileges: ['public.audit_logs'] }, 'TRUNCATE/REFERENCES/TRIGGER on public.audit_logs'],
+    // KL-013b (KL7F-01/02/03)
+    [{ inRuntimeGroup: false }, 'is not a member of kabso_runtime_kabso_test'],
+    [{ databaseTemp: true }, 'may create TEMPORARY tables in the database'],
+    [
+      { appendOnlyViolations: ['public.audit_logs (UPDATE)'] },
+      'append-only rows: public.audit_logs (UPDATE)',
+    ],
+    [{ migrationHistoryAccess: true }, 'holds privileges on _prisma_migrations'],
+    [{ grantOptions: ['table public.users'] }, 'holds grant options on table public.users'],
+    [{ otherDatabases: ['kabso_prod'] }, 'other database(s) kabso_prod'],
   ] as const)('rejects %o', (patch, expected) => {
     const problems = assessRuntimeRole({ ...SAFE, ...patch });
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain(expected);
+  });
+
+  it.each([
+    'pg_execute_server_program',
+    'pg_read_all_data',
+    'pg_write_all_data',
+    'pg_read_server_files',
+    'pg_write_server_files',
+    'pg_database_owner',
+    'kabso_runtime',
+    'kabso_runtime_kabso_prod',
+  ])('rejects any reachable role other than the runtime group: %s', (role) => {
+    const problems = assessRuntimeRole({ ...SAFE, unexpectedRoles: [role] });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(`is a member of ${role} (only kabso_runtime_kabso_test is allowed`);
+  });
+
+  it('attributes reached through membership are named as such', () => {
+    const problems = assessRuntimeRole({
+      ...SAFE,
+      unexpectedRoles: ['admins'],
+      superuser: true,
+      createRole: true,
+    });
+    expect(problems).toEqual([
+      'is a superuser (directly or through role membership)',
+      'has CREATEROLE (directly or through role membership)',
+      expect.stringContaining('is a member of admins'),
+    ]);
   });
 
   it('lists every problem of the owner role and truncates long lists', () => {
