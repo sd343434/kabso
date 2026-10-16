@@ -238,3 +238,56 @@ List<FeedPostData> feedPosts(AppLanguage language) {
     ),
   ];
 }
+
+/// A full-bleed fixture "frame" from [image] (stands in for video).
+Widget fixtureFrame(ImageProvider image) => DecoratedBox(
+  decoration: BoxDecoration(
+    image: DecorationImage(image: image, fit: BoxFit.cover),
+  ),
+);
+
+/// Supporter names under the PK panes.
+const pkSupporterNames = ['Ahmad', 'مريم', 'Lina'];
+
+/// KL-034 PK split fixture (HL-L8): the host (start) has video; the
+/// opponent's camera is off when [opponentCameraOff].
+(PkSideData, PkSideData) pkSides(
+  AppLanguage language, {
+  bool opponentCameraOff = false,
+}) {
+  final ar = language == AppLanguage.ar;
+  return (
+    PkSideData(
+      name: ar ? 'سارة' : 'Sara',
+      avatar: avatarImage,
+      score: 9000,
+      video: fakeVideoFrame(),
+      supporters: pkSupporterNames,
+    ),
+    PkSideData(
+      name: ar ? 'خالد' : 'Khalid',
+      score: 1000,
+      video: opponentCameraOff ? null : fixtureFrame(coverRed),
+      supporters: const ['Yousef', 'رنا'],
+    ),
+  );
+}
+
+/// KL-034 multi-guest fixture: the host, four guests (one muted) and one
+/// open seat.
+List<GuestSeatData?> guestSeats(AppLanguage language) {
+  final ar = language == AppLanguage.ar;
+  return [
+    GuestSeatData(
+      name: ar ? 'سارة' : 'Sara',
+      avatar: avatarImage,
+      video: fakeVideoFrame(),
+      isHost: true,
+    ),
+    GuestSeatData(name: ar ? 'خالد' : 'Khalid', video: fixtureFrame(coverRed)),
+    GuestSeatData(name: 'Lina', avatar: avatarImage, muted: true),
+    GuestSeatData(name: ar ? 'نور الهدى عبد الرحمن' : 'Nour Al-Huda'),
+    GuestSeatData(name: 'Yousef', video: fixtureFrame(coverGold)),
+    null,
+  ];
+}

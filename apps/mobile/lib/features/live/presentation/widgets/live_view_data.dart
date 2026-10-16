@@ -19,6 +19,7 @@ class LiveRoomCardData {
     this.inPk = false,
     this.guestCount,
     this.categoryName,
+    this.roomId,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -40,8 +41,13 @@ class LiveRoomCardData {
           : NetworkImage(avatar),
       inPk: room.mode == LiveRoomMode.pk,
       categoryName: room.category?.name,
+      roomId: room.id,
     );
   }
+
+  /// The API room id; `null` for gallery samples and fixtures, which then
+  /// open nothing.
+  final String? roomId;
 
   final String hostName;
   final String title;
@@ -106,16 +112,60 @@ class GiftItemData {
   const new({
     required this.id,
     required this.name,
-    required this.price,
     required this.shape,
+    this.price,
   });
 
   final String id;
   final String name;
 
-  /// Coins; shown exactly, never compacted (DESIGN_SYSTEM §3.3).
-  final int price;
+  /// Coins; shown exactly, never compacted (DESIGN_SYSTEM §3.3). `null`
+  /// shows no price: there is no gift catalogue or wallet yet (B5), so
+  /// production never shows a price; only fixtures carry one.
+  final int? price;
   final GiftShape shape;
+}
+
+/// One side of a PK battle (HL-L8), from the host's point of view.
+/// Fixture-only until a PK API exists.
+@immutable
+class PkSideData {
+  const new({
+    required this.name,
+    required this.score,
+    this.avatar,
+    this.video,
+    this.supporters = const [],
+  });
+
+  final String name;
+  final ImageProvider? avatar;
+  final int score;
+
+  /// The pane's video; `null` shows the camera-off fallback.
+  final Widget? video;
+
+  /// Top supporters (names), at most 3 shown; nothing when empty.
+  final List<String> supporters;
+}
+
+/// One seat of a multi-guest room. Fixture-only until a multi-guest API
+/// exists.
+@immutable
+class GuestSeatData {
+  const new({
+    required this.name,
+    this.avatar,
+    this.video,
+    this.muted = false,
+    this.isHost = false,
+  });
+
+  final String name;
+  final ImageProvider? avatar;
+  final Widget? video;
+  final bool muted;
+  final bool isHost;
 }
 
 /// PK outcome from the host's ("start" side) point of view.

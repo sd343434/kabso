@@ -391,7 +391,7 @@
   },
   "giftPanelTitle": "أرسل هدية",
   "giftSend": "إرسال",
-  "giftSendComingSoon": "إرسال الهدايا قادم قريبًا.",
+  "giftSendComingSoon": "لا يمكن إرسال الهدايا بعد.",
   "@giftSendComingSoon": {
     "description": "Purchases are blocked on B5."
   },
@@ -608,5 +608,91 @@
         "type": "String"
       }
     }
-  }
+  },
+  "liveRoomVideoUnavailableTitle": "فيديو البث غير متاح بعد",
+  "@liveRoomVideoUnavailableTitle": {
+    "description": "Room stage while no video can play (no media provider)."
+  },
+  "liveRoomVideoUnavailableBody": "لا يمكن تشغيل الفيديو في التطبيق بعد. تفاصيل الغرفة هنا مباشرة.",
+  "liveRoomChatUnavailable": "الدردشة غير متاحة بعد. ستظهر الرسائل هنا.",
+  "@liveRoomChatUnavailable": {
+    "description": "Honest empty chat: there is no chat API yet."
+  },
+  "liveRoomFollowers": "{count, plural, =0{لا متابعين} =1{متابع واحد} =2{متابعان} few{{formatted} متابعين} many{{formatted} متابعًا} other{{formatted} متابع}}",
+  "@liveRoomFollowers": {
+    "description": "Host follower count from the public profile; {formatted} is compact (Latin digits).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "formatted": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRoomHostSemantics": "{host}، ملف المضيف",
+  "@liveRoomHostSemantics": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRoomUsername": "@{username}",
+  "@liveRoomUsername": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRoomCategory": "الفئة: {category}",
+  "@liveRoomCategory": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRoomEndedTitle": "انتهى هذا البث",
+  "liveRoomEndedByHost": "أنهى المضيف هذا البث.",
+  "liveRoomEndedTimeout": "توقف البث بعد انقطاع اتصال المضيف.",
+  "liveRoomEndedOther": "لم يعد هذا البث متاحًا.",
+  "liveRoomBackToLive": "العودة إلى البثوث",
+  "liveRoomNotFoundTitle": "هذا البث غير متاح",
+  "liveRoomNotFoundBody": "ربما انتهى أو تمت إزالته.",
+  "liveRoomErrorTitle": "تعذّر فتح هذا البث",
+  "liveRoomLoading": "جارٍ فتح البث",
+  "@liveRoomLoading": {
+    "description": "Semantics while the room loads."
+  },
+  "liveRoomWeakConnection": "اتصال ضعيف",
+  "liveRoomReconnecting": "جارٍ إعادة الاتصال…",
+  "liveRoomCameraOff": "الكاميرا متوقفة",
+  "giftNameHeart": "قلب",
+  "giftNameStar": "نجمة",
+  "giftNameDiamond": "ماسة",
+  "giftNameCrown": "تاج",
+  "pkVersus": "VS",
+  "@pkVersus": {
+    "description": "Kabso PK mark on the seam between the panes."
+  },
+  "pkSupporters": "أبرز الداعمين: {names}",
+  "@pkSupporters": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "multiGuestOpenSeat": "مقعد شاغر",
+  "multiGuestMicOff": "{name}، الميكروفون مغلق",
+  "@multiGuestMicOff": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "multiGuestHost": "المضيف"
 }

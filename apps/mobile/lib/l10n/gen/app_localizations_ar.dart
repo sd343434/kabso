@@ -606,7 +606,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get giftSend => 'إرسال';
 
   @override
-  String get giftSendComingSoon => 'إرسال الهدايا قادم قريبًا.';
+  String get giftSendComingSoon => 'لا يمكن إرسال الهدايا بعد.';
 
   @override
   String giftCombo(int count) {
@@ -804,4 +804,112 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveCardSemanticsCategory(String card, String category) {
     return '$card، $category';
   }
+
+  @override
+  String get liveRoomVideoUnavailableTitle => 'فيديو البث غير متاح بعد';
+
+  @override
+  String get liveRoomVideoUnavailableBody =>
+      'لا يمكن تشغيل الفيديو في التطبيق بعد. تفاصيل الغرفة هنا مباشرة.';
+
+  @override
+  String get liveRoomChatUnavailable =>
+      'الدردشة غير متاحة بعد. ستظهر الرسائل هنا.';
+
+  @override
+  String liveRoomFollowers(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted متابع',
+      many: '$formatted متابعًا',
+      few: '$formatted متابعين',
+      two: 'متابعان',
+      one: 'متابع واحد',
+      zero: 'لا متابعين',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String liveRoomHostSemantics(String host) {
+    return '$host، ملف المضيف';
+  }
+
+  @override
+  String liveRoomUsername(String username) {
+    return '@$username';
+  }
+
+  @override
+  String liveRoomCategory(String category) {
+    return 'الفئة: $category';
+  }
+
+  @override
+  String get liveRoomEndedTitle => 'انتهى هذا البث';
+
+  @override
+  String get liveRoomEndedByHost => 'أنهى المضيف هذا البث.';
+
+  @override
+  String get liveRoomEndedTimeout => 'توقف البث بعد انقطاع اتصال المضيف.';
+
+  @override
+  String get liveRoomEndedOther => 'لم يعد هذا البث متاحًا.';
+
+  @override
+  String get liveRoomBackToLive => 'العودة إلى البثوث';
+
+  @override
+  String get liveRoomNotFoundTitle => 'هذا البث غير متاح';
+
+  @override
+  String get liveRoomNotFoundBody => 'ربما انتهى أو تمت إزالته.';
+
+  @override
+  String get liveRoomErrorTitle => 'تعذّر فتح هذا البث';
+
+  @override
+  String get liveRoomLoading => 'جارٍ فتح البث';
+
+  @override
+  String get liveRoomWeakConnection => 'اتصال ضعيف';
+
+  @override
+  String get liveRoomReconnecting => 'جارٍ إعادة الاتصال…';
+
+  @override
+  String get liveRoomCameraOff => 'الكاميرا متوقفة';
+
+  @override
+  String get giftNameHeart => 'قلب';
+
+  @override
+  String get giftNameStar => 'نجمة';
+
+  @override
+  String get giftNameDiamond => 'ماسة';
+
+  @override
+  String get giftNameCrown => 'تاج';
+
+  @override
+  String get pkVersus => 'VS';
+
+  @override
+  String pkSupporters(String names) {
+    return 'أبرز الداعمين: $names';
+  }
+
+  @override
+  String get multiGuestOpenSeat => 'مقعد شاغر';
+
+  @override
+  String multiGuestMicOff(String name) {
+    return '$name، الميكروفون مغلق';
+  }
+
+  @override
+  String get multiGuestHost => 'المضيف';
 }

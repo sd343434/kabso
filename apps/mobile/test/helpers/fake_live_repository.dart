@@ -19,6 +19,17 @@ typedef RoomsRequest = ({
 
 typedef RoomsHandler = FutureOr<LiveRoomPage> Function(RoomsRequest request);
 
+/// `GET /live/rooms/{roomId}`.
+typedef RoomHandler = FutureOr<LiveRoom> Function(String roomId);
+
+/// The 404 every unknown room gets (contract v1.3.1).
+const roomNotFound = ServerFailure(
+  code: ErrorCode.notFound,
+  rawCode: 'NOT_FOUND',
+  debugMessage: 'Room not found',
+  statusCode: 404,
+);
+
 /// Configurable in-memory [LiveRepository]: `GET /live/config`,
 /// `/live/categories` and `/live/rooms` answered from fields; failures are
 /// thrown as given. Every call is recorded.
@@ -28,7 +39,14 @@ class FakeLiveRepository implements LiveRepository {
     this.categories = const [],
     RoomsHandler? rooms,
     this.configGate,
+    this.room,
   }) : rooms = rooms ?? ((_) => apiPage(const []));
+
+  /// Answers `getRoom`; `null` → 404 `NOT_FOUND`.
+  RoomHandler? room;
+
+  /// Every `getRoom` call, in order.
+  final List<String> roomRequests = [];
 
   bool hostingEnabled;
   List<LiveCategory> categories;
@@ -80,8 +98,12 @@ class FakeLiveRepository implements LiveRepository {
   }
 
   @override
-  Future<LiveRoom> getRoom(String roomId) =>
-      throw UnimplementedError('getRoom is not used by the hub');
+  Future<LiveRoom> getRoom(String roomId) async {
+    roomRequests.add(roomId);
+    final handler = room;
+    if (handler == null) throw roomNotFound;
+    return await handler(roomId);
+  }
 }
 
 /// Overrides that point live discovery at [repo] with a fixed scope (no

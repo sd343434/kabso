@@ -14,6 +14,7 @@ import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
@@ -37,8 +38,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     )
     ..onDispose(authState.dispose);
 
+  final rootNavigatorKey = ref.watch(rootNavigatorKeyProvider);
   final router = GoRouter(
-    navigatorKey: ref.watch(rootNavigatorKeyProvider),
+    navigatorKey: rootNavigatorKey,
     initialLocation: ref.watch(initialLocationProvider),
     refreshListenable: authState,
     redirect: (context, state) =>
@@ -102,6 +104,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.live,
                 builder: (_, _) => const LiveScreen(),
+                routes: [
+                  // Full screen above the shell: no bottom nav (HL-N1 §2).
+                  GoRoute(
+                    path: AppRoutes.liveRoomSegment,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, state) =>
+                        LiveRoomScreen(roomId: state.pathParameters['roomId']!),
+                  ),
+                ],
               ),
             ],
           ),

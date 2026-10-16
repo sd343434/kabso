@@ -1,4 +1,5 @@
 import 'package:kabso_live/design_system/tokens/tokens.dart';
+import 'package:material_ui/material_ui.dart' show Color;
 
 /// Component dimensions fixed by DESIGN_SYSTEM §9 (and REFERENCE_INVENTORY
 /// §7) that have no entry in `design-tokens.json` v1.1.
@@ -153,4 +154,66 @@ abstract final class KMetrics {
 
   /// T-5 proposal alias: feed post media without its own aspect ratio.
   static const double feedMediaAspect = KSizes.liveCardAspect;
+
+  // KL-034 live room (HOME_LIVE_LAYOUT_DECISIONS §3, §5 KMetrics list).
+  // Kabso values; none is taken from a reference image.
+
+  /// HL-L2 host pill visual height (grows with text scale).
+  static const double hostPillHeight = 40;
+
+  /// HL-L2 follow chip visual height inside its 48 dp hit area.
+  static const double followChipHeight = 28;
+
+  /// HL-L2: after following, the check stays this long, then fades out.
+  static const Duration followConfirmDuration = Duration(seconds: 1);
+
+  /// HL-L6/L7 round room buttons (gift, share): visual inside 48 dp.
+  static const double roomIconVisual = 40;
+
+  /// HL-L3 close button visual inside its 48 dp hit area, and its × icon.
+  static const double closeVisual = KSpacing.xxl;
+  static const double closeIcon = 20;
+
+  /// HL-L4 room info chips (title, category).
+  static const double roomInfoChipHeight = 28;
+
+  /// HL-L5 chat height cap as a fraction of the screen height.
+  static const double chatMaxHeightFactor = 0.30;
+
+  /// HL-L1 / VG-26 legibility gradients (T-4 proposal): black 0→45 % over
+  /// 120 dp at the top, 0→55 % over 280 dp at the bottom.
+  static const double legibilityTopHeight = 120;
+  static const double legibilityBottomHeight = 280;
+  static const Color legibilityTop = Color(0x73000000);
+  static const Color legibilityBottom = Color(0x8C000000);
+  static const Color legibilityClear = Color(0x00000000);
+
+  /// HL-L10 ended overlay: `background` at 90 %.
+  static const double endedOverlayOpacity = 0.9;
+
+  /// HL-L10 reconnecting: the last frame is dimmed by 30 %.
+  static const Color reconnectingDim = Color(0x4D000000);
+
+  /// HL-L6 gift sheet: max height as a fraction of the screen (the sheet
+  /// sizes to its content, about 45 % with two rows).
+  static const double giftSheetMaxHeightFactor = 0.6;
+
+  /// Room sheets never dim the stream (HL-L6, VG-33, VG-43).
+  static const Color roomSheetBarrier = Color(0x00000000);
+
+  /// HL-L8 PK pane width / height (T-5 proposal alias of the card aspect).
+  static const double pkPaneAspect = KSizes.liveCardAspect;
+
+  /// HL-L8 Kabso-original VS mark on the pane seam.
+  static const double pkVsMark = KSpacing.xxl;
+
+  /// HL-L8 supporter avatars under each pane.
+  static const double pkSupporterAvatar = KSpacing.xl;
+
+  /// HL-L8 per-pane result overlay stays this long (VG-39).
+  static const Duration pkResultDuration = Duration(seconds: 3);
+
+  /// Multi-guest seat grid: columns and the seat aspect (T-5).
+  static const int guestSeatColumns = 3;
+  static const double guestSeatAspect = KSizes.liveCardAspect;
 }

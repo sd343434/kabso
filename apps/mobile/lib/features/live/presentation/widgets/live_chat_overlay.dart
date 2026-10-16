@@ -26,17 +26,24 @@ class KLiveChatOverlay extends StatelessWidget {
         ? lines.sublist(lines.length - maxVisibleLines)
         : lines;
     final fades = lines.length >= maxVisibleLines;
-    Widget column = Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final line in visible)
-          Padding(
-            padding: const EdgeInsetsDirectional.only(top: KSpacing.xs),
-            child: KLiveChatBubble(line: line),
-          ),
-      ],
+    // Bottom-anchored: when the lines are taller than the room's chat cap
+    // (HL-L5, 30 % of the screen; large text), the oldest are clipped at
+    // the top instead of overflowing.
+    Widget column = SingleChildScrollView(
+      reverse: true,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final line in visible)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(top: KSpacing.xs),
+              child: KLiveChatBubble(line: line),
+            ),
+        ],
+      ),
     );
     if (fades) {
       column = ShaderMask(

@@ -314,7 +314,7 @@ void main() {
       await tester.tap(find.text('Diamond'));
       expect(selected, ['diamond']);
 
-      expect(find.text('Sending gifts is coming soon.'), findsOneWidget);
+      expect(find.text("Gifts can't be sent yet."), findsOneWidget);
       final send = tester.widget<KButton>(find.byType(KButton));
       expect(send.onPressed, isNull);
       expect(
@@ -446,15 +446,15 @@ void main() {
       await pumpComponent(
         tester,
         KLiveRoomScaffold(
-          header: KHostPill(
-            hostName: 'Sara',
-            following: false,
-            onFollow: () => follows++,
-          ),
+          header: KHostPill(hostName: 'Sara', onFollow: () => follows++),
           viewers: const KViewerStrip(names: viewerNames, count: 12345),
           onClose: () => closes++,
           chat: KLiveChatOverlay(lines: chatLines(AppLanguage.en)),
-          actionBar: KRoomActionBar(onGift: () => gifts++),
+          actionBar: KRoomActionBar(
+            onGift: () => gifts++,
+            onShare: () {},
+            onComment: () {},
+          ),
         ),
       );
       expect(find.byType(KLiveVideoPlaceholder), findsOneWidget);
@@ -492,11 +492,12 @@ void main() {
           isTrue,
           reason: language.name,
         );
+        // HL-L2: already following at open → no follow control at all.
         expect(
           find.bySemanticsLabel(
-            language == AppLanguage.ar ? 'تتابعه' : 'Following',
+            RegExp(language == AppLanguage.ar ? 'تتابعه|متابعة' : 'Follow'),
           ),
-          findsOneWidget,
+          findsNothing,
         );
       }
     });

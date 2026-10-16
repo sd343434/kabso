@@ -48,6 +48,17 @@ void main() {
       'publicProfileJson(',
       'FakeLiveRepository',
       'liveOverrides(',
+      // KL-034 (room fixtures, test/helpers/fake_profile_repository.dart).
+      'apiRoom(',
+      'apiProfile(',
+      'roomNotFound',
+      'FakeProfileRepository',
+      'pkSides(',
+      'pkSupporterNames',
+      'guestSeats(',
+      'fixtureFrame(',
+      'fakeVideoFrame(',
+      'gifts(language',
     ];
     final offenders = <String>[];
     for (final file
@@ -95,5 +106,57 @@ void main() {
       }
     }
     expect(offenders, isEmpty, reason: offenders.join('\n'));
+  });
+
+  test('KL-034: production never constructs chat, PK, seat or priced gift '
+      'data, and the room screen reaches no fixture-only state', () {
+    // No chat, gift, PK, presence or multi-guest API exists: lines, sides,
+    // seats and prices reach the UI only from test fixtures (and obvious
+    // samples in the debug gallery). The one system line the room shows is
+    // its honest "chat isn't open" notice.
+    final literal = RegExp(
+      // `Type(` constructs; `Type(:final x)` is a pattern match (allowed).
+      r'(?<![\w.])(LiveChatMessage|LiveChatJoin|LiveChatGift|PkSideData|GuestSeatData)\((?!\s*:)',
+    );
+    final price = RegExp(r'\bprice:\s');
+    final offenders = <String>[];
+    for (final file
+        in Directory('lib')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where(
+              (f) =>
+                  f.path.endsWith('.dart') &&
+                  !f.path.contains('features/debug/') &&
+                  !f.path.contains('/gen/'),
+            )) {
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        if (line.trimLeft().startsWith('//')) continue;
+        if (literal.hasMatch(line) || price.hasMatch(line)) {
+          offenders.add('${file.path}:${i + 1}: ${line.trim()}');
+        }
+      }
+    }
+    expect(offenders, isEmpty, reason: offenders.join('\n'));
+
+    final room = File('lib/features/live/live_room_screen.dart')
+        .readAsStringSync();
+    for (final fixtureOnly in [
+      'KPkLayout',
+      'KGuestSeatGrid',
+      'KRoomReconnecting',
+      'KRoomCameraOff',
+      'KRoomStatusChip',
+      'liveRoomWeakConnection',
+      'liveRoomReconnecting',
+      'liveRoomCameraOff',
+      'KViewerStrip(names',
+      'onShare:',
+      'onComment:',
+    ]) {
+      expect(room, isNot(contains(fixtureOnly)), reason: fixtureOnly);
+    }
   });
 }

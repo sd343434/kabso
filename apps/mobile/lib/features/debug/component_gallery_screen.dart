@@ -8,10 +8,13 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_score_bar.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -169,6 +172,25 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
               ),
             ],
           ),
+          const _Section(_Samples.roomStatesTitle),
+          Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              for (final variant in _RoomVariant.values.skip(1))
+                KButton(
+                  key: Key('gallery.room.${variant.name}'),
+                  label: variant.label,
+                  expand: false,
+                  variant: KButtonVariant.secondary,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _RoomDemo(variant: variant),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const _Section(_Samples.screensTitle),
           Wrap(
             spacing: KSpacing.sm,
@@ -238,8 +260,27 @@ class _GiftPanelDemoState extends State<_GiftPanelDemo> {
   );
 }
 
+/// Room layouts and states with obvious samples (debug only). Production
+/// shows only the video-unavailable, ended, not-found and error states.
+enum _RoomVariant {
+  populated('Populated room'),
+  pk('PK split'),
+  multiGuest('Multi-guest seats'),
+  weak('Weak connection'),
+  reconnecting('Reconnecting'),
+  cameraOff('Camera off'),
+  videoUnavailable('Video unavailable'),
+  ended('Ended');
+
+  new(this.label);
+
+  final String label;
+}
+
 class _RoomDemo extends StatefulWidget {
-  const new();
+  const new({this.variant = _RoomVariant.populated});
+
+  final _RoomVariant variant;
 
   @override
   State<_RoomDemo> createState() => _RoomDemoState();
@@ -249,23 +290,97 @@ class _RoomDemoState extends State<_RoomDemo> {
   bool _following = false;
 
   @override
-  Widget build(BuildContext context) => KLiveRoomScaffold(
-    header: KHostPill(
-      hostName: _Samples.host,
-      following: _following,
-      onFollow: () => setState(() => _following = !_following),
-    ),
-    viewers: const KViewerStrip(names: _Samples.viewers, count: 12345),
-    onClose: () => Navigator.of(context).maybePop(),
-    pk: const KPkScoreBar(
-      hostScore: 9000,
-      opponentScore: 1000,
-      timeLeft: Duration(seconds: 95),
-    ),
-    chat: const KLiveChatOverlay(lines: _Samples.chat),
-    actionBar: KRoomActionBar(
-      onGift: () =>
-          KGiftPanel.show(context, builder: (_) => const _GiftPanelDemo()),
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final variant = widget.variant;
+    const frame = _SampleVideo();
+    final ended = variant == _RoomVariant.ended;
+    void close() => Navigator.of(context).maybePop();
+    return KLiveRoomScaffold(
+      video: switch (variant) {
+        _RoomVariant.reconnecting => const KRoomReconnecting(frame: frame),
+        _RoomVariant.cameraOff => const KRoomCameraOff(hostName: _Samples.host),
+        _RoomVariant.videoUnavailable ||
+        _RoomVariant.ended => const KRoomVideoUnavailable(),
+        _ => frame,
+      },
+      header: KHostPill(
+        hostName: _Samples.host,
+        subtitle: _Samples.followers,
+        following: _following,
+        onFollow: () => setState(() => _following = !_following),
+        onTap: () {},
+      ),
+      viewers: const KViewerStrip(names: _Samples.viewers, count: 12345),
+      onClose: close,
+      roomInfo: const KRoomInfoRow(
+        title: _Samples.roomTitle,
+        category: _Samples.roomCategory,
+      ),
+      statusChip: variant == _RoomVariant.weak
+          ? KRoomStatusChip(label: l10n.liveRoomWeakConnection)
+          : null,
+      stage: switch (variant) {
+        _RoomVariant.pk => const KPkLayout(
+          host: PkSideData(
+            name: _Samples.host,
+            score: 9000,
+            video: frame,
+            supporters: _Samples.viewers,
+          ),
+          opponent: PkSideData(
+            name: _Samples.opponent,
+            score: 1000,
+            supporters: _Samples.viewers,
+          ),
+          timeLeft: Duration(seconds: 95),
+        ),
+        _RoomVariant.multiGuest => const KGuestSeatGrid(
+          seats: [
+            GuestSeatData(name: _Samples.host, isHost: true, video: frame),
+            GuestSeatData(name: 'Viewer A'),
+            GuestSeatData(name: 'Viewer B', muted: true),
+            GuestSeatData(name: 'Viewer C'),
+            null,
+            null,
+          ],
+        ),
+        _ => null,
+      },
+      chat: ended ? null : const KLiveChatOverlay(lines: _Samples.chat),
+      actionBar: ended
+          ? null
+          : KRoomActionBar(
+              onComment: () {},
+              onShare: () {},
+              onGift: () => KGiftPanel.show(
+                context,
+                builder: (_) => const _GiftPanelDemo(),
+              ),
+            ),
+      cover: ended
+          ? KRoomEndedOverlay(
+              hostName: _Samples.host,
+              reason: l10n.liveRoomEndedByHost,
+              onBack: close,
+            )
+          : null,
+    );
+  }
+}
+
+/// A token-coloured stand-in for a video frame (debug only).
+class _SampleVideo extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [KLiveColors.pkRight, KBrandColors.red700],
+      ),
     ),
   );
 }
@@ -334,6 +449,11 @@ abstract final class _Samples {
   static const pkTitle = 'PK score bar';
   static const chatTitle = 'Chat overlay';
   static const sheetsTitle = 'Gift panel · room scaffold';
+  static const roomStatesTitle = 'Room layouts and states (samples)';
+  static const followers = '1,234 followers (sample)';
+  static const roomTitle = 'Sample room title';
+  static const roomCategory = 'Sample category';
+  static const opponent = 'Sample opponent';
 
   static const counts = [0, 987, 12345, 1234567];
   static const host = 'Sample host';
@@ -405,9 +525,9 @@ abstract final class _Samples {
   ];
 
   static const gifts = [
-    GiftItemData(id: 'a', name: 'Heart', price: 1, shape: GiftShape.heart),
-    GiftItemData(id: 'b', name: 'Star', price: 10, shape: GiftShape.star),
-    GiftItemData(id: 'c', name: 'Diamond', price: 99, shape: GiftShape.diamond),
-    GiftItemData(id: 'd', name: 'Crown', price: 520, shape: GiftShape.crown),
+    GiftItemData(id: 'a', name: 'Heart', shape: GiftShape.heart),
+    GiftItemData(id: 'b', name: 'Star', shape: GiftShape.star),
+    GiftItemData(id: 'c', name: 'Diamond', shape: GiftShape.diamond),
+    GiftItemData(id: 'd', name: 'Crown', shape: GiftShape.crown),
   ];
 }
