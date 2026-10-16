@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../../config/app-config.js';
 import type { RateLimitRule } from '../../config/env.schema.js';
 import { LiveController } from '../../modules/live/live.controller.js';
+import { MediaController } from '../../modules/media/media.controller.js';
+import { MeController } from '../../modules/users/profiles/me.controller.js';
 import { FollowsController } from '../../modules/social/follows.controller.js';
 import { PublicProfileController } from '../../modules/users/profiles/public-profile.controller.js';
 import { AppException } from '../errors/app-exception.js';
@@ -62,6 +64,8 @@ async function bucketsFor(handler: (...args: never[]) => unknown, cls: object): 
 const live = LiveController.prototype;
 const follows = FollowsController.prototype;
 const profiles = PublicProfileController.prototype;
+const media = MediaController.prototype;
+const me = MeController.prototype;
 
 describe('v1.3 rate limits (CONVENTIONS §7)', () => {
   it.each([
@@ -159,5 +163,82 @@ describe('v1.3 rate limits (CONVENTIONS §7)', () => {
       expect(key).not.toContain(USER_ID.replace(/-/g, ''));
     }
     expect(service.keyFor('follow:h', USER_ID)).not.toBe(service.keyFor('follow:d', USER_ID));
+  });
+});
+
+describe('v1.4 rate limits (CONVENTIONS §7)', () => {
+  it.each([
+    [
+      'POST /media/uploads',
+      media.createUpload,
+      MediaController,
+      [
+        ['media:upload:h', config.rateLimits.mediaUploadHourUser],
+        ['media:upload:d', config.rateLimits.mediaUploadDayUser],
+      ],
+    ],
+    ['complete', media.complete, MediaController, [['media:complete', config.rateLimits.mediaCompleteUser]]],
+    ['PUT cover', live.setCover, LiveController, [['live:cover', config.rateLimits.liveCoverUser]]],
+    [
+      'GET /live/countries',
+      live.listCountries,
+      LiveController,
+      [['live:countries', config.rateLimits.liveCountriesUser]],
+    ],
+  ] as const)(
+    '%s uses its own per-user buckets instead of the default',
+    async (_name, handler, cls, expected) => {
+      const hits = await bucketsFor(handler as (...args: never[]) => unknown, cls);
+      expect(hits.map((h) => [h.bucket, h.rule])).toEqual(expected);
+      expect(hits.every((h) => h.subject === USER_ID)).toBe(true);
+    },
+  );
+
+  it.each([
+    ['GET /media/config', media.config, MediaController],
+    ['GET /media/uploads/{uploadId}', media.getUpload, MediaController],
+    ['GET /countries', me.listCountries, MeController],
+  ] as const)('%s counts against the default authenticated bucket only', async (_name, handler, cls) => {
+    const hits = await bucketsFor(handler as (...args: never[]) => unknown, cls);
+    expect(hits.map((h) => [h.bucket, h.subject, h.rule])).toEqual([
+      ['user', USER_ID, config.rateLimits.authenticatedUser],
+    ]);
+  });
+
+  it('PATCH /me (avatar and country too) counts both its own bucket and the default', async () => {
+    const hits = await bucketsFor(me.updateMe as (...args: never[]) => unknown, MeController);
+    expect(hits.map((h) => [h.bucket, h.rule])).toEqual([
+      ['update_me:user', config.rateLimits.updateMeUser],
+      ['user', config.rateLimits.authenticatedUser],
+    ]);
+  });
+
+  it('the upload hour/day buckets are counted before the feature gate (guard, not service)', async () => {
+    const limiter = new RecordingLimiter();
+    limiter.reject = 'media:upload:h';
+    const guard = new RateLimitGuard(new Reflector(), limiter as unknown as RateLimitService, config);
+    await expect(
+      guard.canActivate(
+        contextFor(media.createUpload as (...args: never[]) => unknown, MediaController, {
+          auth: { userId: USER_ID, sessionId: 's' },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: ErrorCode.RATE_LIMITED });
+  });
+
+  it('v1.4 bucket keys are HMACs too', () => {
+    const service = new RateLimitService({} as never, config);
+    for (const bucket of [
+      'media:upload:h',
+      'media:upload:d',
+      'media:bytes:d',
+      'media:complete',
+      'live:cover',
+      'live:countries',
+    ]) {
+      const key = service.keyFor(bucket, USER_ID);
+      expect(key).toMatch(new RegExp(`^rl:${bucket}:[A-Za-z0-9_-]{32}$`));
+      expect(key).not.toContain(USER_ID);
+    }
   });
 });

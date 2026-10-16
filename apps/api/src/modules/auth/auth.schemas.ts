@@ -111,7 +111,6 @@ export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
 
 export const registerResendSchema = z.strictObject({ email: emailSchema });
 
-export const updateMeSchema = z.strictObject({ locale: localeSchema });
 export const resetPasswordSchema = z.strictObject({ token: opaqueToken, newPassword: passwordSchema });
 
 export type DeviceInfo = z.output<typeof deviceInfoSchema>;

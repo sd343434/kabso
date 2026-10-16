@@ -6,3 +6,6 @@ prisma/migrations
 pnpm-lock.yaml
 src/modules/users/data/confusables.generated.ts
 src/modules/users/data/text-hygiene.generated.ts
+src/modules/countries/data/countries.generated.ts
+# Vendored upstream data: kept byte-identical (sha256-pinned).
+src/modules/countries/data/cldr-48.0.0

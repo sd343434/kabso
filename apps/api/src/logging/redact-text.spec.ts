@@ -26,6 +26,21 @@ describe('redactText (SEC-017)', () => {
     expect(out).toContain('[REDACTED]');
   });
 
+  it('v1.4: masks the signature and credential of a presigned storage URL', () => {
+    const signature = 'a1'.repeat(32);
+    const keyId = `test${randomBytes(8).toString('hex')}`;
+    const credential = `${keyId}%2F20261016%2Fauto%2Fs3%2Faws4_request`;
+    const url =
+      'https://bucket.example.invalid/in/x/y?X-Amz-Algorithm=AWS4-HMAC-SHA256' +
+      `&X-Amz-Credential=${credential}&X-Amz-Date=20261016T000000Z&X-Amz-Expires=600` +
+      `&X-Amz-Signature=${signature}&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost`;
+    const out = redactText(`PUT failed for ${url}`);
+    expect(out).not.toContain(signature);
+    expect(out).not.toContain(keyId);
+    expect(out).toContain('X-Amz-Signature=[REDACTED]');
+    expect(out).toContain('X-Amz-Credential=[REDACTED]');
+  });
+
   it('keeps ordinary text intact', () => {
     expect(redactText('Unique constraint failed on the fields: (`email`)')).toBe(
       'Unique constraint failed on the fields: (`email`)',

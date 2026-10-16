@@ -8,6 +8,9 @@ const CENSOR = '[REDACTED]';
 const PATTERNS: readonly RegExp[] = [
   // `password: "…"`, `"refreshTokenHash": '…'`, `token=…` (Prisma invocation dumps, query strings)
   /((?:password|passwordhash|newpassword|token|tokenhash|refreshtoken|refreshtokenhash|accesstoken|secret|authorization)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,})\]]+)/gi,
+  // v1.4: presigned storage URLs are bearer credentials for one object (CONVENTIONS §11.3,
+  // §11.11): mask the signature and credential query parameters wherever they appear.
+  /((?:X-Amz-Signature|X-Amz-Credential|X-Amz-Security-Token)=)[^&\s"']+/gi,
   // Bearer credentials
   /(bearer\s+)[A-Za-z0-9._~+/-]+=*/gi,
   // JWTs

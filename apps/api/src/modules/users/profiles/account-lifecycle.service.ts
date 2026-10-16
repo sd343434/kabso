@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
+import { MediaService } from '../../media/media.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { UsersService } from '../users.service.js';
 
@@ -14,6 +15,8 @@ import { UsersService } from '../users.service.js';
  *    deleted in both directions (DB_PHASE2_DISCOVERY §3; FK cascades fire only on hard deletion).
  *    A LIVE room is hidden at once by the ACTIVE-host filter and ended as HEARTBEAT_TIMEOUT by the
  *    sweeper (the host can no longer heartbeat); the contract defines no other end reason for it.
+ *    v1.4: the avatar and room covers are detached at once and the media cleanup job deletes all
+ *    of the account's stored images (DB_PHASE2_MEDIA §4). Suspension keeps the media.
  *
  * No HTTP route calls these yet: there is no admin API and no account-deletion endpoint in v1.3
  * (suspension is an ops action). The future admin/KL-014 flows must use this service rather than
@@ -26,6 +29,7 @@ export class AccountLifecycleService {
     private readonly users: UsersService,
     private readonly live: LiveRoomsService,
     private readonly follows: FollowsService,
+    private readonly media: MediaService,
   ) {}
 
   /** Returns false when the account was not ACTIVE (nothing changed). */
@@ -40,8 +44,12 @@ export class AccountLifecycleService {
   /** Returns false when the account was already DELETED (nothing changed). */
   async softDelete(userId: string): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
-      if (!(await this.users.deactivate(tx, userId, 'DELETED', new Date()))) return false;
+      const now = new Date();
+      if (!(await this.users.deactivate(tx, userId, 'DELETED', now))) return false;
       await this.follows.deleteAllEdgesOfIn(tx, userId);
+      // v1.4 (DB_PHASE2_MEDIA §4): detach the avatar and covers; the cleanup job deletes every
+      // stored object of the DELETED account.
+      await this.media.purgeUserIn(tx, userId, now);
       return true;
     });
   }

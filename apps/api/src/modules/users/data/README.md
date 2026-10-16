@@ -54,6 +54,29 @@ unreachable from the build environment. License: Unicode License v3.
 `text-hygiene.generated.ts` equals a fresh generation from these files. The RGI set has 3,953
 sequences.
 
+### SEC-039 variation sequences (contract v1.4, KL-049)
+
+| File (`unicode-17/`)            | Upstream path (`unicodetools/data/…`)            | Used for                                    | sha256                                                             |
+| ------------------------------- | ------------------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------ |
+| `StandardizedVariants.txt`      | `ucd/17.0.0/StandardizedVariants.txt`            | Standardized variation sequences (UCD 17.0) | `f55100b2fb11d3d75a37b8c1ab752192dbd1c4b12328c5ec6b38e3807c0ca597` |
+| `emoji-variation-sequences.txt` | `ucd/17.0.0/emoji/emoji-variation-sequences.txt` | Emoji text/emoji presentation sequences     | `bb3d09ef03f206012c7532dd52dc0a21c9efddba0135ea4cf0d9201b8b9bba7e` |
+
+Same pinned commit (`4fd8eca9…`) as above; downloaded 2026-10-16 and byte-identical to the `main`
+branch copies the same day. Headers: `StandardizedVariants-17.0.0.txt` (Date 2025-07-30) and
+Emoji `Version: 17.0`. License: Unicode License v3.
+
+**Ideographic Variation Database — NOT vendored yet.** The contract pins IVD **2022-09-13**
+`IVD_Sequences.txt` (`data/ivd/IVD_Sequences.txt`). KL-049 could not obtain it from a verifiable
+source: `www.unicode.org` is unreachable from the build environment (proxy 403 and DNS failure),
+the file is not in `unicode-org/unicodetools`, and the only GitHub copies found are older releases
+(2014-05-16) or modified ones. Until it is vendored, `text-hygiene.ts` applies a documented interim
+rule: an ideographic variation selector (U+E0100–U+E01EF) is accepted after a `Unified_Ideograph`
+base (registered Japanese/Korean name variants keep working; an unregistered sequence on an
+ideograph is not rejected). Everything else in SEC-039 is enforced from the files above.
+To finish: put the 2022-09-13 `IVD_Sequences.txt` (unmodified) in `data/ivd/`, run
+`node scripts/generate-text-hygiene.mjs`, set its sha256 in `PINNED_IVD` of
+`text-hygiene.spec.ts` and here, and run the tests (the IVD-specific tests switch on by themselves).
+
 Updating the Unicode version is a contract patch (§6). To update: replace the five files at a pinned
 commit, run `node scripts/generate-text-hygiene.mjs`, update this table and the pinned hashes in
 the spec, and re-run the tests.

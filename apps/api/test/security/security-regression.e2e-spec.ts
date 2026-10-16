@@ -23,6 +23,8 @@ import { UsersController } from '../../src/modules/users/users.controller.js';
 import { LiveController } from '../../src/modules/live/live.controller.js';
 import { FollowsController } from '../../src/modules/social/follows.controller.js';
 import { PublicProfileController } from '../../src/modules/users/profiles/public-profile.controller.js';
+import { MediaController } from '../../src/modules/media/media.controller.js';
+import { MeController } from '../../src/modules/users/profiles/me.controller.js';
 import {
   buildTestConfig,
   CapturingMailSender,
@@ -95,6 +97,9 @@ const CONTROLLERS = [
   LiveController,
   FollowsController,
   PublicProfileController,
+  // Contract v1.4 (KL-049): media uploads, PATCH /me and GET /countries require a token.
+  MediaController,
+  MeController,
 ] as const;
 
 describe('KL-007 security regression', () => {

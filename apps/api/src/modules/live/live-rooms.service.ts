@@ -10,12 +10,21 @@ import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { CountriesService } from '../countries/countries.service.js';
+import type { ModerationStatus } from '../media/media.constants.js';
+import { MediaService } from '../media/media.service.js';
+import { MediaUrls, type MediaRef } from '../media/media-urls.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
-import { isUuid, startLiveRoomSchema, type ListLiveRoomsQuery } from './live.schemas.js';
+import {
+  isUuid,
+  setLiveRoomCoverSchema,
+  startLiveRoomSchema,
+  type ListLiveRoomsQuery,
+} from './live.schemas.js';
 
-// ---- Response shapes (openapi v1.3) ------------------------------------------------------------
+// ---- Response shapes (openapi v1.3, v1.4) ------------------------------------------------------
 
 /** `UserSummary`: never contains an email. */
 export interface UserSummaryDto {
@@ -23,6 +32,8 @@ export interface UserSummaryDto {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** v1.4: null exactly when `avatarUrl` is null. */
+  avatarThumbUrl: string | null;
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI';
@@ -35,7 +46,11 @@ export interface LiveRoomSummaryDto {
   viewerCount: number;
   startedAt: string;
   coverUrl: string | null;
+  /** v1.4: null exactly when `coverUrl` is null. */
+  coverThumbUrl: string | null;
   category: LiveCategoryDto | null;
+  /** v1.4: the host's chosen country (snapshot at go-live, synced while LIVE). */
+  country: string | null;
   host: UserSummaryDto;
 }
 
@@ -43,6 +58,15 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   status: 'LIVE' | 'ENDED';
   endedAt: string | null;
   endReason: LiveRoomEndReason | null;
+  /** v1.4: moderation state of the cover, sent only to the host (null for everyone else). */
+  coverModeration: ModerationStatus | null;
+}
+
+/** v1.4 `LiveCountry`. */
+export interface LiveCountryDto {
+  code: string;
+  name: string;
+  liveRoomCount: number;
 }
 
 export interface LiveRoomPageDto {
@@ -74,33 +98,72 @@ interface RoomRow {
   last_heartbeat_at: Date;
   ended_at: Date | null;
   end_reason: LiveRoomEndReason | null;
-  cover_url: string | null;
+  country: string | null;
+  cover_token: string | null;
+  cover_status: string | null;
+  cover_purpose: 'AVATAR' | 'ROOM_COVER' | null;
+  cover_moderation: ModerationStatus | null;
+  cover_owner: string | null;
   host_user_id: string;
   host_status: string;
   username: string;
   display_name: string;
-  avatar_url: string | null;
+  avatar_token: string | null;
+  avatar_status: string | null;
+  avatar_purpose: 'AVATAR' | 'ROOM_COVER' | null;
+  avatar_moderation: ModerationStatus | null;
+  avatar_owner: string | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
 }
 
 /**
- * Room + host identity + category in one statement. Reading `users` / `user_profiles` here (for the
- * ACTIVE-host filter and the host summary) and `follows` (Following tab) are the documented
- * read-only exceptions to module table ownership (DB_PHASE2_DISCOVERY §1): the list must filter
- * and paginate in the database.
+ * Room + host identity + category + cover and host avatar in one statement. Reading `users` /
+ * `user_profiles` here (for the ACTIVE-host filter and the host summary), `follows` (Following tab)
+ * and `media_objects` (v1.4: two LEFT JOINs for the cover and the host avatar; public token, purpose,
+ * status and moderation state only) are the documented read-only exceptions to module table
+ * ownership (DB_PHASE2_DISCOVERY §1, DB_PHASE2_MEDIA §1): the list must filter and paginate in the
+ * database. Image URLs are computed from the token, never stored (DB_PHASE2_MEDIA §3).
  */
 const ROOM_SELECT = Prisma.sql`
   SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
-         r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
+         r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.country::text AS country,
+         cm.public_token AS cover_token, cm.status::text AS cover_status, cm.purpose::text AS cover_purpose,
+         cm.moderation_status::text AS cover_moderation, cm.owner_user_id::text AS cover_owner,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
-         p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en
+         p.display_name, am.public_token AS avatar_token, am.status::text AS avatar_status,
+         am.purpose::text AS avatar_purpose, am.moderation_status::text AS avatar_moderation,
+         am.owner_user_id::text AS avatar_owner, c.slug AS category_slug,
+         c.name_ar AS category_name_ar, c.name_en AS category_name_en
     FROM live_rooms r
     JOIN users u ON u.id = r.host_user_id
     JOIN user_profiles p ON p.user_id = r.host_user_id
-    LEFT JOIN live_categories c ON c.id = r.category_id`;
+    LEFT JOIN live_categories c ON c.id = r.category_id
+    LEFT JOIN media_objects cm ON cm.id = r.cover_media_id
+    LEFT JOIN media_objects am ON am.id = p.avatar_media_id`;
+
+function coverRef(row: RoomRow): MediaRef | null {
+  if (row.cover_purpose === null || row.cover_status === null || row.cover_owner === null) return null;
+  return {
+    ownerUserId: row.cover_owner,
+    purpose: row.cover_purpose,
+    status: row.cover_status,
+    publicToken: row.cover_token,
+    moderationStatus: row.cover_moderation,
+  };
+}
+
+function avatarRef(row: RoomRow): MediaRef | null {
+  if (row.avatar_purpose === null || row.avatar_status === null || row.avatar_owner === null) return null;
+  return {
+    ownerUserId: row.avatar_owner,
+    purpose: row.avatar_purpose,
+    status: row.avatar_status,
+    publicToken: row.avatar_token,
+    moderationStatus: row.avatar_moderation,
+  };
+}
 
 const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
 
@@ -197,6 +260,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   private sweepTimer: NodeJS.Timeout | undefined;
   private sweepInFlight: Promise<SweepResult> | null = null;
   private stopped = false;
+  /** v1.4 `GET /live/countries` counts, cached for at most LIVE_HEARTBEAT_INTERVAL_SECONDS. */
+  private countriesCache: {
+    readonly at: number;
+    readonly rows: readonly { country: string; count: number }[];
+  } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -204,6 +272,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     private readonly categories: LiveCategoriesService,
     private readonly audit: AuditService,
     private readonly clock: Clock,
+    private readonly media: MediaService,
+    private readonly mediaUrls: MediaUrls,
+    private readonly countries: CountriesService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
@@ -387,14 +458,18 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Reads -----------------------------------------------------------------------------------
 
-  private toSummary(row: RoomRow, lang: ContentLanguage): LiveRoomSummaryDto {
+  /** `viewerId`: the caller, for the moderation visibility rule (CONVENTIONS §11.5). */
+  private toSummary(row: RoomRow, lang: ContentLanguage, viewerId: string): LiveRoomSummaryDto {
+    const cover = this.mediaUrls.visibleUrls(coverRef(row), viewerId);
+    const avatar = this.mediaUrls.visibleUrls(avatarRef(row), viewerId);
     return {
       id: row.id,
       title: row.title,
       mode: row.mode,
       viewerCount: row.viewer_count,
       startedAt: row.started_at.toISOString(),
-      coverUrl: row.cover_url,
+      coverUrl: cover.url,
+      coverThumbUrl: cover.thumbUrl,
       category:
         row.category_slug === null
           ? null
@@ -406,21 +481,25 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
               },
               lang,
             ),
+      country: row.country,
       host: {
         id: row.host_user_id,
         username: row.username,
         displayName: row.display_name,
-        avatarUrl: row.avatar_url,
+        avatarUrl: avatar.url,
+        avatarThumbUrl: avatar.thumbUrl,
       },
     };
   }
 
-  private toRoom(row: RoomRow, lang: ContentLanguage): LiveRoomDto {
+  private toRoom(row: RoomRow, lang: ContentLanguage, viewerId: string): LiveRoomDto {
+    const isHost = viewerId === row.host_user_id;
     return {
-      ...this.toSummary(row, lang),
+      ...this.toSummary(row, lang, viewerId),
       status: row.status,
       endedAt: row.ended_at?.toISOString() ?? null,
       endReason: row.end_reason,
+      coverModeration: isHost && coverRef(row) !== null ? row.cover_moderation : null,
     };
   }
 
@@ -438,7 +517,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    const scope = cursorScope(query.tab, query.category, callerId);
+    if (query.country !== undefined && !this.countries.isListed(query.country)) {
+      throw AppException.validation([{ field: 'country', issue: 'invalid_value' }]);
+    }
+    const scope = cursorScope(query.tab, query.category, callerId, query.country);
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
@@ -459,6 +541,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         Prisma.sql`r.category_id = (SELECT id FROM live_categories WHERE slug = ${query.category} AND is_active)`,
       );
     }
+    if (query.country !== undefined) {
+      // v1.4 (§11.9): rooms without a country never match.
+      conditions.push(Prisma.sql`r.country = ${query.country}::char(2)`);
+    }
     if (query.tab === 'following') {
       conditions.push(
         Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId}::uuid AND f.followee_id = r.host_user_id)`,
@@ -476,7 +562,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const page = rows.slice(0, query.limit);
     const last = page.at(-1);
     return {
-      data: page.map((row) => this.toSummary(row, lang)),
+      data: page.map((row) => this.toSummary(row, lang, callerId)),
       page: {
         nextCursor:
           hasMore && last
@@ -495,7 +581,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
    * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
    * rooms are the same 404. A stale LIVE room is ended (that single room) and returned as ENDED.
    */
-  async getRoom(roomId: string, lang: ContentLanguage): Promise<LiveRoomDto> {
+  async getRoom(roomId: string, lang: ContentLanguage, viewerId: string): Promise<LiveRoomDto> {
     if (!isUuid(roomId)) throw notFound();
     let row = await this.selectRoom(roomId);
     if (!row || row.host_status !== 'ACTIVE') throw notFound();
@@ -505,7 +591,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       row = await this.selectRoom(roomId);
       if (!row || row.host_status !== 'ACTIVE') throw notFound();
     }
-    return this.toRoom(row, lang);
+    return this.toRoom(row, lang, viewerId);
   }
 
   /**
@@ -533,8 +619,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `POST /live/rooms` (§10.3). Order after auth and rate limit (guards): hosting switch → body →
-   * verified email → active category → one LIVE room per host. The caller's stale LIVE room is
-   * ended in the same transaction; a fresh one (or a parallel winner) → 409.
+   * verified email → active category → (v1.4) `coverUploadId`: uploads disabled → 503
+   * MEDIA_UPLOADS_UNAVAILABLE, not the caller's attachable cover → 400 → one LIVE room per host.
+   * The caller's stale LIVE room is ended in the same transaction; a fresh one (or a parallel
+   * winner) → 409, and then nothing is attached (the upload stays usable). The room's country is
+   * the host's profile country at this moment (§11.8).
    */
   async startRoom(
     callerId: string,
@@ -554,6 +643,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       categoryId = await this.categories.findActiveId(input.categorySlug);
       if (!categoryId) throw AppException.validation([{ field: 'categorySlug', issue: 'invalid_value' }]);
     }
+    if (input.coverUploadId !== undefined) this.media.assertUploadsEnabled();
 
     const now = this.clock.now();
     let roomId: string;
@@ -567,6 +657,12 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
         }
         await this.endStaleIn(tx, Prisma.sql`host_user_id = ${callerId}::uuid`, now);
+        if (
+          input.coverUploadId !== undefined &&
+          !(await this.media.attachIn(tx, callerId, input.coverUploadId, 'ROOM_COVER', now))
+        ) {
+          throw AppException.validation([{ field: 'coverUploadId', issue: 'invalid_value' }]);
+        }
         const room = await tx.liveRoom.create({
           data: {
             hostUserId: callerId,
@@ -574,6 +670,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categoryId,
             startedAt: now,
             lastHeartbeatAt: now,
+            coverMediaId: input.coverUploadId ?? null,
+            country: await this.users.countryOfIn(tx, callerId),
           },
           select: { id: true },
         });
@@ -586,6 +684,17 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           ip: meta.ip,
           requestId: meta.requestId,
         });
+        if (input.coverUploadId !== undefined) {
+          await this.audit.recordIn(tx, {
+            action: AuditAction.MEDIA_COVER_SET,
+            actorUserId: callerId,
+            targetType: 'live_room',
+            targetId: room.id,
+            metadata: { uploadId: input.coverUploadId },
+            ip: meta.ip,
+            requestId: meta.requestId,
+          });
+        }
         return room.id;
       }, LIVE_TX_OPTIONS);
     } catch (err) {
@@ -597,7 +706,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
     const row = await this.selectRoom(roomId);
     if (!row) throw new Error(`live room ${roomId} vanished after creation`);
-    return this.toRoom(row, lang);
+    return this.toRoom(row, lang, callerId);
   }
 
   /**
@@ -669,7 +778,118 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }, LIVE_TX_OPTIONS);
     const row = await this.selectRoom(roomId);
     if (!row) throw notFound();
-    return this.toRoom(row, lang);
+    return this.toRoom(row, lang, callerId);
+  }
+
+  /**
+   * `PUT /live/rooms/{roomId}/cover` (v1.4, §11.4). Order after auth and rate limit: hosting switch
+   * (503, for every caller, before the ownership check) → body → host's room (else 404) → LIVE with a
+   * fresh heartbeat (else 409 LIVE_ROOM_ENDED; a stale room is ended as HEARTBEAT_TIMEOUT) → a
+   * non-null upload while uploads are disabled → 503 MEDIA_UPLOADS_UNAVAILABLE → the caller's own
+   * attachable `room_cover` upload (else 400). The previous cover is detached (grace period).
+   */
+  async setCover(
+    callerId: string,
+    roomId: string,
+    body: unknown,
+    lang: ContentLanguage,
+    meta: RequestMeta,
+  ): Promise<LiveRoomDto> {
+    this.assertHostingEnabled();
+    const parsed = setLiveRoomCoverSchema.safeParse(body, { reportInput: true });
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const uploadId = parsed.data.coverUploadId;
+    if (!isUuid(roomId)) throw notFound();
+
+    const now = this.clock.now();
+    const outcome = await this.prisma.$transaction(async (tx): Promise<'ok' | 'ended'> => {
+      await this.setStatementTimeout(tx);
+      const rooms = await tx.$queryRaw<
+        { status: string; last_heartbeat_at: Date; cover_media_id: string | null }[]
+      >`
+        SELECT status::text AS status, last_heartbeat_at, cover_media_id::text AS cover_media_id
+          FROM live_rooms WHERE id = ${roomId}::uuid AND host_user_id = ${callerId}::uuid FOR UPDATE`;
+      const room = rooms[0];
+      if (!room) throw notFound(); // not the host, or no such room: never reveal ownership
+      if (room.status !== 'LIVE') return 'ended';
+      if (!this.isFresh(room.last_heartbeat_at, now)) {
+        await this.endStaleIn(tx, Prisma.sql`id = ${roomId}::uuid`, now);
+        return 'ended';
+      }
+      if (uploadId !== null) {
+        this.media.assertUploadsEnabled();
+        if (!(await this.media.attachIn(tx, callerId, uploadId, 'ROOM_COVER', now))) {
+          throw AppException.validation([{ field: 'coverUploadId', issue: 'invalid_value' }]);
+        }
+      }
+      if (room.cover_media_id !== null) await this.media.detachIn(tx, room.cover_media_id, now);
+      await tx.$executeRaw`
+        UPDATE live_rooms SET cover_media_id = ${uploadId}::uuid, updated_at = ${ts(now)}::timestamptz
+         WHERE id = ${roomId}::uuid`;
+      if (uploadId !== null || room.cover_media_id !== null) {
+        await this.audit.recordIn(tx, {
+          action: uploadId === null ? AuditAction.MEDIA_COVER_REMOVE : AuditAction.MEDIA_COVER_SET,
+          actorUserId: callerId,
+          targetType: 'live_room',
+          targetId: roomId,
+          metadata: uploadId === null ? {} : { uploadId },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+      }
+      return 'ok';
+    }, LIVE_TX_OPTIONS);
+    if (outcome === 'ended') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    const row = await this.selectRoom(roomId);
+    if (!row) throw notFound();
+    return this.toRoom(row, lang, callerId);
+  }
+
+  /**
+   * v1.4 (§11.8, DB_PHASE2_MEDIA §3.2): inside the `PATCH /me` transaction, the host's LIVE room
+   * takes the host's new country (or null). ENDED rooms keep theirs.
+   */
+  async syncHostCountryIn(
+    tx: Prisma.TransactionClient,
+    hostUserId: string,
+    country: string | null,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      UPDATE live_rooms SET country = ${country}::char(2), updated_at = ${ts(this.clock.now())}::timestamptz
+       WHERE host_user_id = ${hostUserId}::uuid AND status = 'LIVE'`;
+  }
+
+  /**
+   * `GET /live/countries` (v1.4, §11.9): countries with at least one room that `GET /live/rooms`
+   * would list (LIVE, fresh heartbeat, ACTIVE host) and a non-null country, with real counts
+   * (never estimated or padded). The counts are cached in this process for at most
+   * LIVE_HEARTBEAT_INTERVAL_SECONDS; names are localized per request.
+   */
+  async listCountries(lang: ContentLanguage): Promise<LiveCountryDto[]> {
+    const nowMs = this.clock.now().getTime();
+    const ttlMs = this.config.live.heartbeatIntervalSeconds * 1000;
+    let cache = this.countriesCache;
+    if (!cache || nowMs - cache.at >= ttlMs || nowMs < cache.at) {
+      const now = new Date(nowMs);
+      const rows = await this.prisma.$queryRaw<{ country: string; count: number }[]>`
+        SELECT r.country::text AS country, count(*)::int AS count
+          FROM live_rooms r
+          JOIN users u ON u.id = r.host_user_id
+         WHERE r.status = 'LIVE' AND r.country IS NOT NULL
+           AND r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
+           AND u.status = 'ACTIVE'
+         GROUP BY r.country`;
+      cache = { at: nowMs, rows };
+      this.countriesCache = cache;
+    }
+    return cache.rows
+      .filter((row) => row.count >= 1 && this.countries.isListed(row.country))
+      .sort((a, b) => b.count - a.count || (a.country < b.country ? -1 : a.country > b.country ? 1 : 0))
+      .map((row) => ({
+        code: row.country,
+        name: this.countries.name(row.country, lang) ?? row.country,
+        liveRoomCount: row.count,
+      }));
   }
 
   /**

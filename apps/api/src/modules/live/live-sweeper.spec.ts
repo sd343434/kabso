@@ -63,6 +63,9 @@ function service(prisma: unknown, batchSize = 10) {
     {} as LiveCategoriesService,
     audit as unknown as AuditService,
     new FixedClock(),
+    {} as never, // MediaService (unused by the sweeper)
+    {} as never, // MediaUrls
+    {} as never, // CountriesService
     config,
   );
   return { rooms, audit };

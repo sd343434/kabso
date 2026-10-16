@@ -56,6 +56,11 @@ export interface AppConfig {
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
     readonly followDayUser: RateLimitRule;
+    readonly mediaUploadHourUser: RateLimitRule;
+    readonly mediaUploadDayUser: RateLimitRule;
+    readonly mediaCompleteUser: RateLimitRule;
+    readonly liveCoverUser: RateLimitRule;
+    readonly liveCountriesUser: RateLimitRule;
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
@@ -69,6 +74,8 @@ export interface AppConfig {
     /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
     readonly cursorKey: string;
   };
+  /** Contract v1.4 media uploads (CONVENTIONS §11, DB_PHASE2_MEDIA §5). */
+  readonly media: MediaConfig;
   readonly registration: {
     readonly ttlSeconds: number;
     readonly maxLifetimeSeconds: number;
@@ -80,6 +87,38 @@ export interface AppConfig {
   readonly loginRecentSuccessTtlSeconds: number;
   readonly reservedDisplayNameTerms: readonly string[];
   readonly reservedDisplayNameBrandTerms: readonly string[];
+}
+
+/** S3-compatible storage (any provider; Cloudflare R2 per D45). Holds secrets: never log it. */
+export interface MediaStorageConfig {
+  readonly endpoint: string | undefined;
+  readonly region: string;
+  readonly forcePathStyle: boolean;
+  readonly incomingBucket: string;
+  readonly publicBucket: string;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+}
+
+export interface MediaConfig {
+  /** MEDIA_UPLOADS_ENABLED (default false). True only with a complete storage config. */
+  readonly uploadsEnabled: boolean;
+  readonly moderationProvider: 'none' | 'allow_all';
+  /** Complete storage settings, else null (then nothing can talk to storage). */
+  readonly storage: MediaStorageConfig | null;
+  /** MEDIA_PUBLIC_BASE_URL without a trailing slash, else null (no image URL can be built). */
+  readonly publicBaseUrl: string | null;
+  readonly uploadUrlTtlSeconds: number;
+  readonly maxPendingPerUser: number;
+  readonly dailyBytesPerUser: number;
+  readonly processMaxConcurrency: number;
+  readonly processTimeoutMs: number;
+  readonly unattachedTtlHours: number;
+  readonly deleteGraceHours: number;
+  readonly endedRoomCoverTtlHours: number;
+  /** 0 = cleanup job disabled (tests; refused in production). */
+  readonly cleanupIntervalSeconds: number;
+  readonly cleanupBatchSize: number;
 }
 
 export class ConfigValidationError extends Error {
@@ -154,6 +193,11 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
       followDayUser: e.RATE_LIMIT_FOLLOW_DAY_USER,
+      mediaUploadHourUser: e.RATE_LIMIT_MEDIA_UPLOAD_HOUR_USER,
+      mediaUploadDayUser: e.RATE_LIMIT_MEDIA_UPLOAD_DAY_USER,
+      mediaCompleteUser: e.RATE_LIMIT_MEDIA_COMPLETE_USER,
+      liveCoverUser: e.RATE_LIMIT_LIVE_COVER_USER,
+      liveCountriesUser: e.RATE_LIMIT_LIVE_COUNTRIES_USER,
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,
@@ -162,6 +206,37 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,
       sweepBatchSize: e.LIVE_SWEEP_BATCH_SIZE,
       cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
+    },
+    media: {
+      uploadsEnabled: e.MEDIA_UPLOADS_ENABLED,
+      moderationProvider: e.MEDIA_MODERATION_PROVIDER,
+      storage:
+        e.MEDIA_STORAGE_REGION !== undefined &&
+        e.MEDIA_STORAGE_INCOMING_BUCKET !== undefined &&
+        e.MEDIA_STORAGE_PUBLIC_BUCKET !== undefined &&
+        e.MEDIA_STORAGE_ACCESS_KEY_ID !== undefined &&
+        e.MEDIA_STORAGE_SECRET_ACCESS_KEY !== undefined
+          ? {
+              endpoint: e.MEDIA_STORAGE_ENDPOINT,
+              region: e.MEDIA_STORAGE_REGION,
+              forcePathStyle: e.MEDIA_STORAGE_FORCE_PATH_STYLE,
+              incomingBucket: e.MEDIA_STORAGE_INCOMING_BUCKET,
+              publicBucket: e.MEDIA_STORAGE_PUBLIC_BUCKET,
+              accessKeyId: e.MEDIA_STORAGE_ACCESS_KEY_ID,
+              secretAccessKey: e.MEDIA_STORAGE_SECRET_ACCESS_KEY,
+            }
+          : null,
+      publicBaseUrl: e.MEDIA_PUBLIC_BASE_URL ?? null,
+      uploadUrlTtlSeconds: e.MEDIA_UPLOAD_URL_TTL_SECONDS,
+      maxPendingPerUser: e.MEDIA_MAX_PENDING_PER_USER,
+      dailyBytesPerUser: e.MEDIA_DAILY_BYTES_PER_USER,
+      processMaxConcurrency: e.MEDIA_PROCESS_MAX_CONCURRENCY,
+      processTimeoutMs: e.MEDIA_PROCESS_TIMEOUT_MS,
+      unattachedTtlHours: e.MEDIA_UNATTACHED_TTL_HOURS,
+      deleteGraceHours: e.MEDIA_DELETE_GRACE_HOURS,
+      endedRoomCoverTtlHours: e.MEDIA_ENDED_ROOM_COVER_TTL_HOURS,
+      cleanupIntervalSeconds: e.MEDIA_CLEANUP_INTERVAL_SECONDS,
+      cleanupBatchSize: e.MEDIA_CLEANUP_BATCH_SIZE,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

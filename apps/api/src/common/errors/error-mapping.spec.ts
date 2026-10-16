@@ -35,6 +35,10 @@ describe('ErrorCode', () => {
         'LIVE_ROOM_ALREADY_ACTIVE',
         'LIVE_ROOM_ENDED',
         'LIVE_HOSTING_UNAVAILABLE',
+        'MEDIA_UPLOAD_NOT_RECEIVED',
+        'MEDIA_UPLOAD_EXPIRED',
+        'MEDIA_UPLOAD_REJECTED',
+        'MEDIA_UPLOADS_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -56,6 +60,10 @@ describe('ErrorCode', () => {
       LIVE_ROOM_ALREADY_ACTIVE: 409,
       LIVE_ROOM_ENDED: 409,
       LIVE_HOSTING_UNAVAILABLE: 503,
+      MEDIA_UPLOAD_NOT_RECEIVED: 409,
+      MEDIA_UPLOAD_EXPIRED: 410,
+      MEDIA_UPLOAD_REJECTED: 422,
+      MEDIA_UPLOADS_UNAVAILABLE: 503,
     });
   });
 
@@ -67,7 +75,7 @@ describe('ErrorCode', () => {
     const table = Object.fromEntries(
       [...conventions.matchAll(/^\| (\d{3}) \| `([A-Z_]+)` \|/gm)].map((m) => [m[2], Number(m[1])]),
     );
-    expect(Object.keys(table).length).toBeGreaterThanOrEqual(18);
+    expect(Object.keys(table).length).toBeGreaterThanOrEqual(22);
     expect({ ...ERROR_HTTP_STATUS }).toEqual(table);
   });
 });

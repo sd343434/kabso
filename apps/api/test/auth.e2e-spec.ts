@@ -56,6 +56,10 @@ describe('POST /auth/register', () => {
       displayName: 'Test User',
       bio: null,
       avatarUrl: null,
+      // v1.4
+      avatarThumbUrl: null,
+      avatarModeration: null,
+      country: null,
       locale: 'en',
       role: 'USER',
       isPrivate: false,

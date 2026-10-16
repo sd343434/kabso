@@ -109,6 +109,39 @@ describe('LiveCursorCodec', () => {
     expect(codec.decode(forge({ ...good, extra: 1 }), scope)).toBeNull();
   });
 
+  it('v1.4: cursors are version 2 and bound to the country filter', () => {
+    const sa = cursorScope('new', undefined, USER, 'SA');
+    const cursor = codec.encode(sa, position);
+    const payload = JSON.parse(Buffer.from(cursor.split('.')[0]!, 'base64url').toString()) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).toMatchObject({ v: 2, k: 'SA' });
+    expect(codec.decode(cursor, sa)).toEqual(position);
+    expect(codec.decode(cursor, cursorScope('new', undefined, USER, 'EG'))).toBeNull();
+    expect(codec.decode(cursor, cursorScope('new', undefined, USER))).toBeNull();
+    const none = codec.encode(cursorScope('popular', 'music', USER), position);
+    expect(JSON.parse(Buffer.from(none.split('.')[0]!, 'base64url').toString())).toMatchObject({
+      v: 2,
+      k: null,
+    });
+    expect(codec.decode(none, cursorScope('popular', 'music', USER, 'SA'))).toBeNull();
+    expect(codec.decode(none, cursorScope('popular', 'music', USER))).toEqual(position);
+  });
+
+  it('v1.4: a version-1 cursor (v1.3) is accepted only for a request without country', () => {
+    const v1 = { v: 1, t: 'new', c: null, u: null, n: 3, s: position.startedAt.getTime(), i: ROOM };
+    expect(codec.decode(forge(v1), cursorScope('new', undefined, USER))).toEqual(position);
+    expect(codec.decode(forge(v1), cursorScope('new', undefined, USER, 'SA'))).toBeNull();
+    // A version-1 payload never carries `k`; a version-2 payload always does.
+    expect(codec.decode(forge({ ...v1, k: null }), cursorScope('new', undefined, USER))).toBeNull();
+    expect(codec.decode(forge({ ...v1, v: 2 }), cursorScope('new', undefined, USER))).toBeNull();
+    expect(
+      codec.decode(forge({ ...v1, v: 2, k: 'sa' }), cursorScope('new', undefined, USER, 'sa')),
+    ).toBeNull();
+    expect(codec.decode(forge({ ...v1, v: 3, k: null }), cursorScope('new', undefined, USER))).toBeNull();
+  });
+
   it('SEC-038: bounds the sort keys to values the database accepts', () => {
     const scope = cursorScope('popular', undefined, USER);
     const good = { v: 1, t: 'popular', c: null, u: null, n: 0, s: 0, i: ROOM };

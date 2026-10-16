@@ -3,7 +3,8 @@
 // Ownership: auth module owns sessions/verification_tokens; users module owns users,
 // user_profiles, user_settings; audit_logs is append-only (common). Phase 2 (contract v1.3,
 // docs/contracts/DB_PHASE2_DISCOVERY.md): live module owns live_categories, live_rooms; social
-// module owns follows.
+// module owns follows. Contract v1.4 (DB_PHASE2_MEDIA.md): media module owns media_objects;
+// users owns user_profiles.avatar_media_id / country; live owns live_rooms.cover_media_id / country.
 
 generator client {
   provider               = "prisma-client"
@@ -61,23 +62,30 @@ model User {
   liveRooms          LiveRoom[]
   following          Follow[]            @relation("FollowFollower")
   followers          Follow[]            @relation("FollowFollowee")
+  mediaObjects       MediaObject[]
 
   @@map("users")
 }
 
 model UserProfile {
-  userId      String   @id @map("user_id") @db.Uuid
+  userId        String   @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username    String   @unique @db.VarChar(30)
+  username      String   @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName String   @map("display_name") @db.VarChar(100)
-  bio         String?  @db.VarChar(300)
-  avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
-  locale      String   @default("ar") @db.VarChar(8)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  displayName   String   @map("display_name") @db.VarChar(100)
+  bio           String?  @db.VarChar(300)
+  /// Kept and unused since v1.4 (URLs are computed from avatar_media_id; DB_PHASE2_MEDIA §3.1).
+  avatarUrl     String?  @map("avatar_url") @db.VarChar(2048)
+  locale        String   @default("ar") @db.VarChar(8)
+  /// v1.4: the current avatar (media module). UNIQUE: an upload is attached at most once.
+  avatarMediaId String?  @unique(map: "user_profiles_avatar_media_id_key") @map("avatar_media_id") @db.Uuid
+  /// v1.4: ISO 3166-1 alpha-2 the user chose (CHECK `user_profiles_country_format`); null unless set.
+  country       String?  @db.Char(2)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarMedia MediaObject? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
 
   @@map("user_profiles")
 }
@@ -258,13 +266,18 @@ model LiveRoom {
   endReason       LiveRoomEndReason? @map("end_reason")
   /// Always 0 in v1.3 (no realtime presence).
   viewerCount     Int                @default(0) @map("viewer_count")
-  /// Always null in v1.3 (no upload).
+  /// Kept and unused since v1.4 (URLs are computed from cover_media_id; DB_PHASE2_MEDIA §3.2).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
+  /// v1.4: the room's cover (media module). UNIQUE: an upload is attached at most once.
+  coverMediaId    String?            @unique(map: "live_rooms_cover_media_id_key") @map("cover_media_id") @db.Uuid
+  /// v1.4: copy of the host's country at go-live, kept in sync while LIVE (CONVENTIONS §11.8).
+  country         String?            @db.Char(2)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host     User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category LiveCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  host       User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category   LiveCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  coverMedia MediaObject?  @relation("RoomCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -274,6 +287,8 @@ model LiveRoom {
   @@index([lastHeartbeatAt], map: "live_rooms_live_heartbeat_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
   @@index([categoryId], map: "live_rooms_category_id_idx")
+  @@index([country, startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_country_new_idx", where: raw("((status = 'LIVE'::live_room_status) AND (country IS NOT NULL))"))
+  @@index([country, viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_country_popular_idx", where: raw("((status = 'LIVE'::live_room_status) AND (country IS NOT NULL))"))
   @@map("live_rooms")
 }
 
@@ -289,4 +304,85 @@ model Follow {
   @@id([followerId, followeeId], map: "follows_pkey")
   @@index([followeeId, createdAt(sort: Desc)], map: "follows_followee_id_created_at_idx")
   @@map("follows")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Phase 2 — media uploads (contract v1.4, DB_PHASE2_MEDIA.md). CHECK constraints and the partial
+// indexes are hand-written SQL in migration 20261016140000_media_and_countries; the partial
+// indexes are mirrored here (preview feature `partialIndexes`) with the predicate exactly as
+// PostgreSQL stores it, so `prisma migrate dev` never generates a DROP INDEX for them.
+
+enum MediaPurpose {
+  AVATAR
+  ROOM_COVER
+
+  @@map("media_purpose")
+}
+
+enum MediaStatus {
+  AWAITING_UPLOAD
+  READY
+  FAILED
+  EXPIRED
+  DELETED
+
+  @@map("media_status")
+}
+
+enum MediaModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("media_moderation_status")
+}
+
+/// One row per declared upload; `id` is the API's `uploadId` (media module).
+model MediaObject {
+  id                  String                 @id @default(uuid(7)) @db.Uuid
+  ownerUserId         String                 @map("owner_user_id") @db.Uuid
+  purpose             MediaPurpose
+  status              MediaStatus            @default(AWAITING_UPLOAD)
+  /// CHECK `media_objects_content_type`: image/jpeg | image/png | image/webp.
+  declaredContentType String                 @map("declared_content_type") @db.VarChar(16)
+  /// CHECK `media_objects_declared_bytes`: 1..10485760 (per-purpose limit in the application).
+  declaredBytes       Int                    @map("declared_bytes")
+  /// `in/<id>/<128-bit random>` in the private incoming bucket.
+  incomingKey         String                 @unique(map: "media_objects_incoming_key_key") @map("incoming_key") @db.VarChar(200)
+  uploadExpiresAt     DateTime               @map("upload_expires_at") @db.Timestamptz(3)
+  detectedContentType String?                @map("detected_content_type") @db.VarChar(16)
+  /// 128-bit CSPRNG, base64url (22 chars); public keys are `<a|c>/<token>/<size>.webp`.
+  publicToken         String?                @unique(map: "media_objects_public_token_key") @map("public_token") @db.VarChar(32)
+  width               Int?
+  height              Int?
+  thumbWidth          Int?                   @map("thumb_width")
+  thumbHeight         Int?                   @map("thumb_height")
+  storedBytes         Int?                   @map("stored_bytes")
+  failureIssue        String?                @map("failure_issue") @db.VarChar(16)
+  moderationStatus    MediaModerationStatus? @map("moderation_status")
+  moderationSource    String?                @map("moderation_source") @db.VarChar(32)
+  moderatedAt         DateTime?              @map("moderated_at") @db.Timestamptz(3)
+  completedAt         DateTime?              @map("completed_at") @db.Timestamptz(3)
+  /// Set once, never cleared ("attached at most once").
+  attachedAt          DateTime?              @map("attached_at") @db.Timestamptz(3)
+  /// When it stopped being an avatar/cover (starts the grace period).
+  detachedAt          DateTime?              @map("detached_at") @db.Timestamptz(3)
+  /// When the storage objects were removed.
+  deletedAt           DateTime?              @map("deleted_at") @db.Timestamptz(3)
+  createdAt           DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner    User         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  avatarOf UserProfile? @relation("ProfileAvatar")
+  coverOf  LiveRoom?    @relation("RoomCover")
+
+  @@index([ownerUserId, createdAt(sort: Desc)], map: "media_objects_owner_created_idx")
+  @@index([ownerUserId], map: "media_objects_owner_pending_idx", where: raw("(status = 'AWAITING_UPLOAD'::media_status)"))
+  @@index([uploadExpiresAt], map: "media_objects_awaiting_expiry_idx", where: raw("(status = 'AWAITING_UPLOAD'::media_status)"))
+  @@index([completedAt], map: "media_objects_unattached_idx", where: raw("((status = 'READY'::media_status) AND (attached_at IS NULL))"))
+  @@index([detachedAt], map: "media_objects_detached_idx", where: raw("((status = 'READY'::media_status) AND (detached_at IS NOT NULL))"))
+  @@index([completedAt], map: "media_objects_moderation_pending_idx", where: raw("((status = 'READY'::media_status) AND (moderation_status = 'PENDING'::media_moderation_status))"))
+  @@index([moderatedAt], map: "media_objects_rejected_idx", where: raw("((status = 'READY'::media_status) AND (moderation_status = 'REJECTED'::media_moderation_status))"))
+  @@index([updatedAt], map: "media_objects_terminal_idx", where: raw("(status = ANY (ARRAY['FAILED'::media_status, 'EXPIRED'::media_status, 'DELETED'::media_status]))"))
+  @@map("media_objects")
 }

@@ -88,13 +88,17 @@ function liveApp(overrides: Record<string, string> = {}) {
 }
 
 describe('KL-037 contract coverage', () => {
-  it('openapi v1.3 declares exactly the ten new operations implemented here', () => {
+  it('openapi declares exactly the ten v1.3 operations implemented here, plus the two v1.4 live operations', () => {
     const v13 = operations()
       .filter((o) => /^\/api\/v1\/(live\/|users\/\{username\})/.test(o.path))
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(
       [
+        // v1.4 (KL-049; covered in kl049-v14.e2e-spec.ts)
+        'setLiveRoomCover',
+        'listLiveCountries',
+        // v1.3
         'getLiveConfig',
         'listLiveCategories',
         'listLiveRooms',
@@ -241,11 +245,20 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         viewerCount: 0,
         startedAt: clock.now().toISOString(),
         coverUrl: null,
+        coverThumbUrl: null,
         category: { slug: 'music', name: 'موسيقى' },
-        host: { id: host.id, username: host.username, displayName: 'ليلى', avatarUrl: null },
+        country: null,
+        host: {
+          id: host.id,
+          username: host.username,
+          displayName: 'ليلى',
+          avatarUrl: null,
+          avatarThumbUrl: null,
+        },
         status: 'LIVE',
         endedAt: null,
         endReason: null,
+        coverModeration: null,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -772,7 +785,9 @@ describe('KL-037 public profile and follow', () => {
       username: target.username,
       displayName: 'ليلى',
       avatarUrl: null,
+      avatarThumbUrl: null,
       bio: null,
+      country: null,
       isPrivate: false,
       followerCount: 0,
       followingCount: 0,

@@ -25,6 +25,38 @@ end
 return { count, ttl }
 `;
 
+/**
+ * Amount budget (e.g. declared upload bytes per day): adds ARGV[2] and, if that exceeds ARGV[3],
+ * takes it back in the same atomic step, so a rejected request never consumes budget and
+ * concurrent requests can never exceed it. Returns [allowed (1|0), ttlMilliseconds].
+ */
+const AMOUNT_SCRIPT = `
+local amount = tonumber(ARGV[2])
+local total = redis.call('INCRBY', KEYS[1], amount)
+if total == amount then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+if total > tonumber(ARGV[3]) then
+  redis.call('DECRBY', KEYS[1], amount)
+  return { 0, ttl }
+end
+return { 1, ttl }
+`;
+
+const REFUND_AMOUNT_SCRIPT = `
+local count = tonumber(redis.call('GET', KEYS[1]) or '0')
+local amount = math.min(count, tonumber(ARGV[1]))
+if amount > 0 then
+  redis.call('DECRBY', KEYS[1], amount)
+end
+return amount
+`;
+
 const REFUND_SCRIPT = `
 local count = tonumber(redis.call('GET', KEYS[1]) or '0')
 if count > 0 then
@@ -86,6 +118,44 @@ export class RateLimitService {
       throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
         'Retry-After': String(result.retryAfterSeconds),
       });
+    }
+  }
+
+  /**
+   * Consumes `amount` units of a per-window budget (`rule.max` units per `rule.windowSeconds`)
+   * or throws RATE_LIMITED (with `Retry-After`) without consuming anything (v1.4: daily declared
+   * upload bytes, CONVENTIONS §7).
+   */
+  async consumeAmount(bucket: string, subject: string, amount: number, rule: RateLimitRule): Promise<void> {
+    let reply: unknown;
+    try {
+      reply = await this.redis.eval(
+        AMOUNT_SCRIPT,
+        1,
+        this.keyFor(bucket, subject),
+        String(rule.windowSeconds * 1000),
+        String(amount),
+        String(rule.max),
+      );
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
+    }
+    const [allowed, ttlMs] = reply as [number, number];
+    if (allowed !== 1) {
+      throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
+        'Retry-After': String(Math.max(1, Math.ceil(ttlMs / 1000))),
+      });
+    }
+  }
+
+  /** Gives back `amount` units consumed by {@link consumeAmount} (never below zero). */
+  async refundAmount(bucket: string, subject: string, amount: number): Promise<void> {
+    try {
+      await this.redis.eval(REFUND_AMOUNT_SCRIPT, 1, this.keyFor(bucket, subject), String(amount));
+    } catch (err) {
+      this.logger.error({ error: safeErrorLog(err), bucket }, 'Rate limiter unavailable');
+      throw new AppException(ErrorCode.SERVICE_UNAVAILABLE);
     }
   }
 

@@ -3,6 +3,8 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type UserRole, type UserStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import type { ModerationStatus } from '../media/media.constants.js';
+import { MediaUrls, NO_IMAGE, type ImageUrls } from '../media/media-urls.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -13,7 +15,13 @@ export interface MeDto {
   username: string;
   displayName: string;
   bio: string | null;
+  /** v1.4: the caller's own avatar, also while PENDING (CONVENTIONS §11.5). */
   avatarUrl: string | null;
+  avatarThumbUrl: string | null;
+  /** v1.4: moderation state of the current avatar; null when there is none. */
+  avatarModeration: ModerationStatus | null;
+  /** v1.4: the country the user chose; null unless set. */
+  country: string | null;
   locale: 'ar' | 'en';
   role: UserRole;
   isPrivate: boolean;
@@ -25,9 +33,42 @@ export interface PublicUser {
   id: string;
   username: string;
   displayName: string;
+  /** v1.4: computed for the viewer under the moderation visibility rule (CONVENTIONS §11.5). */
   avatarUrl: string | null;
+  avatarThumbUrl: string | null;
   bio: string | null;
+  /** v1.4: the user's chosen country, else null. */
+  country: string | null;
   isPrivate: boolean;
+}
+
+/** The avatar columns read for URLs and visibility (never the original upload). */
+export const AVATAR_MEDIA_SELECT = {
+  ownerUserId: true,
+  purpose: true,
+  status: true,
+  publicToken: true,
+  moderationStatus: true,
+} as const;
+
+export interface AvatarMediaRow {
+  ownerUserId: string;
+  purpose: 'AVATAR' | 'ROOM_COVER';
+  status: string;
+  publicToken: string | null;
+  moderationStatus: ModerationStatus | null;
+}
+
+/** The profile columns `PATCH /me` changes (v1.4), locked for the edit. */
+export interface LockedProfile {
+  readonly avatarMediaId: string | null;
+  readonly country: string | null;
+}
+
+export interface ProfileUpdate {
+  readonly locale?: 'ar' | 'en';
+  readonly country?: string | null;
+  readonly avatarMediaId?: string | null;
 }
 
 /** A follow target locked for the duration of the caller's transaction. */
@@ -36,7 +77,10 @@ export interface LockedUser {
   isPrivate: boolean;
 }
 
-export const ME_INCLUDE = { profile: true, settings: true } as const;
+export const ME_INCLUDE = {
+  profile: { include: { avatarMedia: { select: AVATAR_MEDIA_SELECT } } },
+  settings: true,
+} as const;
 
 export interface UserWithProfile {
   id: string;
@@ -48,14 +92,21 @@ export interface UserWithProfile {
     username: string;
     displayName: string;
     bio: string | null;
-    avatarUrl: string | null;
     locale: string;
+    country: string | null;
+    avatarMedia: AvatarMediaRow | null;
   } | null;
   settings: { isPrivate: boolean } | null;
 }
 
-export function toMeDto(user: UserWithProfile): MeDto {
+/**
+ * `Me` for its owner. `urls` builds the avatar URLs (the owner sees a PENDING avatar); without
+ * it (a just-created account, which has no avatar) every image field is null.
+ */
+export function toMeDto(user: UserWithProfile, urls: MediaUrls | null = null): MeDto {
   if (!user.profile) throw new Error(`User ${user.id} has no profile`);
+  const media = user.profile.avatarMedia;
+  const avatar: ImageUrls = urls && media ? urls.visibleUrls(media, user.id) : NO_IMAGE;
   return {
     id: user.id,
     email: user.email,
@@ -63,7 +114,10 @@ export function toMeDto(user: UserWithProfile): MeDto {
     username: user.profile.username,
     displayName: user.profile.displayName,
     bio: user.profile.bio,
-    avatarUrl: user.profile.avatarUrl,
+    avatarUrl: avatar.url,
+    avatarThumbUrl: avatar.thumbUrl,
+    avatarModeration: media?.moderationStatus ?? null,
+    country: user.profile.country,
     locale: user.profile.locale === 'en' ? 'en' : 'ar',
     role: user.role,
     isPrivate: user.settings?.isPrivate ?? false,
@@ -125,11 +179,14 @@ export function uniqueViolationCode(err: unknown): ErrorCode.EMAIL_TAKEN | Error
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaUrls: MediaUrls,
+  ) {}
 
   async getMe(userId: string): Promise<MeDto | null> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: ME_INCLUDE });
-    return user ? toMeDto(user) : null;
+    return user ? toMeDto(user, this.mediaUrls) : null;
   }
 
   /**
@@ -252,7 +309,7 @@ export class UsersService {
    * filtered on `status = 'ACTIVE'`, so unknown, pending-only, SUSPENDED and DELETED are
    * indistinguishable and the response time does not depend on the reason.
    */
-  async findActivePublicUser(username: string): Promise<PublicUser | null> {
+  async findActivePublicUser(username: string, viewerId: string | null): Promise<PublicUser | null> {
     if (!isValidUsername(username)) return null;
     const profile = await this.prisma.userProfile.findFirst({
       where: { username, user: { status: 'ACTIVE' } },
@@ -260,20 +317,53 @@ export class UsersService {
         userId: true,
         username: true,
         displayName: true,
-        avatarUrl: true,
         bio: true,
+        country: true,
+        avatarMedia: { select: AVATAR_MEDIA_SELECT },
         user: { select: { settings: { select: { isPrivate: true } } } },
       },
     });
     if (!profile) return null;
+    const avatar = this.mediaUrls.visibleUrls(profile.avatarMedia, viewerId);
     return {
       id: profile.userId,
       username: profile.username,
       displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
+      avatarUrl: avatar.url,
+      avatarThumbUrl: avatar.thumbUrl,
       bio: profile.bio,
+      country: profile.country,
       isPrivate: profile.user.settings?.isPrivate ?? false,
     };
+  }
+
+  /**
+   * v1.4: the host's chosen country inside the go-live transaction, share-locked so a concurrent
+   * `PATCH /me` country change (which locks the row for update) is either seen or waits (§11.8).
+   */
+  async countryOfIn(tx: Prisma.TransactionClient, userId: string): Promise<string | null> {
+    const rows = await tx.$queryRaw<{ country: string | null }[]>`
+      SELECT country::text AS country FROM user_profiles WHERE user_id = ${userId}::uuid FOR SHARE`;
+    return rows[0]?.country ?? null;
+  }
+
+  /** v1.4 `PATCH /me`: locks the caller's profile row for the edit; null when it does not exist. */
+  async lockProfileIn(tx: Prisma.TransactionClient, userId: string): Promise<LockedProfile | null> {
+    const rows = await tx.$queryRaw<{ avatar_media_id: string | null; country: string | null }[]>`
+      SELECT avatar_media_id::text AS avatar_media_id, country::text AS country
+        FROM user_profiles WHERE user_id = ${userId}::uuid FOR UPDATE`;
+    const row = rows[0];
+    return row ? { avatarMediaId: row.avatar_media_id, country: row.country } : null;
+  }
+
+  /** v1.4 `PATCH /me`: writes the changed profile columns inside the caller's transaction. */
+  async updateProfileIn(tx: Prisma.TransactionClient, userId: string, update: ProfileUpdate): Promise<void> {
+    const data: Prisma.UserProfileUncheckedUpdateInput = {};
+    if (update.locale !== undefined) data.locale = update.locale;
+    if (update.country !== undefined) data.country = update.country;
+    if (update.avatarMediaId !== undefined) data.avatarMediaId = update.avatarMediaId;
+    if (Object.keys(data).length === 0) return;
+    await tx.userProfile.update({ where: { userId }, data });
   }
 
   /**
@@ -318,11 +408,5 @@ export class UsersService {
       data: { status, ...(status === 'DELETED' ? { deletedAt: at } : {}) },
     });
     return updated.count === 1;
-  }
-
-  /** PATCH /me (contract v1.2, KL-018): persists an explicit locale choice. */
-  async updateLocale(userId: string, locale: 'ar' | 'en'): Promise<MeDto | null> {
-    const updated = await this.prisma.userProfile.updateMany({ where: { userId }, data: { locale } });
-    return updated.count === 0 ? null : this.getMe(userId);
   }
 }

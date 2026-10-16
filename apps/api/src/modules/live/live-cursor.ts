@@ -5,16 +5,22 @@ import { z } from 'zod';
  * Signed keyset cursors for `GET /live/rooms` (CONVENTIONS §5, §10.4).
  *
  * Format: `base64url(JSON payload) "." base64url(HMAC-SHA-256 tag truncated to 128 bits)`.
- * The payload holds a format version, the tab, the category filter, the caller's user id (for
- * `following` only) and the sort key of the last row returned. Nothing in it is secret; the tag
+ * The payload holds a format version, the tab, the category filter, (v2, contract v1.4) the country
+ * filter, the caller's user id (for `following` only) and the sort key of the last row returned. Nothing in it is secret; the tag
  * only stops crafted cursors from turning into arbitrary keyset queries. A cursor that does not
- * decode, fails the tag, has an unknown version or was issued for another tab, category or
- * caller is rejected (the caller maps that to 400 `cursor` / `invalid_value`).
+ * decode, fails the tag, has an unknown version or was issued for another tab, category, country
+ * or caller is rejected (the caller maps that to 400 `cursor` / `invalid_value`).
+ *
+ * Versions (CONVENTIONS §10.4, v1.4): new cursors are version 2 and carry `k` (the country filter,
+ * or null). A version-1 cursor (issued by v1.3, without `k`) is still accepted, as if it carried no
+ * country, so it matches only a request without `country`.
  */
 export const LIVE_TABS = ['popular', 'new', 'following'] as const;
 export type LiveTab = (typeof LIVE_TABS)[number];
 
-export const CURSOR_VERSION = 1;
+export const CURSOR_VERSION = 2;
+/** v1.3 cursors (no country field) stay valid for requests without `country`. */
+export const LEGACY_CURSOR_VERSION = 1;
 const TAG_BYTES = 16;
 const TAG_CHARS = 22; // base64url of 16 bytes, no padding
 const MAX_CURSOR_CHARS = 512;
@@ -25,6 +31,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export interface CursorScope {
   readonly tab: LiveTab;
   readonly category: string | null;
+  /** v1.4: the country filter (ISO 3166-1 alpha-2) or null. */
+  readonly country: string | null;
   /** The caller's id for `following` (personal list); null for the public tabs. */
   readonly userId: string | null;
 }
@@ -49,6 +57,11 @@ const payloadSchema = z.strictObject({
   v: z.number(),
   t: z.enum(LIVE_TABS),
   c: z.string().max(32).nullable(),
+  k: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .nullable()
+    .optional(),
   u: z.string().regex(UUID).nullable(),
   n: z.number().int().min(0).max(CURSOR_MAX_VIEWER_COUNT),
   s: z.number().int().min(0).max(CURSOR_MAX_STARTED_AT_MS),
@@ -56,8 +69,18 @@ const payloadSchema = z.strictObject({
 });
 
 /** The scope a request maps to (`userId` is only bound for the personal `following` tab). */
-export function cursorScope(tab: LiveTab, category: string | undefined, callerId: string): CursorScope {
-  return { tab, category: category ?? null, userId: tab === 'following' ? callerId : null };
+export function cursorScope(
+  tab: LiveTab,
+  category: string | undefined,
+  callerId: string,
+  country?: string,
+): CursorScope {
+  return {
+    tab,
+    category: category ?? null,
+    country: country ?? null,
+    userId: tab === 'following' ? callerId : null,
+  };
 }
 
 export class LiveCursorCodec {
@@ -81,6 +104,7 @@ export class LiveCursorCodec {
         v: CURSOR_VERSION,
         t: scope.tab,
         c: scope.category,
+        k: scope.country,
         u: scope.userId,
         n: position.viewerCount,
         s: position.startedAt.getTime(),
@@ -112,8 +136,19 @@ export class LiveCursorCodec {
     const parsed = payloadSchema.safeParse(decoded);
     if (!parsed.success) return null;
     const p = parsed.data;
-    if (p.v !== CURSOR_VERSION) return null;
-    if (p.t !== scope.tab || p.c !== scope.category || p.u !== scope.userId) return null;
+    let country: string | null;
+    if (p.v === CURSOR_VERSION) {
+      if (p.k === undefined) return null;
+      country = p.k;
+    } else if (p.v === LEGACY_CURSOR_VERSION) {
+      if (p.k !== undefined) return null;
+      country = null;
+    } else {
+      return null;
+    }
+    if (p.t !== scope.tab || p.c !== scope.category || country !== scope.country || p.u !== scope.userId) {
+      return null;
+    }
     return { viewerCount: p.n, startedAt: new Date(p.s), id: p.i };
   }
 }

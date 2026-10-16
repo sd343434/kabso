@@ -24,6 +24,14 @@ export enum ErrorCode {
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   /** v1.3: going live / heartbeating disabled by LIVE_HOSTING_ENABLED=false (no Retry-After). */
   LIVE_HOSTING_UNAVAILABLE = 'LIVE_HOSTING_UNAVAILABLE',
+  /** v1.4: `complete` called but no object exists at the signed location yet (retryable). */
+  MEDIA_UPLOAD_NOT_RECEIVED = 'MEDIA_UPLOAD_NOT_RECEIVED',
+  /** v1.4: the upload window closed before `complete` succeeded. */
+  MEDIA_UPLOAD_EXPIRED = 'MEDIA_UPLOAD_EXPIRED',
+  /** v1.4: the uploaded file failed verification (`details`: one `{field: "file", issue}`). */
+  MEDIA_UPLOAD_REJECTED = 'MEDIA_UPLOAD_REJECTED',
+  /** v1.4: uploads disabled by MEDIA_UPLOADS_ENABLED=false (no Retry-After). */
+  MEDIA_UPLOADS_UNAVAILABLE = 'MEDIA_UPLOADS_UNAVAILABLE',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -46,6 +54,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.INTERNAL_ERROR]: 500,
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 503,
+  [ErrorCode.MEDIA_UPLOAD_NOT_RECEIVED]: 409,
+  [ErrorCode.MEDIA_UPLOAD_EXPIRED]: 410,
+  [ErrorCode.MEDIA_UPLOAD_REJECTED]: 422,
+  [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 503,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -68,6 +80,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.INTERNAL_ERROR]: 'Internal server error.',
   [ErrorCode.SERVICE_UNAVAILABLE]: 'Service temporarily unavailable.',
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 'Going live is not available.',
+  [ErrorCode.MEDIA_UPLOAD_NOT_RECEIVED]: 'The file has not been uploaded yet.',
+  [ErrorCode.MEDIA_UPLOAD_EXPIRED]: 'The upload has expired.',
+  [ErrorCode.MEDIA_UPLOAD_REJECTED]: 'The uploaded file was rejected.',
+  [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 'Image uploads are not available.',
 };
 
 export interface ErrorDetail {

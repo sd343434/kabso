@@ -6,12 +6,22 @@ import { describe, expect, it } from 'vitest';
 import { buildTextHygieneModule, HYGIENE_SOURCE_FILES } from '../../../scripts/generate-text-hygiene.mjs';
 import { loadConfig } from '../../config/app-config.js';
 import { liveTitleIssue } from '../live/live.schemas.js';
-import { HYGIENE_SOURCE_SHA256, HYGIENE_UNICODE_VERSION } from './data/text-hygiene.generated.js';
+import {
+  HYGIENE_SOURCE_SHA256,
+  HYGIENE_UNICODE_VERSION,
+  IVD_RELEASE,
+  IVD_SHA256,
+} from './data/text-hygiene.generated.js';
 import { normalizeDisplayName, rawDisplayNameIssue } from './display-name.js';
 import {
   categoryGroup,
   isDefaultIgnorable,
+  isListedVariationSequence,
   isVariationSelector,
+  IVD_VENDORED,
+  ivdSequences,
+  listedVariationSequences,
+  LISTED_VARIATION_BASES,
   RGI_EMOJI_COUNT,
   rgiEmojiSequences,
   trimHygiene,
@@ -27,7 +37,18 @@ const PINNED_SHA256: Record<string, string> = {
   'PropList.txt': '130dcddcaadaf071008bdfce1e7743e04fdfbc910886f017d9f9ac931d8c64dd',
   'emoji-sequences.txt': '12cc8267dc33cbd11ed32bcf6fc5dc2ad9c7a77bae1bdfba2f41b1b9b3ead8dd',
   'emoji-zwj-sequences.txt': '5b25441daed2322b068c5e70cda522946a4f0274df864445a1965a92e5fc5cad',
+  // v1.4 (SEC-039), same pinned commit; UCD 17.0.0 (ucd/17.0.0/ and ucd/17.0.0/emoji/).
+  'StandardizedVariants.txt': 'f55100b2fb11d3d75a37b8c1ab752192dbd1c4b12328c5ec6b38e3807c0ca597',
+  'emoji-variation-sequences.txt': 'bb3d09ef03f206012c7532dd52dc0a21c9efddba0135ea4cf0d9201b8b9bba7e',
 };
+
+/**
+ * SEC-039: the IVD release the contract pins. KL-049 could not obtain it from a verifiable source
+ * (unicode.org unreachable from the build environment, no byte-identical mirror found), so it is
+ * not vendored yet and the interim rule of text-hygiene.ts applies. When the file is added to
+ * data/ivd/, set its sha256 here and regenerate.
+ */
+const PINNED_IVD: { release: string; sha256: string | null } = { release: '2022-09-13', sha256: null };
 
 const dataPath = (name: string) => fileURLToPath(new URL(`./data/unicode-17/${name}`, import.meta.url));
 const cp = (...points: number[]) => String.fromCodePoint(...points);
@@ -65,6 +86,19 @@ describe('vendored Unicode 17.0.0 data (SEC-036)', () => {
     expect(files['PropList.txt']).toMatch(/^# PropList-17\.0\.0\.txt$/m);
     expect(files['emoji-sequences.txt']).toMatch(/^# Version: +17\.0$/m);
     expect(files['emoji-zwj-sequences.txt']).toMatch(/^# Version: +17\.0$/m);
+    expect(files['StandardizedVariants.txt']).toMatch(/^# StandardizedVariants-17\.0\.0\.txt$/m);
+    expect(files['emoji-variation-sequences.txt']).toMatch(/^# Version: +17\.0$/m);
+  });
+
+  it('IVD: either the pinned 2022-09-13 release is vendored, or the interim rule is active', () => {
+    if (IVD_VENDORED) {
+      expect(IVD_RELEASE).toBe(PINNED_IVD.release);
+      expect(IVD_SHA256).toBe(PINNED_IVD.sha256);
+    } else {
+      expect(IVD_RELEASE).toBeNull();
+      expect(IVD_SHA256).toBeNull();
+      expect([...ivdSequences()]).toEqual([]);
+    }
   });
 
   it('the generated tables equal a fresh generation from the vendored files', () => {
@@ -72,7 +106,7 @@ describe('vendored Unicode 17.0.0 data (SEC-036)', () => {
       fileURLToPath(new URL('./data/text-hygiene.generated.ts', import.meta.url)),
       'utf8',
     );
-    expect(buildTextHygieneModule(files)).toBe(generated);
+    expect(buildTextHygieneModule(files, null)).toBe(generated);
   });
 
   it('reads properties from the vendored data, not from the runtime', () => {
@@ -87,6 +121,9 @@ describe('vendored Unicode 17.0.0 data (SEC-036)', () => {
     expect(isVariationSelector(0xe0100)).toBe(true);
     expect(isVariationSelector(0x180e)).toBe(false);
     expect(RGI_EMOJI_COUNT).toBe(3953);
+    expect(LISTED_VARIATION_BASES).toBeGreaterThan(1000);
+    expect(isListedVariationSequence(0x2665, 0xfe0e)).toBe(true);
+    expect(isListedVariationSequence(0x61, 0xfe00)).toBe(false);
   });
 
   it('trims only space separators and U+FEFF', () => {
@@ -131,6 +168,24 @@ const MUST_PASS: [string, string][] = [
   ['U+00A0 inside a name', `Ali${cp(0xa0)}Hassan`],
   ['non-blank braille pattern', `Ali ${cp(0x283f)}`],
   ['U+3000 inside a name (CJK separator)', `李${cp(0x3000)}小龙`],
+  // v1.4 (SEC-039), §6 rule 7
+  ['Japanese name with a registered IVS (U+845B U+E0100)', `${cp(0x845b, 0xe0100)}飾 北斎`],
+  // A Moji_Joho sequence on 邉 U+9089 (registered in the IVD: 9089 E0101 / Moji_Joho). Accepted
+  // through the interim rule while the IVD file is not vendored (see the PINNED_IVD note).
+  ['Moji_Joho variant of 邉 U+9089', `渡${cp(0x9089, 0xe0101)} 太郎`],
+  ['U+2764 U+FE0F inside a name', `Lina ${cp(0x2764, 0xfe0f)} Ali`],
+  ['U+2665 U+FE0E inside a name', `Ali ${cp(0x2665, 0xfe0e)} Lina`],
+  ['keycap #️⃣', `Team ${cp(0x23, 0xfe0f, 0x20e3)}`],
+  ['digit with its listed text selector (U+0031 U+FE0E)', `Ali ${cp(0x31, 0xfe0e)}`],
+  ['CJK compatibility standardized variant (U+4E0D U+FE00)', `${cp(0x4e0d, 0xfe00)}二`],
+  [
+    'Mongolian name with a listed free variation selector (U+1820 U+180B)',
+    cp(0x1820, 0x180b, 0x182f, 0x1832, 0x1820, 0x1828),
+  ],
+  [
+    'U+202F inside a Mongolian name',
+    `${cp(0x1820, 0x182f, 0x1832, 0x1820, 0x1828)}${cp(0x202f)}${cp(0x1824)}`,
+  ],
 ];
 
 /** §6 rule 8: must be rejected, each alone and inside a name. */
@@ -180,6 +235,30 @@ const REJECTED_STRINGS: [string, string][] = [
   ['only U+3000', cp(0x3000)],
   ['line separator at the end', `Sara${cp(0x2028)}`],
   ['newline at the end', 'Sara\n'],
+  // v1.4 (SEC-039), §6 rule 8
+  ['U+16FE4 alone', cp(0x16fe4)],
+  ['U+16FE4 after a letter', `Ali${cp(0x16fe4)}`],
+  ['U+16FE4 inside a name', `Ali ${cp(0x16fe4)}Hassan`],
+  ['a U+FE00 (no listed sequence)', `Sa${cp(0xfe00)}ra`],
+  ['Latin letter + U+FE0E (not listed)', `Ali${cp(0xfe0e)}`],
+  ['م U+E0100', `علي م${cp(0xe0100)}`],
+  ['Cyrillic letter + U+FE00', `Иван${cp(0xfe00)}`],
+  ['Hebrew letter + U+E0100', `נועה${cp(0xe0100)}`],
+  ['Hangul syllable + U+FE00', `김민준${cp(0xfe00)}`],
+  ['CJK ideograph + a non-listed standardized selector (U+674E U+FE0F)', `${cp(0x674e, 0xfe0f)}小龙`],
+  ['U+2764 + U+FE00', `Lina ${cp(0x2764, 0xfe00)}`],
+  ['U+2665 + U+FE01', `Ali ${cp(0x2665, 0xfe01)}`],
+  ['listed text sequence + a second selector', `Ali ${cp(0x31, 0xfe0e, 0xfe0e)}`],
+  ['listed CJK compatibility variant + a second selector', `${cp(0x4e0d, 0xfe00, 0xfe00)}二`],
+  ['listed Mongolian FVS + a second FVS', cp(0x1820, 0x180b, 0x180b, 0x182f)],
+  ['registered IVS + a second IVS', `${cp(0x845b, 0xe0100, 0xe0101)}飾`],
+  ['Mongolian FVS4 U+180F after a letter (not listed)', cp(0x1820, 0x180f, 0x182f)],
+  ...[
+    0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x205f,
+  ].map((space): [string, string] => [
+    `U+${space.toString(16).toUpperCase()} inside a name`,
+    `Ali${cp(space)}Hassan`,
+  ]),
 ];
 
 describe.each([
@@ -217,6 +296,46 @@ describe.each([
     expect(count).toBe(3953);
     expect(rejected).toEqual([]);
   });
+
+  it('accepts every listed sequence of StandardizedVariants.txt and emoji-variation-sequences.txt whose base is valid on its own (SEC-039)', () => {
+    // In a name, so rule 5 (a letter, digit or RGI emoji) does not depend on the sequence: a text
+    // presentation sequence such as U+231A U+FE0E is not an RGI emoji, so alone it has no letter.
+    const rejected: string[] = [];
+    let checked = 0;
+    for (const [base, selector] of listedVariationSequences()) {
+      if (check(`Ali ${cp(base)}`) !== null) continue; // the base is not valid on its own
+      checked += 1;
+      if (check(`Ali ${cp(base, selector)}`) !== null) rejected.push(hexName(cp(base, selector)));
+    }
+    expect(checked).toBeGreaterThan(1500);
+    expect(rejected).toEqual([]);
+  });
+
+  it('accepts every registered IVD sequence whose base is valid on its own (when the IVD is vendored)', () => {
+    const rejected: string[] = [];
+    for (const [base, selector] of ivdSequences()) {
+      if (check(`Ali ${cp(base)}`) !== null) continue;
+      if (check(`Ali ${cp(base, selector)}`) !== null) rejected.push(hexName(cp(base, selector)));
+    }
+    expect(rejected).toEqual([]);
+  });
+
+  it.skipIf(!IVD_VENDORED)(
+    'rejects an ideographic selector that is not registered for its ideograph in the pinned IVD',
+    () => {
+      // Requires the vendored IVD (PINNED_IVD). U+4E00 has no registered sequence with U+E01EF.
+      expect(check(`${cp(0x4e00, 0xe01ef)}郎`)).toBe('invalid_format');
+    },
+  );
+
+  it.runIf(!IVD_VENDORED)(
+    'interim (IVD not vendored): an ideographic selector is accepted only after a Unified_Ideograph',
+    () => {
+      expect(check(`${cp(0x4e00, 0xe01ef)}郎`)).toBeNull();
+      expect(check(`${cp(0x3042, 0xe0100)}`)).toBe('invalid_format'); // Hiragana base
+      expect(check(`Ali${cp(0xe0100)}`)).toBe('invalid_format');
+    },
+  );
 
   it('never counts fillers or blank look-alikes as letters', () => {
     expect(check(`${cp(0x3164)}${ZWNJ}${cp(0x3164)}`)).toBe('invalid_format');
