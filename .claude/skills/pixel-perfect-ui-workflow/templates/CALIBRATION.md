@@ -1,7 +1,7 @@
 # Acceptance-profile calibration (D7), 2026-10-16
 
 **Status:**
-- `controlled` is partially calibrated: with the shipped 4×12 grid it detects 6 of 7 defects (see finding 2). A finer grid detecting all 7 is an **unmerged experiment** (finding 6).
+- `controlled` is partially calibrated, on ONE machine only. With 4×12 it detects 6 of 7 defects; with the experimental default `cell:24` (this branch, unmerged) it detects 7 of 7, but subtle icon **colour, opacity and stroke-weight** changes may go undetected (finding 6). It is not a release gate.
 - `cross_environment` is **ADVISORY**. `visual_diff.py` marks its verdict `"advisory": true`, and it is never a release gate. It stays advisory until calibrated on at least two genuinely different rendering environments; this sandbox has only one (headless Chromium), so that has not happened.
 - Threshold values are unchanged (`thresholds.json` sha256 `98767432…09be8`, guarded by `ThresholdsUnchangedTest`).
 
@@ -84,65 +84,64 @@ Each limit should be calibrated on at least two real environment pairs (for exam
 
 Font-weight regressions are not reliably detectable across environments by any metric here. The finer grid (finding 6) does not change this. Use same-environment (controlled) comparison, or a widget test that the weight resolves (see `public_profile_test.dart`, "every Inter weight the profile requests is bundled").
 
-### 6. Grid-size experiment (branch `claude/kl-054-grid-experiment`, local worktree, NOT merged)
+### 6. Controlled grid: `cell:24` (EXPERIMENT on `claude/kl-054-grid-experiment`, not merged, not a release gate)
 
-**Change tested:**
-- `--grid` also accepts `cell:N` (about N px per cell) and `cell:Nlp` (logical px; needs `--dpr`).
-- The experiment's default is `cell:32`, and the grid used is recorded in `metrics.json` (`inputs.grid`).
+> **Calibrated on ONE machine only.** All captures come from this sandbox: one headless Chromium, one CPU raster path, one font stack. The controlled noise floor on any other machine, GPU, browser build or device is **unmeasured**. Until a second machine has been measured, `cell:24` is the recommended experimental configuration, not an unconditional release gate.
+
+**Configuration:**
+- `visual_diff.py --grid` accepts `COLSxROWS`, `cell:N` (about N px per cell; cols = ceil(w/N), rows = ceil(h/N)) or `cell:Nlp` (logical px; needs `--dpr`). The experimental default is `cell:24`, which gives 11×24 cells on the 258×562 calibration images.
+- Every `metrics.json` records the grid used in `inputs.grid`, for example `{"spec": "cell:24", "cols": 11, "rows": 24}`. This was verified in all 52 runs below.
 - Thresholds are unchanged.
 
-**Run:** all 13 cases × 6 grids × 2 profiles.
+#### All 13 calibration cases, default `cell:24` vs the shipped 4×12
 
-Each cell shows the verdict and the worst cell MAE. *oos* marks an environment positive that is outside the controlled scope, where FAIL is expected.
+Values are the verdict and the worst cell MAE (`gridexp2/results.json`). *oos* marks an environment positive outside the controlled scope, where FAIL is expected.
 
-#### `controlled` profile
+| Case | Kind | controlled, cell:24 | controlled, 4×12 | cross_environment (ADVISORY), cell:24 |
+| ---- | ---- | ------------------- | ---------------- | ------------------------------------- |
+| rep1, rep2, rep3, nosubpixel | positive | PASS 0.00 | PASS 0.00 | PASS 0.00 |
+| dpr2 | env positive | FAIL 7.71 *(oos)* | FAIL 3.29 *(oos)* | PASS 7.71 |
+| direct | env positive | FAIL 17.82 *(oos)* | FAIL 7.66 *(oos)* | PASS 17.82 |
+| shift2lp | negative | FAIL 38.21 | FAIL 19.19 | PASS (FN) |
+| weight_fallback | negative | FAIL 9.95 | FAIL 2.34 (via changed@32) | PASS (FN) |
+| follow_state | negative | FAIL 109.45 | FAIL 68.41 | FAIL |
+| missing_follow | negative | FAIL 127.49 | FAIL 78.15 | FAIL |
+| icon_swap | negative | **FAIL 11.88** | PASS 3.86 **(FN)** | PASS (FN) |
+| image_swap | negative | FAIL 42.29 | FAIL 37.33 | PASS (FN) |
+| bg_color | negative | FAIL 8.33 | FAIL 8.33 | PASS (FN) |
+| **False negatives / false positives** | | **0 / 0** | 1 / 0 | 5 / 0 |
 
-| Case | 4×12 | 8×24 | cell:32 (9×18) | cell:24 (11×24) | cell:16 (17×36) | 16×48 |
-| ---- | ---- | ---- | -------------- | --------------- | --------------- | ----- |
-| rep1, rep2, rep3, nosubpixel | PASS 0.0 | PASS 0.0 | PASS 0.0 | PASS 0.0 | PASS 0.0 | PASS 0.0 |
-| dpr2 *(oos)* | FAIL 3.3 | FAIL 8.0 | FAIL 5.8 | FAIL 7.7 | FAIL 9.1 | FAIL 11.4 |
-| direct *(oos)* | FAIL 7.7 | FAIL 11.7 | FAIL 12.0 | FAIL 17.8 | FAIL 23.6 | FAIL 26.1 |
-| shift2lp | FAIL 19.2 | FAIL 34.4 | FAIL 28.7 | FAIL 38.2 | FAIL 45.6 | FAIL 67.9 |
-| weight_fallback | FAIL 2.3 | FAIL 7.5 | FAIL 7.2 | FAIL 10.0 | FAIL 19.6 | FAIL 20.8 |
-| follow_state | FAIL 68.4 | FAIL 106.0 | FAIL 114.8 | FAIL 109.4 | FAIL 152.1 | FAIL 156.4 |
-| missing_follow | FAIL 78.1 | FAIL 121.9 | FAIL 131.1 | FAIL 127.5 | FAIL 180.6 | FAIL 179.2 |
-| icon_swap | **PASS 3.9 (FN)** | FAIL 15.4 | FAIL 25.4 | FAIL 11.9 | FAIL 31.9 | FAIL 41.1 |
-| image_swap | FAIL 37.3 | FAIL 41.6 | FAIL 41.6 | FAIL 42.3 | FAIL 43.8 | FAIL 43.6 |
-| bg_color | FAIL 8.3 | FAIL 8.3 | FAIL 8.3 | FAIL 8.3 | FAIL 8.3 | FAIL 8.3 |
-| **False negatives / false positives** | 1 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+#### Grid alignment (`gridexp2/alignment_cell24.json`)
 
-**Which check catches each defect:**
-- icon_swap at every finer grid: `max_region_mae` only.
-- weight_fallback: `changed_pct@32` at every grid, plus `max_region_mae` at the finer grids.
+These are worst cell MAE values over all 576 offsets (0–23 px in x and in y) of the 24 px grid. The controlled limit is 4.0.
 
-#### `cross_environment` profile (advisory)
+| Case | Worst alignment | Median | Best alignment |
+| ---- | --------------- | ------ | -------------- |
+| rep1, rep2, rep3, nosubpixel | 0.00 | 0.00 | 0.00 |
+| icon_swap | **10.88** (2.7× the limit) | 28.0 | 39.6 |
+| weight_fallback | 4.44 (also fails changed@32 at every grid) | 9.51 | 11.6 |
+| shift2lp | 31.14 | 41.7 | 54.8 |
+| image_swap | 41.33 | 42.5 | 42.9 |
+| bg_color | 8.33 | 8.33 | 8.33 |
+| follow_state / missing_follow | 91.7 / 105.4 | | |
 
-| | 4×12 | 8×24 | cell:32 | cell:24 | cell:16 | 16×48 |
-| - | ---- | ---- | ------- | ------- | ------- | ----- |
-| False negatives (of 7 negatives) | 5 | 5 | 5 | 5 | 4 | 4 |
-| False positives | 0 | 0 | 0 | 0 | 0 | 0 |
+#### Subtler icon changes (synthetic probes on the bell icon, `gridexp2/subtle_icon_probes.json`)
 
-At cell:16 and 16×48, only shift2lp moves from a false negative to a correct fail.
+| Probe | Overall MAE | cell:24 (worst / alignment range) | 4×12 | component_metrics (bell) |
+| ----- | ----------- | --------------------------------- | ---- | ------------------------ |
+| 1 px horizontal shift | 0.083 | **FAIL** 7.15 (5.54–20.9) | PASS (FN) | dx 1.5 lp (detected) |
+| stroke 30 % lighter | 0.032 | **PASS (FN)** 2.15 (2.15–7.94) | PASS (FN) | IoU 1.0, ink ratio 1.00 (not detected) |
+| stroke 15 % lighter | 0.016 | **PASS (FN)** 1.07 (1.07–3.97) | PASS (FN) | not detected |
+| recolour (+40 red on the ink) | 0.009 | **PASS (FN)** 0.62 | PASS (FN) | IoU 0.92 (weak) |
 
-Grid size does not fix the cross-environment limitation, and it narrows the noise margin. The worst cell MAE of the `direct` pipeline rises from 7.7 at 4×12 to 26.1 at 16×48, against a region limit of 45.
+#### Conclusion
 
-#### Grid-alignment robustness
-
-The cell where a defect lands depends on where the grid lines fall. The table gives the worst cell MAE over grid offsets in 2 px steps (`gridexp/alignment.json`). The worst-case column takes the least favourable offset; the controlled limit is 4.0.
-
-| Case | cell:32 worst / best case | cell:24 | cell:16 |
-| ---- | ------------------------- | ------- | ------- |
-| icon_swap | **6.27** / 22.3 | 11.1 / 39.6 | 25.1 / 86.8 |
-| weight_fallback | 3.30 / 7.05 | 4.81 / 11.6 | 9.46 / 22.7 |
-| rep1 | 0 / 0 | 0 / 0 | 0 / 0 |
-
-#### Reading
-
-- In the controlled environment, any grid at or below about 32 px removes the icon_swap false negative without a false positive.
-- cell:32 keeps only a 1.6× worst-case margin. **Proposed, pending review: `cell:24`** (at least 2.8×).
-- The controlled noise floor on other machines is unmeasured. Smaller cells amplify any non-zero noise, so a second machine should be measured before choosing cell:16.
-
-The experiment adds 8 tests (`test_visual_diff_grid.py`). They pass in the worktree, and 7 of them fail or error against the trial's `visual_diff.py`.
+1. In this environment `cell:24` removes the icon_swap false negative and catches a 1 px icon shift. No false positive appeared on any available positive control: 4 repeat captures, at every grid alignment.
+2. **It does not catch subtle icon opacity, weight or colour changes.** Neither does the 4×12 grid, nor `component_metrics.py`, whose ink normalisation is colour-invariant by design. This remains an **open limitation**. A candidate remedy, an absolute ΔE2000 check on each icon's ink pixels, is not implemented.
+3. **Before `cell:24` can become a gate:**
+   - measure the repeat-capture noise floor on at least one more machine (different GPU or OS) and confirm it stays below 4.0 per 24 px cell at every alignment;
+   - get owner review of this evidence.
+4. Grid size does not change the advisory status of `cross_environment`. It also narrows that profile's noise margin: the direct pipeline's worst cell MAE goes from 7.66 to 17.82, against a limit of 45.
 
 ## Reproduce
 

@@ -13,7 +13,13 @@ Metrics (methodology is written into metrics.json):
   SSIM     luminance (Rec. 601) SSIM, Gaussian window sigma=1.5 (11x11), K1=0.01, K2=0.03,
            data range 255; computed in numpy (no scikit-image needed)
   changed  % of pixels whose max-channel difference exceeds each threshold (default 8/16/32/64)
-  regions  the same metrics per grid cell (default 4 columns x 12 rows), ranked worst first
+  regions  the same metrics per grid cell, ranked worst first. --grid COLSxROWS fixes the cell count;
+           --grid cell:N (pixels) or cell:Nlp (logical px, needs --dpr) sizes cells to about N
+           (cols = ceil(w/N), rows = ceil(h/N)). Default cell:24: a small changed component dominates
+           its cell instead of being averaged away. EXPERIMENTAL, calibrated on ONE machine only
+           (templates/CALIBRATION.md); the grid used is recorded in metrics.json inputs.grid.
+           Not a release gate. A PASS does not prove that small icons are unchanged: subtle icon
+           colour, opacity and stroke-weight changes may go undetected at any grid size.
   named    --regions FILE: the same metrics per named region ([{"name","x","y","w","h"}] in pixels)
   shift    --shift-search N: the integer (dx, dy) within +/-N px that minimises the luma MAE between the
            reference and the shifted output, globally and per named region. Reported only, never
@@ -36,7 +42,7 @@ Rules enforced:
 
 Usage:
   visual_diff.py --reference ref.png --output out.png --out diffdir \
-      [--dpr 3] [--mask "x,y,w,h:reason" ...] [--thresholds 8,16,32,64] [--grid 4x12] \
+      [--dpr 3] [--mask "x,y,w,h:reason" ...] [--thresholds 8,16,32,64] [--grid cell:24 | 4x12] \
       [--criteria thresholds.json --profile cross_environment] [--resample-reference "reason"] \
       [--regions regions.json] [--shift-search 4]
 Exit code: 0 = all configured criteria pass, 1 = a criterion fails, 2 = invalid input.
@@ -296,6 +302,26 @@ def parse_masks(items: list[str], h: int, w: int) -> tuple[np.ndarray, list[dict
     return keep, recorded
 
 
+def parse_grid(spec: str, w: int, h: int, dpr: float | None) -> tuple[int, int]:
+    """COLSxROWS, or cell:N (pixels) / cell:Nlp (logical px) -> (cols, rows) of cells of about N."""
+    spec = spec.strip().lower()
+    if spec.startswith("cell:"):
+        size = spec[5:]
+        if size.endswith("lp"):
+            if not dpr:
+                raise ValueError(f"{spec!r} needs --dpr")
+            px = float(size[:-2]) * dpr
+        else:
+            px = float(size)
+        if not px >= 1:
+            raise ValueError(f"cell size must be >= 1 px, got {spec!r}")
+        return max(1, -(-w // int(round(px)))), max(1, -(-h // int(round(px))))
+    parts = spec.split("x")
+    if len(parts) != 2 or not all(p.isdigit() and int(p) > 0 for p in parts):
+        raise ValueError(f"expected COLSxROWS or cell:N[lp], got {spec!r}")
+    return int(parts[0]), int(parts[1])
+
+
 def heat_image(d: np.ndarray) -> Image.Image:
     v = np.clip(d / 128.0, 0, 1)
     r = np.clip(v * 2, 0, 1)
@@ -312,7 +338,7 @@ def main() -> int:
     ap.add_argument("--dpr", type=float, default=None, help="device pixel ratio of BOTH images (for logical coordinates)")
     ap.add_argument("--mask", action="append", default=[], help="x,y,w,h:reason in PIXELS; applied to both images")
     ap.add_argument("--thresholds", default="8,16,32,64")
-    ap.add_argument("--grid", default="4x12", help="COLSxROWS for the regional breakdown")
+    ap.add_argument("--grid", default="cell:24", help="COLSxROWS, or cell:N / cell:Nlp (about N px per cell) for the regional breakdown")
     ap.add_argument("--criteria", type=Path, default=None, help="one profile object, or thresholds.json with --profile; when given, pass/fail is evaluated (fail closed)")
     ap.add_argument("--profile", default=None, help="profile name inside a nested criteria file (e.g. cross_environment)")
     ap.add_argument("--resample-reference", default=None, help="REASON; resizes the reference to the output size (recorded)")
@@ -375,7 +401,11 @@ def main() -> int:
         }
 
     overall = stats(keep)
-    cols, rows = (int(v) for v in a.grid.lower().split("x"))
+    try:
+        cols, rows = parse_grid(a.grid, w, h, a.dpr)
+    except ValueError as e:
+        print(f"invalid --grid: {e}", file=sys.stderr)
+        return 2
     regions = []
     for r in range(rows):
         for c in range(cols):
@@ -432,6 +462,7 @@ def main() -> int:
             "pixel_size": [w, h],
             "dpr": a.dpr,
             "logical_size": [round(w / a.dpr, 2), round(h / a.dpr, 2)] if a.dpr else None,
+            "grid": {"spec": a.grid, "cols": cols, "rows": rows},
         },
         "methodology": METHOD,
         "notes": notes,
