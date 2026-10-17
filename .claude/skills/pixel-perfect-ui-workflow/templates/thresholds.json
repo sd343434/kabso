@@ -1,0 +1,37 @@
+{
+  "$comment": "Acceptance profiles for visual_diff.py --criteria. Copy and tune per screen; never loosen a profile to make a failing run pass — record the failure and its cause instead. Pick the profile that matches how controlled the environment is.",
+  "profiles": {
+    "controlled": {
+      "profile": "controlled",
+      "$use_when": "Same renderer, fonts, assets, DPR, viewport, insets and app state as the reference (e.g. golden vs golden, or our own build vs our own approved capture).",
+      "max_mae": 1.0,
+      "min_ssim": 0.995,
+      "max_changed_pct": { "16": 0.5, "32": 0.1 },
+      "max_region_mae": 4.0,
+      "max_masked_pixel_pct": 5.0
+    },
+    "cross_environment": {
+      "profile": "cross_environment",
+      "$use_when": "Reference from a different app/device (third-party screenshot): different fonts, photos, text anti-aliasing. Numbers are evidence only; combine with geometry checks and manual review.",
+      "max_mae": 18.0,
+      "min_ssim": 0.80,
+      "max_changed_pct": { "32": 25.0, "64": 10.0 },
+      "max_region_mae": 45.0,
+      "max_masked_pixel_pct": 10.0
+    }
+  },
+  "geometry": {
+    "$comment": "Measured with measure.py on both images, in logical px. Tolerances are per element type.",
+    "position_tolerance_lp": 2,
+    "size_tolerance_lp": 2,
+    "radius_tolerance_lp": 2,
+    "color_delta_max_channel": 6
+  },
+  "always_required": [
+    "identical viewport (logical) and DPR between reference and output, or a recorded resample with reason",
+    "no overflow / clipped elements (flutter test overflow checks + visual)",
+    "no navigation or functional regressions (existing test suite green)",
+    "MAE and SSIM reported for every comparison",
+    "every significant discrepancy fixed or documented with its cause"
+  ]
+}

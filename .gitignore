@@ -39,3 +39,7 @@ Thumbs.db
 
 # D40: reference screenshots never committed while the repository is public
 /design/references/
+
+# Python bytecode caches (e.g. from .claude/skills tooling scripts)
+__pycache__/
+*.py[cod]
