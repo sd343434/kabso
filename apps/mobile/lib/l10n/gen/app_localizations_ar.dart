@@ -675,6 +675,43 @@ class AppLocalizationsAr extends AppLocalizations {
   String get feedTabNew => 'جديد';
 
   @override
+  String get feedPreviewTestData => 'بيانات اختبار';
+
+  @override
+  String get feedOpenLive => 'البث المباشر';
+
+  @override
+  String get feedActionLike => 'إعجاب';
+
+  @override
+  String get feedActionComment => 'تعليقات';
+
+  @override
+  String get feedActionSave => 'حفظ';
+
+  @override
+  String livePreviewJoined(String name) {
+    return '$name انضم';
+  }
+
+  @override
+  String get livePreviewMinimize => 'تصغير';
+
+  @override
+  String get livePreviewBalance => 'الرصيد';
+
+  @override
+  String get livePreviewMore => 'المزيد';
+
+  @override
+  String get livePreviewEmoji => 'رموز تعبيرية';
+
+  @override
+  String livePreviewRank(int rank) {
+    return 'الترتيب الأسبوعي #$rank';
+  }
+
+  @override
   String get feedSearch => 'بحث';
 
   @override
@@ -912,4 +949,36 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get multiGuestHost => 'المضيف';
+
+  @override
+  String get shareSheetTitle => 'مشاركة إلى';
+
+  @override
+  String get shareRepost => 'إعادة نشر';
+
+  @override
+  String get shareCopyLink => 'نسخ الرابط';
+
+  @override
+  String get shareSend => 'إرسال';
+
+  @override
+  String get shareSaveVideo => 'حفظ الفيديو';
+
+  @override
+  String get shareReport => 'إبلاغ';
+
+  @override
+  String get messagesPreviewHint => 'اكتب رسالة…';
+
+  @override
+  String get messagesPreviewSend => 'إرسال';
+
+  @override
+  String get messagesPreviewPlay => 'تشغيل الفيديو';
+
+  @override
+  String messagesPreviewReaction(String emoji) {
+    return 'تفاعل $emoji';
+  }
 }

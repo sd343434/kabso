@@ -28,6 +28,18 @@ abstract final class AppRoutes {
   /// KL-022 component gallery. Registered only when `!kReleaseMode`.
   static const debugComponents = '/debug/components';
 
+  /// KL-056 full-screen vertical feed preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugFeedPreview = '/debug/feed-preview';
+
+  /// KL-056 full-screen live room preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugLivePreview = '/debug/live-preview';
+
+  /// KL-056 private conversation preview with labelled test data.
+  /// Registered only when `!kReleaseMode`.
+  static const debugMessagesPreview = '/debug/messages-preview';
+
   /// Reachable without a session.
   static const Set<String> publicAuthRoutes = {
     login,

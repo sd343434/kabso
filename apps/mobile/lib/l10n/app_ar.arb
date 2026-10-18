@@ -480,6 +480,31 @@
     "description": "KL-033 primary tab; the default tab."
   },
   "feedTabNew": "جديد",
+  "feedPreviewTestData": "بيانات اختبار",
+  "feedOpenLive": "البث المباشر",
+  "feedActionLike": "إعجاب",
+  "feedActionComment": "تعليقات",
+  "feedActionSave": "حفظ",
+  "livePreviewJoined": "{name} انضم",
+  "@livePreviewJoined": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "livePreviewMinimize": "تصغير",
+  "livePreviewBalance": "الرصيد",
+  "livePreviewMore": "المزيد",
+  "livePreviewEmoji": "رموز تعبيرية",
+  "livePreviewRank": "الترتيب الأسبوعي #{rank}",
+  "@livePreviewRank": {
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      }
+    }
+  },
   "@feedTabNew": {
     "description": "KL-033 primary tab: most recent first."
   },
@@ -694,5 +719,18 @@
       }
     }
   },
-  "multiGuestHost": "المضيف"
+  "multiGuestHost": "المضيف",
+  "shareSheetTitle": "مشاركة إلى",
+  "@shareSheetTitle": {"description": "KL-056 preview share sheet title."},
+  "shareRepost": "إعادة نشر",
+  "shareCopyLink": "نسخ الرابط",
+  "shareSend": "إرسال",
+  "shareSaveVideo": "حفظ الفيديو",
+  "shareReport": "إبلاغ",
+  "messagesPreviewHint": "اكتب رسالة…",
+  "@messagesPreviewHint": {"description": "KL-056 messages preview composer hint."},
+  "messagesPreviewSend": "إرسال",
+  "messagesPreviewPlay": "تشغيل الفيديو",
+  "messagesPreviewReaction": "تفاعل {emoji}",
+  "@messagesPreviewReaction": {"placeholders": {"emoji": {"type": "String"}}}
 }

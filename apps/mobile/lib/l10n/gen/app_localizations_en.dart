@@ -660,6 +660,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedTabNew => 'New';
 
   @override
+  String get feedPreviewTestData => 'Test data';
+
+  @override
+  String get feedOpenLive => 'Live';
+
+  @override
+  String get feedActionLike => 'Like';
+
+  @override
+  String get feedActionComment => 'Comments';
+
+  @override
+  String get feedActionSave => 'Save';
+
+  @override
+  String livePreviewJoined(String name) {
+    return '$name joined';
+  }
+
+  @override
+  String get livePreviewMinimize => 'Minimise';
+
+  @override
+  String get livePreviewBalance => 'Balance';
+
+  @override
+  String get livePreviewMore => 'More';
+
+  @override
+  String get livePreviewEmoji => 'Emoji';
+
+  @override
+  String livePreviewRank(int rank) {
+    return 'Weekly rank #$rank';
+  }
+
+  @override
   String get feedSearch => 'Search';
 
   @override
@@ -890,4 +927,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get multiGuestHost => 'Host';
+
+  @override
+  String get shareSheetTitle => 'Share to';
+
+  @override
+  String get shareRepost => 'Repost';
+
+  @override
+  String get shareCopyLink => 'Copy link';
+
+  @override
+  String get shareSend => 'Send';
+
+  @override
+  String get shareSaveVideo => 'Save video';
+
+  @override
+  String get shareReport => 'Report';
+
+  @override
+  String get messagesPreviewHint => 'Send a message…';
+
+  @override
+  String get messagesPreviewSend => 'Send';
+
+  @override
+  String get messagesPreviewPlay => 'Play video';
+
+  @override
+  String messagesPreviewReaction(String emoji) {
+    return 'Reaction $emoji';
+  }
 }

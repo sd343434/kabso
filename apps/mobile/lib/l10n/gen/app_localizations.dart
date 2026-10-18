@@ -1196,6 +1196,72 @@ abstract class AppLocalizations {
   /// **'جديد'**
   String get feedTabNew;
 
+  /// No description provided for @feedPreviewTestData.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات اختبار'**
+  String get feedPreviewTestData;
+
+  /// No description provided for @feedOpenLive.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get feedOpenLive;
+
+  /// No description provided for @feedActionLike.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعجاب'**
+  String get feedActionLike;
+
+  /// No description provided for @feedActionComment.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليقات'**
+  String get feedActionComment;
+
+  /// No description provided for @feedActionSave.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get feedActionSave;
+
+  /// No description provided for @livePreviewJoined.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} انضم'**
+  String livePreviewJoined(String name);
+
+  /// No description provided for @livePreviewMinimize.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصغير'**
+  String get livePreviewMinimize;
+
+  /// No description provided for @livePreviewBalance.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرصيد'**
+  String get livePreviewBalance;
+
+  /// No description provided for @livePreviewMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get livePreviewMore;
+
+  /// No description provided for @livePreviewEmoji.
+  ///
+  /// In ar, this message translates to:
+  /// **'رموز تعبيرية'**
+  String get livePreviewEmoji;
+
+  /// No description provided for @livePreviewRank.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب الأسبوعي #{rank}'**
+  String livePreviewRank(int rank);
+
   /// Semantics/tooltip of the header search button; opens Discover.
   ///
   /// In ar, this message translates to:
@@ -1579,6 +1645,66 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المضيف'**
   String get multiGuestHost;
+
+  /// KL-056 preview share sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة إلى'**
+  String get shareSheetTitle;
+
+  /// No description provided for @shareRepost.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة نشر'**
+  String get shareRepost;
+
+  /// No description provided for @shareCopyLink.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ الرابط'**
+  String get shareCopyLink;
+
+  /// No description provided for @shareSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get shareSend;
+
+  /// No description provided for @shareSaveVideo.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ الفيديو'**
+  String get shareSaveVideo;
+
+  /// No description provided for @shareReport.
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ'**
+  String get shareReport;
+
+  /// KL-056 messages preview composer hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالة…'**
+  String get messagesPreviewHint;
+
+  /// No description provided for @messagesPreviewSend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get messagesPreviewSend;
+
+  /// No description provided for @messagesPreviewPlay.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الفيديو'**
+  String get messagesPreviewPlay;
+
+  /// No description provided for @messagesPreviewReaction.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفاعل {emoji}'**
+  String messagesPreviewReaction(String emoji);
 }
 
 class _AppLocalizationsDelegate

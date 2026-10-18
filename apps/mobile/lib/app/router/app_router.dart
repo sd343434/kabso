@@ -12,6 +12,9 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
+import 'package:kabso_live/features/debug/feed_preview_screen.dart';
+import 'package:kabso_live/features/debug/live_preview_screen.dart';
+import 'package:kabso_live/features/debug/messages_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/home_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
@@ -71,6 +74,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: AppRoutes.debugComponents,
           builder: (_, _) => const ComponentGalleryScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugFeedPreview,
+          builder: (_, _) => const FeedPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugLivePreview,
+          builder: (_, _) => const LivePreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugMessagesPreview,
+          builder: (_, _) => const MessagesPreviewScreen(),
         ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(navigationShell: shell),
