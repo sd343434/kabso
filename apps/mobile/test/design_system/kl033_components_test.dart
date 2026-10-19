@@ -1,6 +1,7 @@
 // KL-033 component refactors: primary tabs, chips, compact states, badge
 // additions and the bottom-nav styling.
 
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -285,36 +286,31 @@ void main() {
       ),
     );
 
-    testWidgets('active: filled icon, textPrimary label, primary dot; '
-        'inactive: outline icon, textSecondary; no red labels', (tester) async {
+    testWidgets('D49: active = filled echo icon + textPrimary label; '
+        'inactive = outline icon + textSecondary; no dot', (tester) async {
       await pumpNav(tester, 0);
       const p = KPalette.dark;
       Color labelColor(String label) =>
           tester.widget<Text>(find.text(label)).style!.color!;
       expect(labelColor('Home'), p.textPrimary);
-      for (final label in ['Discover', 'Live', 'Profile']) {
+      for (final label in ['Discover', 'Reels', 'Profile']) {
         expect(labelColor(label), p.textSecondary);
       }
-      expect(find.byIcon(Icons.home_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
-      expect(find.byIcon(Icons.sensors_outlined), findsOneWidget);
-
-      final dots = tester
-          .widgetList<AnimatedOpacity>(find.byType(AnimatedOpacity))
-          .map((o) => o.opacity)
-          .toList();
-      expect(dots, [1, 0, 0, 0, 0]);
-      final dot = find
-          .descendant(
-            of: find.byType(AnimatedOpacity).first,
-            matching: find.byType(Container),
-          )
-          .first;
-      expect(tester.getSize(dot), const Size.square(KMetrics.navDotSize));
-      expect(
-        (tester.widget<Container>(dot).decoration! as BoxDecoration).color,
-        p.primary,
-      );
+      final icons = {
+        for (final svg in tester.widgetList<SvgPicture>(
+          find.byType(SvgPicture),
+        ))
+          (svg.bytesLoader as SvgAssetLoader).assetName:
+              (svg.bytesLoader as SvgAssetLoader).theme?.currentColor,
+      };
+      expect(icons, {
+        KNavIcons.homeFilled: p.textPrimary,
+        KNavIcons.discoverOutline: p.textSecondary,
+        KNavIcons.create: null,
+        KNavIcons.reelsOutline: p.textSecondary,
+        KNavIcons.profileOutline: p.textSecondary,
+      });
+      expect(find.byType(AnimatedOpacity), findsNothing);
     });
 
     testWidgets('Create keeps its label-less pill with a "Create" name', (

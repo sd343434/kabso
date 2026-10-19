@@ -7,6 +7,8 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -20,7 +22,7 @@ const _navKeys = [
   Key('nav.home'),
   Key('nav.discover'),
   Key('nav.create'),
-  Key('nav.live'),
+  Key('nav.reels'),
   Key('nav.profile'),
 ];
 
@@ -53,13 +55,14 @@ void main() {
       for (final key in _navKeys) {
         expect(find.byKey(key), findsOneWidget);
       }
-      expect(find.text(l10n.homePopularUnavailableTitle), findsOneWidget);
+      // Home is the live hub (D48).
+      expect(find.text(l10n.liveHubPopularUnavailableTitle), findsOneWidget);
 
       final expected = {
         const Key('nav.discover'): l10n.discoverComingTitle,
         const Key('nav.create'): l10n.createComingTitle,
-        const Key('nav.live'): l10n.liveHubPopularUnavailableTitle,
-        const Key('nav.home'): l10n.homePopularUnavailableTitle,
+        const Key('nav.reels'): l10n.homePopularUnavailableTitle,
+        const Key('nav.home'): l10n.liveHubPopularUnavailableTitle,
       };
       for (final MapEntry(:key, :value) in expected.entries) {
         await tester.tap(find.byKey(key));
@@ -78,19 +81,21 @@ void main() {
       expect(repo.getMeCalls, greaterThanOrEqualTo(1));
       expect(find.text('Layla From Me'), findsOneWidget);
       expect(find.text('Stored Layla'), findsNothing);
-      // TopBar title and the body line both show @username (§5.4).
+      // The TopBar title shows @username (§5.4); the body shows the name
+      // (D57).
       expect(
         tester.widget<Text>(find.byKey(const Key('profile.title'))).data,
-        '@layla.k',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('profile.username'))).data,
         '@layla.k',
       );
       // v1.2 §0: no verify banner / "Not verified" UI, even though this
       // fake user has emailVerified=false.
       expect(find.byKey(const Key('profile.emailStatus')), findsNothing);
       expect(find.byKey(ProfileScreen.settingsButtonKey), findsOneWidget);
+
+      // D58: "Edit profile" opens the (read-only) edit screen.
+      await tester.tap(find.byKey(ProfileScreen.editButtonKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditProfileScreen), findsOneWidget);
     });
 
     testWidgets('settings: language switch to Arabic and logout', (
@@ -206,10 +211,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
-      expect(
-        find.text(l10nFor(AppLanguage.en).homePopularUnavailableTitle),
-        findsOne,
-      );
+      // Home is the live hub (D48).
+      expect(find.byType(LiveScreen), findsOne);
     });
 
     testWidgets('suspended account: refresh 403 ACCOUNT_SUSPENDED clears the '

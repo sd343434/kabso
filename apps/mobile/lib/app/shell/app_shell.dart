@@ -1,3 +1,4 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -31,40 +32,61 @@ class AppShell extends StatelessWidget {
 }
 
 /// The five shell destinations in navigation order (start → end), matching
-/// `AppRoutes.shellBranches`.
+/// `AppRoutes.shellBranches`. Icons: the owner's Kabso set (D56).
 List<KBottomNavItem> shellNavItems(AppLocalizations l10n) => [
   KBottomNavItem(
     key: const Key('nav.home'),
-    icon: Icons.home_outlined,
-    activeIcon: Icons.home_rounded,
+    icon: KNavIcons.homeOutline,
+    activeIcon: KNavIcons.homeFilled,
     label: l10n.navHome,
   ),
   KBottomNavItem(
     key: const Key('nav.discover'),
-    icon: Icons.explore_outlined,
-    activeIcon: Icons.explore_rounded,
+    icon: KNavIcons.discoverOutline,
+    activeIcon: KNavIcons.discoverFilled,
     label: l10n.navDiscover,
   ),
   KBottomNavItem(
     key: const Key('nav.create'),
-    icon: Icons.add_rounded,
-    activeIcon: Icons.add_rounded,
+    icon: KNavIcons.create,
+    activeIcon: KNavIcons.create,
     label: l10n.navCreate,
     prominent: true,
   ),
   KBottomNavItem(
-    key: const Key('nav.live'),
-    icon: Icons.sensors_outlined,
-    activeIcon: Icons.sensors_rounded,
-    label: l10n.navLive,
+    key: const Key('nav.reels'),
+    icon: KNavIcons.reelsOutline,
+    activeIcon: KNavIcons.reelsFilled,
+    label: l10n.navReels,
   ),
   KBottomNavItem(
     key: const Key('nav.profile'),
-    icon: Icons.person_outline_rounded,
-    activeIcon: Icons.person_rounded,
+    icon: KNavIcons.profileOutline,
+    activeIcon: KNavIcons.profileFilled,
     label: l10n.navProfile,
   ),
 ];
+
+/// The bottom-bar icons (D56): the owner's Kabso set, outline when
+/// inactive and filled when active, drawn in `currentColor`. The Create
+/// pill keeps its red asset (D49).
+abstract final class KNavIcons {
+  static const String _p = 'assets/icons';
+  static const String homeOutline = '$_p/home_outline.svg';
+  static const String homeFilled = '$_p/home_filled.svg';
+  static const String discoverOutline = '$_p/discover_outline.svg';
+  static const String discoverFilled = '$_p/discover_filled.svg';
+  static const String reelsOutline = '$_p/reels_outline.svg';
+  static const String reelsFilled = '$_p/reels_filled.svg';
+  static const String profileOutline = '$_p/profile_outline.svg';
+  static const String profileFilled = '$_p/profile_filled.svg';
+
+  /// The Create pill, red with its offset shadow (multicolour, untinted).
+  static const String create = 'assets/icons/nav/create.svg';
+
+  static const double iconSize = 26;
+  static const Size createSize = Size(54, 36);
+}
 
 @immutable
 class KBottomNavItem {
@@ -77,11 +99,14 @@ class KBottomNavItem {
   });
 
   final Key key;
-  final IconData icon;
-  final IconData activeIcon;
+
+  /// SVG asset paths ([KNavIcons]): outline when inactive, filled when
+  /// active.
+  final String icon;
+  final String activeIcon;
   final String label;
 
-  /// The centred Create action, drawn as a `primary` pill with no visible
+  /// The centred Create action, drawn as the red pill asset with no visible
   /// label (the label is its screen-reader name).
   final bool prominent;
 }
@@ -130,7 +155,7 @@ class KBottomNav extends StatelessWidget {
   }
 }
 
-class _NavButton extends StatelessWidget {
+class _NavButton extends StatefulWidget {
   const new({required this.item, required this.selected, required this.onTap});
 
   final KBottomNavItem item;
@@ -138,48 +163,95 @@ class _NavButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce = AnimationController(
+    vsync: this,
+    duration: _bounceDuration,
+  );
+
+  static const _bounceDuration = Duration(milliseconds: 400);
+
+  /// Becoming active: a short squash-and-pop (owner's bar), skipped when
+  /// the platform asks to reduce motion.
+  late final Animation<double> _scale = TweenSequence<double>([
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: 1,
+        end: 0.8,
+      ).chain(CurveTween(curve: Curves.easeOut)),
+      weight: 25,
+    ),
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: 0.8,
+        end: 1.15,
+      ).chain(CurveTween(curve: Curves.easeOut)),
+      weight: 40,
+    ),
+    TweenSequenceItem(
+      tween: Tween<double>(
+        begin: 1.15,
+        end: 1,
+      ).chain(CurveTween(curve: Curves.easeInOut)),
+      weight: 35,
+    ),
+  ]).animate(_bounce);
+
+  @override
+  void didUpdateWidget(_NavButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected &&
+        !oldWidget.selected &&
+        KMotion.of(context, _bounceDuration) > Duration.zero) {
+      _bounce.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    // HL-N1 §2 styling: the active item is a filled icon, a `textPrimary`
-    // label and a 4 dp `primary` dot above the icon; inactive items are
-    // outline icons with `textSecondary` labels. Red stays on the dot only.
+    final item = widget.item;
+    final selected = widget.selected;
+    // D49/D56: the active item is its filled icon with a `textPrimary`
+    // label; inactive items are outline icons with `textSecondary` labels.
     final color = selected ? p.textPrimary : p.textSecondary;
-    final duration = KMotion.of(context, KMotion.fast);
 
     final Widget icon;
     if (item.prominent) {
-      // G-21 / DESIGN_SYSTEM §9.6: a plain `primary` pill (the live
-      // gradient is reserved for live surfaces), 44×32, radius md.
-      icon = Container(
-        width: KSpacing.xxl + KSpacing.md,
-        height: KSpacing.xxl,
-        decoration: BoxDecoration(
-          color: p.primary,
-          borderRadius: BorderRadius.circular(KRadius.md),
-        ),
-        child: Icon(item.icon, color: p.onPrimary, size: KSpacing.xl),
+      icon = SvgPicture.asset(
+        item.icon,
+        width: KNavIcons.createSize.width,
+        height: KNavIcons.createSize.height,
+        excludeFromSemantics: true,
       );
     } else {
-      icon = Icon(
-        selected ? item.activeIcon : item.icon,
-        color: color,
-        size: KMetrics.iconMd,
+      final asset = selected ? item.activeIcon : item.icon;
+      icon = ScaleTransition(
+        scale: _scale,
+        child: SvgPicture.asset(
+          asset,
+          key: ValueKey(asset),
+          width: KNavIcons.iconSize,
+          height: KNavIcons.iconSize,
+          excludeFromSemantics: true,
+          theme: SvgTheme(currentColor: color),
+        ),
       );
     }
 
     final visual = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedOpacity(
-          duration: duration,
-          opacity: selected ? 1 : 0,
-          child: Container(
-            width: KMetrics.navDotSize,
-            height: KMetrics.navDotSize,
-            decoration: BoxDecoration(color: p.primary, shape: BoxShape.circle),
-          ),
-        ),
-        const SizedBox(height: KSpacing.xxs),
         icon,
         if (!item.prominent) ...[
           const SizedBox(height: KSpacing.xxs),
@@ -192,7 +264,7 @@ class _NavButton extends StatelessWidget {
                 .clamp(maxScaleFactor: 1.15),
             style: context.textStyles.caption.copyWith(
               color: color,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               height: 1.2,
             ),
           ),
@@ -206,9 +278,9 @@ class _NavButton extends StatelessWidget {
       selected: selected,
       label: item.label,
       excludeSemantics: true,
-      onTap: onTap,
+      onTap: widget.onTap,
       child: InkResponse(
-        onTap: onTap,
+        onTap: widget.onTap,
         containedInkWell: true,
         highlightShape: BoxShape.rectangle,
         child: ConstrainedBox(
