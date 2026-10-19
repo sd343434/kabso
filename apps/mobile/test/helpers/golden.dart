@@ -1,6 +1,6 @@
 // G-26 golden-test infrastructure (REFERENCE_INVENTORY §6.1).
 //
-// - Real fonts: Inter, IBM Plex Sans Arabic and Material Icons are loaded
+// - Real fonts: Inter, Readex Pro and Material Icons are loaded
 //   with FontLoader (flutter_test defaults to Ahem, which hides Arabic
 //   shaping and icon problems).
 // - Pinned viewports: 393×852 @3x (primary) and 360×800 @3x (Android).
@@ -60,9 +60,10 @@ Future<void> loadAppFonts() async {
     'assets/fonts/Inter-Bold.ttf',
   ]);
   await family(KFonts.arabic, const [
-    'assets/fonts/IBMPlexSansArabic-Regular.ttf',
-    'assets/fonts/IBMPlexSansArabic-SemiBold.ttf',
-    'assets/fonts/IBMPlexSansArabic-Bold.ttf',
+    'assets/fonts/ReadexPro-Regular.ttf',
+    'assets/fonts/ReadexPro-Medium.ttf',
+    'assets/fonts/ReadexPro-SemiBold.ttf',
+    'assets/fonts/ReadexPro-Bold.ttf',
   ]);
   // Bundled by `uses-material-design: true`.
   await family('MaterialIcons', const ['fonts/MaterialIcons-Regular.otf']);

@@ -153,10 +153,11 @@ abstract final class KRadius {
 /// `typography`
 abstract final class KFonts {
   static const latin = 'Inter';
-  static const arabic = 'IBM Plex Sans Arabic';
+  static const arabic = 'Readex Pro';
 
-  /// Arabic locales use IBM Plex Sans Arabic (which also covers Latin);
-  /// other locales use Inter with Plex Arabic as fallback for Arabic text.
+  /// Arabic locales use Readex Pro (D47; the bundled files also cover
+  /// Latin); other locales use Inter with Readex Pro as fallback for Arabic
+  /// text.
   static String familyFor(Locale locale) =>
       locale.languageCode == 'ar' ? arabic : latin;
 

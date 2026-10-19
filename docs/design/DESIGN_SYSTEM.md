@@ -149,8 +149,8 @@ UI component boundaries & meaningful icons ≥ 3:1. **FAIL** = below 4.5:1 for b
 
 | Script | Family | Weights bundled | Notes |
 | ------ | ------ | --------------- | ----- |
-| Arabic | `IBM Plex Sans Arabic` (OFL-1.1) | 400, 600, 700 | Used whenever the app locale is `ar`, with Inter as `fontFamilyFallback` for Latin runs |
-| Latin | `Inter` (OFL-1.1) | 400, 600, 700 | Used when locale is `en`, with Plex Arabic as fallback for Arabic runs (user names, captions) |
+| Arabic | `Readex Pro` (OFL-1.1; tokens v1.2, D47) | 400, 500, 600, 700 | Used whenever the app locale is `ar`, with Inter as `fontFamilyFallback`. The bundled files merge the Arabic, Latin and Latin Extended subsets, so Latin digits and hashtags in Arabic text use the same face |
+| Latin | `Inter` (OFL-1.1) | 400, 600, 700 | Used when locale is `en`, with Readex Pro as fallback for Arabic runs (user names, captions) |
 
 Both bundled as assets (no runtime download). Mixed-script strings (Arabic caption with an
 English hashtag) render correctly through the fallback chain — do not split into spans manually.
@@ -169,7 +169,7 @@ English hashtag) render correctly through the fallback chain — do not split in
 
 Rules:
 
-- **Arabic line height**: Plex Sans Arabic has tall marks; with the token heights, `label` 1.3
+- **Arabic line height**: Arabic marks are tall (measured on IBM Plex Sans Arabic, kept for Readex Pro); with the token heights, `label` 1.3
   and `title` 1.3 can clip diacritics in single-line boxes. Never constrain text boxes to an
   exact height; size containers from padding + text. See §12 proposal (`arabicHeightDelta`).
 - **No letter-spacing on Arabic** (breaks joining). Latin `label` may use +0.1 px. No italics in

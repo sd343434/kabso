@@ -540,8 +540,10 @@ delete refresh token from secure storage + clear in-memory state → Login with 
 | `logoutConfirm` | Log out | تسجيل الخروج |
 | `logoutDone` | You've logged out | تم تسجيل خروجك |
 
-Relative-time strings (`relativeTime`, Latin digits): en `just now`, `{n}m ago`, `{n}h ago`,
-`{n}d ago`; ar `الآن`, `منذ {n} د`, `منذ {n} س`, `منذ {n} ي`. Beyond 7 days, use the absolute
+Relative-time strings (`relativeTime`, Latin digits), written in full (D47): en `just now`,
+`{n} minute(s) ago`, `{n} hour(s) ago`, `{n} day(s) ago`; ar `الآن` and Arabic plural forms
+(`منذ دقيقة`, `منذ دقيقتين`, `منذ {n} دقائق`, `منذ {n} دقيقة`; likewise ساعة/ساعتين/ساعات and
+يوم/يومين/أيام/يومًا). Beyond 7 days, use the absolute
 date. In `sessionsLastActive`, "just now" maps to `sessionsActiveNow`.
 
 ---

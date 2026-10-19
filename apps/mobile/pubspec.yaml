@@ -37,6 +37,9 @@ flutter:
   generate: true
   assets:
     - assets/icons/
+    - assets/icons/nav/
+    # KL-056 debug-preview imagery (AI-generated, development only).
+    - assets/preview/
   fonts:
     - family: Inter
       fonts:
@@ -46,11 +49,13 @@ flutter:
           weight: 600
         - asset: assets/fonts/Inter-Bold.ttf
           weight: 700
-    - family: IBM Plex Sans Arabic
+    - family: Readex Pro
       fonts:
-        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+        - asset: assets/fonts/ReadexPro-Regular.ttf
           weight: 400
-        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+        - asset: assets/fonts/ReadexPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/ReadexPro-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+        - asset: assets/fonts/ReadexPro-Bold.ttf
           weight: 700

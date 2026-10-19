@@ -72,8 +72,11 @@ void main() {
     }
 
     test('copy matches PHASE1_SCREENS §9.3', () {
-      expect(l10nFor(AppLanguage.en).relativeMinutesAgo(5), '5m ago');
-      expect(l10nFor(AppLanguage.ar).relativeHoursAgo(3), 'منذ 3 س');
+      expect(l10nFor(AppLanguage.en).relativeMinutesAgo(5), '5 minutes ago');
+      expect(l10nFor(AppLanguage.en).relativeDaysAgo(1), '1 day ago');
+      expect(l10nFor(AppLanguage.ar).relativeHoursAgo(3), 'منذ 3 ساعات');
+      expect(l10nFor(AppLanguage.ar).relativeDaysAgo(2), 'منذ يومين');
+      expect(l10nFor(AppLanguage.ar).relativeMinutesAgo(11), 'منذ 11 دقيقة');
     });
   });
 

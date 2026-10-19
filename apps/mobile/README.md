@@ -161,8 +161,8 @@ openapi.yaml (`test/helpers/contract_fixtures.dart`); widget tests override prov
 
 - Tests: `test/goldens/*_golden_test.dart` (tag `golden`); images: `test/goldens/png/`, named
   `<component>.<ar|en>.<phone|android>.png`. Live surfaces are dark-only.
-- Harness: `test/helpers/golden.dart`. `loadAppFonts()` loads the bundled Inter, IBM Plex Sans
-  Arabic and Material Icons (not the Ahem test font). Viewports are pinned to 393×852 @3x
+- Harness: `test/helpers/golden.dart`. `loadAppFonts()` loads the bundled Inter, Readex Pro
+  (Arabic) and Material Icons (not the Ahem test font). Viewports are pinned to 393×852 @3x
   (`phone`) and 360×800 @3x (`android`). Animations are disabled, images are in-memory PNGs
   precached in `runAsync`, and data is seeded.
 - Fake data lives only in `test/fixtures/**`. `test/fixtures/fixtures_isolation_test.dart` fails
@@ -191,5 +191,8 @@ secure storage behaviour, font rendering, keyboard/IME and screen-reader behavio
 
 - **B7** — application id / bundle id is the placeholder `com.kabso.kabso_live`.
 - **B8** — no brand assets: `KLogo` is a text wordmark; launcher icons are Flutter defaults.
-- Fonts: Inter and IBM Plex Sans Arabic (OFL-1.1) are bundled in `assets/fonts/` with their
-  licenses (`OFL-*.txt`), static Regular/SemiBold/Bold instances from Google Fonts.
+- Fonts: Inter and Readex Pro (OFL-1.1) are bundled in `assets/fonts/` with their licenses
+  (`OFL-*.txt`). Inter: static Regular/SemiBold/Bold instances from Google Fonts. Readex Pro
+  (Arabic, D47): Regular/Medium/SemiBold/Bold built from the `@fontsource/readex-pro` 5.3.0
+  npm package by merging its Arabic, Latin and Latin Extended subsets into one TTF per weight
+  (fontTools 4.67), so Latin digits inside Arabic text use the same face.
