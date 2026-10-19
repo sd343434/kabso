@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'إنشاء'**
   String get navCreate;
 
+  /// D48: fourth bottom tab, For you · Posts · Reels.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get navReels;
+
   /// No description provided for @navLive.
   ///
   /// In ar, this message translates to:
@@ -653,7 +659,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileContentComingBody.
   ///
   /// In ar, this message translates to:
-  /// **'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.'**
+  /// **'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.'**
   String get profileContentComingBody;
 
   /// No description provided for @settingsTitle.
@@ -731,19 +737,19 @@ abstract class AppLocalizations {
   /// No description provided for @relativeMinutesAgo.
   ///
   /// In ar, this message translates to:
-  /// **'منذ {n} د'**
+  /// **'{n, plural, =1{منذ دقيقة} =2{منذ دقيقتين} few{منذ {n} دقائق} many{منذ {n} دقيقة} other{منذ {n} دقيقة}}'**
   String relativeMinutesAgo(int n);
 
   /// No description provided for @relativeHoursAgo.
   ///
   /// In ar, this message translates to:
-  /// **'منذ {n} س'**
+  /// **'{n, plural, =1{منذ ساعة} =2{منذ ساعتين} few{منذ {n} ساعات} many{منذ {n} ساعة} other{منذ {n} ساعة}}'**
   String relativeHoursAgo(int n);
 
   /// No description provided for @relativeDaysAgo.
   ///
   /// In ar, this message translates to:
-  /// **'منذ {n} ي'**
+  /// **'{n, plural, =1{منذ يوم} =2{منذ يومين} few{منذ {n} أيام} many{منذ {n} يومًا} other{منذ {n} يوم}}'**
   String relativeDaysAgo(int n);
 
   /// No description provided for @sessionsRevoke.
@@ -1705,6 +1711,714 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تفاعل {emoji}'**
   String messagesPreviewReaction(String emoji);
+
+  /// KL-056 comments sheet header.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا تعليقات} =1{تعليق واحد} =2{تعليقان} few{{count} تعليقات} many{{count} تعليقًا} other{{count} تعليق}}'**
+  String commentsSheetTitle(int count);
+
+  /// No description provided for @commentsCreator.
+  ///
+  /// In ar, this message translates to:
+  /// **'صاحب المنشور'**
+  String get commentsCreator;
+
+  /// No description provided for @commentsReply.
+  ///
+  /// In ar, this message translates to:
+  /// **'رد'**
+  String get commentsReply;
+
+  /// No description provided for @commentsViewReplies.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الردود ({count})'**
+  String commentsViewReplies(int count);
+
+  /// No description provided for @commentsHideReplies.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الردود'**
+  String get commentsHideReplies;
+
+  /// No description provided for @commentsHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف تعليقًا…'**
+  String get commentsHint;
+
+  /// No description provided for @commentsPost.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر'**
+  String get commentsPost;
+
+  /// No description provided for @commentsLike.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعجاب، {count}'**
+  String commentsLike(String count);
+
+  /// No description provided for @commentsVerified.
+  ///
+  /// In ar, this message translates to:
+  /// **'موثّق'**
+  String get commentsVerified;
+
+  /// KL-056 debug-only hub listing the design previews.
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينات التصميم'**
+  String get previewsHubTitle;
+
+  /// No description provided for @previewsHubNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات اختبار فقط. لا شيء هنا متصل بالخادم.'**
+  String get previewsHubNote;
+
+  /// No description provided for @previewsHubFeed.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get previewsHubFeed;
+
+  /// No description provided for @previewsHubLive.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرفة البث'**
+  String get previewsHubLive;
+
+  /// No description provided for @previewsHubMessages.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل'**
+  String get previewsHubMessages;
+
+  /// No description provided for @previewsHubComponents.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكوّنات'**
+  String get previewsHubComponents;
+
+  /// Author name shown on the viewer's own new comment and composer avatar.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت'**
+  String get commentsYou;
+
+  /// KL-056 conversation list preview title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الخاصة'**
+  String get conversationsTitle;
+
+  /// No description provided for @conversationsSharedVideo.
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك فيديو'**
+  String get conversationsSharedVideo;
+
+  /// No description provided for @conversationsSayHi.
+  ///
+  /// In ar, this message translates to:
+  /// **'ألقِ التحية على {name}'**
+  String conversationsSayHi(String name);
+
+  /// No description provided for @conversationsUnread.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، غير مقروءة'**
+  String conversationsUnread(String name);
+
+  /// No description provided for @conversationsEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا رسائل بعد'**
+  String get conversationsEmptyTitle;
+
+  /// No description provided for @conversationsEmptyBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما تراسل أحدًا، تظهر المحادثة هنا.'**
+  String get conversationsEmptyBody;
+
+  /// No description provided for @conversationsUnavailableTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل غير متاحة بعد'**
+  String get conversationsUnavailableTitle;
+
+  /// No description provided for @conversationsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستُفتح الرسائل الخاصة هنا عندما تصبح جاهزة.'**
+  String get conversationsUnavailableBody;
+
+  /// No description provided for @previewStateLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة المعاينة'**
+  String get previewStateLabel;
+
+  /// No description provided for @previewStateLoading.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحميل'**
+  String get previewStateLoading;
+
+  /// No description provided for @previewStateError.
+  ///
+  /// In ar, this message translates to:
+  /// **'خطأ'**
+  String get previewStateError;
+
+  /// No description provided for @previewStateUnavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح'**
+  String get previewStateUnavailable;
+
+  /// No description provided for @previewStateEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'فارغ'**
+  String get previewStateEmpty;
+
+  /// No description provided for @previewStatePopulated.
+  ///
+  /// In ar, this message translates to:
+  /// **'مع بيانات'**
+  String get previewStatePopulated;
+
+  /// No description provided for @messagesGreetingHi.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحبًا'**
+  String get messagesGreetingHi;
+
+  /// No description provided for @messagesGreetingHello.
+  ///
+  /// In ar, this message translates to:
+  /// **'أهلًا وسهلًا'**
+  String get messagesGreetingHello;
+
+  /// No description provided for @messagesGreetingHowAreYou.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف حالك؟'**
+  String get messagesGreetingHowAreYou;
+
+  /// No description provided for @previewsHubConversations.
+  ///
+  /// In ar, this message translates to:
+  /// **'المحادثات'**
+  String get previewsHubConversations;
+
+  /// KL-056 Discover preview hashtag subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'وسم رائج'**
+  String get discoverTrendingHashtag;
+
+  /// No description provided for @discoverHashtagVideos.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، {count} فيديو'**
+  String discoverHashtagVideos(String name, String count);
+
+  /// No description provided for @discoverBanner.
+  ///
+  /// In ar, this message translates to:
+  /// **'مميّز {index} من {total}'**
+  String discoverBanner(int index, int total);
+
+  /// No description provided for @discoverNoResultsTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نتائج'**
+  String get discoverNoResultsTitle;
+
+  /// No description provided for @discoverNoResultsBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء في بيانات الاختبار يطابق {query}.'**
+  String discoverNoResultsBody(String query);
+
+  /// No description provided for @discoverClearSearch.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح البحث'**
+  String get discoverClearSearch;
+
+  /// No description provided for @discoverOpenVideo.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الفيديو {index} من {name}'**
+  String discoverOpenVideo(int index, String name);
+
+  /// No description provided for @reelsModeLabel.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الريلز أو المنشورات'**
+  String get reelsModeLabel;
+
+  /// No description provided for @reelsModeReels.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز'**
+  String get reelsModeReels;
+
+  /// No description provided for @reelsModePosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشورات'**
+  String get reelsModePosts;
+
+  /// No description provided for @reelsTabForYou.
+  ///
+  /// In ar, this message translates to:
+  /// **'لك'**
+  String get reelsTabForYou;
+
+  /// No description provided for @reelsTabFriends.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأصدقاء'**
+  String get reelsTabFriends;
+
+  /// No description provided for @reelsCoins.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيد العملات، {count}'**
+  String reelsCoins(String count);
+
+  /// No description provided for @reelsSave.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get reelsSave;
+
+  /// No description provided for @reelsSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'محفوظ'**
+  String get reelsSaved;
+
+  /// No description provided for @reelsNotInterested.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مهتم'**
+  String get reelsNotInterested;
+
+  /// No description provided for @reelsProgress.
+  ///
+  /// In ar, this message translates to:
+  /// **'موضع التشغيل'**
+  String get reelsProgress;
+
+  /// No description provided for @postsLikes.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} إعجاب'**
+  String postsLikes(String count);
+
+  /// No description provided for @postsViewComments.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض كل التعليقات ({count})'**
+  String postsViewComments(String count);
+
+  /// No description provided for @previewsHubReels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الريلز والمنشورات'**
+  String get previewsHubReels;
+
+  /// D52: debug hub entry for the real Reels tab with test data.
+  ///
+  /// In ar, this message translates to:
+  /// **'تبويب الريلز (المنشورات)'**
+  String get previewsHubReelsTab;
+
+  /// No description provided for @homeTabPosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get homeTabPosts;
+
+  /// No description provided for @homeTabReels.
+  ///
+  /// In ar, this message translates to:
+  /// **'الريلز'**
+  String get homeTabReels;
+
+  /// No description provided for @homeReelsUnavailableTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'الريلز قادمة قريبًا'**
+  String get homeReelsUnavailableTitle;
+
+  /// No description provided for @homeReelsUnavailableBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا مقاطع الفيديو القصيرة عند إطلاق الريلز. حاليًا، شاهد البث المباشر.'**
+  String get homeReelsUnavailableBody;
+
+  /// No description provided for @homeReelsEmptyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ريلز بعد'**
+  String get homeReelsEmptyTitle;
+
+  /// No description provided for @homeReelsErrorTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الريلز'**
+  String get homeReelsErrorTitle;
+
+  /// No description provided for @homeReelBy.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريل من {name}'**
+  String homeReelBy(String name);
+
+  /// No description provided for @liveHubJoin.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادخل البث'**
+  String get liveHubJoin;
+
+  /// No description provided for @liveHubLoadingMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تحميل المزيد من البثوث'**
+  String get liveHubLoadingMore;
+
+  /// D52: header switch, Posts → Reels.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الريلز'**
+  String get homeShowReels;
+
+  /// D52: header switch, Reels → Posts.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المنشورات'**
+  String get homeShowPosts;
+
+  /// D52: expands a post's collapsed text.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المزيد'**
+  String get feedSeeMore;
+
+  /// D52: semantics of the video mark on a post.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get feedPostVideo;
+
+  /// D52: semantics of a post's display-only counts.
+  ///
+  /// In ar, this message translates to:
+  /// **'{likes} إعجاب، {comments} تعليق، {shares} مشاركة'**
+  String feedPostCounts(String likes, String comments, String shares);
+
+  /// D53: header tab, the trending feed (default).
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get homeFeedTrending;
+
+  /// D53: follow badge on a reel's rail photo.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة {name}'**
+  String homeFollowAuthor(String name);
+
+  /// D53: the badge after following.
+  ///
+  /// In ar, this message translates to:
+  /// **'تتابع {name}'**
+  String homeFollowingAuthor(String name);
+
+  /// D53: Reels · Following unavailable state.
+  ///
+  /// In ar, this message translates to:
+  /// **'ريلز ممن تتابعهم'**
+  String get homeReelsFollowingUnavailableTitle;
+
+  /// D53: Reels · Following unavailable state.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا ريلز من تتابعهم عند إطلاق الريلز. وحتى ذلك الحين، شاهد البث المباشر.'**
+  String get homeReelsFollowingUnavailableBody;
+
+  /// D53: Reels · Following empty state.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ريلز ممن تتابعهم بعد'**
+  String get homeReelsFollowingEmptyTitle;
+
+  /// D54: the three dots on a post.
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات أخرى'**
+  String get feedPostMore;
+
+  /// D54: post menu action.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء متابعة {name}'**
+  String homeUnfollowAuthor(String name);
+
+  /// D57: own profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابِعون'**
+  String get profileFollowers;
+
+  /// D57: own profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتابع'**
+  String get profileFollowingCount;
+
+  /// D57: own profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد منشورات بعد'**
+  String get profileNoPosts;
+
+  /// D57: own profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ريلز بعد'**
+  String get profileNoReels;
+
+  /// D57: own profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما تنشر شيئًا سيظهر هنا.'**
+  String get profileGridEmptyBody;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الملف الشخصي'**
+  String get profileEditTitle;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get profileEditSave;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم'**
+  String get profileEditName;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get profileEditUsername;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'النبذة'**
+  String get profileEditBio;
+
+  /// D58: edit profile (read-only until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.'**
+  String get profileEditUnavailable;
+
+  /// D58: under the photo (disabled until upload exists).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الصورة'**
+  String get profileEditPhoto;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'الروابط'**
+  String get profileEditLinks;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجنس'**
+  String get profileEditGender;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'فئة الحساب'**
+  String get profileEditCategory;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الشبكة'**
+  String get profileEditReorderGrid;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'خصوصية الحساب'**
+  String get profileEditPrivacy;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام'**
+  String get profilePrivacyPublic;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'خاص'**
+  String get profilePrivacyPrivate;
+
+  /// D58: edit profile rows (coming soon until CP-001).
+  ///
+  /// In ar, this message translates to:
+  /// **'قريبًا'**
+  String get profileEditSoon;
+
+  /// D59: own profile, saved tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'المحفوظات'**
+  String get profileSaved;
+
+  /// D59: own profile, saved tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد محفوظات بعد'**
+  String get profileNoSaved;
+
+  /// D59: own profile, saved tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'احفظ المنشورات والريلز لتجدها هنا. لا يرى محفوظاتك أحد غيرك.'**
+  String get profileSavedEmptyBody;
+
+  /// D59: own profile, saved tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشوراتك وريلز المحفوظة'**
+  String get profileSavedComingTitle;
+
+  /// D59: own profile, saved tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصل الحفظ مع المنشورات والريلز. لن يرى محفوظاتك أحد غيرك.'**
+  String get profileSavedComingBody;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهد البث'**
+  String get profileWatchLive;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات والريلز قادمة'**
+  String get profileOtherComingTitle;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.'**
+  String get profileOtherComingBody;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُنشر شيء بعد.'**
+  String get profileOtherEmptyBody;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب خاص'**
+  String get profilePrivateTitle;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشوراته وريلزه يراها متابعوه فقط.'**
+  String get profilePrivateBody;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحساب غير متاح'**
+  String get profileNotFoundTitle;
+
+  /// D60: public profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يكون الرابط غير صحيح، أو أُزيل الحساب.'**
+  String get profileNotFoundBody;
+
+  /// D60: unfollow sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء متابعة {name}؟'**
+  String profileUnfollowConfirm(String name);
+
+  /// D60: debug hub entry.
+  ///
+  /// In ar, this message translates to:
+  /// **'الملف العام'**
+  String get previewsHubUserProfile;
+
+  /// D61: Message button / not-connected chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'مراسلة'**
+  String get profileMessage;
+
+  /// D61: Message button / not-connected chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الخاصة غير متاحة بعد. عند توفرها ستظهر محادثتكما هنا.'**
+  String get chatUnavailable;
+
+  /// D62: public profile three-dots menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ اسم المستخدم'**
+  String get profileCopyUsername;
+
+  /// D62: public profile three-dots menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ رابط الصفحة'**
+  String get profileCopyLink;
+
+  /// D62: public profile three-dots menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'تبليغ'**
+  String get profileReport;
+
+  /// D62: public profile three-dots menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النسخ'**
+  String get profileCopied;
 }
 
 class _AppLocalizationsDelegate

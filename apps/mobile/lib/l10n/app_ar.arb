@@ -172,6 +172,10 @@
   "navHome": "الرئيسية",
   "navDiscover": "استكشاف",
   "navCreate": "إنشاء",
+  "navReels": "ريلز",
+  "@navReels": {
+    "description": "D48: fourth bottom tab, For you · Posts · Reels."
+  },
   "navLive": "مباشر",
   "navProfile": "حسابي",
   "discoverComingTitle": "الاستكشاف قادم",
@@ -188,7 +192,7 @@
     }
   },
   "profileContentComingTitle": "ستظهر منشوراتك هنا",
-  "profileContentComingBody": "يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.",
+  "profileContentComingBody": "تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.",
   "settingsTitle": "الإعدادات",
   "settingsAppearance": "المظهر",
   "themeSystem": "حسب إعدادات الجهاز",
@@ -215,7 +219,7 @@
       }
     }
   },
-  "relativeMinutesAgo": "منذ {n} د",
+  "relativeMinutesAgo": "{n, plural, =1{منذ دقيقة} =2{منذ دقيقتين} few{منذ {n} دقائق} many{منذ {n} دقيقة} other{منذ {n} دقيقة}}",
   "@relativeMinutesAgo": {
     "placeholders": {
       "n": {
@@ -223,7 +227,7 @@
       }
     }
   },
-  "relativeHoursAgo": "منذ {n} س",
+  "relativeHoursAgo": "{n, plural, =1{منذ ساعة} =2{منذ ساعتين} few{منذ {n} ساعات} many{منذ {n} ساعة} other{منذ {n} ساعة}}",
   "@relativeHoursAgo": {
     "placeholders": {
       "n": {
@@ -231,7 +235,7 @@
       }
     }
   },
-  "relativeDaysAgo": "منذ {n} ي",
+  "relativeDaysAgo": "{n, plural, =1{منذ يوم} =2{منذ يومين} few{منذ {n} أيام} many{منذ {n} يومًا} other{منذ {n} يوم}}",
   "@relativeDaysAgo": {
     "placeholders": {
       "n": {
@@ -721,16 +725,453 @@
   },
   "multiGuestHost": "المضيف",
   "shareSheetTitle": "مشاركة إلى",
-  "@shareSheetTitle": {"description": "KL-056 preview share sheet title."},
+  "@shareSheetTitle": {
+    "description": "KL-056 preview share sheet title."
+  },
   "shareRepost": "إعادة نشر",
   "shareCopyLink": "نسخ الرابط",
   "shareSend": "إرسال",
   "shareSaveVideo": "حفظ الفيديو",
   "shareReport": "إبلاغ",
   "messagesPreviewHint": "اكتب رسالة…",
-  "@messagesPreviewHint": {"description": "KL-056 messages preview composer hint."},
+  "@messagesPreviewHint": {
+    "description": "KL-056 messages preview composer hint."
+  },
   "messagesPreviewSend": "إرسال",
   "messagesPreviewPlay": "تشغيل الفيديو",
   "messagesPreviewReaction": "تفاعل {emoji}",
-  "@messagesPreviewReaction": {"placeholders": {"emoji": {"type": "String"}}}
+  "@messagesPreviewReaction": {
+    "placeholders": {
+      "emoji": {
+        "type": "String"
+      }
+    }
+  },
+  "commentsSheetTitle": "{count, plural, =0{لا تعليقات} =1{تعليق واحد} =2{تعليقان} few{{count} تعليقات} many{{count} تعليقًا} other{{count} تعليق}}",
+  "@commentsSheetTitle": {
+    "description": "KL-056 comments sheet header.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsCreator": "صاحب المنشور",
+  "commentsReply": "رد",
+  "commentsViewReplies": "عرض الردود ({count})",
+  "@commentsViewReplies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsHideReplies": "إخفاء الردود",
+  "commentsHint": "أضف تعليقًا…",
+  "commentsPost": "نشر",
+  "commentsLike": "إعجاب، {count}",
+  "@commentsLike": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "commentsVerified": "موثّق",
+  "previewsHubTitle": "معاينات التصميم",
+  "@previewsHubTitle": {
+    "description": "KL-056 debug-only hub listing the design previews."
+  },
+  "previewsHubNote": "بيانات اختبار فقط. لا شيء هنا متصل بالخادم.",
+  "previewsHubFeed": "المنشورات",
+  "previewsHubLive": "غرفة البث",
+  "previewsHubMessages": "الرسائل",
+  "previewsHubComponents": "المكوّنات",
+  "commentsYou": "أنت",
+  "@commentsYou": {
+    "description": "Author name shown on the viewer's own new comment and composer avatar."
+  },
+  "conversationsTitle": "الرسائل الخاصة",
+  "@conversationsTitle": {
+    "description": "KL-056 conversation list preview title."
+  },
+  "conversationsSharedVideo": "شارك فيديو",
+  "conversationsSayHi": "ألقِ التحية على {name}",
+  "@conversationsSayHi": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationsUnread": "{name}، غير مقروءة",
+  "@conversationsUnread": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationsEmptyTitle": "لا رسائل بعد",
+  "conversationsEmptyBody": "عندما تراسل أحدًا، تظهر المحادثة هنا.",
+  "conversationsUnavailableTitle": "الرسائل غير متاحة بعد",
+  "conversationsUnavailableBody": "ستُفتح الرسائل الخاصة هنا عندما تصبح جاهزة.",
+  "previewStateLabel": "حالة المعاينة",
+  "previewStateLoading": "تحميل",
+  "previewStateError": "خطأ",
+  "previewStateUnavailable": "غير متاح",
+  "previewStateEmpty": "فارغ",
+  "previewStatePopulated": "مع بيانات",
+  "messagesGreetingHi": "مرحبًا",
+  "messagesGreetingHello": "أهلًا وسهلًا",
+  "messagesGreetingHowAreYou": "كيف حالك؟",
+  "previewsHubConversations": "المحادثات",
+  "discoverTrendingHashtag": "وسم رائج",
+  "@discoverTrendingHashtag": {
+    "description": "KL-056 Discover preview hashtag subtitle."
+  },
+  "discoverHashtagVideos": "{name}، {count} فيديو",
+  "@discoverHashtagVideos": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverBanner": "مميّز {index} من {total}",
+  "@discoverBanner": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverNoResultsTitle": "لا نتائج",
+  "discoverNoResultsBody": "لا شيء في بيانات الاختبار يطابق {query}.",
+  "@discoverNoResultsBody": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverClearSearch": "مسح البحث",
+  "discoverOpenVideo": "فتح الفيديو {index} من {name}",
+  "@discoverOpenVideo": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reelsModeLabel": "عرض الريلز أو المنشورات",
+  "reelsModeReels": "ريلز",
+  "reelsModePosts": "منشورات",
+  "reelsTabForYou": "لك",
+  "reelsTabFriends": "الأصدقاء",
+  "reelsCoins": "رصيد العملات، {count}",
+  "@reelsCoins": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "reelsSave": "حفظ",
+  "reelsSaved": "محفوظ",
+  "reelsNotInterested": "غير مهتم",
+  "reelsProgress": "موضع التشغيل",
+  "postsLikes": "{count} إعجاب",
+  "@postsLikes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "postsViewComments": "عرض كل التعليقات ({count})",
+  "@postsViewComments": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "previewsHubReels": "الريلز والمنشورات",
+  "previewsHubReelsTab": "تبويب الريلز (المنشورات)",
+  "@previewsHubReelsTab": {
+    "description": "D52: debug hub entry for the real Reels tab with test data."
+  },
+  "homeTabPosts": "المنشورات",
+  "homeTabReels": "الريلز",
+  "homeReelsUnavailableTitle": "الريلز قادمة قريبًا",
+  "homeReelsUnavailableBody": "ستظهر هنا مقاطع الفيديو القصيرة عند إطلاق الريلز. حاليًا، شاهد البث المباشر.",
+  "homeReelsEmptyTitle": "لا توجد ريلز بعد",
+  "homeReelsErrorTitle": "تعذّر تحميل الريلز",
+  "homeReelBy": "ريل من {name}",
+  "@homeReelBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveHubJoin": "ادخل البث",
+  "liveHubLoadingMore": "جارٍ تحميل المزيد من البثوث",
+  "homeShowReels": "عرض الريلز",
+  "@homeShowReels": {
+    "description": "D52: header switch, Posts → Reels."
+  },
+  "homeShowPosts": "عرض المنشورات",
+  "@homeShowPosts": {
+    "description": "D52: header switch, Reels → Posts."
+  },
+  "feedSeeMore": "عرض المزيد",
+  "@feedSeeMore": {
+    "description": "D52: expands a post's collapsed text."
+  },
+  "feedPostVideo": "فيديو",
+  "@feedPostVideo": {
+    "description": "D52: semantics of the video mark on a post."
+  },
+  "feedPostCounts": "{likes} إعجاب، {comments} تعليق، {shares} مشاركة",
+  "@feedPostCounts": {
+    "description": "D52: semantics of a post's display-only counts.",
+    "placeholders": {
+      "likes": {
+        "type": "String"
+      },
+      "comments": {
+        "type": "String"
+      },
+      "shares": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFeedTrending": "رائج",
+  "@homeFeedTrending": {
+    "description": "D53: header tab, the trending feed (default)."
+  },
+  "homeFollowAuthor": "متابعة {name}",
+  "@homeFollowAuthor": {
+    "description": "D53: follow badge on a reel's rail photo.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeFollowingAuthor": "تتابع {name}",
+  "@homeFollowingAuthor": {
+    "description": "D53: the badge after following.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeReelsFollowingUnavailableTitle": "ريلز ممن تتابعهم",
+  "@homeReelsFollowingUnavailableTitle": {
+    "description": "D53: Reels · Following unavailable state."
+  },
+  "homeReelsFollowingUnavailableBody": "ستظهر هنا ريلز من تتابعهم عند إطلاق الريلز. وحتى ذلك الحين، شاهد البث المباشر.",
+  "@homeReelsFollowingUnavailableBody": {
+    "description": "D53: Reels · Following unavailable state."
+  },
+  "homeReelsFollowingEmptyTitle": "لا توجد ريلز ممن تتابعهم بعد",
+  "@homeReelsFollowingEmptyTitle": {
+    "description": "D53: Reels · Following empty state."
+  },
+  "feedPostMore": "خيارات أخرى",
+  "homeUnfollowAuthor": "إلغاء متابعة {name}",
+  "@feedPostMore": {
+    "description": "D54: the three dots on a post."
+  },
+  "@homeUnfollowAuthor": {
+    "description": "D54: post menu action.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "profileFollowers": "المتابِعون",
+  "profileFollowingCount": "يتابع",
+  "profileNoPosts": "لا توجد منشورات بعد",
+  "profileNoReels": "لا توجد ريلز بعد",
+  "profileGridEmptyBody": "عندما تنشر شيئًا سيظهر هنا.",
+  "@profileFollowers": {
+    "description": "D57: own profile."
+  },
+  "@profileFollowingCount": {
+    "description": "D57: own profile."
+  },
+  "@profileNoPosts": {
+    "description": "D57: own profile."
+  },
+  "@profileNoReels": {
+    "description": "D57: own profile."
+  },
+  "@profileGridEmptyBody": {
+    "description": "D57: own profile."
+  },
+  "profileEditTitle": "تعديل الملف الشخصي",
+  "profileEditSave": "حفظ",
+  "profileEditName": "الاسم",
+  "profileEditUsername": "اسم المستخدم",
+  "profileEditBio": "النبذة",
+  "profileEditUnavailable": "تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.",
+  "@profileEditTitle": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "@profileEditSave": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "@profileEditName": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "@profileEditUsername": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "@profileEditBio": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "@profileEditUnavailable": {
+    "description": "D58: edit profile (read-only until CP-001)."
+  },
+  "profileEditPhoto": "تغيير الصورة",
+  "@profileEditPhoto": {
+    "description": "D58: under the photo (disabled until upload exists)."
+  },
+  "profileEditLinks": "الروابط",
+  "profileEditGender": "الجنس",
+  "profileEditCategory": "فئة الحساب",
+  "profileEditReorderGrid": "ترتيب الشبكة",
+  "profileEditPrivacy": "خصوصية الحساب",
+  "profilePrivacyPublic": "عام",
+  "profilePrivacyPrivate": "خاص",
+  "profileEditSoon": "قريبًا",
+  "@profileEditLinks": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profileEditGender": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profileEditCategory": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profileEditReorderGrid": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profileEditPrivacy": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profilePrivacyPublic": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profilePrivacyPrivate": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "@profileEditSoon": {
+    "description": "D58: edit profile rows (coming soon until CP-001)."
+  },
+  "profileSaved": "المحفوظات",
+  "profileNoSaved": "لا توجد محفوظات بعد",
+  "profileSavedEmptyBody": "احفظ المنشورات والريلز لتجدها هنا. لا يرى محفوظاتك أحد غيرك.",
+  "profileSavedComingTitle": "منشوراتك وريلز المحفوظة",
+  "profileSavedComingBody": "يصل الحفظ مع المنشورات والريلز. لن يرى محفوظاتك أحد غيرك.",
+  "@profileSaved": {
+    "description": "D59: own profile, saved tab."
+  },
+  "@profileNoSaved": {
+    "description": "D59: own profile, saved tab."
+  },
+  "@profileSavedEmptyBody": {
+    "description": "D59: own profile, saved tab."
+  },
+  "@profileSavedComingTitle": {
+    "description": "D59: own profile, saved tab."
+  },
+  "@profileSavedComingBody": {
+    "description": "D59: own profile, saved tab."
+  },
+  "profileWatchLive": "شاهد البث",
+  "profileOtherComingTitle": "المنشورات والريلز قادمة",
+  "profileOtherComingBody": "تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.",
+  "profileOtherEmptyBody": "لم يُنشر شيء بعد.",
+  "profilePrivateTitle": "هذا الحساب خاص",
+  "profilePrivateBody": "منشوراته وريلزه يراها متابعوه فقط.",
+  "profileNotFoundTitle": "هذا الحساب غير متاح",
+  "profileNotFoundBody": "قد يكون الرابط غير صحيح، أو أُزيل الحساب.",
+  "profileUnfollowConfirm": "إلغاء متابعة {name}؟",
+  "@profileWatchLive": {
+    "description": "D60: public profile."
+  },
+  "@profileOtherComingTitle": {
+    "description": "D60: public profile."
+  },
+  "@profileOtherComingBody": {
+    "description": "D60: public profile."
+  },
+  "@profileOtherEmptyBody": {
+    "description": "D60: public profile."
+  },
+  "@profilePrivateTitle": {
+    "description": "D60: public profile."
+  },
+  "@profilePrivateBody": {
+    "description": "D60: public profile."
+  },
+  "@profileNotFoundTitle": {
+    "description": "D60: public profile."
+  },
+  "@profileNotFoundBody": {
+    "description": "D60: public profile."
+  },
+  "@profileUnfollowConfirm": {
+    "description": "D60: unfollow sheet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "previewsHubUserProfile": "الملف العام",
+  "@previewsHubUserProfile": {
+    "description": "D60: debug hub entry."
+  },
+  "profileMessage": "مراسلة",
+  "chatUnavailable": "الرسائل الخاصة غير متاحة بعد. عند توفرها ستظهر محادثتكما هنا.",
+  "@profileMessage": {
+    "description": "D61: Message button / not-connected chat."
+  },
+  "@chatUnavailable": {
+    "description": "D61: Message button / not-connected chat."
+  },
+  "profileCopyUsername": "نسخ اسم المستخدم",
+  "profileCopyLink": "نسخ رابط الصفحة",
+  "profileReport": "تبليغ",
+  "profileCopied": "تم النسخ",
+  "@profileCopyUsername": {
+    "description": "D62: public profile three-dots menu."
+  },
+  "@profileCopyLink": {
+    "description": "D62: public profile three-dots menu."
+  },
+  "@profileReport": {
+    "description": "D62: public profile three-dots menu."
+  },
+  "@profileCopied": {
+    "description": "D62: public profile three-dots menu."
+  }
 }

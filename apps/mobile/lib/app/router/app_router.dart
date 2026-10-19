@@ -12,14 +12,23 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
+import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
+import 'package:kabso_live/features/debug/discover_preview_screen.dart';
 import 'package:kabso_live/features/debug/feed_preview_screen.dart';
 import 'package:kabso_live/features/debug/live_preview_screen.dart';
 import 'package:kabso_live/features/debug/messages_preview_screen.dart';
+import 'package:kabso_live/features/debug/posts_preview_screen.dart';
+import 'package:kabso_live/features/debug/previews_hub_screen.dart';
+import 'package:kabso_live/features/debug/profile_preview_screen.dart';
+import 'package:kabso_live/features/debug/reels_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
-import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -28,7 +37,13 @@ final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
 );
 
 /// Initial location; tests may override it.
-final initialLocationProvider = Provider<String>((ref) => AppRoutes.splash);
+/// The splash, or in a test build the debug route passed with
+/// `--dart-define=KABSO_START_ROUTE=/debug/...` (ignored in release).
+final initialLocationProvider = Provider<String>((ref) {
+  const start = String.fromEnvironment('KABSO_START_ROUTE');
+  if (!kReleaseMode && start.startsWith(AppRoutes.debugPrefix)) return start;
+  return AppRoutes.splash;
+});
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ValueNotifier<AuthState>(
@@ -68,6 +83,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        builder: (_, _) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.chatPattern,
+        builder: (_, state) => ChatScreen(
+          username: state.pathParameters['username']!,
+          displayName: state.extra is String ? state.extra! as String : null,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.userProfilePattern,
+        builder: (_, state) =>
+            PublicProfileScreen(username: state.pathParameters['username']!),
+      ),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)
@@ -87,6 +118,56 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       if (!kReleaseMode)
         GoRoute(
+          path: AppRoutes.debugPreviews,
+          builder: (_, _) => const PreviewsHubScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugConversationsPreview,
+          builder: (_, _) => const ConversationsPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugDiscoverPreview,
+          builder: (_, _) => const DiscoverPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugReelsPreview,
+          builder: (_, _) => const ReelsPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugProfilePreview,
+          builder: (_, _) => const ProfilePreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugProfileEditPreview,
+          builder: (_, _) => const ProfilePreviewScreen(edit: true),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugUserPreview,
+          builder: (_, _) => const UserPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugChatPreview,
+          builder: (context, _) => ChatScreen(
+            username: 'omar.test',
+            displayName: Directionality.of(context) == TextDirection.rtl
+                ? 'عمر (تجربة)'
+                : 'Omar (test)',
+          ),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
+          path: AppRoutes.debugPostsPreview,
+          builder: (_, _) => const PostsPreviewScreen(),
+        ),
+      if (!kReleaseMode)
+        GoRoute(
           path: AppRoutes.debugMessagesPreview,
           builder: (_, _) => const MessagesPreviewScreen(),
         ),
@@ -97,7 +178,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                builder: (_, _) => const HomeScreen(),
+                builder: (_, _) => const LiveScreen(),
+                routes: [
+                  // Full screen above the shell: no bottom nav (HL-N1 §2).
+                  GoRoute(
+                    path: AppRoutes.liveRoomSegment,
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, state) =>
+                        LiveRoomScreen(roomId: state.pathParameters['roomId']!),
+                  ),
+                ],
               ),
             ],
           ),
@@ -120,17 +210,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.live,
-                builder: (_, _) => const LiveScreen(),
-                routes: [
-                  // Full screen above the shell: no bottom nav (HL-N1 §2).
-                  GoRoute(
-                    path: AppRoutes.liveRoomSegment,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (_, state) =>
-                        LiveRoomScreen(roomId: state.pathParameters['roomId']!),
-                  ),
-                ],
+                path: AppRoutes.reels,
+                builder: (_, _) => const FeedScreen(),
               ),
             ],
           ),

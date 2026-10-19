@@ -71,7 +71,7 @@ router is `app/router/app_router.dart`, which uses GoRouter with a
 | `KEmptyState`, `KErrorState`, `KInlineMessage` | `components/k_states.dart` | Used by every placeholder tab |
 | `KTextField` | `components/k_text_field.dart` | Form fields |
 | `FailureBanner`, `FailureErrorState`, `RetryCountdown` | `core/error/failure_widgets.dart` | Error presentation (PHASE1 §10) |
-| Fonts | `assets/fonts/` | Inter and IBM Plex Sans Arabic at 400/600/700, bundled (usable in goldens) |
+| Fonts | `assets/fonts/` | Inter at 400/600/700 and Readex Pro (Arabic, D47) at 400/500/600/700, bundled (usable in goldens) |
 
 **Not built:**
 - design-system components: Badge, Chip, Tabs, Card or tile, BottomSheet, Dialog wrapper, Counter, Toggle wrapper, ProgressBar (story or PK);
@@ -312,7 +312,7 @@ capture (integration-test screenshots on emulators and simulators) happens later
 | ------ | ---- |
 | Location | `apps/mobile/test/golden/**`, goldens in `test/golden/goldens/` (owned by A2) |
 | Viewport | `tester.view.physicalSize = Size(1179, 2556)` with `devicePixelRatio = 3.0` (393×852), plus `Size(1080, 2400)` @ 3.0 (360×800); reset in `addTearDown` |
-| Fonts | Load the bundled Inter and IBM Plex Sans Arabic via `FontLoader` in a shared `loadAppFonts()` helper (flutter_test defaults to Ahem, which hides Arabic shaping issues) |
+| Fonts | Load the bundled Inter and Readex Pro via `FontLoader` in a shared `loadAppFonts()` helper (flutter_test defaults to Ahem, which hides Arabic shaping issues) |
 | Determinism | Fixed clock, `MediaQuery.disableAnimations` where frames would vary (otherwise pump to settle), no network images (in-memory test image provider), seeded data |
 | Fixtures | Plain Dart fixtures under `test/fixtures/**` **only**, never imported by `lib/`. Add a test that fails if `lib/` imports `test/` or fixture names. Production screens keep honest empty states |
 | Matrix | Each component and composed screen in `ar` and `en`. Dark only for live surfaces (always dark); both themes for others. Text scale 1.0 and 1.3 for overlay surfaces (clamped), and 2.0 for standard screens |

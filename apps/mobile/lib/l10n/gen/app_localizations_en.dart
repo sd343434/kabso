@@ -295,6 +295,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navCreate => 'Create';
 
   @override
+  String get navReels => 'Reels';
+
+  @override
   String get navLive => 'Live';
 
   @override
@@ -324,7 +327,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileContentComingBody =>
-      'Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.';
+      'Posts arrive in Phase 3 and reels in Phase 5. Profile editing, stories and highlights come later.';
 
   @override
   String get settingsTitle => 'Settings';
@@ -368,17 +371,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String relativeMinutesAgo(int n) {
-    return '${n}m ago';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n minutes ago',
+      one: '$n minute ago',
+    );
+    return '$_temp0';
   }
 
   @override
   String relativeHoursAgo(int n) {
-    return '${n}h ago';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n hours ago',
+      one: '$n hour ago',
+    );
+    return '$_temp0';
   }
 
   @override
   String relativeDaysAgo(int n) {
-    return '${n}d ago';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n days ago',
+      one: '$n day ago',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -959,4 +980,415 @@ class AppLocalizationsEn extends AppLocalizations {
   String messagesPreviewReaction(String emoji) {
     return 'Reaction $emoji';
   }
+
+  @override
+  String commentsSheetTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count comments',
+      one: '$count comment',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get commentsCreator => 'Creator';
+
+  @override
+  String get commentsReply => 'Reply';
+
+  @override
+  String commentsViewReplies(int count) {
+    return 'View replies ($count)';
+  }
+
+  @override
+  String get commentsHideReplies => 'Hide replies';
+
+  @override
+  String get commentsHint => 'Add comment…';
+
+  @override
+  String get commentsPost => 'Post';
+
+  @override
+  String commentsLike(String count) {
+    return 'Like, $count';
+  }
+
+  @override
+  String get commentsVerified => 'Verified';
+
+  @override
+  String get previewsHubTitle => 'Design previews';
+
+  @override
+  String get previewsHubNote =>
+      'Test data only. Nothing here is connected to a server.';
+
+  @override
+  String get previewsHubFeed => 'Feed';
+
+  @override
+  String get previewsHubLive => 'Live room';
+
+  @override
+  String get previewsHubMessages => 'Messages';
+
+  @override
+  String get previewsHubComponents => 'Components';
+
+  @override
+  String get commentsYou => 'You';
+
+  @override
+  String get conversationsTitle => 'Direct messages';
+
+  @override
+  String get conversationsSharedVideo => 'Shared a video';
+
+  @override
+  String conversationsSayHi(String name) {
+    return 'Say hi to $name';
+  }
+
+  @override
+  String conversationsUnread(String name) {
+    return '$name, unread';
+  }
+
+  @override
+  String get conversationsEmptyTitle => 'No messages yet';
+
+  @override
+  String get conversationsEmptyBody =>
+      'When you message someone, the conversation shows up here.';
+
+  @override
+  String get conversationsUnavailableTitle => 'Messages aren\'t available yet';
+
+  @override
+  String get conversationsUnavailableBody =>
+      'Private messages will open here once they\'re ready.';
+
+  @override
+  String get previewStateLabel => 'Preview state';
+
+  @override
+  String get previewStateLoading => 'Loading';
+
+  @override
+  String get previewStateError => 'Error';
+
+  @override
+  String get previewStateUnavailable => 'Unavailable';
+
+  @override
+  String get previewStateEmpty => 'Empty';
+
+  @override
+  String get previewStatePopulated => 'With data';
+
+  @override
+  String get messagesGreetingHi => 'Hi';
+
+  @override
+  String get messagesGreetingHello => 'Hello there';
+
+  @override
+  String get messagesGreetingHowAreYou => 'How are you?';
+
+  @override
+  String get previewsHubConversations => 'Conversations';
+
+  @override
+  String get discoverTrendingHashtag => 'Trending hashtag';
+
+  @override
+  String discoverHashtagVideos(String name, String count) {
+    return '$name, $count videos';
+  }
+
+  @override
+  String discoverBanner(int index, int total) {
+    return 'Featured $index of $total';
+  }
+
+  @override
+  String get discoverNoResultsTitle => 'No results';
+
+  @override
+  String discoverNoResultsBody(String query) {
+    return 'Nothing in the test data matches $query.';
+  }
+
+  @override
+  String get discoverClearSearch => 'Clear search';
+
+  @override
+  String discoverOpenVideo(int index, String name) {
+    return 'Open video $index of $name';
+  }
+
+  @override
+  String get reelsModeLabel => 'Show reels or posts';
+
+  @override
+  String get reelsModeReels => 'Reels';
+
+  @override
+  String get reelsModePosts => 'Posts';
+
+  @override
+  String get reelsTabForYou => 'For you';
+
+  @override
+  String get reelsTabFriends => 'Friends';
+
+  @override
+  String reelsCoins(String count) {
+    return 'Coin balance, $count';
+  }
+
+  @override
+  String get reelsSave => 'Save';
+
+  @override
+  String get reelsSaved => 'Saved';
+
+  @override
+  String get reelsNotInterested => 'Not interested';
+
+  @override
+  String get reelsProgress => 'Playback position';
+
+  @override
+  String postsLikes(String count) {
+    return '$count likes';
+  }
+
+  @override
+  String postsViewComments(String count) {
+    return 'View all $count comments';
+  }
+
+  @override
+  String get previewsHubReels => 'Reels and posts';
+
+  @override
+  String get previewsHubReelsTab => 'Reels tab (posts)';
+
+  @override
+  String get homeTabPosts => 'Posts';
+
+  @override
+  String get homeTabReels => 'Reels';
+
+  @override
+  String get homeReelsUnavailableTitle => 'Reels are coming';
+
+  @override
+  String get homeReelsUnavailableBody =>
+      'Short vertical videos will appear here once reels launch. For now, watch live streams.';
+
+  @override
+  String get homeReelsEmptyTitle => 'No reels yet';
+
+  @override
+  String get homeReelsErrorTitle => 'Couldn\'t load reels';
+
+  @override
+  String homeReelBy(String name) {
+    return 'Reel by $name';
+  }
+
+  @override
+  String get liveHubJoin => 'Join live';
+
+  @override
+  String get liveHubLoadingMore => 'Loading more streams';
+
+  @override
+  String get homeShowReels => 'Show reels';
+
+  @override
+  String get homeShowPosts => 'Show posts';
+
+  @override
+  String get feedSeeMore => 'see more';
+
+  @override
+  String get feedPostVideo => 'Video';
+
+  @override
+  String feedPostCounts(String likes, String comments, String shares) {
+    return '$likes likes, $comments comments, $shares shares';
+  }
+
+  @override
+  String get homeFeedTrending => 'Trending';
+
+  @override
+  String homeFollowAuthor(String name) {
+    return 'Follow $name';
+  }
+
+  @override
+  String homeFollowingAuthor(String name) {
+    return 'Following $name';
+  }
+
+  @override
+  String get homeReelsFollowingUnavailableTitle =>
+      'Reels from people you follow';
+
+  @override
+  String get homeReelsFollowingUnavailableBody =>
+      'Reels from the people you follow will appear here once reels launch. For now, watch live streams.';
+
+  @override
+  String get homeReelsFollowingEmptyTitle =>
+      'No reels from people you follow yet';
+
+  @override
+  String get feedPostMore => 'More options';
+
+  @override
+  String homeUnfollowAuthor(String name) {
+    return 'Unfollow $name';
+  }
+
+  @override
+  String get profileFollowers => 'Followers';
+
+  @override
+  String get profileFollowingCount => 'Following';
+
+  @override
+  String get profileNoPosts => 'No posts yet';
+
+  @override
+  String get profileNoReels => 'No reels yet';
+
+  @override
+  String get profileGridEmptyBody =>
+      'When you share something, it will show up here.';
+
+  @override
+  String get profileEditTitle => 'Edit profile';
+
+  @override
+  String get profileEditSave => 'Save';
+
+  @override
+  String get profileEditName => 'Name';
+
+  @override
+  String get profileEditUsername => 'Username';
+
+  @override
+  String get profileEditBio => 'Bio';
+
+  @override
+  String get profileEditUnavailable =>
+      'Changing your name, bio and photo needs a server update that isn\'t available yet.';
+
+  @override
+  String get profileEditPhoto => 'Change photo';
+
+  @override
+  String get profileEditLinks => 'Links';
+
+  @override
+  String get profileEditGender => 'Gender';
+
+  @override
+  String get profileEditCategory => 'Category';
+
+  @override
+  String get profileEditReorderGrid => 'Reorder grid';
+
+  @override
+  String get profileEditPrivacy => 'Account privacy';
+
+  @override
+  String get profilePrivacyPublic => 'Public';
+
+  @override
+  String get profilePrivacyPrivate => 'Private';
+
+  @override
+  String get profileEditSoon => 'Coming soon';
+
+  @override
+  String get profileSaved => 'Saved';
+
+  @override
+  String get profileNoSaved => 'Nothing saved yet';
+
+  @override
+  String get profileSavedEmptyBody =>
+      'Save posts and reels to find them here. Only you can see what you save.';
+
+  @override
+  String get profileSavedComingTitle => 'Your saved posts and reels';
+
+  @override
+  String get profileSavedComingBody =>
+      'Saving arrives with posts and reels. Only you will see what you save.';
+
+  @override
+  String get profileWatchLive => 'Watch live';
+
+  @override
+  String get profileOtherComingTitle => 'Posts and reels are coming';
+
+  @override
+  String get profileOtherComingBody =>
+      'Posts arrive in Phase 3 and reels in Phase 5.';
+
+  @override
+  String get profileOtherEmptyBody => 'Nothing shared yet.';
+
+  @override
+  String get profilePrivateTitle => 'This account is private';
+
+  @override
+  String get profilePrivateBody =>
+      'Their posts and reels are visible to approved followers only.';
+
+  @override
+  String get profileNotFoundTitle => 'This account isn\'t available';
+
+  @override
+  String get profileNotFoundBody =>
+      'The link may be broken, or the account may have been removed.';
+
+  @override
+  String profileUnfollowConfirm(String name) {
+    return 'Unfollow $name?';
+  }
+
+  @override
+  String get previewsHubUserProfile => 'Public profile';
+
+  @override
+  String get profileMessage => 'Message';
+
+  @override
+  String get chatUnavailable =>
+      'Private messages aren\'t available yet. When they are, your conversation will appear here.';
+
+  @override
+  String get profileCopyUsername => 'Copy username';
+
+  @override
+  String get profileCopyLink => 'Copy profile link';
+
+  @override
+  String get profileReport => 'Report';
+
+  @override
+  String get profileCopied => 'Copied';
 }

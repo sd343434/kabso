@@ -45,3 +45,4 @@ Status legend: ⛔ open · ⏳ in progress · ✅ done (evidence linked)
 | PP-31 | `main` is the default branch with required CI checks (`CI OK`) and reviewed pull requests | owner + A8 | A1 | ⏳ |
 | PP-32 | Load test of auth endpoints against the Argon2 cap and rate limits; SLOs recorded | Phase 11 | A7 + A8 | ⛔ |
 | PP-33 | Backups + tested restore (PITR) for PostgreSQL | deploy | A8 | ⛔ |
+| PP-34 | Development-only preview imagery (`assets/preview/`, AI-generated, see `docs/design/PREVIEW_ASSETS.md`) is excluded from release builds (dev flavor) or removed, and never shown as user content | Flutter | A1 | ⛔ |

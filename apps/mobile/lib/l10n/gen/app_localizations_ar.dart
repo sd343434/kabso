@@ -309,6 +309,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navCreate => 'إنشاء';
 
   @override
+  String get navReels => 'ريلز';
+
+  @override
   String get navLive => 'مباشر';
 
   @override
@@ -338,7 +341,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileContentComingBody =>
-      'يتوفر تعديل الملف الشخصي والمتابعون في المرحلة 2، والمنشورات في المرحلة 3، والقصص واللقطات المميزة في المرحلة 4.';
+      'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5. أما تعديل الملف الشخصي والقصص واللقطات المميزة فلاحقًا.';
 
   @override
   String get settingsTitle => 'الإعدادات';
@@ -382,17 +385,44 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String relativeMinutesAgo(int n) {
-    return 'منذ $n د';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'منذ $n دقيقة',
+      many: 'منذ $n دقيقة',
+      few: 'منذ $n دقائق',
+      two: 'منذ دقيقتين',
+      one: 'منذ دقيقة',
+    );
+    return '$_temp0';
   }
 
   @override
   String relativeHoursAgo(int n) {
-    return 'منذ $n س';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'منذ $n ساعة',
+      many: 'منذ $n ساعة',
+      few: 'منذ $n ساعات',
+      two: 'منذ ساعتين',
+      one: 'منذ ساعة',
+    );
+    return '$_temp0';
   }
 
   @override
   String relativeDaysAgo(int n) {
-    return 'منذ $n ي';
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: 'منذ $n يوم',
+      many: 'منذ $n يومًا',
+      few: 'منذ $n أيام',
+      two: 'منذ يومين',
+      one: 'منذ يوم',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -981,4 +1011,412 @@ class AppLocalizationsAr extends AppLocalizations {
   String messagesPreviewReaction(String emoji) {
     return 'تفاعل $emoji';
   }
+
+  @override
+  String commentsSheetTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count تعليق',
+      many: '$count تعليقًا',
+      few: '$count تعليقات',
+      two: 'تعليقان',
+      one: 'تعليق واحد',
+      zero: 'لا تعليقات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get commentsCreator => 'صاحب المنشور';
+
+  @override
+  String get commentsReply => 'رد';
+
+  @override
+  String commentsViewReplies(int count) {
+    return 'عرض الردود ($count)';
+  }
+
+  @override
+  String get commentsHideReplies => 'إخفاء الردود';
+
+  @override
+  String get commentsHint => 'أضف تعليقًا…';
+
+  @override
+  String get commentsPost => 'نشر';
+
+  @override
+  String commentsLike(String count) {
+    return 'إعجاب، $count';
+  }
+
+  @override
+  String get commentsVerified => 'موثّق';
+
+  @override
+  String get previewsHubTitle => 'معاينات التصميم';
+
+  @override
+  String get previewsHubNote => 'بيانات اختبار فقط. لا شيء هنا متصل بالخادم.';
+
+  @override
+  String get previewsHubFeed => 'المنشورات';
+
+  @override
+  String get previewsHubLive => 'غرفة البث';
+
+  @override
+  String get previewsHubMessages => 'الرسائل';
+
+  @override
+  String get previewsHubComponents => 'المكوّنات';
+
+  @override
+  String get commentsYou => 'أنت';
+
+  @override
+  String get conversationsTitle => 'الرسائل الخاصة';
+
+  @override
+  String get conversationsSharedVideo => 'شارك فيديو';
+
+  @override
+  String conversationsSayHi(String name) {
+    return 'ألقِ التحية على $name';
+  }
+
+  @override
+  String conversationsUnread(String name) {
+    return '$name، غير مقروءة';
+  }
+
+  @override
+  String get conversationsEmptyTitle => 'لا رسائل بعد';
+
+  @override
+  String get conversationsEmptyBody => 'عندما تراسل أحدًا، تظهر المحادثة هنا.';
+
+  @override
+  String get conversationsUnavailableTitle => 'الرسائل غير متاحة بعد';
+
+  @override
+  String get conversationsUnavailableBody =>
+      'ستُفتح الرسائل الخاصة هنا عندما تصبح جاهزة.';
+
+  @override
+  String get previewStateLabel => 'حالة المعاينة';
+
+  @override
+  String get previewStateLoading => 'تحميل';
+
+  @override
+  String get previewStateError => 'خطأ';
+
+  @override
+  String get previewStateUnavailable => 'غير متاح';
+
+  @override
+  String get previewStateEmpty => 'فارغ';
+
+  @override
+  String get previewStatePopulated => 'مع بيانات';
+
+  @override
+  String get messagesGreetingHi => 'مرحبًا';
+
+  @override
+  String get messagesGreetingHello => 'أهلًا وسهلًا';
+
+  @override
+  String get messagesGreetingHowAreYou => 'كيف حالك؟';
+
+  @override
+  String get previewsHubConversations => 'المحادثات';
+
+  @override
+  String get discoverTrendingHashtag => 'وسم رائج';
+
+  @override
+  String discoverHashtagVideos(String name, String count) {
+    return '$name، $count فيديو';
+  }
+
+  @override
+  String discoverBanner(int index, int total) {
+    return 'مميّز $index من $total';
+  }
+
+  @override
+  String get discoverNoResultsTitle => 'لا نتائج';
+
+  @override
+  String discoverNoResultsBody(String query) {
+    return 'لا شيء في بيانات الاختبار يطابق $query.';
+  }
+
+  @override
+  String get discoverClearSearch => 'مسح البحث';
+
+  @override
+  String discoverOpenVideo(int index, String name) {
+    return 'فتح الفيديو $index من $name';
+  }
+
+  @override
+  String get reelsModeLabel => 'عرض الريلز أو المنشورات';
+
+  @override
+  String get reelsModeReels => 'ريلز';
+
+  @override
+  String get reelsModePosts => 'منشورات';
+
+  @override
+  String get reelsTabForYou => 'لك';
+
+  @override
+  String get reelsTabFriends => 'الأصدقاء';
+
+  @override
+  String reelsCoins(String count) {
+    return 'رصيد العملات، $count';
+  }
+
+  @override
+  String get reelsSave => 'حفظ';
+
+  @override
+  String get reelsSaved => 'محفوظ';
+
+  @override
+  String get reelsNotInterested => 'غير مهتم';
+
+  @override
+  String get reelsProgress => 'موضع التشغيل';
+
+  @override
+  String postsLikes(String count) {
+    return '$count إعجاب';
+  }
+
+  @override
+  String postsViewComments(String count) {
+    return 'عرض كل التعليقات ($count)';
+  }
+
+  @override
+  String get previewsHubReels => 'الريلز والمنشورات';
+
+  @override
+  String get previewsHubReelsTab => 'تبويب الريلز (المنشورات)';
+
+  @override
+  String get homeTabPosts => 'المنشورات';
+
+  @override
+  String get homeTabReels => 'الريلز';
+
+  @override
+  String get homeReelsUnavailableTitle => 'الريلز قادمة قريبًا';
+
+  @override
+  String get homeReelsUnavailableBody =>
+      'ستظهر هنا مقاطع الفيديو القصيرة عند إطلاق الريلز. حاليًا، شاهد البث المباشر.';
+
+  @override
+  String get homeReelsEmptyTitle => 'لا توجد ريلز بعد';
+
+  @override
+  String get homeReelsErrorTitle => 'تعذّر تحميل الريلز';
+
+  @override
+  String homeReelBy(String name) {
+    return 'ريل من $name';
+  }
+
+  @override
+  String get liveHubJoin => 'ادخل البث';
+
+  @override
+  String get liveHubLoadingMore => 'جارٍ تحميل المزيد من البثوث';
+
+  @override
+  String get homeShowReels => 'عرض الريلز';
+
+  @override
+  String get homeShowPosts => 'عرض المنشورات';
+
+  @override
+  String get feedSeeMore => 'عرض المزيد';
+
+  @override
+  String get feedPostVideo => 'فيديو';
+
+  @override
+  String feedPostCounts(String likes, String comments, String shares) {
+    return '$likes إعجاب، $comments تعليق، $shares مشاركة';
+  }
+
+  @override
+  String get homeFeedTrending => 'رائج';
+
+  @override
+  String homeFollowAuthor(String name) {
+    return 'متابعة $name';
+  }
+
+  @override
+  String homeFollowingAuthor(String name) {
+    return 'تتابع $name';
+  }
+
+  @override
+  String get homeReelsFollowingUnavailableTitle => 'ريلز ممن تتابعهم';
+
+  @override
+  String get homeReelsFollowingUnavailableBody =>
+      'ستظهر هنا ريلز من تتابعهم عند إطلاق الريلز. وحتى ذلك الحين، شاهد البث المباشر.';
+
+  @override
+  String get homeReelsFollowingEmptyTitle => 'لا توجد ريلز ممن تتابعهم بعد';
+
+  @override
+  String get feedPostMore => 'خيارات أخرى';
+
+  @override
+  String homeUnfollowAuthor(String name) {
+    return 'إلغاء متابعة $name';
+  }
+
+  @override
+  String get profileFollowers => 'المتابِعون';
+
+  @override
+  String get profileFollowingCount => 'يتابع';
+
+  @override
+  String get profileNoPosts => 'لا توجد منشورات بعد';
+
+  @override
+  String get profileNoReels => 'لا توجد ريلز بعد';
+
+  @override
+  String get profileGridEmptyBody => 'عندما تنشر شيئًا سيظهر هنا.';
+
+  @override
+  String get profileEditTitle => 'تعديل الملف الشخصي';
+
+  @override
+  String get profileEditSave => 'حفظ';
+
+  @override
+  String get profileEditName => 'الاسم';
+
+  @override
+  String get profileEditUsername => 'اسم المستخدم';
+
+  @override
+  String get profileEditBio => 'النبذة';
+
+  @override
+  String get profileEditUnavailable =>
+      'تغيير الاسم والنبذة والصورة يحتاج تحديثًا في الخادم غير متاح بعد.';
+
+  @override
+  String get profileEditPhoto => 'تغيير الصورة';
+
+  @override
+  String get profileEditLinks => 'الروابط';
+
+  @override
+  String get profileEditGender => 'الجنس';
+
+  @override
+  String get profileEditCategory => 'فئة الحساب';
+
+  @override
+  String get profileEditReorderGrid => 'ترتيب الشبكة';
+
+  @override
+  String get profileEditPrivacy => 'خصوصية الحساب';
+
+  @override
+  String get profilePrivacyPublic => 'عام';
+
+  @override
+  String get profilePrivacyPrivate => 'خاص';
+
+  @override
+  String get profileEditSoon => 'قريبًا';
+
+  @override
+  String get profileSaved => 'المحفوظات';
+
+  @override
+  String get profileNoSaved => 'لا توجد محفوظات بعد';
+
+  @override
+  String get profileSavedEmptyBody =>
+      'احفظ المنشورات والريلز لتجدها هنا. لا يرى محفوظاتك أحد غيرك.';
+
+  @override
+  String get profileSavedComingTitle => 'منشوراتك وريلز المحفوظة';
+
+  @override
+  String get profileSavedComingBody =>
+      'يصل الحفظ مع المنشورات والريلز. لن يرى محفوظاتك أحد غيرك.';
+
+  @override
+  String get profileWatchLive => 'شاهد البث';
+
+  @override
+  String get profileOtherComingTitle => 'المنشورات والريلز قادمة';
+
+  @override
+  String get profileOtherComingBody =>
+      'تصل المنشورات في المرحلة 3 والريلز في المرحلة 5.';
+
+  @override
+  String get profileOtherEmptyBody => 'لم يُنشر شيء بعد.';
+
+  @override
+  String get profilePrivateTitle => 'هذا الحساب خاص';
+
+  @override
+  String get profilePrivateBody => 'منشوراته وريلزه يراها متابعوه فقط.';
+
+  @override
+  String get profileNotFoundTitle => 'هذا الحساب غير متاح';
+
+  @override
+  String get profileNotFoundBody => 'قد يكون الرابط غير صحيح، أو أُزيل الحساب.';
+
+  @override
+  String profileUnfollowConfirm(String name) {
+    return 'إلغاء متابعة $name؟';
+  }
+
+  @override
+  String get previewsHubUserProfile => 'الملف العام';
+
+  @override
+  String get profileMessage => 'مراسلة';
+
+  @override
+  String get chatUnavailable =>
+      'الرسائل الخاصة غير متاحة بعد. عند توفرها ستظهر محادثتكما هنا.';
+
+  @override
+  String get profileCopyUsername => 'نسخ اسم المستخدم';
+
+  @override
+  String get profileCopyLink => 'نسخ رابط الصفحة';
+
+  @override
+  String get profileReport => 'تبليغ';
+
+  @override
+  String get profileCopied => 'تم النسخ';
 }

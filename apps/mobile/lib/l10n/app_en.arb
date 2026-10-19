@@ -84,6 +84,7 @@
   "navHome": "Home",
   "navDiscover": "Discover",
   "navCreate": "Create",
+  "navReels": "Reels",
   "navLive": "Live",
   "navProfile": "Profile",
   "discoverComingTitle": "Discover is coming",
@@ -92,7 +93,7 @@
   "createComingBody": "Posts arrive in Phase 3, stories in Phase 4, short videos in Phase 5 and going live in Phase 6.",
   "profileUsername": "@{username}",
   "profileContentComingTitle": "Your posts will live here",
-  "profileContentComingBody": "Profile editing and followers arrive in Phase 2, posts in Phase 3, stories and highlights in Phase 4.",
+  "profileContentComingBody": "Posts arrive in Phase 3 and reels in Phase 5. Profile editing, stories and highlights come later.",
   "settingsTitle": "Settings",
   "settingsAppearance": "Appearance",
   "themeSystem": "Match device",
@@ -105,9 +106,9 @@
   "sessionsLastActive": "Active {relativeTime}",
   "sessionsActiveNow": "Active now",
   "sessionsSignedIn": "Signed in {date}",
-  "relativeMinutesAgo": "{n}m ago",
-  "relativeHoursAgo": "{n}h ago",
-  "relativeDaysAgo": "{n}d ago",
+  "relativeMinutesAgo": "{n, plural, =1{{n} minute ago} other{{n} minutes ago}}",
+  "relativeHoursAgo": "{n, plural, =1{{n} hour ago} other{{n} hours ago}}",
+  "relativeDaysAgo": "{n, plural, =1{{n} day ago} other{{n} days ago}}",
   "sessionsRevoke": "End",
   "sessionsRevokeConfirmTitle": "End this session?",
   "sessionsRevokeConfirmBody": "{device} will be logged out right away.",
@@ -267,5 +268,216 @@
   "messagesPreviewHint": "Send a message…",
   "messagesPreviewSend": "Send",
   "messagesPreviewPlay": "Play video",
-  "messagesPreviewReaction": "Reaction {emoji}"
+  "messagesPreviewReaction": "Reaction {emoji}",
+  "commentsSheetTitle": "{count, plural, =1{{count} comment} other{{count} comments}}",
+  "@commentsSheetTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsCreator": "Creator",
+  "commentsReply": "Reply",
+  "commentsViewReplies": "View replies ({count})",
+  "@commentsViewReplies": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsHideReplies": "Hide replies",
+  "commentsHint": "Add comment…",
+  "commentsPost": "Post",
+  "commentsLike": "Like, {count}",
+  "@commentsLike": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "commentsVerified": "Verified",
+  "previewsHubTitle": "Design previews",
+  "previewsHubNote": "Test data only. Nothing here is connected to a server.",
+  "previewsHubFeed": "Feed",
+  "previewsHubLive": "Live room",
+  "previewsHubMessages": "Messages",
+  "previewsHubComponents": "Components",
+  "commentsYou": "You",
+  "conversationsTitle": "Direct messages",
+  "conversationsSharedVideo": "Shared a video",
+  "conversationsSayHi": "Say hi to {name}",
+  "@conversationsSayHi": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationsUnread": "{name}, unread",
+  "@conversationsUnread": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationsEmptyTitle": "No messages yet",
+  "conversationsEmptyBody": "When you message someone, the conversation shows up here.",
+  "conversationsUnavailableTitle": "Messages aren't available yet",
+  "conversationsUnavailableBody": "Private messages will open here once they're ready.",
+  "previewStateLabel": "Preview state",
+  "previewStateLoading": "Loading",
+  "previewStateError": "Error",
+  "previewStateUnavailable": "Unavailable",
+  "previewStateEmpty": "Empty",
+  "previewStatePopulated": "With data",
+  "messagesGreetingHi": "Hi",
+  "messagesGreetingHello": "Hello there",
+  "messagesGreetingHowAreYou": "How are you?",
+  "previewsHubConversations": "Conversations",
+  "discoverTrendingHashtag": "Trending hashtag",
+  "discoverHashtagVideos": "{name}, {count} videos",
+  "@discoverHashtagVideos": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverBanner": "Featured {index} of {total}",
+  "@discoverBanner": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "discoverNoResultsTitle": "No results",
+  "discoverNoResultsBody": "Nothing in the test data matches {query}.",
+  "@discoverNoResultsBody": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "discoverClearSearch": "Clear search",
+  "discoverOpenVideo": "Open video {index} of {name}",
+  "@discoverOpenVideo": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reelsModeLabel": "Show reels or posts",
+  "reelsModeReels": "Reels",
+  "reelsModePosts": "Posts",
+  "reelsTabForYou": "For you",
+  "reelsTabFriends": "Friends",
+  "reelsCoins": "Coin balance, {count}",
+  "@reelsCoins": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "reelsSave": "Save",
+  "reelsSaved": "Saved",
+  "reelsNotInterested": "Not interested",
+  "reelsProgress": "Playback position",
+  "postsLikes": "{count} likes",
+  "@postsLikes": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "postsViewComments": "View all {count} comments",
+  "@postsViewComments": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "previewsHubReels": "Reels and posts",
+  "previewsHubReelsTab": "Reels tab (posts)",
+  "homeTabPosts": "Posts",
+  "homeTabReels": "Reels",
+  "homeReelsUnavailableTitle": "Reels are coming",
+  "homeReelsUnavailableBody": "Short vertical videos will appear here once reels launch. For now, watch live streams.",
+  "homeReelsEmptyTitle": "No reels yet",
+  "homeReelsErrorTitle": "Couldn't load reels",
+  "homeReelBy": "Reel by {name}",
+  "liveHubJoin": "Join live",
+  "liveHubLoadingMore": "Loading more streams",
+  "homeShowReels": "Show reels",
+  "homeShowPosts": "Show posts",
+  "feedSeeMore": "see more",
+  "feedPostVideo": "Video",
+  "feedPostCounts": "{likes} likes, {comments} comments, {shares} shares",
+  "homeFeedTrending": "Trending",
+  "homeFollowAuthor": "Follow {name}",
+  "homeFollowingAuthor": "Following {name}",
+  "homeReelsFollowingUnavailableTitle": "Reels from people you follow",
+  "homeReelsFollowingUnavailableBody": "Reels from the people you follow will appear here once reels launch. For now, watch live streams.",
+  "homeReelsFollowingEmptyTitle": "No reels from people you follow yet",
+  "feedPostMore": "More options",
+  "homeUnfollowAuthor": "Unfollow {name}",
+  "profileFollowers": "Followers",
+  "profileFollowingCount": "Following",
+  "profileNoPosts": "No posts yet",
+  "profileNoReels": "No reels yet",
+  "profileGridEmptyBody": "When you share something, it will show up here.",
+  "profileEditTitle": "Edit profile",
+  "profileEditSave": "Save",
+  "profileEditName": "Name",
+  "profileEditUsername": "Username",
+  "profileEditBio": "Bio",
+  "profileEditUnavailable": "Changing your name, bio and photo needs a server update that isn't available yet.",
+  "profileEditPhoto": "Change photo",
+  "profileEditLinks": "Links",
+  "profileEditGender": "Gender",
+  "profileEditCategory": "Category",
+  "profileEditReorderGrid": "Reorder grid",
+  "profileEditPrivacy": "Account privacy",
+  "profilePrivacyPublic": "Public",
+  "profilePrivacyPrivate": "Private",
+  "profileEditSoon": "Coming soon",
+  "profileSaved": "Saved",
+  "profileNoSaved": "Nothing saved yet",
+  "profileSavedEmptyBody": "Save posts and reels to find them here. Only you can see what you save.",
+  "profileSavedComingTitle": "Your saved posts and reels",
+  "profileSavedComingBody": "Saving arrives with posts and reels. Only you will see what you save.",
+  "profileWatchLive": "Watch live",
+  "profileOtherComingTitle": "Posts and reels are coming",
+  "profileOtherComingBody": "Posts arrive in Phase 3 and reels in Phase 5.",
+  "profileOtherEmptyBody": "Nothing shared yet.",
+  "profilePrivateTitle": "This account is private",
+  "profilePrivateBody": "Their posts and reels are visible to approved followers only.",
+  "profileNotFoundTitle": "This account isn't available",
+  "profileNotFoundBody": "The link may be broken, or the account may have been removed.",
+  "profileUnfollowConfirm": "Unfollow {name}?",
+  "previewsHubUserProfile": "Public profile",
+  "profileMessage": "Message",
+  "chatUnavailable": "Private messages aren't available yet. When they are, your conversation will appear here.",
+  "profileCopyUsername": "Copy username",
+  "profileCopyLink": "Copy profile link",
+  "profileReport": "Report",
+  "profileCopied": "Copied"
 }
