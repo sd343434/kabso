@@ -22,7 +22,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -126,7 +126,7 @@ void main() {
         ],
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('nav.live')));
+      await tester.tap(find.byKey(const Key('nav.home')));
       await tester.pumpAndSettle();
       return live;
     }
@@ -134,29 +134,25 @@ void main() {
     testWidgets('a hub card opens its room full screen (no bottom nav); '
         'Close returns to the hub', (tester) async {
       final live = await pumpApp(tester);
-      final card = find.byType(KLiveCoverCard).first;
-      expect(
-        tester.getSemantics(card).getSemanticsData().flagsCollection.isButton,
-        isTrue,
-      );
-      await tester.tap(card);
+      // D50: the hub shows one stream per screen; "Join live" opens it.
+      await tester.tap(find.byKey(KLiveFullPage.joinKey).first);
       await tester.pumpAndSettle();
 
       expect(find.byType(LiveRoomScreen), findsOneWidget);
       expect(live.roomRequests, ['room-0']);
-      expect(find.byKey(const Key('nav.live')), findsNothing);
+      expect(find.byKey(const Key('nav.home')), findsNothing);
       expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
 
       await tester.tap(_label(l10n.liveClose));
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
-      expect(find.byKey(const Key('nav.live')), findsOneWidget);
-      expect(find.byType(KLiveCoverCard), findsNWidgets(2));
+      expect(find.byKey(const Key('nav.home')), findsOneWidget);
+      expect(find.byType(KLiveFullPage), findsWidgets);
     });
 
     testWidgets('system back leaves the room for the hub', (tester) async {
       await pumpApp(tester);
-      await tester.tap(find.byType(KLiveCoverCard).last);
+      await tester.tap(find.byType(KLiveFullPage).first);
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsOneWidget);
 
@@ -164,7 +160,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
-      expect(find.byKey(const Key('nav.live')), findsOneWidget);
+      expect(find.byKey(const Key('nav.home')), findsOneWidget);
     });
 
     testWidgets('an ended room: "Back to live rooms" returns to the hub', (
@@ -177,13 +173,13 @@ void main() {
         status: LiveRoomStatus.ended,
         endReason: LiveRoomEndReason.heartbeatTimeout,
       );
-      await tester.tap(find.byType(KLiveCoverCard).first);
+      await tester.tap(find.byType(KLiveFullPage).first);
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveRoomEndedTitle), findsOneWidget);
       await tester.tap(find.text(l10n.liveRoomBackToLive));
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
-      expect(find.byKey(const Key('nav.live')), findsOneWidget);
+      expect(find.byKey(const Key('nav.home')), findsOneWidget);
     });
 
     testWidgets('a deep link builds the hub under the room; Close shows it', (
@@ -193,7 +189,7 @@ void main() {
         initialLocation: AppRoutes.liveRoom('room-0'),
         routes: [
           GoRoute(
-            path: AppRoutes.live,
+            path: AppRoutes.home,
             builder: (_, _) => const Text('hub', key: Key('hub')),
             routes: [
               GoRoute(
@@ -234,13 +230,13 @@ void main() {
       expect(find.byKey(const Key('hub')), findsOneWidget);
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        AppRoutes.live,
+        AppRoutes.home,
       );
     });
 
     test('room locations encode the id', () {
-      expect(AppRoutes.liveRoom('room-0'), '/live/room/room-0');
-      expect(AppRoutes.liveRoom('a/b'), '/live/room/a%2Fb');
+      expect(AppRoutes.liveRoom('room-0'), '/home/room/room-0');
+      expect(AppRoutes.liveRoom('a/b'), '/home/room/a%2Fb');
     });
   });
 

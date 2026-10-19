@@ -114,7 +114,7 @@ void closeLiveRoom(BuildContext context) {
   } else if (router.canPop()) {
     router.pop();
   } else {
-    router.go(AppRoutes.live);
+    router.go(AppRoutes.home);
   }
 }
 

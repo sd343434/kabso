@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 
@@ -6,7 +7,17 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 /// - Restoring / restore failed → stay on the splash.
 /// - Signed out → only the public auth routes.
 /// - Signed in → never the splash or the public auth routes.
-String? authRedirect(AuthState state, String location) {
+/// - Debug-only routes (labelled test data, never in release builds) open in
+///   any state, so a test build can show the design previews without a
+///   server or a session.
+String? authRedirect(
+  AuthState state,
+  String location, {
+  bool allowDebugRoutes = !kReleaseMode,
+}) {
+  if (allowDebugRoutes && location.startsWith(AppRoutes.debugPrefix)) {
+    return null;
+  }
   final isSplash = location == AppRoutes.splash;
   final isPublicAuth = AppRoutes.publicAuthRoutes.contains(location);
 

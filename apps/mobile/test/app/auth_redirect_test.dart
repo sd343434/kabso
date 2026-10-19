@@ -66,4 +66,38 @@ void main() {
       );
     });
   });
+
+  group('debug-only routes', () {
+    const debug = [
+      AppRoutes.debugPreviews,
+      AppRoutes.debugFeedPreview,
+      AppRoutes.debugComponents,
+    ];
+    final states = <AuthState>[
+      const AuthRestoring(),
+      const AuthRestoreFailed(NetworkFailure.offline()),
+      const Unauthenticated(),
+    ];
+
+    test('open without a session in a test build', () {
+      for (final state in states) {
+        for (final r in debug) {
+          expect(authRedirect(state, r), isNull, reason: '$state $r');
+        }
+      }
+    });
+
+    test('follow the normal rules when debug routes are not allowed', () {
+      for (final r in debug) {
+        expect(
+          authRedirect(const Unauthenticated(), r, allowDebugRoutes: false),
+          AppRoutes.login,
+        );
+        expect(
+          authRedirect(const AuthRestoring(), r, allowDebugRoutes: false),
+          AppRoutes.splash,
+        );
+      }
+    });
+  });
 }

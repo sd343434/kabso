@@ -11,20 +11,21 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/live` — the live-discovery hub (D36/D39, HOME_LIVE_LAYOUT_DECISIONS §1
-/// HL-H3–H6): Following · Popular · New over live rooms (opens on Popular),
-/// category chips on Popular and a 2-column 3:4 grid, all from the v1.3 API
+/// `/home` — the live-discovery hub, Kabso's home page since D48 (D36/D39,
+/// HOME_LIVE_LAYOUT_DECISIONS §1 HL-H3–H6): Following · Popular · New over
+/// live rooms (opens on Popular), category chips on Popular and a 2-column
+/// 3:4 grid, all from the v1.3 API
 /// (`liveRoomsProvider`). While the server has hosting switched off every
 /// tab shows its own unavailable state with Try again (re-checks the
 /// config). No search control until search exists (KL-047).
 ///
 /// Another screen can ask for a segment through `liveHubTabRequestProvider`
-/// (Home's "Watch live streams").
+/// ("Watch live streams" on the Reels tab).
 ///
 /// Freshness (HL-H5): re-tapping the selected tab re-fetches it; returning
 /// to the app after more than [resumeRefreshAfter] re-fetches every loaded
@@ -71,16 +72,25 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => FeedTabsScaffold(
-    requestedTab: ref.watch(liveHubTabRequestProvider),
-    onReselect: (tab) => unawaited(
-      ref
-          .read(liveRoomsProvider(tab).notifier)
-          .refresh()
-          .catchError((Object _) {}),
+  Widget build(BuildContext context) => Theme(
+    // D50: full-screen streams are a dark surface in both themes.
+    data: buildAppTheme(
+      brightness: Brightness.dark,
+      locale: Localizations.localeOf(context),
     ),
-    pageBuilder: (context, tab, selectTab) =>
-        _LiveHubPage(tab: tab, onSelectTab: selectTab),
+    child: FeedTabsScaffold(
+      overlayHeader: true,
+      centerTabs: true,
+      requestedTab: ref.watch(liveHubTabRequestProvider),
+      onReselect: (tab) => unawaited(
+        ref
+            .read(liveRoomsProvider(tab).notifier)
+            .refresh()
+            .catchError((Object _) {}),
+      ),
+      pageBuilder: (context, tab, selectTab) =>
+          _LiveHubPage(tab: tab, onSelectTab: selectTab),
+    ),
   );
 }
 
@@ -193,7 +203,7 @@ class LiveHubBody extends StatelessWidget {
   final VoidCallback? onLoadMore;
   final VoidCallback? onRetryLoadMore;
 
-  /// Opens a room (`/live/room/:roomId`, KL-034). `null` (gallery,
+  /// Opens a room (`/home/room/:roomId`, KL-034). `null` (gallery,
   /// goldens): cards are not announced or drawn as buttons.
   final ValueChanged<LiveRoomCardData>? onOpenRoom;
 
@@ -244,85 +254,84 @@ class LiveHubBody extends StatelessWidget {
         FeedTab.latest => null,
       },
       errorTitle: l10n.liveHubErrorTitle,
-      loadMoreFailed: l10n.liveHubLoadMoreFailed,
-      endOfList: l10n.liveHubListEnd,
     );
-    return FeedRegion<LiveRoomCardData>(
+    // D50: one stream per screen. The region keeps the states; loaded
+    // rooms fill it with the vertical pager, which pages on its own (no
+    // list footer, so the load-more flags go to the pager).
+    final items = content.value is FeedItems<LiveRoomCardData>
+        ? content.value! as FeedItems<LiveRoomCardData>
+        : null;
+    final regionContent = items == null
+        ? content
+        : AsyncData<FeedLoad<LiveRoomCardData>>(FeedItems(items.items));
+    final top = FeedTabsScaffold.overlayHeaderExtent(context);
+    // HL-H3: categories on Popular only, as defined by the server; none are
+    // invented. "All" alone is not interactive (nothing to switch to).
+    // KL-047: no chip row while live streaming is unavailable (nothing to
+    // filter). The row floats under the tabs over every other state too, so
+    // an empty category can be left.
+    final chips = tab == FeedTab.popular && content.value is! FeedUnavailable
+        ? _chips(context)
+        : null;
+    final region = FeedRegion<LiveRoomCardData>(
       key: PageStorageKey('live.${tab.name}'),
-      content: content,
+      content: regionContent,
       copy: copy,
       onRefresh: onRefresh,
       onRetry: onRetry,
-      onLoadMore: onLoadMore,
-      onRetryLoadMore: onRetryLoadMore,
       refreshWhenUnavailable: refreshWhenUnavailable,
-      // HL-H3: categories on Popular only, as defined by the server; none
-      // are invented. "All" alone is not interactive (nothing to switch to).
-      // KL-047: no chip row while live streaming is unavailable (nothing to
-      // filter).
-      header: tab == FeedTab.popular && content.value is! FeedUnavailable
-          ? _chips(context)
-          : null,
-      loadingSliver: _grid([
-        for (var i = 0; i < KMetrics.liveGridSkeletonCount; i++)
-          const KLiveCoverCardSkeleton(),
-      ]),
-      footerLoadingSliver: _grid(const [
-        KLiveCoverCardSkeleton(),
-        KLiveCoverCardSkeleton(),
-      ], top: 0),
-      itemsSliver: (rooms) => _grid([
-        for (final room in rooms)
-          KLiveCoverCard(
-            room: room,
-            onTap: onOpenRoom == null ? null : () => onOpenRoom!(room),
-          ),
-      ]),
+      loadingSliver: const SliverFillRemaining(
+        hasScrollBody: false,
+        child: KSkeleton(
+          width: double.infinity,
+          height: double.infinity,
+          radius: 0,
+        ),
+      ),
+      itemsSliver: (rooms) => SliverFillRemaining(
+        child: LiveHubPager(
+          rooms: rooms,
+          storageKey: PageStorageKey('live.pager.${tab.name}'),
+          topInset: top + (chips == null ? 0 : KSizes.minTouchTarget),
+          onRefresh: onRefresh,
+          onOpenRoom: onOpenRoom,
+          onLoadMore: onLoadMore,
+          onRetryLoadMore: onRetryLoadMore,
+          loadingMore: items?.loadingMore ?? false,
+          loadMoreFailed: items?.loadMoreError == null
+              ? null
+              : l10n.liveHubLoadMoreFailed,
+        ),
+      ),
+    );
+    if (chips == null) return region;
+    return Stack(
+      children: [
+        Positioned.fill(child: region),
+        Positioned(top: top, left: 0, right: 0, child: chips),
+      ],
     );
   }
 
   Widget _chips(BuildContext context) {
     final select = onSelectCategory;
     final interactive = categories.isNotEmpty && select != null;
-    return ColoredBox(
-      color: context.palette.background,
-      child: KChipRow(
-        children: [
+    return KChipRow(
+      children: [
+        KChip(
+          key: const ValueKey('live.chip.all'),
+          label: context.l10n.liveHubChipAll,
+          selected: selectedCategory == null,
+          onSelected: interactive ? () => select(null) : null,
+        ),
+        for (final category in categories)
           KChip(
-            key: const ValueKey('live.chip.all'),
-            label: context.l10n.liveHubChipAll,
-            selected: selectedCategory == null,
-            onSelected: interactive ? () => select(null) : null,
+            key: ValueKey('live.chip.${category.slug}'),
+            label: category.name,
+            selected: selectedCategory == category.slug,
+            onSelected: interactive ? () => select(category.slug) : null,
           ),
-          for (final category in categories)
-            KChip(
-              key: ValueKey('live.chip.${category.slug}'),
-              label: category.name,
-              selected: selectedCategory == category.slug,
-              onSelected: interactive ? () => select(category.slug) : null,
-            ),
-        ],
-      ),
+      ],
     );
   }
-
-  /// HL-H4 / VG-09: 2 columns, 3:4, side padding `sm`, gaps `xs`.
-  static Widget _grid(
-    List<Widget> children, {
-    double top = KMetrics.liveGridPadding,
-  }) => SliverPadding(
-    padding: EdgeInsetsDirectional.only(
-      start: KMetrics.liveGridPadding,
-      end: KMetrics.liveGridPadding,
-      top: top,
-      bottom: KMetrics.liveGridPadding,
-    ),
-    sliver: SliverGrid.count(
-      crossAxisCount: 2,
-      mainAxisSpacing: KMetrics.liveGridGap,
-      crossAxisSpacing: KMetrics.liveGridGap,
-      childAspectRatio: KSizes.liveCardAspect,
-      children: children,
-    ),
-  );
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
@@ -33,6 +34,8 @@ class FeedTabsScaffold extends StatefulWidget {
     this.onReselect,
     this.showSearch = searchAvailable,
     this.requestedTab,
+    this.overlayHeader = false,
+    this.centerTabs = false,
   });
 
   static const searchKey = Key('feed.search');
@@ -62,6 +65,20 @@ class FeedTabsScaffold extends StatefulWidget {
   /// Tapping the tab that is already selected (e.g. the Live hub re-fetches,
   /// HL-H5).
   final ValueChanged<FeedTab>? onReselect;
+
+  /// D50: pages are full-bleed (under the status bar too) and the header
+  /// floats over them on a top scrim with light status-bar icons (the
+  /// full-screen live hub). Pages place their own content below
+  /// [overlayHeaderExtent].
+  final bool overlayHeader;
+
+  /// D51: the tabs are centred with space between them (live hub).
+  final bool centerTabs;
+
+  /// The height the floating header covers: the top safe area plus the
+  /// 48 dp tab bar.
+  static double overlayHeaderExtent(BuildContext context) =>
+      MediaQuery.paddingOf(context).top + KMetrics.topBarHeight;
 
   @override
   State<FeedTabsScaffold> createState() => _FeedTabsScaffoldState();
@@ -114,57 +131,85 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
       FeedTab.popular: l10n.feedTabPopular,
       FeedTab.latest: l10n.feedTabNew,
     };
+    final header = SizedBox(
+      height: KMetrics.topBarHeight,
+      child: Row(
+        children: [
+          Expanded(
+            child: KPrimaryTabs(
+              centered: widget.centerTabs,
+              labels: [for (final tab in FeedTab.values) labels[tab]!],
+              selectedIndex: _tab.index,
+              onSelected: (i) => _select(FeedTab.values[i]),
+            ),
+          ),
+          if (widget.showSearch) ...[
+            IconButton(
+              key: FeedTabsScaffold.searchKey,
+              tooltip: l10n.feedSearch,
+              iconSize: KMetrics.iconMd,
+              color: p.textPrimary,
+              constraints: const BoxConstraints.tightFor(
+                width: KSizes.minTouchTarget,
+                height: KSizes.minTouchTarget,
+              ),
+              onPressed:
+                  widget.onSearch ?? () => context.go(AppRoutes.discover),
+              icon: const Icon(Icons.search_rounded),
+            ),
+            const SizedBox(width: KSpacing.xs),
+          ],
+        ],
+      ),
+    );
+    final pages = PageView(
+      key: FeedTabsScaffold.pagerKey,
+      controller: _pages,
+      onPageChanged: (i) {
+        final tab = FeedTab.values[i];
+        if (tab != _tab) setState(() => _tab = tab);
+      },
+      children: [
+        for (final tab in FeedTab.values)
+          widget.pageBuilder(context, tab, _select),
+      ],
+    );
+    if (widget.overlayHeader) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: p.background,
+          body: Stack(
+            children: [
+              Positioned.fill(child: pages),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x80000000), Color(0x00000000)],
+                    ),
+                  ),
+                  child: SafeArea(bottom: false, child: header),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: p.background,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            SizedBox(
-              height: KMetrics.topBarHeight,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: KPrimaryTabs(
-                      labels: [for (final tab in FeedTab.values) labels[tab]!],
-                      selectedIndex: _tab.index,
-                      onSelected: (i) => _select(FeedTab.values[i]),
-                    ),
-                  ),
-                  if (widget.showSearch) ...[
-                    IconButton(
-                      key: FeedTabsScaffold.searchKey,
-                      tooltip: l10n.feedSearch,
-                      iconSize: KMetrics.iconMd,
-                      color: p.textPrimary,
-                      constraints: const BoxConstraints.tightFor(
-                        width: KSizes.minTouchTarget,
-                        height: KSizes.minTouchTarget,
-                      ),
-                      onPressed:
-                          widget.onSearch ??
-                          () => context.go(AppRoutes.discover),
-                      icon: const Icon(Icons.search_rounded),
-                    ),
-                    const SizedBox(width: KSpacing.xs),
-                  ],
-                ],
-              ),
-            ),
-            Expanded(
-              child: PageView(
-                key: FeedTabsScaffold.pagerKey,
-                controller: _pages,
-                onPageChanged: (i) {
-                  final tab = FeedTab.values[i];
-                  if (tab != _tab) setState(() => _tab = tab);
-                },
-                children: [
-                  for (final tab in FeedTab.values)
-                    widget.pageBuilder(context, tab, _select),
-                ],
-              ),
-            ),
+            header,
+            Expanded(child: pages),
           ],
         ),
       ),

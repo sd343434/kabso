@@ -95,32 +95,135 @@ class KPrimaryTabs extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
     super.key,
+    this.centered = false,
+    this.action,
   });
 
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  /// D53: a word after the tabs, past a short divider, that does something
+  /// else than select a tab (the Reels tab's Posts/Reels switch). Styled
+  /// like an unselected tab, announced as a button, never selected.
+  final KTabAction? action;
+
+  /// D51: the tabs sit in the middle of the bar with [centeredGap] between
+  /// them (the full-screen live hub); otherwise they start at the reading
+  /// start, side by side.
+  final bool centered;
+
+  /// Extra space between centred tabs, on top of each tab's own padding.
+  static const double centeredGap = KSpacing.md;
+
   @override
   Widget build(BuildContext context) => SizedBox(
     height: KMetrics.topBarHeight,
     // Scrolls only if large text no longer fits; otherwise it is static.
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsetsDirectional.symmetric(
-        horizontal: KSpacing.lg / 2,
+    child: LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: KSpacing.lg / 2,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: centered
+                ? (constraints.maxWidth - KSpacing.lg).clamp(0, double.infinity)
+                : 0,
+          ),
+          child: Row(
+            mainAxisAlignment: centered
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < labels.length; i++) ...[
+                if (centered && i > 0) const SizedBox(width: centeredGap),
+                _Tab(
+                  label: labels[i],
+                  selected: i == selectedIndex,
+                  onTap: () => onSelected(i),
+                  style: _TabStyle.primary,
+                ),
+              ],
+              if (action case final action?) ...[
+                if (centered) const SizedBox(width: centeredGap / 2),
+                Center(
+                  child: Container(
+                    width: KMetrics.hairline,
+                    height: KSpacing.lg,
+                    color: context.palette.border,
+                  ),
+                ),
+                if (centered) const SizedBox(width: centeredGap / 2),
+                _ActionTab(action: action),
+              ],
+            ],
+          ),
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            _Tab(
-              label: labels[i],
-              selected: i == selectedIndex,
-              onTap: () => onSelected(i),
-              style: _TabStyle.primary,
-            ),
-        ],
+    ),
+  );
+}
+
+/// The word [KPrimaryTabs.action] shows after the tabs.
+@immutable
+class KTabAction {
+  const new({
+    required this.label,
+    required this.semanticLabel,
+    required this.onTap,
+    this.key,
+  });
+
+  final String label;
+
+  /// What the word does, for screen readers (e.g. "Show reels").
+  final String semanticLabel;
+  final VoidCallback onTap;
+  final Key? key;
+}
+
+class _ActionTab extends StatelessWidget {
+  const new({required this.action});
+
+  final KTabAction action;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: action.semanticLabel,
+    excludeSemantics: true,
+    child: InkWell(
+      key: action.key,
+      onTap: action.onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: KSizes.minTouchTarget),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: KSpacing.lg / 2,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                action.label,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                textScaler: MediaQuery.textScalerOf(context)
+                    .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale),
+                style: context.textStyles.bodyStrong.copyWith(
+                  color: context.palette.textSecondary,
+                ),
+              ),
+              // Room of the indicator, so the word sits on the tabs' line.
+              const SizedBox(
+                height: KSpacing.xs + KMetrics.tabIndicatorHeight + KSpacing.xs,
+              ),
+            ],
+          ),
+        ),
       ),
     ),
   );

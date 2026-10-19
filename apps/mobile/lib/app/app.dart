@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -9,6 +10,12 @@ class KabsoApp extends ConsumerWidget {
   const new({super.key});
 
   static const supportedLocales = [Locale('ar'), Locale('en')];
+
+  /// Debug builds only: `--dart-define=KABSO_EMULATE_PHONE_INSETS=true`
+  /// gives a web build iPhone-class safe-area insets (47 top, 34 bottom) so
+  /// captures show the room real phones leave for the status bar.
+  static const bool _emulatePhoneInsets =
+      !kReleaseMode && bool.fromEnvironment('KABSO_EMULATE_PHONE_INSETS');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,6 +38,16 @@ class KabsoApp extends ConsumerWidget {
       darkTheme: buildAppTheme(brightness: Brightness.dark, locale: locale),
       themeAnimationDuration: KMotion.base,
       themeAnimationCurve: KMotion.standard,
+      builder: _emulatePhoneInsets
+          ? (context, child) {
+              const insets = EdgeInsets.only(top: 47, bottom: 34);
+              return MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(padding: insets, viewPadding: insets),
+                child: child!,
+              );
+            }
+          : null,
     );
   }
 }
