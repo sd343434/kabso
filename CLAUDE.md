@@ -31,3 +31,13 @@ Keep these four things separate:
   mascot, icons, illustrations or user photos. Use Kabso assets or ask for them.
 
 The repository is public (D40). Third-party reference screenshots, and anything showing real users, stay out of git.
+
+## REA (reverse-engineering MCP)
+
+`.mcp.json` registers REA (`rea-agents`, pinned to 6.7.0; upgrade deliberately). Use it to understand how a
+reference feature behaves (structure, flows, network shapes) before designing Kabso's own version. It is not
+permission to copy another product's code, assets or protected content (see above and REA's DISCLAIMER), and only
+for software we may lawfully analyse. Native engines (Hopper, Ghidra, IDA) are not installed in the cloud
+container; static JavaScript and web analysis work without them. Findings that matter go into the decision log as
+text, never as third-party files.
+
