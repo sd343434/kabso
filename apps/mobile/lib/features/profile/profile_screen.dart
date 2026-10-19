@@ -3,43 +3,95 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The signed-in user's own profile, from `GET /me`.
-class ProfileScreen extends ConsumerWidget {
+/// Profile geometry (D57, layout from the owner's reference; sizes on the
+/// Kabso scale).
+abstract final class KProfile {
+  static const double inset = KSpacing.lg;
+  static const double avatar = KSizes.avatarLg;
+
+  /// The gap between grid cells.
+  static const double gridGap = KMetrics.hairline;
+
+  /// A reels cell is portrait; a posts cell is square.
+  static const double reelAspect = 9 / 16;
+
+  /// Header buttons (Edit profile, Follow, Watch live).
+  static const double buttonHeight = KSizes.minTouchTarget - KSpacing.sm;
+}
+
+/// The signed-in user's own profile (D57), from `GET /me` plus the counts
+/// of `GET /users/{username}`:
+///
+/// - top bar: @username in the centre, Settings at the end;
+/// - the photo at the start with the Followers and Following counts beside
+///   it (there is no posts count until a posts API exists), then the name
+///   and the bio;
+/// - a full-width "Edit profile" button (D58; the edit screen is read-only
+///   until the contract lets `PATCH /me` save the name and bio);
+/// - Posts, Reels and Saved tabs (grid, reels and bookmark icons, an
+///   underline on the selected one) over a 3-column grid of covers. Saved
+///   (D59) holds the posts and reels you saved; only you see it. There is
+///   no posts, reels or saves API yet, so each tab shows its honest
+///   "coming" state.
+class ProfileScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const settingsButtonKey = Key('profile.settings');
+  static const editButtonKey = Key('profile.editButton');
+  static const statsKey = Key('profile.stats');
+  static const tabsKey = Key('profile.tabs');
+
+  static Key tabKey(ProfileTab tab) => Key('profile.tab.${tab.name}');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  ProfileTab _tab = ProfileTab.posts;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final p = context.palette;
     final me = ref.watch(meProvider);
+    final username =
+        me.value?.username ?? ref.watch(currentUserProvider)?.username ?? '';
 
     return Scaffold(
+      backgroundColor: p.background,
       appBar: AppBar(
+        backgroundColor: p.background,
+        centerTitle: true,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label).
         title: Text(
-          l10n.profileUsername(
-            me.value?.username ??
-                ref.watch(currentUserProvider)?.username ??
-                '',
-          ),
+          l10n.profileUsername(username),
           key: const Key('profile.title'),
           textDirection: TextDirection.ltr,
+          style: context.textStyles.title.copyWith(color: p.textPrimary),
         ),
         actions: [
           IconButton(
-            key: settingsButtonKey,
+            key: ProfileScreen.settingsButtonKey,
             tooltip: l10n.settingsTitle,
-            icon: const Icon(Icons.settings_outlined),
+            icon: AppIcon(
+              AppIcons.settings,
+              size: KMetrics.iconMd,
+              color: p.textPrimary,
+            ),
             onPressed: () => context.push(AppRoutes.settings),
           ),
         ],
@@ -49,7 +101,10 @@ class ProfileScreen extends ConsumerWidget {
         AsyncValue(:final value?) => RefreshIndicator(
           onRefresh: () async {
             try {
-              ref.invalidate(meProvider);
+              ref
+                ..invalidate(meProvider)
+                ..invalidate(profileStatsProvider(value.username))
+                ..invalidate(profileGridProvider);
               await ref.read(meProvider.future);
             } on Object catch (e) {
               if (context.mounted) {
@@ -57,109 +112,443 @@ class ProfileScreen extends ConsumerWidget {
               }
             }
           },
-          child: _ProfileBody(user: value),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _OwnHeader(user: value)),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: ProfileTabsDelegate(
+                  tabs: ProfileTab.values,
+                  tab: _tab,
+                  background: p.background,
+                  onSelect: (t) => setState(() => _tab = t),
+                ),
+              ),
+              ProfileGrid(username: value.username, tab: _tab, own: true),
+            ],
+          ),
         ),
         AsyncValue(:final error?, isLoading: false) => FailureErrorState(
           title: l10n.errorTitle,
           failure: toAppFailure(error),
           onRetry: () => ref.invalidate(meProvider),
         ),
-        _ => const _ProfileSkeleton(),
+        _ => const ProfileSkeleton(),
       },
     );
   }
 }
 
-class _ProfileBody extends StatelessWidget {
+class _OwnHeader extends ConsumerWidget {
   const new({required this.user});
 
   final User user;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsLoad = ref.watch(profileStatsProvider(user.username));
+    final stats = statsLoad.value;
+    return ProfileHeaderView(
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      followers: stats?.followerCount,
+      following: stats?.followingCount,
+      // A failed count shows a dash, not a number, and not an endless
+      // skeleton; pull to refresh retries.
+      statsFailed: statsLoad.hasError && stats == null,
+      actions: SizedBox(
+        height: KProfile.buttonHeight,
+        child: OutlinedButton(
+          key: ProfileScreen.editButtonKey,
+          style: profileSecondaryButtonStyle(context),
+          onPressed: () => context.push(AppRoutes.editProfile),
+          child: Text(context.l10n.profileEditTitle),
+        ),
+      ),
+    );
+  }
+}
+
+/// The outlined grey button of profile headers (Edit profile, Following).
+ButtonStyle profileSecondaryButtonStyle(BuildContext context) {
+  final p = context.palette;
+  return OutlinedButton.styleFrom(
+    foregroundColor: p.textPrimary,
+    backgroundColor: p.surface,
+    side: BorderSide(color: p.border),
+    padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(KRadius.sm),
+    ),
+    textStyle: context.textStyles.bodyStrong,
+  );
+}
+
+/// The header shared by the own and the public profile (D57/D60): the photo
+/// at the reading start (with the live ring and badge while [live]; tapping
+/// it then calls [onOpenLive]), the Followers and Following counts beside
+/// it, the name, the bio, then [actions].
+class ProfileHeaderView extends StatelessWidget {
+  const new({
+    required this.displayName,
+    required this.actions,
+    super.key,
+    this.avatarUrl,
+    this.bio,
+    this.followers,
+    this.following,
+    this.statsFailed = false,
+    this.live = false,
+    this.onOpenLive,
+  });
+
+  final String displayName;
+  final String? avatarUrl;
+  final String? bio;
+  final int? followers;
+  final int? following;
+  final bool statsFailed;
+  final bool live;
+  final VoidCallback? onOpenLive;
+  final Widget actions;
+
+  static const avatarKey = Key('profile.avatar');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    return ListView(
-      padding: const EdgeInsetsDirectional.all(KSpacing.xl),
-      children: [
-        Center(
-          child: KAvatar(
-            name: user.displayName,
-            imageUrl: user.avatarUrl,
-            size: KSizes.avatarLg,
+    final bio = this.bio;
+    Widget stat(String label, int? value) => Expanded(
+      child: Column(
+        children: [
+          if (value == null && !statsFailed)
+            const KSkeleton(width: KSpacing.xl)
+          else
+            Text(
+              value == null ? '\u2013' : KFormat.compact(value, l10n),
+              maxLines: 1,
+              style: t.title.copyWith(color: p.textPrimary),
+            ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.body.copyWith(color: p.textPrimary),
           ),
-        ),
-        const SizedBox(height: KSpacing.lg),
-        Text(
-          user.displayName,
-          key: const Key('profile.displayName'),
-          style: t.headline,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: KSpacing.xs),
-        Text(
-          l10n.profileUsername(user.username),
-          key: const Key('profile.username'),
-          style: t.body.copyWith(color: p.textSecondary),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-        ),
-        if (user.bio != null && user.bio!.isNotEmpty) ...[
-          const SizedBox(height: KSpacing.md),
-          Text(user.bio!, style: t.body, textAlign: TextAlign.center),
         ],
-        const SizedBox(height: KSpacing.xl),
-        Container(
-          padding: const EdgeInsetsDirectional.all(KSpacing.lg),
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(KRadius.lg),
-            border: Border.all(color: p.border),
-          ),
-          child: Column(
+      ),
+    );
+    final avatar = KAvatar(
+      name: displayName,
+      imageUrl: avatarUrl,
+      size: KProfile.avatar,
+      ring: live ? KAvatarRing.live : KAvatarRing.none,
+    );
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        KProfile.inset,
+        KSpacing.sm,
+        KProfile.inset,
+        KSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              ExcludeSemantics(
-                child: Icon(Icons.grid_view_rounded, color: p.textTertiary),
+              Semantics(
+                key: avatarKey,
+                button: live && onOpenLive != null,
+                label: live ? l10n.profileWatchLive : null,
+                // The live ring of KAvatar carries the LIVE badge.
+                child: GestureDetector(
+                  onTap: live ? onOpenLive : null,
+                  child: avatar,
+                ),
               ),
-              const SizedBox(height: KSpacing.sm),
-              Text(
-                l10n.profileContentComingTitle,
-                style: t.bodyStrong,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                l10n.profileContentComingBody,
-                style: t.caption,
-                textAlign: TextAlign.center,
+              const SizedBox(width: KSpacing.lg),
+              Expanded(
+                child: Row(
+                  key: ProfileScreen.statsKey,
+                  children: [
+                    stat(l10n.profileFollowers, followers),
+                    stat(l10n.profileFollowingCount, following),
+                  ],
+                ),
               ),
             ],
           ),
+          const SizedBox(height: KSpacing.md),
+          Text(
+            displayName,
+            key: const Key('profile.displayName'),
+            style: t.bodyStrong.copyWith(color: p.textPrimary),
+          ),
+          if (bio != null && bio.isNotEmpty) ...[
+            const SizedBox(height: KSpacing.xxs),
+            Text(bio, style: t.body.copyWith(color: p.textPrimary)),
+          ],
+          const SizedBox(height: KSpacing.md),
+          actions,
+        ],
+      ),
+    );
+  }
+}
+
+/// The pinned tab bar of a profile: one icon per tab in [tabs].
+class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  const new({
+    required this.tabs,
+    required this.tab,
+    required this.background,
+    required this.onSelect,
+  });
+
+  final List<ProfileTab> tabs;
+  final ProfileTab tab;
+  final Color background;
+  final ValueChanged<ProfileTab> onSelect;
+
+  @override
+  double get minExtent => KSizes.minTouchTarget;
+
+  @override
+  double get maxExtent => KSizes.minTouchTarget;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    Widget item(ProfileTab t, String outline, String filled, String label) {
+      final selected = t == tab;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          inMutuallyExclusiveGroup: true,
+          label: label,
+          excludeSemantics: true,
+          child: InkWell(
+            key: ProfileScreen.tabKey(t),
+            onTap: () => onSelect(t),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: selected ? p.textPrimary : p.border,
+                    width: selected ? KMetrics.stroke : KMetrics.hairline,
+                  ),
+                ),
+              ),
+              child: Center(
+                child: AppIcon(
+                  selected ? filled : outline,
+                  size: KMetrics.iconMd,
+                  color: selected ? p.textPrimary : p.textTertiary,
+                ),
+              ),
+            ),
+          ),
         ),
+      );
+    }
+
+    return ColoredBox(
+      key: ProfileScreen.tabsKey,
+      color: background,
+      child: Row(
+        children: [
+          for (final t in tabs)
+            switch (t) {
+              ProfileTab.posts => item(
+                t,
+                AppIcons.grid,
+                AppIcons.gridFilled,
+                l10n.homeTabPosts,
+              ),
+              ProfileTab.reels => item(
+                t,
+                AppIcons.reels,
+                AppIcons.reelsFilled,
+                l10n.homeTabReels,
+              ),
+              ProfileTab.saved => item(
+                t,
+                AppIcons.bookmark,
+                AppIcons.bookmarkFilled,
+                l10n.profileSaved,
+              ),
+            },
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(ProfileTabsDelegate old) =>
+      old.tab != tab || old.background != background || old.tabs != tabs;
+}
+
+/// The selected tab's grid of [username], or its state. [own] picks the
+/// copy ("Your posts…") of the own profile.
+class ProfileGrid extends ConsumerWidget {
+  const new({
+    required this.username,
+    required this.tab,
+    super.key,
+    this.own = false,
+  });
+
+  final String username;
+  final ProfileTab tab;
+  final bool own;
+
+  static const gridKey = Key('profile.grid');
+  static const stateKey = Key('profile.gridState');
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final reels = tab == ProfileTab.reels;
+    final saved = tab == ProfileTab.saved;
+    // Saved mixes posts and reels: square cells, reels marked with play.
+    final aspect = reels ? KProfile.reelAspect : 1.0;
+    Widget state(String title, String body) => SliverToBoxAdapter(
+      child: Padding(
+        key: stateKey,
+        padding: const EdgeInsets.symmetric(vertical: KSpacing.xl),
+        child: KEmptyState(
+          icon: switch (tab) {
+            ProfileTab.posts => Icons.grid_on_rounded,
+            ProfileTab.reels => Icons.smart_display_outlined,
+            ProfileTab.saved => Icons.bookmark_border_rounded,
+          },
+          title: title,
+          message: body,
+          compact: true,
+        ),
+      ),
+    );
+    Widget grid(int count, Widget Function(int) cell) => SliverGrid.builder(
+      key: gridKey,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: KProfile.gridGap,
+        crossAxisSpacing: KProfile.gridGap,
+        childAspectRatio: aspect,
+      ),
+      itemCount: count,
+      itemBuilder: (_, i) => cell(i),
+    );
+    final key = (username: username, tab: tab);
+    return switch (ref.watch(profileGridProvider(key))) {
+      AsyncData(value: FeedItems(:final items)) when items.isNotEmpty => grid(
+        items.length,
+        (i) => _Cell(item: items[i]),
+      ),
+      AsyncData(value: FeedItems()) => state(
+        switch (tab) {
+          ProfileTab.posts => l10n.profileNoPosts,
+          ProfileTab.reels => l10n.profileNoReels,
+          ProfileTab.saved => l10n.profileNoSaved,
+        },
+        saved || own
+            ? (saved ? l10n.profileSavedEmptyBody : l10n.profileGridEmptyBody)
+            : l10n.profileOtherEmptyBody,
+      ),
+      AsyncData(value: FeedUnavailable()) => state(
+        saved
+            ? l10n.profileSavedComingTitle
+            : (own
+                  ? l10n.profileContentComingTitle
+                  : l10n.profileOtherComingTitle),
+        saved
+            ? l10n.profileSavedComingBody
+            : (own
+                  ? l10n.profileContentComingBody
+                  : l10n.profileOtherComingBody),
+      ),
+      AsyncError(:final error) => SliverToBoxAdapter(
+        child: FailureErrorState(
+          title: l10n.errorTitle,
+          failure: toAppFailure(error),
+          onRetry: () => ref.invalidate(profileGridProvider(key)),
+        ),
+      ),
+      _ => grid(
+        6,
+        (_) => const KSkeleton(width: double.infinity, height: double.infinity),
+      ),
+    };
+  }
+}
+
+class _Cell extends StatelessWidget {
+  const new({required this.item});
+
+  final ProfileGridItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final cover = item.cover;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(
+          color: context.palette.surfaceRaised,
+          child: cover == null
+              ? null
+              : Image(
+                  image: cover,
+                  fit: BoxFit.cover,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, _, _) => const SizedBox.expand(),
+                ),
+        ),
+        if (item.isVideo)
+          PositionedDirectional(
+            top: KSpacing.xs,
+            end: KSpacing.xs,
+            child: AppIcon(
+              AppIcons.play,
+              size: KMetrics.iconSm,
+              color: KPalette.dark.textPrimary,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _ProfileSkeleton extends StatelessWidget {
-  const new();
+/// Loading placeholder of a profile header.
+class ProfileSkeleton extends StatelessWidget {
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: context.l10n.loading,
       child: const Padding(
-        padding: EdgeInsetsDirectional.all(KSpacing.xl),
+        padding: EdgeInsetsDirectional.all(KProfile.inset),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            KSkeleton(height: KSizes.avatarLg, circle: true),
-            SizedBox(height: KSpacing.lg),
-            KSkeleton(width: 180, height: 24),
-            SizedBox(height: KSpacing.sm),
-            KSkeleton(width: 120),
-            SizedBox(height: KSpacing.xl),
-            KSkeleton(height: 72, radius: KRadius.lg),
+            Row(
+              children: [
+                KSkeleton(height: KProfile.avatar, circle: true),
+                SizedBox(width: KSpacing.lg),
+                Expanded(child: KSkeleton(height: KSpacing.xxl)),
+              ],
+            ),
+            SizedBox(height: KSpacing.md),
+            KSkeleton(width: 140),
+            SizedBox(height: KSpacing.md),
+            KSkeleton(height: 40),
           ],
         ),
       ),
