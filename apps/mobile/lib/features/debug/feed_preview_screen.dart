@@ -6,8 +6,10 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/debug/feed_comments_sheet.dart';
 import 'package:kabso_live/features/debug/feed_glyphs.dart';
 import 'package:kabso_live/features/debug/feed_share_sheet.dart';
+import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -144,7 +146,7 @@ class _TopBar extends StatelessWidget {
           IconButton(
             key: FeedPreviewScreen.liveEntryKey,
             tooltip: l10n.feedOpenLive,
-            onPressed: () => context.go(AppRoutes.live),
+            onPressed: () => context.go(AppRoutes.home),
             icon: FeedGlyphIcon(
               FeedGlyph.live,
               size: KFeedPreview.topBarIcon,
@@ -246,7 +248,7 @@ class _FeedPage extends StatelessWidget {
         Semantics(
           image: true,
           label: post.artLabel,
-          child: CustomPaint(painter: FeedPreviewArt(post.seed)),
+          child: PreviewPhoto(post.seed),
         ),
         // Bottom scrim so the caption and counts stay readable.
         const DecoratedBox(
@@ -402,7 +404,12 @@ class _ActionRail extends StatelessWidget {
         const SizedBox(height: KFeedPreview.railAvatarGap),
         action(FeedGlyph.heart, post.likes, l10n.feedActionLike),
         const SizedBox(height: KFeedPreview.railItemGap),
-        action(FeedGlyph.comment, post.comments, l10n.feedActionComment),
+        action(
+          FeedGlyph.comment,
+          post.comments,
+          l10n.feedActionComment,
+          onTap: () => FeedCommentsSheet.show(context),
+        ),
         const SizedBox(height: KFeedPreview.railItemGap),
         action(FeedGlyph.bookmark, post.saves, l10n.feedActionSave),
         const SizedBox(height: KFeedPreview.railItemGap),
@@ -471,8 +478,11 @@ class _FeedNavBar extends StatelessWidget {
     final white = KPalette.dark.textPrimary;
     final dim = white.withValues(alpha: 0.65);
 
+    Widget glyph(FeedGlyph g, Color color) =>
+        FeedGlyphIcon(g, size: KFeedPreview.navIcon, color: color);
+
     Widget item(
-      FeedGlyph glyph,
+      Widget Function(Color color) icon,
       String label,
       String route, {
       bool selected = false,
@@ -484,11 +494,7 @@ class _FeedNavBar extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              FeedGlyphIcon(
-                glyph,
-                size: KFeedPreview.navIcon,
-                color: selected ? white : dim,
-              ),
+              icon(selected ? white : dim),
               const SizedBox(height: KFeedPreview.navLabelGap),
               Text(
                 label,
@@ -521,12 +527,15 @@ class _FeedNavBar extends StatelessWidget {
           child: Row(
             children: [
               item(
-                FeedGlyph.homeFilled,
+                (c) => glyph(FeedGlyph.home, c),
                 l10n.navHome,
                 AppRoutes.home,
-                selected: true,
               ),
-              item(FeedGlyph.discover, l10n.navDiscover, AppRoutes.discover),
+              item(
+                (c) => glyph(FeedGlyph.discover, c),
+                l10n.navDiscover,
+                AppRoutes.discover,
+              ),
               Expanded(
                 child: Center(
                   child: Semantics(
@@ -551,8 +560,22 @@ class _FeedNavBar extends StatelessWidget {
                   ),
                 ),
               ),
-              item(FeedGlyph.live, l10n.navLive, AppRoutes.live),
-              item(FeedGlyph.profile, l10n.navProfile, AppRoutes.profile),
+              // D48: this vertical feed is the Reels tab.
+              item(
+                (c) => AppIcon(
+                  AppIcons.reels,
+                  size: KFeedPreview.navIcon,
+                  color: c,
+                ),
+                l10n.navReels,
+                AppRoutes.reels,
+                selected: true,
+              ),
+              item(
+                (c) => glyph(FeedGlyph.profile, c),
+                l10n.navProfile,
+                AppRoutes.profile,
+              ),
             ],
           ),
         ),

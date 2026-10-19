@@ -146,6 +146,10 @@ void main() {
     expect(users, {
       'lib/app/router/app_router.dart',
       'lib/features/debug/messages_preview_screen.dart',
+      // The conversation list opens threads in the messages preview.
+      'lib/features/debug/conversations_preview_screen.dart',
+      // The debug-only hub links to every preview.
+      'lib/features/debug/previews_hub_screen.dart',
     });
   });
 }

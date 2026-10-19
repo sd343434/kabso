@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/home/application/home_feed_provider.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
@@ -385,24 +388,32 @@ class _SampleVideo extends StatelessWidget {
   );
 }
 
-/// Home feed with sample posts on Popular and New; Following is empty.
+/// The Reels tab (Posts · Reels, Trending · Following) with sample posts
+/// and reels. The demo
+/// overrides Home's data sources, which return "unavailable" in production.
 class _HomeDemo extends StatelessWidget {
   const new();
 
   @override
-  Widget build(BuildContext context) => FeedTabsScaffold(
-    pageBuilder: (context, tab, selectTab) => HomeFeedBody(
-      tab: tab,
-      content: AsyncData(
-        FeedItems(tab == FeedTab.following ? const [] : _Samples.posts()),
-      ),
-      onRefresh: () async {},
-      onRetry: () {},
-      onSelectTab: selectTab,
-      // The gallery has no shell: switch this demo's own tab instead.
-      onWatchLive: selectTab,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final posts = _Samples.posts();
+    final reels = [
+      for (final post in posts)
+        FeedReelData(
+          authorName: post.authorName,
+          postedAt: post.postedAt,
+          caption: post.text,
+          cover: post.media,
+        ),
+    ];
+    return ProviderScope(
+      overrides: [
+        homePostsProvider.overrideWith((ref, _) => FeedItems(posts)),
+        homeReelsProvider.overrideWith((ref, _) => FeedItems(reels)),
+      ],
+      child: const FeedScreen(),
+    );
+  }
 }
 
 /// Live hub with sample rooms and sample categories on Popular and New;
@@ -418,18 +429,26 @@ class _LiveHubDemoState extends State<_LiveHubDemo> {
   String? _category;
 
   @override
-  Widget build(BuildContext context) => FeedTabsScaffold(
-    pageBuilder: (context, tab, selectTab) => LiveHubBody(
-      tab: tab,
-      content: AsyncData(
-        FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
+  Widget build(BuildContext context) => Theme(
+    data: buildAppTheme(
+      brightness: Brightness.dark,
+      locale: Localizations.localeOf(context),
+    ),
+    child: FeedTabsScaffold(
+      overlayHeader: true,
+      centerTabs: true,
+      pageBuilder: (context, tab, selectTab) => LiveHubBody(
+        tab: tab,
+        content: AsyncData(
+          FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
+        ),
+        categories: _Samples.liveCategories,
+        selectedCategory: _category,
+        onSelectCategory: (slug) => setState(() => _category = slug),
+        onRefresh: () async {},
+        onRetry: () {},
+        onSelectTab: selectTab,
       ),
-      categories: _Samples.liveCategories,
-      selectedCategory: _category,
-      onSelectCategory: (slug) => setState(() => _category = slug),
-      onRefresh: () async {},
-      onRetry: () {},
-      onSelectTab: selectTab,
     ),
   );
 }
@@ -491,8 +510,19 @@ abstract final class _Samples {
     ),
   ];
 
+  /// The Home live hub demo: the samples with preview photos (KL-056).
   static final List<LiveRoomCardData> hubRooms = [
-    for (var i = 0; i < 4; i++) ...rooms,
+    for (var i = 0; i < 16; i++)
+      LiveRoomCardData(
+        hostName: rooms[i % rooms.length].hostName,
+        title: rooms[i % rooms.length].title,
+        viewerCount: rooms[i % rooms.length].viewerCount,
+        inPk: rooms[i % rooms.length].inPk,
+        guestCount: rooms[i % rooms.length].guestCount,
+        categoryName: rooms[i % rooms.length].categoryName,
+        cover: PreviewPhotos.cover(i),
+        hostAvatar: PreviewPhotos.avatar(i),
+      ),
   ];
 
   static List<FeedPostData> posts() {
@@ -500,8 +530,13 @@ abstract final class _Samples {
     return [
       FeedPostData(
         authorName: 'Sample author',
+        authorAvatar: PreviewPhotos.avatar(0),
         postedAt: now.subtract(const Duration(minutes: 5)),
         text: 'Sample text post (debug gallery only).',
+        media: PreviewPhoto.enabled
+            ? PreviewPhotos.image(PreviewPhotoKind.landscape, 1)
+            : null,
+        mediaAspect: 1200 / 896,
       ),
       FeedPostData(
         authorName: 'مؤلف تجريبي',
@@ -510,8 +545,13 @@ abstract final class _Samples {
       ),
       FeedPostData(
         authorName: 'Sample author',
+        authorAvatar: PreviewPhotos.avatar(2),
         postedAt: now.subtract(const Duration(days: 2)),
         text: 'Another sample post.',
+        media: PreviewPhoto.enabled
+            ? PreviewPhotos.image(PreviewPhotoKind.landscape, 2)
+            : null,
+        mediaAspect: 1,
       ),
     ];
   }

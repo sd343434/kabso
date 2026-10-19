@@ -1,7 +1,9 @@
+import 'dart:math' as math;
+
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/debug/feed_preview_screen.dart'
-    show FeedPreviewArt;
+import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -10,6 +12,14 @@ import 'package:material_ui/material_ui.dart';
 /// and type sizes are taken from it; colours are Kabso's (the sender bubble is
 /// Kabso red) and media is generated art, never the kit's photos.
 abstract final class KMessagePreview {
+  /// First-time greeting (node 1347:5330): title, three greeting tiles of
+  /// up to 92 with up to 43 between them, and a close button.
+  static const double greetingTitleSize = 15;
+  static const double greetingTile = 92;
+  static const double greetingGap = 43;
+  static const double greetingIcon = 40;
+  static const double greetingClose = 20;
+
   static const double avatar = 31;
   static const double avatarGap = 9;
   static const double maxBubbleWidth = 282;
@@ -76,15 +86,22 @@ List<MessagePreview> messagesPreviewFixture({required bool ar}) => [
 ];
 
 /// Private conversation preview: received bubbles at the start, sent ones at
-/// the end, a composer that appends locally. Debug-only route; nothing is
-/// sent anywhere.
+/// the end, a composer that appends locally. With no messages it shows the
+/// first-time greeting (UI kit "First time", node 1347:5330). Debug-only;
+/// nothing is sent anywhere.
 class MessagesPreviewScreen extends StatefulWidget {
-  const new({super.key});
+  /// [peer] and [initialMessages] default to the labelled test conversation.
+  const new({super.key, this.peer, this.initialMessages});
+
+  final String? peer;
+  final List<MessagePreview>? initialMessages;
 
   static const testDataKey = Key('messages-preview-test-data');
   static const listKey = Key('messages-preview-list');
   static const inputKey = Key('messages-preview-input');
   static const sendKey = Key('messages-preview-send');
+  static const greetingKey = Key('messages-preview-greeting');
+  static const greetingCloseKey = Key('messages-preview-greeting-close');
 
   @override
   State<MessagesPreviewScreen> createState() => _MessagesPreviewScreenState();
@@ -93,13 +110,16 @@ class MessagesPreviewScreen extends StatefulWidget {
 class _MessagesPreviewScreenState extends State<MessagesPreviewScreen> {
   final _controller = TextEditingController();
   List<MessagePreview>? _messages;
+  bool _greetingDismissed = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _messages ??= messagesPreviewFixture(
-      ar: Directionality.of(context) == TextDirection.rtl,
-    );
+    _messages ??=
+        widget.initialMessages ??
+        messagesPreviewFixture(
+          ar: Directionality.of(context) == TextDirection.rtl,
+        );
   }
 
   @override
@@ -108,12 +128,12 @@ class _MessagesPreviewScreenState extends State<MessagesPreviewScreen> {
     super.dispose();
   }
 
-  void _send() {
-    final text = _controller.text.trim();
+  void _send([String? greeting]) {
+    final text = (greeting ?? _controller.text).trim();
     if (text.isEmpty) return;
     setState(() {
       _messages = [..._messages!, MessagePreview(mine: true, text: text)];
-      _controller.clear();
+      if (greeting == null) _controller.clear();
     });
   }
 
@@ -122,8 +142,9 @@ class _MessagesPreviewScreenState extends State<MessagesPreviewScreen> {
     final p = context.palette;
     final l10n = context.l10n;
     final ar = Directionality.of(context) == TextDirection.rtl;
-    final peer = messagesPreviewPeer(ar: ar);
+    final peer = widget.peer ?? messagesPreviewPeer(ar: ar);
     final messages = _messages!;
+    final showGreeting = messages.isEmpty && !_greetingDismissed;
     return Scaffold(
       backgroundColor: p.background,
       appBar: AppBar(
@@ -192,6 +213,12 @@ class _MessagesPreviewScreenState extends State<MessagesPreviewScreen> {
               },
             ),
           ),
+          if (showGreeting)
+            _FirstTimeGreeting(
+              peer: peer,
+              onGreet: _send,
+              onDismiss: () => setState(() => _greetingDismissed = true),
+            ),
           _Composer(controller: _controller, onSend: _send),
         ],
       ),
@@ -345,7 +372,7 @@ class _Media extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CustomPaint(painter: FeedPreviewArt(seed)),
+            PreviewPhoto(seed),
             if (video) ...[
               Center(
                 child: Semantics(
@@ -429,7 +456,17 @@ class _Composer extends StatelessWidget {
                     horizontal: KSpacing.md,
                     vertical: KSpacing.sm,
                   ),
+                  // No outline at rest (the theme's enabled border
+                  // would add one); its focus border shows while typing.
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  disabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(KRadius.pill),
                     borderSide: BorderSide.none,
                   ),
@@ -448,6 +485,116 @@ class _Composer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FirstTimeGreeting extends StatelessWidget {
+  const new({
+    required this.peer,
+    required this.onGreet,
+    required this.onDismiss,
+  });
+
+  final String peer;
+  final ValueChanged<String> onGreet;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    final greetings = [
+      (AppIcons.handWave, l10n.messagesGreetingHi),
+      (AppIcons.heart, l10n.messagesGreetingHello),
+      (AppIcons.emoji, l10n.messagesGreetingHowAreYou),
+    ];
+    return Padding(
+      key: MessagesPreviewScreen.greetingKey,
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.md,
+        KSpacing.sm,
+        KSpacing.md,
+        KSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const SizedBox(width: kMinInteractiveDimension),
+              Expanded(
+                child: Text(
+                  l10n.conversationsSayHi(KFormat.bidiIsolate(peer)),
+                  textAlign: TextAlign.center,
+                  style: context.textStyles.body.copyWith(
+                    fontSize: KMessagePreview.greetingTitleSize,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+              IconButton(
+                key: MessagesPreviewScreen.greetingCloseKey,
+                tooltip: l10n.liveClose,
+                onPressed: onDismiss,
+                icon: AppIcon(
+                  AppIcons.close,
+                  size: KMessagePreview.greetingClose,
+                  color: p.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KSpacing.sm),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Measured 92 tiles 43 apart; both shrink on narrow screens.
+              final gap = math.min(
+                KMessagePreview.greetingGap,
+                constraints.maxWidth * 0.06,
+              );
+              final tile = math.min(
+                KMessagePreview.greetingTile,
+                (constraints.maxWidth - 2 * gap) / 3,
+              );
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final (i, (asset, text)) in greetings.indexed) ...[
+                    if (i > 0) SizedBox(width: gap),
+                    Semantics(
+                      button: true,
+                      label: text,
+                      excludeSemantics: true,
+                      child: InkWell(
+                        onTap: () => onGreet(text),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: tile,
+                          height: tile,
+                          decoration: BoxDecoration(
+                            color: p.surfaceOverlay,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: AppIcon(
+                            asset,
+                            size: math.min(
+                              KMessagePreview.greetingIcon,
+                              tile / 2,
+                            ),
+                            color: p.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }

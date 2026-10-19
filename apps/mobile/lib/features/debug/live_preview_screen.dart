@@ -2,9 +2,8 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/feed_glyphs.dart';
-import 'package:kabso_live/features/debug/feed_preview_screen.dart'
-    show FeedPreviewArt;
 import 'package:kabso_live/features/debug/feed_share_sheet.dart';
+import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -47,7 +46,7 @@ class LivePreviewScreen extends StatelessWidget {
             Semantics(
               image: true,
               label: context.l10n.liveVideoPlaceholder,
-              child: const CustomPaint(painter: FeedPreviewArt(4)),
+              child: const PreviewPhoto(4, photoSeed: 0),
             ),
             const DecoratedBox(
               decoration: BoxDecoration(

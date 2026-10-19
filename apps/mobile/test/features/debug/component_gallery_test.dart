@@ -105,6 +105,8 @@ void main() {
     expect(users, {
       'lib/app/router/app_router.dart',
       'lib/features/debug/component_gallery_screen.dart',
+      // The debug-only hub links to every preview.
+      'lib/features/debug/previews_hub_screen.dart',
       'lib/features/settings/settings_screen.dart',
     });
     final settings = File('lib/features/settings/settings_screen.dart')

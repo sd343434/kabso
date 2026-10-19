@@ -153,6 +153,9 @@ void main() {
     expect(users, {
       'lib/app/router/app_router.dart',
       'lib/features/debug/live_preview_screen.dart',
+      // The debug-only hub links to every preview.
+      'lib/features/debug/previews_hub_screen.dart',
+      'lib/features/debug/reels_preview_screen.dart',
     });
   });
 }

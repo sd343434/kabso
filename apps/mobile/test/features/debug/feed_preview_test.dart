@@ -102,10 +102,11 @@ void main() {
       FeedGlyph.bookmark,
       FeedGlyph.share,
     ]);
+    // D48: Home (live hub) · Discover · [Create] · Reels (app icon set,
+    // selected) · Profile.
     expect(glyphsIn(find.byKey(FeedPreviewScreen.navKey)), [
-      FeedGlyph.homeFilled,
+      FeedGlyph.home,
       FeedGlyph.discover,
-      FeedGlyph.live,
       FeedGlyph.profile,
     ]);
     expect(glyphsIn(find.byKey(FeedPreviewScreen.searchKey)), [
@@ -193,6 +194,10 @@ void main() {
     expect(users, {
       'lib/app/router/app_router.dart',
       'lib/features/debug/feed_preview_screen.dart',
+      // The debug-only hub links to every preview.
+      'lib/features/debug/previews_hub_screen.dart',
+      // Discover covers open the feed preview.
+      'lib/features/debug/discover_preview_screen.dart',
     });
   });
 }
