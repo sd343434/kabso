@@ -37,6 +37,8 @@ void main() {
       'viewerCountSamples',
       'hubRooms(',
       'feedPosts(',
+      'feedReels(',
+      'feedStories(',
       'fixtureNow',
       // KL-038 (test/fixtures/live/live_api_fixtures.dart,
       // test/helpers/fake_live_repository.dart).

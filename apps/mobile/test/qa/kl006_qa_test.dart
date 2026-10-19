@@ -291,7 +291,7 @@ void main() {
         Key('nav.home'),
         Key('nav.discover'),
         Key('nav.create'),
-        Key('nav.live'),
+        Key('nav.reels'),
         Key('nav.profile'),
       ]) {
         final size = tester.getSize(find.byKey(key));

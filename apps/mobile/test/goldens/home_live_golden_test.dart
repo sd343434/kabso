@@ -27,12 +27,14 @@ import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
-import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -42,8 +44,9 @@ import '../helpers/fake_live_repository.dart';
 import '../helpers/golden.dart';
 
 /// Home is shell branch 0, Live is branch 3.
-const _homeIndex = 0;
-const _liveIndex = 3;
+// D48: Home (index 0) is the live hub; Reels (index 3) is the feed.
+const _liveIndex = 0;
+const _reelsIndex = 3;
 
 Future<void> _pumpShellTab(
   WidgetTester tester, {
@@ -110,11 +113,17 @@ void main() {
             await precacheImages(tester);
           }
           if (scrollToEnd) {
-            await tester.drag(
-              find.byType(KLiveCoverCard).first,
-              const Offset(0, -3000),
-            );
-            await tester.pumpAndSettle();
+            // D50: the last stream of the full-screen pager.
+            tester
+                .widget<PageView>(
+                  find.byKey(
+                    const PageStorageKey<String>('live.pager.popular'),
+                  ),
+                )
+                .controller!
+                .jumpToPage(1000);
+            // The load-more progress line animates: pump, never settle.
+            await tester.pump(const Duration(milliseconds: 500));
           }
           await expectScreenGolden(
             name,
@@ -123,26 +132,67 @@ void main() {
           );
         });
 
-        testWidgets('home.unavailable ($vp)', (tester) async {
+        testWidgets('reels_tab.unavailable ($vp)', (tester) async {
           await golden(
             tester,
-            'home.unavailable',
-            screen: const HomeScreen(),
-            navIndex: _homeIndex,
+            'reels_tab.unavailable',
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
           );
         });
 
-        testWidgets('home.populated ($vp)', (tester) async {
+        testWidgets('reels_tab.populated ($vp)', (tester) async {
           await golden(
             tester,
-            'home.populated',
-            screen: const HomeScreen(),
-            navIndex: _homeIndex,
+            'reels_tab.populated',
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
             overrides: [
-              homeFeedProvider.overrideWith(
-                (ref, tab) => FeedItems<FeedPostData>(feedPosts(language)),
+              homePostsProvider.overrideWith(
+                (ref, _) => FeedItems<FeedPostData>(feedPosts(language)),
+              ),
+              homeStoriesProvider.overrideWith(
+                (ref) => FeedItems<FeedStoryData>(feedStories(language)),
               ),
             ],
+          );
+        });
+
+        testWidgets('reels_tab.posts ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.posts',
+            // Posts without a stories source: no tray.
+            screen: const FeedScreen(),
+            navIndex: _reelsIndex,
+            overrides: [
+              homePostsProvider.overrideWith(
+                (ref, _) => FeedItems<FeedPostData>(feedPosts(language)),
+              ),
+            ],
+          );
+        });
+
+        testWidgets('reels_tab.reels ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.reels',
+            screen: const FeedScreen(initialTab: HomeTab.reels),
+            navIndex: _reelsIndex,
+            overrides: [
+              homeReelsProvider.overrideWith(
+                (ref, _) => FeedItems<FeedReelData>(feedReels(language)),
+              ),
+            ],
+          );
+        });
+
+        testWidgets('reels_tab.reels.unavailable ($vp)', (tester) async {
+          await golden(
+            tester,
+            'reels_tab.reels.unavailable',
+            screen: const FeedScreen(initialTab: HomeTab.reels),
+            navIndex: _reelsIndex,
           );
         });
 
@@ -165,13 +215,21 @@ void main() {
           await golden(
             tester,
             'live_hub.populated',
-            screen: FeedTabsScaffold(
-              pageBuilder: (context, tab, selectTab) => LiveHubBody(
-                tab: tab,
-                content: AsyncData(FeedItems(hubRooms(language))),
-                onRefresh: () async {},
-                onRetry: () {},
-                onSelectTab: (_) {},
+            screen: Theme(
+              data: buildAppTheme(
+                brightness: Brightness.dark,
+                locale: language.locale,
+              ),
+              child: FeedTabsScaffold(
+                overlayHeader: true,
+                centerTabs: true,
+                pageBuilder: (context, tab, selectTab) => LiveHubBody(
+                  tab: tab,
+                  content: AsyncData(FeedItems(hubRooms(language))),
+                  onRefresh: () async {},
+                  onRetry: () {},
+                  onSelectTab: (_) {},
+                ),
               ),
             ),
             navIndex: _liveIndex,
@@ -248,9 +306,9 @@ void main() {
           );
         });
 
-        // Footer states (HL-H5), scrolled to the end of the list.
+        // Load-more states (HL-H5) on the last full-screen stream (D50).
         for (final (name, next) in <(String, RoomsHandler)>[
-          // The next page is still loading: 2 footer skeletons.
+          // The next page is still loading: a progress line (D50).
           ('live_hub.footer_loading', (_) => Completer<LiveRoomPage>().future),
           // The next page failed: inline "Couldn't load more · Retry".
           (

@@ -216,7 +216,7 @@ void main() {
         ('home', AppRoutes.home),
         ('discover', AppRoutes.discover),
         ('create', AppRoutes.create),
-        ('live', AppRoutes.live),
+        ('reels', AppRoutes.reels),
         ('profile', AppRoutes.profile),
         ('settings', AppRoutes.settings),
       ]) {

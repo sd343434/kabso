@@ -15,6 +15,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/app_router.dart';
@@ -28,11 +29,13 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
-import 'package:kabso_live/features/home/home_screen.dart';
+import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -59,6 +62,38 @@ String _tabLabel(AppLocalizations l10n, FeedTab tab) => switch (tab) {
   FeedTab.popular => l10n.feedTabPopular,
   FeedTab.latest => l10n.feedTabNew,
 };
+
+/// D52: shows [tab] on the Reels shell tab with the header switch.
+Future<void> _showHomeMode(WidgetTester tester, HomeTab tab) async {
+  final l10n = AppLocalizations.of(tester.element(find.byType(FeedScreen)));
+  final word = find.descendant(
+    of: find.byKey(FeedScreen.switchKey),
+    matching: find.text(l10n.homeTabReels),
+  );
+  final showing = word.evaluate().isNotEmpty ? HomeTab.posts : HomeTab.reels;
+  if (showing != tab) {
+    await tester.ensureVisible(find.byKey(FeedScreen.switchKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(FeedScreen.switchKey));
+    await tester.pumpAndSettle();
+  }
+}
+
+/// D50: the Popular tab's full-screen skeleton (loading).
+final Finder _liveSkeleton = find.descendant(
+  of: find.byKey(const PageStorageKey<String>('live.popular')),
+  matching: find.byType(KSkeleton),
+);
+
+/// D50: how many streams the Popular tab's full-screen pager holds.
+int _streams(WidgetTester tester) =>
+    tester
+        .widget<PageView>(
+          find.byKey(const PageStorageKey<String>('live.pager.popular')),
+        )
+        .childrenDelegate
+        .estimatedChildCount ??
+    0;
 
 /// A button inside the region's state with [label].
 Finder _action(String label) =>
@@ -87,7 +122,7 @@ Future<void> _pumpHome(
   setViewport(tester, GoldenViewport.phone);
   await pumpScreen(
     tester,
-    const HomeScreen(),
+    const FeedScreen(),
     language: language,
     overrides: overrides,
   );
@@ -116,33 +151,24 @@ String _location(WidgetTester tester) =>
         .path;
 
 void main() {
-  group('Home (KL-047)', () {
-    for (final (tab, title, body, action) in [
+  group('Home (KL-047, D47 tabs)', () {
+    for (final (tab, title, body) in [
       (
-        FeedTab.following,
-        _en.homeFollowingUnavailableTitle,
-        _en.homeFollowingUnavailableBody,
-        _en.homeSeeWhoIsLive,
-      ),
-      (
-        FeedTab.popular,
+        HomeTab.posts,
         _en.homePopularUnavailableTitle,
         _en.homePopularUnavailableBody,
-        _en.homeWatchLive,
       ),
       (
-        FeedTab.latest,
-        _en.homeNewUnavailableTitle,
-        _en.homeNewUnavailableBody,
-        _en.homeWatchLive,
+        HomeTab.reels,
+        _en.homeReelsUnavailableTitle,
+        _en.homeReelsUnavailableBody,
       ),
     ]) {
       testWidgets('${tab.name}: title, supporting line and one primary '
           'action', (tester) async {
         await _pumpHome(tester);
         await tester.pumpAndSettle();
-        await tester.tap(_tab(_tabLabel(_en, tab)));
-        await tester.pumpAndSettle();
+        await _showHomeMode(tester, tab);
         final state = find.byKey(FeedRegion.unavailableKey);
         expect(
           find.descendant(of: state, matching: find.text(title)),
@@ -158,7 +184,7 @@ void main() {
         );
         expect(buttons, findsOneWidget);
         final button = tester.widget<KButton>(buttons);
-        expect(button.label, action);
+        expect(button.label, _en.homeWatchLive);
         expect(button.variant, KButtonVariant.primary);
         expect(button.onPressed, isNotNull);
         // Honest: no pull-to-refresh where there is no data source, and no
@@ -166,52 +192,47 @@ void main() {
         expect(find.byType(RefreshIndicator), findsNothing);
         expect(find.byType(FeedPostSkeleton), findsNothing);
       });
-    }
 
-    for (final (tab, label) in [
-      (FeedTab.popular, _en.homeWatchLive),
-      (FeedTab.latest, _en.homeWatchLive),
-      (FeedTab.following, _en.homeSeeWhoIsLive),
-    ]) {
-      testWidgets('${tab.name}: "$label" opens the Live tab (real /live '
-          'route) on the same segment', (tester) async {
+      testWidgets('${tab.name}: "Watch live streams" opens Home, the live '
+          'hub (real /home route), on Popular', (tester) async {
         await _pumpApp(tester);
         expect(_location(tester), AppRoutes.home);
-        await tester.tap(_tab(_tabLabel(_en, tab)));
+        await tester.tap(find.byKey(const Key('nav.reels')));
         await tester.pumpAndSettle();
-        await tester.tap(_action(label));
+        expect(_location(tester), AppRoutes.reels);
+        await _showHomeMode(tester, tab);
+        await tester.tap(_action(_en.homeWatchLive));
         await tester.pumpAndSettle();
-        expect(_location(tester), AppRoutes.live);
+        expect(_location(tester), AppRoutes.home);
         expect(find.byType(LiveScreen), findsOneWidget);
-        expect(_selected(tester, find.byKey(const Key('nav.live'))), isTrue);
-        expect(_selected(tester, find.byKey(const Key('nav.home'))), isFalse);
-        final live = find.descendant(
+        expect(_selected(tester, find.byKey(const Key('nav.home'))), isTrue);
+        expect(_selected(tester, find.byKey(const Key('nav.reels'))), isFalse);
+        final popular = find.descendant(
           of: find.byType(LiveScreen),
-          matching: _tab(_tabLabel(_en, tab)),
+          matching: _tab(_en.feedTabPopular),
         );
-        expect(_selected(tester, live), isTrue);
+        expect(_selected(tester, popular), isTrue);
       });
     }
 
-    testWidgets('a request reaches a Live hub that is already built', (
+    testWidgets('a request reaches a live hub that is already built', (
       tester,
     ) async {
       await _pumpApp(tester);
-      // Build the Live branch first (on Popular), then go back Home.
-      await tester.tap(find.byKey(const Key('nav.live')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('nav.home')));
-      await tester.pumpAndSettle();
+      // The hub (Home) is built on launch: move it to Following, open Reels,
+      // then "Watch live streams" brings Home back on Popular.
       await tester.tap(_tab(_en.feedTabFollowing));
       await tester.pumpAndSettle();
-      await tester.tap(_action(_en.homeSeeWhoIsLive));
+      await tester.tap(find.byKey(const Key('nav.reels')));
       await tester.pumpAndSettle();
-      expect(_location(tester), AppRoutes.live);
-      final following = find.descendant(
+      await tester.tap(_action(_en.homeWatchLive));
+      await tester.pumpAndSettle();
+      expect(_location(tester), AppRoutes.home);
+      final popular = find.descendant(
         of: find.byType(LiveScreen),
-        matching: _tab(_en.feedTabFollowing),
+        matching: _tab(_en.feedTabPopular),
       );
-      expect(_selected(tester, following), isTrue);
+      expect(_selected(tester, popular), isTrue);
     });
 
     testWidgets('loading: skeleton posts after 300 ms; no empty or '
@@ -219,8 +240,8 @@ void main() {
       await _pumpHome(
         tester,
         overrides: [
-          homeFeedProvider.overrideWith(
-            (ref, tab) => Completer<FeedLoad<FeedPostData>>().future,
+          homePostsProvider.overrideWith(
+            (ref, _) => Completer<FeedLoad<FeedPostData>>().future,
           ),
         ],
       );
@@ -252,8 +273,8 @@ void main() {
         await _pumpHome(
           tester,
           overrides: [
-            homeFeedProvider.overrideWith((ref, tab) {
-              if (tab == FeedTab.popular) calls++;
+            homePostsProvider.overrideWith((ref, _) {
+              calls++;
               if (fail) throw failure;
               return FeedItems<FeedPostData>(feedPosts(AppLanguage.en));
             }),
@@ -278,29 +299,36 @@ void main() {
       });
     }
 
-    testWidgets('empty: Popular offers "Watch live streams", Following '
-        '"See popular"', (tester) async {
+    testWidgets('empty: every tab offers "Watch live streams"', (tester) async {
       await _pumpHome(
         tester,
         overrides: [
-          homeFeedProvider.overrideWith(
-            (ref, tab) => const FeedItems<FeedPostData>([]),
+          homePostsProvider.overrideWith(
+            (ref, _) => const FeedItems<FeedPostData>([]),
+          ),
+          homeReelsProvider.overrideWith(
+            (ref, _) => const FeedItems<FeedReelData>([]),
           ),
         ],
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(FeedRegion.emptyKey), findsOneWidget);
-      expect(_action(_en.homeWatchLive), findsOneWidget);
-      await tester.tap(_tab(_en.feedTabFollowing));
-      await tester.pumpAndSettle();
-      expect(_action(_en.feedSeePopular), findsOneWidget);
-      expect(_action(_en.homeWatchLive), findsNothing);
+      for (final (tab, title) in [
+        (HomeTab.posts, _en.homeEmptyTitle),
+        (HomeTab.reels, _en.homeReelsEmptyTitle),
+      ]) {
+        await _showHomeMode(tester, tab);
+        expect(find.byKey(FeedRegion.emptyKey), findsOneWidget);
+        expect(find.text(title), findsOneWidget);
+        expect(_action(_en.homeWatchLive), findsOneWidget);
+      }
     });
 
-    testWidgets('no live room grid on Home (D39)', (tester) async {
+    testWidgets('no live rooms on the Reels tab (D39)', (tester) async {
       await _pumpApp(tester);
+      await tester.tap(find.byKey(const Key('nav.reels')));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveFullPage), findsNothing);
       expect(find.byType(KLiveCoverCard), findsNothing);
-      expect(find.byType(KLiveCoverCardSkeleton), findsNothing);
     });
   });
 
@@ -351,10 +379,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       expect(live.configCalls, configs + 1);
       expect(find.byKey(FeedRegion.emptyKey), findsNothing);
-      expect(
-        find.byType(KLiveCoverCardSkeleton),
-        findsNWidgets(KMetrics.liveGridSkeletonCount),
-      );
+      expect(_liveSkeleton, findsOneWidget);
       live.configGate!.complete();
       live.configGate = null;
       await tester.pumpAndSettle();
@@ -370,7 +395,7 @@ void main() {
       live.rooms = (_) => apiPage(apiRooms(2));
       await tester.tap(_action(_en.actionRetry));
       await tester.pumpAndSettle();
-      expect(find.byType(KLiveCoverCard), findsNWidgets(2));
+      expect(_streams(tester), 2);
       expect(find.byKey(FeedRegion.emptyKey), findsNothing);
     });
 
@@ -435,7 +460,7 @@ void main() {
       await tester.tap(_action(_en.actionRetry));
       await tester.pumpAndSettle();
       expect(live.configCalls, calls + 2);
-      expect(find.byType(KLiveCoverCard), findsNWidgets(3));
+      expect(_streams(tester), 3);
     });
 
     testWidgets('while re-checking it shows loading, not the old state', (
@@ -449,7 +474,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(FeedRegion.unavailableKey), findsNothing);
       expect(find.byKey(FeedRegion.emptyKey), findsNothing);
-      expect(find.byType(KLiveCoverCardSkeleton), findsWidgets);
+      expect(_liveSkeleton, findsOneWidget);
       live.configGate!.complete();
       await tester.pumpAndSettle();
       expect(find.byKey(FeedRegion.unavailableKey), findsOneWidget);
@@ -499,7 +524,7 @@ void main() {
       // Loading, not empty and not the old error.
       expect(find.byKey(FeedRegion.emptyKey), findsNothing);
       expect(find.byKey(FeedRegion.errorKey), findsNothing);
-      expect(find.byType(KLiveCoverCardSkeleton), findsWidgets);
+      expect(_liveSkeleton, findsOneWidget);
       live.configGate!.complete();
       live.configGate = null;
       await tester.pumpAndSettle();
@@ -523,7 +548,7 @@ void main() {
       await tester.tap(_action(_en.actionRetry));
       await tester.pumpAndSettle();
       expect(live.requests, hasLength(lists + 1));
-      expect(find.byType(KLiveCoverCard), findsNWidgets(2));
+      expect(_streams(tester), 2);
     });
 
     testWidgets('a failed category reload retries only that first page', (
@@ -551,7 +576,7 @@ void main() {
       expect(live.configCalls, configs);
       expect(live.requests, hasLength(lists + 1));
       expect(live.requests.last.category, 'music');
-      expect(find.byType(KLiveCoverCard), findsNWidgets(2));
+      expect(_streams(tester), 2);
     });
 
     testWidgets('offline vs other failures: own copy only for '
@@ -575,23 +600,36 @@ void main() {
     Finder badge(KBadgeVariant variant) =>
         find.byWidgetPredicate((w) => w is KBadge && w.variant == variant);
 
-    testWidgets('LIVE badge on every card; viewer count only when > 0, '
+    // D50: one stream per screen; check each by moving the pager.
+    Future<void> show(WidgetTester tester, int page) async {
+      tester
+          .widget<PageView>(
+            find.byKey(const PageStorageKey<String>('live.pager.popular')),
+          )
+          .controller!
+          .jumpToPage(page);
+      await tester.pumpAndSettle();
+    }
+
+    Finder inStream(Finder f) =>
+        find.descendant(of: find.byType(KLiveFullPage), matching: f);
+
+    testWidgets('LIVE badge on every stream; viewer count only when > 0, '
         'otherwise "New" (never invented)', (tester) async {
       final rooms = apiRooms(2);
       final live = FakeLiveRepository(
         rooms: (_) => apiPage([rooms[0], rooms[1].copyWith(viewerCount: 7)]),
       );
       await _pumpLive(tester, live);
-      final cards = find.byType(KLiveCoverCard);
-      expect(cards, findsNWidgets(2));
-      expect(badge(KBadgeVariant.live), findsNWidgets(2));
-      Finder inCard(int i, Finder f) =>
-          find.descendant(of: cards.at(i), matching: f);
-      expect(inCard(0, badge(KBadgeVariant.newRoom)), findsOneWidget);
-      expect(inCard(0, find.byType(KViewerCountChip)), findsNothing);
-      expect(inCard(1, badge(KBadgeVariant.newRoom)), findsNothing);
-      expect(inCard(1, find.byType(KViewerCountChip)), findsOneWidget);
-      expect(inCard(1, find.text('7')), findsOneWidget);
+      expect(_streams(tester), 2);
+      expect(inStream(badge(KBadgeVariant.live)), findsOneWidget);
+      expect(inStream(badge(KBadgeVariant.newRoom)), findsOneWidget);
+      expect(inStream(find.byType(KViewerCountChip)), findsNothing);
+      await show(tester, 1);
+      expect(inStream(badge(KBadgeVariant.live)), findsOneWidget);
+      expect(inStream(badge(KBadgeVariant.newRoom)), findsNothing);
+      expect(inStream(find.byType(KViewerCountChip)), findsOneWidget);
+      expect(inStream(find.text('7')), findsOneWidget);
     });
 
     testWidgets('category name when present, nothing when absent; '
@@ -600,22 +638,13 @@ void main() {
         rooms: (_) => apiPage(apiRooms(2, categories: apiCategories())),
       );
       await _pumpLive(tester, live);
-      final cards = find.byType(KLiveCoverCard);
-      expect(
-        find.descendant(of: cards.at(0), matching: find.text('Music')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: cards.at(1),
-          matching: find.byKey(KLiveCoverCard.categoryKey),
-        ),
-        findsNothing,
-      );
+      expect(inStream(find.text('Music')), findsOneWidget);
       expect(
         find.bySemanticsLabel('Sara, live, New, Arabic music night, Music'),
         findsOneWidget,
       );
+      await show(tester, 1);
+      expect(inStream(find.byIcon(Icons.tag_rounded)), findsNothing);
       expect(
         find.bySemanticsLabel('Omar, live, New, Evening chat'),
         findsOneWidget,
@@ -754,7 +783,7 @@ void main() {
       testWidgets('Home unavailable ($scale): no overflow, action reachable', (
         tester,
       ) async {
-        await pumpScaled(tester, const HomeScreen(), scale);
+        await pumpScaled(tester, const FeedScreen(), scale);
         expect(tester.takeException(), isNull);
         final action = _action(ar.homeWatchLive);
         await tester.ensureVisible(action);
@@ -827,7 +856,7 @@ void main() {
           ),
         );
         expect(tester.takeException(), isNull);
-        expect(find.byType(KLiveCoverCard), findsWidgets);
+        expect(find.byType(KLiveFullPage), findsWidgets);
       });
     }
   });
@@ -890,12 +919,12 @@ void main() {
   });
 
   group('navigation regression (KL-047)', () {
-    test('routes and branch order are unchanged', () {
+    test('routes and branch order (D48)', () {
       expect(AppRoutes.shellBranches, [
         '/home',
         '/discover',
         '/create',
-        '/live',
+        '/reels',
         '/profile',
       ]);
     });
@@ -904,13 +933,13 @@ void main() {
       Key('nav.home'),
       Key('nav.discover'),
       Key('nav.create'),
-      Key('nav.live'),
+      Key('nav.reels'),
       Key('nav.profile'),
     ];
 
     for (final language in ['en', 'ar']) {
       testWidgets('$language: order mirrors, 48 dp targets, icon sizes, '
-          'one selected dot, Create pill', (tester) async {
+          'Create pill', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         await _pumpApp(tester, language: language);
         final xs = [for (final k in keys) tester.getCenter(find.byKey(k)).dx];
@@ -923,29 +952,25 @@ void main() {
           expect(size.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
         }
         final nav = find.byType(KBottomNav);
-        final icons = tester.widgetList<Icon>(
-          find.descendant(of: nav, matching: find.byType(Icon)),
+        final icons = find.descendant(
+          of: nav,
+          matching: find.byType(SvgPicture),
         );
-        // Every icon is 24 dp (the Create "+" inside its pill too).
-        expect(icons, hasLength(5));
-        expect(icons.every((i) => i.size == KMetrics.iconMd), isTrue);
-        final pill = find.ancestor(
-          of: find.descendant(
-            of: find.byKey(const Key('nav.create')),
-            matching: find.byIcon(Icons.add_rounded),
-          ),
-          matching: find.byType(Container),
-        );
-        expect(
-          tester.getSize(pill.first),
-          const Size(KSpacing.xxl + KSpacing.md, KSpacing.xxl),
-        );
-        final dots = tester
-            .widgetList<AnimatedOpacity>(
-              find.descendant(of: nav, matching: find.byType(AnimatedOpacity)),
-            )
-            .where((o) => o.opacity == 1);
-        expect(dots, hasLength(1));
+        // D49: four 28 dp icons and the 54×36 Create pill.
+        expect(icons, findsNWidgets(5));
+        for (final k in keys) {
+          final icon = find.descendant(
+            of: find.byKey(k),
+            matching: find.byType(SvgPicture),
+          );
+          expect(
+            tester.getSize(icon),
+            k == const Key('nav.create')
+                ? KNavIcons.createSize
+                : const Size.square(KNavIcons.iconSize),
+            reason: '$k',
+          );
+        }
         expect(_selected(tester, find.byKey(keys.first)), isTrue);
       });
     }
@@ -960,7 +985,7 @@ void main() {
       );
       addTearDown(tester.view.resetPadding);
       await _pumpApp(tester);
-      for (final key in [const Key('nav.home'), const Key('nav.live')]) {
+      for (final key in [const Key('nav.home'), const Key('nav.reels')]) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
         final nav = tester.getRect(find.byType(KBottomNav));
@@ -968,7 +993,11 @@ void main() {
         final visible = find.byWidgetPredicate((w) => w is CustomScrollView);
         final region = tester.getRect(visible.first);
         expect(region.bottom, lessThanOrEqualTo(nav.top));
-        final header = tester.getRect(find.byType(KPrimaryTabs).first);
+        final header = tester.getRect(
+          key == const Key('nav.reels')
+              ? find.byKey(FeedScreen.tabsKey)
+              : find.byType(KPrimaryTabs).first,
+        );
         expect(header.top, greaterThanOrEqualTo(59));
         final state = tester.getRect(
           find.byKey(FeedRegion.unavailableKey).first,
@@ -1012,7 +1041,10 @@ void main() {
 
         await _pumpHome(tester, language: language);
         await tester.pumpAndSettle();
-        await visitTabs();
+        for (final tab in HomeTab.values) {
+          await _showHomeMode(tester, tab);
+          seen.addAll(texts(tester));
+        }
         for (final live in [
           FakeLiveRepository(hostingEnabled: false),
           FakeLiveRepository(),

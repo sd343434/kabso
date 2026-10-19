@@ -142,7 +142,7 @@ void main() {
           for (final key in const [
             Key('nav.discover'),
             Key('nav.create'),
-            Key('nav.live'),
+            Key('nav.reels'),
             Key('nav.profile'),
           ]) {
             await tester.tap(find.byKey(key));
