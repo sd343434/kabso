@@ -1758,4 +1758,57 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get liveHostRankingHelpBody =>
       'Hosts are ranked against each other by the gifts they received in the selected period: this hour, today, this month or of all time. The countdown shows when the current round ends.';
+
+  @override
+  String get levelsTitle => 'My levels';
+
+  @override
+  String get levelsIntro =>
+      'Your points grow from gifts and game spending once they are confirmed. Each level has its own points.';
+
+  @override
+  String get levelsPreparing =>
+      'Levels are on their way. Your points will show here once gifts and games are switched on.';
+
+  @override
+  String get levelsUnavailable => 'Not active yet';
+
+  @override
+  String get levelsUnavailableBody =>
+      'This level isn\'t active yet. Your points and level will show here once it is.';
+
+  @override
+  String get levelsNoLevel => 'No level yet';
+
+  @override
+  String levelsLevelNumber(int number) {
+    return 'Level $number';
+  }
+
+  @override
+  String levelsPoints(String points) {
+    return '$points pts';
+  }
+
+  @override
+  String levelsToNext(String points) {
+    return '$points to next level';
+  }
+
+  @override
+  String levelsToNamed(String points, String level) {
+    return '$points pts to reach $level';
+  }
+
+  @override
+  String get levelsMax => 'Top level reached';
+
+  @override
+  String get levelsLadder => 'All levels';
+
+  @override
+  String get levelsCurrent => 'You\'re here';
+
+  @override
+  String get levelsLoadError => 'Couldn\'t load your levels';
 }

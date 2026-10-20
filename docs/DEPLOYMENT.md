@@ -452,6 +452,27 @@ Optional hardening not applied by the script (tune per environment; see KL7F-07)
 kabso_app_prod SET statement_timeout = '15s'`, `idle_in_transaction_session_timeout = '30s'` and
 a `CONNECTION LIMIT`.
 
+### 5.2 Level systems (migration `20261020090000_levels`, D72) — [IMPLEMENTED, draft contract]
+
+- Additive. Seeds the four categories **disabled with no version**; no multiplier or threshold
+  is seeded (CP-005 §9: the owner decides them). `points_ledger` and `level_history` are
+  append-only for the runtime group (REVOKE UPDATE/DELETE/TRUNCATE, like `audit_logs`).
+- Nothing earns points in production: the `SourceTransactionVerifier` port defaults to
+  `UnavailableSourceVerifier`, which refuses every event. A gifts/wallet/games module must
+  provide a verifier against its own committed ledger before any category is enabled.
+- Activation order per category: create a draft, fill it, `validate`, `preview`, `publish`, then
+  `PATCH … {enabled: true}` — each by an `ADMIN` and audited. Disabling stops crediting but keeps
+  stored points; reversals still apply.
+- Admin rights (migration `20261021090000_admin_permissions`): an admin endpoint needs
+  `role = ADMIN` and its permission. Grant with the migration role, e.g.
+  `MIGRATION_DATABASE_URL=… pnpm levels:admin grant owner@example.com ALL`
+  (`revoke`, `list` likewise); the runtime role can only read the table. Every grant is audited.
+- The owner's ladder (CP-005 §9.1): `pnpm levels:admin draft-preset <admin email>` writes one DRAFT
+  per category (100 levels, ×0.1). Review, then publish with `PRESERVE_POINTS` and enable.
+- After an incident: `POST /admin/levels/reconciliation {mode: "DRY_RUN"}` reports states that
+  differ from their ledger and failed or stuck events; `REPAIR` rebuilds the states from the
+  ledger and retries the events. The ledger itself is never edited.
+
 ## 6. Observability baseline
 
 | Item | Status |

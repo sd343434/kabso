@@ -627,5 +627,19 @@
   "liveHostRankingHelpBody": "Hosts are ranked against each other by the gifts they received in the selected period: this hour, today, this month or of all time. The countdown shows when the current round ends.",
   "@liveHostRankingHelpBody": {
     "description": "D85: explanation of the hosts ranking."
-  }
+  },
+  "levelsTitle": "My levels",
+  "levelsIntro": "Your points grow from gifts and game spending once they are confirmed. Each level has its own points.",
+  "levelsPreparing": "Levels are on their way. Your points will show here once gifts and games are switched on.",
+  "levelsUnavailable": "Not active yet",
+  "levelsUnavailableBody": "This level isn't active yet. Your points and level will show here once it is.",
+  "levelsNoLevel": "No level yet",
+  "levelsLevelNumber": "Level {number}",
+  "levelsPoints": "{points} pts",
+  "levelsToNext": "{points} to next level",
+  "levelsToNamed": "{points} pts to reach {level}",
+  "levelsMax": "Top level reached",
+  "levelsLadder": "All levels",
+  "levelsCurrent": "You're here",
+  "levelsLoadError": "Couldn't load your levels"
 }

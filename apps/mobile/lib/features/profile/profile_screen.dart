@@ -11,6 +11,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -158,6 +159,7 @@ class _OwnHeader extends ConsumerWidget {
       // A failed count shows a dash, not a number, and not an endless
       // skeleton; pull to refresh retries.
       statsFailed: statsLoad.hasError && stats == null,
+      levels: ProfileLevels(onOpen: () => context.push(AppRoutes.levels)),
       actions: SizedBox(
         height: KProfile.buttonHeight,
         child: OutlinedButton(
@@ -202,6 +204,7 @@ class ProfileHeaderView extends StatelessWidget {
     this.statsFailed = false,
     this.live = false,
     this.onOpenLive,
+    this.levels,
   });
 
   final String displayName;
@@ -213,6 +216,9 @@ class ProfileHeaderView extends StatelessWidget {
   final bool live;
   final VoidCallback? onOpenLive;
   final Widget actions;
+
+  /// D72: the level badges under the name and bio (`ProfileLevels`).
+  final Widget? levels;
 
   static const avatarKey = Key('profile.avatar');
 
@@ -292,6 +298,7 @@ class ProfileHeaderView extends StatelessWidget {
             const SizedBox(height: KSpacing.xxs),
             Text(bio, style: t.body.copyWith(color: p.textPrimary)),
           ],
+          ?levels,
           const SizedBox(height: KSpacing.md),
           actions,
         ],

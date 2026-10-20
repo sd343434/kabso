@@ -1788,4 +1788,57 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get liveHostRankingHelpBody =>
       'يُرتَّب المضيفون فيما بينهم حسب الهدايا التي استلموها في الفترة المختارة: هذه الساعة أو اليوم أو هذا الشهر أو الترتيب الكلي. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.';
+
+  @override
+  String get levelsTitle => 'مستوياتي';
+
+  @override
+  String get levelsIntro =>
+      'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.';
+
+  @override
+  String get levelsPreparing =>
+      'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.';
+
+  @override
+  String get levelsUnavailable => 'غير مفعّل بعد';
+
+  @override
+  String get levelsUnavailableBody =>
+      'هذا المستوى غير مفعّل بعد. ستظهر نقاطك ومستواك هنا عند تفعيله.';
+
+  @override
+  String get levelsNoLevel => 'لا يوجد مستوى بعد';
+
+  @override
+  String levelsLevelNumber(int number) {
+    return 'المستوى $number';
+  }
+
+  @override
+  String levelsPoints(String points) {
+    return '$points نقطة';
+  }
+
+  @override
+  String levelsToNext(String points) {
+    return '$points للمستوى التالي';
+  }
+
+  @override
+  String levelsToNamed(String points, String level) {
+    return '$points نقطة للوصول إلى $level';
+  }
+
+  @override
+  String get levelsMax => 'أعلى مستوى';
+
+  @override
+  String get levelsLadder => 'كل المستويات';
+
+  @override
+  String get levelsCurrent => 'مستواك';
+
+  @override
+  String get levelsLoadError => 'تعذّر تحميل المستويات';
 }

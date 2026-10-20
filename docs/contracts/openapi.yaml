@@ -8,7 +8,8 @@ info:
     current user. v1.3 (Phase 2 slice 1, KL-036) adds live discovery, the host lifecycle of live
     rooms (behind `LIVE_HOSTING_ENABLED`), public profiles and follow (CONVENTIONS §10; data design
     in DB_PHASE2_DISCOVERY.md). Later phases append paths; existing shapes change only via
-    contract proposal.
+    contract proposal. **v1.4-levels (DRAFT, CP-005)** adds the four level systems (user and
+    admin paths tagged `levels` / `admin-levels`); it is additive and awaits formal approval.
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -25,6 +26,10 @@ tags:
     description: "Public user lookups, public profiles and follow."
   - name: live
     description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3)."
+  - name: levels
+    description: "The caller's four independent level systems (v1.4-levels DRAFT, CP-005)."
+  - name: admin-levels
+    description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
 paths:
   /health/live:
     get:
@@ -720,6 +725,562 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  # ------------------------------------------------------------------------------------------
+  # v1.4-levels (DRAFT, CP-005, D72): four independent level systems. Additive.
+  # ------------------------------------------------------------------------------------------
+  /api/v1/levels/me:
+    get:
+      tags: [levels]
+      operationId: getMyLevels
+      summary: "The caller's four level summaries (draft, CP-005)"
+      description: |
+        Always four items, in the order ATTRACTIVENESS, SUPPORT, WIZARD, GAMING. A category that is
+        disabled or has no published configuration is `UNAVAILABLE` with no level. Names are
+        localized like §10.1 (`Accept-Language`, else the stored locale).
+      responses:
+        '200':
+          description: The four summaries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    minItems: 4
+                    maxItems: 4
+                    items: { $ref: '#/components/schemas/LevelSummary' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/levels/me/history:
+    get:
+      tags: [levels]
+      operationId: listMyLevelHistory
+      summary: "The caller's level transitions, newest first (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryQuery' }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: A page of transitions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelTransitionPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/levels/me/points-history:
+    get:
+      tags: [levels]
+      operationId: listMyPointsHistory
+      summary: "The caller's points entries, newest first (draft, CP-005)"
+      description: Public fields only; source transaction ids and admin reasons are never returned.
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryQuery' }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: A page of entries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PointsEntryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/levels/me/{category}:
+    get:
+      tags: [levels]
+      operationId: getMyLevel
+      summary: "One category: summary and the level ladder (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryPath' }
+      responses:
+        '200':
+          description: The category. `levels` is empty when it is UNAVAILABLE.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelDetail' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/users/{username}/levels:
+    get:
+      tags: [levels]
+      operationId: getUserLevels
+      summary: "Another user's four levels, for their profile (draft, CP-005)"
+      description: |
+        Owner decision (CP-005 §9.1, 7): levels are public on the profile. Levels only — never
+        points, ledger entries or history. Shown for private accounts too (a level is a badge,
+        not content). The same 404 as `GET /users/{username}` for a malformed, unknown,
+        SUSPENDED or DELETED username. Always four items, in the order of `GET /levels/me`.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The four levels.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    minItems: 4
+                    maxItems: 4
+                    items: { $ref: '#/components/schemas/PublicLevel' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/categories:
+    get:
+      tags: [admin-levels]
+      operationId: listAdminLevelCategories
+      summary: "Admin: the four categories (draft, CP-005)"
+      responses:
+        '200':
+          description: The categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 4
+                    items: { $ref: '#/components/schemas/AdminLevelCategory' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/categories/{category}:
+    get:
+      tags: [admin-levels]
+      operationId: getAdminLevelCategory
+      summary: "Admin: one category (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryPath' }
+      responses:
+        '200':
+          description: The category.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelCategory' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [admin-levels]
+      operationId: updateAdminLevelCategory
+      summary: "Admin: enable/disable a category or edit its names (draft, CP-005)"
+      description: Enabling needs a published version (else 422 `LEVEL_CONFIG_INVALID`). Audited.
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLevelCategoryRequest' }
+      responses:
+        '200':
+          description: The updated category.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelCategory' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/categories/{category}/versions:
+    get:
+      tags: [admin-levels]
+      operationId: listAdminLevelVersions
+      summary: "Admin: a category's versions, newest first (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryPath' }
+      responses:
+        '200':
+          description: "Every version (bounded: at most 500 per category)."
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 500
+                    items: { $ref: '#/components/schemas/AdminLevelVersion' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-levels]
+      operationId: createAdminLevelVersion
+      summary: "Admin: create a draft, empty or copied from another version (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelCategoryPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLevelVersionRequest' }
+      responses:
+        '201':
+          description: The new draft.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelVersion' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/versions/{versionId}:
+    get:
+      tags: [admin-levels]
+      operationId: getAdminLevelVersion
+      summary: "Admin: one version (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelVersionIdPath' }
+      responses:
+        '200':
+          description: The version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelVersion' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [admin-levels]
+      operationId: replaceAdminLevelVersion
+      summary: "Admin: replace a DRAFT's settings and levels (draft, CP-005)"
+      description: |
+        Only drafts change (409 `LEVEL_VERSION_NOT_DRAFT` otherwise). The body is checked for shape
+        (400); the rules of CP-005 §4 are checked by validate and publish. Audited.
+      parameters:
+        - { $ref: '#/components/parameters/LevelVersionIdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LevelVersionInput' }
+      responses:
+        '200':
+          description: The updated draft.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelVersion' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/versions/{versionId}/validate:
+    post:
+      tags: [admin-levels]
+      operationId: validateAdminLevelVersion
+      summary: "Admin: check a version against the CP-005 rules (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelVersionIdPath' }
+      responses:
+        '200':
+          description: The result; `issues` is empty when valid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelValidationResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/versions/{versionId}/preview:
+    get:
+      tags: [admin-levels]
+      operationId: previewAdminLevelVersion
+      summary: "Admin: how users would spread over this version's levels (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/LevelVersionIdPath' }
+        - name: recalculation
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/LevelRecalculation' }
+      responses:
+        '200':
+          description: The preview (nothing is written).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelPreview' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/versions/{versionId}/publish:
+    post:
+      tags: [admin-levels]
+      operationId: publishAdminLevelVersion
+      summary: "Admin: publish a valid draft (draft, CP-005)"
+      description: |
+        The previous published version becomes ARCHIVED. Every user's level is re-evaluated (and,
+        with `RECOMPUTE_FROM_LEDGER`, their points rebuilt) in the same request. Audited.
+      parameters:
+        - { $ref: '#/components/parameters/LevelVersionIdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishLevelVersionRequest' }
+      responses:
+        '200':
+          description: The published version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelVersion' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/users/{userId}:
+    get:
+      tags: [admin-levels]
+      operationId: getAdminUserLevels
+      summary: "Admin: a user's four states with recent entries and transitions (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/UserIdPath' }
+      responses:
+        '200':
+          description: The four states.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserLevels' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/users/{userId}/recalculate:
+    post:
+      tags: [admin-levels]
+      operationId: recalculateAdminUserLevel
+      summary: "Admin: rebuild one user's state for a category from the ledger (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/UserIdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecalculateLevelRequest' }
+      responses:
+        '200':
+          description: The user's states after recalculation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminUserLevels' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/users/{userId}/adjustments:
+    post:
+      tags: [admin-levels]
+      operationId: createAdminLevelAdjustment
+      summary: "Admin: a manual, audited points adjustment (draft, CP-005)"
+      description: |
+        Appends an ADJUSTMENT entry; history is never rewritten. `Idempotency-Key` (UUID) is
+        required: the same key with the same body returns the first result (200), with a
+        different body 409 `IDEMPOTENCY_CONFLICT`. A total may not go below 0 (422).
+      parameters:
+        - { $ref: '#/components/parameters/UserIdPath' }
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LevelAdjustmentRequest' }
+      responses:
+        '200':
+          description: The entry (new or replayed) and the user's states.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminLevelAdjustmentResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/reconciliation:
+    get:
+      tags: [admin-levels]
+      operationId: listAdminLevelReconciliations
+      summary: "Admin: recent reconciliation runs, newest first (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: A page of runs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelReconciliationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [admin-levels]
+      operationId: startAdminLevelReconciliation
+      summary: "Admin: run a reconciliation now, dry-run or repair (draft, CP-005)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartLevelReconciliationRequest' }
+      responses:
+        '200':
+          description: The completed (or failed) run.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelReconciliationRun' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/reconciliation/{runId}:
+    get:
+      tags: [admin-levels]
+      operationId: getAdminLevelReconciliation
+      summary: "Admin: one reconciliation run (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/RunIdPath' }
+      responses:
+        '200':
+          description: The run.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelReconciliationRun' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/events:
+    get:
+      tags: [admin-levels]
+      operationId: listAdminLevelEvents
+      summary: "Admin: received source events, newest first (draft, CP-005)"
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/LevelEventStatus' }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: A page of events.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelSourceEventPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/events/{eventId}/retry:
+    post:
+      tags: [admin-levels]
+      operationId: retryAdminLevelEvent
+      summary: "Admin: process a FAILED event again (draft, CP-005)"
+      description: Safe to repeat; the ledger's uniqueness prevents double credit. Audited.
+      parameters:
+        - { $ref: '#/components/parameters/EventIdPath' }
+      responses:
+        '200':
+          description: The event after the attempt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelSourceEvent' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/reports:
+    get:
+      tags: [admin-levels]
+      operationId: getAdminLevelReports
+      summary: "Admin: per-category overview (draft, CP-005)"
+      responses:
+        '200':
+          description: One report per category.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 4
+                    items: { $ref: '#/components/schemas/LevelCategoryReport' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/levels/audit-logs:
+    get:
+      tags: [admin-levels]
+      operationId: listAdminLevelAuditLogs
+      summary: "Admin: the levels audit trail, newest first (draft, CP-005)"
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: A page of audit rows (actions `levels.*`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LevelAuditLogPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -749,6 +1310,42 @@ components:
       in: path
       required: true
       description: A malformed id is treated as not found (404), never 400.
+      schema: { type: string, format: uuid }
+    LevelCategoryPath:
+      name: category
+      in: path
+      required: true
+      description: "Category code in lower case (v1.4-levels draft). Anything else is 404."
+      schema: { type: string, enum: [attractiveness, support, wizard, gaming] }
+    LevelCategoryQuery:
+      name: category
+      in: query
+      required: false
+      description: Filter by category (lower case). Omit for all four.
+      schema: { type: string, enum: [attractiveness, support, wizard, gaming] }
+    LevelVersionIdPath:
+      name: versionId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    RunIdPath:
+      name: runId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    EventIdPath:
+      name: eventId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
       schema: { type: string, format: uuid }
   responses:
     Error:
@@ -1024,5 +1621,450 @@ components:
       properties:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug: { $ref: '#/components/schemas/CategorySlug' }
+    # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
+    LevelCategoryCode:
+      type: string
+      enum: [ATTRACTIVENESS, SUPPORT, WIZARD, GAMING]
+    PointsAmount:
+      description: A whole number of points (or of source units) as a decimal string, so 64-bit values survive JSON.
+      type: string
+      pattern: '^-?(0|[1-9][0-9]{0,18})$'
+    LevelMultiplier:
+      description: Points per source unit, > 0, at most 6 decimals (e.g. "1", "0.5").
+      type: string
+      pattern: '^(0|[1-9][0-9]{0,6})(\.[0-9]{1,6})?$'
+    LevelValueUnit:
+      type: string
+      enum: [COIN]
+    LevelReversalPolicy:
+      type: string
+      enum: [REVERSE_POINTS, KEEP_LEVEL]
+    LevelRecalculation:
+      type: string
+      enum: [PRESERVE_POINTS, RECOMPUTE_FROM_LEDGER]
+    LevelIconKey:
+      type: [string, 'null']
+      maxLength: 64
+      pattern: '^[a-z0-9_]{1,64}$'
+    LevelBrief:
+      type: object
+      required: [levelNumber, name, requiredPoints, iconKey]
+      properties:
+        levelNumber: { type: integer, minimum: 1, maximum: 200 }
+        name: { type: string, maxLength: 40 }
+        requiredPoints: { $ref: '#/components/schemas/PointsAmount' }
+        iconKey: { $ref: '#/components/schemas/LevelIconKey' }
+    LevelSummary:
+      type: object
+      required:
+        [category, status, name, description, points, level, nextLevel, pointsToNext, progressPercent, maxLevel, versionNumber]
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE]
+          description: UNAVAILABLE = disabled or no published configuration; level fields are null.
+        name: { type: string, maxLength: 40 }
+        description: { type: string, maxLength: 200 }
+        points: { $ref: '#/components/schemas/PointsAmount' }
+        level:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelBrief' }
+            - { type: 'null' }
+        nextLevel:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelBrief' }
+            - { type: 'null' }
+        pointsToNext:
+          oneOf:
+            - { $ref: '#/components/schemas/PointsAmount' }
+            - { type: 'null' }
+        progressPercent:
+          description: Progress from the current level's threshold to the next one, 0–100 with one decimal; 100 at the top level; null when UNAVAILABLE.
+          type: [number, 'null']
+          minimum: 0
+          maximum: 100
+        maxLevel: { type: boolean }
+        versionNumber: { type: [integer, 'null'], minimum: 1 }
+    PublicLevel:
+      type: object
+      required: [category, status, name, level]
+      additionalProperties: false
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        status:
+          type: string
+          enum: [AVAILABLE, UNAVAILABLE]
+        name: { type: string, maxLength: 40 }
+        level:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelBrief' }
+            - { type: 'null' }
+    LevelDetail:
+      allOf:
+        - { $ref: '#/components/schemas/LevelSummary' }
+        - type: object
+          required: [levels]
+          properties:
+            levels:
+              type: array
+              maxItems: 200
+              items: { $ref: '#/components/schemas/LevelBrief' }
+    LevelTransitionReason:
+      type: string
+      enum: [EARNED, REVERSED, ADJUSTED, CONFIG_PUBLISHED, RECALCULATED]
+    LevelTransition:
+      type: object
+      required: [id, category, previousLevel, newLevel, points, reason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        previousLevel: { type: [integer, 'null'], minimum: 1 }
+        newLevel: { type: [integer, 'null'], minimum: 1 }
+        points: { $ref: '#/components/schemas/PointsAmount' }
+        reason: { $ref: '#/components/schemas/LevelTransitionReason' }
+        createdAt: { type: string, format: date-time }
+    LevelTransitionPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LevelTransition' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    PointsEntryType:
+      type: string
+      enum: [EARN, REVERSAL, ADJUSTMENT]
+    PointsSourceType:
+      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; ADMIN for manual adjustments; CONFIG for recalculations.
+      type: string
+      enum: [GIFT_RECEIVED, GIFT_SENT, LUCKY_GIFT_SENT, GAME_SPEND, ADMIN, CONFIG]
+    PointsEntry:
+      type: object
+      required: [id, category, entryType, sourceType, pointsDelta, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        entryType: { $ref: '#/components/schemas/PointsEntryType' }
+        sourceType: { $ref: '#/components/schemas/PointsSourceType' }
+        pointsDelta: { $ref: '#/components/schemas/PointsAmount' }
+        createdAt: { type: string, format: date-time }
+    PointsEntryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/PointsEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    AdminLevelDefinition:
+      type: object
+      required: [levelNumber, nameAr, nameEn, requiredPoints, iconKey]
+      additionalProperties: false
+      properties:
+        levelNumber: { type: integer, minimum: 1, maximum: 200 }
+        nameAr: { type: string, minLength: 1, maxLength: 40 }
+        nameEn: { type: string, minLength: 1, maxLength: 40 }
+        requiredPoints: { $ref: '#/components/schemas/PointsAmount' }
+        iconKey: { $ref: '#/components/schemas/LevelIconKey' }
+    AdminLevelVersion:
+      type: object
+      required:
+        [id, category, versionNumber, status, multiplier, valueUnit, reversalPolicy, luckyGiftsCountAsSupport, levels, createdAt, createdBy, publishedAt, publishedBy]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        versionNumber: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, PUBLISHED, ARCHIVED] }
+        multiplier:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelMultiplier' }
+            - { type: 'null' }
+        valueUnit:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelValueUnit' }
+            - { type: 'null' }
+        reversalPolicy: { $ref: '#/components/schemas/LevelReversalPolicy' }
+        luckyGiftsCountAsSupport: { type: boolean }
+        levels:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/AdminLevelDefinition' }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: [string, 'null'], format: uuid }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        publishedBy: { type: [string, 'null'], format: uuid }
+    AdminLevelCategory:
+      type: object
+      required: [category, nameAr, nameEn, descriptionAr, descriptionEn, enabled, published, draftCount, updatedAt]
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        nameAr: { type: string, maxLength: 40 }
+        nameEn: { type: string, maxLength: 40 }
+        descriptionAr: { type: string, maxLength: 200 }
+        descriptionEn: { type: string, maxLength: 200 }
+        enabled: { type: boolean }
+        published:
+          oneOf:
+            - { $ref: '#/components/schemas/AdminLevelVersion' }
+            - { type: 'null' }
+        draftCount: { type: integer, minimum: 0 }
+        updatedAt: { type: string, format: date-time }
+    UpdateLevelCategoryRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        enabled: { type: boolean }
+        nameAr: { type: string, minLength: 1, maxLength: 40 }
+        nameEn: { type: string, minLength: 1, maxLength: 40 }
+        descriptionAr: { type: string, minLength: 1, maxLength: 200 }
+        descriptionEn: { type: string, minLength: 1, maxLength: 200 }
+    CreateLevelVersionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        copyFromVersionId: { type: [string, 'null'], format: uuid }
+    LevelVersionInput:
+      type: object
+      required: [multiplier, valueUnit, reversalPolicy, levels]
+      additionalProperties: false
+      properties:
+        multiplier: { $ref: '#/components/schemas/LevelMultiplier' }
+        valueUnit: { $ref: '#/components/schemas/LevelValueUnit' }
+        reversalPolicy: { $ref: '#/components/schemas/LevelReversalPolicy' }
+        luckyGiftsCountAsSupport: { type: boolean, default: false }
+        levels:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/AdminLevelDefinition' }
+    LevelValidationResult:
+      type: object
+      required: [valid, issues]
+      properties:
+        valid: { type: boolean }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [field, issue]
+            properties:
+              field: { type: string }
+              issue: { type: string }
+    LevelPreview:
+      type: object
+      required: [versionId, recalculation, totalUsers, usersChangingLevel, distribution]
+      properties:
+        versionId: { type: string, format: uuid }
+        recalculation: { $ref: '#/components/schemas/LevelRecalculation' }
+        totalUsers: { type: integer, minimum: 0 }
+        usersChangingLevel: { type: integer, minimum: 0 }
+        distribution:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [levelNumber, users]
+            properties:
+              levelNumber: { type: integer, minimum: 1 }
+              users: { type: integer, minimum: 0 }
+    PublishLevelVersionRequest:
+      type: object
+      required: [recalculation]
+      additionalProperties: false
+      properties:
+        recalculation: { $ref: '#/components/schemas/LevelRecalculation' }
+    AdminPointsEntry:
+      allOf:
+        - { $ref: '#/components/schemas/PointsEntry' }
+        - type: object
+          required: [sourceTransactionId, sourceValue, multiplierUsed, versionNumber, reason, createdBy]
+          properties:
+            sourceTransactionId: { type: [string, 'null'], maxLength: 128 }
+            sourceValue:
+              oneOf:
+                - { $ref: '#/components/schemas/PointsAmount' }
+                - { type: 'null' }
+            multiplierUsed:
+              oneOf:
+                - { $ref: '#/components/schemas/LevelMultiplier' }
+                - { type: 'null' }
+            versionNumber: { type: [integer, 'null'], minimum: 1 }
+            reason: { type: [string, 'null'], maxLength: 500 }
+            createdBy: { type: [string, 'null'], format: uuid }
+    AdminUserLevelState:
+      allOf:
+        - { $ref: '#/components/schemas/LevelSummary' }
+        - type: object
+          required: [lifetimeEarnedPoints, recentEntries, recentTransitions]
+          properties:
+            lifetimeEarnedPoints: { $ref: '#/components/schemas/PointsAmount' }
+            recentEntries:
+              type: array
+              maxItems: 20
+              items: { $ref: '#/components/schemas/AdminPointsEntry' }
+            recentTransitions:
+              type: array
+              maxItems: 20
+              items: { $ref: '#/components/schemas/LevelTransition' }
+    AdminUserLevels:
+      type: object
+      required: [userId, data]
+      properties:
+        userId: { type: string, format: uuid }
+        data:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items: { $ref: '#/components/schemas/AdminUserLevelState' }
+    RecalculateLevelRequest:
+      type: object
+      required: [category]
+      additionalProperties: false
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+    LevelAdjustmentRequest:
+      type: object
+      required: [category, pointsDelta, reason]
+      additionalProperties: false
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        pointsDelta:
+          description: Non-zero whole number of points (negative removes points).
+          type: string
+          pattern: '^-?[1-9][0-9]{0,18}$'
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    AdminLevelAdjustmentResult:
+      type: object
+      required: [entry, levels]
+      properties:
+        entry: { $ref: '#/components/schemas/AdminPointsEntry' }
+        levels: { $ref: '#/components/schemas/AdminUserLevels' }
+    StartLevelReconciliationRequest:
+      type: object
+      required: [mode]
+      additionalProperties: false
+      properties:
+        mode: { type: string, enum: [DRY_RUN, REPAIR] }
+        category:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelCategoryCode' }
+            - { type: 'null' }
+    LevelReconciliationRun:
+      type: object
+      required:
+        [id, category, mode, status, startedAt, completedAt, eventsInspected, statesInspected, failedEvents, unprocessedEvents, stateMismatches, corrected, errors, initiatedBy]
+      properties:
+        id: { type: string, format: uuid }
+        category:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelCategoryCode' }
+            - { type: 'null' }
+        mode: { type: string, enum: [DRY_RUN, REPAIR] }
+        status: { type: string, enum: [RUNNING, COMPLETED, FAILED] }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        eventsInspected: { type: integer, minimum: 0 }
+        statesInspected: { type: integer, minimum: 0 }
+        failedEvents: { type: integer, minimum: 0 }
+        unprocessedEvents: { type: integer, minimum: 0 }
+        stateMismatches: { type: integer, minimum: 0 }
+        corrected: { type: integer, minimum: 0 }
+        errors:
+          type: array
+          maxItems: 50
+          items: { type: string, maxLength: 300 }
+        initiatedBy: { type: [string, 'null'], format: uuid }
+    LevelReconciliationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LevelReconciliationRun' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    LevelEventStatus:
+      type: string
+      enum: [PENDING, PROCESSED, SKIPPED, FAILED]
+    LevelSourceEvent:
+      type: object
+      required: [id, type, sourceTransactionId, status, attempts, lastError, receivedAt, processedAt]
+      properties:
+        id: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [GIFT_COMMITTED, GAME_SPEND_COMMITTED, GIFT_REVERSED, GAME_SPEND_REVERSED]
+        sourceTransactionId: { type: string, maxLength: 128 }
+        status: { $ref: '#/components/schemas/LevelEventStatus' }
+        attempts: { type: integer, minimum: 0 }
+        lastError: { type: [string, 'null'], maxLength: 300 }
+        receivedAt: { type: string, format: date-time }
+        processedAt: { type: [string, 'null'], format: date-time }
+    LevelSourceEventPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LevelSourceEvent' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    LevelCategoryReport:
+      type: object
+      required: [category, enabled, publishedVersionNumber, levelCount, multiplier, valueUnit, usersPerLevel, recentLevelUps, lastReconciliation]
+      properties:
+        category: { $ref: '#/components/schemas/LevelCategoryCode' }
+        enabled: { type: boolean }
+        publishedVersionNumber: { type: [integer, 'null'], minimum: 1 }
+        levelCount: { type: [integer, 'null'], minimum: 1 }
+        multiplier:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelMultiplier' }
+            - { type: 'null' }
+        valueUnit:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelValueUnit' }
+            - { type: 'null' }
+        usersPerLevel:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [levelNumber, users]
+            properties:
+              levelNumber: { type: integer, minimum: 1 }
+              users: { type: integer, minimum: 0 }
+        recentLevelUps:
+          type: array
+          maxItems: 10
+          items:
+            allOf:
+              - { $ref: '#/components/schemas/LevelTransition' }
+              - type: object
+                required: [userId]
+                properties:
+                  userId: { type: string, format: uuid }
+        lastReconciliation:
+          oneOf:
+            - { $ref: '#/components/schemas/LevelReconciliationRun' }
+            - { type: 'null' }
+    LevelAuditLog:
+      type: object
+      required: [id, action, actorUserId, targetType, targetId, metadata, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        action: { type: string, maxLength: 64 }
+        actorUserId: { type: [string, 'null'], format: uuid }
+        targetType: { type: [string, 'null'], maxLength: 32 }
+        targetId: { type: [string, 'null'], maxLength: 64 }
+        metadata: { type: [object, 'null'] }
+        createdAt: { type: string, format: date-time }
+    LevelAuditLogPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LevelAuditLog' }
+        page: { $ref: '#/components/schemas/PageInfo' }
 security:
   - bearerAuth: []

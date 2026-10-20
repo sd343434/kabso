@@ -13,6 +13,7 @@ import { AccessTokenGuard } from './modules/auth/access-token.guard.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { LevelsModule } from './modules/levels/levels.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -43,6 +44,8 @@ export class AppModule {
         // users/username-availability route is registered first.
         LiveModule,
         SocialModule,
+        // v1.4-levels (DRAFT, CP-005).
+        LevelsModule,
         PublicProfileModule,
       ],
       providers: [

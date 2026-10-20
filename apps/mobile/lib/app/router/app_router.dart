@@ -28,6 +28,9 @@ import 'package:kabso_live/features/debug/profile_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
+import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
@@ -99,6 +102,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
+      ),
+      GoRoute(path: AppRoutes.levels, builder: (_, _) => const LevelsScreen()),
+      GoRoute(
+        path: AppRoutes.levelPattern,
+        redirect: (_, state) =>
+            LevelCategory.fromSlug(state.pathParameters['category']!) == null
+            ? AppRoutes.levels
+            : null,
+        builder: (_, state) => LevelDetailScreen(
+          category: LevelCategory.fromSlug(state.pathParameters['category']!)!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.editProfile,

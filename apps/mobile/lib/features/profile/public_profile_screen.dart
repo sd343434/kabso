@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -326,6 +327,12 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               onOpenLive: room == null
                   ? null
                   : () => context.push(AppRoutes.liveRoom(room)),
+              levels: ProfileLevels(
+                username: profile.isSelf ? null : profile.username,
+                onOpen: profile.isSelf
+                    ? () => context.push(AppRoutes.levels)
+                    : null,
+              ),
               actions: _actions(profile),
             ),
           ),
