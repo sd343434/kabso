@@ -316,13 +316,18 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     final choice = await showModalBottomSheet<_MoreAction>(
       context: context,
       builder: (sheet) {
-        Widget item(Key key, String icon, String label, _MoreAction action) =>
-            ListTile(
-              key: key,
-              leading: AppIcon(icon, color: sheet.palette.textPrimary),
-              title: Text(label),
-              onTap: () => Navigator.of(sheet).pop(action),
-            );
+        final color = sheet.palette.textPrimary;
+        Widget item(
+          Key key,
+          Widget leading,
+          String label,
+          _MoreAction action,
+        ) => ListTile(
+          key: key,
+          leading: leading,
+          title: Text(label),
+          onTap: () => Navigator.of(sheet).pop(action),
+        );
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -330,7 +335,10 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
               if (post.authorUsername != null && following != null)
                 item(
                   FeedPostTile.followActionKey,
-                  following ? AppIcons.followFilled : AppIcons.follow,
+                  AppIcon(
+                    following ? AppIcons.followFilled : AppIcons.follow,
+                    color: color,
+                  ),
                   following
                       ? l10n.homeUnfollowAuthor(name)
                       : l10n.homeFollowAuthor(name),
@@ -339,13 +347,13 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
               if (id != null && !post.isSelf) ...[
                 item(
                   FeedPostTile.hideActionKey,
-                  AppIcons.moreHoriz,
+                  AppIcon(AppIcons.eyeOff, color: color),
                   l10n.feedPostHide,
                   _MoreAction.hide,
                 ),
                 item(
                   FeedPostTile.reportActionKey,
-                  AppIcons.moreHoriz,
+                  AppIcon(AppIcons.flag, color: color),
                   l10n.feedPostReport,
                   _MoreAction.report,
                 ),
@@ -353,7 +361,7 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
               if (id != null && post.isSelf)
                 item(
                   FeedPostTile.deleteActionKey,
-                  AppIcons.moreHoriz,
+                  Icon(Icons.delete_outline, color: sheet.palette.error),
                   l10n.feedPostDelete,
                   _MoreAction.delete,
                 ),

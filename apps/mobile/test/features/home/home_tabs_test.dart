@@ -176,7 +176,11 @@ void main() {
       },
     );
     final container = ProviderContainer.test(
-      overrides: [postsRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(repo),
+        // Feeds are scoped to the signed-in user: no platform storage.
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+      ],
     );
     final trending = await container.read(
       homePostsProvider(HomeFeed.trending).future,
