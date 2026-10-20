@@ -10,6 +10,9 @@ info:
     in DB_PHASE2_DISCOVERY.md). Later phases append paths; existing shapes change only via
     contract proposal. **v1.4-levels (DRAFT, CP-005)** adds the four level systems (user and
     admin paths tagged `levels` / `admin-levels`); it is additive and awaits formal approval.
+    **v1.5-social (DRAFT, CP-006 M1)** adds media upload, posts, feeds, likes, saves, reposts,
+    views, comments, hashtags, search, block / mute / hide, reports and privacy settings
+    (CONVENTIONS §11); additive, owner-approved scope (D87).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -28,6 +31,20 @@ tags:
     description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3)."
   - name: levels
     description: "The caller's four independent level systems (v1.4-levels DRAFT, CP-005)."
+  - name: media
+    description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
+  - name: posts
+    description: "Posts, drafts, scheduling, pins, likes, saves, reposts, shares and views (v1.5-social DRAFT)."
+  - name: feed
+    description: "Following and Trending feeds (v1.5-social DRAFT)."
+  - name: comments
+    description: "Comments with one level of replies (v1.5-social DRAFT)."
+  - name: search
+    description: "Hashtags and prefix search (v1.5-social DRAFT)."
+  - name: safety
+    description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
+  - name: admin-moderation
+    description: "The report queue (admin permission MODERATION; v1.5-social DRAFT)."
   - name: admin-levels
     description: "Level configuration, user progression, reconciliation and audit for admins (role ADMIN; v1.4-levels DRAFT, CP-005)."
 paths:
@@ -1281,6 +1298,817 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/media/uploads:
+    post:
+      tags: [media]
+      operationId: createMediaUpload
+      summary: "Start an image upload (presigned PUT, v1.5-social draft)"
+      description: |
+        CONVENTIONS §11.1. Check order: auth → `MEDIA_UPLOADS_ENABLED` (503
+        `MEDIA_UPLOADS_UNAVAILABLE`) → body → rate limit. Only `POST_IMAGE` exists in M1 (video
+        and stories arrive with M2/M3). The URL is valid for 10 minutes; the client sends the bytes
+        with exactly `method` and `headers`, then calls `completeMediaUpload`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMediaUploadRequest' }
+      responses:
+        '201':
+          description: Upload slot created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUpload' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/media/uploads/{uploadId}/complete:
+    post:
+      tags: [media]
+      operationId: completeMediaUpload
+      summary: "Finish an upload: verify, strip metadata, make the sizes"
+      description: |
+        CONVENTIONS §11.1. Only the uploader may complete (anyone else: 404). The object must
+        exist, match the declared type and size, and decode as an image of at most 8 000 px per
+        side; else 422 `MEDIA_INVALID` and the object is deleted. Completing again returns the
+        same asset (idempotent).
+      parameters:
+        - $ref: '#/components/parameters/UploadIdPath'
+      responses:
+        '200':
+          description: The asset, READY.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaAsset' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/media/{mediaId}:
+    get:
+      tags: [media]
+      operationId: getMedia
+      summary: "One of the caller's media assets"
+      parameters:
+        - $ref: '#/components/parameters/MediaIdPath'
+      responses:
+        '200':
+          description: The asset.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaAsset' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/posts:
+    post:
+      tags: [posts]
+      operationId: createPost
+      summary: "Create a post, a draft or a scheduled post"
+      description: |
+        CONVENTIONS §11.2. Text and/or 1–10 of the caller's READY, unattached images. At least
+        one of `text` and `mediaIds`. `status: SCHEDULED` needs `publishAt` 5 minutes to 30 days
+        ahead. Hashtags and mentions are parsed from `text` (§11.6). An `Idempotency-Key` (UUID)
+        header is required: a retry with the same key and body returns the first result; the same
+        key with another body is 409 `IDEMPOTENCY_CONFLICT`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePostRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}:
+    get:
+      tags: [posts]
+      operationId: getPost
+      summary: "One post the caller may see"
+      description: Not visible (private author not followed, blocked either way, removed, pending media of someone else, another user's draft) → 404.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The post.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [posts]
+      operationId: updatePost
+      summary: "Edit the caption, location or settings; publish or reschedule a draft"
+      description: |
+        Author only (others: 404). Images never change. Editing the text of a published post
+        sets `editedAt` and re-parses hashtags and mentions (new mentions only are notified, M4).
+        `status` may move DRAFT → PUBLISHED | SCHEDULED and SCHEDULED → DRAFT | PUBLISHED;
+        a published post cannot go back.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePostRequest' }
+      responses:
+        '200':
+          description: The updated post.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [posts]
+      operationId: deletePost
+      summary: "Delete a post (author)"
+      description: Soft delete; the post leaves every list at once. Deleting again → 404.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/me/posts:
+    get:
+      tags: [posts]
+      operationId: listMyPosts
+      summary: "The caller's drafts or scheduled posts"
+      parameters:
+        - name: status
+          in: query
+          required: true
+          schema: { type: string, enum: [DRAFT, SCHEDULED] }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: "Drafts newest first; scheduled soonest first."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/pin:
+    put:
+      tags: [posts]
+      operationId: pinPost
+      summary: "Pin a published post on the caller's profile (max 3, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Pinned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [posts]
+      operationId: unpinPost
+      summary: "Unpin (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Not pinned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/posts:
+    get:
+      tags: [posts]
+      operationId: listUserPosts
+      summary: "A user's published posts (profile grid): pinned first, then newest"
+      description: Private author not followed, or blocked either way → 404 (the profile itself stays visible).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/reposts:
+    get:
+      tags: [posts]
+      operationId: listUserReposts
+      summary: "Posts a user reposted (profile Reposts tab), newest repost first"
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/feed/posts:
+    get:
+      tags: [feed]
+      operationId: listFeedPosts
+      summary: "Posts feed: following (newest) or trending (ranked)"
+      description: |
+        CONVENTIONS §11.3. `following`: published posts and reposts of followed accounts, newest
+        first (a reposted post carries `repostedBy`). `trending`: visible public posts of the last
+        7 days ranked by the global score; the first page freezes a snapshot for 10 minutes, so
+        later pages never repeat or skip (an expired cursor → 400 `cursor` / `invalid_value`).
+      parameters:
+        - name: tab
+          in: query
+          required: true
+          schema: { type: string, enum: [following, trending] }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/like:
+    put:
+      tags: [posts]
+      operationId: likePost
+      summary: "Like (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Liked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [posts]
+      operationId: unlikePost
+      summary: "Unlike (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Not liked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/likes:
+    get:
+      tags: [posts]
+      operationId: listPostLikes
+      summary: "Who liked a post, newest first"
+      description: When the author hides the like count, only the author may list (others → 403 `AUTH_FORBIDDEN`).
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummaryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/save:
+    put:
+      tags: [posts]
+      operationId: savePost
+      summary: "Save (idempotent; private to the caller)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [posts]
+      operationId: unsavePost
+      summary: "Unsave (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Not saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SaveState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/me/saved:
+    get:
+      tags: [posts]
+      operationId: listSavedPosts
+      summary: "The caller's saved posts, newest save first (posts no longer visible are skipped)"
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/repost:
+    put:
+      tags: [posts]
+      operationId: repostPost
+      summary: "Repost (idempotent): appears in the caller's followers' Following feed"
+      description: Own posts and posts of private accounts cannot be reposted (400 `postId` / `invalid_value`).
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Reposted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepostState' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [posts]
+      operationId: unrepostPost
+      summary: "Undo a repost (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: Not reposted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepostState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/shares:
+    post:
+      tags: [posts]
+      operationId: countPostShare
+      summary: "Count an outside share (once per user, post and UTC day)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: The share count.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/views:
+    post:
+      tags: [posts]
+      operationId: recordViews
+      summary: "Record post views in a batch (best effort)"
+      description: |
+        CONVENTIONS §11.4. Up to 50 items. A view counts once per user, post and 24 hours, never
+        for the author, and only for posts the caller may see; other items are ignored silently.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordViewsRequest' }
+      responses:
+        '204': { description: Accepted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/comments:
+    get:
+      tags: [comments]
+      operationId: listComments
+      summary: "Top-level comments: the pinned one, then by likes, then newest"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [comments]
+      operationId: createComment
+      summary: "Comment, or reply with parentId (one level)"
+      description: |
+        CONVENTIONS §11.5. The post's `whoCanComment` applies (403 `AUTH_FORBIDDEN` when the
+        caller may not comment; `commentsEnabled: false` → 403 too). A reply to a reply attaches
+        to the top-level comment.
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommentRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/comments/{commentId}/replies:
+    get:
+      tags: [comments]
+      operationId: listReplies
+      summary: "Replies of a top-level comment, oldest first"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/comments/{commentId}:
+    delete:
+      tags: [comments]
+      operationId: deleteComment
+      summary: "Delete a comment (its author or the post's author); replies go with it"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/comments/{commentId}/like:
+    put:
+      tags: [comments]
+      operationId: likeComment
+      summary: "Like a comment (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Liked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [comments]
+      operationId: unlikeComment
+      summary: "Unlike a comment (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Not liked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LikeState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/comments/{commentId}/pin:
+    put:
+      tags: [comments]
+      operationId: pinComment
+      summary: "Pin a top-level comment (post author; replaces the previous pin)"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Pinned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [comments]
+      operationId: unpinComment
+      summary: "Unpin (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/CommentIdPath'
+      responses:
+        '200':
+          description: Not pinned.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/hashtags/{tag}:
+    get:
+      tags: [search]
+      operationId: getHashtag
+      summary: "A hashtag and its visible post count"
+      parameters:
+        - $ref: '#/components/parameters/HashtagPath'
+      responses:
+        '200':
+          description: The hashtag.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Hashtag' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/hashtags/{tag}/posts:
+    get:
+      tags: [search]
+      operationId: listHashtagPosts
+      summary: "Posts with a hashtag: top (trending score, 30 days) or recent"
+      parameters:
+        - $ref: '#/components/parameters/HashtagPath'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [top, recent], default: recent }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/search:
+    get:
+      tags: [search]
+      operationId: search
+      summary: "Prefix search for users, hashtags or posts (caption words)"
+      description: CONVENTIONS §11.6. `q` is 1–64 characters after NFC and trim; a leading `@` or `#` is ignored.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+        - name: type
+          in: query
+          required: true
+          schema: { type: string, enum: [users, hashtags, posts] }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page; `data` holds UserSummary, Hashtag or Post items by `type`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/block:
+    put:
+      tags: [safety]
+      operationId: blockUser
+      summary: "Block (idempotent): both sides stop seeing each other; follows both ways are removed"
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: Blocked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlockState' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [safety]
+      operationId: unblockUser
+      summary: "Unblock (idempotent; follows are not restored)"
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: Not blocked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlockState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/me/blocks:
+    get:
+      tags: [safety]
+      operationId: listBlocks
+      summary: "Users the caller blocked, newest first"
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummaryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/mute:
+    put:
+      tags: [safety]
+      operationId: muteUser
+      summary: "Mute (idempotent): their posts and reposts leave the caller's feeds; they are not told"
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: Muted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MuteState' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [safety]
+      operationId: unmuteUser
+      summary: "Unmute (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: Not muted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MuteState' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/posts/{postId}/hide:
+    put:
+      tags: [safety]
+      operationId: hidePost
+      summary: "Hide a post from the caller's feeds (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '204': { description: Hidden. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [safety]
+      operationId: unhidePost
+      summary: "Undo hide (idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '204': { description: Not hidden. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/reports:
+    post:
+      tags: [safety]
+      operationId: createReport
+      summary: "Report a post, comment or user"
+      description: One open report per reporter and target (a repeat returns the existing one with 200).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReportRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '200':
+          description: Already reported.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/privacy:
+    get:
+      tags: [safety]
+      operationId: getPrivacy
+      summary: "The caller's privacy settings"
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacySettings' }
+        '401': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [safety]
+      operationId: updatePrivacy
+      summary: "Change privacy settings (partial)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePrivacyRequest' }
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacySettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/reports:
+    get:
+      tags: [admin-moderation]
+      operationId: listAdminReports
+      summary: "Open reports, oldest first (permission MODERATION)"
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [OPEN, ACTIONED, DISMISSED], default: OPEN }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/reports/{reportId}/actions:
+    post:
+      tags: [admin-moderation]
+      operationId: actOnReport
+      summary: "Remove the target or dismiss the report (audited; every open report on the target closes)"
+      parameters:
+        - $ref: '#/components/parameters/ReportIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportActionRequest' }
+      responses:
+        '200':
+          description: The report after the action.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -1346,6 +2174,48 @@ components:
       in: path
       required: true
       description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    PostIdPath:
+      name: postId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    MediaIdPath:
+      name: mediaId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    UploadIdPath:
+      name: uploadId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    CommentIdPath:
+      name: commentId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    ReportIdPath:
+      name: reportId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
+    HashtagPath:
+      name: tag
+      in: path
+      required: true
+      description: Without `#`, any case (compared in NFC lower case). Malformed → 404.
+      schema: { type: string, minLength: 1, maxLength: 100 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: A UUID chosen by the client per logical operation (kept 24 hours).
       schema: { type: string, format: uuid }
   responses:
     Error:
@@ -2066,5 +2936,319 @@ components:
           type: array
           items: { $ref: '#/components/schemas/LevelAuditLog' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    MediaKind:
+      type: string
+      enum: [POST_IMAGE]
+      description: M1 has images for posts only; video kinds arrive with M2 (CP-006 §2).
+    CreateMediaUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, contentType, byteSize]
+      properties:
+        kind: { $ref: '#/components/schemas/MediaKind' }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, image/heic] }
+        byteSize: { type: integer, minimum: 1, maximum: 15728640 }
+    MediaUpload:
+      type: object
+      required: [uploadId, uploadUrl, method, headers, expiresAt]
+      properties:
+        uploadId: { type: string, format: uuid }
+        uploadUrl: { type: string, format: uri }
+        method: { type: string, enum: [PUT] }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+          description: Send exactly these headers with the bytes (Content-Type, Content-Length).
+        expiresAt: { type: string, format: date-time }
+    MediaAsset:
+      type: object
+      required: [id, type, status, width, height, blurhash, url, thumbUrl]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [IMAGE] }
+        status: { type: string, enum: [READY] }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        blurhash: { type: [string, 'null'] }
+        url:
+          type: string
+          format: uri
+          description: WebP, at most 1 080 px on the long side.
+        thumbUrl:
+          type: string
+          format: uri
+          description: WebP, at most 320 px on the long side.
+    PostText:
+      type: string
+      maxLength: 2200
+      description: After NFC and trim; control, bidi-override and zero-width characters are refused (§11.2).
+    PostSettings:
+      type: object
+      additionalProperties: false
+      required: [commentsEnabled, whoCanComment, hideLikeCount]
+      properties:
+        commentsEnabled: { type: boolean }
+        whoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+        hideLikeCount:
+          type: boolean
+          description: "Others see `likeCount: null` and cannot list likes."
+    PostSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        commentsEnabled: { type: boolean }
+        whoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+        hideLikeCount: { type: boolean }
+    PostStatus:
+      type: string
+      enum: [DRAFT, SCHEDULED, PUBLISHED]
+    CreatePostRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        text: { $ref: '#/components/schemas/PostText' }
+        mediaIds:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        location: { type: [string, 'null'], maxLength: 80 }
+        status: { allOf: [{ $ref: '#/components/schemas/PostStatus' }], default: PUBLISHED }
+        publishAt: { type: string, format: date-time, description: Required for SCHEDULED; forbidden otherwise. }
+        settings: { $ref: '#/components/schemas/PostSettingsPatch' }
+    UpdatePostRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        text: { $ref: '#/components/schemas/PostText' }
+        location: { type: [string, 'null'], maxLength: 80 }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        publishAt: { type: string, format: date-time }
+        settings: { $ref: '#/components/schemas/PostSettingsPatch' }
+    Post:
+      type: object
+      required: [id, format, author, text, media, location, hashtags, mentions, status, createdAt, publishAt, publishedAt, editedAt, pinned, likeCount, commentCount, shareCount, repostCount, viewCount, viewerHasLiked, viewerHasSaved, viewerHasReposted, isSelf, settings, moderation, repostedBy]
+      properties:
+        id: { type: string, format: uuid }
+        format: { type: string, enum: [POST], description: REEL arrives with M2. }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        text: { type: string }
+        media:
+          type: array
+          items: { $ref: '#/components/schemas/MediaAsset' }
+        location: { type: [string, 'null'] }
+        hashtags:
+          type: array
+          items: { type: string }
+        mentions:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        createdAt: { type: string, format: date-time }
+        publishAt: { type: [string, 'null'], format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        editedAt: { type: [string, 'null'], format: date-time }
+        pinned: { type: boolean }
+        likeCount:
+          type: [integer, 'null']
+          minimum: 0
+          description: null for others when the author hides it.
+        commentCount: { type: integer, minimum: 0 }
+        shareCount: { type: integer, minimum: 0 }
+        repostCount: { type: integer, minimum: 0 }
+        viewCount: { type: integer, minimum: 0 }
+        viewerHasLiked: { type: boolean }
+        viewerHasSaved: { type: boolean }
+        viewerHasReposted: { type: boolean }
+        isSelf: { type: boolean }
+        settings: { $ref: '#/components/schemas/PostSettings' }
+        moderation:
+          type: string
+          enum: [VISIBLE, PENDING]
+          description: PENDING (author only) while its images wait for moderation (CP-006 Q2).
+        repostedBy:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+          description: In the following feed, the followed account that reposted it.
+    PostPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Post' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    UserSummaryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    LikeState:
+      type: object
+      required: [liked, likeCount]
+      properties:
+        liked: { type: boolean }
+        likeCount: { type: [integer, 'null'], minimum: 0 }
+    SaveState:
+      type: object
+      required: [saved]
+      properties:
+        saved: { type: boolean }
+    RepostState:
+      type: object
+      required: [reposted, repostCount]
+      properties:
+        reposted: { type: boolean }
+        repostCount: { type: integer, minimum: 0 }
+    ShareState:
+      type: object
+      required: [shareCount]
+      properties:
+        shareCount: { type: integer, minimum: 0 }
+    RecordViewsRequest:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [postId, watchedMs]
+            properties:
+              postId: { type: string, format: uuid }
+              watchedMs: { type: integer, minimum: 0, maximum: 3600000 }
+    Comment:
+      type: object
+      required: [id, postId, author, text, createdAt, likeCount, viewerHasLiked, replyCount, parentId, mentions, pinned, canDelete]
+      properties:
+        id: { type: string, format: uuid }
+        postId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        text: { type: string, minLength: 1, maxLength: 500 }
+        createdAt: { type: string, format: date-time }
+        likeCount: { type: integer, minimum: 0 }
+        viewerHasLiked: { type: boolean }
+        replyCount: { type: integer, minimum: 0 }
+        parentId: { type: [string, 'null'], format: uuid }
+        mentions:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        pinned: { type: boolean }
+        canDelete:
+          type: boolean
+          description: The caller wrote it or owns the post.
+    CommentPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    CreateCommentRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 500 }
+        parentId: { type: string, format: uuid }
+    Hashtag:
+      type: object
+      required: [tag, postCount]
+      properties:
+        tag: { type: string }
+        postCount: { type: integer, minimum: 0 }
+    SearchPage:
+      type: object
+      required: [type, data, page]
+      properties:
+        type: { type: string, enum: [users, hashtags, posts] }
+        data:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/UserSummary'
+              - $ref: '#/components/schemas/Hashtag'
+              - $ref: '#/components/schemas/Post'
+        page: { $ref: '#/components/schemas/PageInfo' }
+    BlockState:
+      type: object
+      required: [blocked]
+      properties:
+        blocked: { type: boolean }
+    MuteState:
+      type: object
+      required: [muted]
+      properties:
+        muted: { type: boolean }
+    ReportReason:
+      type: string
+      enum: [SPAM, NUDITY, VIOLENCE, HATE, HARASSMENT, ILLEGAL, OTHER]
+    CreateReportRequest:
+      type: object
+      additionalProperties: false
+      required: [targetType, targetId, reason]
+      properties:
+        targetType: { type: string, enum: [POST, COMMENT, USER] }
+        targetId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: A post or comment id, or a username for USER.
+        reason: { $ref: '#/components/schemas/ReportReason' }
+        note: { type: string, maxLength: 500 }
+    Report:
+      type: object
+      required: [id, targetType, targetId, reason, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        targetType: { type: string, enum: [POST, COMMENT, USER] }
+        targetId: { type: string }
+        reason: { $ref: '#/components/schemas/ReportReason' }
+        note: { type: [string, 'null'] }
+        status: { type: string, enum: [OPEN, ACTIONED, DISMISSED] }
+        createdAt: { type: string, format: date-time }
+        reporter:
+          description: Admin views only.
+          $ref: '#/components/schemas/UserSummary'
+        resolvedAt: { type: [string, 'null'], format: date-time }
+    ReportPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Report' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    ReportActionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { type: string, enum: [REMOVE_TARGET, DISMISS] }
+        note: { type: string, maxLength: 500 }
+    PrivacySettings:
+      type: object
+      required: [whoCanMention, defaultWhoCanComment]
+      properties:
+        whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
+        defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+    UpdatePrivacyRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
+        defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
 security:
   - bearerAuth: []

@@ -97,6 +97,10 @@ All non-2xx responses use one envelope:
 | 503 | `LIVE_HOSTING_UNAVAILABLE` | *(v1.3)* Going live (or heartbeating) is disabled by server config `LIVE_HOSTING_ENABLED=false` (no media provider yet, B1). Not transient: no `Retry-After`; the client shows "not available yet" instead of a generic error. |
 | 422 | `LEVEL_CONFIG_INVALID` | *(v1.4-levels, DRAFT, CP-005)* A level configuration breaks the publication rules (CP-005 §4); `details` list every problem. |
 | 409 | `LEVEL_VERSION_NOT_DRAFT` | *(v1.4-levels, DRAFT, CP-005)* A published or archived level version cannot change. |
+| 503 | `MEDIA_UPLOADS_UNAVAILABLE` | *(v1.5-social, DRAFT, CP-006)* Uploads are disabled by server config `MEDIA_UPLOADS_ENABLED=false` (no storage credentials yet, B12). Not transient: no `Retry-After`. |
+| 422 | `MEDIA_INVALID` | *(v1.5-social, DRAFT)* The uploaded object is missing, does not match the declared type or size, or is not a decodable image within the limits (§11.1). |
+| 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
+| 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -363,6 +367,9 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.3)* Tables `live_categories`, `live_rooms` | Backend — `live` module | CTO; see `DB_PHASE2_DISCOVERY.md` |
 | *(v1.3)* Table `follows` | Backend — `social` module (follow graph) | CTO; Security reviews follow anti-abuse (KL-040) |
 | *(v1.3)* Server config `LIVE_HOSTING_ENABLED` and `LIVE_HEARTBEAT_*` | DevOps (per-environment value) | Turning hosting **on** in staging/production needs owner approval (B1: media provider) |
+| *(v1.5-social)* Tables `media_assets`, `media_uploads` | Backend — `media` module | CTO; Security reviews upload validation |
+| *(v1.5-social)* Tables `posts`, `post_media`, `post_likes`, `post_saves`, `post_reposts`, `post_share_events`, `post_views`, `post_pins`, `hashtags`, `post_hashtags`, `post_mentions`, `comments`, `comment_likes`, `comment_mentions` | Backend — `posts` module | CTO |
+| *(v1.5-social)* Tables `user_blocks`, `user_mutes`, `post_hides`, `reports`, `privacy_settings` | Backend — `safety` module | CTO; Security reviews block semantics |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -395,6 +402,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.3.1 | 2026-10-16 | KL-040 follow-ups (KL-046). (SEC-036) Text hygiene for `displayName` and live-room titles moves from a fixed list to rules over vendored Unicode 17.0.0 data: `Default_Ignorable_Code_Point`, General_Category Cc/Cf/Zl/Zp/Co/Cs/Cn and a blank look-alike list (Hangul fillers, U+2800, U+FFFC, U+1D159) are rejected. Exceptions: code points inside an RGI emoji (Emoji 17.0), ZWNJ/ZWJ under the existing placement rule, and one variation selector directly after a base character. Spaces unchanged (U+3000 is a space); fillers never count as letters; identity rules unchanged (§6). (SEC-035) Reads filter stale rooms and `GET /live/rooms` writes nothing; the background sweeper ends stale rooms in bounded, non-overlapping batches; room detail and profile compute the timed-out view or end that single room (§10.2; supersedes D42 item 4). (D42) §7 states which endpoint limits replace the per-user default (v1.3 rows) and which count both (`PATCH /me`, `email/resend`). (D41) `heartbeatLiveRoom` 503 names `LIVE_HOSTING_UNAVAILABLE`. (QA-001) §4: body parsing (malformed JSON, size limit) rejects before authentication on every route; check orders in §10 and `openapi.yaml` start after it; a non-JSON content type fails at body validation. (QA-002) `PUT` follow by an existing follower of a private account → idempotent 200, no edge created; a new follow stays 403 (§10.5, §10.6). | **Tightening**, applied on write only: `register` and go-live can now return 400 `invalid_format` for values accepted before. QA-001 documents existing behaviour. QA-002 changes the response from 403 to 200 for an existing follower of a private account; this cannot happen yet, because no endpoint makes an account private in v1.3. Stored names and titles are not rewritten and stay readable. No shape change; responses for stale rooms unchanged. Mobile: no change needed (it already maps `invalid_format`; client pre-validation may stay more permissive, the server is authoritative). |
 | tokens v1.2 | 2026-10-18 | `design-tokens.json` v1.2 (D47): `typography.fontFamilyArabic` IBM Plex Sans Arabic → Readex Pro (OFL-1.1), bundled at 400/500/600/700. | Visual only; no shape change. Flutter swaps the bundled Arabic font in the same change set and regenerates goldens. |
 | v1.4-levels (draft) | 2026-10-20 | **Draft, owner sign-off pending (CP-005, D72).** Four independent level systems. User: `GET /levels/me`, `/levels/me/{category}`, `/levels/me/history`, `/levels/me/points-history` (signed keyset cursors scoped to caller and filter). Admin (`role = ADMIN`, every mutation in `audit_logs`): categories (list/get/patch), versions (list/create/get/replace/validate/preview/publish with `PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`), a user's states, recalculate, manual adjustment (`Idempotency-Key` required; replay 200, different body 409), reconciliation (`DRY_RUN`/`REPAIR`) and its runs, source events and retry, reports, levels audit log. New error codes `LEVEL_CONFIG_INVALID` (422) and `LEVEL_VERSION_NOT_DRAFT` (409). `GET /users/{username}/levels` (levels only, for profiles). Admin routes need a per-route permission (`LEVELS_VIEW|EDIT|PUBLISH|ADJUST|RECONCILE`) besides `role = ADMIN`. No public endpoint accepts points, levels or events. Additive: no existing path, schema or code changes |
+| v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.60.0`, pinned in `tools/redocly`, config `redocly.yaml`):
 `operation-4xx-response` on `/health/live` and `/health/ready` — these probes accept no input and
@@ -626,3 +634,121 @@ until a media provider is wired in.
 - Search; the featured strip (HL-H4); the "Live now from people you follow" rail as a separate
   endpoint (the client derives it from `tab=following`).
 - Editing a room's title or category after go-live; covers and cover upload.
+
+## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
+
+Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
+personalised ranking (M5), places (M6) and sharing in messages (M7) come later and extend
+these rules.
+
+### 11.1 Media upload
+
+- Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
+  `completeMediaUpload`: off → 503 `MEDIA_UPLOADS_UNAVAILABLE` (no `Retry-After`, like
+  `LIVE_HOSTING_UNAVAILABLE`). Storage is S3-compatible (`S3_*`; MinIO locally, R2 in the cloud).
+- Objects go to `uploads/{userId}/{uploadId}` (private). Completing verifies the object (HEAD
+  size equals `byteSize`, magic bytes match `contentType`, decodes, ≤ 8 000 px per side,
+  ≤ 50 MP), strips every metadata block (EXIF, GPS, XMP, ICC kept as sRGB), writes
+  `media/{mediaId}/1080.webp` and `media/{mediaId}/320.webp` and a blurhash, and deletes the
+  upload object. Failure → 422 `MEDIA_INVALID`; the slot is closed.
+- Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
+  attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
+  deleted by a sweeper.
+
+### 11.2 Posts
+
+- `text`: NFC, trimmed, ≤ 2 200 code points, the free-text hygiene rules of §6 (no control,
+  bidi-override or zero-width characters except ZWNJ/ZWJ between joining letters; line breaks
+  allowed, at most 30). A post needs `text` or at least one image.
+- `location`: free text ≤ 80 code points (places arrive with M6), same hygiene.
+- `status`: `PUBLISHED` (default), `DRAFT`, or `SCHEDULED` with `publishAt` in
+  [now + 5 min, now + 30 days]; a worker publishes due posts within a minute. Drafts and
+  scheduled posts are visible only to the author.
+- Visibility of a published post to a caller: not removed; author ACTIVE; no block in either
+  direction; author public, or the caller is the author or follows the author; `moderation`
+  `VISIBLE` unless the caller is the author. Anything else → 404 (never 403).
+- **Moderation (CP-006 Q2, until a provider is chosen):** a post with images is `PENDING` —
+  visible only to its author and absent from feeds, search and other people's grids; text-only
+  posts are `VISIBLE`. Switching on a provider is a config change, not a contract change.
+- Settings default from the author's privacy settings (§11.7); `hideLikeCount` makes
+  `likeCount` null and the likers list 403 for everyone but the author.
+- Pins: at most 3 published posts; a 4th → 409 `PIN_LIMIT_REACHED`. Profile grids list pinned
+  posts first (newest pin first), then the rest newest first.
+- Reposts: of visible public posts by someone else; a repost puts the post (with `repostedBy`)
+  in the reposter's followers' Following feed and on the reposter's Reposts tab. Deleting or
+  removing the original removes it everywhere.
+- `Idempotency-Key` on `createPost`: kept 24 h per user; same key + same body → the first
+  response (status 201); same key + different body → 409 `IDEMPOTENCY_CONFLICT`.
+
+### 11.3 Feeds and cursors
+
+- All lists use signed keyset cursors (§5) bound to the list, its filters and the caller.
+- `following`: published, visible posts and reposts of followed accounts, newest first by
+  `publishedAt` (for a repost: its repost time); a post appears once (its newest entry).
+  Muted authors (and reposts by muted accounts) and hidden posts are left out.
+- `trending`: the first page ranks visible public posts published in the last 7 days by
+  `(likes + 2·comments + 3·shares + 2·saves + 1) / (hoursSincePublished + 2)^1.5` (weights are
+  server config), excluding the caller's own, muted and hidden posts, at most 2 per author in
+  any 10. The ranked ids (≤ 500) are frozen for 10 minutes; later pages read the snapshot, so
+  they never repeat or skip. An expired or foreign snapshot → 400 `cursor` / `invalid_value`.
+
+### 11.4 Views
+
+`recordViews`: a view counts when `watchedMs ≥ 1 000`, once per user, post and rolling 24 h,
+never for the author, and only for posts the caller may see; anything else is ignored. The
+count is eventually consistent (≤ 1 min).
+
+### 11.5 Comments
+
+- `text`: NFC, trimmed, 1–500 code points, §6 hygiene, ≤ 5 line breaks.
+- Who may comment: `commentsEnabled` and `whoCanComment` (`EVERYONE`; `FOLLOWERS` = people who
+  follow the author; `NOBODY`); the author always may. Refused → 403 `AUTH_FORBIDDEN`. Blocked
+  users never see the post (404).
+- One level of replies: `parentId` of a reply resolves to its top-level comment. Deleting a
+  top-level comment deletes its replies. `canDelete` is true for the comment's author and the
+  post's author.
+- Order: the pinned comment, then by `likeCount` desc, then newest. One pinned comment per post,
+  top-level only (a reply → 400 `commentId` / `invalid_value`).
+
+### 11.6 Hashtags, mentions and search
+
+- `#tag`: `#` followed by 1–100 letters, marks, digits or `_` (any script), not preceded by a
+  letter or digit; stored in NFC lower case; at most 30 distinct per post (extra ones are plain
+  text). Hashtag pages list visible posts; `top` uses the trending score over 30 days.
+- `@username`: a valid, existing, ACTIVE username (§6 pattern); at most 20 per post or comment.
+  A mention of someone whose `whoCanMention` forbids it (or who blocked the author) stays plain
+  text and is not linked.
+- `search`: case-insensitive prefix match — users on username and display name, hashtags on the
+  tag, posts on caption words (visible posts only). Blocked users never appear. Results are
+  ranked by exact match, then followers / post count / recency.
+
+### 11.7 Block, mute, hide, reports and privacy
+
+- **Block** is symmetric in effect: neither side sees the other's posts, comments, profile
+  content, likes lists or search entries, and follows both ways are deleted (not restored by
+  unblock). Blocking yourself → 400. Their existing comments on your posts are hidden from you.
+- **Mute** is one-way and silent: the muted account's posts and reposts leave the caller's
+  feeds; profile, search and direct links still work.
+- **Hide**: the post leaves the caller's feeds and hashtag pages.
+- **Reports**: one OPEN report per reporter and target; a repeat → 200 with the existing
+  report. Admins with permission `MODERATION` list and act; `REMOVE_TARGET` removes the post or
+  comment (soft, audited) or, for a user, records the decision only (suspension stays a separate
+  admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
+  report → 409 `REPORT_ALREADY_RESOLVED`.
+- **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
+  follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts.
+
+### 11.8 Rate limits (all per user; replace the per-user default)
+
+| Endpoint | Limit |
+| --- | --- |
+| `POST /media/uploads` | 60 / hour |
+| `POST /posts` | 20 / hour, 100 / day |
+| `POST /posts/{id}/comments` | 60 / hour |
+| `PUT`/`DELETE` like (posts and comments) | one bucket: 600 / hour |
+| `PUT`/`DELETE` repost | 60 / hour |
+| `POST /posts/{id}/shares` | 120 / hour |
+| `POST /views` | 120 / hour |
+| `GET /feed/posts`, `GET /search` | 300 / 15 min |
+| `PUT /users/{username}/block` | 60 / hour |
+| `POST /reports` | 30 / hour |
