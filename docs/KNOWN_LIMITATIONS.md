@@ -23,3 +23,19 @@
 - Only email + password authentication. Social sign-in and phone auth are not implemented.
 - Tabs other than authentication show explicit "coming in Phase N" states; no feature data yet.
 - Docker Compose file is provided but was not executed in the authoring environment (no daemon).
+
+## Social content API (v1.5-social draft, KL-060 / CP-006 M1)
+
+- Posts with images stay `PENDING` (author-only) until a moderation provider is chosen (B13); they
+  are absent from feeds, search and other people's grids.
+- Trending and hashtag `top` score weights are server-side constants (`TRENDING_WEIGHTS`), not
+  environment settings; personalised ranking is M5.
+- The Following feed is computed per request from follows and reposts (no fan-out table); fine
+  for launch volumes, to be revisited with real traffic.
+- Views are counted synchronously per batch (the contract allows ≤ 1 min lag; no queue yet).
+- Ranked lists (Trending, hashtag `top`) keep a 10-minute snapshot of ≤ 500 ids per caller in
+  Redis; ranked search (users, hashtags) is offset-paged and stops after 500 results.
+- A `USER` report actioned with `REMOVE_TARGET` records the decision only; suspension stays a
+  separate admin tool. There is no admin web panel for the queue yet (API only).
+- Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
+  a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
