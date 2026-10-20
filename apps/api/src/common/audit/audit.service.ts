@@ -27,6 +27,17 @@ export enum AuditAction {
   LIVE_ROOM_END = 'live.room.end',
   /** Ended for a stale heartbeat (sweeper or a read path). */
   LIVE_ROOM_TIMEOUT = 'live.room.timeout',
+  // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
+  LEVELS_CATEGORY_UPDATE = 'levels.category.update',
+  LEVELS_VERSION_CREATE = 'levels.version.create',
+  LEVELS_VERSION_UPDATE = 'levels.version.update',
+  LEVELS_VERSION_PUBLISH = 'levels.version.publish',
+  LEVELS_USER_RECALCULATE = 'levels.user.recalculate',
+  LEVELS_USER_ADJUST = 'levels.user.adjust',
+  LEVELS_RECONCILIATION_RUN = 'levels.reconciliation.run',
+  LEVELS_EVENT_RETRY = 'levels.event.retry',
+  LEVELS_PERMISSION_GRANT = 'levels.permission.grant',
+  LEVELS_PERMISSION_REVOKE = 'levels.permission.revoke',
 }
 
 export interface AuditEntry {

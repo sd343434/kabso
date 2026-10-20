@@ -3,7 +3,8 @@
 // Ownership: auth module owns sessions/verification_tokens; users module owns users,
 // user_profiles, user_settings; audit_logs is append-only (common). Phase 2 (contract v1.3,
 // docs/contracts/DB_PHASE2_DISCOVERY.md): live module owns live_categories, live_rooms; social
-// module owns follows.
+// module owns follows. v1.4-levels (DRAFT, CP-005): the levels module owns every `level_*` table,
+// `user_level_states` and `points_ledger`.
 
 generator client {
   provider               = "prisma-client"
@@ -61,6 +62,10 @@ model User {
   liveRooms          LiveRoom[]
   following          Follow[]            @relation("FollowFollower")
   followers          Follow[]            @relation("FollowFollowee")
+  levelStates        UserLevelState[]
+  pointsEntries      PointsLedgerEntry[]
+  levelHistory       LevelHistory[]
+  adminPermissions   UserAdminPermission[]
 
   @@map("users")
 }
@@ -289,4 +294,316 @@ model Follow {
   @@id([followerId, followeeId], map: "follows_pkey")
   @@index([followeeId, createdAt(sort: Desc)], map: "follows_followee_id_created_at_idx")
   @@map("follows")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.4-levels (DRAFT, CP-005, D72) — four independent level systems. Hand-written SQL in
+// migration 20261020090000_levels adds the CHECK constraints, the partial unique indexes (also
+// declared below with the `partialIndexes` preview feature so `migrate dev` sees no drift) and
+// the append-only grants (points_ledger, level_history). Admin actor ids (createdById, …) are
+// plain uuids without a foreign key: the audit trail is audit_logs.
+
+enum LevelCategoryCode {
+  ATTRACTIVENESS
+  SUPPORT
+  WIZARD
+  GAMING
+
+  @@map("level_category_code")
+}
+
+enum LevelVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("level_version_status")
+}
+
+enum LevelValueUnit {
+  COIN
+
+  @@map("level_value_unit")
+}
+
+enum LevelReversalPolicy {
+  REVERSE_POINTS
+  KEEP_LEVEL
+
+  @@map("level_reversal_policy")
+}
+
+enum PointsEntryType {
+  EARN
+  REVERSAL
+  ADJUSTMENT
+
+  @@map("points_entry_type")
+}
+
+enum PointsSourceType {
+  GIFT_RECEIVED
+  GIFT_SENT
+  LUCKY_GIFT_SENT
+  GAME_SPEND
+  ADMIN
+  CONFIG
+
+  @@map("points_source_type")
+}
+
+enum LevelTransitionReason {
+  EARNED
+  REVERSED
+  ADJUSTED
+  CONFIG_PUBLISHED
+  RECALCULATED
+
+  @@map("level_transition_reason")
+}
+
+enum LevelSourceEventType {
+  GIFT_COMMITTED
+  GAME_SPEND_COMMITTED
+  GIFT_REVERSED
+  GAME_SPEND_REVERSED
+
+  @@map("level_source_event_type")
+}
+
+enum LevelEventStatus {
+  PENDING
+  PROCESSED
+  SKIPPED
+  FAILED
+
+  @@map("level_event_status")
+}
+
+enum LevelReconciliationMode {
+  DRY_RUN
+  REPAIR
+
+  @@map("level_reconciliation_mode")
+}
+
+enum LevelReconciliationStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+
+  @@map("level_reconciliation_status")
+}
+
+/// The four categories; seeded disabled with no version (CP-005 §8).
+model LevelCategory {
+  id                 String            @id @default(uuid(7)) @db.Uuid
+  code               LevelCategoryCode @unique
+  nameAr             String            @map("name_ar") @db.VarChar(40)
+  nameEn             String            @map("name_en") @db.VarChar(40)
+  descriptionAr      String            @map("description_ar") @db.VarChar(200)
+  descriptionEn      String            @map("description_en") @db.VarChar(200)
+  isEnabled          Boolean           @default(false) @map("is_enabled")
+  /// The PUBLISHED version, if any (kept in step with level_category_versions.status).
+  publishedVersionId String?           @unique @map("published_version_id") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  publishedVersion LevelCategoryVersion?  @relation("LevelCategoryPublished", fields: [publishedVersionId], references: [id], onDelete: Restrict)
+  versions         LevelCategoryVersion[] @relation("LevelCategoryVersions")
+  states           UserLevelState[]
+  entries          PointsLedgerEntry[]
+  history          LevelHistory[]
+
+  @@map("level_categories")
+}
+
+/// A configuration version; DRAFT → PUBLISHED → ARCHIVED. Published rows are never edited.
+model LevelCategoryVersion {
+  id                       String              @id @default(uuid(7)) @db.Uuid
+  categoryId               String              @map("category_id") @db.Uuid
+  versionNumber            Int                 @map("version_number")
+  status                   LevelVersionStatus  @default(DRAFT)
+  /// CHECK > 0 when set; required to publish.
+  multiplier               Decimal?            @db.Decimal(18, 6)
+  valueUnit                LevelValueUnit?     @map("value_unit")
+  reversalPolicy           LevelReversalPolicy @default(REVERSE_POINTS) @map("reversal_policy")
+  luckyGiftsCountAsSupport Boolean             @default(false) @map("lucky_gifts_count_as_support")
+  createdById              String?             @map("created_by_id") @db.Uuid
+  publishedById            String?             @map("published_by_id") @db.Uuid
+  publishedAt              DateTime?           @map("published_at") @db.Timestamptz(3)
+  createdAt                DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  category     LevelCategory     @relation("LevelCategoryVersions", fields: [categoryId], references: [id], onDelete: Restrict)
+  publishedFor LevelCategory?    @relation("LevelCategoryPublished")
+  levels       LevelDefinition[]
+
+  @@unique([categoryId, versionNumber], map: "level_category_versions_category_number_key")
+  @@unique([categoryId], map: "level_category_versions_one_published", where: raw("status = 'PUBLISHED'::level_version_status"))
+  @@map("level_category_versions")
+}
+
+/// One level of a version. Rules (1..n without gaps, level 1 at 0, strictly increasing) are
+/// enforced on publish; CHECKs guard the ranges.
+model LevelDefinition {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  versionId      String   @map("version_id") @db.Uuid
+  levelNumber    Int      @map("level_number")
+  nameAr         String   @map("name_ar") @db.VarChar(40)
+  nameEn         String   @map("name_en") @db.VarChar(40)
+  requiredPoints BigInt   @map("required_points")
+  iconKey        String?  @map("icon_key") @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  version LevelCategoryVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, levelNumber], map: "level_definitions_version_level_key")
+  @@map("level_definitions")
+}
+
+/// Current progression per user and category (derived from points_ledger; never trusted from clients).
+model UserLevelState {
+  id                      String    @id @default(uuid(7)) @db.Uuid
+  userId                  String    @map("user_id") @db.Uuid
+  categoryId              String    @map("category_id") @db.Uuid
+  /// CHECK >= 0. Σ points_ledger.points_delta for this user and category.
+  totalPoints             BigInt    @default(0) @map("total_points")
+  /// Σ of positive EARN deltas (refunds do not lower it).
+  lifetimeEarnedPoints    BigInt    @default(0) @map("lifetime_earned_points")
+  /// Level number under `versionId`; null before any published version applied.
+  currentLevel            Int?      @map("current_level")
+  versionId               String?   @map("version_id") @db.Uuid
+  lastQualifiedActivityAt DateTime? @map("last_qualified_activity_at") @db.Timestamptz(3)
+  calculatedAt            DateTime  @default(now()) @map("calculated_at") @db.Timestamptz(3)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category LevelCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, categoryId], map: "user_level_states_user_category_key")
+  @@index([categoryId, currentLevel], map: "user_level_states_category_level_idx")
+  @@map("user_level_states")
+}
+
+/// Immutable source of truth for points (append-only: the runtime role cannot UPDATE/DELETE).
+model PointsLedgerEntry {
+  id                  String           @id @default(uuid(7)) @db.Uuid
+  userId              String           @map("user_id") @db.Uuid
+  categoryId          String           @map("category_id") @db.Uuid
+  entryType           PointsEntryType  @map("entry_type")
+  sourceType          PointsSourceType @map("source_type")
+  /// The producer's transaction id (activity entries); null for ADMIN/CONFIG entries.
+  sourceTransactionId String?          @map("source_transaction_id") @db.VarChar(128)
+  sourceValue         BigInt?          @map("source_value")
+  /// CHECK <> 0.
+  pointsDelta         BigInt           @map("points_delta")
+  multiplierUsed      Decimal?         @map("multiplier_used") @db.Decimal(18, 6)
+  versionId           String?          @map("version_id") @db.Uuid
+  /// ADJUSTMENT idempotency (admin `Idempotency-Key`), unique when set.
+  idempotencyKey      String?          @map("idempotency_key") @db.VarChar(128)
+  /// REVERSAL → the EARN it compensates (unique: a reversal happens once).
+  reversalOfEntryId   String?          @unique(map: "points_ledger_reversal_of_key") @map("reversal_of_entry_id") @db.Uuid
+  reason              String?          @db.VarChar(500)
+  createdById         String?          @map("created_by_id") @db.Uuid
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   LevelCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reversalOf PointsLedgerEntry? @relation("PointsReversal", fields: [reversalOfEntryId], references: [id], onDelete: Cascade)
+  reversedBy PointsLedgerEntry? @relation("PointsReversal")
+
+  @@unique([categoryId, sourceType, sourceTransactionId, entryType], map: "points_ledger_source_once", where: raw("entry_type = ANY (ARRAY['EARN'::points_entry_type, 'REVERSAL'::points_entry_type])"))
+  @@unique([idempotencyKey], map: "points_ledger_idempotency_key", where: raw("idempotency_key IS NOT NULL"))
+  @@index([userId, categoryId, createdAt(sort: Desc), id(sort: Desc)], map: "points_ledger_user_category_created_idx")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "points_ledger_user_created_idx")
+  @@index([sourceTransactionId], map: "points_ledger_source_transaction_idx")
+  @@index([categoryId], map: "points_ledger_category_id_idx")
+  @@map("points_ledger")
+}
+
+/// Level transitions (append-only). previous/new are level numbers; null = no level.
+model LevelHistory {
+  id            String                @id @default(uuid(7)) @db.Uuid
+  userId        String                @map("user_id") @db.Uuid
+  categoryId    String                @map("category_id") @db.Uuid
+  previousLevel Int?                  @map("previous_level")
+  newLevel      Int?                  @map("new_level")
+  points        BigInt
+  reason        LevelTransitionReason
+  ledgerEntryId String?               @map("ledger_entry_id") @db.Uuid
+  versionId     String?               @map("version_id") @db.Uuid
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category LevelCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "level_history_user_created_idx")
+  @@index([categoryId, createdAt(sort: Desc)], map: "level_history_category_created_idx")
+  @@map("level_history")
+}
+
+/// Inbox of producer events (CP-005 §6); one row per (type, source transaction).
+model LevelSourceEvent {
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  type                LevelSourceEventType
+  sourceTransactionId String               @map("source_transaction_id") @db.VarChar(128)
+  payload             Json                 @db.JsonB
+  status              LevelEventStatus     @default(PENDING)
+  attempts            Int                  @default(0)
+  lastError           String?              @map("last_error") @db.VarChar(300)
+  receivedAt          DateTime             @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt         DateTime?            @map("processed_at") @db.Timestamptz(3)
+
+  @@unique([type, sourceTransactionId], map: "level_source_events_type_source_key")
+  @@index([status, receivedAt(sort: Desc)], map: "level_source_events_status_received_idx")
+  @@index([receivedAt(sort: Desc), id(sort: Desc)], map: "level_source_events_received_idx")
+  @@map("level_source_events")
+}
+
+/// Reconciliation runs (CP-005); `errors` is a JSON array of short strings.
+model LevelReconciliationRun {
+  id                String                    @id @default(uuid(7)) @db.Uuid
+  category          LevelCategoryCode?
+  mode              LevelReconciliationMode
+  status            LevelReconciliationStatus @default(RUNNING)
+  startedAt         DateTime                  @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt       DateTime?                 @map("completed_at") @db.Timestamptz(3)
+  eventsInspected   Int                       @default(0) @map("events_inspected")
+  statesInspected   Int                       @default(0) @map("states_inspected")
+  failedEvents      Int                       @default(0) @map("failed_events")
+  unprocessedEvents Int                       @default(0) @map("unprocessed_events")
+  stateMismatches   Int                       @default(0) @map("state_mismatches")
+  corrected         Int                       @default(0)
+  errors            Json                      @default("[]") @db.JsonB
+  initiatedById     String?                   @map("initiated_by_id") @db.Uuid
+
+  @@index([startedAt(sort: Desc), id(sort: Desc)], map: "level_reconciliation_runs_started_idx")
+  @@map("level_reconciliation_runs")
+}
+
+/// Granular admin permissions (CP-005 §9.8, owner 2026-10-20). An admin endpoint needs
+/// `users.role = ADMIN` AND the permission it names. Granted with `pnpm levels:admin grant`.
+enum AdminPermission {
+  LEVELS_VIEW
+  LEVELS_EDIT
+  LEVELS_PUBLISH
+  LEVELS_ADJUST
+  LEVELS_RECONCILE
+
+  @@map("admin_permission")
+}
+
+model UserAdminPermission {
+  userId      String          @map("user_id") @db.Uuid
+  permission  AdminPermission
+  /// Null when granted from the command line.
+  grantedById String?         @map("granted_by_id") @db.Uuid
+  grantedAt   DateTime        @default(now()) @map("granted_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permission], map: "user_admin_permissions_pkey")
+  @@map("user_admin_permissions")
 }

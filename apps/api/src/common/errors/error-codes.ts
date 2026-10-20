@@ -24,6 +24,10 @@ export enum ErrorCode {
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   /** v1.3: going live / heartbeating disabled by LIVE_HOSTING_ENABLED=false (no Retry-After). */
   LIVE_HOSTING_UNAVAILABLE = 'LIVE_HOSTING_UNAVAILABLE',
+  /** v1.4-levels (DRAFT, CP-005): a level configuration breaks the publication rules. */
+  LEVEL_CONFIG_INVALID = 'LEVEL_CONFIG_INVALID',
+  /** v1.4-levels (DRAFT, CP-005): only DRAFT versions change. */
+  LEVEL_VERSION_NOT_DRAFT = 'LEVEL_VERSION_NOT_DRAFT',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -46,6 +50,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.INTERNAL_ERROR]: 500,
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 503,
+  [ErrorCode.LEVEL_CONFIG_INVALID]: 422,
+  [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -68,6 +74,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.INTERNAL_ERROR]: 'Internal server error.',
   [ErrorCode.SERVICE_UNAVAILABLE]: 'Service temporarily unavailable.',
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 'Going live is not available.',
+  [ErrorCode.LEVEL_CONFIG_INVALID]: 'The level configuration is invalid.',
+  [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 'Only draft versions can change.',
 };
 
 export interface ErrorDetail {

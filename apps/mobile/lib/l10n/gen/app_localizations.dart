@@ -2419,6 +2419,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم النسخ'**
   String get profileCopied;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوياتي'**
+  String get levelsTitle;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.'**
+  String get levelsIntro;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.'**
+  String get levelsPreparing;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مفعّل بعد'**
+  String get levelsUnavailable;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المستوى غير مفعّل بعد. ستظهر نقاطك ومستواك هنا عند تفعيله.'**
+  String get levelsUnavailableBody;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مستوى بعد'**
+  String get levelsNoLevel;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى {number}'**
+  String levelsLevelNumber(int number);
+
+  /// D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة'**
+  String levelsPoints(String points);
+
+  /// D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} للمستوى التالي'**
+  String levelsToNext(String points);
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} نقطة للوصول إلى {level}'**
+  String levelsToNamed(String points, String level);
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلى مستوى'**
+  String get levelsMax;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المستويات'**
+  String get levelsLadder;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستواك'**
+  String get levelsCurrent;
+
+  /// D72: levels (CP-005).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المستويات'**
+  String get levelsLoadError;
 }
 
 class _AppLocalizationsDelegate

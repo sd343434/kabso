@@ -21,7 +21,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "levels:admin": "tsx prisma/levels-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.3",

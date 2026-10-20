@@ -38,6 +38,8 @@ flutter:
   assets:
     - assets/icons/
     - assets/icons/nav/
+    # D72 level emblems (owner-supplied kabso_levels pack, 4 × 11 tiers).
+    - assets/levels/
     # KL-056 debug-preview imagery (AI-generated, development only).
     - assets/preview/
   fonts:

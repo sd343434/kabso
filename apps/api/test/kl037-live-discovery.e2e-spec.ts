@@ -91,6 +91,8 @@ describe('KL-037 contract coverage', () => {
   it('openapi v1.3 declares exactly the ten new operations implemented here', () => {
     const v13 = operations()
       .filter((o) => /^\/api\/v1\/(live\/|users\/\{username\})/.test(o.path))
+      // v1.4-levels (draft) adds /users/{username}/levels; KL-058 covers it.
+      .filter((o) => o.path !== '/api/v1/users/{username}/levels')
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(

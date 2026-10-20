@@ -23,6 +23,7 @@ class SettingsScreen extends ConsumerWidget {
   const new({super.key});
 
   static const logoutKey = Key('settings.logout');
+  static const levelsKey = Key('settings.levels');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -101,6 +102,13 @@ class SettingsScreen extends ConsumerWidget {
           const _SessionsSection(),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),
+          // D72: the caller's four levels.
+          ListTile(
+            key: levelsKey,
+            leading: const Icon(Icons.military_tech_outlined),
+            title: Text(l10n.levelsTitle),
+            onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.levels),
+          ),
           ListTile(
             key: logoutKey,
             leading: Icon(Icons.logout_rounded, color: context.palette.error),

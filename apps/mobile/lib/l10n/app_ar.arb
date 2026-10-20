@@ -1173,5 +1173,84 @@
   },
   "@profileCopied": {
     "description": "D62: public profile three-dots menu."
+  },
+  "levelsTitle": "مستوياتي",
+  "@levelsTitle": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsIntro": "تزيد نقاطك من الهدايا والإنفاق في الألعاب بعد تأكيدها. لكل مستوى نقاطه الخاصة.",
+  "@levelsIntro": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsPreparing": "المستويات قيد التجهيز. ستظهر نقاطك هنا عند تفعيل الهدايا والألعاب.",
+  "@levelsPreparing": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsUnavailable": "غير مفعّل بعد",
+  "@levelsUnavailable": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsUnavailableBody": "هذا المستوى غير مفعّل بعد. ستظهر نقاطك ومستواك هنا عند تفعيله.",
+  "@levelsUnavailableBody": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsNoLevel": "لا يوجد مستوى بعد",
+  "@levelsNoLevel": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsLevelNumber": "المستوى {number}",
+  "@levelsLevelNumber": {
+    "description": "D72: levels (CP-005).",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "levelsPoints": "{points} نقطة",
+  "@levelsPoints": {
+    "description": "D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsToNext": "{points} للمستوى التالي",
+  "@levelsToNext": {
+    "description": "D72: levels (CP-005). Points are pre-formatted with Latin digits and separators.",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsToNamed": "{points} نقطة للوصول إلى {level}",
+  "@levelsToNamed": {
+    "description": "D72: levels (CP-005).",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "levelsMax": "أعلى مستوى",
+  "@levelsMax": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsLadder": "كل المستويات",
+  "@levelsLadder": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsCurrent": "مستواك",
+  "@levelsCurrent": {
+    "description": "D72: levels (CP-005)."
+  },
+  "levelsLoadError": "تعذّر تحميل المستويات",
+  "@levelsLoadError": {
+    "description": "D72: levels (CP-005)."
   }
 }

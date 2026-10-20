@@ -45,6 +45,14 @@ abstract final class AppRoutes {
 
   static const settings = '/settings';
 
+  /// D72: the caller's four levels (CP-005), pushed above the shell.
+  static const levels = '/levels';
+  static const levelPattern = '/levels/:category';
+
+  /// One category's levels; [category] is its lower-case code.
+  static String level(String category) =>
+      '/levels/${Uri.encodeComponent(category)}';
+
   /// Prefix of every debug-only route (`!kReleaseMode`).
   static const debugPrefix = '/debug/';
 
