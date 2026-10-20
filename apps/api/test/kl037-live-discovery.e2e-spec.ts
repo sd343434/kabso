@@ -93,6 +93,9 @@ describe('KL-037 contract coverage', () => {
       .filter((o) => /^\/api\/v1\/(live\/|users\/\{username\})/.test(o.path))
       // v1.4-levels (draft) adds /users/{username}/levels; KL-058 covers it.
       .filter((o) => o.path !== '/api/v1/users/{username}/levels')
+      // v1.5-social (draft) adds posts, reposts, block and mute under /users/{username}; KL-060
+      // covers them.
+      .filter((o) => !/^\/api\/v1\/users\/\{username\}\/(posts|reposts|block|mute)$/.test(o.path))
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(

@@ -60,12 +60,34 @@ model User {
   verificationTokens VerificationToken[]
   auditLogs          AuditLog[]
   liveRooms          LiveRoom[]
-  following          Follow[]            @relation("FollowFollower")
-  followers          Follow[]            @relation("FollowFollowee")
+  following          Follow[]              @relation("FollowFollower")
+  followers          Follow[]              @relation("FollowFollowee")
   levelStates        UserLevelState[]
   pointsEntries      PointsLedgerEntry[]
   levelHistory       LevelHistory[]
   adminPermissions   UserAdminPermission[]
+  mediaUploads       MediaUpload[]
+  mediaAssets        MediaAsset[]
+  posts              Post[]
+  postLikes          PostLike[]
+  postSaves          PostSave[]
+  postReposts        PostRepost[]
+  postViews          PostView[]
+  postShareEvents    PostShareEvent[]
+  postPins           PostPin[]
+  postMentions       PostMention[]
+  comments           Comment[]
+  commentLikes       CommentLike[]
+  commentMentions    CommentMention[]
+  blocking           UserBlock[]           @relation("BlockBlocker")
+  blockedBy          UserBlock[]           @relation("BlockBlocked")
+  muting             UserMute[]            @relation("MuteMuter")
+  mutedBy            UserMute[]            @relation("MuteMuted")
+  postHides          PostHide[]
+  reportsMade        Report[]              @relation("ReportReporter")
+  reportsAgainst     Report[]              @relation("ReportTargetUser")
+  reportsResolved    Report[]              @relation("ReportResolver")
+  privacySettings    PrivacySettings?
 
   @@map("users")
 }
@@ -591,6 +613,8 @@ enum AdminPermission {
   LEVELS_PUBLISH
   LEVELS_ADJUST
   LEVELS_RECONCILE
+  /// v1.5-social (CP-006): the report queue.
+  MODERATION
 
   @@map("admin_permission")
 }
@@ -606,4 +630,435 @@ model UserAdminPermission {
 
   @@id([userId, permission], map: "user_admin_permissions_pkey")
   @@map("user_admin_permissions")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.5-social (DRAFT, CP-006 M1, D87) — media, posts, comments, search and safety
+// (CONVENTIONS §11). Owners: `media` module (media_*), `posts` module (posts, post_*, hashtags,
+// comments, comment_*), `safety` module (user_blocks, user_mutes, post_hides, reports,
+// privacy_settings). Counters on posts/comments change in the same transaction as their rows.
+
+enum MediaUploadStatus {
+  PENDING
+  COMPLETED
+  FAILED
+
+  @@map("media_upload_status")
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+
+  @@map("post_status")
+}
+
+enum PostModeration {
+  VISIBLE
+  PENDING
+  REMOVED
+
+  @@map("post_moderation")
+}
+
+enum WhoCanComment {
+  EVERYONE
+  FOLLOWERS
+  NOBODY
+
+  @@map("who_can_comment")
+}
+
+enum WhoCanMention {
+  EVERYONE
+  FOLLOWING
+  NOBODY
+
+  @@map("who_can_mention")
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+
+  @@map("report_target_type")
+}
+
+enum ReportReason {
+  SPAM
+  NUDITY
+  VIOLENCE
+  HATE
+  HARASSMENT
+  ILLEGAL
+  OTHER
+
+  @@map("report_reason")
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+
+  @@map("report_status")
+}
+
+/// A presigned upload slot (§11.1). Closed by `complete` (COMPLETED/FAILED) or the sweeper.
+model MediaUpload {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  kind         String            @db.VarChar(32)
+  contentType  String            @map("content_type") @db.VarChar(64)
+  byteSize     Int               @map("byte_size")
+  objectKey    String            @map("object_key") @db.VarChar(256)
+  status       MediaUploadStatus @default(PENDING)
+  mediaAssetId String?           @unique @map("media_asset_id") @db.Uuid
+  expiresAt    DateTime          @map("expires_at") @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt  DateTime?         @map("completed_at") @db.Timestamptz(3)
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "media_uploads_user_created_idx")
+  @@index([expiresAt], map: "media_uploads_pending_expiry_idx", where: raw("status = 'PENDING'::media_upload_status"))
+  @@map("media_uploads")
+}
+
+/// A processed image (WebP 1080 and 320). Attached to at most one post.
+model MediaAsset {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  ownerId    String    @map("owner_id") @db.Uuid
+  width      Int
+  height     Int
+  blurhash   String?   @db.VarChar(64)
+  largeKey   String    @map("large_key") @db.VarChar(256)
+  thumbKey   String    @map("thumb_key") @db.VarChar(256)
+  byteSize   Int       @map("byte_size")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
+
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload    MediaUpload?
+  postMedia PostMedia?
+
+  @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
+  @@map("media_assets")
+}
+
+/// A post (§11.2). CHECKs: text or media (app), counters ≥ 0, `publish_at` for SCHEDULED.
+model Post {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  authorId        String         @map("author_id") @db.Uuid
+  text            String         @default("") @db.VarChar(2200)
+  location        String?        @db.VarChar(80)
+  status          PostStatus     @default(PUBLISHED)
+  moderation      PostModeration @default(VISIBLE)
+  publishAt       DateTime?      @map("publish_at") @db.Timestamptz(3)
+  publishedAt     DateTime?      @map("published_at") @db.Timestamptz(3)
+  editedAt        DateTime?      @map("edited_at") @db.Timestamptz(3)
+  commentsEnabled Boolean        @default(true) @map("comments_enabled")
+  whoCanComment   WhoCanComment  @default(EVERYONE) @map("who_can_comment")
+  hideLikeCount   Boolean        @default(false) @map("hide_like_count")
+  likeCount       Int            @default(0) @map("like_count")
+  commentCount    Int            @default(0) @map("comment_count")
+  shareCount      Int            @default(0) @map("share_count")
+  repostCount     Int            @default(0) @map("repost_count")
+  saveCount       Int            @default(0) @map("save_count")
+  viewCount       Int            @default(0) @map("view_count")
+  /// `Idempotency-Key` of createPost and the SHA-256 of its body (kept 24 h, §11.2).
+  idempotencyKey  String?        @map("idempotency_key") @db.Uuid
+  requestHash     String?        @map("request_hash") @db.VarChar(64)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media    PostMedia[]
+  likes    PostLike[]
+  saves    PostSave[]
+  reposts  PostRepost[]
+  views    PostView[]
+  shares   PostShareEvent[]
+  pin      PostPin?
+  hashtags PostHashtag[]
+  mentions PostMention[]
+  comments Comment[]
+  hides    PostHide[]
+  reports  Report[]
+
+  @@unique([authorId, idempotencyKey], map: "posts_author_idempotency_key")
+  @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_author_published_idx", where: raw("status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
+  @@index([publishedAt(sort: Desc), id(sort: Desc)], map: "posts_published_idx", where: raw("status = 'PUBLISHED'::post_status AND deleted_at IS NULL AND moderation = 'VISIBLE'::post_moderation"))
+  @@index([publishAt], map: "posts_scheduled_due_idx", where: raw("status = 'SCHEDULED'::post_status AND deleted_at IS NULL"))
+  @@index([authorId, status, createdAt(sort: Desc)], map: "posts_author_status_created_idx")
+  @@map("posts")
+}
+
+model PostMedia {
+  postId       String @map("post_id") @db.Uuid
+  mediaAssetId String @unique @map("media_asset_id") @db.Uuid
+  position     Int    @db.SmallInt
+
+  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@id([postId, position], map: "post_media_pkey")
+  @@map("post_media")
+}
+
+model PostLike {
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId], map: "post_likes_pkey")
+  @@index([postId, createdAt(sort: Desc), userId], map: "post_likes_post_created_idx")
+  @@index([userId], map: "post_likes_user_id_idx")
+  @@map("post_likes")
+}
+
+model PostSave {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId], map: "post_saves_pkey")
+  @@index([userId, createdAt(sort: Desc), postId], map: "post_saves_user_created_idx")
+  @@index([postId], map: "post_saves_post_id_idx")
+  @@map("post_saves")
+}
+
+model PostRepost {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId], map: "post_reposts_pkey")
+  @@index([userId, createdAt(sort: Desc), postId], map: "post_reposts_user_created_idx")
+  @@index([postId], map: "post_reposts_post_id_idx")
+  @@map("post_reposts")
+}
+
+/// One row per viewer and post; `viewed_at` moves when a new 24-hour view counts (§11.4).
+model PostView {
+  postId   String   @map("post_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  viewedAt DateTime @map("viewed_at") @db.Timestamptz(3)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId], map: "post_views_pkey")
+  @@index([userId], map: "post_views_user_id_idx")
+  @@map("post_views")
+}
+
+/// One counted outside share per user, post and UTC day.
+model PostShareEvent {
+  postId String   @map("post_id") @db.Uuid
+  userId String   @map("user_id") @db.Uuid
+  day    DateTime @db.Date
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId, day], map: "post_share_events_pkey")
+  @@index([userId], map: "post_share_events_user_id_idx")
+  @@map("post_share_events")
+}
+
+model PostPin {
+  postId   String   @id @map("post_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  pinnedAt DateTime @default(now()) @map("pinned_at") @db.Timestamptz(3)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, pinnedAt(sort: Desc)], map: "post_pins_user_pinned_idx")
+  @@map("post_pins")
+}
+
+model Hashtag {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// NFC lower case, without `#`.
+  tag       String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  posts PostHashtag[]
+
+  @@map("hashtags")
+}
+
+model PostHashtag {
+  postId    String @map("post_id") @db.Uuid
+  hashtagId String @map("hashtag_id") @db.Uuid
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId], map: "post_hashtags_pkey")
+  @@index([hashtagId, postId], map: "post_hashtags_hashtag_post_idx")
+  @@map("post_hashtags")
+}
+
+model PostMention {
+  postId String @map("post_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId], map: "post_mentions_pkey")
+  @@index([userId], map: "post_mentions_user_id_idx")
+  @@map("post_mentions")
+}
+
+/// A comment or a reply (`parent_id`, one level; §11.5).
+model Comment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  postId     String    @map("post_id") @db.Uuid
+  authorId   String    @map("author_id") @db.Uuid
+  parentId   String?   @map("parent_id") @db.Uuid
+  text       String    @db.VarChar(500)
+  likeCount  Int       @default(0) @map("like_count")
+  replyCount Int       @default(0) @map("reply_count")
+  pinnedAt   DateTime? @map("pinned_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  post     Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent   Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[]        @relation("CommentReplies")
+  likes    CommentLike[]
+  mentions CommentMention[]
+  reports  Report[]
+
+  @@unique([postId], map: "comments_one_pin_per_post", where: raw("pinned_at IS NOT NULL AND deleted_at IS NULL"))
+  @@index([postId, likeCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "comments_top_idx", where: raw("parent_id IS NULL AND deleted_at IS NULL"))
+  @@index([parentId, createdAt, id], map: "comments_replies_idx", where: raw("deleted_at IS NULL"))
+  @@index([authorId], map: "comments_author_id_idx")
+  @@map("comments")
+}
+
+model CommentLike {
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId], map: "comment_likes_pkey")
+  @@index([userId], map: "comment_likes_user_id_idx")
+  @@map("comment_likes")
+}
+
+model CommentMention {
+  commentId String @map("comment_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId], map: "comment_mentions_pkey")
+  @@index([userId], map: "comment_mentions_user_id_idx")
+  @@map("comment_mentions")
+}
+
+/// CHECK `user_blocks_no_self`.
+model UserBlock {
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  blocker User @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId], map: "user_blocks_pkey")
+  @@index([blockedId], map: "user_blocks_blocked_id_idx")
+  @@index([blockerId, createdAt(sort: Desc)], map: "user_blocks_blocker_created_idx")
+  @@map("user_blocks")
+}
+
+/// CHECK `user_mutes_no_self`.
+model UserMute {
+  muterId   String   @map("muter_id") @db.Uuid
+  mutedId   String   @map("muted_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  muter User @relation("MuteMuter", fields: [muterId], references: [id], onDelete: Cascade)
+  muted User @relation("MuteMuted", fields: [mutedId], references: [id], onDelete: Cascade)
+
+  @@id([muterId, mutedId], map: "user_mutes_pkey")
+  @@index([mutedId], map: "user_mutes_muted_id_idx")
+  @@map("user_mutes")
+}
+
+model PostHide {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId], map: "post_hides_pkey")
+  @@index([postId], map: "post_hides_post_id_idx")
+  @@map("post_hides")
+}
+
+/// A report (§11.7). Exactly one target column is set (CHECK `reports_one_target`); one OPEN
+/// report per reporter and target (partial unique indexes in the migration).
+model Report {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  reporterId      String           @map("reporter_id") @db.Uuid
+  targetType      ReportTargetType @map("target_type")
+  targetPostId    String?          @map("target_post_id") @db.Uuid
+  targetCommentId String?          @map("target_comment_id") @db.Uuid
+  targetUserId    String?          @map("target_user_id") @db.Uuid
+  reason          ReportReason
+  note            String?          @db.VarChar(500)
+  status          ReportStatus     @default(OPEN)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt      DateTime?        @map("resolved_at") @db.Timestamptz(3)
+  resolvedById    String?          @map("resolved_by_id") @db.Uuid
+  resolutionNote  String?          @map("resolution_note") @db.VarChar(500)
+
+  reporter      User     @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost    Post?    @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetComment Comment? @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
+  targetUser    User?    @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  resolvedBy    User?    @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt, id], map: "reports_status_created_idx")
+  @@index([targetPostId], map: "reports_target_post_idx")
+  @@index([targetCommentId], map: "reports_target_comment_idx")
+  @@index([targetUserId], map: "reports_target_user_idx")
+  @@map("reports")
+}
+
+model PrivacySettings {
+  userId               String        @id @map("user_id") @db.Uuid
+  whoCanMention        WhoCanMention @default(EVERYONE) @map("who_can_mention")
+  defaultWhoCanComment WhoCanComment @default(EVERYONE) @map("default_who_can_comment")
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("privacy_settings")
 }
