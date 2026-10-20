@@ -304,7 +304,7 @@
   "previewsHubMessages": "Messages",
   "previewsHubComponents": "Components",
   "commentsYou": "You",
-  "conversationsTitle": "Chats",
+  "conversationsTitle": "Messages",
   "conversationsSharedVideo": "Shared a video",
   "conversationsSayHi": "Say hi to {name}",
   "@conversationsSayHi": {

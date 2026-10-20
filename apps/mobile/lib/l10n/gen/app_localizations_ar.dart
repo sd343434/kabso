@@ -1067,7 +1067,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get commentsYou => 'أنت';
 
   @override
-  String get conversationsTitle => 'شات';
+  String get conversationsTitle => 'الرسائل';
 
   @override
   String get conversationsSharedVideo => 'شارك فيديو';

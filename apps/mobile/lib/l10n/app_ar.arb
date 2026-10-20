@@ -775,7 +775,7 @@
   "@commentsYou": {
     "description": "Author name shown on the viewer's own new comment and composer avatar."
   },
-  "conversationsTitle": "شات",
+  "conversationsTitle": "الرسائل",
   "@conversationsTitle": {
     "description": "KL-056 conversation list preview title."
   },

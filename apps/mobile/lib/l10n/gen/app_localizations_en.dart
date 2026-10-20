@@ -1033,7 +1033,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commentsYou => 'You';
 
   @override
-  String get conversationsTitle => 'Chats';
+  String get conversationsTitle => 'Messages';
 
   @override
   String get conversationsSharedVideo => 'Shared a video';

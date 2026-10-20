@@ -1799,7 +1799,7 @@ abstract class AppLocalizations {
   /// KL-056 conversation list preview title.
   ///
   /// In ar, this message translates to:
-  /// **'شات'**
+  /// **'الرسائل'**
   String get conversationsTitle;
 
   /// No description provided for @conversationsSharedVideo.
