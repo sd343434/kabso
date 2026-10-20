@@ -71,6 +71,22 @@ describe('KL-060 feeds and interactions', () => {
       expect(await ctx.prisma.post.findUniqueOrThrow({ where: { id } })).toMatchObject({ likeCount: 0 });
     });
 
+    it('many users liking one post at once: no deadlock, exact count', async () => {
+      const author = await signup();
+      const id = await post(author, 'hot post');
+      const fans = await Promise.all(Array.from({ length: 8 }, () => signup()));
+      const res = await Promise.all(fans.map((f) => ctx.http.put(`/api/v1/posts/${id}/like`).set(auth(f))));
+      expect(res.map((r) => r.status)).toEqual(fans.map(() => 200));
+      const shares = await Promise.all(
+        fans.map((f) => ctx.http.post(`/api/v1/posts/${id}/shares`).set(auth(f))),
+      );
+      expect(shares.map((r) => r.status)).toEqual(fans.map(() => 200));
+      expect(await ctx.prisma.post.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        likeCount: 8,
+        shareCount: 8,
+      });
+    });
+
     it('invisible posts cannot be liked; a hidden count is null for others', async () => {
       const [author, fan] = [await signup(), await signup()];
       const draft = await post(author, 'draft', { status: 'DRAFT' });

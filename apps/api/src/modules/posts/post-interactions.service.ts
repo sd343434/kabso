@@ -33,15 +33,15 @@ export class PostInteractionsService {
     private readonly posts: PostsService,
   ) {}
 
-  /** A published post the viewer may see, locked FOR SHARE in `tx` (deletes wait), else 404. */
-  private async visiblePublished(tx: Tx, viewerId: string, postId: string) {
+  /** A published post the viewer may see, locked FOR UPDATE in `tx` (its counters change next), else 404. */
+  private async visiblePublished(tx: Tx, viewerId: string, postId: string, lock = true) {
     if (!isUuid(postId)) throw new AppException(ErrorCode.NOT_FOUND);
     const post = await tx.post.findFirst({
       where: { AND: [{ id: postId.toLowerCase() }, visiblePostWhere(viewerId)] },
       select: { id: true, authorId: true, hideLikeCount: true, author: { select: { settings: true } } },
     });
     if (!post) throw new AppException(ErrorCode.NOT_FOUND);
-    await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${post.id}::uuid FOR SHARE`;
+    if (lock) await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${post.id}::uuid FOR UPDATE`;
     return post;
   }
 
@@ -70,7 +70,7 @@ export class PostInteractionsService {
    * viewer. A hidden like count makes the list the author's only (403 for everyone else).
    */
   async likers(viewerId: string, postId: string, query: PageQuery): Promise<PageDto<UserSummaryDto>> {
-    const post = await this.visiblePublished(this.prisma, viewerId, postId);
+    const post = await this.visiblePublished(this.prisma, viewerId, postId, false);
     if (post.hideLikeCount && post.authorId !== viewerId) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
     const scope = `likers:${post.id}:${viewerId}`;
     const after = this.posts.decode(query.cursor, scope);
