@@ -7,13 +7,17 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Presentation-only input for one Home feed item. There is no feed API
-/// yet (posts Phase 3, short video Phase 5), so nothing in production
-/// builds these; tests use `test/fixtures/` and debug builds the previews.
+/// Input for one Home feed item. Production builds it from the posts API
+/// (`feedPostOf`, v1.5-social) with a [postId], which turns the action row
+/// into real buttons; tests use `test/fixtures/` and debug builds the
+/// previews (no [postId]: display only).
 @immutable
 class FeedPostData {
   const new({
@@ -30,6 +34,12 @@ class FeedPostData {
     this.likes,
     this.comments,
     this.shares,
+    this.postId,
+    this.liked = false,
+    this.saved = false,
+    this.isSelf = false,
+    this.pendingModeration = false,
+    this.repostedBy,
   });
 
   final String authorName;
@@ -62,6 +72,21 @@ class FeedPostData {
   final int? likes;
   final int? comments;
   final int? shares;
+
+  /// The API id: set for real posts only. With it, like and save are
+  /// buttons and the "more" sheet offers hide, report or delete.
+  final String? postId;
+  final bool liked;
+  final bool saved;
+
+  /// The viewer wrote it (delete instead of hide/report).
+  final bool isSelf;
+
+  /// Waiting for moderation: visible to its author only (CP-006 Q2).
+  final bool pendingModeration;
+
+  /// The display name of who reposted it into the Following feed.
+  final String? repostedBy;
 }
 
 /// Geometry of a post (D54, layout from the owner's reference; sizes on
@@ -118,6 +143,13 @@ class FeedPostTile extends StatelessWidget {
   static const followKey = Key('feed.post.follow');
   static const authorKey = Key('feed.post.author');
   static const followActionKey = Key('feed.post.more.follow');
+  static const likeKey = Key('feed.post.like');
+  static const saveKey = Key('feed.post.save');
+  static const hideActionKey = Key('feed.post.more.hide');
+  static const reportActionKey = Key('feed.post.more.report');
+  static const deleteActionKey = Key('feed.post.more.delete');
+  static const pendingKey = Key('feed.post.pending');
+  static const deleteConfirmKey = Key('feed.post.delete.confirm');
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +171,26 @@ class FeedPostTile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (post.repostedBy case final by?)
+          Padding(
+            padding: inset.add(const EdgeInsets.only(top: KSpacing.xs)),
+            child: Text(
+              l10n.feedPostRepostedBy(by),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+          ),
         _AuthorRow(post: post),
+        if (post.pendingModeration)
+          Padding(
+            key: FeedPostTile.pendingKey,
+            padding: inset.add(const EdgeInsets.only(bottom: KSpacing.xs)),
+            child: Text(
+              l10n.feedPostPending,
+              style: t.caption.copyWith(color: p.textSecondary),
+            ),
+          ),
         if (media != null)
           AspectRatio(
             aspectRatio: post.mediaAspect ?? KMetrics.feedMediaAspect,
@@ -163,7 +214,17 @@ class FeedPostTile extends StatelessWidget {
               ],
             ),
           ),
-        if (likes != null && comments != null && shares != null)
+        if (post.postId case final id?)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+              KPostCard.inset,
+              KSpacing.xs,
+              KSpacing.xs,
+              0,
+            ),
+            child: _Actions(postId: id, post: post),
+          )
+        else if (likes != null && comments != null && shares != null)
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(
               KPostCard.inset,
@@ -199,6 +260,20 @@ class FeedPostTile extends StatelessWidget {
 /// API (`PUT`/`DELETE /users/{username}/follow`): the choice applies at
 /// once and comes back with a message on failure. Without a follow state
 /// (your own post, or a source without it) neither is shown.
+enum _MoreAction { follow, hide, report, delete }
+
+/// The label of a report reason.
+String reportReasonLabel(AppLocalizations l10n, ReportReason reason) =>
+    switch (reason) {
+      ReportReason.spam => l10n.reportReasonSpam,
+      ReportReason.nudity => l10n.reportReasonNudity,
+      ReportReason.violence => l10n.reportReasonViolence,
+      ReportReason.hate => l10n.reportReasonHate,
+      ReportReason.harassment => l10n.reportReasonHarassment,
+      ReportReason.illegal => l10n.reportReasonIllegal,
+      ReportReason.other => l10n.reportReasonOther,
+    };
+
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
 
@@ -234,32 +309,140 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
 
   Future<void> _openMore() async {
     final l10n = context.l10n;
-    final following = _following ?? false;
-    final name = widget.post.authorName;
-    final confirmed = await showModalBottomSheet<bool>(
+    final post = widget.post;
+    final following = _following;
+    final id = post.postId;
+    final name = post.authorName;
+    final choice = await showModalBottomSheet<_MoreAction>(
+      context: context,
+      builder: (sheet) {
+        Widget item(Key key, String icon, String label, _MoreAction action) =>
+            ListTile(
+              key: key,
+              leading: AppIcon(icon, color: sheet.palette.textPrimary),
+              title: Text(label),
+              onTap: () => Navigator.of(sheet).pop(action),
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (post.authorUsername != null && following != null)
+                item(
+                  FeedPostTile.followActionKey,
+                  following ? AppIcons.followFilled : AppIcons.follow,
+                  following
+                      ? l10n.homeUnfollowAuthor(name)
+                      : l10n.homeFollowAuthor(name),
+                  _MoreAction.follow,
+                ),
+              if (id != null && !post.isSelf) ...[
+                item(
+                  FeedPostTile.hideActionKey,
+                  AppIcons.moreHoriz,
+                  l10n.feedPostHide,
+                  _MoreAction.hide,
+                ),
+                item(
+                  FeedPostTile.reportActionKey,
+                  AppIcons.moreHoriz,
+                  l10n.feedPostReport,
+                  _MoreAction.report,
+                ),
+              ],
+              if (id != null && post.isSelf)
+                item(
+                  FeedPostTile.deleteActionKey,
+                  AppIcons.moreHoriz,
+                  l10n.feedPostDelete,
+                  _MoreAction.delete,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case _MoreAction.follow:
+        await _set(follow: !(following ?? false));
+      case _MoreAction.hide:
+        await _run(
+          (repo, id) => repo.setHidden(id, hidden: true),
+          l10n.feedPostHidden,
+        );
+      case _MoreAction.report:
+        final reason = await _pickReason();
+        if (reason == null) return;
+        await _run(
+          (repo, id) => repo.reportPost(id, reason),
+          l10n.feedPostReported,
+        );
+      case _MoreAction.delete:
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: Text(l10n.feedPostDeleteConfirm),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialog).pop(false),
+                child: Text(l10n.actionCancel),
+              ),
+              TextButton(
+                key: FeedPostTile.deleteConfirmKey,
+                onPressed: () => Navigator.of(dialog).pop(true),
+                child: Text(l10n.feedPostDelete),
+              ),
+            ],
+          ),
+        );
+        if (ok ?? false) {
+          await _run((repo, id) => repo.deletePost(id), l10n.feedPostDeleted);
+        }
+    }
+  }
+
+  /// Hide, report or delete: on success the post leaves the feeds.
+  Future<void> _run(
+    Future<void> Function(PostsRepository repo, String id) action,
+    String done,
+  ) async {
+    final id = widget.post.postId;
+    if (id == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await action(ref.read(postsRepositoryProvider), id);
+      if (!mounted) return;
+      removePostFromFeeds(ref, id);
+      KSnack.success(context, done);
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<ReportReason?> _pickReason() {
+    final l10n = context.l10n;
+    return showModalBottomSheet<ReportReason>(
       context: context,
       builder: (sheet) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              key: FeedPostTile.followActionKey,
-              leading: AppIcon(
-                following ? AppIcons.followFilled : AppIcons.follow,
-                color: sheet.palette.textPrimary,
+            ListTile(title: Text(l10n.feedPostReportTitle)),
+            for (final reason in ReportReason.values)
+              ListTile(
+                key: ValueKey('feed.post.report.${reason.name}'),
+                title: Text(reportReasonLabel(l10n, reason)),
+                onTap: () => Navigator.of(sheet).pop(reason),
               ),
-              title: Text(
-                following
-                    ? l10n.homeUnfollowAuthor(name)
-                    : l10n.homeFollowAuthor(name),
-              ),
-              onTap: () => Navigator.of(sheet).pop(true),
-            ),
           ],
         ),
       ),
     );
-    if (confirmed ?? false) await _set(follow: !following);
   }
 
   @override
@@ -365,7 +548,7 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                 ),
               ),
             ),
-          if (known)
+          if (known || post.postId != null)
             IconButton(
               key: FeedPostTile.moreKey,
               tooltip: l10n.feedPostMore,
@@ -579,6 +762,178 @@ class _Counts extends StatelessWidget {
           icon(AppIcons.bookmark),
         ],
       ),
+    );
+  }
+}
+
+/// The action row of a real post: like (a button with its count; no count
+/// when the author hides it), the comment and share counts (shown, not yet
+/// buttons: comments and outside sharing arrive next), and save at the end.
+/// Like and save apply at once and are undone with a message when the API
+/// refuses; the counts then come from the server's answer.
+class _Actions extends ConsumerStatefulWidget {
+  const new({required this.postId, required this.post});
+
+  final String postId;
+  final FeedPostData post;
+
+  @override
+  ConsumerState<_Actions> createState() => _ActionsState();
+}
+
+class _ActionsState extends ConsumerState<_Actions> {
+  late bool _liked = widget.post.liked;
+  late int? _likes = widget.post.likes;
+  late bool _saved = widget.post.saved;
+  bool _liking = false;
+  bool _saving = false;
+
+  Future<void> _toggleLike() async {
+    if (_liking) return;
+    final (before, beforeCount) = (_liked, _likes);
+    final next = !_liked;
+    setState(() {
+      _liking = true;
+      _liked = next;
+      if (_likes case final n?) {
+        _likes = (n + (next ? 1 : -1)).clamp(0, 1 << 31);
+      }
+    });
+    try {
+      final state = await ref
+          .read(postsRepositoryProvider)
+          .setLiked(widget.postId, liked: next);
+      if (mounted) {
+        setState(() {
+          _liked = state.liked;
+          _likes = state.likeCount;
+        });
+      }
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _liked = before;
+        _likes = beforeCount;
+      });
+      KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+    } finally {
+      if (mounted) setState(() => _liking = false);
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    if (_saving) return;
+    final next = !_saved;
+    setState(() {
+      _saving = true;
+      _saved = next;
+    });
+    try {
+      final saved = await ref
+          .read(postsRepositoryProvider)
+          .setSaved(widget.postId, saved: next);
+      if (mounted) setState(() => _saved = saved);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saved = !next);
+      KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final style = context.textStyles.bodyStrong.copyWith(color: p.textPrimary);
+    final likes = _likes;
+    Widget count(int value) => Text(KFormat.compact(value, l10n), style: style);
+    Widget shown(String asset, int value, String label) => Semantics(
+      container: true,
+      label: label,
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(asset, size: KPostCard.actionIcon, color: p.textPrimary),
+            const SizedBox(width: KSpacing.xs),
+            count(value),
+            const SizedBox(width: KPostCard.actionGap),
+          ],
+        ),
+      ),
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Semantics(
+                button: true,
+                toggled: _liked,
+                label: _liked ? l10n.feedPostUnlike : l10n.feedPostLike,
+                value: likes == null ? null : KFormat.compact(likes, l10n),
+                excludeSemantics: true,
+                child: InkWell(
+                  key: FeedPostTile.likeKey,
+                  borderRadius: BorderRadius.circular(KRadius.sm),
+                  onTap: _toggleLike,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: KSizes.minTouchTarget,
+                      minWidth: KSizes.minTouchTarget,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppIcon(
+                          _liked ? AppIcons.heartFilled : AppIcons.heart,
+                          size: KPostCard.actionIcon,
+                          color: _liked ? p.primary : p.textPrimary,
+                        ),
+                        if (likes != null) ...[
+                          const SizedBox(width: KSpacing.xs),
+                          count(likes),
+                        ],
+                        const SizedBox(width: KPostCard.actionGap),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              shown(
+                AppIcons.comment,
+                widget.post.comments ?? 0,
+                l10n.feedPostCommentCount(
+                  KFormat.compact(widget.post.comments ?? 0, l10n),
+                ),
+              ),
+              shown(
+                AppIcons.send,
+                widget.post.shares ?? 0,
+                l10n.feedPostShareCount(
+                  KFormat.compact(widget.post.shares ?? 0, l10n),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          key: FeedPostTile.saveKey,
+          tooltip: _saved ? l10n.feedPostUnsave : l10n.feedPostSave,
+          isSelected: _saved,
+          onPressed: _toggleSave,
+          icon: AppIcon(
+            _saved ? AppIcons.bookmarkFilled : AppIcons.bookmark,
+            size: KPostCard.actionIcon,
+            color: p.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

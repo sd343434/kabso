@@ -27,12 +27,14 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
+import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -150,14 +152,10 @@ ScrollPosition _scroll(WidgetTester tester, HomeTab tab) => tester
     .position;
 
 void main() {
-  test('production providers are honest: posts, stories and reels are '
-      'unavailable', () {
+  test('production providers are honest: stories and reels are '
+      'unavailable (no API yet)', () {
     final container = ProviderContainer.test();
     for (final feed in HomeFeed.values) {
-      expect(
-        container.read(homePostsProvider(feed)).value,
-        isA<FeedUnavailable<FeedPostData>>(),
-      );
       expect(
         container.read(homeReelsProvider(feed)).value,
         isA<FeedUnavailable<FeedReelData>>(),
@@ -167,6 +165,32 @@ void main() {
       container.read(homeStoriesProvider).value,
       isA<FeedUnavailable<FeedStoryData>>(),
     );
+  });
+
+  test('KL-060: production posts come from the posts API, per feed, as '
+      'real (interactive) posts', () async {
+    final repo = FakePostsRepository(
+      feeds: {
+        PostsFeedTab.trending: [testPost('p1', likes: 3, liked: true)],
+        PostsFeedTab.following: const [],
+      },
+    );
+    final container = ProviderContainer.test(
+      overrides: [postsRepositoryProvider.overrideWithValue(repo)],
+    );
+    final trending = await container.read(
+      homePostsProvider(HomeFeed.trending).future,
+    );
+    final items = (trending as FeedItems<FeedPostData>).items;
+    expect(items.single.postId, 'p1');
+    expect(items.single.likes, 3);
+    expect(items.single.liked, isTrue);
+    expect(trending.hasMore, isFalse);
+    final following = await container.read(
+      homePostsProvider(HomeFeed.following).future,
+    );
+    expect((following as FeedItems<FeedPostData>).items, isEmpty);
+    expect(repo.calls, ['feed:trending:', 'feed:following:']);
   });
 
   group('header', () {
@@ -210,7 +234,8 @@ void main() {
       expect(find.byTooltip(_en.navCreate), findsNothing);
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(KLogo), findsNothing);
-      expect(find.text(_en.homePopularUnavailableTitle), findsOneWidget);
+      // KL-060: the posts API with no posts yet.
+      expect(find.text(_en.homeEmptyTitle), findsOneWidget);
     });
 
     for (final language in AppLanguage.values) {
@@ -262,7 +287,7 @@ void main() {
       );
       await _switch(tester);
       expect(_mode(tester), HomeTab.posts);
-      expect(find.text(_en.homePopularUnavailableTitle), findsOneWidget);
+      expect(find.text(_en.homeEmptyTitle), findsOneWidget);
       expect(find.bySemanticsLabel(_en.homeShowReels), findsOneWidget);
     });
 
@@ -373,17 +398,21 @@ void main() {
     });
 
     for (final (tab, title) in [
-      (HomeTab.posts, _en.homeFollowingUnavailableTitle),
+      // KL-060: posts have an API (empty here); reels do not yet.
+      (HomeTab.posts, _en.homeFollowingEmptyTitle),
       (HomeTab.reels, _en.homeReelsFollowingUnavailableTitle),
     ]) {
-      testWidgets('${tab.name} · Following unavailable: its own copy and '
-          '"See who\'s live"', (tester) async {
-        await _pump(tester, initialTab: tab);
-        await _selectFeed(tester, _en.feedTabFollowing);
-        expect(find.text(title), findsOneWidget);
-        expect(find.text(_en.homeSeeWhoIsLive), findsOneWidget);
-        expect(find.text(_en.homeWatchLive), findsNothing);
-      });
+      testWidgets(
+        '${tab.name} · Following with nothing to show: its own copy and '
+        '"See who\'s live"',
+        (tester) async {
+          await _pump(tester, initialTab: tab);
+          await _selectFeed(tester, _en.feedTabFollowing);
+          expect(find.text(title), findsOneWidget);
+          expect(find.text(_en.homeSeeWhoIsLive), findsOneWidget);
+          expect(find.text(_en.homeWatchLive), findsNothing);
+        },
+      );
     }
   });
 

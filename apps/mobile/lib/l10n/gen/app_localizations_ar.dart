@@ -1857,4 +1857,82 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get demoDataTry => 'جرّب ببيانات تجريبية';
+
+  @override
+  String get feedPostsLoadMoreFailed => 'تعذّر تحميل المزيد من المنشورات';
+
+  @override
+  String get feedPostLike => 'إعجاب';
+
+  @override
+  String get feedPostUnlike => 'إلغاء الإعجاب';
+
+  @override
+  String get feedPostSave => 'حفظ';
+
+  @override
+  String get feedPostUnsave => 'إلغاء الحفظ';
+
+  @override
+  String feedPostCommentCount(String count) {
+    return '$count تعليق';
+  }
+
+  @override
+  String feedPostShareCount(String count) {
+    return '$count مشاركة';
+  }
+
+  @override
+  String feedPostRepostedBy(String name) {
+    return 'أعاد $name نشره';
+  }
+
+  @override
+  String get feedPostPending => 'قيد المراجعة — يظهر لك وحدك حتى تتم مراجعته';
+
+  @override
+  String get feedPostHide => 'إخفاء هذا المنشور';
+
+  @override
+  String get feedPostHidden => 'أُخفي المنشور من خلاصتك';
+
+  @override
+  String get feedPostReport => 'الإبلاغ عن المنشور';
+
+  @override
+  String get feedPostReportTitle => 'لماذا تبلّغ عن هذا المنشور؟';
+
+  @override
+  String get feedPostReported => 'شكراً، وصلنا بلاغك';
+
+  @override
+  String get feedPostDelete => 'حذف المنشور';
+
+  @override
+  String get feedPostDeleteConfirm => 'حذف هذا المنشور نهائياً؟';
+
+  @override
+  String get feedPostDeleted => 'حُذف المنشور';
+
+  @override
+  String get reportReasonSpam => 'رسائل مزعجة';
+
+  @override
+  String get reportReasonNudity => 'عُري أو محتوى جنسي';
+
+  @override
+  String get reportReasonViolence => 'عنف';
+
+  @override
+  String get reportReasonHate => 'خطاب كراهية';
+
+  @override
+  String get reportReasonHarassment => 'تحرّش أو تنمّر';
+
+  @override
+  String get reportReasonIllegal => 'محتوى غير قانوني';
+
+  @override
+  String get reportReasonOther => 'سبب آخر';
 }

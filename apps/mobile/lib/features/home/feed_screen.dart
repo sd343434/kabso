@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,7 @@ import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -282,9 +285,10 @@ class _PostsPage extends ConsumerWidget {
     final following = feed == HomeFeed.following;
     final stories = ref.watch(homeStoriesProvider).value;
     final source = homePostsProvider(feed);
+    final content = ref.watch(source);
     return FeedRegion<FeedPostData>(
       key: PageStorageKey('home.posts.${feed.name}'),
-      content: ref.watch(source),
+      content: content,
       copy: FeedRegionCopy(
         unavailableIcon: Icons.dynamic_feed_outlined,
         unavailableTitle: following
@@ -305,12 +309,26 @@ class _PostsPage extends ConsumerWidget {
         emptyActionIcon: Icons.sensors_rounded,
         onEmptyAction: action,
         errorTitle: l10n.homeErrorTitle,
+        loadMoreFailed: l10n.feedPostsLoadMoreFailed,
       ),
       onRefresh: () {
-        ref.invalidate(homeStoriesProvider);
+        ref
+          ..invalidate(homeStoriesProvider)
+          ..invalidate(postsFeedProvider(feed));
         return ref.refresh(source.future);
       },
-      onRetry: () => ref.invalidate(source),
+      onRetry: () => ref
+        ..invalidate(postsFeedProvider(feed))
+        ..invalidate(source),
+      // Only a real paginated source has a next page (fixtures never do).
+      onLoadMore: () {
+        if (content.value case FeedItems(hasMore: true)) {
+          unawaited(ref.read(postsFeedProvider(feed).notifier).loadMore());
+        }
+      },
+      onRetryLoadMore: () =>
+          unawaited(ref.read(postsFeedProvider(feed).notifier).retryLoadMore()),
+      footerLoadingSliver: const SliverToBoxAdapter(child: FeedPostSkeleton()),
       loadingSliver: _postsSkeleton(context),
       itemsSliver: (posts) => SliverMainAxisGroup(
         slivers: [

@@ -1731,5 +1731,116 @@
   "navMessages": "الرسائل",
   "demoDataTitle": "بيانات تجريبية",
   "demoDataBody": "لنسخ التجربة فقط: تعرض الشاشات المصمَّمة ببيانات تجريبية معلَّمة حيث لا توجد خدمة بعد. إيقافها يخرج من الحساب التجريبي.",
-  "demoDataTry": "جرّب ببيانات تجريبية"
+  "demoDataTry": "جرّب ببيانات تجريبية",
+  "feedPostsLoadMoreFailed": "تعذّر تحميل المزيد من المنشورات",
+  "@feedPostsLoadMoreFailed": {
+    "description": "KL-060: footer error of the posts feed."
+  },
+  "feedPostLike": "إعجاب",
+  "@feedPostLike": {
+    "description": "KL-060: like button of a post."
+  },
+  "feedPostUnlike": "إلغاء الإعجاب",
+  "@feedPostUnlike": {
+    "description": "KL-060: like button of a liked post."
+  },
+  "feedPostSave": "حفظ",
+  "@feedPostSave": {
+    "description": "KL-060: save button of a post."
+  },
+  "feedPostUnsave": "إلغاء الحفظ",
+  "@feedPostUnsave": {
+    "description": "KL-060: save button of a saved post."
+  },
+  "feedPostCommentCount": "{count} تعليق",
+  "@feedPostCommentCount": {
+    "description": "KL-060: semantics of a post's comment count.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "feedPostShareCount": "{count} مشاركة",
+  "@feedPostShareCount": {
+    "description": "KL-060: semantics of a post's share count.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "feedPostRepostedBy": "أعاد {name} نشره",
+  "@feedPostRepostedBy": {
+    "description": "KL-060: line above a repost in the Following feed.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "feedPostPending": "قيد المراجعة — يظهر لك وحدك حتى تتم مراجعته",
+  "@feedPostPending": {
+    "description": "KL-060: a post with photos waiting for moderation (author only)."
+  },
+  "feedPostHide": "إخفاء هذا المنشور",
+  "@feedPostHide": {
+    "description": "KL-060: more sheet."
+  },
+  "feedPostHidden": "أُخفي المنشور من خلاصتك",
+  "@feedPostHidden": {
+    "description": "KL-060: after hiding."
+  },
+  "feedPostReport": "الإبلاغ عن المنشور",
+  "@feedPostReport": {
+    "description": "KL-060: more sheet."
+  },
+  "feedPostReportTitle": "لماذا تبلّغ عن هذا المنشور؟",
+  "@feedPostReportTitle": {
+    "description": "KL-060: title of the reason sheet."
+  },
+  "feedPostReported": "شكراً، وصلنا بلاغك",
+  "@feedPostReported": {
+    "description": "KL-060: after a report."
+  },
+  "feedPostDelete": "حذف المنشور",
+  "@feedPostDelete": {
+    "description": "KL-060: more sheet (own post)."
+  },
+  "feedPostDeleteConfirm": "حذف هذا المنشور نهائياً؟",
+  "@feedPostDeleteConfirm": {
+    "description": "KL-060: confirm dialog."
+  },
+  "feedPostDeleted": "حُذف المنشور",
+  "@feedPostDeleted": {
+    "description": "KL-060: after delete."
+  },
+  "reportReasonSpam": "رسائل مزعجة",
+  "@reportReasonSpam": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonNudity": "عُري أو محتوى جنسي",
+  "@reportReasonNudity": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonViolence": "عنف",
+  "@reportReasonViolence": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonHate": "خطاب كراهية",
+  "@reportReasonHate": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonHarassment": "تحرّش أو تنمّر",
+  "@reportReasonHarassment": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonIllegal": "محتوى غير قانوني",
+  "@reportReasonIllegal": {
+    "description": "KL-060 report reason."
+  },
+  "reportReasonOther": "سبب آخر",
+  "@reportReasonOther": {
+    "description": "KL-060 report reason."
+  }
 }

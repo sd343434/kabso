@@ -3205,6 +3205,150 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جرّب ببيانات تجريبية'**
   String get demoDataTry;
+
+  /// KL-060: footer error of the posts feed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المزيد من المنشورات'**
+  String get feedPostsLoadMoreFailed;
+
+  /// KL-060: like button of a post.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعجاب'**
+  String get feedPostLike;
+
+  /// KL-060: like button of a liked post.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الإعجاب'**
+  String get feedPostUnlike;
+
+  /// KL-060: save button of a post.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get feedPostSave;
+
+  /// KL-060: save button of a saved post.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الحفظ'**
+  String get feedPostUnsave;
+
+  /// KL-060: semantics of a post's comment count.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} تعليق'**
+  String feedPostCommentCount(String count);
+
+  /// KL-060: semantics of a post's share count.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} مشاركة'**
+  String feedPostShareCount(String count);
+
+  /// KL-060: line above a repost in the Following feed.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعاد {name} نشره'**
+  String feedPostRepostedBy(String name);
+
+  /// KL-060: a post with photos waiting for moderation (author only).
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد المراجعة — يظهر لك وحدك حتى تتم مراجعته'**
+  String get feedPostPending;
+
+  /// KL-060: more sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء هذا المنشور'**
+  String get feedPostHide;
+
+  /// KL-060: after hiding.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُخفي المنشور من خلاصتك'**
+  String get feedPostHidden;
+
+  /// KL-060: more sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن المنشور'**
+  String get feedPostReport;
+
+  /// KL-060: title of the reason sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا المنشور؟'**
+  String get feedPostReportTitle;
+
+  /// KL-060: after a report.
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، وصلنا بلاغك'**
+  String get feedPostReported;
+
+  /// KL-060: more sheet (own post).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف المنشور'**
+  String get feedPostDelete;
+
+  /// KL-060: confirm dialog.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذا المنشور نهائياً؟'**
+  String get feedPostDeleteConfirm;
+
+  /// KL-060: after delete.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذف المنشور'**
+  String get feedPostDeleted;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل مزعجة'**
+  String get reportReasonSpam;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'عُري أو محتوى جنسي'**
+  String get reportReasonNudity;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنف'**
+  String get reportReasonViolence;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'خطاب كراهية'**
+  String get reportReasonHate;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحرّش أو تنمّر'**
+  String get reportReasonHarassment;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'محتوى غير قانوني'**
+  String get reportReasonIllegal;
+
+  /// KL-060 report reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب آخر'**
+  String get reportReasonOther;
 }
 
 class _AppLocalizationsDelegate

@@ -152,12 +152,32 @@ String _location(WidgetTester tester) =>
 
 void main() {
   group('Home (KL-047, D47 tabs)', () {
+    // KL-060: posts come from the posts API, so with no posts the Posts
+    // mode shows its empty state (with pull-to-refresh: there is a data
+    // source); Reels has no API yet and stays unavailable.
+    testWidgets('posts: no posts yet → empty state with one primary action '
+        'and pull-to-refresh', (tester) async {
+      await _pumpHome(tester);
+      await tester.pumpAndSettle();
+      await _showHomeMode(tester, HomeTab.posts);
+      final state = find.byKey(FeedRegion.emptyKey);
+      expect(
+        find.descendant(of: state, matching: find.text(_en.homeEmptyTitle)),
+        findsOneWidget,
+      );
+      expect(find.byKey(FeedRegion.unavailableKey), findsNothing);
+      final buttons = find.descendant(
+        of: state,
+        matching: find.byType(KButton),
+      );
+      expect(buttons, findsOneWidget);
+      final button = tester.widget<KButton>(buttons);
+      expect(button.label, _en.homeWatchLive);
+      expect(button.onPressed, isNotNull);
+      expect(find.byType(RefreshIndicator), findsOneWidget);
+    });
+
     for (final (tab, title, body) in [
-      (
-        HomeTab.posts,
-        _en.homePopularUnavailableTitle,
-        _en.homePopularUnavailableBody,
-      ),
       (
         HomeTab.reels,
         _en.homeReelsUnavailableTitle,
@@ -999,8 +1019,15 @@ void main() {
               : find.byType(KPrimaryTabs).first,
         );
         expect(header.top, greaterThanOrEqualTo(59));
+        // KL-060: Posts has an API (empty here); the live hub is off.
         final state = tester.getRect(
-          find.byKey(FeedRegion.unavailableKey).first,
+          find
+              .byKey(
+                key == const Key('nav.reels')
+                    ? FeedRegion.emptyKey
+                    : FeedRegion.unavailableKey,
+              )
+              .first,
         );
         expect(state.bottom, lessThanOrEqualTo(nav.top));
         // Home indicator inset under the nav items.

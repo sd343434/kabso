@@ -6,6 +6,7 @@ import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 
 /// The two modes of the Reels shell tab (D52): Posts (default) and Reels,
 /// switched by the header button next to Create.
@@ -27,20 +28,26 @@ enum HomeFeed {
   static const HomeFeed initial = trending;
 }
 
-// There is no posts, stories or reels API yet (posts Phase 3, short video
-// Phase 5) and contracts are frozen for the design sprint (D34/D35), so
-// production returns [FeedUnavailable] for every source — never sample
+// Posts come from the real API (v1.5-social, CONVENTIONS §11.3) through
+// [postsFeedProvider]; there is no stories or reels API yet (stories M3,
+// short video M2), so those return [FeedUnavailable] — never sample
 // content. Tests and the debug previews supply fixtures by overriding these
 // providers; D86: test builds with Demo data on get labelled test data.
 // They are not auto-disposed: switching modes never re-fetches.
 
-/// Posts: the classic feed of photo, video and text posts, per [HomeFeed].
+/// Posts: the feed of photo and text posts, per [HomeFeed], with its
+/// pagination footer state. Load more through [postsFeedProvider].
 final FutureProviderFamily<FeedLoad<FeedPostData>, HomeFeed> homePostsProvider =
-    FutureProvider.family<FeedLoad<FeedPostData>, HomeFeed>(
-      (ref, feed) => watchDemo(ref)
-          ? DemoData.posts(feed, ar: DemoData.arabic(ref))
-          : const FeedUnavailable<FeedPostData>(),
-    );
+    FutureProvider.family<FeedLoad<FeedPostData>, HomeFeed>((ref, feed) async {
+      if (watchDemo(ref)) return DemoData.posts(feed, ar: DemoData.arabic(ref));
+      final page = await ref.watch(postsFeedProvider(feed).future);
+      return FeedItems(
+        [for (final post in page.items) feedPostOf(post)],
+        hasMore: page.hasMore,
+        loadingMore: page.loadingMore,
+        loadMoreError: page.loadMoreError,
+      );
+    });
 
 /// Stories above the posts. The tray is drawn only for non-empty items, so
 /// it is absent in production until a stories API exists.

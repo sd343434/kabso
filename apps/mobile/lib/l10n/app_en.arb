@@ -661,5 +661,29 @@
   "demoDataTry": "Try with demo data",
   "@demoDataTry": {
     "description": "D86 welcome button (test builds only): enter with the demo account."
-  }
+  },
+  "feedPostsLoadMoreFailed": "Couldn't load more posts",
+  "feedPostLike": "Like",
+  "feedPostUnlike": "Unlike",
+  "feedPostSave": "Save",
+  "feedPostUnsave": "Remove from saved",
+  "feedPostCommentCount": "{count} comments",
+  "feedPostShareCount": "{count} shares",
+  "feedPostRepostedBy": "{name} reposted",
+  "feedPostPending": "In review — only you can see it until it's reviewed",
+  "feedPostHide": "Hide this post",
+  "feedPostHidden": "Post hidden from your feed",
+  "feedPostReport": "Report post",
+  "feedPostReportTitle": "Why are you reporting this post?",
+  "feedPostReported": "Thanks, we received your report",
+  "feedPostDelete": "Delete post",
+  "feedPostDeleteConfirm": "Delete this post for good?",
+  "feedPostDeleted": "Post deleted",
+  "reportReasonSpam": "Spam",
+  "reportReasonNudity": "Nudity or sexual content",
+  "reportReasonViolence": "Violence",
+  "reportReasonHate": "Hate speech",
+  "reportReasonHarassment": "Harassment or bullying",
+  "reportReasonIllegal": "Illegal content",
+  "reportReasonOther": "Something else"
 }

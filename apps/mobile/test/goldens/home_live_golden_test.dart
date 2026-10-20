@@ -27,6 +27,7 @@ import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
@@ -35,12 +36,15 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../fixtures/live/live_api_fixtures.dart';
 import '../fixtures/live/live_fixtures.dart';
 import '../helpers/fake_live_repository.dart';
+import '../helpers/fake_posts_repository.dart';
+import '../helpers/fakes.dart';
 import '../helpers/golden.dart';
 
 /// Home is shell branch 0, Live is branch 3.
@@ -67,7 +71,13 @@ Future<void> _pumpShellTab(
     tester,
     ProviderScope(
       retry: (_, _) => null,
-      overrides: overrides,
+      // KL-060: posts read the posts API; here a server with no posts.
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+        // The feeds are scoped to the signed-in user: no platform storage.
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        ...overrides,
+      ],
       child: Builder(
         builder: (context) => Scaffold(
           body: screen,
@@ -132,10 +142,12 @@ void main() {
           );
         });
 
-        testWidgets('reels_tab.unavailable ($vp)', (tester) async {
+        // KL-060: was `reels_tab.unavailable`; posts now have an API, so
+        // with no posts the Posts mode shows its empty state.
+        testWidgets('reels_tab.posts_empty ($vp)', (tester) async {
           await golden(
             tester,
-            'reels_tab.unavailable',
+            'reels_tab.posts_empty',
             screen: const FeedScreen(),
             navIndex: _reelsIndex,
           );

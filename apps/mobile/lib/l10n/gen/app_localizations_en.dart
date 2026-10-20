@@ -1827,4 +1827,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get demoDataTry => 'Try with demo data';
+
+  @override
+  String get feedPostsLoadMoreFailed => 'Couldn\'t load more posts';
+
+  @override
+  String get feedPostLike => 'Like';
+
+  @override
+  String get feedPostUnlike => 'Unlike';
+
+  @override
+  String get feedPostSave => 'Save';
+
+  @override
+  String get feedPostUnsave => 'Remove from saved';
+
+  @override
+  String feedPostCommentCount(String count) {
+    return '$count comments';
+  }
+
+  @override
+  String feedPostShareCount(String count) {
+    return '$count shares';
+  }
+
+  @override
+  String feedPostRepostedBy(String name) {
+    return '$name reposted';
+  }
+
+  @override
+  String get feedPostPending =>
+      'In review — only you can see it until it\'s reviewed';
+
+  @override
+  String get feedPostHide => 'Hide this post';
+
+  @override
+  String get feedPostHidden => 'Post hidden from your feed';
+
+  @override
+  String get feedPostReport => 'Report post';
+
+  @override
+  String get feedPostReportTitle => 'Why are you reporting this post?';
+
+  @override
+  String get feedPostReported => 'Thanks, we received your report';
+
+  @override
+  String get feedPostDelete => 'Delete post';
+
+  @override
+  String get feedPostDeleteConfirm => 'Delete this post for good?';
+
+  @override
+  String get feedPostDeleted => 'Post deleted';
+
+  @override
+  String get reportReasonSpam => 'Spam';
+
+  @override
+  String get reportReasonNudity => 'Nudity or sexual content';
+
+  @override
+  String get reportReasonViolence => 'Violence';
+
+  @override
+  String get reportReasonHate => 'Hate speech';
+
+  @override
+  String get reportReasonHarassment => 'Harassment or bullying';
+
+  @override
+  String get reportReasonIllegal => 'Illegal content';
+
+  @override
+  String get reportReasonOther => 'Something else';
 }

@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -71,8 +72,10 @@ void main() {
   test('off: every source stays honest', () async {
     final c = await _container(demo: false);
     expect(c.read(demoModeProvider), isFalse);
+    // KL-060: posts come from the real posts API (no network here).
+    expect(c.read(postsRepositoryProvider), isA<PostsRepositoryImpl>());
     expect(
-      await c.read(homePostsProvider(HomeFeed.trending).future),
+      await c.read(homeStoriesProvider.future),
       isA<FeedUnavailable<Object?>>(),
     );
     expect(c.read(liveRepositoryProvider), isA<LiveRepositoryImpl>());

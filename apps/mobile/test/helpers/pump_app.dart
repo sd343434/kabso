@@ -8,11 +8,13 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_live_repository.dart';
+import 'fake_posts_repository.dart';
 
 /// Shared preferences with an explicit language.
 Future<SharedPreferences> testPrefs({
@@ -29,12 +31,15 @@ Future<SharedPreferences> testPrefs({
 /// Pumps the whole app (router, theme, l10n) with [overrides].
 ///
 /// Live discovery talks to [liveRepository] (default: hosting switched
-/// off, the production state today), never to the network.
+/// off, the production state today) and the posts feeds to
+/// [postsRepository] (default: the API with no posts yet), never to the
+/// network.
 Future<void> pumpKabsoApp(
   WidgetTester tester, {
   required List<Override> overrides,
   String language = 'en',
   LiveRepository? liveRepository,
+  PostsRepository? postsRepository,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -45,6 +50,9 @@ Future<void> pumpKabsoApp(
         sharedPreferencesProvider.overrideWithValue(preferences),
         liveRepositoryProvider.overrideWithValue(
           liveRepository ?? FakeLiveRepository(hostingEnabled: false),
+        ),
+        postsRepositoryProvider.overrideWithValue(
+          postsRepository ?? FakePostsRepository(),
         ),
         ...overrides,
       ],
@@ -76,12 +84,14 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
 }
 
-/// Pumps a single screen inside a themed, localized [MaterialApp].
+/// Pumps a single screen inside a themed, localized [MaterialApp]. Posts
+/// feeds read [postsRepository] (default: an empty [FakePostsRepository]).
 Future<void> pumpScreen(
   WidgetTester tester,
   Widget screen, {
   List<Override> overrides = const [],
   AppLanguage language = AppLanguage.en,
+  PostsRepository? postsRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -89,6 +99,10 @@ Future<void> pumpScreen(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        // Never the network: the posts API with no posts yet.
+        postsRepositoryProvider.overrideWithValue(
+          postsRepository ?? FakePostsRepository(),
+        ),
         ...overrides,
       ],
       child: MaterialApp(
