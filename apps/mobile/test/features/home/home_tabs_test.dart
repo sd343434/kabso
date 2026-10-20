@@ -897,9 +897,9 @@ void main() {
       final xs = <double>[
         for (final key in const [
           'nav.home',
-          'nav.discover',
-          'nav.create',
           'nav.reels',
+          'nav.create',
+          'nav.messages',
           'nav.profile',
         ])
           tester.getCenter(find.byKey(Key(key))).dx,
@@ -911,7 +911,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('nav.reels')),
-          matching: find.text(_en.navReels),
+          matching: find.text(_en.navPosts),
         ),
         findsOneWidget,
       );

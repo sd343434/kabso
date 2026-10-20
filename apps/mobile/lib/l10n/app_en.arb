@@ -86,7 +86,7 @@
   "navCreate": "Create",
   "navReels": "Reels",
   "navLive": "Live",
-  "navProfile": "Profile",
+  "navProfile": "Me",
   "discoverComingTitle": "Discover is coming",
   "discoverComingBody": "People search arrives in Phase 2; trending lives, videos and creators in Phase 9.",
   "createComingTitle": "Creating is coming",
@@ -641,5 +641,25 @@
   "levelsMax": "Top level reached",
   "levelsLadder": "All levels",
   "levelsCurrent": "You're here",
-  "levelsLoadError": "Couldn't load your levels"
+  "levelsLoadError": "Couldn't load your levels",
+  "navPosts": "Posts",
+  "@navPosts": {
+    "description": "D86 bottom bar: Posts and Reels tab."
+  },
+  "navMessages": "Messages",
+  "@navMessages": {
+    "description": "D86 bottom bar: Messages tab."
+  },
+  "demoDataTitle": "Demo data",
+  "@demoDataTitle": {
+    "description": "D86 settings switch (test builds only)."
+  },
+  "demoDataBody": "Test builds only: show the designed screens with labelled test data where no service exists yet. Turning it off signs the demo account out.",
+  "@demoDataBody": {
+    "description": "D86 settings switch explanation (test builds only)."
+  },
+  "demoDataTry": "Try with demo data",
+  "@demoDataTry": {
+    "description": "D86 welcome button (test builds only): enter with the demo account."
+  }
 }

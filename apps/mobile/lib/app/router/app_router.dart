@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/auth_redirect.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
@@ -17,6 +18,7 @@ import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/debug/discover_preview_screen.dart';
 import 'package:kabso_live/features/debug/feed_preview_screen.dart';
 import 'package:kabso_live/features/debug/live_preview_pk.dart';
@@ -34,6 +36,7 @@ import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
@@ -68,6 +71,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     ..onDispose(introDone.dispose);
 
   final rootNavigatorKey = ref.watch(rootNavigatorKeyProvider);
+  // D86: Demo data (test builds only) is read when a route builds.
+  bool demoOn() => kDemoAvailable && ref.read(demoModeProvider);
+  LivePreviewMode? demoRoom(String id) =>
+      demoOn() ? DemoData.roomMode(id) : null;
+
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: ref.watch(initialLocationProvider),
@@ -103,6 +111,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         builder: (_, _) => const SettingsScreen(),
       ),
+      // D86: Discover and search open above the tabs (search buttons).
+      GoRoute(
+        path: AppRoutes.discover,
+        builder: (_, _) => demoOn()
+            ? const DiscoverPreviewScreen(inApp: true)
+            : const DiscoverScreen(),
+      ),
       GoRoute(path: AppRoutes.levels, builder: (_, _) => const LevelsScreen()),
       GoRoute(
         path: AppRoutes.levelPattern,
@@ -120,10 +135,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.chatPattern,
-        builder: (_, state) => ChatScreen(
-          username: state.pathParameters['username']!,
-          displayName: state.extra is String ? state.extra! as String : null,
-        ),
+        builder: (_, state) {
+          final username = state.pathParameters['username']!;
+          final name = state.extra is String ? state.extra! as String : null;
+          // D86: with Demo data the designed conversation (test data).
+          return demoOn()
+              ? MessagesPreviewScreen(peer: name ?? username)
+              : ChatScreen(username: username, displayName: name);
+        },
       ),
       GoRoute(
         path: AppRoutes.userProfilePattern,
@@ -227,18 +246,25 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: AppRoutes.liveRoomSegment,
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (_, state) =>
-                        LiveRoomScreen(roomId: state.pathParameters['roomId']!),
+                    builder: (_, state) {
+                      final id = state.pathParameters['roomId']!;
+                      // D86: a demo room opens the designed live room.
+                      final demo = demoRoom(id);
+                      return demo == null
+                          ? LiveRoomScreen(roomId: id)
+                          : LivePreviewScreen(mode: demo);
+                    },
                   ),
                 ],
               ),
             ],
           ),
+          // D86: Posts · Reels, the second tab.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.discover,
-                builder: (_, _) => const DiscoverScreen(),
+                path: AppRoutes.reels,
+                builder: (_, _) => const FeedScreen(),
               ),
             ],
           ),
@@ -250,11 +276,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // D86: Messages, the fourth tab.
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: AppRoutes.reels,
-                builder: (_, _) => const FeedScreen(),
+                path: AppRoutes.messages,
+                builder: (_, _) => const MessagesTab(),
               ),
             ],
           ),

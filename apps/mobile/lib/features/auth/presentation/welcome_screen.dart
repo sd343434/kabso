@@ -9,6 +9,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/features/auth/presentation/onboarding.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/kabso_motion.dart';
+import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -247,6 +248,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                                     ),
                                   ),
                                 ),
+                                // D86: test builds only.
+                                const DemoEntryButton(),
                               ],
                             ),
                           ),

@@ -190,7 +190,8 @@ class _ConversationsPreviewScreenState
 
   void _open(ConversationSummary c) {
     final ar = Directionality.of(context) == TextDirection.rtl;
-    Navigator.of(context).push(
+    // Above the tabs when it is the Messages tab (D86).
+    Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) => MessagesPreviewScreen(
           peer: c.peer,

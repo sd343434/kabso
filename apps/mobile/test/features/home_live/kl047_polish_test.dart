@@ -919,21 +919,21 @@ void main() {
   });
 
   group('navigation regression (KL-047)', () {
-    test('routes and branch order (D48)', () {
+    test('routes and branch order (D48, D86)', () {
       expect(AppRoutes.shellBranches, [
         '/home',
-        '/discover',
-        '/create',
         '/reels',
+        '/create',
+        '/messages',
         '/profile',
       ]);
     });
 
     const keys = [
       Key('nav.home'),
-      Key('nav.discover'),
-      Key('nav.create'),
       Key('nav.reels'),
+      Key('nav.create'),
+      Key('nav.messages'),
       Key('nav.profile'),
     ];
 

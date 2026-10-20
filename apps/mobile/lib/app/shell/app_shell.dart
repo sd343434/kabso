@@ -32,19 +32,20 @@ class AppShell extends StatelessWidget {
 }
 
 /// The five shell destinations in navigation order (start → end), matching
-/// `AppRoutes.shellBranches`. Icons: the owner's Kabso set (D56).
+/// `AppRoutes.shellBranches` (D86: Live · Posts · Create · Messages · Me).
+/// Icons: the owner's Kabso set (D56).
 List<KBottomNavItem> shellNavItems(AppLocalizations l10n) => [
   KBottomNavItem(
     key: const Key('nav.home'),
-    icon: KNavIcons.homeOutline,
-    activeIcon: KNavIcons.homeFilled,
-    label: l10n.navHome,
+    icon: KNavIcons.liveOutline,
+    activeIcon: KNavIcons.liveFilled,
+    label: l10n.navLive,
   ),
   KBottomNavItem(
-    key: const Key('nav.discover'),
-    icon: KNavIcons.discoverOutline,
-    activeIcon: KNavIcons.discoverFilled,
-    label: l10n.navDiscover,
+    key: const Key('nav.reels'),
+    icon: KNavIcons.homeOutline,
+    activeIcon: KNavIcons.homeFilled,
+    label: l10n.navPosts,
   ),
   KBottomNavItem(
     key: const Key('nav.create'),
@@ -54,10 +55,10 @@ List<KBottomNavItem> shellNavItems(AppLocalizations l10n) => [
     prominent: true,
   ),
   KBottomNavItem(
-    key: const Key('nav.reels'),
-    icon: KNavIcons.reelsOutline,
-    activeIcon: KNavIcons.reelsFilled,
-    label: l10n.navReels,
+    key: const Key('nav.messages'),
+    icon: KNavIcons.inboxOutline,
+    activeIcon: KNavIcons.inboxFilled,
+    label: l10n.navMessages,
   ),
   KBottomNavItem(
     key: const Key('nav.profile'),
@@ -80,6 +81,10 @@ abstract final class KNavIcons {
   static const String reelsFilled = '$_p/reels_filled.svg';
   static const String profileOutline = '$_p/profile_outline.svg';
   static const String profileFilled = '$_p/profile_filled.svg';
+  static const String liveOutline = '$_p/live_outline.svg';
+  static const String liveFilled = '$_p/live_filled.svg';
+  static const String inboxOutline = '$_p/inbox_outline.svg';
+  static const String inboxFilled = '$_p/inbox_filled.svg';
 
   /// The Create pill, red with its offset shadow (multicolour, untinted).
   static const String create = 'assets/icons/nav/create.svg';

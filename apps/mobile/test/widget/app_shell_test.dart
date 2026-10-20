@@ -21,9 +21,9 @@ import '../helpers/pump_app.dart';
 
 const _navKeys = [
   Key('nav.home'),
-  Key('nav.discover'),
-  Key('nav.create'),
   Key('nav.reels'),
+  Key('nav.create'),
+  Key('nav.messages'),
   Key('nav.profile'),
 ];
 
@@ -60,7 +60,8 @@ void main() {
       expect(find.text(l10n.liveHubPopularUnavailableTitle), findsOneWidget);
 
       final expected = {
-        const Key('nav.discover'): l10n.discoverComingTitle,
+        // D86: Messages has no API yet; Discover left the bar.
+        const Key('nav.messages'): l10n.conversationsUnavailableTitle,
         const Key('nav.create'): l10n.createComingTitle,
         const Key('nav.reels'): l10n.homePopularUnavailableTitle,
         const Key('nav.home'): l10n.liveHubPopularUnavailableTitle,

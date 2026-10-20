@@ -140,9 +140,9 @@ void main() {
           await signedIn(tester);
           expect(tester.takeException(), isNull, reason: 'home');
           for (final key in const [
-            Key('nav.discover'),
-            Key('nav.create'),
             Key('nav.reels'),
+            Key('nav.create'),
+            Key('nav.messages'),
             Key('nav.profile'),
           ]) {
             await tester.tap(find.byKey(key));

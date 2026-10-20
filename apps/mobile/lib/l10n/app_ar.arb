@@ -176,8 +176,8 @@
   "@navReels": {
     "description": "D48: fourth bottom tab, For you · Posts · Reels."
   },
-  "navLive": "مباشر",
-  "navProfile": "حسابي",
+  "navLive": "البث",
+  "navProfile": "أنا",
   "discoverComingTitle": "الاستكشاف قادم",
   "discoverComingBody": "يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.",
   "createComingTitle": "الإنشاء قادم",
@@ -1726,5 +1726,10 @@
   "levelsLoadError": "تعذّر تحميل المستويات",
   "@levelsLoadError": {
     "description": "D72: levels (CP-005)."
-  }
+  },
+  "navPosts": "المنشورات",
+  "navMessages": "الرسائل",
+  "demoDataTitle": "بيانات تجريبية",
+  "demoDataBody": "لنسخ التجربة فقط: تعرض الشاشات المصمَّمة ببيانات تجريبية معلَّمة حيث لا توجد خدمة بعد. إيقافها يخرج من الحساب التجريبي.",
+  "demoDataTry": "جرّب ببيانات تجريبية"
 }

@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 
 /// Global authentication state. Drives the router's redirect guard.
 sealed class AuthState {
@@ -65,6 +68,12 @@ class SessionController extends Notifier<AuthState> {
   /// splash error state).
   Future<void> restore() async {
     state = const AuthRestoring();
+    // D86: with Demo data on (test builds) the demo account is signed in,
+    // without a server or a stored token.
+    if (kDemoAvailable && ref.read(demoModeProvider)) {
+      state = Authenticated(_demoUser());
+      return;
+    }
     try {
       final user = await ref.read(authRepositoryProvider).restoreSession();
       if (!ref.mounted) return;
@@ -108,7 +117,36 @@ class SessionController extends Notifier<AuthState> {
     }
   }
 
+  User _demoUser() =>
+      DemoData.user(ar: ref.read(languageControllerProvider) == AppLanguage.ar);
+
+  /// D86: "Try with demo data" (test builds): Demo data on, signed in as
+  /// the demo account.
+  Future<void> enterDemo() async {
+    if (!kDemoAvailable) return;
+    await ref.read(demoModeProvider.notifier).set(enabled: true);
+    if (!ref.mounted) return;
+    state = Authenticated(_demoUser());
+  }
+
+  /// D86: Demo data off. The demo account signs out; a real session stays.
+  Future<void> exitDemo() async {
+    await ref.read(demoModeProvider.notifier).set(enabled: false);
+    if (!ref.mounted) return;
+    final current = state;
+    if (current is Authenticated && current.user.id == _demoUser().id) {
+      state = const Unauthenticated();
+    }
+  }
+
   Future<void> logout() async {
+    final current = state;
+    if (kDemoAvailable &&
+        current is Authenticated &&
+        current.user.id == _demoUser().id) {
+      await exitDemo();
+      return;
+    }
     await ref.read(authRepositoryProvider).logout();
     if (!ref.mounted) return;
     state = const Unauthenticated();

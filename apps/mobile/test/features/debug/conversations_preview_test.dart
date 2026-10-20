@@ -215,6 +215,17 @@ void main() {
       'lib/app/router/app_router.dart',
       'lib/features/debug/conversations_preview_screen.dart',
       'lib/features/debug/previews_hub_screen.dart',
+      // D86: the Messages tab, only behind Demo data (never in release).
+      'lib/features/messages/messages_tab.dart',
     });
+    final tab = File('lib/features/messages/messages_tab.dart')
+        .readAsStringSync();
+    expect(
+      tab,
+      contains(
+        'if (kDemoAvailable && ref.watch(demoModeProvider)) {\n'
+        '      return const ConversationsPreviewScreen();',
+      ),
+    );
   });
 }

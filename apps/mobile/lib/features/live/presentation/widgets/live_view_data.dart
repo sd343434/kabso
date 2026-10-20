@@ -1,3 +1,4 @@
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:material_ui/material_ui.dart';
@@ -35,15 +36,19 @@ class LiveRoomCardData {
       hostName: room.host.displayName,
       title: room.title,
       viewerCount: room.viewerCount,
-      cover: cover == null || cover.isEmpty ? null : NetworkImage(cover),
-      hostAvatar: avatar == null || avatar.isEmpty
-          ? null
-          : NetworkImage(avatar),
+      cover: cover == null || cover.isEmpty ? null : _image(cover),
+      hostAvatar: avatar == null || avatar.isEmpty ? null : _image(avatar),
       inPk: room.mode == LiveRoomMode.pk,
       categoryName: room.category?.name,
       roomId: room.id,
     );
   }
+
+  /// D86: demo rooms (test builds only) carry `asset:` covers.
+  static ImageProvider _image(String url) =>
+      kDemoAvailable && url.startsWith('asset:')
+      ? AssetImage(url.substring('asset:'.length))
+      : NetworkImage(url);
 
   /// The API room id; `null` for gallery samples and fixtures, which then
   /// open nothing.

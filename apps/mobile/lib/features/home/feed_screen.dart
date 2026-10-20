@@ -229,7 +229,7 @@ class _FeedHeader extends StatelessWidget {
                   width: KSizes.minTouchTarget,
                   height: KSizes.minTouchTarget,
                 ),
-                onPressed: () => context.go(AppRoutes.discover),
+                onPressed: () => context.push(AppRoutes.discover),
                 icon: AppIcon(
                   AppIcons.search,
                   size: KMetrics.iconMd,

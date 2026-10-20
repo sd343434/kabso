@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -11,6 +12,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
 import 'package:kabso_live/features/auth/presentation/registration_flow.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 
 /// Submission state of an auth form: idle, submitting, or failed.
 sealed class FormSubmission {
@@ -205,6 +207,8 @@ final UsernameAvailabilityProvider usernameAvailabilityProvider =
 
 /// Fresh `GET /me` for the profile tab; also refreshes the session's user.
 final FutureProvider<User> meProvider = FutureProvider.autoDispose((ref) async {
+  // D86: the demo account has no server.
+  if (watchDemo(ref)) return DemoData.user(ar: DemoData.arabic(ref));
   final user = await ref.watch(authRepositoryProvider).getMe();
   ref.read(sessionControllerProvider.notifier).updateUser(user);
   return user;

@@ -289,9 +289,9 @@ void main() {
       await tester.pumpAndSettle();
       for (final key in const [
         Key('nav.home'),
-        Key('nav.discover'),
-        Key('nav.create'),
         Key('nav.reels'),
+        Key('nav.create'),
+        Key('nav.messages'),
         Key('nav.profile'),
       ]) {
         final size = tester.getSize(find.byKey(key));

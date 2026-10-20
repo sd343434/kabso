@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:material_ui/material_ui.dart';
@@ -39,5 +41,7 @@ typedef ProfileGridKey = ({String username, ProfileTab tab});
 /// A user's posts, reels or saved grid.
 final FutureProviderFamily<FeedLoad<ProfileGridItem>, ProfileGridKey>
 profileGridProvider = FutureProvider.family(
-  (ref, key) => const FeedUnavailable<ProfileGridItem>(),
+  (ref, key) => watchDemo(ref)
+      ? DemoData.grid(key)
+      : const FeedUnavailable<ProfileGridItem>(),
 );

@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 
 /// Live discovery (docs/contracts/openapi.yaml v1.3, tag `live`).
@@ -81,6 +83,9 @@ class LiveRepositoryImpl implements LiveRepository {
   });
 }
 
+/// D86: test builds with Demo data on get the demo hub (no server).
 final liveRepositoryProvider = Provider<LiveRepository>(
-  (ref) => LiveRepositoryImpl(ref.watch(apiDioProvider)),
+  (ref) => watchDemo(ref)
+      ? DemoLiveRepository(ar: DemoData.arabic(ref))
+      : LiveRepositoryImpl(ref.watch(apiDioProvider)),
 );

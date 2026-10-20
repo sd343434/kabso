@@ -59,7 +59,7 @@ class FeedTabsScaffold extends StatefulWidget {
   /// Home's "Watch live streams" opening the Live hub on Following).
   final FeedTabRequest? requestedTab;
 
-  /// Defaults to `context.go(AppRoutes.discover)`.
+  /// Defaults to `context.push(AppRoutes.discover)`.
   final VoidCallback? onSearch;
 
   /// Tapping the tab that is already selected (e.g. the Live hub re-fetches,
@@ -154,7 +154,7 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
                 height: KSizes.minTouchTarget,
               ),
               onPressed:
-                  widget.onSearch ?? () => context.go(AppRoutes.discover),
+                  widget.onSearch ?? () => context.push(AppRoutes.discover),
               icon: const Icon(Icons.search_rounded),
             ),
             const SizedBox(width: KSpacing.xs),

@@ -15,6 +15,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -118,6 +119,8 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => _confirmLogout(context, ref),
           ),
+          // D86: Demo data (test builds only; nothing in release).
+          const DemoDataTile(),
           // KL-022: developer entry to the component gallery (never in
           // release builds).
           if (!kReleaseMode)

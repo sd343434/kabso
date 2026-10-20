@@ -19,7 +19,7 @@ abstract final class AppRoutes {
   static const discover = '/discover';
   static const create = '/create';
 
-  /// For you · Posts · Reels (D47/D48), the fourth shell tab.
+  /// Posts · Reels (D47/D48/D52), the second shell tab (D86).
   static const reels = '/reels';
 
   /// KL-034: a live room, nested under the Home (live hub) branch but shown
@@ -37,6 +37,9 @@ abstract final class AppRoutes {
   /// The public profile of [username].
   static String userProfile(String username) =>
       '/users/${Uri.encodeComponent(username)}';
+
+  /// D86: the Messages tab (the conversation list).
+  static const messages = '/messages';
 
   /// D61: a private conversation with a user (not connected yet).
   static const chatPattern = '/messages/:username';
@@ -120,12 +123,13 @@ abstract final class AppRoutes {
     forgotPassword,
   };
 
-  /// Shell branches, in navigation order (start → end).
+  /// Shell branches, in navigation order (start → end). D86 (owner): Live ·
+  /// Posts · Create · Messages · Me; Discover opens from the search buttons.
   static const List<String> shellBranches = [
     home,
-    discover,
-    create,
     reels,
+    create,
+    messages,
     profile,
   ];
 }

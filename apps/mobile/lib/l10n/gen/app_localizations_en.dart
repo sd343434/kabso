@@ -301,7 +301,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navLive => 'Live';
 
   @override
-  String get navProfile => 'Profile';
+  String get navProfile => 'Me';
 
   @override
   String get discoverComingTitle => 'Discover is coming';
@@ -1811,4 +1811,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get levelsLoadError => 'Couldn\'t load your levels';
+
+  @override
+  String get navPosts => 'Posts';
+
+  @override
+  String get navMessages => 'Messages';
+
+  @override
+  String get demoDataTitle => 'Demo data';
+
+  @override
+  String get demoDataBody =>
+      'Test builds only: show the designed screens with labelled test data where no service exists yet. Turning it off signs the demo account out.';
+
+  @override
+  String get demoDataTry => 'Try with demo data';
 }

@@ -14,6 +14,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/kabso_motion.dart';
+import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -475,6 +476,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                 ),
               ),
+              // D86: test builds only.
+              Center(child: DemoEntryButton(color: lp.muted)),
               SizedBox(height: 20 + MediaQuery.paddingOf(context).bottom),
             ],
           ),

@@ -62,9 +62,17 @@ enum DiscoverPreviewState { loading, unavailable, populated }
 /// and trending hashtag rows with video covers. Search filters the test
 /// hashtags on the device; a cover opens the feed preview.
 class DiscoverPreviewScreen extends StatefulWidget {
-  const new({super.key, this.initialState = DiscoverPreviewState.populated});
+  const new({
+    super.key,
+    this.initialState = DiscoverPreviewState.populated,
+    this.inApp = false,
+  });
 
   final DiscoverPreviewState initialState;
+
+  /// D86: shown as the app's Discover (Demo data): a back button, no state
+  /// switcher, and a test-data label.
+  final bool inApp;
 
   static const testDataKey = Key('discover-preview-test-data');
   static const searchKey = Key('discover-preview-search');
@@ -102,13 +110,31 @@ class _DiscoverPreviewScreenState extends State<DiscoverPreviewScreen> {
         bottom: false,
         child: Column(
           children: [
-            PreviewStateBar<DiscoverPreviewState>(
-              testDataKey: DiscoverPreviewScreen.testDataKey,
-              values: DiscoverPreviewState.values,
-              value: _state,
-              label: (s) => _stateLabel(context.l10n, s),
-              onChanged: (s) => setState(() => _state = s),
-            ),
+            if (widget.inApp)
+              Row(
+                children: [
+                  const BackButton(),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
+                    child: Text(
+                      context.l10n.feedPreviewTestData,
+                      key: DiscoverPreviewScreen.testDataKey,
+                      style: context.textStyles.caption.copyWith(
+                        color: p.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              PreviewStateBar<DiscoverPreviewState>(
+                testDataKey: DiscoverPreviewScreen.testDataKey,
+                values: DiscoverPreviewState.values,
+                value: _state,
+                label: (s) => _stateLabel(context.l10n, s),
+                onChanged: (s) => setState(() => _state = s),
+              ),
             _SearchBar(
               controller: _search,
               onChanged: (q) => setState(() => _query = q.trim()),

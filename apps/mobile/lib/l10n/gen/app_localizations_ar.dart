@@ -312,10 +312,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get navReels => 'ريلز';
 
   @override
-  String get navLive => 'مباشر';
+  String get navLive => 'البث';
 
   @override
-  String get navProfile => 'حسابي';
+  String get navProfile => 'أنا';
 
   @override
   String get discoverComingTitle => 'الاستكشاف قادم';
@@ -1841,4 +1841,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get levelsLoadError => 'تعذّر تحميل المستويات';
+
+  @override
+  String get navPosts => 'المنشورات';
+
+  @override
+  String get navMessages => 'الرسائل';
+
+  @override
+  String get demoDataTitle => 'بيانات تجريبية';
+
+  @override
+  String get demoDataBody =>
+      'لنسخ التجربة فقط: تعرض الشاشات المصمَّمة ببيانات تجريبية معلَّمة حيث لا توجد خدمة بعد. إيقافها يخرج من الحساب التجريبي.';
+
+  @override
+  String get demoDataTry => 'جرّب ببيانات تجريبية';
 }

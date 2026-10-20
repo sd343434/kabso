@@ -292,8 +292,9 @@ void main() {
       const p = KPalette.dark;
       Color labelColor(String label) =>
           tester.widget<Text>(find.text(label)).style!.color!;
-      expect(labelColor('Home'), p.textPrimary);
-      for (final label in ['Discover', 'Reels', 'Profile']) {
+      // D86: Live · Posts · Create · Messages · Me.
+      expect(labelColor('Live'), p.textPrimary);
+      for (final label in ['Posts', 'Messages', 'Me']) {
         expect(labelColor(label), p.textSecondary);
       }
       final icons = {
@@ -304,10 +305,10 @@ void main() {
               (svg.bytesLoader as SvgAssetLoader).theme?.currentColor,
       };
       expect(icons, {
-        KNavIcons.homeFilled: p.textPrimary,
-        KNavIcons.discoverOutline: p.textSecondary,
+        KNavIcons.liveFilled: p.textPrimary,
+        KNavIcons.homeOutline: p.textSecondary,
         KNavIcons.create: null,
-        KNavIcons.reelsOutline: p.textSecondary,
+        KNavIcons.inboxOutline: p.textSecondary,
         KNavIcons.profileOutline: p.textSecondary,
       });
       expect(find.byType(AnimatedOpacity), findsNothing);

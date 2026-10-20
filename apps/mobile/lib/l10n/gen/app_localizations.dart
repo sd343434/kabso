@@ -611,13 +611,13 @@ abstract class AppLocalizations {
   /// No description provided for @navLive.
   ///
   /// In ar, this message translates to:
-  /// **'مباشر'**
+  /// **'البث'**
   String get navLive;
 
   /// No description provided for @navProfile.
   ///
   /// In ar, this message translates to:
-  /// **'حسابي'**
+  /// **'أنا'**
   String get navProfile;
 
   /// No description provided for @discoverComingTitle.
@@ -3175,6 +3175,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر تحميل المستويات'**
   String get levelsLoadError;
+
+  /// No description provided for @navPosts.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get navPosts;
+
+  /// No description provided for @navMessages.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل'**
+  String get navMessages;
+
+  /// No description provided for @demoDataTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات تجريبية'**
+  String get demoDataTitle;
+
+  /// No description provided for @demoDataBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'لنسخ التجربة فقط: تعرض الشاشات المصمَّمة ببيانات تجريبية معلَّمة حيث لا توجد خدمة بعد. إيقافها يخرج من الحساب التجريبي.'**
+  String get demoDataBody;
+
+  /// No description provided for @demoDataTry.
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب ببيانات تجريبية'**
+  String get demoDataTry;
 }
 
 class _AppLocalizationsDelegate
