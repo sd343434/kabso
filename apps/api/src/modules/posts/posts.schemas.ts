@@ -116,3 +116,44 @@ export const createCommentSchema = z.strictObject({
   parentId: z.uuid().optional(),
 });
 export type CreateCommentInput = z.output<typeof createCommentSchema>;
+
+export const hashtagPostsQuerySchema = z.strictObject({
+  sort: z
+    .string()
+    .pipe(z.enum(['top', 'recent']))
+    .optional()
+    .transform((v) => v ?? 'recent'),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type HashtagPostsQuery = z.output<typeof hashtagPostsQuerySchema>;
+
+/** `q`: 1–64 code points after NFC and trim; one leading `@` or `#` is ignored; no controls. */
+const searchTextSchema = z
+  .string()
+  .max(256)
+  .transform((raw, ctx) => {
+    const value = raw.normalize('NFC').trim().replace(/^[@#]/, '').trim();
+    const length = [...value].length;
+    const issue =
+      length === 0
+        ? 'too_short'
+        : length > 64
+          ? 'too_long'
+          : /[\p{Cc}\p{Cf}]/u.test(value)
+            ? 'invalid_format'
+            : null;
+    if (issue) {
+      ctx.addIssue({ code: 'custom', message: issue, params: { issue } });
+      return z.NEVER;
+    }
+    return value;
+  });
+
+export const searchQuerySchema = z.strictObject({
+  q: searchTextSchema,
+  type: z.string().pipe(z.enum(['users', 'hashtags', 'posts'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type SearchQuery = z.output<typeof searchQuerySchema>;

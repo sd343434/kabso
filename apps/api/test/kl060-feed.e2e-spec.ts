@@ -298,9 +298,9 @@ describe('KL-060 feeds and interactions', () => {
       expect(foreign.status).toBe(400);
       expect(foreign.body.error.details).toEqual([{ field: 'cursor', issue: 'invalid_value' }]);
       // An expired snapshot is 400 too.
-      const keys = await ctx.app.get<Redis>(REDIS).keys('*social:trending:*');
+      const keys = await ctx.app.get<Redis>(REDIS).keys('*social:ranked:*');
       await Promise.all(
-        keys.map((k) => ctx.app.get<Redis>(REDIS).del(k.replace(/^.*?(social:trending:)/, '$1'))),
+        keys.map((k) => ctx.app.get<Redis>(REDIS).del(k.replace(/^.*?(social:ranked:)/, '$1'))),
       );
       const expired = await ctx.http
         .get(`/api/v1/feed/posts?tab=trending&limit=1&cursor=${firstPage.body.page.nextCursor}`)

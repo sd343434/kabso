@@ -8,6 +8,7 @@ import { REDIS } from '../../redis/redis.module.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import {
   PostViews,
+  visiblePostSql,
   userSummary,
   USER_SUMMARY_SELECT,
   visiblePostWhere,
@@ -45,22 +46,6 @@ export function spreadAuthors<T extends { authorId: string }>(ranked: readonly T
     out.push(waiting.splice(index, 1)[0]!);
   }
   return out;
-}
-
-/** SQL: post `p` (author `a`, settings `s`) is visible to `viewer` in feeds (§11.2, §11.7). */
-function feedVisibleSql(viewer: string): Prisma.Sql {
-  return Prisma.sql`
-    p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL
-    AND (p.moderation = 'VISIBLE'::post_moderation
-         OR (p.author_id = ${viewer}::uuid AND p.moderation <> 'REMOVED'::post_moderation))
-    AND a.status = 'ACTIVE'::user_status
-    AND NOT EXISTS (SELECT 1 FROM user_blocks b
-                     WHERE (b.blocker_id = a.id AND b.blocked_id = ${viewer}::uuid)
-                        OR (b.blocker_id = ${viewer}::uuid AND b.blocked_id = a.id))
-    AND (p.author_id = ${viewer}::uuid OR COALESCE(s.is_private, false) = false
-         OR EXISTS (SELECT 1 FROM follows f2 WHERE f2.follower_id = ${viewer}::uuid AND f2.followee_id = a.id))
-    AND NOT EXISTS (SELECT 1 FROM user_mutes m WHERE m.muter_id = ${viewer}::uuid AND m.muted_id = a.id)
-    AND NOT EXISTS (SELECT 1 FROM post_hides h WHERE h.user_id = ${viewer}::uuid AND h.post_id = p.id)`;
 }
 
 /** Feeds and the post lists of interactions: Following, Trending, saved, a user's reposts. */
@@ -107,7 +92,7 @@ export class FeedService {
         JOIN posts p ON p.id = n.post_id
         JOIN users a ON a.id = p.author_id
         LEFT JOIN user_settings s ON s.user_id = a.id
-       WHERE ${feedVisibleSql(viewerId)}
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
          ${after ? Prisma.sql`AND (n.at, n.post_id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
        ORDER BY n.at DESC, n.post_id DESC
        LIMIT ${query.limit + 1}`;
@@ -135,13 +120,24 @@ export class FeedService {
     };
   }
 
+  /** Trending: a ranked snapshot (see {@link rankedPage}) of {@link rankTrending}. */
+  private trending(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
+    return this.rankedPage(viewerId, 'trending', query, () => this.rankTrending(viewerId));
+  }
+
   /**
-   * Trending: the first page ranks and freezes up to 500 ids for 10 minutes (in Redis, per
-   * caller); later pages read that snapshot by offset, so they never repeat or skip. Posts that
-   * stopped being visible since are left out of the page.
+   * A ranked list paged from a snapshot: the first page ranks and freezes up to 500 ids for
+   * 10 minutes (in Redis, per caller and list); later pages read that snapshot by offset, so they
+   * never repeat or skip. Posts that stopped being visible since are left out of the page. An
+   * expired, foreign or other-list cursor → 400 `cursor` / `invalid_value`.
    */
-  private async trending(viewerId: string, query: FeedQuery): Promise<PageDto<PostDto>> {
-    const scope = `feed-trending:${viewerId}`;
+  async rankedPage(
+    viewerId: string,
+    list: string,
+    query: PageQuery,
+    rank: () => Promise<string[]>,
+  ): Promise<PageDto<PostDto>> {
+    const scope = `ranked:${list}:${viewerId}`;
     const after = this.posts.decode(query.cursor, scope);
     let snapshotId: string;
     let createdAt: Date;
@@ -156,7 +152,7 @@ export class FeedService {
     } else {
       snapshotId = randomUUID();
       createdAt = new Date();
-      ids = await this.rankTrending(viewerId);
+      ids = await rank();
       await this.redis.set(
         this.snapshotKey(viewerId, snapshotId),
         JSON.stringify(ids),
@@ -190,7 +186,7 @@ export class FeedService {
   }
 
   private snapshotKey(viewerId: string, snapshotId: string): string {
-    return `social:trending:${viewerId}:${snapshotId}`;
+    return `social:ranked:${viewerId}:${snapshotId}`;
   }
 
   /** Ranked ids of visible public posts of the last 7 days, not the caller's, spread by author. */
@@ -201,7 +197,7 @@ export class FeedService {
         FROM posts p
         JOIN users a ON a.id = p.author_id
         LEFT JOIN user_settings s ON s.user_id = a.id
-       WHERE ${feedVisibleSql(viewerId)}
+       WHERE ${visiblePostSql(viewerId, { excludeMuted: true, excludeHidden: true })}
          AND p.moderation = 'VISIBLE'::post_moderation
          AND COALESCE(s.is_private, false) = false
          AND p.author_id <> ${viewerId}::uuid

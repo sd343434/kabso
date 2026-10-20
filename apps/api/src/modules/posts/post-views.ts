@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
@@ -91,6 +91,37 @@ export function visiblePostWhere(viewerId: string): Prisma.PostWhereInput {
       },
     ],
   };
+}
+
+/**
+ * The same rule as {@link visiblePostWhere} in SQL, for post `p` joined with its author `a` and
+ * the author's settings `s` (LEFT JOIN user_settings). Feeds also leave out muted authors and
+ * hidden posts; hashtag pages leave out hidden posts (CONVENTIONS §11.7).
+ */
+export function visiblePostSql(
+  viewer: string,
+  options: { excludeMuted: boolean; excludeHidden: boolean },
+): Prisma.Sql {
+  return Prisma.sql`
+    p.status = 'PUBLISHED'::post_status AND p.deleted_at IS NULL
+    AND (p.moderation = 'VISIBLE'::post_moderation
+         OR (p.author_id = ${viewer}::uuid AND p.moderation <> 'REMOVED'::post_moderation))
+    AND a.status = 'ACTIVE'::user_status
+    AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                     WHERE (b.blocker_id = a.id AND b.blocked_id = ${viewer}::uuid)
+                        OR (b.blocker_id = ${viewer}::uuid AND b.blocked_id = a.id))
+    AND (p.author_id = ${viewer}::uuid OR COALESCE(s.is_private, false) = false
+         OR EXISTS (SELECT 1 FROM follows f2 WHERE f2.follower_id = ${viewer}::uuid AND f2.followee_id = a.id))
+    ${
+      options.excludeMuted
+        ? Prisma.sql`AND NOT EXISTS (SELECT 1 FROM user_mutes m WHERE m.muter_id = ${viewer}::uuid AND m.muted_id = a.id)`
+        : Prisma.empty
+    }
+    ${
+      options.excludeHidden
+        ? Prisma.sql`AND NOT EXISTS (SELECT 1 FROM post_hides h WHERE h.user_id = ${viewer}::uuid AND h.post_id = p.id)`
+        : Prisma.empty
+    }`;
 }
 
 function include(viewerId: string) {
