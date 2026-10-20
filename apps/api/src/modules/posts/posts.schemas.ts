@@ -103,3 +103,16 @@ export const feedQuerySchema = z.strictObject({
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
 export type FeedQuery = z.output<typeof feedQuerySchema>;
+
+export const COMMENT_TEXT_LIMITS: ContentTextLimits = {
+  maxCodePoints: 500,
+  maxLineBreaks: 5,
+  allowEmpty: false,
+};
+
+/** `CreateCommentRequest`. */
+export const createCommentSchema = z.strictObject({
+  text: contentText(COMMENT_TEXT_LIMITS, 2000),
+  parentId: z.uuid().optional(),
+});
+export type CreateCommentInput = z.output<typeof createCommentSchema>;
