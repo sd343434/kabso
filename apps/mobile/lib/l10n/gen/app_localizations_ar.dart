@@ -325,13 +325,6 @@ class AppLocalizationsAr extends AppLocalizations {
       'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.';
 
   @override
-  String get createComingTitle => 'الإنشاء قادم';
-
-  @override
-  String get createComingBody =>
-      'تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.';
-
-  @override
   String profileUsername(String username) {
     return '‎@$username‎';
   }
@@ -1935,4 +1928,81 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get reportReasonOther => 'سبب آخر';
+
+  @override
+  String get errorMediaUploadsUnavailable => 'رفع الصور غير متاح حالياً.';
+
+  @override
+  String get errorMediaInvalid => 'تعذّرت قراءة الصورة. جرّب صورة أخرى.';
+
+  @override
+  String get errorPinLimitReached => 'يمكنك تثبيت 3 منشورات فقط.';
+
+  @override
+  String get errorReportAlreadyResolved => 'تمت معالجة هذا البلاغ من قبل.';
+
+  @override
+  String get createTitle => 'منشور جديد';
+
+  @override
+  String get createShare => 'نشر';
+
+  @override
+  String get createTextHint => 'بماذا تفكّر؟ استخدم #وسم و@إشارة';
+
+  @override
+  String get createLocationHint => 'أضف موقعاً (اختياري)';
+
+  @override
+  String get createAddPhotos => 'إضافة صور';
+
+  @override
+  String get createRemovePhoto => 'إزالة الصورة';
+
+  @override
+  String createPhotoLabel(int index, int total) {
+    return 'صورة $index من $total';
+  }
+
+  @override
+  String createUploading(int current, int total) {
+    return 'جارٍ رفع الصور ($current من $total)…';
+  }
+
+  @override
+  String get createPublishing => 'جارٍ النشر…';
+
+  @override
+  String get createPosted => 'تم نشر منشورك';
+
+  @override
+  String get createPostedInReview => 'تم النشر. سيظهر للآخرين بعد مراجعة الصور';
+
+  @override
+  String get createPhotosReviewNote =>
+      'المنشورات التي فيها صور تظهر للآخرين بعد مراجعتها.';
+
+  @override
+  String get createPhotoUnsupported =>
+      'صيغة هذه الصورة غير مدعومة. استخدم JPEG أو PNG أو WebP.';
+
+  @override
+  String get createPhotoTooLarge => 'الصورة أكبر من 15 ميغابايت.';
+
+  @override
+  String createPhotoTooMany(int max) {
+    return 'يمكنك إضافة $max صور كحدّ أقصى.';
+  }
+
+  @override
+  String get createPhotoAccessDenied =>
+      'لا يمكن الوصول إلى الصور. اسمح بالوصول من الإعدادات.';
+
+  @override
+  String get createUploadsUnavailable =>
+      'رفع الصور غير متاح حالياً. أزل الصور لتنشر نصاً فقط، أو حاول لاحقاً.';
+
+  @override
+  String get createPhotoInvalid =>
+      'تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.';
 }

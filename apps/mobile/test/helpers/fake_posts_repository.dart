@@ -90,6 +90,34 @@ class FakePostsRepository implements PostsRepository {
 
   @override
   Future<void> deletePost(String postId) => _step('delete:$postId');
+
+  /// Bodies of `createPost` calls, with their keys.
+  final List<
+    ({String key, String? text, List<String> mediaIds, String? location})
+  >
+  created = [];
+
+  @override
+  Future<Post> createPost({
+    required String idempotencyKey,
+    String? text,
+    List<String> mediaIds = const [],
+    String? location,
+  }) async {
+    await _step('create:$idempotencyKey');
+    created.add((
+      key: idempotencyKey,
+      text: text,
+      mediaIds: mediaIds,
+      location: location,
+    ));
+    return testPost(
+      'new-${created.length}',
+      text: text ?? '',
+      isSelf: true,
+      pending: mediaIds.isNotEmpty,
+    );
+  }
 }
 
 /// A published post of [username] (fixture).
@@ -135,3 +163,42 @@ Post testPost(
   hideLikeCount: hideLikeCount,
   pendingModeration: pending,
 );
+
+/// A contract-shaped `Post` body (tests only).
+Map<String, Object?> postJson(String id, {String text = 'Hello'}) => {
+  'id': id,
+  'format': 'POST',
+  'author': {
+    'id': 'u1',
+    'username': 'sara',
+    'displayName': 'Sara',
+    'avatarUrl': null,
+  },
+  'text': text,
+  'media': <Object?>[],
+  'location': null,
+  'hashtags': <Object?>[],
+  'mentions': <Object?>[],
+  'status': 'PUBLISHED',
+  'createdAt': '2026-10-20T09:00:00.000Z',
+  'publishAt': null,
+  'publishedAt': '2026-10-20T09:00:00.000Z',
+  'editedAt': null,
+  'pinned': false,
+  'likeCount': 0,
+  'commentCount': 0,
+  'shareCount': 0,
+  'repostCount': 0,
+  'viewCount': 0,
+  'viewerHasLiked': false,
+  'viewerHasSaved': false,
+  'viewerHasReposted': false,
+  'isSelf': true,
+  'settings': {
+    'commentsEnabled': true,
+    'whoCanComment': 'EVERYONE',
+    'hideLikeCount': false,
+  },
+  'moderation': 'VISIBLE',
+  'repostedBy': null,
+};

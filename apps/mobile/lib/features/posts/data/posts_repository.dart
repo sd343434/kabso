@@ -36,6 +36,16 @@ abstract interface class PostsRepository {
 
   /// `DELETE /posts/{postId}` (author only).
   Future<void> deletePost(String postId);
+
+  /// `POST /posts` with [idempotencyKey] (a UUID kept for every retry of
+  /// the same draft, CONVENTIONS §11.2): a text post, or photos [mediaIds]
+  /// with an optional caption.
+  Future<Post> createPost({
+    required String idempotencyKey,
+    String? text,
+    List<String> mediaIds = const [],
+    String? location,
+  });
 }
 
 PageOf<Post> _postPage(Map<String, dynamic> json) => PageOf([
@@ -116,6 +126,25 @@ class PostsRepositoryImpl implements PostsRepository {
   @override
   Future<void> deletePost(String postId) => guardApiCall(() async {
     await _dio.delete<void>('/posts/${pathSegment(postId)}');
+  });
+
+  @override
+  Future<Post> createPost({
+    required String idempotencyKey,
+    String? text,
+    List<String> mediaIds = const [],
+    String? location,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/posts',
+      data: {
+        if (text != null && text.isNotEmpty) 'text': text,
+        if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,
+        if (location != null && location.isNotEmpty) 'location': location,
+      },
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+    );
+    return Post.fromJson(res.data!);
   });
 }
 

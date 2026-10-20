@@ -885,6 +885,7 @@ class _ActionsState extends ConsumerState<_Actions> {
                 toggled: _liked,
                 label: _liked ? l10n.feedPostUnlike : l10n.feedPostLike,
                 value: likes == null ? null : KFormat.compact(likes, l10n),
+                onTap: _toggleLike,
                 excludeSemantics: true,
                 child: InkWell(
                   key: FeedPostTile.likeKey,

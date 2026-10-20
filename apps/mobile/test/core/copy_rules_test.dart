@@ -86,10 +86,17 @@ void main() {
     expect(ar['accountSuspendedBanner'], contains('تواصل مع الدعم'));
   });
 
-  test('Create empty state lists phases 3, 4, 5 and 6', () {
-    for (final copy in [en['createComingBody']!, ar['createComingBody']!]) {
-      for (final phase in ['3', '4', '5', '6']) {
-        expect(copy, contains(phase));
+  // KL-060: Create is the real composer now (the "coming in phases 3–6"
+  // empty state is gone); its copy names the photo rules it enforces.
+  test('Create copy names the photo limits it enforces', () {
+    expect(en['createPhotoTooLarge'], contains('15 MB'));
+    expect(ar['createPhotoTooLarge'], contains('15'));
+    for (final copy in [
+      en['createPhotoUnsupported']!,
+      ar['createPhotoUnsupported']!,
+    ]) {
+      for (final type in ['JPEG', 'PNG', 'WebP']) {
+        expect(copy, contains(type));
       }
     }
   });

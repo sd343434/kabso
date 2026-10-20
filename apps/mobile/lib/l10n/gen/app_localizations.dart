@@ -632,18 +632,6 @@ abstract class AppLocalizations {
   /// **'يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.'**
   String get discoverComingBody;
 
-  /// No description provided for @createComingTitle.
-  ///
-  /// In ar, this message translates to:
-  /// **'الإنشاء قادم'**
-  String get createComingTitle;
-
-  /// No description provided for @createComingBody.
-  ///
-  /// In ar, this message translates to:
-  /// **'تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.'**
-  String get createComingBody;
-
   /// Profile TopBar title.
   ///
   /// In ar, this message translates to:
@@ -3349,6 +3337,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'سبب آخر'**
   String get reportReasonOther;
+
+  /// v1.5-social MEDIA_UPLOADS_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفع الصور غير متاح حالياً.'**
+  String get errorMediaUploadsUnavailable;
+
+  /// v1.5-social MEDIA_INVALID.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت قراءة الصورة. جرّب صورة أخرى.'**
+  String get errorMediaInvalid;
+
+  /// v1.5-social PIN_LIMIT_REACHED.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تثبيت 3 منشورات فقط.'**
+  String get errorPinLimitReached;
+
+  /// v1.5-social REPORT_ALREADY_RESOLVED.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة هذا البلاغ من قبل.'**
+  String get errorReportAlreadyResolved;
+
+  /// KL-060 Create screen title.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور جديد'**
+  String get createTitle;
+
+  /// KL-060 publish button.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشر'**
+  String get createShare;
+
+  /// KL-060 caption hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'بماذا تفكّر؟ استخدم #وسم و@إشارة'**
+  String get createTextHint;
+
+  /// KL-060 location hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف موقعاً (اختياري)'**
+  String get createLocationHint;
+
+  /// KL-060 add photos tile.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة صور'**
+  String get createAddPhotos;
+
+  /// KL-060 remove one photo.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الصورة'**
+  String get createRemovePhoto;
+
+  /// KL-060 photo semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة {index} من {total}'**
+  String createPhotoLabel(int index, int total);
+
+  /// KL-060 upload progress.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ رفع الصور ({current} من {total})…'**
+  String createUploading(int current, int total);
+
+  /// KL-060 creating the post.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ النشر…'**
+  String get createPublishing;
+
+  /// KL-060 after a text post.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نشر منشورك'**
+  String get createPosted;
+
+  /// KL-060 after a photo post (moderation PENDING).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النشر. سيظهر للآخرين بعد مراجعة الصور'**
+  String get createPostedInReview;
+
+  /// KL-060 note under the form (CP-006 Q2).
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات التي فيها صور تظهر للآخرين بعد مراجعتها.'**
+  String get createPhotosReviewNote;
+
+  /// KL-060 picked photo refused (type from bytes).
+  ///
+  /// In ar, this message translates to:
+  /// **'صيغة هذه الصورة غير مدعومة. استخدم JPEG أو PNG أو WebP.'**
+  String get createPhotoUnsupported;
+
+  /// KL-060 picked photo too big.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصورة أكبر من 15 ميغابايت.'**
+  String get createPhotoTooLarge;
+
+  /// KL-060 photo limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك إضافة {max} صور كحدّ أقصى.'**
+  String createPhotoTooMany(int max);
+
+  /// KL-060 picker refused.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن الوصول إلى الصور. اسمح بالوصول من الإعدادات.'**
+  String get createPhotoAccessDenied;
+
+  /// KL-060 MEDIA_UPLOADS_UNAVAILABLE on Create.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفع الصور غير متاح حالياً. أزل الصور لتنشر نصاً فقط، أو حاول لاحقاً.'**
+  String get createUploadsUnavailable;
+
+  /// KL-060 MEDIA_INVALID on Create.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.'**
+  String get createPhotoInvalid;
 }
 
 class _AppLocalizationsDelegate

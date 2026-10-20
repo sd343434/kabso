@@ -62,7 +62,8 @@ void main() {
       final expected = {
         // D86: Messages has no API yet; Discover left the bar.
         const Key('nav.messages'): l10n.conversationsUnavailableTitle,
-        const Key('nav.create'): l10n.createComingTitle,
+        // KL-060: Create is the post composer.
+        const Key('nav.create'): l10n.createTitle,
         // KL-060: the posts API with no posts yet.
         const Key('nav.reels'): l10n.homeEmptyTitle,
         const Key('nav.home'): l10n.liveHubPopularUnavailableTitle,

@@ -28,6 +28,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveHostingUnavailable: 503,
   ErrorCode.liveRoomAlreadyActive: 409,
   ErrorCode.liveRoomEnded: 409,
+  // v1.5-social
+  ErrorCode.mediaUploadsUnavailable: 503,
+  ErrorCode.mediaInvalid: 422,
+  ErrorCode.pinLimitReached: 409,
+  ErrorCode.reportAlreadyResolved: 409,
 };
 
 DioException _badResponse(
@@ -73,6 +78,11 @@ void main() {
           'LIVE_HOSTING_UNAVAILABLE',
           'LIVE_ROOM_ALREADY_ACTIVE',
           'LIVE_ROOM_ENDED',
+          // v1.5-social
+          'MEDIA_UPLOADS_UNAVAILABLE',
+          'MEDIA_INVALID',
+          'PIN_LIMIT_REACHED',
+          'REPORT_ALREADY_RESOLVED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

@@ -30,6 +30,20 @@ enum ErrorCode {
   /// v1.3: heartbeat for a room that is no longer LIVE (409).
   liveRoomEnded('LIVE_ROOM_ENDED'),
 
+  /// v1.5-social: photo uploads are switched off by server config (503, not
+  /// transient, no `Retry-After`).
+  mediaUploadsUnavailable('MEDIA_UPLOADS_UNAVAILABLE'),
+
+  /// v1.5-social: the uploaded photo is missing, mismatched or not a
+  /// decodable image within the limits (422).
+  mediaInvalid('MEDIA_INVALID'),
+
+  /// v1.5-social: already 3 pinned posts (409).
+  pinLimitReached('PIN_LIMIT_REACHED'),
+
+  /// v1.5-social: an admin acted on a report that is no longer open (409).
+  reportAlreadyResolved('REPORT_ALREADY_RESOLVED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

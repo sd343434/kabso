@@ -180,8 +180,6 @@
   "navProfile": "أنا",
   "discoverComingTitle": "الاستكشاف قادم",
   "discoverComingBody": "يتوفر البحث عن الأشخاص في المرحلة 2، والبثوث والفيديوهات وصنّاع المحتوى الرائجون في المرحلة 9.",
-  "createComingTitle": "الإنشاء قادم",
-  "createComingBody": "تتوفر المنشورات في المرحلة 3، والقصص في المرحلة 4، والفيديوهات القصيرة في المرحلة 5، والبث المباشر في المرحلة 6.",
   "profileUsername": "‎@{username}‎",
   "@profileUsername": {
     "description": "Profile TopBar title.",
@@ -1842,5 +1840,114 @@
   "reportReasonOther": "سبب آخر",
   "@reportReasonOther": {
     "description": "KL-060 report reason."
+  },
+  "errorMediaUploadsUnavailable": "رفع الصور غير متاح حالياً.",
+  "@errorMediaUploadsUnavailable": {
+    "description": "v1.5-social MEDIA_UPLOADS_UNAVAILABLE."
+  },
+  "errorMediaInvalid": "تعذّرت قراءة الصورة. جرّب صورة أخرى.",
+  "@errorMediaInvalid": {
+    "description": "v1.5-social MEDIA_INVALID."
+  },
+  "errorPinLimitReached": "يمكنك تثبيت 3 منشورات فقط.",
+  "@errorPinLimitReached": {
+    "description": "v1.5-social PIN_LIMIT_REACHED."
+  },
+  "errorReportAlreadyResolved": "تمت معالجة هذا البلاغ من قبل.",
+  "@errorReportAlreadyResolved": {
+    "description": "v1.5-social REPORT_ALREADY_RESOLVED."
+  },
+  "createTitle": "منشور جديد",
+  "@createTitle": {
+    "description": "KL-060 Create screen title."
+  },
+  "createShare": "نشر",
+  "@createShare": {
+    "description": "KL-060 publish button."
+  },
+  "createTextHint": "بماذا تفكّر؟ استخدم #وسم و@إشارة",
+  "@createTextHint": {
+    "description": "KL-060 caption hint."
+  },
+  "createLocationHint": "أضف موقعاً (اختياري)",
+  "@createLocationHint": {
+    "description": "KL-060 location hint."
+  },
+  "createAddPhotos": "إضافة صور",
+  "@createAddPhotos": {
+    "description": "KL-060 add photos tile."
+  },
+  "createRemovePhoto": "إزالة الصورة",
+  "@createRemovePhoto": {
+    "description": "KL-060 remove one photo."
+  },
+  "createPhotoLabel": "صورة {index} من {total}",
+  "@createPhotoLabel": {
+    "description": "KL-060 photo semantics.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "createUploading": "جارٍ رفع الصور ({current} من {total})…",
+  "@createUploading": {
+    "description": "KL-060 upload progress.",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "createPublishing": "جارٍ النشر…",
+  "@createPublishing": {
+    "description": "KL-060 creating the post."
+  },
+  "createPosted": "تم نشر منشورك",
+  "@createPosted": {
+    "description": "KL-060 after a text post."
+  },
+  "createPostedInReview": "تم النشر. سيظهر للآخرين بعد مراجعة الصور",
+  "@createPostedInReview": {
+    "description": "KL-060 after a photo post (moderation PENDING)."
+  },
+  "createPhotosReviewNote": "المنشورات التي فيها صور تظهر للآخرين بعد مراجعتها.",
+  "@createPhotosReviewNote": {
+    "description": "KL-060 note under the form (CP-006 Q2)."
+  },
+  "createPhotoUnsupported": "صيغة هذه الصورة غير مدعومة. استخدم JPEG أو PNG أو WebP.",
+  "@createPhotoUnsupported": {
+    "description": "KL-060 picked photo refused (type from bytes)."
+  },
+  "createPhotoTooLarge": "الصورة أكبر من 15 ميغابايت.",
+  "@createPhotoTooLarge": {
+    "description": "KL-060 picked photo too big."
+  },
+  "createPhotoTooMany": "يمكنك إضافة {max} صور كحدّ أقصى.",
+  "@createPhotoTooMany": {
+    "description": "KL-060 photo limit.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "createPhotoAccessDenied": "لا يمكن الوصول إلى الصور. اسمح بالوصول من الإعدادات.",
+  "@createPhotoAccessDenied": {
+    "description": "KL-060 picker refused."
+  },
+  "createUploadsUnavailable": "رفع الصور غير متاح حالياً. أزل الصور لتنشر نصاً فقط، أو حاول لاحقاً.",
+  "@createUploadsUnavailable": {
+    "description": "KL-060 MEDIA_UPLOADS_UNAVAILABLE on Create."
+  },
+  "createPhotoInvalid": "تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.",
+  "@createPhotoInvalid": {
+    "description": "KL-060 MEDIA_INVALID on Create."
   }
 }

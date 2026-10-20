@@ -311,13 +311,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'People search arrives in Phase 2; trending lives, videos and creators in Phase 9.';
 
   @override
-  String get createComingTitle => 'Creating is coming';
-
-  @override
-  String get createComingBody =>
-      'Posts arrive in Phase 3, stories in Phase 4, short videos in Phase 5 and going live in Phase 6.';
-
-  @override
   String profileUsername(String username) {
     return '@$username';
   }
@@ -1906,4 +1899,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportReasonOther => 'Something else';
+
+  @override
+  String get errorMediaUploadsUnavailable =>
+      'Photo uploads aren\'t available right now.';
+
+  @override
+  String get errorMediaInvalid =>
+      'We couldn\'t read that photo. Try another one.';
+
+  @override
+  String get errorPinLimitReached => 'You can pin up to 3 posts.';
+
+  @override
+  String get errorReportAlreadyResolved => 'This report was already handled.';
+
+  @override
+  String get createTitle => 'New post';
+
+  @override
+  String get createShare => 'Share';
+
+  @override
+  String get createTextHint => 'What\'s on your mind? Use #tags and @mentions';
+
+  @override
+  String get createLocationHint => 'Add a place (optional)';
+
+  @override
+  String get createAddPhotos => 'Add photos';
+
+  @override
+  String get createRemovePhoto => 'Remove photo';
+
+  @override
+  String createPhotoLabel(int index, int total) {
+    return 'Photo $index of $total';
+  }
+
+  @override
+  String createUploading(int current, int total) {
+    return 'Uploading photos ($current of $total)…';
+  }
+
+  @override
+  String get createPublishing => 'Sharing…';
+
+  @override
+  String get createPosted => 'Your post is live';
+
+  @override
+  String get createPostedInReview =>
+      'Shared. Others will see it once the photos are reviewed';
+
+  @override
+  String get createPhotosReviewNote =>
+      'Posts with photos appear to others after review.';
+
+  @override
+  String get createPhotoUnsupported =>
+      'This photo format isn\'t supported. Use JPEG, PNG or WebP.';
+
+  @override
+  String get createPhotoTooLarge => 'This photo is larger than 15 MB.';
+
+  @override
+  String createPhotoTooMany(int max) {
+    return 'You can add up to $max photos.';
+  }
+
+  @override
+  String get createPhotoAccessDenied =>
+      'Can\'t open your photos. Allow access in Settings.';
+
+  @override
+  String get createUploadsUnavailable =>
+      'Photo uploads aren\'t available right now. Remove the photos to share text only, or try later.';
+
+  @override
+  String get createPhotoInvalid =>
+      'One of the photos couldn\'t be processed. Remove it and try again.';
 }
