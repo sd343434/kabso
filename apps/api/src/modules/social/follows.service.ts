@@ -5,6 +5,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isValidUsername } from '../users/username.js';
 import { UsersService } from '../users/users.service.js';
+import { blockedEitherWayIn, lockUserPairIn } from './pair-lock.js';
 
 /** `FollowState` (openapi v1.3). */
 export interface FollowStateDto {
@@ -62,6 +63,9 @@ export class FollowsService {
     assertWellFormed(username);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.lockPair(tx, callerId, username);
+      // v1.5-social §11.7: while a block exists either way, the target is not found.
+      await lockUserPairIn(tx, callerId, target.id);
+      if (await blockedEitherWayIn(tx, callerId, target.id)) throw new AppException(ErrorCode.NOT_FOUND);
       const existing = await tx.follow.count({ where: { followerId: callerId, followeeId: target.id } });
       if (existing === 0) {
         // v1.3: no follow requests yet, so private accounts cannot gain new followers.

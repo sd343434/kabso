@@ -728,7 +728,9 @@ count is eventually consistent (≤ 1 min).
 
 - **Block** is symmetric in effect: neither side sees the other's posts, comments, profile
   content, likes lists or search entries, and follows both ways are deleted (not restored by
-  unblock). Blocking yourself → 400. Their existing comments on your posts are hidden from you.
+  unblock). While a block exists in either direction, `followUser` between the two → 404 (the
+  existing "not found" answer; follow and block writes are serialized). Blocking yourself → 400.
+  Their existing comments on your posts are hidden from you.
 - **Mute** is one-way and silent: the muted account's posts and reposts leave the caller's
   feeds; profile, search and direct links still work.
 - **Hide**: the post leaves the caller's feeds and hashtag pages.

@@ -38,6 +38,8 @@ export enum AuditAction {
   LEVELS_EVENT_RETRY = 'levels.event.retry',
   LEVELS_PERMISSION_GRANT = 'levels.permission.grant',
   LEVELS_PERMISSION_REVOKE = 'levels.permission.revoke',
+  // v1.5-social (CP-006 M1): moderation of reports (CONVENTIONS §11.7).
+  MODERATION_REPORT_ACTION = 'moderation.report.action',
 }
 
 export interface AuditEntry {

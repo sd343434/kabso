@@ -260,24 +260,38 @@ export class CommentsService {
       const found = await this.findVisible(tx, userId, commentId);
       if (found.authorId !== userId && found.post.authorId !== userId)
         throw new AppException(ErrorCode.NOT_FOUND);
-      await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${found.postId}::uuid FOR UPDATE`;
-      const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id::text AS id FROM comments WHERE id = ${found.id}::uuid AND deleted_at IS NULL FOR UPDATE`;
-      if (locked.length === 0) throw new AppException(ErrorCode.NOT_FOUND);
-      const now = new Date();
-      const replies = await tx.comment.updateMany({
-        where: { parentId: found.id, deletedAt: null },
-        data: { deletedAt: now, pinnedAt: null },
-      });
-      await tx.comment.update({ where: { id: found.id }, data: { deletedAt: now, pinnedAt: null } });
-      await tx.post.update({
-        where: { id: found.postId },
-        data: { commentCount: { decrement: 1 + replies.count } },
-      });
-      if (found.parentId) {
-        await tx.comment.update({ where: { id: found.parentId }, data: { replyCount: { decrement: 1 } } });
-      }
+      if (!(await this.removeIn(tx, found.id))) throw new AppException(ErrorCode.NOT_FOUND);
     });
+  }
+
+  /**
+   * Soft-deletes a comment with its replies and adjusts the counters, inside `tx`. Lock order:
+   * the post, then the comment. Returns false when the comment is already gone. Also used by
+   * moderation (REMOVE_TARGET).
+   */
+  async removeIn(tx: Tx, commentId: string): Promise<boolean> {
+    const target = await tx.comment.findUnique({ where: { id: commentId }, select: { postId: true } });
+    if (!target) return false;
+    await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${target.postId}::uuid FOR UPDATE`;
+    const locked = await tx.$queryRaw<{ id: string; parent_id: string | null }[]>`
+      SELECT id::text AS id, parent_id::text AS parent_id FROM comments
+       WHERE id = ${commentId}::uuid AND deleted_at IS NULL FOR UPDATE`;
+    const row = locked[0];
+    if (!row) return false;
+    const now = new Date();
+    const replies = await tx.comment.updateMany({
+      where: { parentId: row.id, deletedAt: null },
+      data: { deletedAt: now, pinnedAt: null },
+    });
+    await tx.comment.update({ where: { id: row.id }, data: { deletedAt: now, pinnedAt: null } });
+    await tx.post.update({
+      where: { id: target.postId },
+      data: { commentCount: { decrement: 1 + replies.count } },
+    });
+    if (row.parent_id) {
+      await tx.comment.update({ where: { id: row.parent_id }, data: { replyCount: { decrement: 1 } } });
+    }
+    return true;
   }
 
   /** `PUT`/`DELETE /comments/{commentId}/like` (idempotent). */

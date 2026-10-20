@@ -16,6 +16,7 @@ import { MailModule } from './modules/mail/mail.module.js';
 import { LevelsModule } from './modules/levels/levels.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
+import { SafetyModule } from './modules/safety/safety.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -50,6 +51,7 @@ export class AppModule {
         LevelsModule,
         MediaModule,
         PostsModule,
+        SafetyModule,
         PublicProfileModule,
       ],
       providers: [

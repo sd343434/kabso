@@ -1,0 +1,376 @@
+import { Injectable } from '@nestjs/common';
+import { AuditAction, AuditService } from '../../common/audit/audit.service.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
+import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { UserSummaryDto } from '../live/live-rooms.service.js';
+import { isUuid } from '../live/live.schemas.js';
+import type { AdminActor } from '../levels/level-config.service.js';
+import { CommentsService } from '../posts/comments.service.js';
+import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from '../posts/post-views.js';
+import type { PageQuery } from '../posts/posts.schemas.js';
+import { PostsService } from '../posts/posts.service.js';
+import { lockUserPairIn } from '../social/pair-lock.js';
+import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
+import {
+  createReportSchema,
+  reportActionSchema,
+  updatePrivacySchema,
+  type AdminReportsQuery,
+  type CreateReportInput,
+} from './safety.schemas.js';
+
+type Tx = Prisma.TransactionClient;
+
+/** `Report` (openapi v1.5-social); `reporter` in admin views only. */
+export interface ReportDto {
+  id: string;
+  targetType: 'POST' | 'COMMENT' | 'USER';
+  targetId: string;
+  reason: string;
+  note: string | null;
+  status: 'OPEN' | 'ACTIONED' | 'DISMISSED';
+  createdAt: string;
+  resolvedAt: string | null;
+  reporter?: UserSummaryDto;
+}
+
+export interface PrivacyDto {
+  whoCanMention: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
+  defaultWhoCanComment: 'EVERYONE' | 'FOLLOWERS' | 'NOBODY';
+}
+
+const REPORT_INCLUDE = {
+  reporter: { select: USER_SUMMARY_SELECT },
+  targetUser: { select: { profile: { select: { username: true } } } },
+} satisfies Prisma.ReportInclude;
+
+type ReportRow = Prisma.ReportGetPayload<{ include: typeof REPORT_INCLUDE }>;
+
+/**
+ * Block, mute, hide, reports with the admin queue, and privacy settings (CONVENTIONS §11.7).
+ * Block and follow writes between two users are serialized by a pair lock, so no follow survives
+ * a block.
+ */
+@Injectable()
+export class SafetyService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
+    private readonly posts: PostsService,
+    private readonly comments: CommentsService,
+    private readonly audit: AuditService,
+  ) {}
+
+  // ---------------------------------------------------------------------------------------------
+  // Block and mute
+
+  /** The ACTIVE target of a block/mute by username (404), never the caller (400 `username`). */
+  private async target(tx: Tx, callerId: string, username: string): Promise<string> {
+    if (!(await this.users.lockActiveById(tx, callerId)))
+      throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    const target = await this.users.lockActiveByUsername(tx, username);
+    if (!target) throw new AppException(ErrorCode.NOT_FOUND);
+    if (target.id === callerId)
+      throw AppException.validation([{ field: 'username', issue: 'invalid_value' }]);
+    return target.id;
+  }
+
+  /** `PUT /users/{username}/block`: also deletes follows both ways (not restored by unblock). */
+  async block(callerId: string, username: string, blocked: boolean): Promise<{ blocked: boolean }> {
+    await this.prisma.$transaction(async (tx) => {
+      const targetId = await this.target(tx, callerId, username);
+      await lockUserPairIn(tx, callerId, targetId);
+      if (blocked) {
+        await tx.userBlock.createMany({
+          data: [{ blockerId: callerId, blockedId: targetId }],
+          skipDuplicates: true,
+        });
+        await tx.follow.deleteMany({
+          where: {
+            OR: [
+              { followerId: callerId, followeeId: targetId },
+              { followerId: targetId, followeeId: callerId },
+            ],
+          },
+        });
+      } else {
+        await tx.userBlock.deleteMany({ where: { blockerId: callerId, blockedId: targetId } });
+      }
+    });
+    return { blocked };
+  }
+
+  /** `GET /me/blocks`: newest first. */
+  async blocks(callerId: string, query: PageQuery): Promise<PageDto<UserSummaryDto>> {
+    const scope = `blocks:${callerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.userBlock.findMany({
+      where: {
+        blockerId: callerId,
+        ...(after
+          ? { OR: [{ createdAt: { lt: after.at } }, { createdAt: after.at, blockedId: { lt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { blockedId: 'desc' }],
+      take: query.limit + 1,
+      select: { createdAt: true, blockedId: true, blocked: { select: USER_SUMMARY_SELECT } },
+    });
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: pageRows.map((r) => userSummary(r.blocked)),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last
+            ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.blockedId })
+            : null,
+      },
+    };
+  }
+
+  /** `PUT`/`DELETE /users/{username}/mute`: one-way and silent. */
+  async mute(callerId: string, username: string, muted: boolean): Promise<{ muted: boolean }> {
+    await this.prisma.$transaction(async (tx) => {
+      const targetId = await this.target(tx, callerId, username);
+      if (muted) {
+        await tx.userMute.createMany({
+          data: [{ muterId: callerId, mutedId: targetId }],
+          skipDuplicates: true,
+        });
+      } else {
+        await tx.userMute.deleteMany({ where: { muterId: callerId, mutedId: targetId } });
+      }
+    });
+    return { muted };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Hide
+
+  /** `PUT`/`DELETE /posts/{postId}/hide`: a post the caller may see (404 otherwise). */
+  async hide(callerId: string, postId: string, hidden: boolean): Promise<void> {
+    if (!isUuid(postId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const post = await this.prisma.post.findFirst({
+      where: { AND: [{ id: postId.toLowerCase() }, visiblePostWhere(callerId)] },
+      select: { id: true },
+    });
+    if (!post) throw new AppException(ErrorCode.NOT_FOUND);
+    if (hidden) {
+      await this.prisma.postHide.createMany({
+        data: [{ userId: callerId, postId: post.id }],
+        skipDuplicates: true,
+      });
+    } else {
+      await this.prisma.postHide.deleteMany({ where: { userId: callerId, postId: post.id } });
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Reports
+
+  /**
+   * `POST /reports`: one OPEN report per reporter and target; a repeat returns it (`created`
+   * false → 200). The target must be visible to the reporter and not the reporter's own.
+   */
+  async report(reporterId: string, body: unknown): Promise<{ report: ReportDto; created: boolean }> {
+    const parsed = createReportSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const input = parsed.data;
+    const target = await this.resolveTarget(reporterId, input);
+    const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', ...target };
+    const existing = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
+    if (existing) return { report: this.toDto(existing, false), created: false };
+    try {
+      const row = await this.prisma.report.create({
+        data: {
+          reporterId,
+          targetType: input.targetType,
+          reason: input.reason,
+          note: input.note ?? null,
+          ...target,
+        },
+        include: REPORT_INCLUDE,
+      });
+      return { report: this.toDto(row, false), created: true };
+    } catch (err) {
+      // A concurrent identical report won (partial unique index): return it.
+      if (violatedUniqueIndex(err) !== null) {
+        const raced = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
+        if (raced) return { report: this.toDto(raced, false), created: false };
+      }
+      throw err;
+    }
+  }
+
+  private async resolveTarget(
+    reporterId: string,
+    input: CreateReportInput,
+  ): Promise<{ targetPostId: string } | { targetCommentId: string } | { targetUserId: string }> {
+    const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
+    if (input.targetType === 'USER') {
+      const user = await this.users.findActivePublicUser(input.targetId);
+      if (!user) throw new AppException(ErrorCode.NOT_FOUND);
+      if (user.id === reporterId) throw invalid();
+      return { targetUserId: user.id };
+    }
+    if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const id = input.targetId.toLowerCase();
+    if (input.targetType === 'POST') {
+      const post = await this.prisma.post.findFirst({
+        where: { AND: [{ id }, visiblePostWhere(reporterId)] },
+        select: { id: true, authorId: true },
+      });
+      if (!post) throw new AppException(ErrorCode.NOT_FOUND);
+      if (post.authorId === reporterId) throw invalid();
+      return { targetPostId: post.id };
+    }
+    const comment = await this.prisma.comment.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        post: visiblePostWhere(reporterId),
+        author: {
+          status: 'ACTIVE',
+          blocking: { none: { blockedId: reporterId } },
+          blockedBy: { none: { blockerId: reporterId } },
+        },
+      },
+      select: { id: true, authorId: true },
+    });
+    if (!comment) throw new AppException(ErrorCode.NOT_FOUND);
+    if (comment.authorId === reporterId) throw invalid();
+    return { targetCommentId: comment.id };
+  }
+
+  /** `GET /admin/reports`: oldest first (MODERATION; checked by the guard). */
+  async adminList(query: AdminReportsQuery): Promise<PageDto<ReportDto>> {
+    const scope = `admin-reports:${query.status}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.report.findMany({
+      where: {
+        status: query.status,
+        ...(after
+          ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: query.limit + 1,
+      include: REPORT_INCLUDE,
+    });
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: pageRows.map((r) => this.toDto(r, true)),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.id }) : null,
+      },
+    };
+  }
+
+  /**
+   * `POST /admin/reports/{reportId}/actions`: REMOVE_TARGET removes the post or comment (soft) or,
+   * for a user, records the decision only; DISMISS changes nothing. Every OPEN report on the same
+   * target closes with the same outcome; one audit row records the action. A closed report → 409.
+   */
+  async act(actor: AdminActor, reportId: string, body: unknown): Promise<ReportDto> {
+    if (!isUuid(reportId)) throw new AppException(ErrorCode.NOT_FOUND);
+    const parsed = reportActionSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const { action, note } = parsed.data;
+    const id = reportId.toLowerCase();
+    await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT id::text AS id FROM reports WHERE id = ${id}::uuid FOR UPDATE`;
+      if (locked.length === 0) throw new AppException(ErrorCode.NOT_FOUND);
+      const report = await tx.report.findUniqueOrThrow({ where: { id } });
+      if (report.status !== 'OPEN') throw new AppException(ErrorCode.REPORT_ALREADY_RESOLVED);
+      if (action === 'REMOVE_TARGET') {
+        if (report.targetPostId) {
+          await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${report.targetPostId}::uuid FOR UPDATE`;
+          await tx.post.update({ where: { id: report.targetPostId }, data: { moderation: 'REMOVED' } });
+          await tx.postPin.deleteMany({ where: { postId: report.targetPostId } });
+        } else if (report.targetCommentId) {
+          await this.comments.removeIn(tx, report.targetCommentId);
+        }
+        // USER: the decision is recorded only; suspension is a separate admin tool.
+      }
+      const target: Prisma.ReportWhereInput = report.targetPostId
+        ? { targetPostId: report.targetPostId }
+        : report.targetCommentId
+          ? { targetCommentId: report.targetCommentId }
+          : { targetUserId: report.targetUserId };
+      const closed = await tx.report.updateMany({
+        where: { ...target, status: 'OPEN' },
+        data: {
+          status: action === 'REMOVE_TARGET' ? 'ACTIONED' : 'DISMISSED',
+          resolvedAt: new Date(),
+          resolvedById: actor.userId,
+          resolutionNote: note ?? null,
+        },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.MODERATION_REPORT_ACTION,
+        actorUserId: actor.userId,
+        targetType: report.targetType.toLowerCase(),
+        targetId: report.targetPostId ?? report.targetCommentId ?? report.targetUserId ?? undefined,
+        metadata: { reportId: id, action, reportsClosed: closed.count },
+        ip: actor.ip,
+        requestId: actor.requestId,
+      });
+    });
+    return this.toDto(
+      await this.prisma.report.findUniqueOrThrow({ where: { id }, include: REPORT_INCLUDE }),
+      true,
+    );
+  }
+
+  private toDto(row: ReportRow, admin: boolean): ReportDto {
+    return {
+      id: row.id,
+      targetType: row.targetType,
+      targetId:
+        row.targetPostId ??
+        row.targetCommentId ??
+        row.targetUser?.profile?.username ??
+        row.targetUserId ??
+        '',
+      reason: row.reason,
+      note: row.note,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      resolvedAt: row.resolvedAt?.toISOString() ?? null,
+      ...(admin ? { reporter: userSummary(row.reporter) } : {}),
+    };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Privacy
+
+  async privacy(userId: string): Promise<PrivacyDto> {
+    const row = await this.prisma.privacySettings.findUnique({ where: { userId } });
+    return {
+      whoCanMention: row?.whoCanMention ?? 'EVERYONE',
+      defaultWhoCanComment: row?.defaultWhoCanComment ?? 'EVERYONE',
+    };
+  }
+
+  async updatePrivacy(userId: string, body: unknown): Promise<PrivacyDto> {
+    const parsed = updatePrivacySchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    await this.prisma.privacySettings.upsert({
+      where: { userId },
+      create: { userId, ...parsed.data },
+      update: parsed.data,
+    });
+    return this.privacy(userId);
+  }
+}

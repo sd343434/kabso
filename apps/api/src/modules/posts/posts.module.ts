@@ -20,6 +20,6 @@ import { SearchService } from './search.service.js';
   imports: [MediaModule, UsersModule],
   controllers: [PostsController, InteractionsController, CommentsController, SearchController],
   providers: [PostsService, PostViews, PostInteractionsService, FeedService, CommentsService, SearchService],
-  exports: [PostsService, PostViews],
+  exports: [PostsService, PostViews, CommentsService],
 })
 export class PostsModule {}
