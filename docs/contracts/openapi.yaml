@@ -1304,8 +1304,8 @@ paths:
       operationId: createMediaUpload
       summary: "Start an image upload (presigned PUT, v1.5-social draft)"
       description: |
-        CONVENTIONS §11.1. Check order: auth → `MEDIA_UPLOADS_ENABLED` (503
-        `MEDIA_UPLOADS_UNAVAILABLE`) → body → rate limit. Only `POST_IMAGE` exists in M1 (video
+        CONVENTIONS §11.1. Check order: auth → rate limit (counted before the switch, like
+        go-live) → `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body. Only `POST_IMAGE` exists in M1 (video
         and stories arrive with M2/M3). The URL is valid for 10 minutes; the client sends the bytes
         with exactly `method` and `headers`, then calls `completeMediaUpload`.
       requestBody:
@@ -2946,7 +2946,10 @@ components:
       required: [kind, contentType, byteSize]
       properties:
         kind: { $ref: '#/components/schemas/MediaKind' }
-        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, image/heic] }
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+          description: HEIC/HEIF is not accepted; the app converts such photos to JPEG on the device.
         byteSize: { type: integer, minimum: 1, maximum: 15728640 }
     MediaUpload:
       type: object

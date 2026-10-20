@@ -56,6 +56,37 @@ export interface AppConfig {
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
     readonly followDayUser: RateLimitRule;
+    readonly mediaUploadUser: RateLimitRule;
+    readonly postCreateHourUser: RateLimitRule;
+    readonly postCreateDayUser: RateLimitRule;
+    readonly commentUser: RateLimitRule;
+    readonly likeUser: RateLimitRule;
+    readonly repostUser: RateLimitRule;
+    readonly shareUser: RateLimitRule;
+    readonly viewsUser: RateLimitRule;
+    readonly feedUser: RateLimitRule;
+    readonly searchUser: RateLimitRule;
+    readonly blockUser: RateLimitRule;
+    readonly reportUser: RateLimitRule;
+  };
+  /** v1.5-social media storage (CONVENTIONS §11.1). */
+  readonly media: {
+    readonly uploadsEnabled: boolean;
+    readonly s3: {
+      readonly endpoint: string | undefined;
+      readonly region: string;
+      readonly bucket: string | undefined;
+      readonly accessKeyId: string | undefined;
+      readonly secretAccessKey: string | undefined;
+      readonly forcePathStyle: boolean;
+    };
+    readonly publicBaseUrl: string | undefined;
+    readonly sweepIntervalSeconds: number;
+  };
+  /** v1.5-social posts (CONVENTIONS §11). */
+  readonly social: {
+    readonly publishIntervalSeconds: number;
+    readonly cursorKey: string;
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
@@ -154,6 +185,35 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
       followDayUser: e.RATE_LIMIT_FOLLOW_DAY_USER,
+      mediaUploadUser: e.RATE_LIMIT_MEDIA_UPLOAD_USER,
+      postCreateHourUser: e.RATE_LIMIT_POST_CREATE_HOUR_USER,
+      postCreateDayUser: e.RATE_LIMIT_POST_CREATE_DAY_USER,
+      commentUser: e.RATE_LIMIT_COMMENT_USER,
+      likeUser: e.RATE_LIMIT_LIKE_USER,
+      repostUser: e.RATE_LIMIT_REPOST_USER,
+      shareUser: e.RATE_LIMIT_SHARE_USER,
+      viewsUser: e.RATE_LIMIT_VIEWS_USER,
+      feedUser: e.RATE_LIMIT_FEED_USER,
+      searchUser: e.RATE_LIMIT_SEARCH_USER,
+      blockUser: e.RATE_LIMIT_BLOCK_USER,
+      reportUser: e.RATE_LIMIT_REPORT_USER,
+    },
+    media: {
+      uploadsEnabled: e.MEDIA_UPLOADS_ENABLED,
+      s3: {
+        endpoint: e.S3_ENDPOINT,
+        region: e.S3_REGION,
+        bucket: e.S3_BUCKET,
+        accessKeyId: e.S3_ACCESS_KEY_ID,
+        secretAccessKey: e.S3_SECRET_ACCESS_KEY,
+        forcePathStyle: e.S3_FORCE_PATH_STYLE,
+      },
+      publicBaseUrl: e.MEDIA_PUBLIC_BASE_URL,
+      sweepIntervalSeconds: e.MEDIA_SWEEP_INTERVAL_SECONDS,
+    },
+    social: {
+      publishIntervalSeconds: e.POSTS_PUBLISH_INTERVAL_SECONDS,
+      cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,

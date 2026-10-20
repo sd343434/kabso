@@ -38,6 +38,11 @@ describe('ErrorCode', () => {
         // v1.4-levels (DRAFT, CP-005)
         'LEVEL_CONFIG_INVALID',
         'LEVEL_VERSION_NOT_DRAFT',
+        // v1.5-social (DRAFT, CP-006)
+        'MEDIA_UPLOADS_UNAVAILABLE',
+        'MEDIA_INVALID',
+        'PIN_LIMIT_REACHED',
+        'REPORT_ALREADY_RESOLVED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -61,6 +66,10 @@ describe('ErrorCode', () => {
       LIVE_HOSTING_UNAVAILABLE: 503,
       LEVEL_CONFIG_INVALID: 422,
       LEVEL_VERSION_NOT_DRAFT: 409,
+      MEDIA_UPLOADS_UNAVAILABLE: 503,
+      MEDIA_INVALID: 422,
+      PIN_LIMIT_REACHED: 409,
+      REPORT_ALREADY_RESOLVED: 409,
     });
   });
 

@@ -473,6 +473,34 @@ a `CONNECTION LIMIT`.
   differ from their ledger and failed or stuck events; `REPAIR` rebuilds the states from the
   ledger and retries the events. The ledger itself is never edited.
 
+### 5.3 Media storage (migration `20261022090000_social_m1`, CP-006 M1) — [IMPLEMENTED, draft contract; storage BLOCKED B12]
+
+- **Provider:** S3-compatible. Locally MinIO (`docker compose --profile storage up -d`), in the
+  cloud Cloudflare R2 (D45). Settings: `S3_ENDPOINT`, `S3_REGION` (`auto` for R2), `S3_BUCKET`,
+  `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (secret manager only), `S3_FORCE_PATH_STYLE`
+  (`true` for MinIO), `MEDIA_PUBLIC_BASE_URL`, `MEDIA_UPLOADS_ENABLED` (default `false`; the API
+  refuses to start with it on and any of bucket, keys or public URL missing; production refuses
+  plain-http endpoints).
+- **Bucket layout:** `uploads/{userId}/{uploadId}` holds raw client uploads for minutes (private,
+  deleted after verification or by the sweeper); `media/{mediaId}/1080.webp` and `/320.webp`
+  are the processed, metadata-free images. **Only `media/` may be publicly readable** — through
+  the CDN / R2 custom domain set as `MEDIA_PUBLIC_BASE_URL`, or a public-read policy limited to
+  that prefix. `uploads/` must never be public.
+- **Token scope:** the API key needs `PutObject`, `GetObject`, `HeadObject`, `DeleteObject` on the
+  bucket only. No CORS rule is needed for the mobile app (it is not a browser); a future web
+  client needs `PUT` allowed from its origin on `uploads/` only.
+- **Lifecycle:** the in-process media sweeper (`MEDIA_SWEEP_INTERVAL_SECONDS`, 300 s, refused at
+  0 in production) closes expired slots and deletes assets never attached to a post within 24 h.
+  A bucket lifecycle rule that deletes `uploads/` objects older than 2 days is a recommended
+  backstop.
+- **Verification:** `apps/api/test/kl060-s3-storage.e2e-spec.ts` runs the production adapter
+  against any S3-compatible server when `S3_TEST_ENDPOINT` (plus `S3_TEST_ACCESS_KEY_ID` /
+  `S3_TEST_SECRET_ACCESS_KEY`) is set; verified against moto 5.1 in development (MinIO could not
+  run in the authoring environment: no Docker daemon).
+- **Missing before uploads can be turned on anywhere but locally:** the R2 account, bucket,
+  custom domain and API token (B12), and an image-moderation provider (B13; until then photo
+  posts are visible only to their author, CONVENTIONS §11.2).
+
 ## 6. Observability baseline
 
 | Item | Status |

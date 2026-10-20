@@ -151,6 +151,22 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_LIVE_END_USER: GENEROUS,
     RATE_LIMIT_FOLLOW_HOUR_USER: GENEROUS,
     RATE_LIMIT_FOLLOW_DAY_USER: GENEROUS,
+    // v1.5-social (KL-060)
+    RATE_LIMIT_MEDIA_UPLOAD_USER: GENEROUS,
+    RATE_LIMIT_POST_CREATE_HOUR_USER: GENEROUS,
+    RATE_LIMIT_POST_CREATE_DAY_USER: GENEROUS,
+    RATE_LIMIT_COMMENT_USER: GENEROUS,
+    RATE_LIMIT_LIKE_USER: GENEROUS,
+    RATE_LIMIT_REPOST_USER: GENEROUS,
+    RATE_LIMIT_SHARE_USER: GENEROUS,
+    RATE_LIMIT_VIEWS_USER: GENEROUS,
+    RATE_LIMIT_FEED_USER: GENEROUS,
+    RATE_LIMIT_SEARCH_USER: GENEROUS,
+    RATE_LIMIT_BLOCK_USER: GENEROUS,
+    RATE_LIMIT_REPORT_USER: GENEROUS,
+    // No background workers in tests: specs call MediaService.sweep() / the publisher directly.
+    MEDIA_SWEEP_INTERVAL_SECONDS: '0',
+    POSTS_PUBLISH_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

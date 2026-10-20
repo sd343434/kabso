@@ -28,6 +28,14 @@ export enum ErrorCode {
   LEVEL_CONFIG_INVALID = 'LEVEL_CONFIG_INVALID',
   /** v1.4-levels (DRAFT, CP-005): only DRAFT versions change. */
   LEVEL_VERSION_NOT_DRAFT = 'LEVEL_VERSION_NOT_DRAFT',
+  /** v1.5-social (DRAFT, CP-006): uploads disabled by MEDIA_UPLOADS_ENABLED=false (no Retry-After). */
+  MEDIA_UPLOADS_UNAVAILABLE = 'MEDIA_UPLOADS_UNAVAILABLE',
+  /** v1.5-social (DRAFT): the uploaded object is missing, mismatched or not a valid image. */
+  MEDIA_INVALID = 'MEDIA_INVALID',
+  /** v1.5-social (DRAFT): the caller already has 3 pinned posts. */
+  PIN_LIMIT_REACHED = 'PIN_LIMIT_REACHED',
+  /** v1.5-social (DRAFT): an admin acted on a report that is no longer OPEN. */
+  REPORT_ALREADY_RESOLVED = 'REPORT_ALREADY_RESOLVED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -52,6 +60,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 503,
   [ErrorCode.LEVEL_CONFIG_INVALID]: 422,
   [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 409,
+  [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 503,
+  [ErrorCode.MEDIA_INVALID]: 422,
+  [ErrorCode.PIN_LIMIT_REACHED]: 409,
+  [ErrorCode.REPORT_ALREADY_RESOLVED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -76,6 +88,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 'Going live is not available.',
   [ErrorCode.LEVEL_CONFIG_INVALID]: 'The level configuration is invalid.',
   [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 'Only draft versions can change.',
+  [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 'Uploading is not available.',
+  [ErrorCode.MEDIA_INVALID]: 'The uploaded file is not a valid image.',
+  [ErrorCode.PIN_LIMIT_REACHED]: 'You can pin up to 3 posts.',
+  [ErrorCode.REPORT_ALREADY_RESOLVED]: 'The report was already resolved.',
 };
 
 export interface ErrorDetail {

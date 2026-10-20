@@ -435,3 +435,63 @@ describe('loadConfig', () => {
     });
   });
 });
+
+describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => {
+  it('keeps uploads off by default with the §11.8 rate limits', () => {
+    const config = loadConfig(base);
+    expect(config.media.uploadsEnabled).toBe(false);
+    expect(config.media.s3.region).toBe('auto');
+    expect(config.media.sweepIntervalSeconds).toBe(300);
+    expect(config.social.publishIntervalSeconds).toBe(30);
+    expect(config.rateLimits.mediaUploadUser).toEqual({ max: 60, windowSeconds: 3600 });
+    expect(config.rateLimits.postCreateHourUser).toEqual({ max: 20, windowSeconds: 3600 });
+    expect(config.rateLimits.postCreateDayUser).toEqual({ max: 100, windowSeconds: 86400 });
+    expect(config.rateLimits.commentUser).toEqual({ max: 60, windowSeconds: 3600 });
+    expect(config.rateLimits.likeUser).toEqual({ max: 600, windowSeconds: 3600 });
+    expect(config.rateLimits.feedUser).toEqual({ max: 300, windowSeconds: 900 });
+    expect(config.rateLimits.reportUser).toEqual({ max: 30, windowSeconds: 3600 });
+  });
+
+  it('needs the bucket, credentials and public URL when uploads are on, never echoing secrets', () => {
+    let error: unknown;
+    try {
+      loadConfig({ ...base, MEDIA_UPLOADS_ENABLED: 'true', S3_SECRET_ACCESS_KEY: 'super-secret-value' });
+    } catch (err) {
+      error = err;
+    }
+    const message = (error as Error).message;
+    expect(message).toContain('S3_BUCKET: is required when MEDIA_UPLOADS_ENABLED=true');
+    expect(message).toContain('S3_ACCESS_KEY_ID');
+    expect(message).toContain('MEDIA_PUBLIC_BASE_URL');
+    expect(message).not.toContain('S3_SECRET_ACCESS_KEY: is required');
+    expect(message).not.toContain('super-secret-value');
+    const config = loadConfig({
+      ...base,
+      MEDIA_UPLOADS_ENABLED: 'true',
+      S3_ENDPOINT: 'http://localhost:9000',
+      S3_BUCKET: 'kabso-media-dev',
+      S3_ACCESS_KEY_ID: 'id',
+      S3_SECRET_ACCESS_KEY: 'secret',
+      S3_FORCE_PATH_STYLE: 'true',
+      MEDIA_PUBLIC_BASE_URL: 'http://localhost:9000/kabso-media-dev/',
+    });
+    expect(config.media.s3.forcePathStyle).toBe(true);
+    expect(config.media.publicBaseUrl).toBe('http://localhost:9000/kabso-media-dev');
+  });
+
+  it('refuses plain http storage, disabled workers and a weak cursor key in production', () => {
+    expect(() =>
+      loadConfig({
+        ...base,
+        NODE_ENV: 'production',
+        S3_ENDPOINT: 'http://r2.example',
+        MEDIA_PUBLIC_BASE_URL: 'http://cdn.example',
+        MEDIA_SWEEP_INTERVAL_SECONDS: '0',
+        POSTS_PUBLISH_INTERVAL_SECONDS: '0',
+        SOCIAL_CURSOR_KEY: 'replace-me-with-a-long-random-string-of-at-least-32-bytes',
+      }),
+    ).toThrow(
+      /S3_ENDPOINT: must use https[\s\S]*MEDIA_PUBLIC_BASE_URL: must use https[\s\S]*MEDIA_SWEEP_INTERVAL_SECONDS[\s\S]*POSTS_PUBLISH_INTERVAL_SECONDS[\s\S]*SOCIAL_CURSOR_KEY/,
+    );
+  });
+});

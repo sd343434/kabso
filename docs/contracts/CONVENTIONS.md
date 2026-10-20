@@ -646,6 +646,8 @@ these rules.
 - Server config `MEDIA_UPLOADS_ENABLED` (default `false`, B12) gates `createMediaUpload` and
   `completeMediaUpload`: off → 503 `MEDIA_UPLOADS_UNAVAILABLE` (no `Retry-After`, like
   `LIVE_HOSTING_UNAVAILABLE`). Storage is S3-compatible (`S3_*`; MinIO locally, R2 in the cloud).
+- Accepted types: JPEG, PNG and WebP (the bytes decide, not the declared type: both must agree).
+  HEIC/HEIF is refused at `createMediaUpload` (the app converts it to JPEG on the device).
 - Objects go to `uploads/{userId}/{uploadId}` (private). Completing verifies the object (HEAD
   size equals `byteSize`, magic bytes match `contentType`, decodes, ≤ 8 000 px per side,
   ≤ 50 MP), strips every metadata block (EXIF, GPS, XMP, ICC kept as sRGB), writes
@@ -742,7 +744,7 @@ count is eventually consistent (≤ 1 min).
 
 | Endpoint | Limit |
 | --- | --- |
-| `POST /media/uploads` | 60 / hour |
+| `POST /media/uploads` | 60 / hour; counted **before** the `MEDIA_UPLOADS_ENABLED` check |
 | `POST /posts` | 20 / hour, 100 / day |
 | `POST /posts/{id}/comments` | 60 / hour |
 | `PUT`/`DELETE` like (posts and comments) | one bucket: 600 / hour |

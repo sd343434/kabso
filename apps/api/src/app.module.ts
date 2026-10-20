@@ -14,6 +14,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { LevelsModule } from './modules/levels/levels.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -46,6 +47,7 @@ export class AppModule {
         SocialModule,
         // v1.4-levels (DRAFT, CP-005).
         LevelsModule,
+        MediaModule,
         PublicProfileModule,
       ],
       providers: [

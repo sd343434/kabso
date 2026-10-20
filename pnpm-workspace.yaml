@@ -9,6 +9,8 @@ onlyBuiltDependencies:
   - argon2
   - esbuild
   - prisma
+  # v1.5-social (CP-006): libvips prebuilt binaries for image processing.
+  - sharp
 
 # Not needed: optional native watcher (Nest CLI) and resolver (jest) prebuilt binaries.
 ignoredBuiltDependencies:

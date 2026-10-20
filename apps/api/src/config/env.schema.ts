@@ -198,6 +198,19 @@ export const envSchema = z
     RATE_LIMIT_LIVE_END_USER: rateLimit('30/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
+    // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
+    RATE_LIMIT_MEDIA_UPLOAD_USER: rateLimit('60/3600'),
+    RATE_LIMIT_POST_CREATE_HOUR_USER: rateLimit('20/3600'),
+    RATE_LIMIT_POST_CREATE_DAY_USER: rateLimit('100/86400'),
+    RATE_LIMIT_COMMENT_USER: rateLimit('60/3600'),
+    RATE_LIMIT_LIKE_USER: rateLimit('600/3600'),
+    RATE_LIMIT_REPOST_USER: rateLimit('60/3600'),
+    RATE_LIMIT_SHARE_USER: rateLimit('120/3600'),
+    RATE_LIMIT_VIEWS_USER: rateLimit('120/3600'),
+    RATE_LIMIT_FEED_USER: rateLimit('300/900'),
+    RATE_LIMIT_SEARCH_USER: rateLimit('300/900'),
+    RATE_LIMIT_BLOCK_USER: rateLimit('60/3600'),
+    RATE_LIMIT_REPORT_USER: rateLimit('30/3600'),
 
     /**
      * v1.3 (CONVENTIONS §10, B1): going live and heartbeats are refused with 503
@@ -228,6 +241,44 @@ export const envSchema = z
      * and reload from the first page).
      */
     LIVE_CURSOR_KEY: z
+      .string()
+      .min(1)
+      .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
+      .optional(),
+
+    /**
+     * v1.5-social (CONVENTIONS §11.1, B12): uploads are refused with 503
+     * MEDIA_UPLOADS_UNAVAILABLE unless this is exactly "true". When on, the S3 settings and
+     * MEDIA_PUBLIC_BASE_URL are required (MinIO locally, Cloudflare R2 in the cloud, D45).
+     */
+    MEDIA_UPLOADS_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** S3-compatible endpoint (MinIO/R2); unset = AWS S3 for the region. */
+    S3_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+    S3_REGION: z.string().trim().min(1).max(64).default('auto'),
+    S3_BUCKET: z.string().trim().min(3).max(63).optional(),
+    S3_ACCESS_KEY_ID: z.string().trim().min(1).max(256).optional(),
+    S3_SECRET_ACCESS_KEY: z.string().min(1).max(512).optional(),
+    S3_FORCE_PATH_STYLE: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** Public base URL of the processed images (CDN or bucket domain), without a trailing slash. */
+    MEDIA_PUBLIC_BASE_URL: z
+      .url({ protocol: /^https?$/ })
+      .transform((v) => v.replace(/\/+$/, ''))
+      .optional(),
+    /** Period of the media sweeper (expired slots, unattached assets); 0 disables it (not in production). */
+    MEDIA_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86400),
+    /** Period of the scheduled-post publisher; 0 disables it (not in production). */
+    POSTS_PUBLISH_INTERVAL_SECONDS: intSetting(30, 0, 3600),
+    /**
+     * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
+     * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
+     */
+    SOCIAL_CURSOR_KEY: z
       .string()
       .min(1)
       .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
@@ -296,7 +347,47 @@ export const envSchema = z
         message: 'must be at least 2 × LIVE_HEARTBEAT_INTERVAL_SECONDS',
       });
     }
+    if (env.MEDIA_UPLOADS_ENABLED) {
+      for (const key of [
+        'S3_BUCKET',
+        'S3_ACCESS_KEY_ID',
+        'S3_SECRET_ACCESS_KEY',
+        'MEDIA_PUBLIC_BASE_URL',
+      ] as const) {
+        if (env[key] === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'is required when MEDIA_UPLOADS_ENABLED=true',
+          });
+        }
+      }
+    }
     if (env.NODE_ENV === 'production') {
+      for (const key of ['S3_ENDPOINT', 'MEDIA_PUBLIC_BASE_URL'] as const) {
+        const value = env[key];
+        if (value !== undefined && !value.startsWith('https://')) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'must use https in production' });
+        }
+      }
+      if (env.MEDIA_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MEDIA_SWEEP_INTERVAL_SECONDS'],
+          message: 'the media sweeper cannot be disabled in production',
+        });
+      }
+      if (env.POSTS_PUBLISH_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['POSTS_PUBLISH_INTERVAL_SECONDS'],
+          message: 'the scheduled-post publisher cannot be disabled in production',
+        });
+      }
+      if (env.SOCIAL_CURSOR_KEY !== undefined) {
+        const problem = productionSecretProblem(env.SOCIAL_CURSOR_KEY);
+        if (problem) ctx.addIssue({ code: 'custom', path: ['SOCIAL_CURSOR_KEY'], message: problem });
+      }
       const jwtProblem = productionSecretProblem(env.JWT_ACCESS_SECRET);
       if (jwtProblem) ctx.addIssue({ code: 'custom', path: ['JWT_ACCESS_SECRET'], message: jwtProblem });
 
