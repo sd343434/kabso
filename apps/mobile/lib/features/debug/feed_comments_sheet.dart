@@ -2,6 +2,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/feed_glyphs.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -108,6 +109,7 @@ class FeedCommentsSheet extends StatefulWidget {
   static const listKey = Key('feed-comments-list');
   static const inputKey = Key('feed-comments-input');
   static const postKey = Key('feed-comments-post');
+  static const emojiKey = Key('feed-comments-emoji');
   static const closeKey = Key('feed-comments-close');
 
   static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
@@ -144,8 +146,8 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
     super.dispose();
   }
 
-  void _post() {
-    final text = _controller.text.trim();
+  void _post([String? emoji]) {
+    final text = emoji ?? _controller.text.trim();
     if (text.isEmpty) return;
     final you = context.l10n.commentsYou;
     setState(() {
@@ -153,7 +155,7 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
         CommentPreview(name: you, body: text, hoursAgo: 0),
         ..._comments!,
       ];
-      _controller.clear();
+      if (emoji == null) _controller.clear();
     });
   }
 
@@ -291,6 +293,8 @@ class _FeedCommentsSheetState extends State<FeedCommentsSheet> {
               controller: _controller,
               focusNode: _focus,
               onPost: _post,
+              // D66: a Kabi emoji posts at once, as its own comment.
+              onEmoji: (e) => _post(e.token),
             ),
           ],
         ),
@@ -373,7 +377,7 @@ class _CommentTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: KSpacing.xxs),
-              Text(
+              KabiEmojiText(
                 c.body,
                 style: t.body.copyWith(
                   fontSize: KCommentsSheet.bodySize,
@@ -494,11 +498,13 @@ class _CommentBar extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onPost,
+    required this.onEmoji,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onPost;
+  final ValueChanged<KabiEmojis> onEmoji;
 
   @override
   Widget build(BuildContext context) {
@@ -540,11 +546,14 @@ class _CommentBar extends StatelessWidget {
                       horizontal: KSpacing.sm,
                       vertical: KSpacing.sm + 2,
                     ),
-                    suffixIcon: Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                        end: KSpacing.sm,
-                      ),
-                      child: AppIcon(
+                    suffixIcon: IconButton(
+                      key: FeedCommentsSheet.emojiKey,
+                      tooltip: l10n.kabiEmojiButton,
+                      onPressed: () async {
+                        final emoji = await showKabiEmojiPicker(context);
+                        if (emoji != null) onEmoji(emoji);
+                      },
+                      icon: AppIcon(
                         AppIcons.emoji,
                         size: KCommentsSheet.inputIcon,
                         color: p.textSecondary,

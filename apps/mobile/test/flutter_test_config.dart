@@ -6,8 +6,12 @@
 import 'dart:async';
 
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
+import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
+  KabsoBattleEmoji.enabled = false;
+  KabsoPkBar.enabled = false;
   await testMain();
 }

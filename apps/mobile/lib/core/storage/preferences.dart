@@ -19,4 +19,8 @@ abstract final class PreferenceKeys {
   /// Set while a `PATCH /me {"locale"}` still has to reach the server
   /// (PHASE1_1_SCREENS §3.4). Not sensitive.
   static const localeSyncPending = 'pref.localeSyncPending';
+
+  /// Set once this installation has shown the welcome screen (D65): later
+  /// signed-out launches go straight to login. Not sensitive.
+  static const welcomeSeen = 'pref.welcomeSeen';
 }

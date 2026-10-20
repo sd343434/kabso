@@ -38,6 +38,23 @@ abstract final class PreviewPhotos {
     '$_p/avatar_huda.webp',
   ];
 
+  /// Named headshots for the chat previews (D68): the three above plus
+  /// two cut from the live covers, and a group picture cut from a post.
+  static const String huda = '$_p/avatar_huda.webp';
+  static const String layla = '$_p/avatar_layla.webp';
+  static const String omar = '$_p/avatar_omar.webp';
+  static const String karim = '$_p/avatar_karim.webp';
+  static const String rania = '$_p/avatar_rania.webp';
+  static const String group = '$_p/avatar_group.webp';
+
+  /// The square crops added for the chat previews.
+  static const List<String> chatAvatars = [karim, rania, group];
+
+  /// [path] as an image, or `null` (initials) while [PreviewPhoto.enabled]
+  /// is off.
+  static ImageProvider? asset(String? path) =>
+      PreviewPhoto.enabled && path != null ? AssetImage(path) : null;
+
   static String of(PreviewPhotoKind kind, int seed) {
     final list = switch (kind) {
       PreviewPhotoKind.portrait => portrait,

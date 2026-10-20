@@ -10,6 +10,11 @@ import 'package:material_ui/material_ui.dart';
 /// keep their own colours (`tint: false`).
 abstract final class AppIcons {
   static const String _p = 'assets/icons';
+
+  /// D64: provider glyphs on the (not yet working) social sign-in buttons;
+  /// Simple Icons (CC0) placeholders until the official button assets.
+  static const String google = '$_p/brand/google.svg';
+  static const String apple = '$_p/brand/apple.svg';
   static const String home = '$_p/home_outline.svg';
   static const String homeFilled = '$_p/home_filled.svg';
   static const String friends = '$_p/users_outline.svg';

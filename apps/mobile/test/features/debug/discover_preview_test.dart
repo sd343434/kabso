@@ -182,7 +182,6 @@ void main() {
       'lib/app/router/app_router.dart',
       'lib/features/debug/discover_preview_screen.dart',
       'lib/features/debug/previews_hub_screen.dart',
-      'lib/features/debug/reels_preview_screen.dart',
     });
   });
 }

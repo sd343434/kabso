@@ -65,6 +65,12 @@ Future<void> loadAppFonts() async {
     'assets/fonts/ReadexPro-SemiBold.ttf',
     'assets/fonts/ReadexPro-Bold.ttf',
   ]);
+  // D63/D64: splash wordmark and the welcome screen.
+  await family('Fredoka', const ['assets/fonts/Fredoka-Bold.ttf']);
+  await family('Baloo Bhaijaan 2', const [
+    'assets/fonts/BalooBhaijaan2-SemiBold.ttf',
+    'assets/fonts/BalooBhaijaan2-ExtraBold.ttf',
+  ]);
   // Bundled by `uses-material-design: true`.
   await family('MaterialIcons', const ['fonts/MaterialIcons-Regular.otf']);
   _fontsLoaded = true;

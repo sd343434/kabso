@@ -29,13 +29,26 @@ void main() {
       }
     });
 
-    test('everything else goes to login', () {
+    test('everything else goes to the welcome screen (D64)', () {
+      expect(AppRoutes.publicAuthRoutes, contains(AppRoutes.welcome));
       for (final r in [
         AppRoutes.splash,
         AppRoutes.settings,
         ...AppRoutes.shellBranches,
       ]) {
-        expect(authRedirect(state, r), AppRoutes.login, reason: r);
+        expect(authRedirect(state, r), AppRoutes.welcome, reason: r);
+      }
+    });
+
+    test('a session that ended with a reason goes to login, which shows '
+        'it', () {
+      for (final reason in [
+        ErrorCode.accountSuspended,
+        ErrorCode.authRefreshInvalid,
+      ]) {
+        final ended = Unauthenticated(reason: reason);
+        expect(authRedirect(ended, AppRoutes.home), AppRoutes.login);
+        expect(authRedirect(ended, AppRoutes.welcome), isNull);
       }
     });
   });
@@ -91,7 +104,7 @@ void main() {
       for (final r in debug) {
         expect(
           authRedirect(const Unauthenticated(), r, allowDebugRoutes: false),
-          AppRoutes.login,
+          AppRoutes.welcome,
         );
         expect(
           authRedirect(const AuthRestoring(), r, allowDebugRoutes: false),

@@ -246,6 +246,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         : null;
 
     return AuthScaffold(
+      hero: true,
+      showBack: Navigator.canPop(context),
       title: l10n.registerTitle,
       subtitle: l10n.registerSubtitle,
       actions: [AuthLanguageSwitch(enabled: !submitting)],

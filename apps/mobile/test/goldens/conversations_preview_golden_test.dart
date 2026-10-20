@@ -1,5 +1,6 @@
 // KL-056 conversation list and first-time conversation goldens (labelled
-// test data), ar and en at 393×852 (insets 59 / 34) and 360×800, @3x.
+// test data), ar and en at 393×852 (insets 59 / 34) and 360×800, @3x;
+// D68: the list also in the light theme (day mode) at 393×852.
 //
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/conversations_preview_golden_test.dart
@@ -64,6 +65,28 @@ void main() {
           );
         });
       }
+
+      testWidgets('conversations_preview_light (phone)', (tester) async {
+        tester.view.padding = const FakeViewPadding(
+          top: 59 * GoldenViewport.pixelRatio,
+          bottom: 34 * GoldenViewport.pixelRatio,
+        );
+        addTearDown(tester.view.resetPadding);
+        await withClock(
+          Clock.fixed(DateTime(2026, 10, 18, 12)),
+          () => pumpGolden(
+            tester,
+            const ConversationsPreviewScreen(),
+            language: language,
+            brightness: Brightness.light,
+            bare: true,
+          ),
+        );
+        await expectScreenGolden(
+          'conversations_preview_light',
+          language: language,
+        );
+      });
     });
   });
 }

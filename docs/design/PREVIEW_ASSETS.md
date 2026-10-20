@@ -15,7 +15,8 @@ they show real API media or their honest states (D35/D39).
 - **Edits:** `live_gaming` — the first generation drew fake app UI (badges, chat lines) and was
   rejected; the regenerated image showed a small brand-like logo on the headset, which was painted
   out (dark fill + blur, 34×40 px at 683,548). All images were converted to WebP (portrait kept at
-  768×1376, landscape capped at 1200 px wide, avatars 512×512).
+  768×1376, landscape capped at 1200 px wide, avatars 512×512). D68 added three square crops of
+  existing images (no new generation): `avatar_karim`, `avatar_rania`, `avatar_group`.
 - **Licence status:** generated under the owner's Figma plan and subject to Figma's AI terms.
   **Not reviewed for production use** — development previews only. Do not ship them as content,
   as user photos or in store listings without a separate rights review.
@@ -30,6 +31,9 @@ they show real API media or their honest states (D35/D39).
 | `assets/preview/avatar_huda.webp` | Preview avatars (circular crop, face centred) | headshot, young woman in a beige hijab | `13:2` | 1024×1024 JPEG | 512×512 WebP | 15 KB | `91f85e56502cd3051099df3954e0751f85a3db25d04154e0552d7733ecca05db` |
 | `assets/preview/avatar_layla.webp` | Preview avatars (circular crop, face centred) | headshot, young woman, dark wavy hair | `11:2` | 1024×1024 JPEG | 512×512 WebP | 20 KB | `86a10d655daa27aecd31d38e4bc5de7f7bb5db2ba47018b37db3a77703ee3bac` |
 | `assets/preview/avatar_omar.webp` | Preview avatars (circular crop, face centred) | headshot, man with trimmed beard | `12:2` | 1024×1024 JPEG | 512×512 WebP | 15 KB | `deefeb1b080eaa3330877d77b18802c2034e800d2cc9762150a6a040262232f2` |
+| `assets/preview/avatar_karim.webp` | Chat preview avatars (D68) | crop of `live_cooking` (360×360 at 320,210): the cook's face | `2:2` (derived) | 768×1376 WebP | 512×512 WebP | 15 KB | `771c1dd3af0526ac0ff27783b00b838d67a90a8b0d1d3ca21d73acf3985117da` |
+| `assets/preview/avatar_rania.webp` | Chat preview avatars (D68) | crop of `live_music` (360×360 at 214,210): the oud player's face | `1:2` (derived) | 768×1376 WebP | 512×512 WebP | 18 KB | `af2cf27b11e717033da9cd25141e4f5f32ab8de5a8f4cb04bb16e29887186c7a` |
+| `assets/preview/avatar_group.webp` | Chat preview group avatar (D68) | crop of `post_city` (696×696 at 252,100) | `10:2` (derived) | 1200×896 WebP | 512×512 WebP | 49 KB | `9de96cfe5ce48dc6ff0dcab472f1a70db9a75780617608db544f043b73041c4b` |
 | `assets/preview/live_chat.webp` | Live preview, Home live-hub demo covers (portrait list) | woman in a hijab on a balcony at dusk | `4:2` | 768×1376 JPEG | 768×1376 WebP | 57 KB | `3868f406805d62be4803a6515b3824b1ed7298bf344ddedd15cb51f32c2a0768` |
 | `assets/preview/live_cooking.webp` | Live preview, Home live-hub demo covers (portrait list) | man cooking in a home kitchen | `2:2` | 768×1376 JPEG | 768×1376 WebP | 74 KB | `077a853bfdf53e655d941ea442c69eb784719b46289919f583115b88553fafa6` |
 | `assets/preview/live_gaming.webp` | Live preview, Home live-hub demo covers (portrait list) | young man with a gaming headset, RGB light | `3:2` | 768×1376 JPEG | 768×1376 WebP | 42 KB | `b5a4cd844934165872e93c6c0a6a161462d53ed538139c21e8292d11a340cec6` |

@@ -7,6 +7,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -128,7 +129,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.logoutCalls, 1);
-      expect(find.byType(LoginScreen), findsOneWidget);
+      // D64: signing out lands on the welcome screen.
+      expect(find.byType(WelcomeScreen), findsOneWidget);
     });
   });
 
@@ -184,7 +186,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(WelcomeScreen), findsOneWidget);
       expect(http.requests, isEmpty);
     });
 

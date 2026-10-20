@@ -1,0 +1,5 @@
+D84 country flags for the leaderboard: the flag glyphs of Noto Color Emoji
+(Google, https://github.com/googlefonts/noto-emoji), rendered to 48 px WebP.
+Noto Color Emoji is licensed under the SIL Open Font License 1.1; the flag
+images in noto-emoji are in the public domain. The OFL text is the same as
+in assets/fonts/OFL-Inter.txt.

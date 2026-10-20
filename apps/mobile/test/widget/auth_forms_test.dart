@@ -39,7 +39,7 @@ void main() {
 
     testWidgets('empty submit shows required messages', (tester) async {
       await pump(tester, const LoginScreen());
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
 
       expect(find.text(l10n.validationRequired), findsNWidgets(2));
@@ -49,7 +49,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'ab');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
 
       expect(find.text(l10n.validationTooShort(3)), findsOneWidget);
@@ -69,7 +69,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -89,7 +89,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
       expect(repo.loginCalls, 1);
@@ -98,8 +98,9 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.text(l10n.errorRateLimitedRetryIn('1:04')), findsOneWidget);
 
-      // Disabled: tapping does not submit again.
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      // Disabled: tapping does not submit again. (D64: Kabi's stage and the
+      // error banner push the button below the 800×600 test view.)
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       expect(repo.loginCalls, 1);
 
@@ -107,7 +108,7 @@ void main() {
       expect(find.text(l10n.errorRateLimited), findsOneWidget);
 
       repo.loginFailure = null;
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       expect(repo.loginCalls, 2);
     });
@@ -123,7 +124,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -146,7 +147,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
       expect(find.byType(SelectableText), findsNothing);
@@ -162,7 +163,7 @@ void main() {
       await pump(tester, const LoginScreen());
       await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
       await tester.pump();
 
@@ -173,7 +174,7 @@ void main() {
     testWidgets('Arabic: RTL and Arabic validation copy', (tester) async {
       final ar = l10nFor(AppLanguage.ar);
       await pump(tester, const LoginScreen(), language: AppLanguage.ar);
-      await tester.tap(find.byKey(LoginScreen.submitKey));
+      await tapVisible(tester, find.byKey(LoginScreen.submitKey));
       await tester.pump();
 
       expect(find.text(ar.validationRequired), findsNWidgets(2));

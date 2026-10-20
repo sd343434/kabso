@@ -71,5 +71,11 @@
 		<string>ar</string>
 		<string>en</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kabso Live opens your photos and videos only when you attach one to a message.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kabso Live uses the camera when you take a photo or video to send in a message.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kabso Live records sound with the videos you record to send in a message.</string>
 </dict>
 </plist>

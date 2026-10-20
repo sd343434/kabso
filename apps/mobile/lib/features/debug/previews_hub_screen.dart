@@ -28,6 +28,16 @@ class PreviewsHubScreen extends StatelessWidget {
       (FeedGlyph.discover, l10n.navDiscover, AppRoutes.debugDiscoverPreview),
       (FeedGlyph.live, l10n.previewsHubLive, AppRoutes.debugLivePreview),
       (
+        FeedGlyph.live,
+        l10n.previewsHubLivePk2,
+        '${AppRoutes.debugLivePreview}?mode=pk2',
+      ),
+      (
+        FeedGlyph.live,
+        l10n.previewsHubLivePk4,
+        '${AppRoutes.debugLivePreview}?mode=pk4',
+      ),
+      (
         FeedGlyph.comment,
         l10n.previewsHubConversations,
         AppRoutes.debugConversationsPreview,

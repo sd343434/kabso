@@ -51,9 +51,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     final l10n = l10nFor(language);
-    await tester.ensureVisible(find.text(l10n.loginCreateAccount));
-    await tester.tap(find.text(l10n.loginCreateAccount));
-    await tester.pumpAndSettle();
+    // D64: signed out, the app opens on welcome; open register.
+    await openRegister(tester);
     await tester.enterText(
       find.byKey(RegisterScreen.emailKey),
       ' Layla@Example.com ',
@@ -352,13 +351,14 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text(l10nFor(AppLanguage.en).loginCreateAccount));
-    await tester.pumpAndSettle();
+    await openRegister(tester);
     await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
     await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
-    // Switch to Arabic on the Register screen, then submit.
+    // Switch to Arabic on the Register screen, then submit. (D64: the
+    // switch sits on Kabi's stage, which scrolls with the form.)
+    await tester.ensureVisible(find.byKey(AuthLanguageSwitch.switchKey));
     await tester.tap(find.byKey(AuthLanguageSwitch.switchKey));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(RegisterScreen.submitKey));
@@ -515,9 +515,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l10n = l10nFor(AppLanguage.en);
-      await tester.ensureVisible(find.text(l10n.loginCreateAccount));
-      await tester.tap(find.text(l10n.loginCreateAccount));
-      await tester.pumpAndSettle();
+      // D64: signed out, the app opens on welcome; open register.
+      await openRegister(tester);
       await tester.enterText(
         find.byKey(RegisterScreen.emailKey),
         'layla@example.com',

@@ -49,7 +49,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loginTitle => 'تسجيل الدخول';
 
   @override
-  String get loginSubtitle => 'مرحبًا بعودتك. سجّل الدخول للمتابعة.';
+  String get loginSubtitle => 'سجّل دخولك وكمّل من حيث وقفت';
 
   @override
   String get loginIdentifierLabel => 'البريد الإلكتروني أو اسم المستخدم';
@@ -64,10 +64,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loginForgotPassword => 'نسيت كلمة المرور؟';
 
   @override
-  String get loginNoAccount => 'ليس لديك حساب؟';
+  String get loginNoAccount => 'ما عندك حساب؟';
 
   @override
-  String get loginCreateAccount => 'إنشاء حساب';
+  String get loginCreateAccount => 'أنشئ حساباً';
 
   @override
   String get passwordShow => 'إظهار كلمة المرور';
@@ -720,11 +720,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get feedActionSave => 'حفظ';
 
   @override
-  String livePreviewJoined(String name) {
-    return '$name انضم';
-  }
-
-  @override
   String get livePreviewMinimize => 'تصغير';
 
   @override
@@ -735,11 +730,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get livePreviewEmoji => 'رموز تعبيرية';
-
-  @override
-  String livePreviewRank(int rank) {
-    return 'الترتيب الأسبوعي #$rank';
-  }
 
   @override
   String get feedSearch => 'بحث';
@@ -1077,7 +1067,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get commentsYou => 'أنت';
 
   @override
-  String get conversationsTitle => 'الرسائل الخاصة';
+  String get conversationsTitle => 'شات';
 
   @override
   String get conversationsSharedVideo => 'شارك فيديو';
@@ -1419,4 +1409,383 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileCopied => 'تم النسخ';
+
+  @override
+  String get welcomeBody =>
+      'بث مباشر، ريلز، بودكاست، وهدايا لصنّاعك المفضلين. ادخل وخلّي صوتك يوصل.';
+
+  @override
+  String get authProviderGoogle => 'Google';
+
+  @override
+  String get authProviderApple => 'Apple';
+
+  @override
+  String get authSocialSoon => 'قريبًا';
+
+  @override
+  String authSocialSoonLabel(String provider) {
+    return 'المتابعة باستخدام $provider، قريبًا';
+  }
+
+  @override
+  String get welcomeLiveChip => 'البث شغّال الآن';
+
+  @override
+  String get welcomeHeadline1 => 'العالم';
+
+  @override
+  String get welcomeHeadline2 => 'كله';
+
+  @override
+  String get welcomeHeadline3 => 'على الهواء.';
+
+  @override
+  String get welcomeStart => 'يلا نبدأ';
+
+  @override
+  String get welcomeHaveAccount => 'عندي حساب · ';
+
+  @override
+  String get welcomeComment1 => 'نورت يا كابي 🔥';
+
+  @override
+  String get welcomeComment2 => 'أول مرة هنا 😍';
+
+  @override
+  String get welcomeComment3 => 'كاب كاب 🎧';
+
+  @override
+  String get joinTitleLead => 'خلّي صوتك';
+
+  @override
+  String get joinTitleAccent => 'يوصل للعالم';
+
+  @override
+  String get joinBody =>
+      'بث مباشر، ريلز وبودكاست في مكان واحد.\nأهلًا بك في Kabso Live.';
+
+  @override
+  String get joinCreate => 'إنشاء حساب';
+
+  @override
+  String get loginTitleLead => 'جاهز تبدأ ';
+
+  @override
+  String get loginTitleAccent => 'البث؟';
+
+  @override
+  String get kabiEmojiHi => 'هلا';
+
+  @override
+  String get kabiEmojiLove => 'حب';
+
+  @override
+  String get kabiEmojiLol => 'ضحك';
+
+  @override
+  String get kabiEmojiWow => 'واو';
+
+  @override
+  String get kabiEmojiSad => 'حزين';
+
+  @override
+  String get kabiEmojiAngry => 'معصّب';
+
+  @override
+  String get kabiEmojiWink => 'غمزة';
+
+  @override
+  String get kabiEmojiLive => 'لايف';
+
+  @override
+  String get kabiEmojiCool => 'كشخة';
+
+  @override
+  String get kabiEmojiDizzy => 'دايخ';
+
+  @override
+  String get kabiEmojiSleepy => 'نعسان';
+
+  @override
+  String get kabiEmojiSilly => 'مهبول';
+
+  @override
+  String get kabiEmojiShy => 'مستحي';
+
+  @override
+  String get kabiEmojiThink => 'يفكر';
+
+  @override
+  String get kabiEmojiParty => 'احتفال';
+
+  @override
+  String get kabiEmojiDead => 'مت ضحك';
+
+  @override
+  String get kabiEmojiMelt => 'ذايب';
+
+  @override
+  String get kabiEmojiKiss => 'بوسة';
+
+  @override
+  String get kabiEmojiPickerTitle => 'إيموجي كابي';
+
+  @override
+  String get kabiEmojiButton => 'إيموجي';
+
+  @override
+  String get attachButton => 'إرفاق صورة أو فيديو';
+
+  @override
+  String get attachGallery => 'صورة أو فيديو من المعرض';
+
+  @override
+  String get attachTakePhoto => 'التقاط صورة';
+
+  @override
+  String get attachRecordVideo => 'تسجيل فيديو';
+
+  @override
+  String get attachFailed =>
+      'تعذّر فتح الصور أو الكاميرا. تحقّق من صلاحيات التطبيق في الإعدادات.';
+
+  @override
+  String get attachPhotoLabel => 'صورة';
+
+  @override
+  String get attachPlayVideo => 'تشغيل الفيديو';
+
+  @override
+  String get attachPause => 'إيقاف الفيديو مؤقتًا';
+
+  @override
+  String get chatVoiceSoon => 'الرسائل الصوتية قريباً';
+
+  @override
+  String get chatOnline => 'متصل الآن';
+
+  @override
+  String get chatToday => 'اليوم';
+
+  @override
+  String get chatStatusSent => 'أُرسلت';
+
+  @override
+  String get chatStatusDelivered => 'وصلت';
+
+  @override
+  String get chatStatusRead => 'قُرئت';
+
+  @override
+  String chatTyping(String name) {
+    return '$name يكتب الآن';
+  }
+
+  @override
+  String get conversationsSearch => 'ابحث في المحادثات';
+
+  @override
+  String get conversationsActiveNow => 'نشطون الآن';
+
+  @override
+  String get conversationsFilterAll => 'الكل';
+
+  @override
+  String get conversationsFilterUnread => 'غير المقروءة';
+
+  @override
+  String get conversationsFilterGroups => 'المجموعات';
+
+  @override
+  String get conversationsFilterFavorites => 'المفضلة';
+
+  @override
+  String get conversationsNoMatch => 'لا توجد محادثات مطابقة';
+
+  @override
+  String get conversationsMuted => 'مكتومة';
+
+  @override
+  String conversationsUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count رسالة غير مقروءة',
+      few: '$count رسائل غير مقروءة',
+      two: 'رسالتان غير مقروءتين',
+      one: 'رسالة واحدة غير مقروءة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get conversationsNewMessage => 'رسالة جديدة';
+
+  @override
+  String get conversationsSearchPeople => 'ابحث عن شخص';
+
+  @override
+  String get chatGiftButton => 'أرسل هدية';
+
+  @override
+  String chatGiftTitle(String name) {
+    return 'أرسل هدية إلى $name';
+  }
+
+  @override
+  String get chatGiftQuantity => 'الكمية';
+
+  @override
+  String get chatGiftPick => 'اختر هدية';
+
+  @override
+  String chatGiftSendNamed(String gift) {
+    return 'أرسل $gift';
+  }
+
+  @override
+  String chatGiftYours(String gift) {
+    return 'هديتك: $gift';
+  }
+
+  @override
+  String chatGiftFrom(String name, String gift) {
+    return 'هدية من $name: $gift';
+  }
+
+  @override
+  String get chatGiftYoursCaption => 'هديتك';
+
+  @override
+  String chatGiftFromCaption(String name) {
+    return 'هدية من $name';
+  }
+
+  @override
+  String pkFinalRound(String time) {
+    return 'الجولة الأخيرة $time';
+  }
+
+  @override
+  String get livePreviewMuted => 'الصوت مكتوم';
+
+  @override
+  String livePreviewGiftSent(String name, String gift) {
+    return '$gift من $name';
+  }
+
+  @override
+  String get livePreviewGallery => 'المعرض';
+
+  @override
+  String livePreviewGalleryProgress(String have, String total) {
+    return 'معرض الهدايا $have من $total';
+  }
+
+  @override
+  String get livePreviewGuests => 'دعوة ضيوف';
+
+  @override
+  String get previewsHubLivePk2 => 'تحدّي PK فردي';
+
+  @override
+  String get previewsHubLivePk4 => 'تحدّي PK ثنائي';
+
+  @override
+  String get pkBattleStart => 'ابدأ المعركة';
+
+  @override
+  String get livePreviewPlayBattle => 'تشغيل حركة المعركة (تجربة)';
+
+  @override
+  String get livePreviewSimulateRound => 'محاكاة جولة كاملة';
+
+  @override
+  String get livePreviewJoinedLine => 'انضم إلى البث';
+
+  @override
+  String get livePreviewHostSettings => 'إعدادات المضيف';
+
+  @override
+  String get livePreviewChatTextSize => 'حجم خط الدردشة';
+
+  @override
+  String get livePreviewTextSmall => 'صغير';
+
+  @override
+  String get livePreviewTextMedium => 'متوسط';
+
+  @override
+  String get livePreviewTextLarge => 'كبير';
+
+  @override
+  String liveViewersTab(String count) {
+    return 'المشاهدون $count';
+  }
+
+  @override
+  String get liveRankingTab => 'ترتيب المساهمة';
+
+  @override
+  String get livePeriodDaily => 'يومية';
+
+  @override
+  String get livePeriodWeekly => 'أسبوعية';
+
+  @override
+  String get livePeriodMonthly => 'شهرية';
+
+  @override
+  String get liveRankingHelp => 'كيف يُحسب الترتيب؟';
+
+  @override
+  String get liveRankingHelpBody =>
+      'يُرتَّب المستخدمون حسب النقاط التي جمعوها في الفترة المختارة. هدايا الجاذبية تحسب الهدايا التي استلموها (الجاذبية)، وهدايا الساحر تحسب هدايا الحظ التي أرسلوها (الساحر)، ولا يُخلط النظامان. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.';
+
+  @override
+  String get liveRankingEmpty => 'أرسل الهدايا لتصبح من كبار الداعمين';
+
+  @override
+  String get liveRankingYou => 'أنت';
+
+  @override
+  String get liveGetRanked => 'ادخل الترتيب';
+
+  @override
+  String get livePeriodHourly => 'في الساعة';
+
+  @override
+  String get livePeriodPrevious => 'الفترة السابقة';
+
+  @override
+  String get livePeriodNext => 'الفترة التالية';
+
+  @override
+  String get liveCountdown => 'العد التنازلي';
+
+  @override
+  String get liveGiftFilter => 'فلتر الهدايا';
+
+  @override
+  String get liveGiftsAttraction => 'هدايا الجاذبية';
+
+  @override
+  String get liveGiftsWizard => 'هدايا الساحر';
+
+  @override
+  String get liveRankingList => 'قائمة الترتيب';
+
+  @override
+  String get livePeriodOverall => 'الكلي';
+
+  @override
+  String get liveRankingAllTime => 'الترتيب الكلي';
+
+  @override
+  String get liveHostRankingPlace => 'ترتيب هذا المضيف';
+
+  @override
+  String get liveHostRankingHelpBody =>
+      'يُرتَّب المضيفون فيما بينهم حسب الهدايا التي استلموها في الفترة المختارة: هذه الساعة أو اليوم أو هذا الشهر أو الترتيب الكلي. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.';
 }

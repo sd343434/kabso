@@ -1,5 +1,5 @@
-import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -24,6 +24,8 @@ class ChatScreen extends StatelessWidget {
 
   static const noticeKey = Key('chat.notice');
   static const composerKey = Key('chat.composer');
+  static const emojiKey = Key('chat.emoji');
+  static const attachKey = Key('chat.attach');
   static const sendKey = Key('chat.send');
 
   @override
@@ -108,49 +110,14 @@ class ChatScreen extends StatelessWidget {
               ],
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                KSpacing.md,
-                KSpacing.sm,
-                KSpacing.md,
-                KSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: composerKey,
-                      // No messaging API yet (D61).
-                      enabled: false,
-                      decoration: InputDecoration(
-                        hintText: l10n.messagesPreviewHint,
-                        filled: true,
-                        fillColor: p.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(KRadius.pill),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.lg,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    key: sendKey,
-                    tooltip: l10n.messagesPreviewSend,
-                    onPressed: null,
-                    icon: AppIcon(
-                      AppIcons.send,
-                      size: KMetrics.iconMd,
-                      color: p.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // D68: the shared composer, disabled until a messaging API
+          // exists (D61); attachments (D67, CP-004) and Kabi emojis (D66,
+          // CP-003) with it.
+          const ChatComposer(
+            inputKey: composerKey,
+            sendKey: sendKey,
+            emojiKey: emojiKey,
+            attachKey: attachKey,
           ),
         ],
       ),

@@ -31,13 +31,13 @@
   },
   "languageSwitchHint": "يغيّر لغة التطبيق",
   "loginTitle": "تسجيل الدخول",
-  "loginSubtitle": "مرحبًا بعودتك. سجّل الدخول للمتابعة.",
+  "loginSubtitle": "سجّل دخولك وكمّل من حيث وقفت",
   "loginIdentifierLabel": "البريد الإلكتروني أو اسم المستخدم",
   "loginPasswordLabel": "كلمة المرور",
   "loginSubmit": "تسجيل الدخول",
   "loginForgotPassword": "نسيت كلمة المرور؟",
-  "loginNoAccount": "ليس لديك حساب؟",
-  "loginCreateAccount": "إنشاء حساب",
+  "loginNoAccount": "ما عندك حساب؟",
+  "loginCreateAccount": "أنشئ حساباً",
   "passwordShow": "إظهار كلمة المرور",
   "passwordHide": "إخفاء كلمة المرور",
   "registerTitle": "أنشئ حسابك",
@@ -489,26 +489,10 @@
   "feedActionLike": "إعجاب",
   "feedActionComment": "تعليقات",
   "feedActionSave": "حفظ",
-  "livePreviewJoined": "{name} انضم",
-  "@livePreviewJoined": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "livePreviewMinimize": "تصغير",
   "livePreviewBalance": "الرصيد",
   "livePreviewMore": "المزيد",
   "livePreviewEmoji": "رموز تعبيرية",
-  "livePreviewRank": "الترتيب الأسبوعي #{rank}",
-  "@livePreviewRank": {
-    "placeholders": {
-      "rank": {
-        "type": "int"
-      }
-    }
-  },
   "@feedTabNew": {
     "description": "KL-033 primary tab: most recent first."
   },
@@ -791,7 +775,7 @@
   "@commentsYou": {
     "description": "Author name shown on the viewer's own new comment and composer avatar."
   },
-  "conversationsTitle": "الرسائل الخاصة",
+  "conversationsTitle": "شات",
   "@conversationsTitle": {
     "description": "KL-056 conversation list preview title."
   },
@@ -1173,5 +1157,495 @@
   },
   "@profileCopied": {
     "description": "D62: public profile three-dots menu."
-  }
+  },
+  "welcomeBody": "بث مباشر، ريلز، بودكاست، وهدايا لصنّاعك المفضلين. ادخل وخلّي صوتك يوصل.",
+  "@welcomeBody": {
+    "description": "D64 welcome: one paragraph under the headline."
+  },
+  "authProviderGoogle": "Google",
+  "@authProviderGoogle": {
+    "description": "D64: brand name, not translated."
+  },
+  "authProviderApple": "Apple",
+  "@authProviderApple": {
+    "description": "D64: brand name, not translated."
+  },
+  "authSocialSoon": "قريبًا",
+  "@authSocialSoon": {
+    "description": "D64: badge on social sign-in buttons that do not work yet (CP-002)."
+  },
+  "authSocialSoonLabel": "المتابعة باستخدام {provider}، قريبًا",
+  "@authSocialSoonLabel": {
+    "description": "D64: screen-reader label of a social sign-in button that does not work yet.",
+    "placeholders": {
+      "provider": {
+        "type": "String",
+        "example": "Google"
+      }
+    }
+  },
+  "welcomeLiveChip": "البث شغّال الآن",
+  "@welcomeLiveChip": {
+    "description": "D64 welcome: pill next to the wordmark, with a pulsing dot."
+  },
+  "welcomeHeadline1": "العالم",
+  "@welcomeHeadline1": {
+    "description": "D64 welcome headline, first word (animated separately)."
+  },
+  "welcomeHeadline2": "كله",
+  "@welcomeHeadline2": {
+    "description": "D64 welcome headline, second word."
+  },
+  "welcomeHeadline3": "على الهواء.",
+  "@welcomeHeadline3": {
+    "description": "D64 welcome headline, second line (red marker under it)."
+  },
+  "welcomeStart": "يلا نبدأ",
+  "@welcomeStart": {
+    "description": "D64 welcome: main button, opens registration."
+  },
+  "welcomeHaveAccount": "عندي حساب · ",
+  "@welcomeHaveAccount": {
+    "description": "D64 welcome: text before the red \"Log in\" (loginSubmit); keep the trailing separator and space."
+  },
+  "welcomeComment1": "نورت يا كابي 🔥",
+  "@welcomeComment1": {
+    "description": "D64 welcome: illustrative comment bubble floating by Kabi (decorative, not read by screen readers)."
+  },
+  "welcomeComment2": "أول مرة هنا 😍",
+  "@welcomeComment2": {
+    "description": "D64 welcome: illustrative comment bubble."
+  },
+  "welcomeComment3": "كاب كاب 🎧",
+  "@welcomeComment3": {
+    "description": "D64 welcome: illustrative comment bubble (Kabi's \"kab kab\")."
+  },
+  "joinTitleLead": "خلّي صوتك",
+  "@joinTitleLead": {
+    "description": "D65 join screen: first line of the title."
+  },
+  "joinTitleAccent": "يوصل للعالم",
+  "@joinTitleAccent": {
+    "description": "D65 join screen: second line of the title, in red."
+  },
+  "joinBody": "بث مباشر، ريلز وبودكاست في مكان واحد.\nأهلًا بك في Kabso Live.",
+  "@joinBody": {
+    "description": "D65 join screen: two lines under the title."
+  },
+  "joinCreate": "إنشاء حساب",
+  "@joinCreate": {
+    "description": "D65 join screen: filled button, opens registration."
+  },
+  "loginTitleLead": "جاهز تبدأ ",
+  "@loginTitleLead": {
+    "description": "D65 login: title before the red part; keep the trailing space."
+  },
+  "loginTitleAccent": "البث؟",
+  "@loginTitleAccent": {
+    "description": "D65 login: red end of the title."
+  },
+  "kabiEmojiHi": "هلا",
+  "@kabiEmojiHi": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiLove": "حب",
+  "@kabiEmojiLove": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiLol": "ضحك",
+  "@kabiEmojiLol": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiWow": "واو",
+  "@kabiEmojiWow": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiSad": "حزين",
+  "@kabiEmojiSad": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiAngry": "معصّب",
+  "@kabiEmojiAngry": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiWink": "غمزة",
+  "@kabiEmojiWink": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiLive": "لايف",
+  "@kabiEmojiLive": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiCool": "كشخة",
+  "@kabiEmojiCool": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiDizzy": "دايخ",
+  "@kabiEmojiDizzy": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiSleepy": "نعسان",
+  "@kabiEmojiSleepy": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiSilly": "مهبول",
+  "@kabiEmojiSilly": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiShy": "مستحي",
+  "@kabiEmojiShy": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiThink": "يفكر",
+  "@kabiEmojiThink": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiParty": "احتفال",
+  "@kabiEmojiParty": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiDead": "مت ضحك",
+  "@kabiEmojiDead": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiMelt": "ذايب",
+  "@kabiEmojiMelt": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiKiss": "بوسة",
+  "@kabiEmojiKiss": {
+    "description": "D66: name of the Kabi emoji (screen readers, picker)."
+  },
+  "kabiEmojiPickerTitle": "إيموجي كابي",
+  "@kabiEmojiPickerTitle": {
+    "description": "D66: title of the emoji picker sheet."
+  },
+  "kabiEmojiButton": "إيموجي",
+  "@kabiEmojiButton": {
+    "description": "D66: tooltip of the emoji button in a composer."
+  },
+  "attachButton": "إرفاق صورة أو فيديو",
+  "@attachButton": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachGallery": "صورة أو فيديو من المعرض",
+  "@attachGallery": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachTakePhoto": "التقاط صورة",
+  "@attachTakePhoto": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachRecordVideo": "تسجيل فيديو",
+  "@attachRecordVideo": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachFailed": "تعذّر فتح الصور أو الكاميرا. تحقّق من صلاحيات التطبيق في الإعدادات.",
+  "@attachFailed": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachPhotoLabel": "صورة",
+  "@attachPhotoLabel": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachPlayVideo": "تشغيل الفيديو",
+  "@attachPlayVideo": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "attachPause": "إيقاف الفيديو مؤقتًا",
+  "@attachPause": {
+    "description": "D67: attaching a photo or video in a conversation."
+  },
+  "chatVoiceSoon": "الرسائل الصوتية قريباً",
+  "@chatVoiceSoon": {
+    "description": "Tooltip of the disabled microphone in the chat composer: voice messages need an API (D68, CP-004)."
+  },
+  "chatOnline": "متصل الآن",
+  "@chatOnline": {
+    "description": "Peer status in a conversation header (D68)."
+  },
+  "chatToday": "اليوم",
+  "@chatToday": {
+    "description": "Day separator chip in a conversation (D68)."
+  },
+  "chatStatusSent": "أُرسلت",
+  "@chatStatusSent": {
+    "description": "Screen-reader label of one tick on a sent message."
+  },
+  "chatStatusDelivered": "وصلت",
+  "@chatStatusDelivered": {
+    "description": "Screen-reader label of two grey ticks."
+  },
+  "chatStatusRead": "قُرئت",
+  "@chatStatusRead": {
+    "description": "Screen-reader label of two ticks once read."
+  },
+  "chatTyping": "{name} يكتب الآن",
+  "@chatTyping": {
+    "description": "Typing indicator, read by screen readers.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "conversationsSearch": "ابحث في المحادثات",
+  "@conversationsSearch": {
+    "description": "Search field hint above the conversation list (D68)."
+  },
+  "conversationsActiveNow": "نشطون الآن",
+  "@conversationsActiveNow": {
+    "description": "Title of the row of people online now (D68)."
+  },
+  "conversationsFilterAll": "الكل",
+  "@conversationsFilterAll": {
+    "description": "Filter chip: every conversation."
+  },
+  "conversationsFilterUnread": "غير المقروءة",
+  "@conversationsFilterUnread": {
+    "description": "Filter chip: unread conversations."
+  },
+  "conversationsFilterGroups": "المجموعات",
+  "@conversationsFilterGroups": {
+    "description": "Filter chip: group conversations."
+  },
+  "conversationsFilterFavorites": "المفضلة",
+  "@conversationsFilterFavorites": {
+    "description": "Filter chip: favourite conversations."
+  },
+  "conversationsNoMatch": "لا توجد محادثات مطابقة",
+  "@conversationsNoMatch": {
+    "description": "Shown when the search or filter matches nothing."
+  },
+  "conversationsMuted": "مكتومة",
+  "@conversationsMuted": {
+    "description": "Screen-reader note on a muted conversation."
+  },
+  "conversationsUnreadCount": "{count, plural, =1{رسالة واحدة غير مقروءة} =2{رسالتان غير مقروءتين} few{{count} رسائل غير مقروءة} other{{count} رسالة غير مقروءة}}",
+  "@conversationsUnreadCount": {
+    "description": "Screen-reader count of unread messages in a conversation.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "conversationsNewMessage": "رسالة جديدة",
+  "@conversationsNewMessage": {
+    "description": "Title and button of the new-message sheet in the conversation list (D68)."
+  },
+  "conversationsSearchPeople": "ابحث عن شخص",
+  "@conversationsSearchPeople": {
+    "description": "Search hint in the new-message sheet (D68)."
+  },
+  "chatGiftButton": "أرسل هدية",
+  "@chatGiftButton": {
+    "description": "Gift box in a conversation (D69)."
+  },
+  "chatGiftTitle": "أرسل هدية إلى {name}",
+  "@chatGiftTitle": {
+    "description": "Gift box in a conversation (D69).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "chatGiftQuantity": "الكمية",
+  "@chatGiftQuantity": {
+    "description": "Gift box in a conversation (D69)."
+  },
+  "chatGiftPick": "اختر هدية",
+  "@chatGiftPick": {
+    "description": "Gift box in a conversation (D69)."
+  },
+  "chatGiftSendNamed": "أرسل {gift}",
+  "@chatGiftSendNamed": {
+    "description": "Gift box in a conversation (D69).",
+    "placeholders": {
+      "gift": {
+        "type": "String"
+      }
+    }
+  },
+  "chatGiftYours": "هديتك: {gift}",
+  "@chatGiftYours": {
+    "description": "Gift box in a conversation (D69).",
+    "placeholders": {
+      "gift": {
+        "type": "String"
+      }
+    }
+  },
+  "chatGiftFrom": "هدية من {name}: {gift}",
+  "@chatGiftFrom": {
+    "description": "Gift box in a conversation (D69).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "gift": {
+        "type": "String"
+      }
+    }
+  },
+  "chatGiftYoursCaption": "هديتك",
+  "@chatGiftYoursCaption": {
+    "description": "Caption under a gift in a conversation (D69)."
+  },
+  "chatGiftFromCaption": "هدية من {name}",
+  "@chatGiftFromCaption": {
+    "description": "Caption under a gift in a conversation (D69).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "pkFinalRound": "الجولة الأخيرة {time}",
+  "@pkFinalRound": {
+    "description": "Live preview, solo and PK layouts (D71).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "livePreviewMuted": "الصوت مكتوم",
+  "@livePreviewMuted": {
+    "description": "Live preview, solo and PK layouts (D71)."
+  },
+  "livePreviewGiftSent": "{gift} من {name}",
+  "@livePreviewGiftSent": {
+    "description": "Live preview, solo and PK layouts (D71).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "gift": {
+        "type": "String"
+      }
+    }
+  },
+  "livePreviewGallery": "المعرض",
+  "@livePreviewGallery": {
+    "description": "Live preview, solo and PK layouts (D71)."
+  },
+  "livePreviewGalleryProgress": "معرض الهدايا {have} من {total}",
+  "@livePreviewGalleryProgress": {
+    "description": "Live preview, solo and PK layouts (D71).",
+    "placeholders": {
+      "have": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "livePreviewGuests": "دعوة ضيوف",
+  "@livePreviewGuests": {
+    "description": "Live preview, solo and PK layouts (D71)."
+  },
+  "previewsHubLivePk2": "تحدّي PK فردي",
+  "@previewsHubLivePk2": {
+    "description": "Live preview, solo and PK layouts (D71)."
+  },
+  "previewsHubLivePk4": "تحدّي PK ثنائي",
+  "@previewsHubLivePk4": {
+    "description": "Live preview, solo and PK layouts (D71)."
+  },
+  "pkBattleStart": "ابدأ المعركة",
+  "@pkBattleStart": {
+    "description": "PK battle animations (D71)."
+  },
+  "livePreviewPlayBattle": "تشغيل حركة المعركة (تجربة)",
+  "@livePreviewPlayBattle": {
+    "description": "PK battle animations (D71)."
+  },
+  "livePreviewSimulateRound": "محاكاة جولة كاملة",
+  "@livePreviewSimulateRound": {
+    "description": "D73: debug live preview, plays a whole PK round on the score bar."
+  },
+  "livePreviewJoinedLine": "انضم إلى البث",
+  "@livePreviewJoinedLine": {
+    "description": "D76: the line under a newcomer's name and level badges in the live chat."
+  },
+  "livePreviewHostSettings": "إعدادات المضيف",
+  "@livePreviewHostSettings": {
+    "description": "D79: live preview Host settings (chat text size)."
+  },
+  "livePreviewChatTextSize": "حجم خط الدردشة",
+  "@livePreviewChatTextSize": {
+    "description": "D79: live preview Host settings (chat text size)."
+  },
+  "livePreviewTextSmall": "صغير",
+  "@livePreviewTextSmall": {
+    "description": "D79: live preview Host settings (chat text size)."
+  },
+  "livePreviewTextMedium": "متوسط",
+  "@livePreviewTextMedium": {
+    "description": "D79: live preview Host settings (chat text size)."
+  },
+  "livePreviewTextLarge": "كبير",
+  "@livePreviewTextLarge": {
+    "description": "D79: live preview Host settings (chat text size)."
+  },
+  "liveViewersTab": "المشاهدون {count}",
+  "@liveViewersTab": {
+    "description": "D82: live viewers box / contribution ranking.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRankingTab": "ترتيب المساهمة",
+  "@liveRankingTab": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "livePeriodDaily": "يومية",
+  "@livePeriodDaily": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "livePeriodWeekly": "أسبوعية",
+  "@livePeriodWeekly": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "livePeriodMonthly": "شهرية",
+  "@livePeriodMonthly": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "liveRankingHelp": "كيف يُحسب الترتيب؟",
+  "@liveRankingHelp": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "liveRankingHelpBody": "يُرتَّب المستخدمون حسب النقاط التي جمعوها في الفترة المختارة. هدايا الجاذبية تحسب الهدايا التي استلموها (الجاذبية)، وهدايا الساحر تحسب هدايا الحظ التي أرسلوها (الساحر)، ولا يُخلط النظامان. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.",
+  "@liveRankingHelpBody": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "liveRankingEmpty": "أرسل الهدايا لتصبح من كبار الداعمين",
+  "@liveRankingEmpty": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "liveRankingYou": "أنت",
+  "@liveRankingYou": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "liveGetRanked": "ادخل الترتيب",
+  "@liveGetRanked": {
+    "description": "D82: live viewers box / contribution ranking."
+  },
+  "livePeriodHourly": "في الساعة",
+  "livePeriodPrevious": "الفترة السابقة",
+  "livePeriodNext": "الفترة التالية",
+  "liveCountdown": "العد التنازلي",
+  "liveGiftFilter": "فلتر الهدايا",
+  "liveGiftsAttraction": "هدايا الجاذبية",
+  "liveGiftsWizard": "هدايا الساحر",
+  "liveRankingList": "قائمة الترتيب",
+  "livePeriodOverall": "الكلي",
+  "liveRankingAllTime": "الترتيب الكلي",
+  "liveHostRankingPlace": "ترتيب هذا المضيف",
+  "liveHostRankingHelpBody": "يُرتَّب المضيفون فيما بينهم حسب الهدايا التي استلموها في الفترة المختارة: هذه الساعة أو اليوم أو هذا الشهر أو الترتيب الكلي. ويبيّن العد التنازلي متى تنتهي الجولة الحالية."
 }

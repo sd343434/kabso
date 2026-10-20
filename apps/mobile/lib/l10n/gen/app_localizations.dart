@@ -179,7 +179,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginSubtitle.
   ///
   /// In ar, this message translates to:
-  /// **'مرحبًا بعودتك. سجّل الدخول للمتابعة.'**
+  /// **'سجّل دخولك وكمّل من حيث وقفت'**
   String get loginSubtitle;
 
   /// No description provided for @loginIdentifierLabel.
@@ -209,13 +209,13 @@ abstract class AppLocalizations {
   /// No description provided for @loginNoAccount.
   ///
   /// In ar, this message translates to:
-  /// **'ليس لديك حساب؟'**
+  /// **'ما عندك حساب؟'**
   String get loginNoAccount;
 
   /// No description provided for @loginCreateAccount.
   ///
   /// In ar, this message translates to:
-  /// **'إنشاء حساب'**
+  /// **'أنشئ حساباً'**
   String get loginCreateAccount;
 
   /// No description provided for @passwordShow.
@@ -1232,12 +1232,6 @@ abstract class AppLocalizations {
   /// **'حفظ'**
   String get feedActionSave;
 
-  /// No description provided for @livePreviewJoined.
-  ///
-  /// In ar, this message translates to:
-  /// **'{name} انضم'**
-  String livePreviewJoined(String name);
-
   /// No description provided for @livePreviewMinimize.
   ///
   /// In ar, this message translates to:
@@ -1261,12 +1255,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رموز تعبيرية'**
   String get livePreviewEmoji;
-
-  /// No description provided for @livePreviewRank.
-  ///
-  /// In ar, this message translates to:
-  /// **'الترتيب الأسبوعي #{rank}'**
-  String livePreviewRank(int rank);
 
   /// Semantics/tooltip of the header search button; opens Discover.
   ///
@@ -1811,7 +1799,7 @@ abstract class AppLocalizations {
   /// KL-056 conversation list preview title.
   ///
   /// In ar, this message translates to:
-  /// **'الرسائل الخاصة'**
+  /// **'شات'**
   String get conversationsTitle;
 
   /// No description provided for @conversationsSharedVideo.
@@ -2419,6 +2407,690 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم النسخ'**
   String get profileCopied;
+
+  /// D64 welcome: one paragraph under the headline.
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر، ريلز، بودكاست، وهدايا لصنّاعك المفضلين. ادخل وخلّي صوتك يوصل.'**
+  String get welcomeBody;
+
+  /// D64: brand name, not translated.
+  ///
+  /// In ar, this message translates to:
+  /// **'Google'**
+  String get authProviderGoogle;
+
+  /// D64: brand name, not translated.
+  ///
+  /// In ar, this message translates to:
+  /// **'Apple'**
+  String get authProviderApple;
+
+  /// D64: badge on social sign-in buttons that do not work yet (CP-002).
+  ///
+  /// In ar, this message translates to:
+  /// **'قريبًا'**
+  String get authSocialSoon;
+
+  /// D64: screen-reader label of a social sign-in button that does not work yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعة باستخدام {provider}، قريبًا'**
+  String authSocialSoonLabel(String provider);
+
+  /// D64 welcome: pill next to the wordmark, with a pulsing dot.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث شغّال الآن'**
+  String get welcomeLiveChip;
+
+  /// D64 welcome headline, first word (animated separately).
+  ///
+  /// In ar, this message translates to:
+  /// **'العالم'**
+  String get welcomeHeadline1;
+
+  /// D64 welcome headline, second word.
+  ///
+  /// In ar, this message translates to:
+  /// **'كله'**
+  String get welcomeHeadline2;
+
+  /// D64 welcome headline, second line (red marker under it).
+  ///
+  /// In ar, this message translates to:
+  /// **'على الهواء.'**
+  String get welcomeHeadline3;
+
+  /// D64 welcome: main button, opens registration.
+  ///
+  /// In ar, this message translates to:
+  /// **'يلا نبدأ'**
+  String get welcomeStart;
+
+  /// D64 welcome: text before the red "Log in" (loginSubmit); keep the trailing separator and space.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندي حساب · '**
+  String get welcomeHaveAccount;
+
+  /// D64 welcome: illustrative comment bubble floating by Kabi (decorative, not read by screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'نورت يا كابي 🔥'**
+  String get welcomeComment1;
+
+  /// D64 welcome: illustrative comment bubble.
+  ///
+  /// In ar, this message translates to:
+  /// **'أول مرة هنا 😍'**
+  String get welcomeComment2;
+
+  /// D64 welcome: illustrative comment bubble (Kabi's "kab kab").
+  ///
+  /// In ar, this message translates to:
+  /// **'كاب كاب 🎧'**
+  String get welcomeComment3;
+
+  /// D65 join screen: first line of the title.
+  ///
+  /// In ar, this message translates to:
+  /// **'خلّي صوتك'**
+  String get joinTitleLead;
+
+  /// D65 join screen: second line of the title, in red.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوصل للعالم'**
+  String get joinTitleAccent;
+
+  /// D65 join screen: two lines under the title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر، ريلز وبودكاست في مكان واحد.\nأهلًا بك في Kabso Live.'**
+  String get joinBody;
+
+  /// D65 join screen: filled button, opens registration.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء حساب'**
+  String get joinCreate;
+
+  /// D65 login: title before the red part; keep the trailing space.
+  ///
+  /// In ar, this message translates to:
+  /// **'جاهز تبدأ '**
+  String get loginTitleLead;
+
+  /// D65 login: red end of the title.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث؟'**
+  String get loginTitleAccent;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get kabiEmojiHi;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get kabiEmojiLove;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get kabiEmojiLol;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get kabiEmojiWow;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'حزين'**
+  String get kabiEmojiSad;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'معصّب'**
+  String get kabiEmojiAngry;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'غمزة'**
+  String get kabiEmojiWink;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'لايف'**
+  String get kabiEmojiLive;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get kabiEmojiCool;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'دايخ'**
+  String get kabiEmojiDizzy;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get kabiEmojiSleepy;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهبول'**
+  String get kabiEmojiSilly;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحي'**
+  String get kabiEmojiShy;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'يفكر'**
+  String get kabiEmojiThink;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get kabiEmojiParty;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'مت ضحك'**
+  String get kabiEmojiDead;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذايب'**
+  String get kabiEmojiMelt;
+
+  /// D66: name of the Kabi emoji (screen readers, picker).
+  ///
+  /// In ar, this message translates to:
+  /// **'بوسة'**
+  String get kabiEmojiKiss;
+
+  /// D66: title of the emoji picker sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيموجي كابي'**
+  String get kabiEmojiPickerTitle;
+
+  /// D66: tooltip of the emoji button in a composer.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيموجي'**
+  String get kabiEmojiButton;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرفاق صورة أو فيديو'**
+  String get attachButton;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة أو فيديو من المعرض'**
+  String get attachGallery;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقاط صورة'**
+  String get attachTakePhoto;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل فيديو'**
+  String get attachRecordVideo;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح الصور أو الكاميرا. تحقّق من صلاحيات التطبيق في الإعدادات.'**
+  String get attachFailed;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة'**
+  String get attachPhotoLabel;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الفيديو'**
+  String get attachPlayVideo;
+
+  /// D67: attaching a photo or video in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف الفيديو مؤقتًا'**
+  String get attachPause;
+
+  /// Tooltip of the disabled microphone in the chat composer: voice messages need an API (D68, CP-004).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الصوتية قريباً'**
+  String get chatVoiceSoon;
+
+  /// Peer status in a conversation header (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'متصل الآن'**
+  String get chatOnline;
+
+  /// Day separator chip in a conversation (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get chatToday;
+
+  /// Screen-reader label of one tick on a sent message.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت'**
+  String get chatStatusSent;
+
+  /// Screen-reader label of two grey ticks.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت'**
+  String get chatStatusDelivered;
+
+  /// Screen-reader label of two ticks once read.
+  ///
+  /// In ar, this message translates to:
+  /// **'قُرئت'**
+  String get chatStatusRead;
+
+  /// Typing indicator, read by screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يكتب الآن'**
+  String chatTyping(String name);
+
+  /// Search field hint above the conversation list (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في المحادثات'**
+  String get conversationsSearch;
+
+  /// Title of the row of people online now (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'نشطون الآن'**
+  String get conversationsActiveNow;
+
+  /// Filter chip: every conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get conversationsFilterAll;
+
+  /// Filter chip: unread conversations.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير المقروءة'**
+  String get conversationsFilterUnread;
+
+  /// Filter chip: group conversations.
+  ///
+  /// In ar, this message translates to:
+  /// **'المجموعات'**
+  String get conversationsFilterGroups;
+
+  /// Filter chip: favourite conversations.
+  ///
+  /// In ar, this message translates to:
+  /// **'المفضلة'**
+  String get conversationsFilterFavorites;
+
+  /// Shown when the search or filter matches nothing.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد محادثات مطابقة'**
+  String get conversationsNoMatch;
+
+  /// Screen-reader note on a muted conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتومة'**
+  String get conversationsMuted;
+
+  /// Screen-reader count of unread messages in a conversation.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{رسالة واحدة غير مقروءة} =2{رسالتان غير مقروءتين} few{{count} رسائل غير مقروءة} other{{count} رسالة غير مقروءة}}'**
+  String conversationsUnreadCount(int count);
+
+  /// Title and button of the new-message sheet in the conversation list (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة جديدة'**
+  String get conversationsNewMessage;
+
+  /// Search hint in the new-message sheet (D68).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن شخص'**
+  String get conversationsSearchPeople;
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية'**
+  String get chatGiftButton;
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية إلى {name}'**
+  String chatGiftTitle(String name);
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكمية'**
+  String get chatGiftQuantity;
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر هدية'**
+  String get chatGiftPick;
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل {gift}'**
+  String chatGiftSendNamed(String gift);
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'هديتك: {gift}'**
+  String chatGiftYours(String gift);
+
+  /// Gift box in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من {name}: {gift}'**
+  String chatGiftFrom(String name, String gift);
+
+  /// Caption under a gift in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'هديتك'**
+  String get chatGiftYoursCaption;
+
+  /// Caption under a gift in a conversation (D69).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من {name}'**
+  String chatGiftFromCaption(String name);
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجولة الأخيرة {time}'**
+  String pkFinalRound(String time);
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'الصوت مكتوم'**
+  String get livePreviewMuted;
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'{gift} من {name}'**
+  String livePreviewGiftSent(String name, String gift);
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'المعرض'**
+  String get livePreviewGallery;
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'معرض الهدايا {have} من {total}'**
+  String livePreviewGalleryProgress(String have, String total);
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة ضيوف'**
+  String get livePreviewGuests;
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحدّي PK فردي'**
+  String get previewsHubLivePk2;
+
+  /// Live preview, solo and PK layouts (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحدّي PK ثنائي'**
+  String get previewsHubLivePk4;
+
+  /// PK battle animations (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ المعركة'**
+  String get pkBattleStart;
+
+  /// PK battle animations (D71).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل حركة المعركة (تجربة)'**
+  String get livePreviewPlayBattle;
+
+  /// D73: debug live preview, plays a whole PK round on the score bar.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاكاة جولة كاملة'**
+  String get livePreviewSimulateRound;
+
+  /// D76: the line under a newcomer's name and level badges in the live chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى البث'**
+  String get livePreviewJoinedLine;
+
+  /// D79: live preview Host settings (chat text size).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات المضيف'**
+  String get livePreviewHostSettings;
+
+  /// D79: live preview Host settings (chat text size).
+  ///
+  /// In ar, this message translates to:
+  /// **'حجم خط الدردشة'**
+  String get livePreviewChatTextSize;
+
+  /// D79: live preview Host settings (chat text size).
+  ///
+  /// In ar, this message translates to:
+  /// **'صغير'**
+  String get livePreviewTextSmall;
+
+  /// D79: live preview Host settings (chat text size).
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط'**
+  String get livePreviewTextMedium;
+
+  /// D79: live preview Host settings (chat text size).
+  ///
+  /// In ar, this message translates to:
+  /// **'كبير'**
+  String get livePreviewTextLarge;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون {count}'**
+  String liveViewersTab(String count);
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب المساهمة'**
+  String get liveRankingTab;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'يومية'**
+  String get livePeriodDaily;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسبوعية'**
+  String get livePeriodWeekly;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهرية'**
+  String get livePeriodMonthly;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف يُحسب الترتيب؟'**
+  String get liveRankingHelp;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُرتَّب المستخدمون حسب النقاط التي جمعوها في الفترة المختارة. هدايا الجاذبية تحسب الهدايا التي استلموها (الجاذبية)، وهدايا الساحر تحسب هدايا الحظ التي أرسلوها (الساحر)، ولا يُخلط النظامان. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.'**
+  String get liveRankingHelpBody;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الهدايا لتصبح من كبار الداعمين'**
+  String get liveRankingEmpty;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت'**
+  String get liveRankingYou;
+
+  /// D82: live viewers box / contribution ranking.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادخل الترتيب'**
+  String get liveGetRanked;
+
+  /// No description provided for @livePeriodHourly.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الساعة'**
+  String get livePeriodHourly;
+
+  /// No description provided for @livePeriodPrevious.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفترة السابقة'**
+  String get livePeriodPrevious;
+
+  /// No description provided for @livePeriodNext.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفترة التالية'**
+  String get livePeriodNext;
+
+  /// No description provided for @liveCountdown.
+  ///
+  /// In ar, this message translates to:
+  /// **'العد التنازلي'**
+  String get liveCountdown;
+
+  /// No description provided for @liveGiftFilter.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلتر الهدايا'**
+  String get liveGiftFilter;
+
+  /// No description provided for @liveGiftsAttraction.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الجاذبية'**
+  String get liveGiftsAttraction;
+
+  /// No description provided for @liveGiftsWizard.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الساحر'**
+  String get liveGiftsWizard;
+
+  /// No description provided for @liveRankingList.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة الترتيب'**
+  String get liveRankingList;
+
+  /// No description provided for @livePeriodOverall.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكلي'**
+  String get livePeriodOverall;
+
+  /// No description provided for @liveRankingAllTime.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب الكلي'**
+  String get liveRankingAllTime;
+
+  /// No description provided for @liveHostRankingPlace.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب هذا المضيف'**
+  String get liveHostRankingPlace;
+
+  /// No description provided for @liveHostRankingHelpBody.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُرتَّب المضيفون فيما بينهم حسب الهدايا التي استلموها في الفترة المختارة: هذه الساعة أو اليوم أو هذا الشهر أو الترتيب الكلي. ويبيّن العد التنازلي متى تنتهي الجولة الحالية.'**
+  String get liveHostRankingHelpBody;
 }
 
 class _AppLocalizationsDelegate

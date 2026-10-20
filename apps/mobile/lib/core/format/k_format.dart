@@ -10,6 +10,10 @@ abstract final class KFormat {
   static String date(DateTime value, String localeTag) =>
       _latin(DateFormat('d MMM y', localeTag)).format(value.toLocal());
 
+  /// Time of day, e.g. en "10:02 AM", ar "10:02 ص" (Latin digits).
+  static String time(DateTime value, String localeTag) =>
+      _latin(DateFormat.jm(localeTag)).format(value.toLocal());
+
   /// Countdown `m:ss` (or `h:mm:ss` from one hour), e.g. "4:05".
   static String countdown(Duration value) {
     final total = value.isNegative ? 0 : value.inSeconds;

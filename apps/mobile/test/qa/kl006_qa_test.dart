@@ -357,7 +357,8 @@ void main() {
       );
       addTearDown(container.dispose);
       expect(container.read(languageControllerProvider), AppLanguage.ar);
-      expect(container.read(themeModeControllerProvider), ThemeMode.dark);
+      // D68: the device decides until the user picks a theme.
+      expect(container.read(themeModeControllerProvider), ThemeMode.system);
     });
   });
 

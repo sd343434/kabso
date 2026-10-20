@@ -5,6 +5,8 @@ import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/join_screen.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -13,9 +15,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fake_live_repository.dart';
 
 /// Shared preferences with an explicit language.
-Future<SharedPreferences> testPrefs({String language = 'en'}) {
+Future<SharedPreferences> testPrefs({
+  String language = 'en',
+  Map<String, Object> extra = const {},
+}) {
   SharedPreferences.setMockInitialValues({
     PreferenceKeys.languageCode: language,
+    ...extra,
   });
   return SharedPreferences.getInstance();
 }
@@ -29,13 +35,14 @@ Future<void> pumpKabsoApp(
   required List<Override> overrides,
   String language = 'en',
   LiveRepository? liveRepository,
+  Map<String, Object> prefs = const {},
 }) async {
-  final prefs = await testPrefs(language: language);
+  final preferences = await testPrefs(language: language, extra: prefs);
   await tester.pumpWidget(
     ProviderScope(
       retry: (_, _) => null,
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
+        sharedPreferencesProvider.overrideWithValue(preferences),
         liveRepositoryProvider.overrideWithValue(
           liveRepository ?? FakeLiveRepository(hostingEnabled: false),
         ),
@@ -44,6 +51,29 @@ Future<void> pumpKabsoApp(
       child: const KabsoApp(),
     ),
   );
+}
+
+/// Signed out, the app opens on the welcome screen (D64): taps "Log in".
+Future<void> openLogin(WidgetTester tester) async {
+  await tapVisible(tester, find.byKey(WelcomeScreen.logInKey));
+  await tester.pumpAndSettle();
+}
+
+/// Signed out, the first launch opens on the welcome screen (D64/D65):
+/// "Let's start" opens the join screen, whose "Create account" opens
+/// register.
+Future<void> openRegister(WidgetTester tester) async {
+  await tapVisible(tester, find.byKey(WelcomeScreen.signUpKey));
+  await tester.pumpAndSettle();
+  await tapVisible(tester, find.byKey(JoinScreen.createKey));
+  await tester.pumpAndSettle();
+}
+
+/// Scrolls [finder] into view, then taps it (D65: the login form sits
+/// under Kabi's face and may start below a small test view).
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
 }
 
 /// Pumps a single screen inside a themed, localized [MaterialApp].

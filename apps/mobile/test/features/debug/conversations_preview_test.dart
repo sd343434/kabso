@@ -37,8 +37,8 @@ Future<void> _pump(
   ),
 );
 
-Finder _row(String peer) =>
-    find.bySemanticsLabel(RegExp('^${RegExp.escape(peer)}'));
+// A row of the list (the "active now" row also names online people).
+Finder _row(String peer) => find.byKey(ConversationsPreviewScreen.rowKey(peer));
 
 void main() {
   testWidgets('populated: labelled rows with preview lines and times', (
@@ -162,15 +162,12 @@ void main() {
     expect(find.byKey(ConversationsPreviewScreen.listKey), findsNothing);
   });
 
-  testWidgets('the state switcher changes the state', (tester) async {
+  testWidgets('no state switcher on screen (owner, D68)', (tester) async {
     _phone(tester);
     await _pump(tester);
     final l10n = l10nFor(AppLanguage.en);
-    await tester.ensureVisible(find.text(l10n.previewStateEmpty));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.previewStateEmpty));
-    await tester.pump();
-    expect(find.text(l10n.conversationsEmptyTitle), findsOneWidget);
+    expect(find.text(l10n.previewStateLoading), findsNothing);
+    expect(find.text(l10n.previewStateError), findsNothing);
   });
 
   for (final language in AppLanguage.values) {

@@ -100,16 +100,21 @@ void main() {
     expect(first.dx, greaterThan(second.dx));
   });
 
-  testWidgets('the live share button opens the same sheet', (tester) async {
+  testWidgets('the live room ⋯ → Share opens the same sheet (D78)', (
+    tester,
+  ) async {
     _phone(tester, width: 430, height: 932);
     await pumpScreen(tester, const LivePreviewScreen());
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(LivePreviewScreen.bottomBarKey),
-        matching: find.bySemanticsLabel(l10nFor(AppLanguage.en).liveShare),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(LivePreviewScreen.moreKey));
+    // The chat's Kabi emoji loops (D71): run the sheets frame by frame.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(LivePreviewScreen.shareOptionKey));
+    // The menu closes, then the share sheet slides in: frame by frame.
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.byKey(FeedShareSheet.sheetKey), findsOneWidget);
   });
 

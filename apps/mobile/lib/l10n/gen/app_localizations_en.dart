@@ -49,7 +49,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginTitle => 'Log in';
 
   @override
-  String get loginSubtitle => 'Welcome back. Log in to continue.';
+  String get loginSubtitle => 'Log in and pick up where you left off.';
 
   @override
   String get loginIdentifierLabel => 'Email or username';
@@ -696,11 +696,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedActionSave => 'Save';
 
   @override
-  String livePreviewJoined(String name) {
-    return '$name joined';
-  }
-
-  @override
   String get livePreviewMinimize => 'Minimise';
 
   @override
@@ -711,11 +706,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get livePreviewEmoji => 'Emoji';
-
-  @override
-  String livePreviewRank(int rank) {
-    return 'Weekly rank #$rank';
-  }
 
   @override
   String get feedSearch => 'Search';
@@ -1043,7 +1033,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commentsYou => 'You';
 
   @override
-  String get conversationsTitle => 'Direct messages';
+  String get conversationsTitle => 'Chats';
 
   @override
   String get conversationsSharedVideo => 'Shared a video';
@@ -1391,4 +1381,381 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileCopied => 'Copied';
+
+  @override
+  String get welcomeBody =>
+      'Live streams, reels, podcasts and gifts for your favourite creators. Come in and let your voice be heard.';
+
+  @override
+  String get authProviderGoogle => 'Google';
+
+  @override
+  String get authProviderApple => 'Apple';
+
+  @override
+  String get authSocialSoon => 'Soon';
+
+  @override
+  String authSocialSoonLabel(String provider) {
+    return 'Continue with $provider, coming soon';
+  }
+
+  @override
+  String get welcomeLiveChip => 'Live right now';
+
+  @override
+  String get welcomeHeadline1 => 'The whole';
+
+  @override
+  String get welcomeHeadline2 => 'world';
+
+  @override
+  String get welcomeHeadline3 => 'on air.';
+
+  @override
+  String get welcomeStart => 'Let\'s start';
+
+  @override
+  String get welcomeHaveAccount => 'I have an account · ';
+
+  @override
+  String get welcomeComment1 => 'Hi Kabi 🔥';
+
+  @override
+  String get welcomeComment2 => 'First time here 😍';
+
+  @override
+  String get welcomeComment3 => 'Kab kab 🎧';
+
+  @override
+  String get joinTitleLead => 'Let your voice';
+
+  @override
+  String get joinTitleAccent => 'reach the world';
+
+  @override
+  String get joinBody =>
+      'Live streams, reels and podcasts in one place.\nWelcome to Kabso Live.';
+
+  @override
+  String get joinCreate => 'Create account';
+
+  @override
+  String get loginTitleLead => 'Ready to go ';
+
+  @override
+  String get loginTitleAccent => 'live?';
+
+  @override
+  String get kabiEmojiHi => 'Hi';
+
+  @override
+  String get kabiEmojiLove => 'Love';
+
+  @override
+  String get kabiEmojiLol => 'Laughing';
+
+  @override
+  String get kabiEmojiWow => 'Wow';
+
+  @override
+  String get kabiEmojiSad => 'Sad';
+
+  @override
+  String get kabiEmojiAngry => 'Angry';
+
+  @override
+  String get kabiEmojiWink => 'Wink';
+
+  @override
+  String get kabiEmojiLive => 'Live';
+
+  @override
+  String get kabiEmojiCool => 'Cool';
+
+  @override
+  String get kabiEmojiDizzy => 'Dizzy';
+
+  @override
+  String get kabiEmojiSleepy => 'Sleepy';
+
+  @override
+  String get kabiEmojiSilly => 'Silly';
+
+  @override
+  String get kabiEmojiShy => 'Shy';
+
+  @override
+  String get kabiEmojiThink => 'Thinking';
+
+  @override
+  String get kabiEmojiParty => 'Party';
+
+  @override
+  String get kabiEmojiDead => 'Dying of laughter';
+
+  @override
+  String get kabiEmojiMelt => 'Melting';
+
+  @override
+  String get kabiEmojiKiss => 'Kiss';
+
+  @override
+  String get kabiEmojiPickerTitle => 'Kabi emojis';
+
+  @override
+  String get kabiEmojiButton => 'Emojis';
+
+  @override
+  String get attachButton => 'Attach a photo or video';
+
+  @override
+  String get attachGallery => 'Photo or video from your library';
+
+  @override
+  String get attachTakePhoto => 'Take a photo';
+
+  @override
+  String get attachRecordVideo => 'Record a video';
+
+  @override
+  String get attachFailed =>
+      'Couldn\'t open your photos or camera. Check the app\'s permissions in Settings.';
+
+  @override
+  String get attachPhotoLabel => 'Photo';
+
+  @override
+  String get attachPlayVideo => 'Play video';
+
+  @override
+  String get attachPause => 'Pause video';
+
+  @override
+  String get chatVoiceSoon => 'Voice messages are coming soon';
+
+  @override
+  String get chatOnline => 'Online';
+
+  @override
+  String get chatToday => 'Today';
+
+  @override
+  String get chatStatusSent => 'Sent';
+
+  @override
+  String get chatStatusDelivered => 'Delivered';
+
+  @override
+  String get chatStatusRead => 'Read';
+
+  @override
+  String chatTyping(String name) {
+    return '$name is typing';
+  }
+
+  @override
+  String get conversationsSearch => 'Search conversations';
+
+  @override
+  String get conversationsActiveNow => 'Active now';
+
+  @override
+  String get conversationsFilterAll => 'All';
+
+  @override
+  String get conversationsFilterUnread => 'Unread';
+
+  @override
+  String get conversationsFilterGroups => 'Groups';
+
+  @override
+  String get conversationsFilterFavorites => 'Favorites';
+
+  @override
+  String get conversationsNoMatch => 'No conversations match';
+
+  @override
+  String get conversationsMuted => 'muted';
+
+  @override
+  String conversationsUnreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread messages',
+      one: '$count unread message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get conversationsNewMessage => 'New message';
+
+  @override
+  String get conversationsSearchPeople => 'Search people';
+
+  @override
+  String get chatGiftButton => 'Send a gift';
+
+  @override
+  String chatGiftTitle(String name) {
+    return 'Send a gift to $name';
+  }
+
+  @override
+  String get chatGiftQuantity => 'Quantity';
+
+  @override
+  String get chatGiftPick => 'Choose a gift';
+
+  @override
+  String chatGiftSendNamed(String gift) {
+    return 'Send $gift';
+  }
+
+  @override
+  String chatGiftYours(String gift) {
+    return 'Your gift: $gift';
+  }
+
+  @override
+  String chatGiftFrom(String name, String gift) {
+    return 'Gift from $name: $gift';
+  }
+
+  @override
+  String get chatGiftYoursCaption => 'Your gift';
+
+  @override
+  String chatGiftFromCaption(String name) {
+    return 'Gift from $name';
+  }
+
+  @override
+  String pkFinalRound(String time) {
+    return 'Final round $time';
+  }
+
+  @override
+  String get livePreviewMuted => 'Muted';
+
+  @override
+  String livePreviewGiftSent(String name, String gift) {
+    return '$gift from $name';
+  }
+
+  @override
+  String get livePreviewGallery => 'Gallery';
+
+  @override
+  String livePreviewGalleryProgress(String have, String total) {
+    return 'Gift gallery $have of $total';
+  }
+
+  @override
+  String get livePreviewGuests => 'Invite guests';
+
+  @override
+  String get previewsHubLivePk2 => 'PK 1 v 1';
+
+  @override
+  String get previewsHubLivePk4 => 'PK 2 v 2';
+
+  @override
+  String get pkBattleStart => 'Battle on';
+
+  @override
+  String get livePreviewPlayBattle => 'Play a battle animation (test)';
+
+  @override
+  String get livePreviewSimulateRound => 'Simulate a whole round';
+
+  @override
+  String get livePreviewJoinedLine => 'joined the live';
+
+  @override
+  String get livePreviewHostSettings => 'Host settings';
+
+  @override
+  String get livePreviewChatTextSize => 'Chat text size';
+
+  @override
+  String get livePreviewTextSmall => 'Small';
+
+  @override
+  String get livePreviewTextMedium => 'Medium';
+
+  @override
+  String get livePreviewTextLarge => 'Large';
+
+  @override
+  String liveViewersTab(String count) {
+    return 'Viewers $count';
+  }
+
+  @override
+  String get liveRankingTab => 'Contribution ranking';
+
+  @override
+  String get livePeriodDaily => 'Daily';
+
+  @override
+  String get livePeriodWeekly => 'Weekly';
+
+  @override
+  String get livePeriodMonthly => 'Monthly';
+
+  @override
+  String get liveRankingHelp => 'How is the ranking made?';
+
+  @override
+  String get liveRankingHelpBody =>
+      'Users are ranked by the points they earned in the selected period. Charm gifts count the gifts they received (Attractiveness); Wizard gifts count the lucky gifts they sent (Wizard). The two are never mixed. The countdown shows when the current round ends.';
+
+  @override
+  String get liveRankingEmpty => 'Send gifts to become a top supporter';
+
+  @override
+  String get liveRankingYou => 'You';
+
+  @override
+  String get liveGetRanked => 'Get ranked';
+
+  @override
+  String get livePeriodHourly => 'Hourly';
+
+  @override
+  String get livePeriodPrevious => 'Previous period';
+
+  @override
+  String get livePeriodNext => 'Next period';
+
+  @override
+  String get liveCountdown => 'Countdown';
+
+  @override
+  String get liveGiftFilter => 'Gift filter';
+
+  @override
+  String get liveGiftsAttraction => 'Charm gifts';
+
+  @override
+  String get liveGiftsWizard => 'Wizard gifts';
+
+  @override
+  String get liveRankingList => 'Ranking list';
+
+  @override
+  String get livePeriodOverall => 'All time';
+
+  @override
+  String get liveRankingAllTime => 'All-time ranking';
+
+  @override
+  String get liveHostRankingPlace => 'This host\'s place';
+
+  @override
+  String get liveHostRankingHelpBody =>
+      'Hosts are ranked against each other by the gifts they received in the selected period: this hour, today, this month or of all time. The countdown shows when the current round ends.';
 }

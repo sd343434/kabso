@@ -81,7 +81,8 @@ class LanguageController extends Notifier<AppLanguage> {
 final languageControllerProvider =
     NotifierProvider<LanguageController, AppLanguage>(LanguageController.new);
 
-/// User-selected theme mode. Dark is the default; "system" follows the OS.
+/// User-selected theme mode. Until the user picks one, the app follows the
+/// device (light or dark; D68).
 class ThemeModeController extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
@@ -89,7 +90,7 @@ class ThemeModeController extends Notifier<ThemeMode> {
     final stored = prefs.getString(PreferenceKeys.themeMode);
     return ThemeMode.values.firstWhere(
       (m) => m.name == stored,
-      orElse: () => ThemeMode.dark,
+      orElse: () => ThemeMode.system,
     );
   }
 

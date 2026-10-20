@@ -14,6 +14,7 @@ void main() {
     ...PreviewPhotos.portrait,
     ...PreviewPhotos.landscape,
     ...PreviewPhotos.avatars,
+    ...PreviewPhotos.chatAvatars,
   ];
 
   test(
@@ -28,7 +29,8 @@ void main() {
         if (PreviewPhotos.portrait.contains(path)) {
           expect(ratio, closeTo(9 / 16, 0.02), reason: path);
           expect(image.width, greaterThanOrEqualTo(720), reason: path);
-        } else if (PreviewPhotos.avatars.contains(path)) {
+        } else if (PreviewPhotos.avatars.contains(path) ||
+            PreviewPhotos.chatAvatars.contains(path)) {
           expect(image.width, image.height, reason: path);
           expect(image.width, greaterThanOrEqualTo(512), reason: path);
         } else {

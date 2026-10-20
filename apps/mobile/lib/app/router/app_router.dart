@@ -5,23 +5,28 @@ import 'package:kabso_live/app/router/auth_redirect.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
+import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
+import 'package:kabso_live/features/auth/presentation/onboarding.dart';
 import 'package:kabso_live/features/auth/presentation/register_code_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/auth/presentation/splash_intro.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/discover_preview_screen.dart';
 import 'package:kabso_live/features/debug/feed_preview_screen.dart';
+import 'package:kabso_live/features/debug/live_preview_pk.dart';
 import 'package:kabso_live/features/debug/live_preview_screen.dart';
 import 'package:kabso_live/features/debug/messages_preview_screen.dart';
 import 'package:kabso_live/features/debug/posts_preview_screen.dart';
 import 'package:kabso_live/features/debug/previews_hub_screen.dart';
 import 'package:kabso_live/features/debug/profile_preview_screen.dart';
-import 'package:kabso_live/features/debug/reels_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
+import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
@@ -49,23 +54,35 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authState = ValueNotifier<AuthState>(
     ref.read(sessionControllerProvider),
   );
+  final introDone = ValueNotifier<bool>(ref.read(splashIntroProvider));
   ref
     ..listen<AuthState>(
       sessionControllerProvider,
       (_, next) => authState.value = next,
     )
-    ..onDispose(authState.dispose);
+    ..listen<bool>(splashIntroProvider, (_, next) => introDone.value = next)
+    ..onDispose(authState.dispose)
+    ..onDispose(introDone.dispose);
 
   final rootNavigatorKey = ref.watch(rootNavigatorKeyProvider);
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: ref.watch(initialLocationProvider),
-    refreshListenable: authState,
-    redirect: (context, state) =>
-        authRedirect(authState.value, state.matchedLocation),
+    refreshListenable: Listenable.merge([authState, introDone]),
+    redirect: (context, state) => authRedirect(
+      authState.value,
+      state.matchedLocation,
+      introDone: introDone.value,
+      welcomeSeen: ref.read(welcomeSeenProvider),
+    ),
     routes: [
       GoRoute(path: '/', redirect: (_, _) => AppRoutes.home),
       GoRoute(path: AppRoutes.splash, builder: (_, _) => const SplashScreen()),
+      GoRoute(
+        path: AppRoutes.welcome,
+        builder: (_, _) => const WelcomeScreen(),
+      ),
+      GoRoute(path: AppRoutes.join, builder: (_, _) => const JoinScreen()),
       GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.register,
@@ -114,7 +131,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!kReleaseMode)
         GoRoute(
           path: AppRoutes.debugLivePreview,
-          builder: (_, _) => const LivePreviewScreen(),
+          // D71: `?mode=pk2` or `?mode=pk4` for the PK layouts.
+          builder: (_, state) => LivePreviewScreen(
+            mode: LivePreviewMode.values.firstWhere(
+              (m) => m.name == state.uri.queryParameters['mode'],
+              orElse: () => LivePreviewMode.solo,
+            ),
+            // D73: `&simulate=1` plays a whole PK round on open.
+            simulate: state.uri.queryParameters['simulate'] == '1',
+            // D80: `&host=1` shows the host's own view (Host settings).
+            host: state.uri.queryParameters['host'] == '1',
+          ),
         ),
       if (!kReleaseMode)
         GoRoute(
@@ -134,7 +161,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!kReleaseMode)
         GoRoute(
           path: AppRoutes.debugReelsPreview,
-          builder: (_, _) => const ReelsPreviewScreen(),
+          // D75 (owner): the reels preview is the real Reels tab's reels.
+          builder: (_, _) =>
+              const PostsPreviewScreen(initialTab: HomeTab.reels),
         ),
       if (!kReleaseMode)
         GoRoute(

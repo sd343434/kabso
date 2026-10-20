@@ -1,6 +1,7 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Glyphs of the KL-056 feed and live previews. Every glyph comes from the
@@ -77,8 +78,14 @@ class FeedGlyphIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The gold coin keeps its own colours.
-    final tint = glyph != FeedGlyph.coin;
+    // D74: the coin and the gift box are the owner's 3D art.
+    if (glyph == FeedGlyph.coin) {
+      return KabsoArtIcon(KabsoArt.coin, size: size);
+    }
+    if (glyph == FeedGlyph.gift) {
+      return KabsoArtIcon(KabsoArt.giftBox, size: size);
+    }
+    const tint = true;
     final icon = _glyph(color, tint: tint);
     if (!shadow) return ExcludeSemantics(child: icon);
     final blur = size / 24 * 1.2;

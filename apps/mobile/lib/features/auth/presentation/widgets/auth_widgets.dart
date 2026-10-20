@@ -1,15 +1,21 @@
 import 'package:flutter/semantics.dart'
     show AttributedString, LocaleStringAttribute;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/auth_failures.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
+import 'package:kabso_live/features/auth/presentation/widgets/kabi_mascot.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Shared layout of the auth screens: wordmark, title, subtitle and a
 /// scrollable, width-constrained body (no overflow at large text scales).
+///
+/// With [hero] (login and register, D64) the wordmark and app bar give way
+/// to Kabi's stage: a dark panel with rounded bottom corners holding the
+/// back button, the [actions] and Kabi standing on its bottom edge.
 class AuthScaffold extends StatelessWidget {
   const new({
     required this.title,
@@ -21,6 +27,7 @@ class AuthScaffold extends StatelessWidget {
     this.onBack,
     this.backLabel,
     this.actions = const [],
+    this.hero = false,
   });
 
   final String title;
@@ -40,11 +47,84 @@ class AuthScaffold extends StatelessWidget {
   /// TopBar end slot (e.g. the language switch).
   final List<Widget> actions;
 
+  /// Kabi's stage instead of the wordmark and app bar (D64).
+  final bool hero;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
     final hasBar = showBack || actions.isNotEmpty;
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!hero) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: KLogo(
+                  primary: l10n.brandWordmarkPrimary,
+                  accent: l10n.brandWordmarkAccent,
+                  semanticLabel: l10n.brandSemanticLabel,
+                ),
+              ),
+              const SizedBox(height: KSpacing.xxl),
+            ],
+            Semantics(
+              header: true,
+              child: Text(title, style: hero ? t.display : t.headline),
+            ),
+            if (subtitleWidget != null) ...[
+              const SizedBox(height: KSpacing.sm),
+              subtitleWidget!,
+            ] else if (subtitle != null) ...[
+              const SizedBox(height: KSpacing.sm),
+              Text(
+                subtitle!,
+                style: t.body.copyWith(color: context.palette.textSecondary),
+              ),
+            ],
+            const SizedBox(height: KSpacing.xl),
+            child,
+          ],
+        ),
+      ),
+    );
+
+    if (hero) {
+      return Scaffold(
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthHero(
+                showBack: showBack,
+                onBack: onBack,
+                backLabel: backLabel,
+                actions: actions,
+              ),
+              SafeArea(
+                top: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      KSpacing.xl,
+                      KSpacing.xl,
+                      KSpacing.xl,
+                      KSpacing.xxl,
+                    ),
+                    child: content,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: hasBar
           ? AppBar(
@@ -69,42 +149,92 @@ class AuthScaffold extends StatelessWidget {
               horizontal: KSpacing.xl,
               vertical: KSpacing.xxl,
             ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: AutofillGroup(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: KLogo(
-                        primary: l10n.brandWordmarkPrimary,
-                        accent: l10n.brandWordmarkAccent,
-                        semanticLabel: l10n.brandSemanticLabel,
-                      ),
-                    ),
-                    const SizedBox(height: KSpacing.xxl),
-                    Semantics(
-                      header: true,
-                      child: Text(title, style: t.headline),
-                    ),
-                    if (subtitleWidget != null) ...[
-                      const SizedBox(height: KSpacing.sm),
-                      subtitleWidget!,
-                    ] else if (subtitle != null) ...[
-                      const SizedBox(height: KSpacing.sm),
-                      Text(
-                        subtitle!,
-                        style: t.body.copyWith(
-                          color: context.palette.textSecondary,
+            child: content,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Geometry of Kabi's stage on the auth screens (D64).
+abstract final class KAuthHero {
+  static const double radius = 40;
+  static const double kabiWidth = 150;
+
+  /// On short screens Kabi shrinks so the form starts higher.
+  static const double kabiWidthCompact = 104;
+  static const double compactBelowHeight = 720;
+
+  /// Share of Kabi's height above the stage's bottom edge.
+  static const double kabiVisible = 0.8;
+}
+
+/// Kabi's stage at the top of login and register (D64). Its content uses
+/// the dark theme whatever the app theme, since the stage is always dark.
+class AuthHero extends StatelessWidget {
+  const new({
+    super.key,
+    this.showBack = false,
+    this.onBack,
+    this.backLabel,
+    this.actions = const [],
+  });
+
+  static const stageKey = Key('auth.hero');
+
+  final bool showBack;
+  final VoidCallback? onBack;
+  final String? backLabel;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = kabiStageColor(context);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Theme(
+        data: buildAppTheme(
+          brightness: Brightness.dark,
+          locale: Localizations.localeOf(context),
+        ),
+        child: Material(
+          key: stageKey,
+          color: stage,
+          clipBehavior: Clip.antiAlias,
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(KAuthHero.radius),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: kToolbarHeight,
+                  child: Row(
+                    children: [
+                      if (showBack && onBack == null) const BackButton(),
+                      if (showBack && onBack != null)
+                        IconButton(
+                          tooltip: backLabel,
+                          icon: const BackButtonIcon(),
+                          onPressed: onBack,
                         ),
-                      ),
+                      const Spacer(),
+                      ...actions,
+                      const SizedBox(width: KSpacing.md),
                     ],
-                    const SizedBox(height: KSpacing.xl),
-                    child,
-                  ],
+                  ),
                 ),
-              ),
+                KabiPeek(
+                  width:
+                      MediaQuery.sizeOf(context).height <
+                          KAuthHero.compactBelowHeight
+                      ? KAuthHero.kabiWidthCompact
+                      : KAuthHero.kabiWidth,
+                  visible: KAuthHero.kabiVisible,
+                ),
+              ],
             ),
           ),
         ),

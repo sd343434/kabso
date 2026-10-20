@@ -90,6 +90,8 @@ void main() {
     _phone(tester);
     await _pump(tester);
     await tester.enterText(find.byKey(MessagesPreviewScreen.inputKey), 'Hello');
+    // D68: the send button turns on once something is typed.
+    await tester.pump();
     await tester.tap(find.byKey(MessagesPreviewScreen.sendKey));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(

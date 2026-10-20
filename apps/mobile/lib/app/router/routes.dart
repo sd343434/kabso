@@ -2,6 +2,11 @@
 abstract final class AppRoutes {
   static const splash = '/splash';
 
+  /// D64/D65: first screen of the first signed-out launch.
+  static const welcome = '/auth/welcome';
+
+  /// D65: "Create account" or "Log in", after the welcome screen.
+  static const join = '/auth/join';
   static const login = '/auth/login';
   static const register = '/auth/register';
   static const forgotPassword = '/auth/forgot-password';
@@ -99,6 +104,8 @@ abstract final class AppRoutes {
 
   /// Reachable without a session.
   static const Set<String> publicAuthRoutes = {
+    welcome,
+    join,
     login,
     register,
     registerCode,

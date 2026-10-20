@@ -20,6 +20,7 @@ import 'package:kabso_live/features/auth/presentation/login_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_code_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/auth/presentation/widgets/auth_widgets.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -66,13 +67,14 @@ void main() {
           deviceLocales: [device],
           repo: FakeAuthRepository(),
         );
-        expect(find.byType(LoginScreen), findsOneWidget);
+        // D64: signed out, the app opens on the welcome screen.
+        expect(find.byType(WelcomeScreen), findsOneWidget);
         expect(
-          Directionality.of(tester.element(find.byType(LoginScreen))),
+          Directionality.of(tester.element(find.byType(WelcomeScreen))),
           dir,
         );
         final l10n = l10nFor(expected);
-        expect(find.text(l10n.loginTitle), findsWidgets);
+        expect(find.text(l10n.welcomeStart), findsOneWidget);
         // Nothing is persisted until the user chooses explicitly.
         final prefs = await SharedPreferences.getInstance();
         expect(prefs.getString(PreferenceKeys.languageCode), isNull);
@@ -88,7 +90,7 @@ void main() {
         repo: FakeAuthRepository(),
         prefs: {PreferenceKeys.languageCode: 'en'},
       );
-      expect(find.text(l10nFor(AppLanguage.en).loginTitle), findsWidgets);
+      expect(find.text(l10nFor(AppLanguage.en).welcomeStart), findsOneWidget);
     });
   });
 
@@ -101,6 +103,8 @@ void main() {
         deviceLocales: const [Locale('fr', 'FR')],
         repo: repo,
       );
+      // D64: the language chip is on login and register, not on welcome.
+      await openLogin(tester);
       // Arabic UI shows the target language "English".
       final chip = find.byKey(AuthLanguageSwitch.switchKey);
       expect(chip, findsOneWidget);
@@ -110,7 +114,11 @@ void main() {
       );
       await tester.tap(chip);
       await tester.pumpAndSettle();
-      expect(find.text(l10nFor(AppLanguage.en).loginTitle), findsWidgets);
+      final en = l10nFor(AppLanguage.en);
+      expect(
+        find.text('${en.loginTitleLead}${en.loginTitleAccent}'),
+        findsOneWidget,
+      );
       expect(
         Directionality.of(tester.element(find.byType(LoginScreen))),
         TextDirection.ltr,

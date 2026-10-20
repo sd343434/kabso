@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- D63: the launch animation's background, so the native launch window
+         and the Flutter splash have the same colour (no white flash). -->
+    <color name="launch_background">#FF0F0F0F</color>
+</resources>
