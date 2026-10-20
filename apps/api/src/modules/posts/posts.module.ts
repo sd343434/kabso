@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { FeedService } from './feed.service.js';
+import { InteractionsController } from './interactions.controller.js';
+import { PostInteractionsService } from './post-interactions.service.js';
 import { PostViews } from './post-views.js';
 import { PostsController } from './posts.controller.js';
 import { PostsService } from './posts.service.js';
@@ -11,8 +14,8 @@ import { PostsService } from './posts.service.js';
  */
 @Module({
   imports: [MediaModule, UsersModule],
-  controllers: [PostsController],
-  providers: [PostsService, PostViews],
+  controllers: [PostsController, InteractionsController],
+  providers: [PostsService, PostViews, PostInteractionsService, FeedService],
   exports: [PostsService, PostViews],
 })
 export class PostsModule {}

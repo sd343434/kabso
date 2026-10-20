@@ -83,3 +83,23 @@ export const myPostsQuerySchema = z.strictObject({
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
 export type MyPostsQuery = z.output<typeof myPostsQuerySchema>;
+
+/** `RecordViewsRequest`: 1–50 items. */
+export const recordViewsSchema = z.strictObject({
+  items: z
+    .array(
+      z.strictObject({
+        postId: z.uuid(),
+        watchedMs: z.number().int().min(0).max(3_600_000),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+
+export const feedQuerySchema = z.strictObject({
+  tab: z.string().pipe(z.enum(['following', 'trending'])),
+  cursor: z.string().min(1).max(512).optional(),
+  limit: limitSchema.optional().transform((v) => v ?? 20),
+});
+export type FeedQuery = z.output<typeof feedQuerySchema>;
