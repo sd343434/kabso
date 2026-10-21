@@ -133,6 +133,37 @@ export class SafetyService {
     };
   }
 
+  /**
+   * `GET /me/mutes` (CP-007): newest first; every muted account, like `/me/blocks` (the caller
+   * must be able to unmute any of them). Only the caller's own mutes.
+   */
+  async mutes(callerId: string, query: PageQuery): Promise<PageDto<UserSummaryDto>> {
+    const scope = `mutes:${callerId}`;
+    const after = this.posts.decode(query.cursor, scope);
+    const rows = await this.prisma.userMute.findMany({
+      where: {
+        muterId: callerId,
+        ...(after
+          ? { OR: [{ createdAt: { lt: after.at } }, { createdAt: after.at, mutedId: { lt: after.id } }] }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { mutedId: 'desc' }],
+      take: query.limit + 1,
+      select: { createdAt: true, mutedId: true, muted: { select: USER_SUMMARY_SELECT } },
+    });
+    const hasMore = rows.length > query.limit;
+    const pageRows = rows.slice(0, query.limit);
+    const last = pageRows[pageRows.length - 1];
+    return {
+      data: pageRows.map((r) => userSummary(r.muted)),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last ? this.posts.cursors.encode(scope, { at: last.createdAt, id: last.mutedId }) : null,
+      },
+    };
+  }
+
   /** `PUT`/`DELETE /users/{username}/mute`: one-way and silent. */
   async mute(callerId: string, username: string, muted: boolean): Promise<{ muted: boolean }> {
     await this.prisma.$transaction(async (tx) => {

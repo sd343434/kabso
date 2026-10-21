@@ -1009,6 +1009,8 @@ model UserMute {
 
   @@id([muterId, mutedId], map: "user_mutes_pkey")
   @@index([mutedId], map: "user_mutes_muted_id_idx")
+  /// CP-007: `GET /me/mutes`, newest first.
+  @@index([muterId, createdAt(sort: Desc)], map: "user_mutes_muter_created_idx")
   @@map("user_mutes")
 }
 

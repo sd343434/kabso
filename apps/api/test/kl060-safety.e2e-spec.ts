@@ -147,6 +147,58 @@ describe('KL-060 safety', () => {
     });
   });
 
+  describe('muted accounts (CP-007)', () => {
+    it('lists the caller’s mutes newest first, paged; isMuted on profiles; never told', async () => {
+      const me = await signup();
+      const [a, b, c] = [await signup(), await signup(), await signup()];
+      for (const u of [a, b, c]) {
+        expect((await ctx.http.put(`/api/v1/users/${u.username}/mute`).set(auth(me))).status).toBe(200);
+        // Distinct created_at so the order is the mute order.
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      // A muted account that is also blocked stays listed (it can still be unmuted).
+      expect((await ctx.http.put(`/api/v1/users/${b.username}/block`).set(auth(me))).status).toBe(200);
+
+      const first = await ctx.http.get('/api/v1/me/mutes?limit=2').set(auth(me));
+      expect(first.status).toBe(200);
+      expectContract(first, 'listMutes');
+      expect(ids(first)).toEqual([c.id, b.id]);
+      expect(first.body.page.hasMore).toBe(true);
+      const second = await ctx.http
+        .get(`/api/v1/me/mutes?limit=2&cursor=${encodeURIComponent(first.body.page.nextCursor)}`)
+        .set(auth(me));
+      expect(second.status).toBe(200);
+      expect(ids(second)).toEqual([a.id]);
+      expect(second.body.page).toEqual({ hasMore: false, nextCursor: null });
+
+      // A cursor is bound to its list and caller.
+      const foreign = await ctx.http
+        .get(`/api/v1/me/mutes?cursor=${encodeURIComponent(first.body.page.nextCursor)}`)
+        .set(auth(a));
+      expect(foreign.status).toBe(400);
+      const asBlocks = await ctx.http
+        .get(`/api/v1/me/blocks?cursor=${encodeURIComponent(first.body.page.nextCursor)}`)
+        .set(auth(me));
+      expect(asBlocks.status).toBe(400);
+
+      // Mutes are private: others see their own (empty) list, and no trace of being muted.
+      expect((await ctx.http.get('/api/v1/me/mutes').set(auth(a))).body.data).toEqual([]);
+      const mine = await ctx.http.get(`/api/v1/users/${a.username}`).set(auth(me));
+      expect(mine.status).toBe(200);
+      expectContract(mine, 'getPublicProfile');
+      expect(mine.body.isMuted).toBe(true);
+      const theirs = await ctx.http.get(`/api/v1/users/${me.username}`).set(auth(a));
+      expect(theirs.body.isMuted).toBe(false);
+      const self = await ctx.http.get(`/api/v1/users/${me.username}`).set(auth(me));
+      expect(self.body.isMuted).toBe(false);
+
+      expect((await ctx.http.delete(`/api/v1/users/${a.username}/mute`).set(auth(me))).status).toBe(200);
+      expect((await ctx.http.get(`/api/v1/users/${a.username}`).set(auth(me))).body.isMuted).toBe(false);
+      expect(ids(await ctx.http.get('/api/v1/me/mutes').set(auth(me)))).toEqual([c.id, b.id]);
+      expect((await ctx.http.get('/api/v1/me/mutes').set({})).status).toBe(401);
+    });
+  });
+
   describe('reports and the admin queue', () => {
     it('one open report per reporter and target; validation; own targets refused', async () => {
       const [me, them] = [await signup(), await signup()];

@@ -1,8 +1,8 @@
-# CP-007 — Muted accounts: list and state (PROPOSED, not approved)
+# CP-007 — Muted accounts: list and state (APPROVED)
 
-**Status:** draft for owner/CTO review, 2026-10-21. Not applied: `openapi.yaml`,
-`CONVENTIONS.md`, `apps/api` and `apps/mobile` are unchanged by this document. It would extend
-contract **v1.5-social** (draft) additively.
+**Status:** approved by the owner on 2026-10-21 (D89), with Q1 as recommended (muted and
+blocked lists keep every account). Applied to `openapi.yaml` (v1.5-social, draft) and
+CONVENTIONS §11.7.
 
 ## Why
 

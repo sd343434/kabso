@@ -65,6 +65,14 @@ export class SafetyController {
     return this.safety.blocks(auth.userId, query);
   }
 
+  @Get('me/mutes')
+  mutes(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+  ): Promise<PageDto<UserSummaryDto>> {
+    return this.safety.mutes(auth.userId, query);
+  }
+
   @Put('users/:username/mute')
   @HttpCode(200)
   mute(@CurrentAuth() auth: AuthContext, @Param('username') username: string): Promise<{ muted: boolean }> {

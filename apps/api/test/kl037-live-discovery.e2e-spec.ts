@@ -782,12 +782,14 @@ describe('KL-037 public profile and follow', () => {
       followerCount: 0,
       followingCount: 0,
       isFollowing: false,
+      // CP-007: the caller's own mute state.
+      isMuted: false,
       isSelf: false,
       liveRoomId: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');
-    expect(self.body).toMatchObject({ isSelf: true, isFollowing: false });
+    expect(self.body).toMatchObject({ isSelf: true, isFollowing: false, isMuted: false });
     expect(JSON.stringify(res.body)).not.toMatch(/@|email|ACTIVE|USER|createdAt|locale/);
   });
 

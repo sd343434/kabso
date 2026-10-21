@@ -1959,6 +1959,23 @@ paths:
               schema: { $ref: '#/components/schemas/UserSummaryPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+  /api/v1/me/mutes:
+    get:
+      tags: [safety]
+      operationId: listMutes
+      summary: "Users the caller muted, newest first (CP-007)"
+      description: Every muted account is listed, including one blocked either way, so it can be unmuted. Only the caller sees their own mutes.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummaryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/mute:
     put:
       tags: [safety]
@@ -2377,7 +2394,7 @@ components:
         avatarUrl: { type: [string, 'null'], format: uri }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isSelf, liveRoomId]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -2392,6 +2409,9 @@ components:
         isFollowing:
           type: boolean
           description: Whether the caller follows this user (always false when isSelf).
+        isMuted:
+          type: boolean
+          description: "(v1.5-social, CP-007) Whether the caller muted this user (always false when isSelf). Only the caller sees their own mute; the muted user is never told."
         isSelf: { type: boolean }
         liveRoomId:
           type: [string, 'null']
