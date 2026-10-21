@@ -42,6 +42,7 @@ import 'package:kabso_live/features/posts/presentation/post_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
+import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -145,6 +146,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ? MessagesPreviewScreen(peer: name ?? username)
               : ChatScreen(username: username, displayName: name);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.privacy,
+        builder: (_, _) => const PrivacyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.blockedAccounts,
+        builder: (_, _) => const BlockedAccountsScreen(),
       ),
       GoRoute(
         path: AppRoutes.hashtagPattern,

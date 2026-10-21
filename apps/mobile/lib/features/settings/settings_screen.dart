@@ -25,6 +25,8 @@ class SettingsScreen extends ConsumerWidget {
 
   static const logoutKey = Key('settings.logout');
   static const levelsKey = Key('settings.levels');
+  static const privacyKey = Key('settings.privacy');
+  static const blockedKey = Key('settings.blocked');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -101,6 +103,21 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsSessions),
           const _SessionsSection(),
+          const SizedBox(height: KSpacing.xl),
+          _SectionHeader(l10n.safetySection),
+          ListTile(
+            key: privacyKey,
+            leading: const Icon(Icons.lock_outline_rounded),
+            title: Text(l10n.safetyPrivacy),
+            onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.privacy),
+          ),
+          ListTile(
+            key: blockedKey,
+            leading: const Icon(Icons.block_rounded),
+            title: Text(l10n.safetyBlockedAccounts),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.blockedAccounts),
+          ),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),
           // D72: the caller's four levels.

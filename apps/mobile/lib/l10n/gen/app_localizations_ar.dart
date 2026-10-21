@@ -2330,4 +2330,91 @@ class AppLocalizationsAr extends AppLocalizations {
   String hashtagLabel(String tag) {
     return '#$tag';
   }
+
+  @override
+  String get safetyBlock => 'حظر';
+
+  @override
+  String safetyBlockUser(String name) {
+    return 'حظر $name';
+  }
+
+  @override
+  String safetyBlockTitle(String name) {
+    return 'حظر $name؟';
+  }
+
+  @override
+  String get safetyBlockBody =>
+      'لن يرى أحدكما منشورات الآخر أو تعليقاته أو ملفه، وتُلغى المتابعة بينكما. يمكنك إلغاء الحظر من الإعدادات.';
+
+  @override
+  String safetyBlocked(String name) {
+    return 'تم حظر $name';
+  }
+
+  @override
+  String get safetyUnblock => 'إلغاء الحظر';
+
+  @override
+  String safetyUnblocked(String name) {
+    return 'أُلغي حظر $name';
+  }
+
+  @override
+  String safetyMuteUser(String name) {
+    return 'كتم $name';
+  }
+
+  @override
+  String safetyMuted(String name) {
+    return 'تم كتم $name: لن تظهر منشوراته في خلاصتك';
+  }
+
+  @override
+  String get safetyUndo => 'تراجع';
+
+  @override
+  String get safetyReportUser => 'الإبلاغ عن الحساب';
+
+  @override
+  String get safetyReportTitle => 'لماذا تبلّغ عن هذا الحساب؟';
+
+  @override
+  String get safetySection => 'الخصوصية والأمان';
+
+  @override
+  String get safetyPrivacy => 'الخصوصية';
+
+  @override
+  String get safetyBlockedAccounts => 'الحسابات المحظورة';
+
+  @override
+  String get safetyNoBlocked => 'لم تحظر أحداً';
+
+  @override
+  String get safetyNoBlockedBody =>
+      'من تحظره يظهر هنا، ويمكنك إلغاء حظره متى شئت.';
+
+  @override
+  String get privacyMentionTitle => 'من يمكنه الإشارة إليك';
+
+  @override
+  String get privacyMentionEveryone => 'الجميع';
+
+  @override
+  String get privacyMentionFollowing => 'من تتابعهم فقط';
+
+  @override
+  String get privacyMentionNobody => 'لا أحد';
+
+  @override
+  String get privacyCommentTitle => 'من يمكنه التعليق على منشوراتك الجديدة';
+
+  @override
+  String get privacyCommentHint =>
+      'يمكنك تغيير ذلك لكل منشور من «مزيد من الخيارات».';
+
+  @override
+  String get privacySaved => 'تم الحفظ';
 }

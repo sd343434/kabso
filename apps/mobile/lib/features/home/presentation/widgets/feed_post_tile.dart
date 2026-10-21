@@ -13,6 +13,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -166,6 +167,7 @@ class FeedPostTile extends StatelessWidget {
   static const hideActionKey = Key('feed.post.more.hide');
   static const reportActionKey = Key('feed.post.more.report');
   static const deleteActionKey = Key('feed.post.more.delete');
+  static const muteActionKey = Key('feed.post.more.mute');
   static const pendingKey = Key('feed.post.pending');
   static const deleteConfirmKey = Key('feed.post.delete.confirm');
 
@@ -284,7 +286,7 @@ class FeedPostTile extends StatelessWidget {
 /// API (`PUT`/`DELETE /users/{username}/follow`): the choice applies at
 /// once and comes back with a message on failure. Without a follow state
 /// (your own post, or a source without it) neither is shown.
-enum _MoreAction { follow, hide, report, delete }
+enum _MoreAction { follow, hide, mute, report, delete }
 
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
@@ -363,6 +365,13 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                   l10n.feedPostHide,
                   _MoreAction.hide,
                 ),
+                if (post.authorUsername != null)
+                  item(
+                    FeedPostTile.muteActionKey,
+                    Icon(Icons.volume_off_outlined, color: color),
+                    l10n.safetyMuteUser(name),
+                    _MoreAction.mute,
+                  ),
                 item(
                   FeedPostTile.reportActionKey,
                   AppIcon(AppIcons.flag, color: color),
@@ -390,6 +399,14 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         await _run(
           (repo, id) => repo.setHidden(id, hidden: true),
           l10n.feedPostHidden,
+        );
+      case _MoreAction.mute:
+        // Their posts leave the feeds as they reload; Undo is on the message.
+        await muteUser(
+          context,
+          ref,
+          username: post.authorUsername!,
+          name: name,
         );
       case _MoreAction.report:
         final reason = await pickReportReason(

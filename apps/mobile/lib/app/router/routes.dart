@@ -67,6 +67,10 @@ abstract final class AppRoutes {
 
   static const settings = '/settings';
 
+  /// KL-060: privacy settings and blocked accounts.
+  static const privacy = '/settings/privacy';
+  static const blockedAccounts = '/settings/blocked';
+
   /// D72: the caller's four levels (CP-005), pushed above the shell.
   static const levels = '/levels';
   static const levelPattern = '/levels/:category';

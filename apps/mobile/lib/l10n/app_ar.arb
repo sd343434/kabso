@@ -2392,5 +2392,131 @@
         "type": "String"
       }
     }
+  },
+  "safetyBlock": "حظر",
+  "@safetyBlock": {
+    "description": "KL-060 block action."
+  },
+  "safetyBlockUser": "حظر {name}",
+  "@safetyBlockUser": {
+    "description": "KL-060 menu.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyBlockTitle": "حظر {name}؟",
+  "@safetyBlockTitle": {
+    "description": "KL-060 confirm.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyBlockBody": "لن يرى أحدكما منشورات الآخر أو تعليقاته أو ملفه، وتُلغى المتابعة بينكما. يمكنك إلغاء الحظر من الإعدادات.",
+  "@safetyBlockBody": {
+    "description": "KL-060 confirm."
+  },
+  "safetyBlocked": "تم حظر {name}",
+  "@safetyBlocked": {
+    "description": "KL-060 snack.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyUnblock": "إلغاء الحظر",
+  "@safetyUnblock": {
+    "description": "KL-060 blocked list."
+  },
+  "safetyUnblocked": "أُلغي حظر {name}",
+  "@safetyUnblocked": {
+    "description": "KL-060 snack.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyMuteUser": "كتم {name}",
+  "@safetyMuteUser": {
+    "description": "KL-060 menu.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyMuted": "تم كتم {name}: لن تظهر منشوراته في خلاصتك",
+  "@safetyMuted": {
+    "description": "KL-060 snack.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyUndo": "تراجع",
+  "@safetyUndo": {
+    "description": "KL-060 snack action."
+  },
+  "safetyReportUser": "الإبلاغ عن الحساب",
+  "@safetyReportUser": {
+    "description": "KL-060 menu."
+  },
+  "safetyReportTitle": "لماذا تبلّغ عن هذا الحساب؟",
+  "@safetyReportTitle": {
+    "description": "KL-060 report sheet."
+  },
+  "safetySection": "الخصوصية والأمان",
+  "@safetySection": {
+    "description": "KL-060 settings section."
+  },
+  "safetyPrivacy": "الخصوصية",
+  "@safetyPrivacy": {
+    "description": "KL-060 settings."
+  },
+  "safetyBlockedAccounts": "الحسابات المحظورة",
+  "@safetyBlockedAccounts": {
+    "description": "KL-060 settings."
+  },
+  "safetyNoBlocked": "لم تحظر أحداً",
+  "@safetyNoBlocked": {
+    "description": "KL-060 blocked empty."
+  },
+  "safetyNoBlockedBody": "من تحظره يظهر هنا، ويمكنك إلغاء حظره متى شئت.",
+  "@safetyNoBlockedBody": {
+    "description": "KL-060 blocked empty."
+  },
+  "privacyMentionTitle": "من يمكنه الإشارة إليك",
+  "@privacyMentionTitle": {
+    "description": "KL-060 privacy."
+  },
+  "privacyMentionEveryone": "الجميع",
+  "@privacyMentionEveryone": {
+    "description": "KL-060 privacy."
+  },
+  "privacyMentionFollowing": "من تتابعهم فقط",
+  "@privacyMentionFollowing": {
+    "description": "KL-060 privacy."
+  },
+  "privacyMentionNobody": "لا أحد",
+  "@privacyMentionNobody": {
+    "description": "KL-060 privacy."
+  },
+  "privacyCommentTitle": "من يمكنه التعليق على منشوراتك الجديدة",
+  "@privacyCommentTitle": {
+    "description": "KL-060 privacy."
+  },
+  "privacyCommentHint": "يمكنك تغيير ذلك لكل منشور من «مزيد من الخيارات».",
+  "@privacyCommentHint": {
+    "description": "KL-060 privacy."
+  },
+  "privacySaved": "تم الحفظ",
+  "@privacySaved": {
+    "description": "KL-060 privacy."
   }
 }

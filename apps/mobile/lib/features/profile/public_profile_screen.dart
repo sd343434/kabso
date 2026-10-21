@@ -13,6 +13,7 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,8 +21,8 @@ import 'package:material_ui/material_ui.dart';
 /// `GET /users/{username}` (v1.3), in the layout of the own profile (D57):
 ///
 /// - top bar: back, @username in the centre, and the three dots (D62):
-///   copy the username; copy link (needs the production domain, B7) and
-///   report (needs a report API) are shown as "Coming soon";
+///   copy the username, mute, block and report (KL-060, §11.7); copy link
+///   (needs the production domain, B7) is shown as "Coming soon";
 /// - the header (photo, Followers and Following, name, bio). While the user
 ///   is live the photo has the live ring and badge, and tapping it opens
 ///   the room;
@@ -49,6 +50,8 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const copyUsernameKey = Key('profile.public.copyUsername');
   static const copyLinkKey = Key('profile.public.copyLink');
   static const reportKey = Key('profile.public.report');
+  static const muteKey = Key('profile.public.mute');
+  static const blockKey = Key('profile.public.block');
   static const unfollowKey = Key('profile.public.unfollow');
   static const privateKey = Key('profile.public.private');
   static const notFoundKey = Key('profile.public.notFound');
@@ -59,6 +62,8 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<PublicProfileScreen> createState() =>
       _PublicProfileScreenState();
 }
+
+enum _More { copy, mute, block, report }
 
 class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   ProfileTab _tab = ProfileTab.posts;
@@ -107,26 +112,18 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     if (unfollow ?? false) await _setFollowing(follow: false);
   }
 
-  /// D62: the three dots. Copy username works now; copying the profile
-  /// link waits for the production domain (B7) and reporting for a report
-  /// API, so both are shown as "Coming soon" and are not buttons.
-  Future<void> _openMore() async {
+  /// D62: the three dots: copy the username; mute, block and report the
+  /// account (CONVENTIONS §11.7). Copying the profile link waits for the
+  /// production domain (B7) and is shown as "Coming soon".
+  Future<void> _openMore(PublicProfile profile) async {
     final l10n = context.l10n;
-    await showModalBottomSheet<void>(
+    final name = profile.displayName.isEmpty
+        ? profile.username
+        : profile.displayName;
+    final action = await showModalBottomSheet<_More>(
       context: context,
       builder: (sheet) {
         final p = sheet.palette;
-        Widget soon(Key key, IconData icon, String label, {Color? color}) =>
-            ListTile(
-              key: key,
-              enabled: false,
-              leading: Icon(icon, color: p.textTertiary),
-              title: Text(label, style: TextStyle(color: color)),
-              trailing: Text(
-                l10n.profileEditSoon,
-                style: sheet.textStyles.caption.copyWith(color: p.textTertiary),
-              ),
-            );
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -138,31 +135,75 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                   color: p.textPrimary,
                 ),
                 title: Text(l10n.profileCopyUsername),
-                onTap: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: l10n.profileUsername(widget.username)),
-                  );
-                  if (!sheet.mounted) return;
-                  Navigator.of(sheet).pop();
-                  if (mounted) KSnack.success(context, l10n.profileCopied);
-                },
+                onTap: () => Navigator.of(sheet).pop(_More.copy),
               ),
-              soon(
-                PublicProfileScreen.copyLinkKey,
-                Icons.link_rounded,
-                l10n.profileCopyLink,
+              ListTile(
+                key: PublicProfileScreen.copyLinkKey,
+                enabled: false,
+                leading: Icon(Icons.link_rounded, color: p.textTertiary),
+                title: Text(l10n.profileCopyLink),
+                trailing: Text(
+                  l10n.profileEditSoon,
+                  style: sheet.textStyles.caption.copyWith(
+                    color: p.textTertiary,
+                  ),
+                ),
               ),
-              soon(
-                PublicProfileScreen.reportKey,
-                Icons.flag_outlined,
-                l10n.profileReport,
-                color: p.error.withValues(alpha: 0.6),
-              ),
+              if (!profile.isSelf) ...[
+                ListTile(
+                  key: PublicProfileScreen.muteKey,
+                  leading: Icon(
+                    Icons.volume_off_outlined,
+                    color: p.textPrimary,
+                  ),
+                  title: Text(l10n.safetyMuteUser(name)),
+                  onTap: () => Navigator.of(sheet).pop(_More.mute),
+                ),
+                ListTile(
+                  key: PublicProfileScreen.blockKey,
+                  leading: Icon(Icons.block_rounded, color: p.error),
+                  title: Text(
+                    l10n.safetyBlockUser(name),
+                    style: TextStyle(color: p.error),
+                  ),
+                  onTap: () => Navigator.of(sheet).pop(_More.block),
+                ),
+                ListTile(
+                  key: PublicProfileScreen.reportKey,
+                  leading: Icon(Icons.flag_outlined, color: p.error),
+                  title: Text(
+                    l10n.safetyReportUser,
+                    style: TextStyle(color: p.error),
+                  ),
+                  onTap: () => Navigator.of(sheet).pop(_More.report),
+                ),
+              ],
             ],
           ),
         );
       },
     );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _More.copy:
+        await Clipboard.setData(
+          ClipboardData(text: l10n.profileUsername(widget.username)),
+        );
+        if (mounted) KSnack.success(context, l10n.profileCopied);
+      case _More.mute:
+        await muteUser(context, ref, username: profile.username, name: name);
+      case _More.block:
+        final blocked = await confirmBlock(
+          context,
+          ref,
+          username: profile.username,
+          name: name,
+        );
+        // Their profile is no longer visible: back to where you came from.
+        if (blocked && mounted && context.canPop()) context.pop();
+      case _More.report:
+        await reportUser(context, ref, userId: profile.id);
+    }
   }
 
   Widget _actions(PublicProfile profile) {
@@ -268,7 +309,11 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
           IconButton(
             key: PublicProfileScreen.moreKey,
             tooltip: l10n.feedPostMore,
-            onPressed: _openMore,
+            // Needs the loaded profile (its id and whether it is you).
+            onPressed: switch (load) {
+              AsyncValue(:final value?) => () => _openMore(value),
+              _ => null,
+            },
             icon: AppIcon(
               AppIcons.moreHoriz,
               size: KMetrics.iconMd,

@@ -2304,4 +2304,91 @@ class AppLocalizationsEn extends AppLocalizations {
   String hashtagLabel(String tag) {
     return '#$tag';
   }
+
+  @override
+  String get safetyBlock => 'Block';
+
+  @override
+  String safetyBlockUser(String name) {
+    return 'Block $name';
+  }
+
+  @override
+  String safetyBlockTitle(String name) {
+    return 'Block $name?';
+  }
+
+  @override
+  String get safetyBlockBody =>
+      'Neither of you will see the other\'s posts, comments or profile, and follows between you are removed. You can unblock in Settings.';
+
+  @override
+  String safetyBlocked(String name) {
+    return '$name is blocked';
+  }
+
+  @override
+  String get safetyUnblock => 'Unblock';
+
+  @override
+  String safetyUnblocked(String name) {
+    return '$name is unblocked';
+  }
+
+  @override
+  String safetyMuteUser(String name) {
+    return 'Mute $name';
+  }
+
+  @override
+  String safetyMuted(String name) {
+    return '$name is muted: their posts leave your feeds';
+  }
+
+  @override
+  String get safetyUndo => 'Undo';
+
+  @override
+  String get safetyReportUser => 'Report account';
+
+  @override
+  String get safetyReportTitle => 'Why are you reporting this account?';
+
+  @override
+  String get safetySection => 'Privacy and safety';
+
+  @override
+  String get safetyPrivacy => 'Privacy';
+
+  @override
+  String get safetyBlockedAccounts => 'Blocked accounts';
+
+  @override
+  String get safetyNoBlocked => 'You have not blocked anyone';
+
+  @override
+  String get safetyNoBlockedBody =>
+      'People you block appear here; you can unblock them any time.';
+
+  @override
+  String get privacyMentionTitle => 'Who can mention you';
+
+  @override
+  String get privacyMentionEveryone => 'Everyone';
+
+  @override
+  String get privacyMentionFollowing => 'Only people you follow';
+
+  @override
+  String get privacyMentionNobody => 'No one';
+
+  @override
+  String get privacyCommentTitle => 'Who can comment on your new posts';
+
+  @override
+  String get privacyCommentHint =>
+      'You can change it for each post in “More options”.';
+
+  @override
+  String get privacySaved => 'Saved';
 }

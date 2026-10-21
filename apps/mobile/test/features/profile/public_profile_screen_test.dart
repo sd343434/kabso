@@ -136,10 +136,14 @@ void main() {
     await _pump(tester);
     await tester.tap(find.byKey(PublicProfileScreen.moreKey));
     await tester.pumpAndSettle();
-    for (final key in [
-      PublicProfileScreen.copyLinkKey,
-      PublicProfileScreen.reportKey,
-    ]) {
+    // KL-060: report (and mute, block) now work; only the link waits.
+    expect(
+      tester
+          .widget<ListTile>(find.byKey(PublicProfileScreen.reportKey))
+          .enabled,
+      isTrue,
+    );
+    for (final key in [PublicProfileScreen.copyLinkKey]) {
       expect(tester.widget<ListTile>(find.byKey(key)).enabled, isFalse);
       expect(
         find.descendant(

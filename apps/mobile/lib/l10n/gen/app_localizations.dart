@@ -4057,6 +4057,150 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'#{tag}'**
   String hashtagLabel(String tag);
+
+  /// KL-060 block action.
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر'**
+  String get safetyBlock;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر {name}'**
+  String safetyBlockUser(String name);
+
+  /// KL-060 confirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'حظر {name}؟'**
+  String safetyBlockTitle(String name);
+
+  /// KL-060 confirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يرى أحدكما منشورات الآخر أو تعليقاته أو ملفه، وتُلغى المتابعة بينكما. يمكنك إلغاء الحظر من الإعدادات.'**
+  String get safetyBlockBody;
+
+  /// KL-060 snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حظر {name}'**
+  String safetyBlocked(String name);
+
+  /// KL-060 blocked list.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الحظر'**
+  String get safetyUnblock;
+
+  /// KL-060 snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي حظر {name}'**
+  String safetyUnblocked(String name);
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم {name}'**
+  String safetyMuteUser(String name);
+
+  /// KL-060 snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم كتم {name}: لن تظهر منشوراته في خلاصتك'**
+  String safetyMuted(String name);
+
+  /// KL-060 snack action.
+  ///
+  /// In ar, this message translates to:
+  /// **'تراجع'**
+  String get safetyUndo;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن الحساب'**
+  String get safetyReportUser;
+
+  /// KL-060 report sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا الحساب؟'**
+  String get safetyReportTitle;
+
+  /// KL-060 settings section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصوصية والأمان'**
+  String get safetySection;
+
+  /// KL-060 settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصوصية'**
+  String get safetyPrivacy;
+
+  /// KL-060 settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحسابات المحظورة'**
+  String get safetyBlockedAccounts;
+
+  /// KL-060 blocked empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تحظر أحداً'**
+  String get safetyNoBlocked;
+
+  /// KL-060 blocked empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'من تحظره يظهر هنا، ويمكنك إلغاء حظره متى شئت.'**
+  String get safetyNoBlockedBody;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'من يمكنه الإشارة إليك'**
+  String get privacyMentionTitle;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'الجميع'**
+  String get privacyMentionEveryone;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'من تتابعهم فقط'**
+  String get privacyMentionFollowing;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد'**
+  String get privacyMentionNobody;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'من يمكنه التعليق على منشوراتك الجديدة'**
+  String get privacyCommentTitle;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تغيير ذلك لكل منشور من «مزيد من الخيارات».'**
+  String get privacyCommentHint;
+
+  /// KL-060 privacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get privacySaved;
 }
 
 class _AppLocalizationsDelegate
