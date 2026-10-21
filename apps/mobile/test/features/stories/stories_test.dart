@@ -282,6 +282,8 @@ void main() {
         ],
       );
       expect(find.text(_en.storyYourStory), findsOneWidget);
+      expect(find.bySemanticsLabel(_en.storyAdd), findsOneWidget);
+      expect(find.bySemanticsLabel(_en.storyOpen('Sara')), findsOneWidget);
       await tester.tap(find.byKey(FeedStoriesTray.addKey));
       await settle(tester);
       expect(router.state.uri.path, AppRoutes.newStory);

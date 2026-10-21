@@ -920,5 +920,6 @@
   "storyArchiveTitle": "Story archive",
   "storyArchiveEmpty": "No stories yet",
   "storyArchiveEmptyBody": "Your stories are kept here after they end; only you can see them.",
-  "storyArchiveCell": "Story from {date}"
+  "storyArchiveCell": "Story from {date}",
+  "storyOpenOwn": "Open your story"
 }

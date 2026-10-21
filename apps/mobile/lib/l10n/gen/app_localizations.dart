@@ -4759,6 +4759,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قصة {date}'**
   String storyArchiveCell(String date);
+
+  /// Stories tray: open your own stories (accessibility)
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض قصتك'**
+  String get storyOpenOwn;
 }
 
 class _AppLocalizationsDelegate

@@ -2736,4 +2736,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String storyArchiveCell(String date) {
     return 'قصة $date';
   }
+
+  @override
+  String get storyOpenOwn => 'عرض قصتك';
 }

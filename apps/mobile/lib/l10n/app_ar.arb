@@ -2953,5 +2953,9 @@
         "type": "String"
       }
     }
+  },
+  "storyOpenOwn": "عرض قصتك",
+  "@storyOpenOwn": {
+    "description": "Stories tray: open your own stories (accessibility)"
   }
 }

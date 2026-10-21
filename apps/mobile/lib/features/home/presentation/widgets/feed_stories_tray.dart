@@ -151,7 +151,11 @@ class _TrayItem extends StatelessWidget {
     if (tap == null) return item;
     return Semantics(
       button: true,
-      label: adding ? l10n.storyAdd : l10n.storyOpen(label),
+      label: adding
+          ? l10n.storyAdd
+          : story.isSelf
+          ? l10n.storyOpenOwn
+          : l10n.storyOpen(label),
       excludeSemantics: true,
       onTap: tap,
       child: InkWell(
