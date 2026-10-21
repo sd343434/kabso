@@ -4417,6 +4417,186 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إزالة الموقع'**
   String get editPostRemovePlace;
+
+  /// Create: schedule row title
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت النشر'**
+  String get createScheduleTitle;
+
+  /// Create: schedule row when publishing now
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get createScheduleNow;
+
+  /// A scheduled date and time
+  ///
+  /// In ar, this message translates to:
+  /// **'{date}، {time}'**
+  String createScheduleAt(String date, String time);
+
+  /// Create: the action pill when a time is set
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة'**
+  String get createScheduleAction;
+
+  /// Create: clear the scheduled time
+  ///
+  /// In ar, this message translates to:
+  /// **'النشر الآن'**
+  String get createScheduleClear;
+
+  /// Schedule time out of range
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر وقتاً بعد 5 دقائق على الأقل وخلال 30 يوماً.'**
+  String get createScheduleWindow;
+
+  /// Message after scheduling
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُنشر في {when}'**
+  String createScheduled(String when);
+
+  /// Create close dialog: save as draft
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ كمسودة'**
+  String get createSaveDraft;
+
+  /// Create close dialog body when a draft can be saved
+  ///
+  /// In ar, this message translates to:
+  /// **'احفظه كمسودة لتكمله لاحقاً، أو تجاهله.'**
+  String get createDiscardOrDraftBody;
+
+  /// Message after saving a draft
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت المسودة'**
+  String get createDraftSaved;
+
+  /// Drafts screen title and profile button tooltip
+  ///
+  /// In ar, this message translates to:
+  /// **'المسودات والمجدولة'**
+  String get draftsTitle;
+
+  /// Drafts screen: drafts tab
+  ///
+  /// In ar, this message translates to:
+  /// **'المسودات'**
+  String get draftsTabDrafts;
+
+  /// Drafts screen: scheduled tab
+  ///
+  /// In ar, this message translates to:
+  /// **'المجدولة'**
+  String get draftsTabScheduled;
+
+  /// Drafts empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مسودات'**
+  String get draftsEmpty;
+
+  /// Drafts empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'عند إغلاق منشور يمكنك حفظه كمسودة.'**
+  String get draftsEmptyBody;
+
+  /// Scheduled empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لا منشورات مجدولة'**
+  String get scheduledEmpty;
+
+  /// Scheduled empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر «وقت النشر» عند إنشاء منشور لجدولته.'**
+  String get scheduledEmptyBody;
+
+  /// Draft row: when it was saved
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت {when}'**
+  String draftsSavedOn(String when);
+
+  /// Scheduled row: when it publishes
+  ///
+  /// In ar, this message translates to:
+  /// **'يُنشر {when}'**
+  String draftsPublishesOn(String when);
+
+  /// Draft row with photos only
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا نص'**
+  String get draftsNoText;
+
+  /// Confirm deleting a draft or scheduled post
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذه المسودة؟'**
+  String get draftsDeleteConfirm;
+
+  /// Message after deleting a draft
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذفت'**
+  String get draftsDeleted;
+
+  /// Edit a draft: publish it
+  ///
+  /// In ar, this message translates to:
+  /// **'انشر الآن'**
+  String get editPostPublishNow;
+
+  /// Edit a draft: schedule it
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة'**
+  String get editPostSchedule;
+
+  /// Edit a scheduled post: new time
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الموعد'**
+  String get editPostReschedule;
+
+  /// Edit a scheduled post: back to drafts
+  ///
+  /// In ar, this message translates to:
+  /// **'نقل إلى المسودات'**
+  String get editPostToDrafts;
+
+  /// Message after publishing a draft
+  ///
+  /// In ar, this message translates to:
+  /// **'نُشر المنشور'**
+  String get editPostPublished;
+
+  /// Message after unscheduling
+  ///
+  /// In ar, this message translates to:
+  /// **'نُقل إلى المسودات'**
+  String get editPostMovedToDrafts;
+
+  /// Edit screen: status of a draft
+  ///
+  /// In ar, this message translates to:
+  /// **'مسودة'**
+  String get editPostDraftBadge;
+
+  /// Edit screen: status of a scheduled post
+  ///
+  /// In ar, this message translates to:
+  /// **'مجدول: {when}'**
+  String editPostScheduledBadge(String when);
 }
 
 class _AppLocalizationsDelegate

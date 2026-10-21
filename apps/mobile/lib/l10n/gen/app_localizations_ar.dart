@@ -2533,4 +2533,106 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get editPostRemovePlace => 'إزالة الموقع';
+
+  @override
+  String get createScheduleTitle => 'وقت النشر';
+
+  @override
+  String get createScheduleNow => 'الآن';
+
+  @override
+  String createScheduleAt(String date, String time) {
+    return '$date، $time';
+  }
+
+  @override
+  String get createScheduleAction => 'جدولة';
+
+  @override
+  String get createScheduleClear => 'النشر الآن';
+
+  @override
+  String get createScheduleWindow =>
+      'اختر وقتاً بعد 5 دقائق على الأقل وخلال 30 يوماً.';
+
+  @override
+  String createScheduled(String when) {
+    return 'سيُنشر في $when';
+  }
+
+  @override
+  String get createSaveDraft => 'حفظ كمسودة';
+
+  @override
+  String get createDiscardOrDraftBody =>
+      'احفظه كمسودة لتكمله لاحقاً، أو تجاهله.';
+
+  @override
+  String get createDraftSaved => 'حُفظت المسودة';
+
+  @override
+  String get draftsTitle => 'المسودات والمجدولة';
+
+  @override
+  String get draftsTabDrafts => 'المسودات';
+
+  @override
+  String get draftsTabScheduled => 'المجدولة';
+
+  @override
+  String get draftsEmpty => 'لا مسودات';
+
+  @override
+  String get draftsEmptyBody => 'عند إغلاق منشور يمكنك حفظه كمسودة.';
+
+  @override
+  String get scheduledEmpty => 'لا منشورات مجدولة';
+
+  @override
+  String get scheduledEmptyBody => 'اختر «وقت النشر» عند إنشاء منشور لجدولته.';
+
+  @override
+  String draftsSavedOn(String when) {
+    return 'حُفظت $when';
+  }
+
+  @override
+  String draftsPublishesOn(String when) {
+    return 'يُنشر $when';
+  }
+
+  @override
+  String get draftsNoText => 'بلا نص';
+
+  @override
+  String get draftsDeleteConfirm => 'حذف هذه المسودة؟';
+
+  @override
+  String get draftsDeleted => 'حُذفت';
+
+  @override
+  String get editPostPublishNow => 'انشر الآن';
+
+  @override
+  String get editPostSchedule => 'جدولة';
+
+  @override
+  String get editPostReschedule => 'تغيير الموعد';
+
+  @override
+  String get editPostToDrafts => 'نقل إلى المسودات';
+
+  @override
+  String get editPostPublished => 'نُشر المنشور';
+
+  @override
+  String get editPostMovedToDrafts => 'نُقل إلى المسودات';
+
+  @override
+  String get editPostDraftBadge => 'مسودة';
+
+  @override
+  String editPostScheduledBadge(String when) {
+    return 'مجدول: $when';
+  }
 }

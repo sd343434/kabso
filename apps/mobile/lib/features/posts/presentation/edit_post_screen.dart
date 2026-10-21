@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -7,7 +8,9 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
+import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
+import 'package:kabso_live/features/posts/application/my_posts_controller.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
@@ -19,6 +22,10 @@ import 'package:material_ui/material_ui.dart';
 /// place and settings (`PATCH /posts/{postId}`). Photos never change.
 /// Save sends only what changed; editing a published caption marks the
 /// post "Edited" (server). Leaving with changes asks first.
+///
+/// A draft or scheduled post (from Drafts) also offers Post now, Schedule
+/// (or Change time) and, when scheduled, Move to drafts; each sends the
+/// new `status` with any changes (CONVENTIONS §11.2).
 class EditPostScreen extends ConsumerWidget {
   const new({required this.postId, super.key});
 
@@ -30,6 +37,9 @@ class EditPostScreen extends ConsumerWidget {
   static const removePlaceKey = Key('editPost.place.remove');
   static const settingsKey = Key('editPost.settings');
   static const discardKey = Key('editPost.discard');
+  static const publishNowKey = Key('editPost.publishNow');
+  static const scheduleKey = Key('editPost.schedule');
+  static const toDraftsKey = Key('editPost.toDrafts');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,8 +131,25 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
         text.characters.length <= maxPostText;
   }
 
-  Future<void> _save() async {
-    final update = _update;
+  Future<void> _save() => _submit(done: context.l10n.editPostSaved);
+
+  /// Sends the changes, with [status] (and [publishAt]) when the post
+  /// moves; says [done] and leaves.
+  Future<void> _submit({
+    required String done,
+    String? status,
+    DateTime? publishAt,
+  }) async {
+    final changes = _update;
+    final update = PostUpdate(
+      text: changes.text,
+      location: changes.location,
+      commentsEnabled: changes.commentsEnabled,
+      whoCanComment: changes.whoCanComment,
+      hideLikeCount: changes.hideLikeCount,
+      status: status,
+      publishAt: publishAt,
+    );
     if (_saving || update.isEmpty || !_valid) return;
     setState(() => _saving = true);
     try {
@@ -131,13 +158,36 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
           .updatePost(widget.post.id, update);
       if (!mounted) return;
       ref.read(postEditsProvider.notifier).put(post);
-      KSnack.success(context, context.l10n.editPostSaved);
+      if (status != null) {
+        ref.invalidate(myPostsProvider);
+        if (post.status == 'PUBLISHED') {
+          for (final feed in HomeFeed.values) {
+            ref.invalidate(postsFeedProvider(feed));
+          }
+        }
+      }
+      KSnack.success(context, done);
       Navigator.of(context).pop();
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
     }
+  }
+
+  Future<void> _schedule() async {
+    final l10n = context.l10n;
+    final at = await pickScheduleTime(context, widget.post.publishAt);
+    if (at == null || !mounted) return;
+    if (!isSchedulable(at, clock.now())) {
+      KSnack.error(context, l10n.createScheduleWindow);
+      return;
+    }
+    await _submit(
+      done: l10n.createScheduled(scheduleLabel(context, at)),
+      status: 'SCHEDULED',
+      publishAt: at,
+    );
   }
 
   Future<void> _editPlace() async {
@@ -180,6 +230,8 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
     _text.entityColor = p.primary;
     final post = widget.post;
     final dirty = !_update.isEmpty;
+    final draft = post.status == 'DRAFT';
+    final scheduled = post.status == 'SCHEDULED';
     final textEmpty = _text.text.trim().isEmpty && post.media.isEmpty;
     return PopScope(
       canPop: !dirty || _saving,
@@ -214,6 +266,25 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
         body: ListView(
           padding: const EdgeInsets.all(KSpacing.md),
           children: [
+            if (draft || scheduled) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Chip(
+                  avatar: Icon(
+                    draft ? Icons.drafts_outlined : Icons.schedule_rounded,
+                    size: KMetrics.iconSm,
+                  ),
+                  label: Text(
+                    draft
+                        ? l10n.editPostDraftBadge
+                        : l10n.editPostScheduledBadge(
+                            scheduleLabel(context, post.publishAt!),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KSpacing.sm),
+            ],
             if (post.media.isNotEmpty) ...[
               SizedBox(
                 height: 88,
@@ -291,6 +362,42 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
               subtitle: l10n.createAdvancedSubtitle,
               onTap: _saving ? null : _editSettings,
             ),
+            if (draft || scheduled) ...[
+              const SizedBox(height: KSpacing.lg),
+              KButton(
+                key: EditPostScreen.publishNowKey,
+                label: l10n.editPostPublishNow,
+                onPressed: _saving || !_valid
+                    ? null
+                    : () => _submit(
+                        done: l10n.editPostPublished,
+                        status: 'PUBLISHED',
+                      ),
+              ),
+              const SizedBox(height: KSpacing.sm),
+              KButton(
+                key: EditPostScreen.scheduleKey,
+                label: scheduled
+                    ? l10n.editPostReschedule
+                    : l10n.editPostSchedule,
+                variant: KButtonVariant.secondary,
+                onPressed: _saving || !_valid ? null : _schedule,
+              ),
+              if (scheduled) ...[
+                const SizedBox(height: KSpacing.sm),
+                KButton(
+                  key: EditPostScreen.toDraftsKey,
+                  label: l10n.editPostToDrafts,
+                  variant: KButtonVariant.secondary,
+                  onPressed: _saving || !_valid
+                      ? null
+                      : () => _submit(
+                          done: l10n.editPostMovedToDrafts,
+                          status: 'DRAFT',
+                        ),
+                ),
+              ],
+            ],
           ],
         ),
       ),

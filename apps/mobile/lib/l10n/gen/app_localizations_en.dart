@@ -2509,4 +2509,108 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editPostRemovePlace => 'Remove location';
+
+  @override
+  String get createScheduleTitle => 'When to post';
+
+  @override
+  String get createScheduleNow => 'Now';
+
+  @override
+  String createScheduleAt(String date, String time) {
+    return '$date, $time';
+  }
+
+  @override
+  String get createScheduleAction => 'Schedule';
+
+  @override
+  String get createScheduleClear => 'Post now instead';
+
+  @override
+  String get createScheduleWindow =>
+      'Pick a time at least 5 minutes ahead and within 30 days.';
+
+  @override
+  String createScheduled(String when) {
+    return 'Scheduled for $when';
+  }
+
+  @override
+  String get createSaveDraft => 'Save draft';
+
+  @override
+  String get createDiscardOrDraftBody =>
+      'Save it as a draft to finish later, or discard it.';
+
+  @override
+  String get createDraftSaved => 'Draft saved';
+
+  @override
+  String get draftsTitle => 'Drafts and scheduled';
+
+  @override
+  String get draftsTabDrafts => 'Drafts';
+
+  @override
+  String get draftsTabScheduled => 'Scheduled';
+
+  @override
+  String get draftsEmpty => 'No drafts';
+
+  @override
+  String get draftsEmptyBody =>
+      'When you close a post, you can save it as a draft.';
+
+  @override
+  String get scheduledEmpty => 'Nothing scheduled';
+
+  @override
+  String get scheduledEmptyBody =>
+      'Choose \"When to post\" while creating a post to schedule it.';
+
+  @override
+  String draftsSavedOn(String when) {
+    return 'Saved $when';
+  }
+
+  @override
+  String draftsPublishesOn(String when) {
+    return 'Posts $when';
+  }
+
+  @override
+  String get draftsNoText => 'No caption';
+
+  @override
+  String get draftsDeleteConfirm => 'Delete this draft?';
+
+  @override
+  String get draftsDeleted => 'Deleted';
+
+  @override
+  String get editPostPublishNow => 'Post now';
+
+  @override
+  String get editPostSchedule => 'Schedule';
+
+  @override
+  String get editPostReschedule => 'Change time';
+
+  @override
+  String get editPostToDrafts => 'Move to drafts';
+
+  @override
+  String get editPostPublished => 'Your post is live';
+
+  @override
+  String get editPostMovedToDrafts => 'Moved to drafts';
+
+  @override
+  String get editPostDraftBadge => 'Draft';
+
+  @override
+  String editPostScheduledBadge(String when) {
+    return 'Scheduled: $when';
+  }
 }

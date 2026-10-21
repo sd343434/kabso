@@ -38,6 +38,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/posts/presentation/drafts_screen.dart';
 import 'package:kabso_live/features/posts/presentation/edit_post_screen.dart';
 import 'package:kabso_live/features/posts/presentation/likers_screen.dart';
 import 'package:kabso_live/features/posts/presentation/post_screen.dart';
@@ -165,6 +166,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.hashtagPattern,
         builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
       ),
+      GoRoute(path: AppRoutes.drafts, builder: (_, _) => const DraftsScreen()),
       GoRoute(
         path: AppRoutes.editPostPattern,
         builder: (_, state) =>

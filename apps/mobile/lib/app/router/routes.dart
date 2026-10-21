@@ -45,6 +45,9 @@ abstract final class AppRoutes {
   /// The screen of post [postId].
   static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
 
+  /// KL-060: your drafts and scheduled posts.
+  static const drafts = '/me/drafts';
+
   /// KL-060: edit your post (caption, place, settings).
   static const editPostPattern = '/posts/:postId/edit';
 

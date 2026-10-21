@@ -5,6 +5,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:clock/clock.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -783,6 +785,88 @@ void main() {
       await tester.pumpAndSettle();
       expect(router.state.uri.path, '/reels');
       expect(posts.created, isEmpty);
+    });
+
+    testWidgets('Close offers Save draft: the post is created as a DRAFT, '
+        'the feeds are not touched', (tester) async {
+      final (_, posts, _, router) = await pump(tester);
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'later');
+      await tester.tap(find.byKey(CreateScreen.backKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.createDiscardOrDraftBody), findsOneWidget);
+      await tester.tap(find.byKey(CreateScreen.saveDraftKey));
+      await tester.pumpAndSettle();
+      expect(posts.created.single.status, 'DRAFT');
+      expect(posts.created.single.text, 'later');
+      expect(posts.created.single.publishAt, isNull);
+      expect(posts.calls.where((c) => c.startsWith('feed:')), isEmpty);
+      expect(router.state.uri.path, '/reels');
+      expect(find.text(_en.createDraftSaved), findsOneWidget);
+    });
+
+    testWidgets('a place alone cannot be a draft: Close offers discard only', (
+      tester,
+    ) async {
+      await pump(tester, recentPlaces: const ['Amman']);
+      await tester.tap(find.byKey(CreateScreen.placeChipKey('Amman')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateScreen.backKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.createDiscardTitle), findsOneWidget);
+      expect(find.byKey(CreateScreen.saveDraftKey), findsNothing);
+    });
+
+    testWidgets('When to post: a time picked becomes the action "Schedule"; '
+        'the post is created SCHEDULED at that time; clearing posts now', (
+      tester,
+    ) async {
+      final now = DateTime(2026, 10, 21, 10, 7);
+      await withClock(Clock.fixed(now), () async {
+        final (_, posts, _, _) = await pump(tester);
+        await tester.enterText(find.byKey(CreateScreen.textKey), 'soon');
+        expect(find.text(_en.createScheduleNow), findsOneWidget);
+        await tester.ensureVisible(find.byKey(CreateScreen.scheduleKey));
+        await tester.tap(find.byKey(CreateScreen.scheduleKey));
+        await tester.pumpAndSettle();
+        // The day, then the time (an hour from now by default).
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+        expect(find.text(_en.createScheduleAction), findsOneWidget);
+        expect(find.byKey(CreateScreen.clearScheduleKey), findsOneWidget);
+        await tester.tap(find.byKey(CreateScreen.clearScheduleKey));
+        await tester.pumpAndSettle();
+        expect(find.text(_en.createShare), findsOneWidget);
+
+        await tester.tap(find.byKey(CreateScreen.scheduleKey));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(CreateScreen.shareKey));
+        await tester.pumpAndSettle();
+        final created = posts.created.single;
+        expect(created.status, 'SCHEDULED');
+        expect(created.publishAt, DateTime(2026, 10, 21, 11, 7));
+        expect(posts.calls.where((c) => c.startsWith('feed:')), isEmpty);
+      });
+    });
+
+    test('schedule window: 5 minutes (plus a minute) to 30 days ahead', () {
+      final now = DateTime(2026, 10, 21, 10);
+      expect(isSchedulable(now.add(const Duration(minutes: 5)), now), isFalse);
+      expect(isSchedulable(now.add(const Duration(minutes: 6)), now), isTrue);
+      expect(isSchedulable(now.add(const Duration(days: 30)), now), isTrue);
+      expect(
+        isSchedulable(now.add(const Duration(days: 30, minutes: 1)), now),
+        isFalse,
+      );
     });
 
     for (final details in [false, true]) {

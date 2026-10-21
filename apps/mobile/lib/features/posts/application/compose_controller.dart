@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
+import 'package:kabso_live/features/posts/application/my_posts_controller.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -18,6 +19,17 @@ const int maxPostPhotos = 10;
 /// Text limits of a post (CONVENTIONS §11.2), checked again by the server.
 const int maxPostText = 2200;
 const int maxLocationText = 80;
+
+/// A scheduled post publishes between 5 minutes and 30 days ahead
+/// (CONVENTIONS §11.2).
+const Duration minScheduleLead = Duration(minutes: 5);
+const Duration maxScheduleLead = Duration(days: 30);
+
+/// Whether [at] is a time the server takes for a scheduled post, judged
+/// at [now] (a minute of margin for the request).
+bool isSchedulable(DateTime at, DateTime now) =>
+    !at.isBefore(now.add(minScheduleLead + const Duration(minutes: 1))) &&
+    !at.isAfter(now.add(maxScheduleLead));
 
 /// Picks photos from the device library.
 abstract interface class PhotoPicker {
@@ -243,11 +255,15 @@ class ComposeController extends Notifier<ComposeState> {
     state = state.copyWith(settings: settings, clearFailure: true);
   }
 
-  /// Publishes the draft; the created post, or `null` on failure (then
-  /// [ComposeState.failure] says why and the draft is kept).
+  /// Publishes the draft — or, with [status], saves it as a `DRAFT` or
+  /// schedules it (`SCHEDULED` at [publishAt]); the created post, or
+  /// `null` on failure (then [ComposeState.failure] says why and the draft
+  /// is kept).
   Future<Post?> publish({
     required String text,
     required String location,
+    String status = 'PUBLISHED',
+    DateTime? publishAt,
   }) async {
     if (state.busy) return null;
     final caption = text.trim();
@@ -277,7 +293,8 @@ class ComposeController extends Notifier<ComposeState> {
       final mediaIds = [for (final p in state.photos) p.assetId!];
       final content =
           '$caption\u0000$place\u0000${mediaIds.join(',')}'
-          '\u0000${state.settings.toJson()}';
+          '\u0000${state.settings.toJson()}\u0000$status'
+          '\u0000${publishAt?.toUtc().toIso8601String()}';
       if (_keyFor != content) {
         _key = newIdempotencyKey();
         _keyFor = content;
@@ -290,14 +307,20 @@ class ComposeController extends Notifier<ComposeState> {
             mediaIds: mediaIds,
             location: place,
             settings: state.settings,
+            status: status,
+            publishAt: status == 'SCHEDULED' ? publishAt : null,
           );
       if (!ref.mounted) return post;
       // A new draft starts clean; the feeds show the new post.
       _key = null;
       _keyFor = null;
       state = const ComposeState();
-      for (final feed in HomeFeed.values) {
-        ref.invalidate(postsFeedProvider(feed));
+      if (status == 'PUBLISHED') {
+        for (final feed in HomeFeed.values) {
+          ref.invalidate(postsFeedProvider(feed));
+        }
+      } else {
+        ref.invalidate(myPostsProvider);
       }
       return post;
     } on Object catch (e) {

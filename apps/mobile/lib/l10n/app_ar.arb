@@ -2677,5 +2677,153 @@
   "editPostRemovePlace": "إزالة الموقع",
   "@editPostRemovePlace": {
     "description": "Edit post: clear the place"
+  },
+  "createScheduleTitle": "وقت النشر",
+  "@createScheduleTitle": {
+    "description": "Create: schedule row title"
+  },
+  "createScheduleNow": "الآن",
+  "@createScheduleNow": {
+    "description": "Create: schedule row when publishing now"
+  },
+  "createScheduleAt": "{date}، {time}",
+  "@createScheduleAt": {
+    "description": "A scheduled date and time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "createScheduleAction": "جدولة",
+  "@createScheduleAction": {
+    "description": "Create: the action pill when a time is set"
+  },
+  "createScheduleClear": "النشر الآن",
+  "@createScheduleClear": {
+    "description": "Create: clear the scheduled time"
+  },
+  "createScheduleWindow": "اختر وقتاً بعد 5 دقائق على الأقل وخلال 30 يوماً.",
+  "@createScheduleWindow": {
+    "description": "Schedule time out of range"
+  },
+  "createScheduled": "سيُنشر في {when}",
+  "@createScheduled": {
+    "description": "Message after scheduling",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "createSaveDraft": "حفظ كمسودة",
+  "@createSaveDraft": {
+    "description": "Create close dialog: save as draft"
+  },
+  "createDiscardOrDraftBody": "احفظه كمسودة لتكمله لاحقاً، أو تجاهله.",
+  "@createDiscardOrDraftBody": {
+    "description": "Create close dialog body when a draft can be saved"
+  },
+  "createDraftSaved": "حُفظت المسودة",
+  "@createDraftSaved": {
+    "description": "Message after saving a draft"
+  },
+  "draftsTitle": "المسودات والمجدولة",
+  "@draftsTitle": {
+    "description": "Drafts screen title and profile button tooltip"
+  },
+  "draftsTabDrafts": "المسودات",
+  "@draftsTabDrafts": {
+    "description": "Drafts screen: drafts tab"
+  },
+  "draftsTabScheduled": "المجدولة",
+  "@draftsTabScheduled": {
+    "description": "Drafts screen: scheduled tab"
+  },
+  "draftsEmpty": "لا مسودات",
+  "@draftsEmpty": {
+    "description": "Drafts empty title"
+  },
+  "draftsEmptyBody": "عند إغلاق منشور يمكنك حفظه كمسودة.",
+  "@draftsEmptyBody": {
+    "description": "Drafts empty body"
+  },
+  "scheduledEmpty": "لا منشورات مجدولة",
+  "@scheduledEmpty": {
+    "description": "Scheduled empty title"
+  },
+  "scheduledEmptyBody": "اختر «وقت النشر» عند إنشاء منشور لجدولته.",
+  "@scheduledEmptyBody": {
+    "description": "Scheduled empty body"
+  },
+  "draftsSavedOn": "حُفظت {when}",
+  "@draftsSavedOn": {
+    "description": "Draft row: when it was saved",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "draftsPublishesOn": "يُنشر {when}",
+  "@draftsPublishesOn": {
+    "description": "Scheduled row: when it publishes",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "draftsNoText": "بلا نص",
+  "@draftsNoText": {
+    "description": "Draft row with photos only"
+  },
+  "draftsDeleteConfirm": "حذف هذه المسودة؟",
+  "@draftsDeleteConfirm": {
+    "description": "Confirm deleting a draft or scheduled post"
+  },
+  "draftsDeleted": "حُذفت",
+  "@draftsDeleted": {
+    "description": "Message after deleting a draft"
+  },
+  "editPostPublishNow": "انشر الآن",
+  "@editPostPublishNow": {
+    "description": "Edit a draft: publish it"
+  },
+  "editPostSchedule": "جدولة",
+  "@editPostSchedule": {
+    "description": "Edit a draft: schedule it"
+  },
+  "editPostReschedule": "تغيير الموعد",
+  "@editPostReschedule": {
+    "description": "Edit a scheduled post: new time"
+  },
+  "editPostToDrafts": "نقل إلى المسودات",
+  "@editPostToDrafts": {
+    "description": "Edit a scheduled post: back to drafts"
+  },
+  "editPostPublished": "نُشر المنشور",
+  "@editPostPublished": {
+    "description": "Message after publishing a draft"
+  },
+  "editPostMovedToDrafts": "نُقل إلى المسودات",
+  "@editPostMovedToDrafts": {
+    "description": "Message after unscheduling"
+  },
+  "editPostDraftBadge": "مسودة",
+  "@editPostDraftBadge": {
+    "description": "Edit screen: status of a draft"
+  },
+  "editPostScheduledBadge": "مجدول: {when}",
+  "@editPostScheduledBadge": {
+    "description": "Edit screen: status of a scheduled post",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
   }
 }

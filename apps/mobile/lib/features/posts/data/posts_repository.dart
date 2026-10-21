@@ -69,7 +69,13 @@ abstract interface class PostsRepository {
     List<String> mediaIds = const [],
     String? location,
     PostSettingsDraft settings = const PostSettingsDraft(),
+    String status = 'PUBLISHED',
+    DateTime? publishAt,
   });
+
+  /// `GET /me/posts?status=`: the caller's drafts (newest first) or
+  /// scheduled posts (soonest first).
+  Future<PageOf<Post>> myPosts(String status, {String? cursor});
 
   /// `GET /search?type=users`: people to mention (blocked users never
   /// appear); [query] without the leading `@`.
@@ -280,6 +286,8 @@ class PostsRepositoryImpl implements PostsRepository {
     List<String> mediaIds = const [],
     String? location,
     PostSettingsDraft settings = const PostSettingsDraft(),
+    String status = 'PUBLISHED',
+    DateTime? publishAt,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/posts',
@@ -288,11 +296,17 @@ class PostsRepositoryImpl implements PostsRepository {
         if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,
         if (location != null && location.isNotEmpty) 'location': location,
         if (!settings.isDefault) 'settings': settings.toJson(),
+        if (status != 'PUBLISHED') 'status': status,
+        'publishAt': ?publishAt?.toUtc().toIso8601String(),
       },
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     return Post.fromJson(res.data!);
   });
+
+  @override
+  Future<PageOf<Post>> myPosts(String status, {String? cursor}) =>
+      _page('/me/posts', {'status': status, 'cursor': cursor});
 
   @override
   Future<List<UserSummary>> searchUsers(String query) => guardApiCall(() async {

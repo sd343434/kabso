@@ -65,10 +65,12 @@ class FakePostsRepository implements PostsRepository {
   @override
   Future<Post> getPost(String postId) async {
     await _step('getPost:$postId');
+    if (answers[postId] case final p?) return p;
     for (final p in [
       ...feeds.values.expand((l) => l),
       ...profilePosts.values.expand((l) => l),
       ...savedPosts,
+      ...myPostLists.values.expand((l) => l),
     ]) {
       if (p.id == postId) return p;
     }
@@ -165,7 +167,12 @@ class FakePostsRepository implements PostsRepository {
       _step('report:$postId:${reason.wire}');
 
   @override
-  Future<void> deletePost(String postId) => _step('delete:$postId');
+  Future<void> deletePost(String postId) async {
+    await _step('delete:$postId');
+    for (final l in myPostLists.values) {
+      l.removeWhere((p) => p.id == postId);
+    }
+  }
 
   /// Bodies of `updatePost` calls.
   final List<(String, Map<String, Object?>)> updates = [];
@@ -182,7 +189,7 @@ class FakePostsRepository implements PostsRepository {
     for (final p in [
       ...feeds.values.expand((l) => l),
       ...profilePosts.values.expand((l) => l),
-      ...myPosts.values.expand((l) => l),
+      ...myPostLists.values.expand((l) => l),
     ]) {
       if (p.id == postId) return p;
     }
@@ -195,7 +202,7 @@ class FakePostsRepository implements PostsRepository {
     updates.add((postId, update.toJson()));
     final p = await _current(postId);
     final json = update.toJson();
-    return answers[postId] = p.copyWithForTest(
+    final next = answers[postId] = p.copyWithForTest(
       text: update.text,
       location: json.containsKey('location')
           ? () => json['location'] as String?
@@ -209,6 +216,13 @@ class FakePostsRepository implements PostsRepository {
       status: update.status,
       publishAt: update.publishAt,
     );
+    if (update.status case final s?) {
+      for (final l in myPostLists.values) {
+        l.removeWhere((x) => x.id == postId);
+      }
+      if (s != 'PUBLISHED') (myPostLists[s] ??= []).insert(0, next);
+    }
+    return next;
   }
 
   @override
@@ -228,7 +242,7 @@ class FakePostsRepository implements PostsRepository {
   }
 
   /// The caller's drafts and scheduled posts (`GET /me/posts?status=`).
-  final Map<String, List<Post>> myPosts = {};
+  final Map<String, List<Post>> myPostLists = {};
 
   /// Bodies of `createPost` calls, with their keys.
   final List<
@@ -238,6 +252,8 @@ class FakePostsRepository implements PostsRepository {
       List<String> mediaIds,
       String? location,
       PostSettingsDraft settings,
+      String status,
+      DateTime? publishAt,
     })
   >
   created = [];
@@ -252,6 +268,8 @@ class FakePostsRepository implements PostsRepository {
     List<String> mediaIds = const [],
     String? location,
     PostSettingsDraft settings = const PostSettingsDraft(),
+    String status = 'PUBLISHED',
+    DateTime? publishAt,
   }) async {
     await _step('create:$idempotencyKey');
     created.add((
@@ -260,13 +278,23 @@ class FakePostsRepository implements PostsRepository {
       mediaIds: mediaIds,
       location: location,
       settings: settings,
+      status: status,
+      publishAt: publishAt,
     ));
-    return testPost(
+    final post = testPost(
       'new-${created.length}',
       text: text ?? '',
       isSelf: true,
       pending: mediaIds.isNotEmpty,
-    );
+    ).copyWithForTest(status: status, publishAt: publishAt);
+    if (status != 'PUBLISHED') (myPostLists[status] ??= []).insert(0, post);
+    return post;
+  }
+
+  @override
+  Future<PageOf<Post>> myPosts(String status, {String? cursor}) async {
+    await _step('myPosts:$status:${cursor ?? ''}');
+    return _slice(myPostLists[status] ?? const [], cursor);
   }
 
   /// Top-level comments per post, in the server's order (pinned first,

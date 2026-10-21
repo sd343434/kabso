@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -817,3 +819,41 @@ Future<PostSettingsDraft?> showAdvancedSheet(
     );
   },
 );
+
+/// [at] as the schedule shows it: date and time in the app's locale.
+String scheduleLabel(BuildContext context, DateTime at) {
+  final tag = Localizations.localeOf(context).toLanguageTag();
+  return context.l10n.createScheduleAt(
+    KFormat.date(at, tag),
+    KFormat.time(at, tag),
+  );
+}
+
+/// Picks when a post publishes: a day within 30 days, then a time. A time
+/// outside 5 minutes to 30 days ahead says so and returns `null`.
+Future<DateTime?> pickScheduleTime(
+  BuildContext context,
+  DateTime? current,
+) async {
+  final l10n = context.l10n;
+  final now = clock.now();
+  final first = current ?? now.add(const Duration(hours: 1));
+  final day = await showDatePicker(
+    context: context,
+    initialDate: first,
+    firstDate: now,
+    lastDate: now.add(maxScheduleLead),
+  );
+  if (day == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(first),
+  );
+  if (time == null || !context.mounted) return null;
+  final at = DateTime(day.year, day.month, day.day, time.hour, time.minute);
+  if (!isSchedulable(at, clock.now())) {
+    KSnack.error(context, l10n.createScheduleWindow);
+    return null;
+  }
+  return at;
+}

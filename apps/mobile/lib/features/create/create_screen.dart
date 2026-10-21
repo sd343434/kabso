@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,11 +32,14 @@ import 'package:material_ui/material_ui.dart';
 ///    colour, linked by the server) with AI ("soon", no API), hashtag,
 ///    mention and emoji tools and a counter; then the rows: place (with the
 ///    places this account used last on this device), mention people,
-///    hashtags, who can see (the account's privacy), more options
-///    (comments, like count).
+///    hashtags, who can see (the account's privacy), when to publish (now,
+///    or scheduled 5 minutes to 30 days ahead), more options (comments,
+///    like count).
 ///
-/// Share uploads the photos one by one (progress), then creates the post;
-/// a failure keeps the draft with Retry and never makes two posts.
+/// Share (or Schedule) uploads the photos one by one (progress), then
+/// creates the post; a failure keeps the draft with Retry and never makes
+/// two posts. Close offers to save the post as a draft
+/// (`status: DRAFT`), found later under Drafts on the profile.
 class CreateScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -57,6 +61,9 @@ class CreateScreen extends ConsumerStatefulWidget {
   static const mentionRowKey = Key('create.mentionRow');
   static const hashtagsRowKey = Key('create.hashtagsRow');
   static const advancedKey = Key('create.advanced');
+  static const scheduleKey = Key('create.schedule');
+  static const clearScheduleKey = Key('create.schedule.clear');
+  static const saveDraftKey = Key('create.saveDraft');
   static const stripKey = Key('create.strip');
   static const mediaStepKey = Key('create.step.media');
   static const detailsStepKey = Key('create.step.details');
@@ -76,6 +83,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   String _place = '';
   int _page = 0;
   bool _details = false;
+
+  /// When to publish; `null`: now.
+  DateTime? _publishAt;
 
   @override
   void initState() {
@@ -148,51 +158,113 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     FocusScope.of(context).unfocus();
     final l10n = context.l10n;
     final place = _place;
+    final at = _publishAt;
+    if (at != null && !isSchedulable(at, clock.now())) {
+      KSnack.error(context, l10n.createScheduleWindow);
+      return;
+    }
     final post = await ref
         .read(composeControllerProvider.notifier)
-        .publish(text: _text.text, location: place);
+        .publish(
+          text: _text.text,
+          location: place,
+          status: at == null ? 'PUBLISHED' : 'SCHEDULED',
+          publishAt: at,
+        );
     if (!mounted || post == null) return;
     unawaited(ref.read(recentPlacesProvider.notifier).remember(place));
+    _reset();
+    KSnack.success(
+      context,
+      at != null
+          ? l10n.createScheduled(scheduleLabel(context, at))
+          : post.pendingModeration
+          ? l10n.createPostedInReview
+          : l10n.createPosted,
+    );
+    context.go(AppRoutes.reels);
+  }
+
+  void _reset() {
     _text.clear();
     setState(() {
       _place = '';
+      _publishAt = null;
       _details = false;
     });
-    KSnack.success(
-      context,
-      post.pendingModeration ? l10n.createPostedInReview : l10n.createPosted,
+  }
+
+  /// Saves the post as a draft (`status: DRAFT`) and leaves Create.
+  Future<void> _saveDraft() async {
+    final l10n = context.l10n;
+    final controller = ref.read(composeControllerProvider.notifier);
+    final post = await controller.publish(
+      text: _text.text,
+      location: _place,
+      status: 'DRAFT',
     );
+    if (!mounted) return;
+    if (post == null) {
+      final failure = ref.read(composeControllerProvider).failure;
+      if (failure != null) {
+        KSnack.error(context, failureMessage(l10n, failure));
+      }
+      return;
+    }
+    _reset();
+    KSnack.success(context, l10n.createDraftSaved);
     context.go(AppRoutes.reels);
+  }
+
+  Future<void> _schedule() async {
+    final at = await pickScheduleTime(context, _publishAt);
+    if (at != null && mounted) setState(() => _publishAt = at);
   }
 
   Future<void> _close() async {
     final l10n = context.l10n;
     if (_hasDraft) {
-      final discard = await showDialog<bool>(
+      // A draft needs text or a photo (§11.2).
+      final canDraft =
+          _text.text.trim().isNotEmpty ||
+          ref.read(composeControllerProvider).photos.isNotEmpty;
+      final choice = await showDialog<_CloseChoice>(
         context: context,
         builder: (dialog) => AlertDialog(
           title: Text(l10n.createDiscardTitle),
-          content: Text(l10n.createDiscardBody),
+          content: Text(
+            canDraft ? l10n.createDiscardOrDraftBody : l10n.createDiscardBody,
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialog).pop(false),
+              onPressed: () => Navigator.of(dialog).pop(_CloseChoice.keep),
               child: Text(l10n.createKeepEditing),
             ),
             TextButton(
               key: const Key('create.discard'),
-              onPressed: () => Navigator.of(dialog).pop(true),
+              onPressed: () => Navigator.of(dialog).pop(_CloseChoice.discard),
               child: Text(l10n.createDiscard),
             ),
+            if (canDraft)
+              TextButton(
+                key: CreateScreen.saveDraftKey,
+                onPressed: () => Navigator.of(dialog).pop(_CloseChoice.draft),
+                child: Text(l10n.createSaveDraft),
+              ),
           ],
         ),
       );
-      if (!(discard ?? false) || !mounted) return;
-      ref.invalidate(composeControllerProvider);
-      _text.clear();
-      setState(() {
-        _place = '';
-        _details = false;
-      });
+      if (!mounted) return;
+      switch (choice) {
+        case _CloseChoice.draft:
+          await _saveDraft();
+          return;
+        case _CloseChoice.discard:
+          ref.invalidate(composeControllerProvider);
+          _reset();
+        case _CloseChoice.keep || null:
+          return;
+      }
     }
     if (mounted) context.go(AppRoutes.reels);
   }
@@ -316,7 +388,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         ComposeHeader(
           action: ComposeActionPill(
             key: CreateScreen.shareKey,
-            label: l10n.createShare,
+            label: _publishAt == null
+                ? l10n.createShare
+                : l10n.createScheduleAction,
             glyph: Transform.flip(
               flipX: Directionality.of(context) == TextDirection.rtl,
               child: const AppIcon(AppIcons.send),
@@ -458,6 +532,30 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   onTap: _audience,
                 ),
                 ComposeOptionRow(
+                  key: CreateScreen.scheduleKey,
+                  icon: const Icon(Icons.schedule_rounded),
+                  title: l10n.createScheduleTitle,
+                  subtitle: switch (_publishAt) {
+                    final at? => scheduleLabel(context, at),
+                    null => l10n.createScheduleNow,
+                  },
+                  trailing: _publishAt == null
+                      ? null
+                      : IconButton(
+                          key: CreateScreen.clearScheduleKey,
+                          tooltip: l10n.createScheduleClear,
+                          onPressed: draft.busy
+                              ? null
+                              : () => setState(() => _publishAt = null),
+                          icon: AppIcon(
+                            AppIcons.close,
+                            size: KMetrics.iconSm,
+                            color: p.textSecondary,
+                          ),
+                        ),
+                  onTap: draft.busy ? null : _schedule,
+                ),
+                ComposeOptionRow(
                   key: CreateScreen.advancedKey,
                   icon: const AppIcon(AppIcons.settings),
                   neutralIcon: true,
@@ -482,6 +580,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     );
   }
 }
+
+enum _CloseChoice { keep, discard, draft }
 
 /// 1 Media — 2 Details; the details step is current. Tapping Media goes
 /// back to it.

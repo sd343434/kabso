@@ -35,7 +35,7 @@ abstract final class KProfile {
 /// The signed-in user's own profile (D57), from `GET /me` plus the counts
 /// of `GET /users/{username}`:
 ///
-/// - top bar: @username in the centre, Settings at the end;
+/// - top bar: @username in the centre, Drafts and Settings at the end;
 /// - the photo at the start with the Followers and Following counts beside
 ///   it (there is no posts count until a posts API exists), then the name
 ///   and the bio;
@@ -50,6 +50,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const settingsButtonKey = Key('profile.settings');
+  static const draftsButtonKey = Key('profile.drafts');
   static const editButtonKey = Key('profile.editButton');
   static const statsKey = Key('profile.stats');
   static const tabsKey = Key('profile.tabs');
@@ -85,6 +86,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           style: context.textStyles.title.copyWith(color: p.textPrimary),
         ),
         actions: [
+          IconButton(
+            key: ProfileScreen.draftsButtonKey,
+            tooltip: l10n.draftsTitle,
+            icon: Icon(
+              Icons.drafts_outlined,
+              size: KMetrics.iconMd,
+              color: p.textPrimary,
+            ),
+            onPressed: () => context.push(AppRoutes.drafts),
+          ),
           IconButton(
             key: ProfileScreen.settingsButtonKey,
             tooltip: l10n.settingsTitle,
