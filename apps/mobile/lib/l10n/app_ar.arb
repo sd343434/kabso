@@ -2317,5 +2317,80 @@
   "profileGridOpenPost": "فتح المنشور",
   "@profileGridOpenPost": {
     "description": "KL-060 grid cell semantics."
+  },
+  "searchHint": "ابحث عن أشخاص أو وسوم أو منشورات",
+  "@searchHint": {
+    "description": "KL-060 search field."
+  },
+  "searchClear": "مسح",
+  "@searchClear": {
+    "description": "KL-060 search clear."
+  },
+  "searchTabUsers": "الحسابات",
+  "@searchTabUsers": {
+    "description": "KL-060 search type."
+  },
+  "searchTabHashtags": "الوسوم",
+  "@searchTabHashtags": {
+    "description": "KL-060 search type."
+  },
+  "searchTabPosts": "المنشورات",
+  "@searchTabPosts": {
+    "description": "KL-060 search type."
+  },
+  "searchPromptTitle": "ابحث في كبسو",
+  "@searchPromptTitle": {
+    "description": "KL-060 search empty query."
+  },
+  "searchPromptBody": "اكتب اسماً أو وسماً أو كلمة من منشور.",
+  "@searchPromptBody": {
+    "description": "KL-060 search empty query."
+  },
+  "searchNoResults": "لا نتائج لـ «{query}»",
+  "@searchNoResults": {
+    "description": "KL-060 search empty.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "hashtagPostCount": "{count, plural, =0{لا منشورات} =1{منشور واحد} =2{منشوران} few{{count} منشورات} many{{count} منشورًا} other{{count} منشور}}",
+  "@hashtagPostCount": {
+    "description": "KL-060 hashtag count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "hashtagRecent": "الأحدث",
+  "@hashtagRecent": {
+    "description": "KL-060 hashtag sort."
+  },
+  "hashtagTop": "الأكثر تفاعلاً",
+  "@hashtagTop": {
+    "description": "KL-060 hashtag sort."
+  },
+  "hashtagNotFoundTitle": "لا منشورات بهذا الوسم",
+  "@hashtagNotFoundTitle": {
+    "description": "KL-060 hashtag 404."
+  },
+  "hashtagNotFoundBody": "لم يُستخدم هذا الوسم في منشور ظاهر بعد.",
+  "@hashtagNotFoundBody": {
+    "description": "KL-060 hashtag 404."
+  },
+  "hashtagEmpty": "لا منشورات هنا بعد",
+  "@hashtagEmpty": {
+    "description": "KL-060 hashtag empty."
+  },
+  "hashtagLabel": "#{tag}",
+  "@hashtagLabel": {
+    "description": "KL-060 a hashtag as shown.",
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
   }
 }

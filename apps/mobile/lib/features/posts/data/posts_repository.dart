@@ -55,6 +55,27 @@ abstract interface class PostsRepository {
   /// appear); [query] without the leading `@`.
   Future<List<UserSummary>> searchUsers(String query);
 
+  /// `GET /search?type=users`, paged.
+  Future<PageOf<UserSummary>> searchPeople(String query, {String? cursor});
+
+  /// `GET /search?type=hashtags`, paged.
+  Future<PageOf<Hashtag>> searchHashtags(String query, {String? cursor});
+
+  /// `GET /search?type=posts` (caption words; visible posts only), paged.
+  Future<PageOf<Post>> searchPosts(String query, {String? cursor});
+
+  /// `GET /hashtags/{tag}`: the tag and its visible post count (404 when
+  /// unused).
+  Future<Hashtag> hashtag(String tag);
+
+  /// `GET /hashtags/{tag}/posts`: recent, or top (trending score over 30
+  /// days).
+  Future<PageOf<Post>> hashtagPosts(
+    String tag, {
+    HashtagSort sort = HashtagSort.recent,
+    String? cursor,
+  });
+
   /// `GET /posts/{postId}/comments`: top level, the pinned one first, then
   /// by likes, then newest.
   Future<PageOf<Comment>> comments(String postId, {String? cursor});
@@ -211,6 +232,53 @@ class PostsRepositoryImpl implements PostsRepository {
       for (final u in res.data!['data']! as List<dynamic>)
         UserSummary.fromJson(u as Map<String, dynamic>),
     ];
+  });
+
+  Future<PageOf<T>> _search<T>(
+    String query,
+    SearchType type,
+    String? cursor,
+    T Function(Map<String, dynamic>) item,
+  ) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/search',
+      queryParameters: {'q': query, 'type': type.name, 'cursor': ?cursor},
+    );
+    final body = res.data!;
+    return PageOf([
+      for (final e in body['data']! as List<dynamic>)
+        item(e as Map<String, dynamic>),
+    ], PageInfo.fromJson(body['page']! as Map<String, dynamic>));
+  });
+
+  @override
+  Future<PageOf<UserSummary>> searchPeople(String query, {String? cursor}) =>
+      _search(query, SearchType.users, cursor, UserSummary.fromJson);
+
+  @override
+  Future<PageOf<Hashtag>> searchHashtags(String query, {String? cursor}) =>
+      _search(query, SearchType.hashtags, cursor, Hashtag.fromJson);
+
+  @override
+  Future<PageOf<Post>> searchPosts(String query, {String? cursor}) =>
+      _search(query, SearchType.posts, cursor, Post.fromJson);
+
+  @override
+  Future<Hashtag> hashtag(String tag) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/hashtags/${pathSegment(tag)}',
+    );
+    return Hashtag.fromJson(res.data!);
+  });
+
+  @override
+  Future<PageOf<Post>> hashtagPosts(
+    String tag, {
+    HashtagSort sort = HashtagSort.recent,
+    String? cursor,
+  }) => _page('/hashtags/${pathSegment(tag)}/posts', {
+    'sort': sort.name,
+    'cursor': cursor,
   });
 
   Future<PageOf<Comment>> _comments(String path, String? cursor) =>

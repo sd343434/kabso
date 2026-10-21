@@ -788,5 +788,20 @@
   "postUnavailableTitle": "This post isn't available",
   "postUnavailableBody": "It may have been deleted, or its owner does not share it with you.",
   "profileGridPinned": "Pinned",
-  "profileGridOpenPost": "Open post"
+  "profileGridOpenPost": "Open post",
+  "searchHint": "Search people, hashtags or posts",
+  "searchClear": "Clear",
+  "searchTabUsers": "Accounts",
+  "searchTabHashtags": "Hashtags",
+  "searchTabPosts": "Posts",
+  "searchPromptTitle": "Search Kabso",
+  "searchPromptBody": "Type a name, a hashtag or a word from a post.",
+  "searchNoResults": "No results for “{query}”",
+  "hashtagPostCount": "{count, plural, =1{{count} post} other{{count} posts}}",
+  "hashtagRecent": "Recent",
+  "hashtagTop": "Top",
+  "hashtagNotFoundTitle": "No posts with this hashtag",
+  "hashtagNotFoundBody": "This hashtag isn't on any visible post yet.",
+  "hashtagEmpty": "No posts here yet",
+  "hashtagLabel": "#{tag}"
 }

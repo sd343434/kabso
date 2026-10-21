@@ -2245,4 +2245,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileGridOpenPost => 'Open post';
+
+  @override
+  String get searchHint => 'Search people, hashtags or posts';
+
+  @override
+  String get searchClear => 'Clear';
+
+  @override
+  String get searchTabUsers => 'Accounts';
+
+  @override
+  String get searchTabHashtags => 'Hashtags';
+
+  @override
+  String get searchTabPosts => 'Posts';
+
+  @override
+  String get searchPromptTitle => 'Search Kabso';
+
+  @override
+  String get searchPromptBody =>
+      'Type a name, a hashtag or a word from a post.';
+
+  @override
+  String searchNoResults(String query) {
+    return 'No results for “$query”';
+  }
+
+  @override
+  String hashtagPostCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts',
+      one: '$count post',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get hashtagRecent => 'Recent';
+
+  @override
+  String get hashtagTop => 'Top';
+
+  @override
+  String get hashtagNotFoundTitle => 'No posts with this hashtag';
+
+  @override
+  String get hashtagNotFoundBody =>
+      'This hashtag isn\'t on any visible post yet.';
+
+  @override
+  String get hashtagEmpty => 'No posts here yet';
+
+  @override
+  String hashtagLabel(String tag) {
+    return '#$tag';
+  }
 }

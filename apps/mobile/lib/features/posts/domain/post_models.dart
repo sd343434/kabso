@@ -313,3 +313,23 @@ class Comment {
     canDelete: canDelete,
   );
 }
+
+/// `Hashtag`: a tag (lower case, no `#`) and its visible post count.
+@immutable
+class Hashtag {
+  const new({required this.tag, required this.postCount});
+
+  factory fromJson(Map<String, dynamic> json) => Hashtag(
+    tag: json['tag']! as String,
+    postCount: json['postCount']! as int,
+  );
+
+  final String tag;
+  final int postCount;
+}
+
+/// What `GET /search` looks for.
+enum SearchType { users, hashtags, posts }
+
+/// The order of a hashtag's posts (`GET /hashtags/{tag}/posts?sort=`).
+enum HashtagSort { recent, top }

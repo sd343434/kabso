@@ -2269,4 +2269,65 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileGridOpenPost => 'فتح المنشور';
+
+  @override
+  String get searchHint => 'ابحث عن أشخاص أو وسوم أو منشورات';
+
+  @override
+  String get searchClear => 'مسح';
+
+  @override
+  String get searchTabUsers => 'الحسابات';
+
+  @override
+  String get searchTabHashtags => 'الوسوم';
+
+  @override
+  String get searchTabPosts => 'المنشورات';
+
+  @override
+  String get searchPromptTitle => 'ابحث في كبسو';
+
+  @override
+  String get searchPromptBody => 'اكتب اسماً أو وسماً أو كلمة من منشور.';
+
+  @override
+  String searchNoResults(String query) {
+    return 'لا نتائج لـ «$query»';
+  }
+
+  @override
+  String hashtagPostCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count منشور',
+      many: '$count منشورًا',
+      few: '$count منشورات',
+      two: 'منشوران',
+      one: 'منشور واحد',
+      zero: 'لا منشورات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get hashtagRecent => 'الأحدث';
+
+  @override
+  String get hashtagTop => 'الأكثر تفاعلاً';
+
+  @override
+  String get hashtagNotFoundTitle => 'لا منشورات بهذا الوسم';
+
+  @override
+  String get hashtagNotFoundBody => 'لم يُستخدم هذا الوسم في منشور ظاهر بعد.';
+
+  @override
+  String get hashtagEmpty => 'لا منشورات هنا بعد';
+
+  @override
+  String hashtagLabel(String tag) {
+    return '#$tag';
+  }
 }

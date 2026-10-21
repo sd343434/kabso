@@ -284,6 +284,93 @@ class FakePostsRepository implements PostsRepository {
   Future<void> reportComment(String commentId, ReportReason reason) =>
       _step('reportComment:$commentId:${reason.wire}');
 
+  /// Hashtags `searchHashtags` finds and `hashtag` knows (by tag prefix),
+  /// and their posts.
+  List<Hashtag> tags = const [];
+  final Map<String, List<Post>> tagPosts = {};
+
+  /// Posts `searchPosts` finds (caption word prefix).
+  List<Post> searchable = const [];
+
+  static const _notFound = ServerFailure(
+    code: ErrorCode.notFound,
+    rawCode: 'NOT_FOUND',
+    debugMessage: 'Not found',
+    statusCode: 404,
+  );
+
+  PageOf<T> _slicePage<T>(List<T> all, String? cursor) {
+    final start = cursor == null ? 0 : int.parse(cursor);
+    final end = (start + pageSize).clamp(0, all.length);
+    final more = end < all.length;
+    return PageOf(
+      all.sublist(start, end),
+      PageInfo(nextCursor: more ? '$end' : null, hasMore: more),
+    );
+  }
+
+  @override
+  Future<PageOf<UserSummary>> searchPeople(
+    String query, {
+    String? cursor,
+  }) async {
+    await _step('search:users:$query:${cursor ?? ''}');
+    final q = query.toLowerCase();
+    return _slicePage([
+      for (final u in people)
+        if (u.username.startsWith(q) ||
+            u.displayName.toLowerCase().startsWith(q))
+          u,
+    ], cursor);
+  }
+
+  @override
+  Future<PageOf<Hashtag>> searchHashtags(String query, {String? cursor}) async {
+    await _step('search:hashtags:$query:${cursor ?? ''}');
+    final q = query.toLowerCase();
+    return _slicePage([
+      for (final t in tags)
+        if (t.tag.startsWith(q)) t,
+    ], cursor);
+  }
+
+  @override
+  Future<PageOf<Post>> searchPosts(String query, {String? cursor}) async {
+    await _step('search:posts:$query:${cursor ?? ''}');
+    final q = query.toLowerCase();
+    return _slicePage([
+      for (final p in searchable)
+        if (p.text
+            .toLowerCase()
+            .split(RegExp(r'\s+'))
+            .any((w) => w.startsWith(q)))
+          p,
+    ], cursor);
+  }
+
+  @override
+  Future<Hashtag> hashtag(String tag) async {
+    await _step('hashtag:$tag');
+    for (final t in tags) {
+      if (t.tag == tag) return t;
+    }
+    throw _notFound;
+  }
+
+  @override
+  Future<PageOf<Post>> hashtagPosts(
+    String tag, {
+    HashtagSort sort = HashtagSort.recent,
+    String? cursor,
+  }) async {
+    await _step('hashtagPosts:$tag:${sort.name}:${cursor ?? ''}');
+    final all = tagPosts[tag] ?? const <Post>[];
+    return _slicePage(
+      sort == HashtagSort.top ? all.reversed.toList() : all,
+      cursor,
+    );
+  }
+
   @override
   Future<List<UserSummary>> searchUsers(String query) async {
     await _step('searchUsers:$query');
@@ -313,6 +400,8 @@ Post testPost(
   int commentCount = 2,
   int photos = 0,
   bool pinned = false,
+  List<String> hashtags = const [],
+  List<UserSummary> mentions = const [],
   bool commentsEnabled = true,
   WhoCanComment whoCanComment = WhoCanComment.everyone,
 }) => Post(
@@ -334,8 +423,8 @@ Post testPost(
         height: 1080,
       ),
   ],
-  hashtags: const [],
-  mentions: const [],
+  hashtags: hashtags,
+  mentions: mentions,
   status: 'PUBLISHED',
   createdAt: DateTime.utc(2026, 10, 20, 9),
   publishedAt: DateTime.utc(2026, 10, 20, 9),

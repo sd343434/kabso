@@ -417,7 +417,7 @@ class ProfileGrid extends ConsumerWidget {
 
   static const gridKey = Key('profile.grid');
   static const loadMoreRetryKey = Key('profile.grid.retry');
-  static Key cellKey(String postId) => Key('profile.grid.$postId');
+  static Key cellKey(String postId) => PostGridCell.cellKey(postId);
   static const stateKey = Key('profile.gridState');
 
   @override
@@ -463,11 +463,11 @@ class ProfileGrid extends ConsumerWidget {
           when items.isNotEmpty =>
         SliverMainAxisGroup(
           slivers: [
-            grid(items.length, (i) => _Cell(item: items[i])),
+            grid(items.length, (i) => PostGridCell(item: items[i])),
             if (hasMore)
               SliverToBoxAdapter(
                 child: loadMoreError == null
-                    ? _LoadMore(
+                    ? PostGridLoadMore(
                         // A new element per page: each asks once.
                         key: ValueKey(items.length),
                         onVisible: () => ref
@@ -525,16 +525,16 @@ class ProfileGrid extends ConsumerWidget {
 
 /// Asks for the next page when it comes into view (built lazily near the
 /// end of the grid).
-class _LoadMore extends StatefulWidget {
+class PostGridLoadMore extends StatefulWidget {
   const new({required this.onVisible, super.key});
 
   final VoidCallback onVisible;
 
   @override
-  State<_LoadMore> createState() => _LoadMoreState();
+  State<PostGridLoadMore> createState() => _PostGridLoadMoreState();
 }
 
-class _LoadMoreState extends State<_LoadMore> {
+class _PostGridLoadMoreState extends State<PostGridLoadMore> {
   @override
   void initState() {
     super.initState();
@@ -548,10 +548,15 @@ class _LoadMoreState extends State<_LoadMore> {
   );
 }
 
-class _Cell extends StatelessWidget {
-  const new({required this.item});
+/// One cell of a posts grid (profile, hashtag, search): the cover, or the
+/// text of a text-only post, with the pinned, gallery and video marks; a
+/// real post opens its screen.
+class PostGridCell extends StatelessWidget {
+  const new({required this.item, super.key});
 
   final ProfileGridItem item;
+
+  static Key cellKey(String postId) => Key('profile.grid.$postId');
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +631,7 @@ class _Cell extends StatelessWidget {
       ].join(', '),
       excludeSemantics: true,
       child: GestureDetector(
-        key: ProfileGrid.cellKey(id),
+        key: cellKey(id),
         onTap: () => context.push(AppRoutes.post(id)),
         child: cell,
       ),

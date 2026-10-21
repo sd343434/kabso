@@ -35,6 +35,13 @@ abstract final class AppRoutes {
   /// above the shell.
   static const postPattern = '/posts/:postId';
 
+  /// KL-060: a hashtag's posts (lower case, without `#`).
+  static const hashtagPattern = '/hashtags/:tag';
+
+  /// The page of [tag] (with or without `#`).
+  static String hashtag(String tag) =>
+      '/hashtags/${Uri.encodeComponent(tag.replaceFirst('#', '').toLowerCase())}';
+
   /// The screen of post [postId].
   static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
 

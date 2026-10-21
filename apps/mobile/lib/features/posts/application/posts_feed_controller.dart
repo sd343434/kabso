@@ -39,6 +39,8 @@ FeedPostData feedPostOf(Post post) {
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
     repostedBy: post.repostedBy?.displayName,
+    hashtags: {for (final t in post.hashtags) t.toLowerCase()},
+    mentions: {for (final m in post.mentions) m.username.toLowerCase()},
     commentsOpen:
         post.isSelf ||
         (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),

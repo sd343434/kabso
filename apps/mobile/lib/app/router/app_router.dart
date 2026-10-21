@@ -28,6 +28,7 @@ import 'package:kabso_live/features/debug/posts_preview_screen.dart';
 import 'package:kabso_live/features/debug/previews_hub_screen.dart';
 import 'package:kabso_live/features/debug/profile_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
+import 'package:kabso_live/features/discover/hashtag_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -144,6 +145,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               ? MessagesPreviewScreen(peer: name ?? username)
               : ChatScreen(username: username, displayName: name);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.hashtagPattern,
+        builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
       ),
       GoRoute(
         path: AppRoutes.postPattern,

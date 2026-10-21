@@ -3967,6 +3967,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'فتح المنشور'**
   String get profileGridOpenPost;
+
+  /// KL-060 search field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن أشخاص أو وسوم أو منشورات'**
+  String get searchHint;
+
+  /// KL-060 search clear.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح'**
+  String get searchClear;
+
+  /// KL-060 search type.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحسابات'**
+  String get searchTabUsers;
+
+  /// KL-060 search type.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوسوم'**
+  String get searchTabHashtags;
+
+  /// KL-060 search type.
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get searchTabPosts;
+
+  /// KL-060 search empty query.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في كبسو'**
+  String get searchPromptTitle;
+
+  /// KL-060 search empty query.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسماً أو وسماً أو كلمة من منشور.'**
+  String get searchPromptBody;
+
+  /// KL-060 search empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نتائج لـ «{query}»'**
+  String searchNoResults(String query);
+
+  /// KL-060 hashtag count.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا منشورات} =1{منشور واحد} =2{منشوران} few{{count} منشورات} many{{count} منشورًا} other{{count} منشور}}'**
+  String hashtagPostCount(int count);
+
+  /// KL-060 hashtag sort.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأحدث'**
+  String get hashtagRecent;
+
+  /// KL-060 hashtag sort.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر تفاعلاً'**
+  String get hashtagTop;
+
+  /// KL-060 hashtag 404.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا منشورات بهذا الوسم'**
+  String get hashtagNotFoundTitle;
+
+  /// KL-060 hashtag 404.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُستخدم هذا الوسم في منشور ظاهر بعد.'**
+  String get hashtagNotFoundBody;
+
+  /// KL-060 hashtag empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا منشورات هنا بعد'**
+  String get hashtagEmpty;
+
+  /// KL-060 a hashtag as shown.
+  ///
+  /// In ar, this message translates to:
+  /// **'#{tag}'**
+  String hashtagLabel(String tag);
 }
 
 class _AppLocalizationsDelegate

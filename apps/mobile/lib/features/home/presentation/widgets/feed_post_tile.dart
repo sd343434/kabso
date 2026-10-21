@@ -1,4 +1,5 @@
 import 'package:clock/clock.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -43,6 +44,8 @@ class FeedPostData {
     this.pendingModeration = false,
     this.repostedBy,
     this.commentsOpen = true,
+    this.hashtags = const {},
+    this.mentions = const {},
   });
 
   final String authorName;
@@ -97,6 +100,11 @@ class FeedPostData {
   /// The viewer may try to comment: comments are on and not "nobody" (the
   /// author always may; "followers only" is decided by the server).
   final bool commentsOpen;
+
+  /// The caption's linked hashtags (lower case, no `#`) and mentions
+  /// (usernames): only these are links (§11.6).
+  final Set<String> hashtags;
+  final Set<String> mentions;
 }
 
 /// Geometry of a post (D54, layout from the owner's reference; sizes on
@@ -247,7 +255,13 @@ class FeedPostTile extends StatelessWidget {
         if (text != null && text.isNotEmpty)
           Padding(
             padding: inset.add(const EdgeInsets.only(top: KSpacing.sm)),
-            child: _ExpandableText(text, lead: post.authorName, style: t.body),
+            child: _ExpandableText(
+              text,
+              lead: post.authorName,
+              style: t.body,
+              hashtags: post.hashtags,
+              mentions: post.mentions,
+            ),
           ),
         Padding(
           padding: inset.add(const EdgeInsets.only(top: KSpacing.xs)),
@@ -560,13 +574,23 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
 /// A post's caption: the author's name in bold, then the text, collapsed
 /// to [KPostCard.collapsedLines] lines. When it does not fit, the last line
 /// ends in "… see more" (tertiary colour); tapping it expands the caption
-/// in place. A short caption is shown as is.
+/// in place. A short caption is shown as is. Linked `#tags` and
+/// `@mentions` are in the brand colour; once the whole caption shows, a
+/// tap opens the hashtag page or the profile.
 class _ExpandableText extends StatefulWidget {
-  const new(this.text, {required this.lead, required this.style});
+  const new(
+    this.text, {
+    required this.lead,
+    required this.style,
+    this.hashtags = const {},
+    this.mentions = const {},
+  });
 
   final String text;
   final String lead;
   final TextStyle style;
+  final Set<String> hashtags;
+  final Set<String> mentions;
 
   @override
   State<_ExpandableText> createState() => _ExpandableTextState();
@@ -574,11 +598,70 @@ class _ExpandableText extends StatefulWidget {
 
 class _ExpandableTextState extends State<_ExpandableText> {
   bool _expanded = false;
+  final List<TapGestureRecognizer> _taps = [];
 
   static const _ellipsis = '… ';
 
+  static final RegExp _entity = RegExp(
+    r'(?<![\p{L}\p{N}_])([#@])([\p{L}\p{M}\p{N}_.]+)',
+    unicode: true,
+  );
+
+  @override
+  void dispose() {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    super.dispose();
+  }
+
+  /// [s] with linked entities coloured and, when [links], tappable.
+  List<InlineSpan> _entities(String s, TextStyle style, {required bool links}) {
+    final out = <InlineSpan>[];
+    var last = 0;
+    final accent = style.copyWith(
+      color: context.palette.primaryText,
+      fontWeight: FontWeight.w600,
+    );
+    for (final m in _entity.allMatches(s)) {
+      final hash = m.group(1) == '#';
+      // A username ends before a trailing dot (end of a sentence).
+      final name = hash
+          ? m.group(2)!
+          : m.group(2)!.replaceFirst(RegExp(r'\.+$'), '');
+      final linked = hash
+          ? widget.hashtags.contains(name.toLowerCase())
+          : widget.mentions.contains(name.toLowerCase());
+      if (!linked) continue;
+      if (m.start > last) out.add(TextSpan(text: s.substring(last, m.start)));
+      TapGestureRecognizer? tap;
+      if (links) {
+        tap = TapGestureRecognizer()
+          ..onTap = () => context.push(
+            hash ? AppRoutes.hashtag(name) : AppRoutes.userProfile(name),
+          );
+        _taps.add(tap);
+      }
+      // A Latin handle keeps its `@` in front inside Arabic text.
+      out.add(
+        TextSpan(
+          text: hash ? '#$name' : '\u2066@$name\u2069',
+          style: accent,
+          recognizer: tap,
+        ),
+      );
+      last = m.start + 1 + name.length;
+    }
+    if (last < s.length) out.add(TextSpan(text: s.substring(last)));
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    _taps.clear();
     // Measure with exactly what [Text] will render: the ambient style merged
     // with ours, the locale's font fallback and the text scale.
     final style = DefaultTextStyle.of(context).style
@@ -587,15 +670,16 @@ class _ExpandableTextState extends State<_ExpandableText> {
       text: '${widget.lead} ',
       style: style.copyWith(fontWeight: FontWeight.w600),
     );
-    InlineSpan caption(String s, {InlineSpan? tail}) => TextSpan(
-      style: style,
-      children: [
-        lead,
-        TextSpan(text: s),
-        ?tail,
-      ],
-    );
-    if (_expanded) return Text.rich(caption(widget.text));
+    InlineSpan caption(String s, {InlineSpan? tail, bool links = false}) =>
+        TextSpan(
+          style: style,
+          children: [
+            lead,
+            ..._entities(s, style, links: links),
+            ?tail,
+          ],
+        );
+    if (_expanded) return Text.rich(caption(widget.text, links: true));
     final seeMore = context.l10n.feedSeeMore;
     final tail = TextSpan(
       text: _ellipsis,
@@ -624,7 +708,9 @@ class _ExpandableTextState extends State<_ExpandableText> {
           return ok;
         }
 
-        if (fits(widget.text)) return Text.rich(caption(widget.text));
+        if (fits(widget.text)) {
+          return Text.rich(caption(widget.text, links: true));
+        }
         // The longest prefix that still fits with "… see more" after it.
         var lo = 0;
         var hi = widget.text.length;
