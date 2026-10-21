@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
@@ -54,16 +55,49 @@ class FakePostsRepository implements PostsRepository {
     return _slice(feeds[tab] ?? const [], cursor);
   }
 
+  /// Profile grids per username, and the caller's saved posts.
+  final Map<String, List<Post>> profilePosts = {};
+  List<Post> savedPosts = [];
+
+  /// Usernames whose grid answers 404 (private and not followed, block).
+  final Set<String> hiddenProfiles = {};
+
+  @override
+  Future<Post> getPost(String postId) async {
+    await _step('getPost:$postId');
+    for (final p in [
+      ...feeds.values.expand((l) => l),
+      ...profilePosts.values.expand((l) => l),
+      ...savedPosts,
+    ]) {
+      if (p.id == postId) return p;
+    }
+    throw const ServerFailure(
+      code: ErrorCode.notFound,
+      rawCode: 'NOT_FOUND',
+      debugMessage: 'No post',
+      statusCode: 404,
+    );
+  }
+
   @override
   Future<PageOf<Post>> userPosts(String username, {String? cursor}) async {
-    await _step('userPosts:$username');
-    return _slice(const [], cursor);
+    await _step('userPosts:$username:${cursor ?? ''}');
+    if (hiddenProfiles.contains(username)) {
+      throw const ServerFailure(
+        code: ErrorCode.notFound,
+        rawCode: 'NOT_FOUND',
+        debugMessage: 'Not visible',
+        statusCode: 404,
+      );
+    }
+    return _slice(profilePosts[username] ?? const [], cursor);
   }
 
   @override
   Future<PageOf<Post>> saved({String? cursor}) async {
-    await _step('saved');
-    return _slice(const [], cursor);
+    await _step('saved:${cursor ?? ''}');
+    return _slice(savedPosts, cursor);
   }
 
   @override
@@ -277,6 +311,8 @@ Post testPost(
   int? likeCount,
   bool hideLikeCount = false,
   int commentCount = 2,
+  int photos = 0,
+  bool pinned = false,
   bool commentsEnabled = true,
   WhoCanComment whoCanComment = WhoCanComment.everyone,
 }) => Post(
@@ -288,7 +324,16 @@ Post testPost(
     avatarUrl: null,
   ),
   text: text,
-  media: const [],
+  media: [
+    for (var i = 0; i < photos; i++)
+      MediaAsset(
+        id: '$id-m$i',
+        url: 'https://media.example.test/media/$id-m$i/1080.webp',
+        thumbUrl: 'https://media.example.test/media/$id-m$i/320.webp',
+        width: 1080,
+        height: 1080,
+      ),
+  ],
   hashtags: const [],
   mentions: const [],
   status: 'PUBLISHED',
@@ -303,7 +348,7 @@ Post testPost(
   viewerHasSaved: saved,
   viewerHasReposted: false,
   isSelf: isSelf,
-  pinned: false,
+  pinned: pinned,
   commentsEnabled: commentsEnabled,
   whoCanComment: whoCanComment,
   hideLikeCount: hideLikeCount,

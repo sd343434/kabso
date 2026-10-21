@@ -37,6 +37,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/posts/presentation/post_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
@@ -143,6 +144,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               ? MessagesPreviewScreen(peer: name ?? username)
               : ChatScreen(username: username, displayName: name);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.postPattern,
+        builder: (_, state) =>
+            PostScreen(postId: state.pathParameters['postId']!),
       ),
       GoRoute(
         path: AppRoutes.userProfilePattern,

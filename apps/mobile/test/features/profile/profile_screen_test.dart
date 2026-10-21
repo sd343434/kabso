@@ -8,9 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -18,6 +20,8 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
+import '../../helpers/fake_posts_repository.dart';
+import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
@@ -68,14 +72,22 @@ FeedItems<ProfileGridItem> _items(int n) =>
     FeedItems([for (var i = 0; i < n; i++) const ProfileGridItem()]);
 
 void main() {
-  test('production grids are honest: unavailable', () {
-    final container = ProviderContainer.test();
-    for (final tab in ProfileTab.values) {
-      expect(
-        container.read(profileGridProvider((username: 'u', tab: tab))).value,
-        isA<FeedUnavailable<ProfileGridItem>>(),
-      );
-    }
+  // KL-060: posts and saved now read the posts API
+  // (test/features/profile/profile_grid_test.dart); reels have no API
+  // before M2 and stay honestly unavailable.
+  test('production reels grid is honest: unavailable', () async {
+    final container = ProviderContainer.test(
+      overrides: [
+        postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+        secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+      ],
+    );
+    expect(
+      await container.read(
+        profileGridProvider((username: 'u', tab: ProfileTab.reels)).future,
+      ),
+      isA<FeedUnavailable<ProfileGridItem>>(),
+    );
   });
 
   testWidgets('header: @username title, photo with the counts beside it, '

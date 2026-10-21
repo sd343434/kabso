@@ -2229,4 +2229,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commentsOpen => 'View comments';
+
+  @override
+  String get postTitle => 'Post';
+
+  @override
+  String get postUnavailableTitle => 'This post isn\'t available';
+
+  @override
+  String get postUnavailableBody =>
+      'It may have been deleted, or its owner does not share it with you.';
+
+  @override
+  String get profileGridPinned => 'Pinned';
+
+  @override
+  String get profileGridOpenPost => 'Open post';
 }

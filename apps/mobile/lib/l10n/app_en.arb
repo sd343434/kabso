@@ -783,5 +783,10 @@
   "commentsReportTitle": "Why are you reporting this comment?",
   "commentsMore": "Comment options",
   "commentsMoreReplies": "View more replies ({count})",
-  "commentsOpen": "View comments"
+  "commentsOpen": "View comments",
+  "postTitle": "Post",
+  "postUnavailableTitle": "This post isn't available",
+  "postUnavailableBody": "It may have been deleted, or its owner does not share it with you.",
+  "profileGridPinned": "Pinned",
+  "profileGridOpenPost": "Open post"
 }

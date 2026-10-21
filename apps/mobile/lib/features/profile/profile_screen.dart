@@ -416,6 +416,8 @@ class ProfileGrid extends ConsumerWidget {
   final bool own;
 
   static const gridKey = Key('profile.grid');
+  static const loadMoreRetryKey = Key('profile.grid.retry');
+  static Key cellKey(String postId) => Key('profile.grid.$postId');
   static const stateKey = Key('profile.gridState');
 
   @override
@@ -453,12 +455,38 @@ class ProfileGrid extends ConsumerWidget {
       itemBuilder: (_, i) => cell(i),
     );
     final key = (username: username, tab: tab);
+    // A reload (pull to refresh, a new page) keeps the cells on screen.
     return switch (ref.watch(profileGridProvider(key))) {
-      AsyncData(value: FeedItems(:final items)) when items.isNotEmpty => grid(
-        items.length,
-        (i) => _Cell(item: items[i]),
-      ),
-      AsyncData(value: FeedItems()) => state(
+      AsyncValue(
+        value: FeedItems(:final items, :final hasMore, :final loadMoreError),
+      )
+          when items.isNotEmpty =>
+        SliverMainAxisGroup(
+          slivers: [
+            grid(items.length, (i) => _Cell(item: items[i])),
+            if (hasMore)
+              SliverToBoxAdapter(
+                child: loadMoreError == null
+                    ? _LoadMore(
+                        // A new element per page: each asks once.
+                        key: ValueKey(items.length),
+                        onVisible: () => ref
+                            .read(profileGridPagesProvider(key).notifier)
+                            .loadMore(),
+                      )
+                    : Center(
+                        child: TextButton(
+                          key: loadMoreRetryKey,
+                          onPressed: () => ref
+                              .read(profileGridPagesProvider(key).notifier)
+                              .loadMore(),
+                          child: Text(l10n.actionRetry),
+                        ),
+                      ),
+              ),
+          ],
+        ),
+      AsyncValue(value: FeedItems()) => state(
         switch (tab) {
           ProfileTab.posts => l10n.profileNoPosts,
           ProfileTab.reels => l10n.profileNoReels,
@@ -468,7 +496,7 @@ class ProfileGrid extends ConsumerWidget {
             ? (saved ? l10n.profileSavedEmptyBody : l10n.profileGridEmptyBody)
             : l10n.profileOtherEmptyBody,
       ),
-      AsyncData(value: FeedUnavailable()) => state(
+      AsyncValue(value: FeedUnavailable()) => state(
         saved
             ? l10n.profileSavedComingTitle
             : (own
@@ -495,6 +523,31 @@ class ProfileGrid extends ConsumerWidget {
   }
 }
 
+/// Asks for the next page when it comes into view (built lazily near the
+/// end of the grid).
+class _LoadMore extends StatefulWidget {
+  const new({required this.onVisible, super.key});
+
+  final VoidCallback onVisible;
+
+  @override
+  State<_LoadMore> createState() => _LoadMoreState();
+}
+
+class _LoadMoreState extends State<_LoadMore> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onVisible());
+  }
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(KSpacing.md),
+    child: Center(child: CircularProgressIndicator()),
+  );
+}
+
 class _Cell extends StatelessWidget {
   const new({required this.item});
 
@@ -502,32 +555,81 @@ class _Cell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
     final cover = item.cover;
-    return Stack(
+    final text = item.text;
+    final id = item.postId;
+    final white = KPalette.dark.textPrimary;
+    final cell = Stack(
       fit: StackFit.expand,
       children: [
         ColoredBox(
-          color: context.palette.surfaceRaised,
-          child: cover == null
-              ? null
-              : Image(
+          color: p.surfaceRaised,
+          child: cover != null
+              ? Image(
                   image: cover,
                   fit: BoxFit.cover,
                   excludeFromSemantics: true,
                   errorBuilder: (_, _, _) => const SizedBox.expand(),
-                ),
+                )
+              : (text != null && text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(KSpacing.sm),
+                        child: Center(
+                          child: Text(
+                            text,
+                            maxLines: 5,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: context.textStyles.caption.copyWith(
+                              color: p.textPrimary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : null),
         ),
-        if (item.isVideo)
+        if (item.isVideo || item.multiple || item.pinned)
           PositionedDirectional(
             top: KSpacing.xs,
             end: KSpacing.xs,
-            child: AppIcon(
-              AppIcons.play,
-              size: KMetrics.iconSm,
-              color: KPalette.dark.textPrimary,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.pinned)
+                  Icon(
+                    Icons.push_pin_rounded,
+                    size: KMetrics.iconSm,
+                    color: cover == null ? p.textSecondary : white,
+                  ),
+                if (item.multiple)
+                  Icon(
+                    Icons.collections_rounded,
+                    size: KMetrics.iconSm,
+                    color: white,
+                  ),
+                if (item.isVideo)
+                  AppIcon(AppIcons.play, size: KMetrics.iconSm, color: white),
+              ],
             ),
           ),
       ],
+    );
+    if (id == null) return cell;
+    return Semantics(
+      button: true,
+      label: [
+        l10n.profileGridOpenPost,
+        if (item.pinned) l10n.profileGridPinned,
+        ?(text?.isEmpty ?? true ? null : text),
+      ].join(', '),
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: ProfileGrid.cellKey(id),
+        onTap: () => context.push(AppRoutes.post(id)),
+        child: cell,
+      ),
     );
   }
 }

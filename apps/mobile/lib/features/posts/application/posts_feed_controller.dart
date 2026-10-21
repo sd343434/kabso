@@ -178,8 +178,22 @@ final AsyncNotifierProviderFamily<
 >
 postsFeedProvider = AsyncNotifierProvider.family(PostsFeedController.new);
 
-/// Removes [postId] from every loaded posts feed.
+/// Posts hidden or deleted on this device in this session: grids and the
+/// post screen leave them out at once.
+class RemovedPosts extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void add(String postId) => state = {...state, postId};
+}
+
+final removedPostsProvider = NotifierProvider<RemovedPosts, Set<String>>(
+  RemovedPosts.new,
+);
+
+/// Removes [postId] from every loaded posts feed (and grids).
 void removePostFromFeeds(WidgetRef ref, String postId) {
+  ref.read(removedPostsProvider.notifier).add(postId);
   for (final feed in HomeFeed.values) {
     if (ref.exists(postsFeedProvider(feed))) {
       ref.read(postsFeedProvider(feed).notifier).remove(postId);

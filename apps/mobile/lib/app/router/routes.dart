@@ -31,6 +31,13 @@ abstract final class AppRoutes {
       '$home/room/${Uri.encodeComponent(roomId)}';
   static const profile = '/profile';
 
+  /// KL-060: one post (from a profile grid, search or a hashtag), pushed
+  /// above the shell.
+  static const postPattern = '/posts/:postId';
+
+  /// The screen of post [postId].
+  static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
+
   /// D60: another user's public profile (pushed above the shell).
   static const userProfilePattern = '/users/:username';
 

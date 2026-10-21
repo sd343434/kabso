@@ -16,6 +16,9 @@ abstract interface class PostsRepository {
   /// `GET /feed/posts`: one page; [cursor] from the previous page.
   Future<PageOf<Post>> feed(PostsFeedTab tab, {String? cursor, int? limit});
 
+  /// `GET /posts/{postId}`: one post the caller may see (else 404).
+  Future<Post> getPost(String postId);
+
   /// `GET /users/{username}/posts` (pinned first on the first page).
   Future<PageOf<Post>> userPosts(String username, {String? cursor});
 
@@ -108,6 +111,14 @@ class PostsRepositoryImpl implements PostsRepository {
   @override
   Future<PageOf<Post>> feed(PostsFeedTab tab, {String? cursor, int? limit}) =>
       _page('/feed/posts', {'tab': tab.name, 'cursor': cursor, 'limit': limit});
+
+  @override
+  Future<Post> getPost(String postId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/posts/${pathSegment(postId)}',
+    );
+    return Post.fromJson(res.data!);
+  });
 
   @override
   Future<PageOf<Post>> userPosts(String username, {String? cursor}) =>

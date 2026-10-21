@@ -2254,4 +2254,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get commentsOpen => 'عرض التعليقات';
+
+  @override
+  String get postTitle => 'منشور';
+
+  @override
+  String get postUnavailableTitle => 'هذا المنشور غير متاح';
+
+  @override
+  String get postUnavailableBody => 'ربما حُذف، أو أن صاحبه لا يتيحه لك.';
+
+  @override
+  String get profileGridPinned => 'مثبّت';
+
+  @override
+  String get profileGridOpenPost => 'فتح المنشور';
 }

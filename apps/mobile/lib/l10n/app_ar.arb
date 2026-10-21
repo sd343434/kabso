@@ -2297,5 +2297,25 @@
   "commentsOpen": "عرض التعليقات",
   "@commentsOpen": {
     "description": "KL-060 comment button semantics."
+  },
+  "postTitle": "منشور",
+  "@postTitle": {
+    "description": "KL-060 post screen title."
+  },
+  "postUnavailableTitle": "هذا المنشور غير متاح",
+  "@postUnavailableTitle": {
+    "description": "KL-060 post 404."
+  },
+  "postUnavailableBody": "ربما حُذف، أو أن صاحبه لا يتيحه لك.",
+  "@postUnavailableBody": {
+    "description": "KL-060 post 404."
+  },
+  "profileGridPinned": "مثبّت",
+  "@profileGridPinned": {
+    "description": "KL-060 grid cell semantics."
+  },
+  "profileGridOpenPost": "فتح المنشور",
+  "@profileGridOpenPost": {
+    "description": "KL-060 grid cell semantics."
   }
 }

@@ -3937,6 +3937,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عرض التعليقات'**
   String get commentsOpen;
+
+  /// KL-060 post screen title.
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور'**
+  String get postTitle;
+
+  /// KL-060 post 404.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا المنشور غير متاح'**
+  String get postUnavailableTitle;
+
+  /// KL-060 post 404.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربما حُذف، أو أن صاحبه لا يتيحه لك.'**
+  String get postUnavailableBody;
+
+  /// KL-060 grid cell semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثبّت'**
+  String get profileGridPinned;
+
+  /// KL-060 grid cell semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح المنشور'**
+  String get profileGridOpenPost;
 }
 
 class _AppLocalizationsDelegate
