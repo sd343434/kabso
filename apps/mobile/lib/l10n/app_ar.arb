@@ -1865,7 +1865,7 @@
   "@createShare": {
     "description": "KL-060 publish button."
   },
-  "createTextHint": "ماذا يدور في ذهنك؟",
+  "createTextHint": "اكتب وصف المنشور…",
   "@createTextHint": {
     "description": "KL-060 caption hint."
   },
@@ -1996,10 +1996,6 @@
       }
     }
   },
-  "createReorder": "اسحب لتغيير الترتيب",
-  "@createReorder": {
-    "description": "KL-060 Create screen (owner reference)."
-  },
   "createEmoji": "إضافة رمز تعبيري",
   "@createEmoji": {
     "description": "KL-060 Create screen (owner reference)."
@@ -2012,18 +2008,6 @@
   "@createTypePhotos": {
     "description": "KL-060 Create screen (owner reference)."
   },
-  "createTypeLive": "بث مباشر",
-  "@createTypeLive": {
-    "description": "KL-060 Create screen (owner reference)."
-  },
-  "createTypeClip": "مقطع قصير",
-  "@createTypeClip": {
-    "description": "KL-060 Create screen (owner reference)."
-  },
-  "createTypeMusic": "موسيقى",
-  "@createTypeMusic": {
-    "description": "KL-060 Create screen (owner reference)."
-  },
   "createSoon": "قريباً",
   "@createSoon": {
     "description": "KL-060 Create screen (owner reference)."
@@ -2032,19 +2016,15 @@
   "@createPlaceTitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
-  "createPlaceSubtitle": "إضافة موقع إلى منشورك",
+  "createPlaceSubtitle": "إضافة موقع",
   "@createPlaceSubtitle": {
-    "description": "KL-060 Create screen (owner reference)."
-  },
-  "createPlaceClear": "إزالة الموقع",
-  "@createPlaceClear": {
     "description": "KL-060 Create screen (owner reference)."
   },
   "createPlaceSave": "حفظ",
   "@createPlaceSave": {
     "description": "KL-060 Create screen (owner reference)."
   },
-  "createAudienceTitle": "من يمكنه رؤية المنشور؟",
+  "createAudienceTitle": "من يمكنه مشاهدة المنشور؟",
   "@createAudienceTitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
@@ -2068,7 +2048,7 @@
   "@createMentionTitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
-  "createMentionSubtitle": "أضف أشخاصاً إلى منشورك",
+  "createMentionSubtitle": "إضافة أشخاص",
   "@createMentionSubtitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
@@ -2096,7 +2076,7 @@
   "@createHashtagsTitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
-  "createAdvancedTitle": "إعدادات متقدمة",
+  "createAdvancedTitle": "مزيد من الخيارات",
   "@createAdvancedTitle": {
     "description": "KL-060 Create screen (owner reference)."
   },
@@ -2123,5 +2103,109 @@
   "createHideLikes": "إخفاء عدد الإعجابات",
   "@createHideLikes": {
     "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMediaSubtitle": "اختر صورة أو أكثر",
+  "@createMediaSubtitle": {
+    "description": "KL-060 media step subtitle."
+  },
+  "createNext": "التالي",
+  "@createNext": {
+    "description": "KL-060 media step: go to details."
+  },
+  "createBack": "رجوع",
+  "@createBack": {
+    "description": "KL-060 details step: back to media."
+  },
+  "createTabAll": "الكل",
+  "@createTabAll": {
+    "description": "KL-060 media filter."
+  },
+  "createTabVideo": "فيديو",
+  "@createTabVideo": {
+    "description": "KL-060 media filter (no video before M2)."
+  },
+  "createSelected": "تم تحديدها",
+  "@createSelected": {
+    "description": "KL-060 under the selected count."
+  },
+  "createSelectUpTo": "يمكنك تحديد حتى {max} صور",
+  "@createSelectUpTo": {
+    "description": "KL-060 media step note.",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "createStepMedia": "الوسائط",
+  "@createStepMedia": {
+    "description": "KL-060 step 1 label."
+  },
+  "createStepDetails": "التفاصيل",
+  "@createStepDetails": {
+    "description": "KL-060 step 2 label."
+  },
+  "createStepOf": "الخطوة {step} من {total}: {label}",
+  "@createStepOf": {
+    "description": "KL-060 step semantics.",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "createLongPressReorder": "اضغط مطولاً واسحب لترتيب الصور",
+  "@createLongPressReorder": {
+    "description": "KL-060 hint under the strip."
+  },
+  "createAiCaption": "اقتراح وصف بالذكاء الاصطناعي",
+  "@createAiCaption": {
+    "description": "KL-060 AI caption tool (no API yet)."
+  },
+  "createHashtagsExample": "مثل #البتراء #سفر #أردن",
+  "@createHashtagsExample": {
+    "description": "KL-060 hashtags row example."
+  },
+  "createLibraryUnsupported": "معرض الصور غير متاح هنا. اختر الصور من جهازك.",
+  "@createLibraryUnsupported": {
+    "description": "KL-060 no library (web)."
+  },
+  "createLibraryDenied": "اسمح لكبسو بالوصول إلى صورك لتختار منها هنا، أو اختر من جهازك.",
+  "@createLibraryDenied": {
+    "description": "KL-060 library access refused."
+  },
+  "createLibraryFailed": "تعذّر فتح معرض الصور.",
+  "@createLibraryFailed": {
+    "description": "KL-060 library error."
+  },
+  "createLibraryEmpty": "لا توجد صور على هذا الجهاز.",
+  "@createLibraryEmpty": {
+    "description": "KL-060 empty library."
+  },
+  "createLibraryLimited": "يرى كبسو بعض صورك فقط.",
+  "@createLibraryLimited": {
+    "description": "KL-060 limited access."
+  },
+  "createLibraryManage": "تعديل",
+  "@createLibraryManage": {
+    "description": "KL-060 change limited selection."
+  },
+  "createLibraryAllow": "السماح بالوصول",
+  "@createLibraryAllow": {
+    "description": "KL-060 open settings for access."
+  },
+  "createPickFromDevice": "اختيار من الجهاز",
+  "@createPickFromDevice": {
+    "description": "KL-060 system picker."
+  },
+  "createLibraryPhoto": "صورة من المعرض",
+  "@createLibraryPhoto": {
+    "description": "KL-060 library tile semantics."
   }
 }

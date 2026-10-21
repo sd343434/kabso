@@ -1948,7 +1948,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createShare => 'نشر';
 
   @override
-  String get createTextHint => 'ماذا يدور في ذهنك؟';
+  String get createTextHint => 'اكتب وصف المنشور…';
 
   @override
   String get createLocationHint => 'أضف موقعاً (اختياري)';
@@ -2038,9 +2038,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get createReorder => 'اسحب لتغيير الترتيب';
-
-  @override
   String get createEmoji => 'إضافة رمز تعبيري';
 
   @override
@@ -2050,31 +2047,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createTypePhotos => 'صور';
 
   @override
-  String get createTypeLive => 'بث مباشر';
-
-  @override
-  String get createTypeClip => 'مقطع قصير';
-
-  @override
-  String get createTypeMusic => 'موسيقى';
-
-  @override
   String get createSoon => 'قريباً';
 
   @override
   String get createPlaceTitle => 'الموقع';
 
   @override
-  String get createPlaceSubtitle => 'إضافة موقع إلى منشورك';
-
-  @override
-  String get createPlaceClear => 'إزالة الموقع';
+  String get createPlaceSubtitle => 'إضافة موقع';
 
   @override
   String get createPlaceSave => 'حفظ';
 
   @override
-  String get createAudienceTitle => 'من يمكنه رؤية المنشور؟';
+  String get createAudienceTitle => 'من يمكنه مشاهدة المنشور؟';
 
   @override
   String get createAudiencePublic => 'عام - متاح للجميع';
@@ -2093,7 +2078,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createMentionTitle => 'إشارة إلى أشخاص';
 
   @override
-  String get createMentionSubtitle => 'أضف أشخاصاً إلى منشورك';
+  String get createMentionSubtitle => 'إضافة أشخاص';
 
   @override
   String get createMentionSome => 'أشرت إلى أشخاص في النص';
@@ -2114,7 +2099,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createHashtagsTitle => 'إضافة وسوم';
 
   @override
-  String get createAdvancedTitle => 'إعدادات متقدمة';
+  String get createAdvancedTitle => 'مزيد من الخيارات';
 
   @override
   String get createAdvancedSubtitle => 'التعليقات وعدد الإعجابات';
@@ -2133,4 +2118,76 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get createHideLikes => 'إخفاء عدد الإعجابات';
+
+  @override
+  String get createMediaSubtitle => 'اختر صورة أو أكثر';
+
+  @override
+  String get createNext => 'التالي';
+
+  @override
+  String get createBack => 'رجوع';
+
+  @override
+  String get createTabAll => 'الكل';
+
+  @override
+  String get createTabVideo => 'فيديو';
+
+  @override
+  String get createSelected => 'تم تحديدها';
+
+  @override
+  String createSelectUpTo(int max) {
+    return 'يمكنك تحديد حتى $max صور';
+  }
+
+  @override
+  String get createStepMedia => 'الوسائط';
+
+  @override
+  String get createStepDetails => 'التفاصيل';
+
+  @override
+  String createStepOf(int step, int total, String label) {
+    return 'الخطوة $step من $total: $label';
+  }
+
+  @override
+  String get createLongPressReorder => 'اضغط مطولاً واسحب لترتيب الصور';
+
+  @override
+  String get createAiCaption => 'اقتراح وصف بالذكاء الاصطناعي';
+
+  @override
+  String get createHashtagsExample => 'مثل #البتراء #سفر #أردن';
+
+  @override
+  String get createLibraryUnsupported =>
+      'معرض الصور غير متاح هنا. اختر الصور من جهازك.';
+
+  @override
+  String get createLibraryDenied =>
+      'اسمح لكبسو بالوصول إلى صورك لتختار منها هنا، أو اختر من جهازك.';
+
+  @override
+  String get createLibraryFailed => 'تعذّر فتح معرض الصور.';
+
+  @override
+  String get createLibraryEmpty => 'لا توجد صور على هذا الجهاز.';
+
+  @override
+  String get createLibraryLimited => 'يرى كبسو بعض صورك فقط.';
+
+  @override
+  String get createLibraryManage => 'تعديل';
+
+  @override
+  String get createLibraryAllow => 'السماح بالوصول';
+
+  @override
+  String get createPickFromDevice => 'اختيار من الجهاز';
+
+  @override
+  String get createLibraryPhoto => 'صورة من المعرض';
 }

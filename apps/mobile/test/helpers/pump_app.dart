@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -33,7 +34,7 @@ Future<SharedPreferences> testPrefs({
 /// Live discovery talks to [liveRepository] (default: hosting switched
 /// off, the production state today) and the posts feeds to
 /// [postsRepository] (default: the API with no posts yet), never to the
-/// network.
+/// network. Create's media step never calls the device library plugin.
 Future<void> pumpKabsoApp(
   WidgetTester tester, {
   required List<Override> overrides,
@@ -54,6 +55,8 @@ Future<void> pumpKabsoApp(
         postsRepositoryProvider.overrideWithValue(
           postsRepository ?? FakePostsRepository(),
         ),
+        // Never the device plugin: Create offers the system picker.
+        mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -103,6 +106,7 @@ Future<void> pumpScreen(
         postsRepositoryProvider.overrideWithValue(
           postsRepository ?? FakePostsRepository(),
         ),
+        mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         ...overrides,
       ],
       child: MaterialApp(

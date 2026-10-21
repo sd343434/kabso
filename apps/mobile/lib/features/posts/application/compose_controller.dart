@@ -57,6 +57,7 @@ class ComposePhoto {
     required this.bytes,
     required this.contentType,
     this.assetId,
+    this.sourceId,
   });
 
   final int localId;
@@ -64,11 +65,15 @@ class ComposePhoto {
   final String contentType;
   final String? assetId;
 
+  /// The device-library photo it came from (`null` for the system picker).
+  final String? sourceId;
+
   ComposePhoto uploaded(String id) => ComposePhoto(
     localId: localId,
     bytes: bytes,
     contentType: contentType,
     assetId: id,
+    sourceId: sourceId,
   );
 }
 
@@ -171,6 +176,44 @@ class ComposeController extends Notifier<ComposeState> {
       clearFailure: true,
     );
     return rejected;
+  }
+
+  /// Adds the library photo [sourceId] (picked in the media step); the
+  /// reason when it is left out.
+  PhotoRejection? addLibraryPhoto(String sourceId, Uint8List bytes) {
+    if (state.busy) return null;
+    if (state.photos.any((p) => p.sourceId == sourceId)) return null;
+    final type = sniffImageType(bytes);
+    final rejection = type == null
+        ? PhotoRejection.unsupportedType
+        : bytes.length > maxPhotoBytes
+        ? PhotoRejection.tooLarge
+        : state.photos.length >= maxPostPhotos
+        ? PhotoRejection.tooMany
+        : null;
+    state = state.copyWith(
+      photos: rejection != null
+          ? null
+          : List.unmodifiable([
+              ...state.photos,
+              ComposePhoto(
+                localId: _nextId++,
+                bytes: bytes,
+                contentType: type!,
+                sourceId: sourceId,
+              ),
+            ]),
+      rejections: {?rejection},
+      clearFailure: true,
+    );
+    return rejection;
+  }
+
+  /// Removes the photo that came from the library photo [sourceId].
+  void removeLibraryPhoto(String sourceId) {
+    for (final p in state.photos) {
+      if (p.sourceId == sourceId) return removePhoto(p.localId);
+    }
   }
 
   void removePhoto(int localId) {

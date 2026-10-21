@@ -2,6 +2,13 @@
     <!-- Required in every build type: the app talks to the Kabso API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- KL-060 Create: the in-app photo gallery (photo_manager). Android 13+
+         reads images only; Android 14+ may grant a user-selected subset.
+         Android 12 and older use READ_EXTERNAL_STORAGE, declared by the
+         plugin with maxSdkVersion 32. No video or location access. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+
     <!-- Backup / transfer of auth data (SEC-019):
          - allowBackup=false: no cloud (or adb) backup of app data at all.
          - Android 12+ (API 31+) still performs device-to-device transfer even

@@ -14,7 +14,9 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/forgot_password_screen.dart';
 import 'package:kabso_live/features/auth/presentation/register_screen.dart';
+import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -74,6 +76,7 @@ Future<void> _pumpApp(
           ),
         ),
         secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+        mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
       ],
       child: const KabsoApp(),
     ),
@@ -148,6 +151,11 @@ void main() {
             await tester.tap(find.byKey(key));
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: '$key');
+            // Create is full screen (no bottom bar): its Close leaves it.
+            if (key == const Key('nav.create')) {
+              await tester.tap(find.byKey(CreateScreen.closeKey));
+              await tester.pumpAndSettle();
+            }
           }
         });
 

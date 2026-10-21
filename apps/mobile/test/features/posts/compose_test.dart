@@ -1,11 +1,12 @@
 // KL-060 part B: creating a post — the upload flow (presigned PUT, no token
 // to storage), device checks on picked photos, idempotent publishing and the
-// Create screen's states.
+// Create screen's two steps (media library, then details) and states.
 
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -16,9 +17,13 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
+import 'package:kabso_live/features/create/create_media_step.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
+import 'package:kabso_live/features/posts/application/media_library_controller.dart';
+import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/gen/app_localizations.dart';
@@ -36,7 +41,7 @@ final AppLocalizations _en = l10nFor(AppLanguage.en);
 
 abstract final class KComposeTest {
   /// Photo width + gap in the strip.
-  static const double step = 88 + 6;
+  static const double step = 70 + 6;
 }
 
 const _uploadsOff = ServerFailure(
@@ -293,6 +298,9 @@ void main() {
       AppLanguage language = AppLanguage.en,
       List<Uint8List> picks = const [],
       GoldenViewport viewport = GoldenViewport.phone,
+      FakeMediaLibrary? library,
+      bool details = true,
+      List<String> recentPlaces = const [],
     }) async {
       final media = FakeMediaRepository();
       final posts = FakePostsRepository();
@@ -309,6 +317,10 @@ void main() {
       );
       setViewport(tester, viewport);
       final prefs = await testPrefs(language: language.name);
+      final user = testUser();
+      if (recentPlaces.isNotEmpty) {
+        await prefs.setStringList('pref.recentPlaces.${user.id}', recentPlaces);
+      }
       await tester.pumpWidget(
         ProviderScope(
           retry: (_, _) => null,
@@ -317,7 +329,11 @@ void main() {
             mediaRepositoryProvider.overrideWithValue(media),
             postsRepositoryProvider.overrideWithValue(posts),
             photoPickerProvider.overrideWithValue(picker),
+            mediaLibraryProvider.overrideWithValue(
+              library ?? FakeMediaLibrary(),
+            ),
             secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+            currentUserProvider.overrideWithValue(user),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -335,6 +351,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // The media step first: the system picker (no library here), then Next.
+      if (picks.isNotEmpty) {
+        await tester.tap(find.byKey(CreateMediaStep.pickDeviceKey));
+        await tester.pumpAndSettle();
+      }
+      if (details) {
+        await tester.tap(find.byKey(CreateMediaStep.nextKey));
+        await tester.pumpAndSettle();
+      }
       return (media, posts, picker, router);
     }
 
@@ -373,8 +398,6 @@ void main() {
         tester,
         picks: [jpegBytes, jpegBytes, heicBytes],
       );
-      await tester.tap(find.byKey(CreateScreen.addPhotosKey));
-      await tester.pumpAndSettle();
       expect(picker.calls, 1);
       expect(find.text(_en.createPhotoUnsupported), findsOneWidget);
       expect(find.byKey(CreateScreen.photoKey(0)), findsOneWidget);
@@ -393,8 +416,6 @@ void main() {
     testWidgets('progress while uploading; failure banner with Retry keeps '
         'the draft', (tester) async {
       final (media, posts, _, router) = await pump(tester, picks: [jpegBytes]);
-      await tester.tap(find.byKey(CreateScreen.addPhotosKey));
-      await tester.pumpAndSettle();
       await tester.enterText(find.byKey(CreateScreen.textKey), 'Dead Sea');
       media.failWith = _uploadsOff;
       await tester.tap(find.byKey(CreateScreen.shareKey));
@@ -423,8 +444,6 @@ void main() {
     for (final language in [AppLanguage.ar, AppLanguage.en]) {
       testWidgets('strip insets and gaps (${language.name})', (tester) async {
         await pump(tester, language: language, picks: [jpegBytes, jpegBytes]);
-        await tester.tap(find.byKey(CreateScreen.addPhotosKey));
-        await tester.pumpAndSettle();
         final width =
             tester.view.physicalSize.width / tester.view.devicePixelRatio;
         final add = tester.getRect(find.byKey(CreateScreen.addPhotosKey));
@@ -441,27 +460,27 @@ void main() {
       });
     }
 
-    testWidgets('photos scroll sideways; the handle reorders them (post '
-        'order)', (tester) async {
+    testWidgets('photos scroll sideways; long-press and drag reorders them '
+        '(post order)', (tester) async {
       final (_, posts, _, _) = await pump(
         tester,
-        picks: [for (var i = 0; i < 4; i++) jpegBytes],
+        picks: [for (var i = 0; i < 5; i++) jpegBytes],
       );
-      await tester.tap(find.byKey(CreateScreen.addPhotosKey));
-      await tester.pumpAndSettle();
       final strip = find.descendant(
         of: find.byKey(CreateScreen.stripKey),
         matching: find.byType(Scrollable),
       );
       final position = tester.state<ScrollableState>(strip.first).position;
       expect(position.maxScrollExtent, greaterThan(0));
-      // Drag photo 0 past photo 1 by its handle.
+      // A plain drag scrolls; long-press photo 0, then drag it past photo 1.
       final handle = find.byKey(CreateScreen.handleKey(0));
-      await tester.timedDrag(
-        handle,
-        const Offset(KComposeTest.step * 2, 0),
-        const Duration(milliseconds: 600),
-      );
+      final gesture = await tester.startGesture(tester.getCenter(handle));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 100));
+      for (var i = 0; i < 10; i++) {
+        await gesture.moveBy(const Offset(KComposeTest.step * 2 / 10, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
       await tester.pumpAndSettle();
       final container = ProviderScope.containerOf(
         tester.element(find.byType(CreateScreen)),
@@ -471,13 +490,13 @@ void main() {
           .photos
           .map((p) => p.localId)
           .toList();
-      expect(order, isNot([0, 1, 2, 3]));
-      expect(order.toSet(), {0, 1, 2, 3});
+      expect(order, isNot([0, 1, 2, 3, 4]));
+      expect(order.toSet(), {0, 1, 2, 3, 4});
       await tester.enterText(find.byKey(CreateScreen.textKey), 'x');
       await tester.tap(find.byKey(CreateScreen.shareKey));
       await tester.pumpAndSettle();
       // Uploaded in the new order: a1 is the first photo of the post.
-      expect(posts.created.single.mediaIds, ['a1', 'a2', 'a3', 'a4']);
+      expect(posts.created.single.mediaIds, ['a1', 'a2', 'a3', 'a4', 'a5']);
     });
 
     testWidgets('caption tools: # inserts a tag that appears in the hashtag '
@@ -540,7 +559,7 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('create.place.save')));
       await tester.pumpAndSettle();
-      expect(find.text('Petra'), findsOneWidget);
+      expect(find.byKey(CreateScreen.placeChipKey('Petra')), findsOneWidget);
       await tester.ensureVisible(find.byKey(CreateScreen.advancedKey));
       await tester.tap(find.byKey(CreateScreen.advancedKey));
       await tester.pumpAndSettle();
@@ -562,12 +581,196 @@ void main() {
         'whoCanComment': 'FOLLOWERS',
         'hideLikeCount': true,
       });
+      // The place is offered again next time, for this account only.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      expect(container.read(recentPlacesProvider), ['Petra']);
+    });
+
+    testWidgets('recent places: a tap picks one, a second tap clears it', (
+      tester,
+    ) async {
+      final (_, posts, _, _) = await pump(
+        tester,
+        recentPlaces: ['Amman', 'Aqaba'],
+      );
+      final amman = find.byKey(CreateScreen.placeChipKey('Amman'));
+      expect(amman, findsOneWidget);
+      expect(find.byKey(CreateScreen.placeChipKey('Aqaba')), findsOneWidget);
+      await tester.tap(amman);
+      await tester.pump();
+      await tester.tap(find.byKey(CreateScreen.placeChipKey('Aqaba')));
+      await tester.pump();
+      await tester.tap(find.byKey(CreateScreen.placeChipKey('Aqaba')));
+      await tester.pump();
+      await tester.tap(amman);
+      await tester.pump();
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'Souk');
+      await tester.pump();
+      await tester.tap(find.byKey(CreateScreen.shareKey));
+      await tester.pumpAndSettle();
+      expect(posts.created.single.location, 'Amman');
+    });
+
+    testWidgets('media step: library photos are selected in tap order, the '
+        'tray lists and removes them, Next keeps the order', (tester) async {
+      final library = FakeMediaLibrary(
+        access: LibraryAccess.granted,
+        ids: ['p1', 'p2', 'p3'],
+      );
+      final (media, posts, _, _) = await pump(
+        tester,
+        library: library,
+        details: false,
+      );
+      expect(find.byKey(CreateMediaStep.trayKey), findsNothing);
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p2')));
+      await tester.pumpAndSettle();
+      expect(library.calls, containsAll(['bytes:p3', 'bytes:p1', 'bytes:p2']));
+      expect(find.byKey(CreateMediaStep.trayKey), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(CreateMediaStep.trayKey),
+          matching: find.text(_en.createPhotoNumber(3)),
+        ),
+        findsOneWidget,
+      );
+      // A second tap unselects; × in the tray removes.
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p1')));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CreateScreen)),
+      );
+      List<String?> sources() => [
+        for (final p in container.read(composeControllerProvider).photos)
+          p.sourceId,
+      ];
+      expect(sources(), ['p3', 'p2']);
+      final p2 = container.read(composeControllerProvider).photos.last;
+      await tester.tap(find.byKey(CreateMediaStep.trayRemoveKey(p2.localId)));
+      await tester.pumpAndSettle();
+      expect(sources(), ['p3']);
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p1')));
+      await tester.pumpAndSettle();
+      expect(sources(), ['p3', 'p1']);
+
+      await tester.tap(find.byKey(CreateMediaStep.nextKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(CreateScreen.detailsStepKey), findsOneWidget);
+      // "Add more" and Back return to the media step with the selection.
+      await tester.tap(find.byKey(CreateScreen.addPhotosKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(CreateScreen.mediaStepKey), findsOneWidget);
+      expect(sources(), ['p3', 'p1']);
+      await tester.tap(find.byKey(CreateMediaStep.nextKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateScreen.shareKey));
+      await tester.pumpAndSettle();
+      expect(media.uploads, hasLength(2));
+      expect(posts.created.single.mediaIds, ['a1', 'a2']);
+    });
+
+    testWidgets('media step: at most 10 photos; an unreadable photo says so', (
+      tester,
+    ) async {
+      final library = FakeMediaLibrary(
+        access: LibraryAccess.granted,
+        ids: [for (var i = 0; i < 12; i++) 'p$i'],
+      );
+      await pump(tester, library: library, details: false);
+      for (var i = 0; i < maxPostPhotos + 1; i++) {
+        final tile = find.byKey(CreateMediaStep.itemKey('p$i'));
+        await tester.scrollUntilVisible(
+          tile,
+          100,
+          scrollable: find.descendant(
+            of: find.byKey(CreateMediaStep.gridKey),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.tap(tile);
+        await tester.pumpAndSettle();
+      }
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CreateScreen)),
+      );
+      expect(
+        container.read(composeControllerProvider).photos,
+        hasLength(maxPostPhotos),
+      );
+      expect(find.text(_en.createPhotoTooMany(maxPostPhotos)), findsOneWidget);
+      expect(library.calls, isNot(contains('bytes:p10')));
+
+      library.bytes = null;
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateMediaStep.itemKey('p0')));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.createPhotoUnsupported), findsOneWidget);
+    });
+
+    testWidgets('media step: refused access offers the system picker and '
+        'Settings; limited access offers Manage', (tester) async {
+      final library = FakeMediaLibrary(access: LibraryAccess.denied);
+      final (_, _, picker, _) = await pump(
+        tester,
+        library: library,
+        details: false,
+        picks: [jpegBytes],
+      );
+      expect(find.text(_en.createLibraryDenied), findsOneWidget);
+      expect(picker.calls, 1);
+      expect(find.byKey(CreateMediaStep.trayKey), findsOneWidget);
+      await tester.tap(find.byKey(CreateMediaStep.allowKey));
+      await tester.pumpAndSettle();
+      expect(library.calls, contains('manage:denied'));
+
+      library
+        ..access = LibraryAccess.limited
+        ..ids = ['p1'];
+      ProviderScope.containerOf(tester.element(find.byType(CreateScreen)))
+          .invalidate(mediaLibraryControllerProvider);
+      await tester.pumpAndSettle();
+      expect(find.text(_en.createLibraryLimited), findsOneWidget);
+      expect(find.byKey(CreateMediaStep.itemKey('p1')), findsOneWidget);
+      await tester.tap(find.byKey(CreateMediaStep.manageKey));
+      await tester.pumpAndSettle();
+      expect(library.calls, contains('manage:limited'));
+    });
+
+    testWidgets('details step: the step indicator and system back return to '
+        'the media step', (tester) async {
+      await pump(tester, picks: [jpegBytes]);
+      expect(
+        find.bySemanticsLabel(_en.createStepOf(2, 2, _en.createStepDetails)),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.bySemanticsLabel(_en.createStepOf(1, 2, _en.createStepMedia)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(CreateScreen.mediaStepKey), findsOneWidget);
+      await tester.tap(find.byKey(CreateMediaStep.nextKey));
+      await tester.pumpAndSettle();
+      final popped = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(popped, isTrue);
+      expect(find.byKey(CreateScreen.mediaStepKey), findsOneWidget);
     });
 
     testWidgets('Close asks before discarding a draft; an empty draft just '
         'leaves', (tester) async {
       final (_, posts, _, router) = await pump(tester);
       await tester.enterText(find.byKey(CreateScreen.textKey), 'half');
+      // Back to the media step keeps the draft; Close is there.
+      await tester.tap(find.byKey(CreateScreen.backKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(CreateScreen.mediaStepKey), findsOneWidget);
       await tester.tap(find.byKey(CreateScreen.closeKey));
       await tester.pumpAndSettle();
       expect(find.text(_en.createDiscardTitle), findsOneWidget);
@@ -582,21 +785,35 @@ void main() {
       expect(posts.created, isEmpty);
     });
 
-    testWidgets('short clips and music are disabled ("soon"); 360 dp at '
-        'text scale 1.3 does not overflow', (tester) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await pump(
-        tester,
-        language: AppLanguage.ar,
-        viewport: GoldenViewport.android,
-      );
-      expect(tester.takeException(), isNull);
-      final soon = find.bySemanticsLabel(
-        RegExp(l10nFor(AppLanguage.ar).createTypeMusic),
-      );
-      expect(soon, findsWidgets);
-    });
+    for (final details in [false, true]) {
+      testWidgets('video and AI say "soon"; 360 dp at text scale 1.3 does '
+          'not overflow (${details ? 'details' : 'media'})', (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final ar = l10nFor(AppLanguage.ar);
+        await pump(
+          tester,
+          language: AppLanguage.ar,
+          viewport: GoldenViewport.android,
+          picks: [jpegBytes, jpegBytes],
+          details: details,
+          recentPlaces: ['البتراء، الأردن', 'عمان'],
+        );
+        expect(tester.takeException(), isNull);
+        if (details) {
+          final ai = tester.widget<IconButton>(
+            find.byKey(CreateScreen.aiToolKey),
+          );
+          expect(ai.onPressed, isNull);
+        } else {
+          final video = tester.getSemantics(
+            find.byKey(CreateMediaStep.tabVideoKey),
+          );
+          expect(video.hint, ar.createSoon);
+          expect(video.flagsCollection.isEnabled.toBoolOrNull(), isFalse);
+        }
+      });
+    }
 
     testWidgets('Arabic RTL: copy is localized, text over the limit blocks '
         'Share with a red counter', (tester) async {

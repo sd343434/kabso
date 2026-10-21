@@ -8,6 +8,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/presentation/login_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -72,6 +73,14 @@ void main() {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
         expect(find.text(value), findsOneWidget, reason: '$key');
+        // KL-060: Create is full screen (owner's reference): no bottom bar;
+        // its Close returns to Posts.
+        if (key == const Key('nav.create')) {
+          expect(find.byKey(const Key('nav.home')), findsNothing);
+          await tester.tap(find.byKey(CreateScreen.closeKey));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('nav.home')), findsOneWidget);
+        }
       }
     });
 

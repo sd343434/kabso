@@ -3377,7 +3377,7 @@ abstract class AppLocalizations {
   /// KL-060 caption hint.
   ///
   /// In ar, this message translates to:
-  /// **'ماذا يدور في ذهنك؟'**
+  /// **'اكتب وصف المنشور…'**
   String get createTextHint;
 
   /// KL-060 location hint.
@@ -3527,12 +3527,6 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'اسحب لتغيير الترتيب'**
-  String get createReorder;
-
-  /// KL-060 Create screen (owner reference).
-  ///
-  /// In ar, this message translates to:
   /// **'إضافة رمز تعبيري'**
   String get createEmoji;
 
@@ -3551,24 +3545,6 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'بث مباشر'**
-  String get createTypeLive;
-
-  /// KL-060 Create screen (owner reference).
-  ///
-  /// In ar, this message translates to:
-  /// **'مقطع قصير'**
-  String get createTypeClip;
-
-  /// KL-060 Create screen (owner reference).
-  ///
-  /// In ar, this message translates to:
-  /// **'موسيقى'**
-  String get createTypeMusic;
-
-  /// KL-060 Create screen (owner reference).
-  ///
-  /// In ar, this message translates to:
   /// **'قريباً'**
   String get createSoon;
 
@@ -3581,14 +3557,8 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'إضافة موقع إلى منشورك'**
+  /// **'إضافة موقع'**
   String get createPlaceSubtitle;
-
-  /// KL-060 Create screen (owner reference).
-  ///
-  /// In ar, this message translates to:
-  /// **'إزالة الموقع'**
-  String get createPlaceClear;
 
   /// KL-060 Create screen (owner reference).
   ///
@@ -3599,7 +3569,7 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'من يمكنه رؤية المنشور؟'**
+  /// **'من يمكنه مشاهدة المنشور؟'**
   String get createAudienceTitle;
 
   /// KL-060 Create screen (owner reference).
@@ -3635,7 +3605,7 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'أضف أشخاصاً إلى منشورك'**
+  /// **'إضافة أشخاص'**
   String get createMentionSubtitle;
 
   /// KL-060 Create screen (owner reference).
@@ -3677,7 +3647,7 @@ abstract class AppLocalizations {
   /// KL-060 Create screen (owner reference).
   ///
   /// In ar, this message translates to:
-  /// **'إعدادات متقدمة'**
+  /// **'مزيد من الخيارات'**
   String get createAdvancedTitle;
 
   /// KL-060 Create screen (owner reference).
@@ -3715,6 +3685,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إخفاء عدد الإعجابات'**
   String get createHideLikes;
+
+  /// KL-060 media step subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر صورة أو أكثر'**
+  String get createMediaSubtitle;
+
+  /// KL-060 media step: go to details.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get createNext;
+
+  /// KL-060 details step: back to media.
+  ///
+  /// In ar, this message translates to:
+  /// **'رجوع'**
+  String get createBack;
+
+  /// KL-060 media filter.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get createTabAll;
+
+  /// KL-060 media filter (no video before M2).
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get createTabVideo;
+
+  /// KL-060 under the selected count.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديدها'**
+  String get createSelected;
+
+  /// KL-060 media step note.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك تحديد حتى {max} صور'**
+  String createSelectUpTo(int max);
+
+  /// KL-060 step 1 label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوسائط'**
+  String get createStepMedia;
+
+  /// KL-060 step 2 label.
+  ///
+  /// In ar, this message translates to:
+  /// **'التفاصيل'**
+  String get createStepDetails;
+
+  /// KL-060 step semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخطوة {step} من {total}: {label}'**
+  String createStepOf(int step, int total, String label);
+
+  /// KL-060 hint under the strip.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط مطولاً واسحب لترتيب الصور'**
+  String get createLongPressReorder;
+
+  /// KL-060 AI caption tool (no API yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح وصف بالذكاء الاصطناعي'**
+  String get createAiCaption;
+
+  /// KL-060 hashtags row example.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثل #البتراء #سفر #أردن'**
+  String get createHashtagsExample;
+
+  /// KL-060 no library (web).
+  ///
+  /// In ar, this message translates to:
+  /// **'معرض الصور غير متاح هنا. اختر الصور من جهازك.'**
+  String get createLibraryUnsupported;
+
+  /// KL-060 library access refused.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح لكبسو بالوصول إلى صورك لتختار منها هنا، أو اختر من جهازك.'**
+  String get createLibraryDenied;
+
+  /// KL-060 library error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر فتح معرض الصور.'**
+  String get createLibraryFailed;
+
+  /// KL-060 empty library.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد صور على هذا الجهاز.'**
+  String get createLibraryEmpty;
+
+  /// KL-060 limited access.
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى كبسو بعض صورك فقط.'**
+  String get createLibraryLimited;
+
+  /// KL-060 change limited selection.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get createLibraryManage;
+
+  /// KL-060 open settings for access.
+  ///
+  /// In ar, this message translates to:
+  /// **'السماح بالوصول'**
+  String get createLibraryAllow;
+
+  /// KL-060 system picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار من الجهاز'**
+  String get createPickFromDevice;
+
+  /// KL-060 library tile semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة من المعرض'**
+  String get createLibraryPhoto;
 }
 
 class _AppLocalizationsDelegate

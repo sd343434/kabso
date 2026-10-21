@@ -10,25 +10,248 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Geometry of the Create screen (owner's reference, KL-060; values on the
+/// Geometry of the Create flow (owner's references, KL-060; values on the
 /// Kabso scale, see the reference spec in the PR notes).
 abstract final class KCompose {
-  static const double inset = KSpacing.lg;
-  static const double headerButton = 32;
-  static const double publishHeight = 28;
-  static const double sparkle = 24;
-  static const double photoWidth = 88;
-  static const double addWidth = 82;
-  static const double stripHeight = 141;
+  /// Media step page inset; the details step is a little tighter.
+  static const double mediaInset = 20;
+  static const double inset = KSpacing.md;
+  static const double headerButton = 36;
+  static const double pillHeight = 36;
+  static const double photoWidth = 70;
+  static const double addWidth = 64;
+  static const double stripHeight = 112;
   static const double stripGap = 6;
   static const double cardRadius = KRadius.md;
+  static const double panelRadius = 16;
   static const double badge = 20;
+  static const double numberBadge = 18;
   static const double dot = 5;
-  static const double captionMinHeight = 110;
-  static const double tool = 28;
-  static const double chipHeight = 32;
-  static const double rowIcon = 34;
+  static const double captionMinHeight = 120;
+  static const double tool = 32;
+  static const double rowIcon = 36;
   static const double rowGap = KSpacing.sm;
+  static const double segmentHeight = 44;
+  static const double gridGap = 10;
+  static const double trayThumb = 46;
+  static const double step = 22;
+}
+
+/// The white card of the details step (caption box, option rows).
+BoxDecoration composeCard(KPalette p, {Color? border}) => BoxDecoration(
+  color: p.surfaceRaised,
+  borderRadius: BorderRadius.circular(KCompose.panelRadius),
+  border: Border.all(color: border ?? p.border.withValues(alpha: 0.5)),
+  boxShadow: const [
+    BoxShadow(color: Color(0x0D000000), blurRadius: 12, offset: Offset(0, 3)),
+  ],
+);
+
+/// The header of both steps: the red action pill at the start, the title
+/// and its line centred, and a round button at the end (Close or Back).
+class ComposeHeader extends StatelessWidget {
+  const new({
+    required this.action,
+    required this.subtitle,
+    required this.endButton,
+    super.key,
+  });
+
+  final Widget action;
+  final String subtitle;
+  final Widget endButton;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final t = context.textStyles;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KCompose.inset + 4,
+        vertical: KSpacing.sm,
+      ),
+      // The title is centred on the screen: both sides take the same
+      // width, and the middle at most half of it.
+      child: LayoutBuilder(
+        builder: (context, box) => Row(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FittedBox(fit: BoxFit.scaleDown, child: action),
+              ),
+            ),
+            const SizedBox(width: KSpacing.xs),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      context.l10n.createTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.title.copyWith(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.caption.copyWith(color: p.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: KSpacing.xs),
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: endButton,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The red action pill of the header (Next, Share): label then glyph.
+class ComposeActionPill extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.glyph,
+    required this.enabled,
+    required this.onTap,
+    this.busy = false,
+    super.key,
+  });
+
+  final String label;
+  final Widget glyph;
+  final bool enabled;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: Material(
+        color: enabled || busy ? p.primary : p.primary.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(KRadius.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(KRadius.md),
+          onTap: enabled ? onTap : null,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: KCompose.pillHeight,
+              minWidth: 72,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: context.textStyles.label.copyWith(
+                      color: p.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: KSpacing.sm),
+                  if (busy)
+                    SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: p.onPrimary,
+                      ),
+                    )
+                  else
+                    IconTheme.merge(
+                      data: IconThemeData(color: p.onPrimary, size: 18),
+                      child: glyph,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The round end button of the header (Close, Back).
+class ComposeRoundButton extends StatelessWidget {
+  const new({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.raised = false,
+    super.key,
+  });
+
+  final String tooltip;
+  final Widget icon;
+  final VoidCallback? onPressed;
+
+  /// White with a shadow (Back) instead of the grey square (Close).
+  final bool raised;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: raised ? BoxShape.circle : BoxShape.rectangle,
+        boxShadow: raised
+            ? const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        constraints: const BoxConstraints.tightFor(
+          width: KCompose.headerButton,
+          height: KCompose.headerButton,
+        ),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          backgroundColor: raised ? p.surfaceRaised : p.surfaceOverlay,
+          shape: raised
+              ? const CircleBorder()
+              : RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(KRadius.md),
+                ),
+        ),
+        icon: IconTheme.merge(
+          data: IconThemeData(color: p.textPrimary, size: KMetrics.iconMd),
+          child: icon,
+        ),
+      ),
+    );
+  }
 }
 
 /// Hashtags and mentions in the caption are drawn in the brand colour (the
@@ -103,25 +326,39 @@ class CaptionController extends TextEditingController {
 /// A pink-tinted disc with a brand-coloured glyph (header sparkle, option
 /// row icons).
 class ComposeIconDisc extends StatelessWidget {
-  const new({required this.child, this.size = KCompose.rowIcon, super.key});
+  const new({
+    required this.child,
+    this.size = KCompose.rowIcon,
+    this.neutral = false,
+    super.key,
+  });
 
   final Widget child;
   final double size;
 
+  /// Grey disc with a dark glyph (secondary rows such as "More options").
+  final bool neutral;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: context.palette.primary.withValues(alpha: 0.09),
-      shape: BoxShape.circle,
-    ),
-    child: IconTheme.merge(
-      data: IconThemeData(color: context.palette.primary, size: size * 0.55),
-      child: child,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: neutral ? p.surfaceOverlay : p.primary.withValues(alpha: 0.09),
+        shape: BoxShape.circle,
+      ),
+      child: IconTheme.merge(
+        data: IconThemeData(
+          color: neutral ? p.textPrimary : p.primary,
+          size: size * 0.55,
+        ),
+        child: child,
+      ),
+    );
+  }
 }
 
 /// One option row: icon disc, title, subtitle (or [body]), optional
@@ -134,9 +371,11 @@ class ComposeOptionRow extends StatelessWidget {
     this.subtitle,
     this.body,
     this.trailing,
+    this.neutralIcon = false,
     super.key,
   });
 
+  final bool neutralIcon;
   final Widget icon;
   final String title;
   final String? subtitle;
@@ -148,125 +387,64 @@ class ComposeOptionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final t = context.textStyles;
-    return Material(
-      color: p.surfaceRaised,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KCompose.cardRadius),
-        side: BorderSide(color: p.border.withValues(alpha: 0.6)),
+    final card = composeCard(p);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: card.borderRadius,
+        boxShadow: card.boxShadow,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 54),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-              KSpacing.sm,
-              KSpacing.sm,
-              KSpacing.sm,
-              KSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                ComposeIconDisc(child: icon),
-                const SizedBox(width: KSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.bodyStrong.copyWith(color: p.textPrimary),
-                      ),
-                      if (subtitle case final s?)
-                        Text(
-                          s,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(color: p.textTertiary),
-                        ),
-                      if (body case final b?)
-                        Padding(
-                          padding: const EdgeInsets.only(top: KSpacing.xs),
-                          child: b,
-                        ),
-                    ],
-                  ),
-                ),
-                ?trailing,
-                // Mirrors itself in RTL (matchTextDirection).
-                Icon(Icons.chevron_right_rounded, color: p.textTertiary),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A content-type chip ("Photos", "Live", …). Disabled chips are for types
-/// without an API yet; they say so instead of pretending to work.
-class ComposeTypeChip extends StatelessWidget {
-  const new({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.semanticsHint,
-    super.key,
-  });
-
-  final Widget icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-  final String? semanticsHint;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.palette;
-    final enabled = onTap != null || selected;
-    final fg = selected
-        ? p.onPrimary
-        : (enabled ? p.textPrimary : p.textTertiary);
-    return Semantics(
-      button: true,
-      selected: selected,
-      enabled: enabled,
-      hint: semanticsHint,
       child: Material(
-        color: selected ? p.primary : p.surfaceOverlay,
-        borderRadius: BorderRadius.circular(KRadius.md),
+        color: p.surfaceRaised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KCompose.panelRadius),
+          side: BorderSide(color: p.border.withValues(alpha: 0.5)),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(KRadius.md),
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+            constraints: const BoxConstraints(minHeight: 58),
             child: Padding(
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: KSpacing.md,
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                KSpacing.md,
+                KSpacing.sm + 2,
+                KSpacing.sm,
+                KSpacing.sm + 2,
               ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconTheme.merge(
-                      data: IconThemeData(color: fg, size: 18),
-                      child: icon,
+              child: Row(
+                children: [
+                  ComposeIconDisc(neutral: neutralIcon, child: icon),
+                  const SizedBox(width: KSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodyStrong.copyWith(color: p.textPrimary),
+                        ),
+                        if (subtitle case final s?)
+                          Text(
+                            s,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.caption.copyWith(color: p.textTertiary),
+                          ),
+                        if (body case final b?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: KSpacing.xs),
+                            child: b,
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: KSpacing.xs),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      style: context.textStyles.label.copyWith(color: fg),
-                    ),
-                  ],
-                ),
+                  ),
+                  ?trailing,
+                  // Mirrors itself in RTL (matchTextDirection).
+                  Icon(Icons.chevron_right_rounded, color: p.textTertiary),
+                ],
               ),
             ),
           ),

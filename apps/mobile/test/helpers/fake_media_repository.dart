@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
+import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 
@@ -82,3 +83,46 @@ final Uint8List heicBytes = Uint8List.fromList([
   0x69,
   0x63,
 ]);
+
+/// A device library (tests only): [access] as given, [ids] as the photos
+/// (newest first), each read as [bytes] (`null` = unreadable).
+class FakeMediaLibrary implements MediaLibrary {
+  new({
+    this.access = LibraryAccess.unsupported,
+    this.ids = const [],
+    Uint8List? bytes,
+  }) : bytes = bytes ?? jpegBytes;
+
+  LibraryAccess access;
+  List<String> ids;
+  Uint8List? bytes;
+  final List<String> calls = [];
+
+  @override
+  Future<LibraryAccess> requestAccess() async {
+    calls.add('access');
+    return access;
+  }
+
+  @override
+  Future<List<LibraryItem>> page(int page, {int size = 60}) async {
+    calls.add('page:$page');
+    return [
+      for (final id in ids.skip(page * size).take(size)) LibraryItem(id: id),
+    ];
+  }
+
+  @override
+  Future<Uint8List?> thumbnail(String id) async => null;
+
+  @override
+  Future<Uint8List?> photoBytes(String id) async {
+    calls.add('bytes:$id');
+    return bytes;
+  }
+
+  @override
+  Future<void> manageAccess(LibraryAccess access) async {
+    calls.add('manage:${access.name}');
+  }
+}

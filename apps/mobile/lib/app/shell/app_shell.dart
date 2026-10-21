@@ -1,5 +1,6 @@
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -20,13 +21,20 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Create is a full-screen flow (owner's reference, KL-060): it has its
+    // own Close and Back, so the bar is hidden there.
+    final creating =
+        navigationShell.currentIndex ==
+        AppRoutes.shellBranches.indexOf(AppRoutes.create);
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: KBottomNav(
-        currentIndex: navigationShell.currentIndex,
-        onSelect: _onSelect,
-        items: shellNavItems(context.l10n),
-      ),
+      bottomNavigationBar: creating
+          ? null
+          : KBottomNav(
+              currentIndex: navigationShell.currentIndex,
+              onSelect: _onSelect,
+              items: shellNavItems(context.l10n),
+            ),
     );
   }
 }

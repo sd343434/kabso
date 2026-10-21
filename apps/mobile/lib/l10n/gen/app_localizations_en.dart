@@ -1921,7 +1921,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createShare => 'Share';
 
   @override
-  String get createTextHint => 'What\'s on your mind?';
+  String get createTextHint => 'Write a caption…';
 
   @override
   String get createLocationHint => 'Add a place (optional)';
@@ -2013,9 +2013,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get createReorder => 'Drag to reorder';
-
-  @override
   String get createEmoji => 'Add an emoji';
 
   @override
@@ -2025,25 +2022,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTypePhotos => 'Photos';
 
   @override
-  String get createTypeLive => 'Live';
-
-  @override
-  String get createTypeClip => 'Short clip';
-
-  @override
-  String get createTypeMusic => 'Music';
-
-  @override
   String get createSoon => 'Coming soon';
 
   @override
   String get createPlaceTitle => 'Place';
 
   @override
-  String get createPlaceSubtitle => 'Add a place to your post';
-
-  @override
-  String get createPlaceClear => 'Remove place';
+  String get createPlaceSubtitle => 'Add a place';
 
   @override
   String get createPlaceSave => 'Save';
@@ -2068,7 +2053,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createMentionTitle => 'Mention people';
 
   @override
-  String get createMentionSubtitle => 'Add people to your post';
+  String get createMentionSubtitle => 'Add people';
 
   @override
   String get createMentionSome => 'You mentioned people in the text';
@@ -2089,7 +2074,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createHashtagsTitle => 'Add hashtags';
 
   @override
-  String get createAdvancedTitle => 'Advanced settings';
+  String get createAdvancedTitle => 'More options';
 
   @override
   String get createAdvancedSubtitle => 'Comments and like count';
@@ -2108,4 +2093,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createHideLikes => 'Hide the like count';
+
+  @override
+  String get createMediaSubtitle => 'Choose one or more photos';
+
+  @override
+  String get createNext => 'Next';
+
+  @override
+  String get createBack => 'Back';
+
+  @override
+  String get createTabAll => 'All';
+
+  @override
+  String get createTabVideo => 'Video';
+
+  @override
+  String get createSelected => 'Selected';
+
+  @override
+  String createSelectUpTo(int max) {
+    return 'You can select up to $max photos';
+  }
+
+  @override
+  String get createStepMedia => 'Media';
+
+  @override
+  String get createStepDetails => 'Details';
+
+  @override
+  String createStepOf(int step, int total, String label) {
+    return 'Step $step of $total: $label';
+  }
+
+  @override
+  String get createLongPressReorder => 'Long-press and drag to reorder';
+
+  @override
+  String get createAiCaption => 'Suggest a caption with AI';
+
+  @override
+  String get createHashtagsExample => 'e.g. #Petra #travel #Jordan';
+
+  @override
+  String get createLibraryUnsupported =>
+      'The photo gallery isn\'t available here. Choose photos from your device.';
+
+  @override
+  String get createLibraryDenied =>
+      'Allow Kabso to access your photos to choose them here, or pick from your device.';
+
+  @override
+  String get createLibraryFailed => 'Couldn\'t open your photo gallery.';
+
+  @override
+  String get createLibraryEmpty => 'There are no photos on this device.';
+
+  @override
+  String get createLibraryLimited => 'Kabso sees only some of your photos.';
+
+  @override
+  String get createLibraryManage => 'Manage';
+
+  @override
+  String get createLibraryAllow => 'Allow access';
+
+  @override
+  String get createPickFromDevice => 'Choose from device';
+
+  @override
+  String get createLibraryPhoto => 'Gallery photo';
 }
