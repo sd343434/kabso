@@ -1921,7 +1921,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createShare => 'Share';
 
   @override
-  String get createTextHint => 'What\'s on your mind? Use #tags and @mentions';
+  String get createTextHint => 'What\'s on your mind?';
 
   @override
   String get createLocationHint => 'Add a place (optional)';
@@ -1931,6 +1931,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createRemovePhoto => 'Remove photo';
+
+  @override
+  String createPhotoNumber(int index) {
+    return '$index';
+  }
 
   @override
   String createPhotoLabel(int index, int total) {
@@ -1979,4 +1984,128 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get createPhotoInvalid =>
       'One of the photos couldn\'t be processed. Remove it and try again.';
+
+  @override
+  String get createSubtitle => 'Share your moments with your followers';
+
+  @override
+  String get createClose => 'Close';
+
+  @override
+  String get createDiscardTitle => 'Discard this post?';
+
+  @override
+  String get createDiscardBody =>
+      'The text and photos you added will be removed.';
+
+  @override
+  String get createDiscard => 'Discard';
+
+  @override
+  String get createKeepEditing => 'Keep editing';
+
+  @override
+  String get createAddMore => 'Add more';
+
+  @override
+  String createUpTo(int max) {
+    return 'Up to $max photos';
+  }
+
+  @override
+  String get createReorder => 'Drag to reorder';
+
+  @override
+  String get createEmoji => 'Add an emoji';
+
+  @override
+  String get createAddHashtag => 'Add a hashtag';
+
+  @override
+  String get createTypePhotos => 'Photos';
+
+  @override
+  String get createTypeLive => 'Live';
+
+  @override
+  String get createTypeClip => 'Short clip';
+
+  @override
+  String get createTypeMusic => 'Music';
+
+  @override
+  String get createSoon => 'Coming soon';
+
+  @override
+  String get createPlaceTitle => 'Place';
+
+  @override
+  String get createPlaceSubtitle => 'Add a place to your post';
+
+  @override
+  String get createPlaceClear => 'Remove place';
+
+  @override
+  String get createPlaceSave => 'Save';
+
+  @override
+  String get createAudienceTitle => 'Who can see this post?';
+
+  @override
+  String get createAudiencePublic => 'Public - everyone can see it';
+
+  @override
+  String get createAudiencePrivate => 'Private - only your followers';
+
+  @override
+  String get createAudienceExplain =>
+      'Who sees your posts follows your account privacy. Change it in Settings.';
+
+  @override
+  String get createAudienceSettings => 'Open settings';
+
+  @override
+  String get createMentionTitle => 'Mention people';
+
+  @override
+  String get createMentionSubtitle => 'Add people to your post';
+
+  @override
+  String get createMentionSome => 'You mentioned people in the text';
+
+  @override
+  String get createMentionSearchHint => 'Search by username or name';
+
+  @override
+  String get createMentionStart => 'Type to find people';
+
+  @override
+  String get createMentionNone => 'No results';
+
+  @override
+  String get createMentionFailed => 'Search failed. Try again.';
+
+  @override
+  String get createHashtagsTitle => 'Add hashtags';
+
+  @override
+  String get createAdvancedTitle => 'Advanced settings';
+
+  @override
+  String get createAdvancedSubtitle => 'Comments and like count';
+
+  @override
+  String get createCommentsOn => 'Allow comments';
+
+  @override
+  String get createWhoEveryone => 'Everyone can comment';
+
+  @override
+  String get createWhoFollowers => 'Your followers only';
+
+  @override
+  String get createWhoNobody => 'No one';
+
+  @override
+  String get createHideLikes => 'Hide the like count';
 }

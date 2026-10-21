@@ -3377,7 +3377,7 @@ abstract class AppLocalizations {
   /// KL-060 caption hint.
   ///
   /// In ar, this message translates to:
-  /// **'بماذا تفكّر؟ استخدم #وسم و@إشارة'**
+  /// **'ماذا يدور في ذهنك؟'**
   String get createTextHint;
 
   /// KL-060 location hint.
@@ -3397,6 +3397,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إزالة الصورة'**
   String get createRemovePhoto;
+
+  /// KL-060 the order badge on a draft photo (1 = first in the post).
+  ///
+  /// In ar, this message translates to:
+  /// **'{index}'**
+  String createPhotoNumber(int index);
 
   /// KL-060 photo semantics.
   ///
@@ -3469,6 +3475,246 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.'**
   String get createPhotoInvalid;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك لحظاتك مع متابعيك'**
+  String get createSubtitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get createClose;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل المنشور؟'**
+  String get createDiscardTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'سيُحذف النص والصور التي أضفتها.'**
+  String get createDiscardBody;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get createDiscard;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة التعديل'**
+  String get createKeepEditing;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة المزيد'**
+  String get createAddMore;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى {max} صور'**
+  String createUpTo(int max);
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب لتغيير الترتيب'**
+  String get createReorder;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة رمز تعبيري'**
+  String get createEmoji;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة وسم'**
+  String get createAddHashtag;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'صور'**
+  String get createTypePhotos;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر'**
+  String get createTypeLive;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقطع قصير'**
+  String get createTypeClip;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقى'**
+  String get createTypeMusic;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get createSoon;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'الموقع'**
+  String get createPlaceTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة موقع إلى منشورك'**
+  String get createPlaceSubtitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الموقع'**
+  String get createPlaceClear;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get createPlaceSave;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'من يمكنه رؤية المنشور؟'**
+  String get createAudienceTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'عام - متاح للجميع'**
+  String get createAudiencePublic;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'خاص - متابعوك فقط'**
+  String get createAudiencePrivate;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'من يرى منشوراتك يتبع خصوصية حسابك. غيّرها من الإعدادات.'**
+  String get createAudienceExplain;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الإعدادات'**
+  String get createAudienceSettings;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إشارة إلى أشخاص'**
+  String get createMentionTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف أشخاصاً إلى منشورك'**
+  String get createMentionSubtitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'أشرت إلى أشخاص في النص'**
+  String get createMentionSome;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث باسم المستخدم أو الاسم'**
+  String get createMentionSearchHint;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب لتبحث عن أشخاص'**
+  String get createMentionStart;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نتائج'**
+  String get createMentionNone;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر البحث. حاول مرة أخرى.'**
+  String get createMentionFailed;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة وسوم'**
+  String get createHashtagsTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات متقدمة'**
+  String get createAdvancedTitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات وعدد الإعجابات'**
+  String get createAdvancedSubtitle;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'السماح بالتعليقات'**
+  String get createCommentsOn;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجميع يمكنهم التعليق'**
+  String get createWhoEveryone;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعوك فقط'**
+  String get createWhoFollowers;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد'**
+  String get createWhoNobody;
+
+  /// KL-060 Create screen (owner reference).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء عدد الإعجابات'**
+  String get createHideLikes;
 }
 
 class _AppLocalizationsDelegate

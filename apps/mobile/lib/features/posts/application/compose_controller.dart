@@ -85,6 +85,7 @@ class ComposeState {
     this.uploaded = 0,
     this.failure,
     this.rejections = const {},
+    this.settings = const PostSettingsDraft(),
   });
 
   final List<ComposePhoto> photos;
@@ -99,6 +100,9 @@ class ComposeState {
   /// Why some of the last picked photos were left out.
   final Set<PhotoRejection> rejections;
 
+  /// Comments and like count settings (Advanced settings).
+  final PostSettingsDraft settings;
+
   bool get busy => phase != ComposePhase.editing;
 
   ComposeState copyWith({
@@ -108,12 +112,14 @@ class ComposeState {
     AppFailure? failure,
     bool clearFailure = false,
     Set<PhotoRejection>? rejections,
+    PostSettingsDraft? settings,
   }) => ComposeState(
     photos: photos ?? this.photos,
     phase: phase ?? this.phase,
     uploaded: uploaded ?? this.uploaded,
     failure: clearFailure ? null : (failure ?? this.failure),
     rejections: rejections ?? this.rejections,
+    settings: settings ?? this.settings,
   );
 }
 
@@ -178,6 +184,22 @@ class ComposeController extends Notifier<ComposeState> {
     );
   }
 
+  /// Moves the photo at [from] to [to] (indices in the current order; the
+  /// post keeps this order).
+  void movePhoto(int from, int to) {
+    if (state.busy || from == to) return;
+    final photos = [...state.photos];
+    if (from < 0 || from >= photos.length) return;
+    final photo = photos.removeAt(from);
+    photos.insert(to.clamp(0, photos.length), photo);
+    state = state.copyWith(photos: List.unmodifiable(photos));
+  }
+
+  void setSettings(PostSettingsDraft settings) {
+    if (state.busy) return;
+    state = state.copyWith(settings: settings, clearFailure: true);
+  }
+
   /// Publishes the draft; the created post, or `null` on failure (then
   /// [ComposeState.failure] says why and the draft is kept).
   Future<Post?> publish({
@@ -210,7 +232,9 @@ class ComposeController extends Notifier<ComposeState> {
       }
       state = state.copyWith(phase: ComposePhase.publishing);
       final mediaIds = [for (final p in state.photos) p.assetId!];
-      final content = '$caption\u0000$place\u0000${mediaIds.join(',')}';
+      final content =
+          '$caption\u0000$place\u0000${mediaIds.join(',')}'
+          '\u0000${state.settings.toJson()}';
       if (_keyFor != content) {
         _key = newIdempotencyKey();
         _keyFor = content;
@@ -222,6 +246,7 @@ class ComposeController extends Notifier<ComposeState> {
             text: caption,
             mediaIds: mediaIds,
             location: place,
+            settings: state.settings,
           );
       if (!ref.mounted) return post;
       // A new draft starts clean; the feeds show the new post.

@@ -45,7 +45,12 @@ abstract interface class PostsRepository {
     String? text,
     List<String> mediaIds = const [],
     String? location,
+    PostSettingsDraft settings = const PostSettingsDraft(),
   });
+
+  /// `GET /search?type=users`: people to mention (blocked users never
+  /// appear); [query] without the leading `@`.
+  Future<List<UserSummary>> searchUsers(String query);
 }
 
 PageOf<Post> _postPage(Map<String, dynamic> json) => PageOf([
@@ -134,6 +139,7 @@ class PostsRepositoryImpl implements PostsRepository {
     String? text,
     List<String> mediaIds = const [],
     String? location,
+    PostSettingsDraft settings = const PostSettingsDraft(),
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/posts',
@@ -141,10 +147,23 @@ class PostsRepositoryImpl implements PostsRepository {
         if (text != null && text.isNotEmpty) 'text': text,
         if (mediaIds.isNotEmpty) 'mediaIds': mediaIds,
         if (location != null && location.isNotEmpty) 'location': location,
+        if (!settings.isDefault) 'settings': settings.toJson(),
       },
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     return Post.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/search',
+      queryParameters: {'q': query, 'type': 'users', 'limit': 20},
+    );
+    return [
+      for (final u in res.data!['data']! as List<dynamic>)
+        UserSummary.fromJson(u as Map<String, dynamic>),
+    ];
   });
 }
 

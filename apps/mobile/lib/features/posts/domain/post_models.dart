@@ -197,3 +197,39 @@ enum ReportReason {
 
   final String wire;
 }
+
+/// The comment and like settings of a new post (`PostSettingsPatch`).
+@immutable
+class PostSettingsDraft {
+  const new({
+    this.commentsEnabled = true,
+    this.whoCanComment,
+    this.hideLikeCount = false,
+  });
+
+  final bool commentsEnabled;
+
+  /// `null`: the author's default (`privacy_settings`, §11.7).
+  final WhoCanComment? whoCanComment;
+  final bool hideLikeCount;
+
+  bool get isDefault =>
+      commentsEnabled && whoCanComment == null && !hideLikeCount;
+
+  PostSettingsDraft copyWith({
+    bool? commentsEnabled,
+    WhoCanComment? whoCanComment,
+    bool? hideLikeCount,
+  }) => PostSettingsDraft(
+    commentsEnabled: commentsEnabled ?? this.commentsEnabled,
+    whoCanComment: whoCanComment ?? this.whoCanComment,
+    hideLikeCount: hideLikeCount ?? this.hideLikeCount,
+  );
+
+  /// The request body; only what differs from the defaults.
+  Map<String, Object> toJson() => {
+    if (!commentsEnabled) 'commentsEnabled': false,
+    if (whoCanComment case final w?) 'whoCanComment': w.wire,
+    if (hideLikeCount) 'hideLikeCount': true,
+  };
+}

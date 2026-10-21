@@ -1948,7 +1948,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createShare => 'نشر';
 
   @override
-  String get createTextHint => 'بماذا تفكّر؟ استخدم #وسم و@إشارة';
+  String get createTextHint => 'ماذا يدور في ذهنك؟';
 
   @override
   String get createLocationHint => 'أضف موقعاً (اختياري)';
@@ -1958,6 +1958,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get createRemovePhoto => 'إزالة الصورة';
+
+  @override
+  String createPhotoNumber(int index) {
+    return '$index';
+  }
 
   @override
   String createPhotoLabel(int index, int total) {
@@ -2005,4 +2010,127 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get createPhotoInvalid =>
       'تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.';
+
+  @override
+  String get createSubtitle => 'شارك لحظاتك مع متابعيك';
+
+  @override
+  String get createClose => 'إغلاق';
+
+  @override
+  String get createDiscardTitle => 'تجاهل المنشور؟';
+
+  @override
+  String get createDiscardBody => 'سيُحذف النص والصور التي أضفتها.';
+
+  @override
+  String get createDiscard => 'تجاهل';
+
+  @override
+  String get createKeepEditing => 'متابعة التعديل';
+
+  @override
+  String get createAddMore => 'إضافة المزيد';
+
+  @override
+  String createUpTo(int max) {
+    return 'حتى $max صور';
+  }
+
+  @override
+  String get createReorder => 'اسحب لتغيير الترتيب';
+
+  @override
+  String get createEmoji => 'إضافة رمز تعبيري';
+
+  @override
+  String get createAddHashtag => 'إضافة وسم';
+
+  @override
+  String get createTypePhotos => 'صور';
+
+  @override
+  String get createTypeLive => 'بث مباشر';
+
+  @override
+  String get createTypeClip => 'مقطع قصير';
+
+  @override
+  String get createTypeMusic => 'موسيقى';
+
+  @override
+  String get createSoon => 'قريباً';
+
+  @override
+  String get createPlaceTitle => 'الموقع';
+
+  @override
+  String get createPlaceSubtitle => 'إضافة موقع إلى منشورك';
+
+  @override
+  String get createPlaceClear => 'إزالة الموقع';
+
+  @override
+  String get createPlaceSave => 'حفظ';
+
+  @override
+  String get createAudienceTitle => 'من يمكنه رؤية المنشور؟';
+
+  @override
+  String get createAudiencePublic => 'عام - متاح للجميع';
+
+  @override
+  String get createAudiencePrivate => 'خاص - متابعوك فقط';
+
+  @override
+  String get createAudienceExplain =>
+      'من يرى منشوراتك يتبع خصوصية حسابك. غيّرها من الإعدادات.';
+
+  @override
+  String get createAudienceSettings => 'فتح الإعدادات';
+
+  @override
+  String get createMentionTitle => 'إشارة إلى أشخاص';
+
+  @override
+  String get createMentionSubtitle => 'أضف أشخاصاً إلى منشورك';
+
+  @override
+  String get createMentionSome => 'أشرت إلى أشخاص في النص';
+
+  @override
+  String get createMentionSearchHint => 'ابحث باسم المستخدم أو الاسم';
+
+  @override
+  String get createMentionStart => 'اكتب لتبحث عن أشخاص';
+
+  @override
+  String get createMentionNone => 'لا نتائج';
+
+  @override
+  String get createMentionFailed => 'تعذّر البحث. حاول مرة أخرى.';
+
+  @override
+  String get createHashtagsTitle => 'إضافة وسوم';
+
+  @override
+  String get createAdvancedTitle => 'إعدادات متقدمة';
+
+  @override
+  String get createAdvancedSubtitle => 'التعليقات وعدد الإعجابات';
+
+  @override
+  String get createCommentsOn => 'السماح بالتعليقات';
+
+  @override
+  String get createWhoEveryone => 'الجميع يمكنهم التعليق';
+
+  @override
+  String get createWhoFollowers => 'متابعوك فقط';
+
+  @override
+  String get createWhoNobody => 'لا أحد';
+
+  @override
+  String get createHideLikes => 'إخفاء عدد الإعجابات';
 }

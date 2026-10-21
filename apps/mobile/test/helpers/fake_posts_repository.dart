@@ -93,9 +93,18 @@ class FakePostsRepository implements PostsRepository {
 
   /// Bodies of `createPost` calls, with their keys.
   final List<
-    ({String key, String? text, List<String> mediaIds, String? location})
+    ({
+      String key,
+      String? text,
+      List<String> mediaIds,
+      String? location,
+      PostSettingsDraft settings,
+    })
   >
   created = [];
+
+  /// People `searchUsers` finds (by username or display name prefix).
+  List<UserSummary> people = const [];
 
   @override
   Future<Post> createPost({
@@ -103,6 +112,7 @@ class FakePostsRepository implements PostsRepository {
     String? text,
     List<String> mediaIds = const [],
     String? location,
+    PostSettingsDraft settings = const PostSettingsDraft(),
   }) async {
     await _step('create:$idempotencyKey');
     created.add((
@@ -110,6 +120,7 @@ class FakePostsRepository implements PostsRepository {
       text: text,
       mediaIds: mediaIds,
       location: location,
+      settings: settings,
     ));
     return testPost(
       'new-${created.length}',
@@ -117,6 +128,18 @@ class FakePostsRepository implements PostsRepository {
       isSelf: true,
       pending: mediaIds.isNotEmpty,
     );
+  }
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) async {
+    await _step('searchUsers:$query');
+    final q = query.toLowerCase();
+    return [
+      for (final u in people)
+        if (u.username.startsWith(q) ||
+            u.displayName.toLowerCase().startsWith(q))
+          u,
+    ];
   }
 }
 

@@ -1865,7 +1865,7 @@
   "@createShare": {
     "description": "KL-060 publish button."
   },
-  "createTextHint": "بماذا تفكّر؟ استخدم #وسم و@إشارة",
+  "createTextHint": "ماذا يدور في ذهنك؟",
   "@createTextHint": {
     "description": "KL-060 caption hint."
   },
@@ -1880,6 +1880,15 @@
   "createRemovePhoto": "إزالة الصورة",
   "@createRemovePhoto": {
     "description": "KL-060 remove one photo."
+  },
+  "createPhotoNumber": "{index}",
+  "@createPhotoNumber": {
+    "description": "KL-060 the order badge on a draft photo (1 = first in the post).",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
   },
   "createPhotoLabel": "صورة {index} من {total}",
   "@createPhotoLabel": {
@@ -1949,5 +1958,170 @@
   "createPhotoInvalid": "تعذّرت معالجة إحدى الصور. أزلها وحاول مجدداً.",
   "@createPhotoInvalid": {
     "description": "KL-060 MEDIA_INVALID on Create."
+  },
+  "createSubtitle": "شارك لحظاتك مع متابعيك",
+  "@createSubtitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createClose": "إغلاق",
+  "@createClose": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createDiscardTitle": "تجاهل المنشور؟",
+  "@createDiscardTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createDiscardBody": "سيُحذف النص والصور التي أضفتها.",
+  "@createDiscardBody": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createDiscard": "تجاهل",
+  "@createDiscard": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createKeepEditing": "متابعة التعديل",
+  "@createKeepEditing": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAddMore": "إضافة المزيد",
+  "@createAddMore": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createUpTo": "حتى {max} صور",
+  "@createUpTo": {
+    "description": "KL-060 Create screen (owner reference).",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "createReorder": "اسحب لتغيير الترتيب",
+  "@createReorder": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createEmoji": "إضافة رمز تعبيري",
+  "@createEmoji": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAddHashtag": "إضافة وسم",
+  "@createAddHashtag": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createTypePhotos": "صور",
+  "@createTypePhotos": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createTypeLive": "بث مباشر",
+  "@createTypeLive": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createTypeClip": "مقطع قصير",
+  "@createTypeClip": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createTypeMusic": "موسيقى",
+  "@createTypeMusic": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createSoon": "قريباً",
+  "@createSoon": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createPlaceTitle": "الموقع",
+  "@createPlaceTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createPlaceSubtitle": "إضافة موقع إلى منشورك",
+  "@createPlaceSubtitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createPlaceClear": "إزالة الموقع",
+  "@createPlaceClear": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createPlaceSave": "حفظ",
+  "@createPlaceSave": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAudienceTitle": "من يمكنه رؤية المنشور؟",
+  "@createAudienceTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAudiencePublic": "عام - متاح للجميع",
+  "@createAudiencePublic": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAudiencePrivate": "خاص - متابعوك فقط",
+  "@createAudiencePrivate": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAudienceExplain": "من يرى منشوراتك يتبع خصوصية حسابك. غيّرها من الإعدادات.",
+  "@createAudienceExplain": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAudienceSettings": "فتح الإعدادات",
+  "@createAudienceSettings": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionTitle": "إشارة إلى أشخاص",
+  "@createMentionTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionSubtitle": "أضف أشخاصاً إلى منشورك",
+  "@createMentionSubtitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionSome": "أشرت إلى أشخاص في النص",
+  "@createMentionSome": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionSearchHint": "ابحث باسم المستخدم أو الاسم",
+  "@createMentionSearchHint": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionStart": "اكتب لتبحث عن أشخاص",
+  "@createMentionStart": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionNone": "لا نتائج",
+  "@createMentionNone": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createMentionFailed": "تعذّر البحث. حاول مرة أخرى.",
+  "@createMentionFailed": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createHashtagsTitle": "إضافة وسوم",
+  "@createHashtagsTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAdvancedTitle": "إعدادات متقدمة",
+  "@createAdvancedTitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createAdvancedSubtitle": "التعليقات وعدد الإعجابات",
+  "@createAdvancedSubtitle": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createCommentsOn": "السماح بالتعليقات",
+  "@createCommentsOn": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createWhoEveryone": "الجميع يمكنهم التعليق",
+  "@createWhoEveryone": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createWhoFollowers": "متابعوك فقط",
+  "@createWhoFollowers": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createWhoNobody": "لا أحد",
+  "@createWhoNobody": {
+    "description": "KL-060 Create screen (owner reference)."
+  },
+  "createHideLikes": "إخفاء عدد الإعجابات",
+  "@createHideLikes": {
+    "description": "KL-060 Create screen (owner reference)."
   }
 }

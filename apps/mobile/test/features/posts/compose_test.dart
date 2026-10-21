@@ -11,10 +11,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/create/compose_widgets.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/data/media_repository.dart';
@@ -31,6 +33,11 @@ import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
 final AppLocalizations _en = l10nFor(AppLanguage.en);
+
+abstract final class KComposeTest {
+  /// Photo width + gap in the strip.
+  static const double step = 88 + 6;
+}
 
 const _uploadsOff = ServerFailure(
   code: ErrorCode.mediaUploadsUnavailable,
@@ -285,6 +292,7 @@ void main() {
       WidgetTester tester, {
       AppLanguage language = AppLanguage.en,
       List<Uint8List> picks = const [],
+      GoldenViewport viewport = GoldenViewport.phone,
     }) async {
       final media = FakeMediaRepository();
       final posts = FakePostsRepository();
@@ -299,7 +307,7 @@ void main() {
           ),
         ],
       );
-      setViewport(tester, GoldenViewport.phone);
+      setViewport(tester, viewport);
       final prefs = await testPrefs(language: language.name);
       await tester.pumpWidget(
         ProviderScope(
@@ -330,16 +338,28 @@ void main() {
       return (media, posts, picker, router);
     }
 
-    KButton share(WidgetTester tester) =>
-        tester.widget<KButton>(find.byKey(CreateScreen.shareKey));
+    InkWell shareInk(WidgetTester tester) => tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(CreateScreen.shareKey),
+        matching: find.byType(InkWell),
+      ),
+    );
+    bool shareEnabled(WidgetTester tester) => shareInk(tester).onTap != null;
+    bool shareBusy() => find
+        .descendant(
+          of: find.byKey(CreateScreen.shareKey),
+          matching: find.byType(CircularProgressIndicator),
+        )
+        .evaluate()
+        .isNotEmpty;
 
     testWidgets('Share is off for an empty draft; a text post is shared and '
         'Posts opens with a message', (tester) async {
       final (_, posts, _, router) = await pump(tester);
-      expect(share(tester).onPressed, isNull);
+      expect(shareEnabled(tester), isFalse);
       await tester.enterText(find.byKey(CreateScreen.textKey), 'Hello #kabso');
       await tester.pump();
-      expect(share(tester).onPressed, isNotNull);
+      expect(shareEnabled(tester), isTrue);
       await tester.tap(find.byKey(CreateScreen.shareKey));
       await tester.pumpAndSettle();
       expect(posts.created.single.text, 'Hello #kabso');
@@ -389,11 +409,193 @@ void main() {
       await tester.pump();
       expect(find.byKey(CreateScreen.progressKey), findsOneWidget);
       expect(find.text(_en.createUploading(1, 1)), findsOneWidget);
-      expect(share(tester).loading, isTrue);
+      expect(shareBusy(), isTrue);
       gate.complete();
       await tester.pumpAndSettle();
       expect(posts.created.single.text, 'Dead Sea');
       expect(router.state.uri.path, '/reels');
+    });
+
+    // ReorderableListView splits `padding` between header and list as if
+    // the strip were LTR; in Arabic that once put 16 lp between the add
+    // tile and the first photo. The gaps must be the same in both
+    // directions.
+    for (final language in [AppLanguage.ar, AppLanguage.en]) {
+      testWidgets('strip insets and gaps (${language.name})', (tester) async {
+        await pump(tester, language: language, picks: [jpegBytes, jpegBytes]);
+        await tester.tap(find.byKey(CreateScreen.addPhotosKey));
+        await tester.pumpAndSettle();
+        final width =
+            tester.view.physicalSize.width / tester.view.devicePixelRatio;
+        final add = tester.getRect(find.byKey(CreateScreen.addPhotosKey));
+        // The photo's key sits on the card plus its end gap.
+        final p0 = tester.getRect(find.byKey(CreateScreen.photoKey(0)));
+        final rtl = language == AppLanguage.ar;
+        expect(rtl ? width - add.right : add.left, KCompose.inset);
+        expect(add.width, KCompose.addWidth);
+        expect(
+          rtl ? add.left - p0.right : p0.left - add.right,
+          KCompose.stripGap,
+        );
+        expect(p0.width, KCompose.photoWidth + KCompose.stripGap);
+      });
+    }
+
+    testWidgets('photos scroll sideways; the handle reorders them (post '
+        'order)', (tester) async {
+      final (_, posts, _, _) = await pump(
+        tester,
+        picks: [for (var i = 0; i < 4; i++) jpegBytes],
+      );
+      await tester.tap(find.byKey(CreateScreen.addPhotosKey));
+      await tester.pumpAndSettle();
+      final strip = find.descendant(
+        of: find.byKey(CreateScreen.stripKey),
+        matching: find.byType(Scrollable),
+      );
+      final position = tester.state<ScrollableState>(strip.first).position;
+      expect(position.maxScrollExtent, greaterThan(0));
+      // Drag photo 0 past photo 1 by its handle.
+      final handle = find.byKey(CreateScreen.handleKey(0));
+      await tester.timedDrag(
+        handle,
+        const Offset(KComposeTest.step * 2, 0),
+        const Duration(milliseconds: 600),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CreateScreen)),
+      );
+      final order = container
+          .read(composeControllerProvider)
+          .photos
+          .map((p) => p.localId)
+          .toList();
+      expect(order, isNot([0, 1, 2, 3]));
+      expect(order.toSet(), {0, 1, 2, 3});
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'x');
+      await tester.tap(find.byKey(CreateScreen.shareKey));
+      await tester.pumpAndSettle();
+      // Uploaded in the new order: a1 is the first photo of the post.
+      expect(posts.created.single.mediaIds, ['a1', 'a2', 'a3', 'a4']);
+    });
+
+    testWidgets('caption tools: # inserts a tag that appears in the hashtag '
+        'row; @ inserts a searched person; emoji inserts', (tester) async {
+      final (_, posts, _, _) = await pump(tester);
+      posts.people = const [
+        UserSummary(
+          id: 'u-omar',
+          username: 'omar',
+          displayName: 'Omar',
+          avatarUrl: null,
+        ),
+      ];
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'Sunset');
+      await tester.tap(find.byKey(CreateScreen.hashtagToolKey));
+      await tester.pump();
+      tester.testTextInput.enterText('Sunset #petra');
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(CreateScreen.hashtagsRowKey),
+          matching: find.text('#petra'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(CreateScreen.mentionToolKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('create.mention.query')),
+        'om',
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      expect(posts.calls, contains('searchUsers:om'));
+      await tester.tap(find.byKey(const ValueKey('create.mention.omar')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(CreateScreen.emojiKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('create.emoji.🔥')));
+      await tester.pumpAndSettle();
+      final text = tester
+          .widget<TextField>(find.byKey(CreateScreen.textKey))
+          .controller!
+          .text;
+      expect(text, contains('#petra'));
+      expect(text, contains('@omar'));
+      expect(text, contains('🔥'));
+      expect(find.text(_en.createMentionSome), findsOneWidget);
+    });
+
+    testWidgets('place and advanced settings are sent with the post', (
+      tester,
+    ) async {
+      final (_, posts, _, _) = await pump(tester);
+      await tester.tap(find.byKey(CreateScreen.locationKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('create.place.field')),
+        ' Petra ',
+      );
+      await tester.tap(find.byKey(const Key('create.place.save')));
+      await tester.pumpAndSettle();
+      expect(find.text('Petra'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(CreateScreen.advancedKey));
+      await tester.tap(find.byKey(CreateScreen.advancedKey));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('create.advanced.who.followers')),
+      );
+      await tester.tap(find.byKey(const Key('create.advanced.hideLikes')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('create.advanced.save')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(CreateScreen.textKey));
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'Rose city');
+      await tester.pump();
+      await tester.tap(find.byKey(CreateScreen.shareKey));
+      await tester.pumpAndSettle();
+      final sent = posts.created.single;
+      expect(sent.location, 'Petra');
+      expect(sent.settings.toJson(), {
+        'whoCanComment': 'FOLLOWERS',
+        'hideLikeCount': true,
+      });
+    });
+
+    testWidgets('Close asks before discarding a draft; an empty draft just '
+        'leaves', (tester) async {
+      final (_, posts, _, router) = await pump(tester);
+      await tester.enterText(find.byKey(CreateScreen.textKey), 'half');
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.text(_en.createDiscardTitle), findsOneWidget);
+      await tester.tap(find.text(_en.createKeepEditing));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/create');
+      await tester.tap(find.byKey(CreateScreen.closeKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('create.discard')));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/reels');
+      expect(posts.created, isEmpty);
+    });
+
+    testWidgets('short clips and music are disabled ("soon"); 360 dp at '
+        'text scale 1.3 does not overflow', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pump(
+        tester,
+        language: AppLanguage.ar,
+        viewport: GoldenViewport.android,
+      );
+      expect(tester.takeException(), isNull);
+      final soon = find.bySemanticsLabel(
+        RegExp(l10nFor(AppLanguage.ar).createTypeMusic),
+      );
+      expect(soon, findsWidgets);
     });
 
     testWidgets('Arabic RTL: copy is localized, text over the limit blocks '
@@ -401,18 +603,23 @@ void main() {
       final ar = l10nFor(AppLanguage.ar);
       await pump(tester, language: AppLanguage.ar);
       expect(find.text(ar.createTitle), findsOneWidget);
-      expect(find.text(ar.createAddPhotos), findsOneWidget);
+      expect(find.text(ar.createAddMore), findsOneWidget);
+      expect(find.text('0/$maxPostText'), findsOneWidget);
       expect(
         Directionality.of(tester.element(find.byKey(CreateScreen.textKey))),
         TextDirection.rtl,
       );
+      // The rows' chevron mirrors itself (matchTextDirection); picking the
+      // left chevron in RTL flipped it back to point at the start.
+      expect(find.byIcon(Icons.chevron_left_rounded), findsNothing);
+      expect(find.byIcon(Icons.chevron_right_rounded), findsWidgets);
       await tester.enterText(
         find.byKey(CreateScreen.textKey),
         'ا' * (maxPostText + 1),
       );
       await tester.pump();
       expect(find.text('${maxPostText + 1}/$maxPostText'), findsOneWidget);
-      expect(share(tester).onPressed, isNull);
+      expect(shareEnabled(tester), isFalse);
     });
   });
 }
