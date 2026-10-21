@@ -2391,4 +2391,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacySaved => 'Saved';
+
+  @override
+  String get safetyMutedAccounts => 'Muted accounts';
+
+  @override
+  String get safetyNoMuted => 'You have not muted anyone';
+
+  @override
+  String get safetyNoMutedBody =>
+      'People you mute appear here; you can unmute them any time. No one is told you muted them.';
+
+  @override
+  String get safetyUnmute => 'Unmute';
+
+  @override
+  String safetyUnmuteUser(String name) {
+    return 'Unmute $name';
+  }
+
+  @override
+  String safetyUnmuted(String name) {
+    return '$name is unmuted';
+  }
 }

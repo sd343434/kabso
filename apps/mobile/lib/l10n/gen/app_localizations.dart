@@ -4201,6 +4201,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تم الحفظ'**
   String get privacySaved;
+
+  /// CP-007 settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحسابات المكتومة'**
+  String get safetyMutedAccounts;
+
+  /// CP-007 empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تكتم أحداً'**
+  String get safetyNoMuted;
+
+  /// CP-007 empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'من تكتمه يظهر هنا، ويمكنك إلغاء كتمه متى شئت. لا يعرف أحد أنك كتمته.'**
+  String get safetyNoMutedBody;
+
+  /// CP-007 action.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الكتم'**
+  String get safetyUnmute;
+
+  /// CP-007 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء كتم {name}'**
+  String safetyUnmuteUser(String name);
+
+  /// CP-007 snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي كتم {name}'**
+  String safetyUnmuted(String name);
 }
 
 class _AppLocalizationsDelegate

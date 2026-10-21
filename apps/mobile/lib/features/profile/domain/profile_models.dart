@@ -22,6 +22,10 @@ abstract class PublicProfile with _$PublicProfile {
     required bool isFollowing,
     required bool isSelf,
     required String? liveRoomId,
+
+    /// CP-007: the caller muted this user (never shown to them). Defaults
+    /// to false for previews built without it.
+    @Default(false) bool isMuted,
   }) = _PublicProfile;
 
   const new _();

@@ -2518,5 +2518,39 @@
   "privacySaved": "تم الحفظ",
   "@privacySaved": {
     "description": "KL-060 privacy."
+  },
+  "safetyMutedAccounts": "الحسابات المكتومة",
+  "@safetyMutedAccounts": {
+    "description": "CP-007 settings."
+  },
+  "safetyNoMuted": "لم تكتم أحداً",
+  "@safetyNoMuted": {
+    "description": "CP-007 empty."
+  },
+  "safetyNoMutedBody": "من تكتمه يظهر هنا، ويمكنك إلغاء كتمه متى شئت. لا يعرف أحد أنك كتمته.",
+  "@safetyNoMutedBody": {
+    "description": "CP-007 empty."
+  },
+  "safetyUnmute": "إلغاء الكتم",
+  "@safetyUnmute": {
+    "description": "CP-007 action."
+  },
+  "safetyUnmuteUser": "إلغاء كتم {name}",
+  "@safetyUnmuteUser": {
+    "description": "CP-007 menu.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyUnmuted": "أُلغي كتم {name}",
+  "@safetyUnmuted": {
+    "description": "CP-007 snack.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

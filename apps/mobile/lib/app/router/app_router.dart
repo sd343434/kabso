@@ -156,6 +156,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const BlockedAccountsScreen(),
       ),
       GoRoute(
+        path: AppRoutes.mutedAccounts,
+        builder: (_, _) => const MutedAccountsScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.hashtagPattern,
         builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
       ),

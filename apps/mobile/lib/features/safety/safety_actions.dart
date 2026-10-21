@@ -5,14 +5,17 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Feeds and grids reload after a block or mute changes what they hold.
+/// Feeds, grids and profiles (their mute state, CP-007) reload after a
+/// block or mute changes what they hold.
 void _refreshContent(WidgetRef ref) => ref
   ..invalidate(postsFeedProvider)
-  ..invalidate(profileGridPagesProvider);
+  ..invalidate(profileGridPagesProvider)
+  ..invalidate(publicProfileProvider);
 
 /// Asks, then blocks [username] (CONVENTIONS §11.7: neither side sees the
 /// other; follows both ways are removed and not restored by unblocking).
@@ -90,6 +93,25 @@ Future<void> muteUser(
         }
       },
     );
+  } on Object catch (e) {
+    if (context.mounted) {
+      KSnack.error(context, failureMessage(l10n, toAppFailure(e)));
+    }
+  }
+}
+
+/// Unmutes [username] (CP-007: offered where the profile says it is muted).
+Future<void> unmuteUser(
+  BuildContext context,
+  WidgetRef ref, {
+  required String username,
+  required String name,
+}) async {
+  final l10n = context.l10n;
+  try {
+    await ref.read(safetyRepositoryProvider).setMuted(username, muted: false);
+    _refreshContent(ref);
+    if (context.mounted) KSnack.success(context, l10n.safetyUnmuted(name));
   } on Object catch (e) {
     if (context.mounted) {
       KSnack.error(context, failureMessage(l10n, toAppFailure(e)));

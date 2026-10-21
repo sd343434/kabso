@@ -19,6 +19,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       isFollowing: json['isFollowing'] as bool,
       isSelf: json['isSelf'] as bool,
       liveRoomId: json['liveRoomId'] as String?,
+      isMuted: json['isMuted'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -34,6 +35,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'isFollowing': instance.isFollowing,
       'isSelf': instance.isSelf,
       'liveRoomId': instance.liveRoomId,
+      'isMuted': instance.isMuted,
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(

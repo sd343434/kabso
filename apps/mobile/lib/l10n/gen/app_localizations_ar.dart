@@ -2417,4 +2417,27 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get privacySaved => 'تم الحفظ';
+
+  @override
+  String get safetyMutedAccounts => 'الحسابات المكتومة';
+
+  @override
+  String get safetyNoMuted => 'لم تكتم أحداً';
+
+  @override
+  String get safetyNoMutedBody =>
+      'من تكتمه يظهر هنا، ويمكنك إلغاء كتمه متى شئت. لا يعرف أحد أنك كتمته.';
+
+  @override
+  String get safetyUnmute => 'إلغاء الكتم';
+
+  @override
+  String safetyUnmuteUser(String name) {
+    return 'إلغاء كتم $name';
+  }
+
+  @override
+  String safetyUnmuted(String name) {
+    return 'أُلغي كتم $name';
+  }
 }

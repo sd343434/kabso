@@ -71,6 +71,9 @@ abstract final class AppRoutes {
   static const privacy = '/settings/privacy';
   static const blockedAccounts = '/settings/blocked';
 
+  /// CP-007: muted accounts.
+  static const mutedAccounts = '/settings/muted';
+
   /// D72: the caller's four levels (CP-005), pushed above the shell.
   static const levels = '/levels';
   static const levelPattern = '/levels/:category';

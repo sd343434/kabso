@@ -27,6 +27,7 @@ class SettingsScreen extends ConsumerWidget {
   static const levelsKey = Key('settings.levels');
   static const privacyKey = Key('settings.privacy');
   static const blockedKey = Key('settings.blocked');
+  static const mutedKey = Key('settings.muted');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -117,6 +118,13 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(l10n.safetyBlockedAccounts),
             onTap: () =>
                 GoRouter.maybeOf(context)?.push(AppRoutes.blockedAccounts),
+          ),
+          ListTile(
+            key: mutedKey,
+            leading: const Icon(Icons.volume_off_outlined),
+            title: Text(l10n.safetyMutedAccounts),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.mutedAccounts),
           ),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),

@@ -52,6 +52,9 @@ abstract interface class SafetyRepository {
   /// `GET /me/blocks`: the accounts the caller blocked, newest first.
   Future<PageOf<UserSummary>> blocks({String? cursor});
 
+  /// `GET /me/mutes` (CP-007): the accounts the caller muted, newest first.
+  Future<PageOf<UserSummary>> mutes({String? cursor});
+
   /// `POST /reports` for a user.
   Future<void> reportUser(String userId, ReportReason reason);
 
@@ -90,11 +93,10 @@ class SafetyRepositoryImpl implements SafetyRepository {
         return res.data!['muted']! as bool;
       });
 
-  @override
-  Future<PageOf<UserSummary>> blocks({String? cursor}) =>
+  Future<PageOf<UserSummary>> _users(String path, String? cursor) =>
       guardApiCall(() async {
         final res = await _dio.get<Map<String, dynamic>>(
-          '/me/blocks',
+          path,
           queryParameters: {'cursor': ?cursor},
         );
         final body = res.data!;
@@ -103,6 +105,14 @@ class SafetyRepositoryImpl implements SafetyRepository {
             UserSummary.fromJson(u as Map<String, dynamic>),
         ], PageInfo.fromJson(body['page']! as Map<String, dynamic>));
       });
+
+  @override
+  Future<PageOf<UserSummary>> blocks({String? cursor}) =>
+      _users('/me/blocks', cursor);
+
+  @override
+  Future<PageOf<UserSummary>> mutes({String? cursor}) =>
+      _users('/me/mutes', cursor);
 
   @override
   Future<void> reportUser(String userId, ReportReason reason) => guardApiCall(

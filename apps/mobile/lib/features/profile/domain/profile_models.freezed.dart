@@ -16,7 +16,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PublicProfile {
 
- String get id; String get username; String get displayName; String? get avatarUrl; String? get bio; bool get isPrivate; int get followerCount; int get followingCount; bool get isFollowing; bool get isSelf; String? get liveRoomId;
+ String get id; String get username; String get displayName; String? get avatarUrl; String? get bio; bool get isPrivate; int get followerCount; int get followingCount; bool get isFollowing; bool get isSelf; String? get liveRoomId;/// CP-007: the caller muted this user (never shown to them). Defaults
+/// to false for previews built without it.
+ bool get isMuted;
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +32,20 @@ $PublicProfileCopyWith<PublicProfile> get copyWith => _$PublicProfileCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as PublicProfile;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PublicProfile&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.isSelf, _this.isSelf) || other.isSelf == _this.isSelf)&&(identical(other.liveRoomId, _this.liveRoomId) || other.liveRoomId == _this.liveRoomId)&&(identical(other.isMuted, _this.isMuted) || other.isMuted == _this.isMuted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as PublicProfile;
-  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId);
+  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.bio,_this.isPrivate,_this.followerCount,_this.followingCount,_this.isFollowing,_this.isSelf,_this.liveRoomId,_this.isMuted);
 }
 
 @override
 String toString() {
   final _this = this as PublicProfile;
-  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId})';
+  return 'PublicProfile(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, bio: ${_this.bio}, isPrivate: ${_this.isPrivate}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, isFollowing: ${_this.isFollowing}, isSelf: ${_this.isSelf}, liveRoomId: ${_this.liveRoomId}, isMuted: ${_this.isMuted})';
 }
 
 
@@ -54,7 +56,7 @@ abstract mixin class $PublicProfileCopyWith<$Res>  {
   factory $PublicProfileCopyWith(PublicProfile value, $Res Function(PublicProfile) _then) = _$PublicProfileCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted
 });
 
 
@@ -71,7 +73,7 @@ class _$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,}) {
   return _then(PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -84,7 +86,8 @@ as int,followingCount: null == followingCount ? _self.followingCount : following
 as int,isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,isSelf: null == isSelf ? _self.isSelf : isSelf // ignore: cast_nullable_to_non_nullable
 as bool,liveRoomId: freezed == liveRoomId ? _self.liveRoomId : liveRoomId // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -169,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted);case _:
   return orElse();
 
 }
@@ -190,10 +193,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted)  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile():
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +213,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl,  String? bio,  bool isPrivate,  int followerCount,  int followingCount,  bool isFollowing,  bool isSelf,  String? liveRoomId,  bool isMuted)?  $default,) {final _that = this;
 switch (_that) {
 case _PublicProfile() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.bio,_that.isPrivate,_that.followerCount,_that.followingCount,_that.isFollowing,_that.isSelf,_that.liveRoomId,_that.isMuted);case _:
   return null;
 
 }
@@ -225,7 +228,7 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.
 @JsonSerializable()
 
 class _PublicProfile extends PublicProfile {
-  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId}): super._();
+  const _PublicProfile({required this.id, required this.username, required this.displayName, required this.avatarUrl, required this.bio, required this.isPrivate, required this.followerCount, required this.followingCount, required this.isFollowing, required this.isSelf, required this.liveRoomId, this.isMuted = false}): super._();
   factory _PublicProfile.fromJson(Map<String, dynamic> json) => _$PublicProfileFromJson(json);
 
 @override final  String id;
@@ -239,6 +242,9 @@ class _PublicProfile extends PublicProfile {
 @override final  bool isFollowing;
 @override final  bool isSelf;
 @override final  String? liveRoomId;
+/// CP-007: the caller muted this user (never shown to them). Defaults
+/// to false for previews built without it.
+@override@JsonKey() final  bool isMuted;
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
@@ -253,18 +259,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PublicProfile&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.isSelf, isSelf) || other.isSelf == isSelf)&&(identical(other.liveRoomId, liveRoomId) || other.liveRoomId == liveRoomId)&&(identical(other.isMuted, isMuted) || other.isMuted == isMuted));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId);
+    return Object.hash(runtimeType,id,username,displayName,avatarUrl,bio,isPrivate,followerCount,followingCount,isFollowing,isSelf,liveRoomId,isMuted);
 }
 
 @override
 String toString() {
-    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId)';
+    return 'PublicProfile(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, bio: $bio, isPrivate: $isPrivate, followerCount: $followerCount, followingCount: $followingCount, isFollowing: $isFollowing, isSelf: $isSelf, liveRoomId: $liveRoomId, isMuted: $isMuted)';
 }
 
 
@@ -275,7 +281,7 @@ abstract mixin class _$PublicProfileCopyWith<$Res> implements $PublicProfileCopy
   factory _$PublicProfileCopyWith(_PublicProfile value, $Res Function(_PublicProfile) _then) = __$PublicProfileCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId
+ String id, String username, String displayName, String? avatarUrl, String? bio, bool isPrivate, int followerCount, int followingCount, bool isFollowing, bool isSelf, String? liveRoomId, bool isMuted
 });
 
 
@@ -292,7 +298,7 @@ class __$PublicProfileCopyWithImpl<$Res>
 
 /// Create a copy of PublicProfile
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? bio = freezed,Object? isPrivate = null,Object? followerCount = null,Object? followingCount = null,Object? isFollowing = null,Object? isSelf = null,Object? liveRoomId = freezed,Object? isMuted = null,}) {
   return _then(_PublicProfile(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
@@ -305,7 +311,8 @@ as int,followingCount: null == followingCount ? _self.followingCount : following
 as int,isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,isSelf: null == isSelf ? _self.isSelf : isSelf // ignore: cast_nullable_to_non_nullable
 as bool,liveRoomId: freezed == liveRoomId ? _self.liveRoomId : liveRoomId // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,isMuted: null == isMuted ? _self.isMuted : isMuted // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

@@ -51,6 +51,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const copyLinkKey = Key('profile.public.copyLink');
   static const reportKey = Key('profile.public.report');
   static const muteKey = Key('profile.public.mute');
+  static const unmuteKey = Key('profile.public.unmute');
   static const blockKey = Key('profile.public.block');
   static const unfollowKey = Key('profile.public.unfollow');
   static const privateKey = Key('profile.public.private');
@@ -63,7 +64,7 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
       _PublicProfileScreenState();
 }
 
-enum _More { copy, mute, block, report }
+enum _More { copy, mute, unmute, block, report }
 
 class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
   ProfileTab _tab = ProfileTab.posts;
@@ -150,15 +151,27 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ),
               ),
               if (!profile.isSelf) ...[
-                ListTile(
-                  key: PublicProfileScreen.muteKey,
-                  leading: Icon(
-                    Icons.volume_off_outlined,
-                    color: p.textPrimary,
+                // CP-007: the profile says whether you muted them.
+                if (profile.isMuted)
+                  ListTile(
+                    key: PublicProfileScreen.unmuteKey,
+                    leading: Icon(
+                      Icons.volume_up_outlined,
+                      color: p.textPrimary,
+                    ),
+                    title: Text(l10n.safetyUnmuteUser(name)),
+                    onTap: () => Navigator.of(sheet).pop(_More.unmute),
+                  )
+                else
+                  ListTile(
+                    key: PublicProfileScreen.muteKey,
+                    leading: Icon(
+                      Icons.volume_off_outlined,
+                      color: p.textPrimary,
+                    ),
+                    title: Text(l10n.safetyMuteUser(name)),
+                    onTap: () => Navigator.of(sheet).pop(_More.mute),
                   ),
-                  title: Text(l10n.safetyMuteUser(name)),
-                  onTap: () => Navigator.of(sheet).pop(_More.mute),
-                ),
                 ListTile(
                   key: PublicProfileScreen.blockKey,
                   leading: Icon(Icons.block_rounded, color: p.error),
@@ -192,6 +205,8 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
         if (mounted) KSnack.success(context, l10n.profileCopied);
       case _More.mute:
         await muteUser(context, ref, username: profile.username, name: name);
+      case _More.unmute:
+        await unmuteUser(context, ref, username: profile.username, name: name);
       case _More.block:
         final blocked = await confirmBlock(
           context,

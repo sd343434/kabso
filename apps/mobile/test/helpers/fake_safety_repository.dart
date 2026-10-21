@@ -6,10 +6,17 @@ import 'package:kabso_live/features/safety/safety_repository.dart';
 /// [muted] usernames, [privacySettings]; [failWith] makes the next call throw;
 /// every call is recorded in [calls].
 class FakeSafetyRepository implements SafetyRepository {
-  new({List<UserSummary>? blockedUsers, this.pageSize = 20})
-    : blockedUsers = blockedUsers ?? [];
+  new({
+    List<UserSummary>? blockedUsers,
+    List<UserSummary>? mutedUsers,
+    this.pageSize = 20,
+  }) : blockedUsers = blockedUsers ?? [],
+       mutedUsers = mutedUsers ?? [];
 
   final List<UserSummary> blockedUsers;
+
+  /// What `GET /me/mutes` lists (newest first).
+  final List<UserSummary> mutedUsers;
   final Set<String> muted = {};
   final int pageSize;
   final List<String> calls = [];
@@ -37,20 +44,35 @@ class FakeSafetyRepository implements SafetyRepository {
   @override
   Future<bool> setMuted(String username, {required bool muted}) async {
     _step('mute:$username:$muted');
-    muted ? this.muted.add(username) : this.muted.remove(username);
+    if (muted) {
+      this.muted.add(username);
+    } else {
+      this.muted.remove(username);
+      mutedUsers.removeWhere((u) => u.username == username);
+    }
     return muted;
+  }
+
+  PageOf<UserSummary> _slice(List<UserSummary> all, String? cursor) {
+    final start = cursor == null ? 0 : int.parse(cursor);
+    final end = (start + pageSize).clamp(0, all.length);
+    final more = end < all.length;
+    return PageOf(
+      all.sublist(start, end),
+      PageInfo(nextCursor: more ? '$end' : null, hasMore: more),
+    );
   }
 
   @override
   Future<PageOf<UserSummary>> blocks({String? cursor}) async {
     _step('blocks:${cursor ?? ''}');
-    final start = cursor == null ? 0 : int.parse(cursor);
-    final end = (start + pageSize).clamp(0, blockedUsers.length);
-    final more = end < blockedUsers.length;
-    return PageOf(
-      blockedUsers.sublist(start, end),
-      PageInfo(nextCursor: more ? '$end' : null, hasMore: more),
-    );
+    return _slice(blockedUsers, cursor);
+  }
+
+  @override
+  Future<PageOf<UserSummary>> mutes({String? cursor}) async {
+    _step('mutes:${cursor ?? ''}');
+    return _slice(mutedUsers, cursor);
   }
 
   @override

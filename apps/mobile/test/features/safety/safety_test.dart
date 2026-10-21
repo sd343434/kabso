@@ -1,6 +1,6 @@
-// KL-060 part D3: block, mute and report of users, the blocked accounts
-// list and privacy settings (CONVENTIONS §11.7) — the wire calls, the
-// profile and post menus, and the two Settings screens.
+// KL-060 part D3: block, mute and report of users, the blocked and
+// (CP-007) muted accounts lists and privacy settings (CONVENTIONS §11.7):
+// the wire calls, the profile and post menus, and the Settings screens.
 
 import 'dart:async';
 
@@ -99,6 +99,24 @@ void main() {
           ),
         )
         ..on(
+          'GET',
+          '$base/me/mutes',
+          (_) => const FakeResponse(
+            200,
+            body: {
+              'data': [
+                {
+                  'id': 'u2',
+                  'username': 'loud',
+                  'displayName': 'Loud',
+                  'avatarUrl': null,
+                },
+              ],
+              'page': {'nextCursor': 'm2', 'hasMore': true},
+            },
+          ),
+        )
+        ..on(
           'POST',
           '$base/reports',
           (_) => const FakeResponse(201, body: {'id': 'r1'}),
@@ -129,6 +147,12 @@ void main() {
       expect(await repo.setBlocked('sam', blocked: false), isFalse);
       expect(await repo.setMuted('sam', muted: true), isTrue);
       expect((await repo.blocks()).items.single.username, 'sam');
+      final mutes = await repo.mutes(cursor: 'm1');
+      expect(mutes.items.single.username, 'loud');
+      expect(mutes.next, 'm2');
+      expect(http.requestsTo('GET', '$base/me/mutes').single.queryParameters, {
+        'cursor': 'm1',
+      });
       await repo.reportUser('u1', ReportReason.harassment);
       expect(http.requestsTo('POST', '$base/reports').single.data, {
         'targetType': 'USER',
@@ -153,6 +177,7 @@ void main() {
       String initial = '/settings',
       FakeSafetyRepository? safety,
       Widget? home,
+      bool muted = false,
       AppLanguage language = AppLanguage.en,
       GoldenViewport viewport = GoldenViewport.phone,
     }) async {
@@ -178,6 +203,10 @@ void main() {
             builder: (_, _) => const BlockedAccountsScreen(),
           ),
           GoRoute(
+            path: AppRoutes.mutedAccounts,
+            builder: (_, _) => const MutedAccountsScreen(),
+          ),
+          GoRoute(
             path: '/home',
             builder: (_, _) => Scaffold(body: ListView(children: [?home])),
           ),
@@ -198,7 +227,7 @@ void main() {
             safetyRepositoryProvider.overrideWithValue(s),
             postsRepositoryProvider.overrideWithValue(posts),
             profileRepositoryProvider.overrideWithValue(
-              FakeProfileRepository(apiProfile()),
+              FakeProfileRepository(apiProfile().copyWith(isMuted: muted)),
             ),
             profileGridProvider.overrideWith(
               (ref, _) => const FeedItems<ProfileGridItem>([]),
@@ -263,6 +292,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(safety.calls, contains('block:host0:true'));
       expect(router.state.uri.path, '/start');
+    });
+
+    testWidgets('CP-007: a muted profile offers Unmute instead of Mute', (
+      tester,
+    ) async {
+      final (safety, _, _) = await pump(
+        tester,
+        initial: AppRoutes.userProfile('host0'),
+        muted: true,
+      );
+      await tester.tap(find.byKey(PublicProfileScreen.moreKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(PublicProfileScreen.muteKey), findsNothing);
+      await tester.tap(find.byKey(PublicProfileScreen.unmuteKey));
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('mute:host0:false'));
+      expect(find.text(_en.safetyUnmuted('Sara')), findsOneWidget);
+    });
+
+    testWidgets('CP-007: muted accounts from Settings; Unmute removes them; '
+        'none says so', (tester) async {
+      final safety = FakeSafetyRepository(
+        mutedUsers: [_user('loud'), _user('busy')],
+      );
+      final (_, _, router) = await pump(tester, safety: safety);
+      await tester.tap(find.byKey(SettingsScreen.mutedKey));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, AppRoutes.mutedAccounts);
+      expect(safety.calls, contains('mutes:'));
+      expect(find.text('LOUD'), findsOneWidget);
+      await tester.tap(find.byKey(MutedAccountsScreen.unmuteKey('loud')));
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('mute:loud:false'));
+      expect(find.text('LOUD'), findsNothing);
+      expect(find.text(_en.safetyUnmuted('LOUD')), findsOneWidget);
+      await tester.tap(find.byKey(MutedAccountsScreen.unmuteKey('busy')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(MutedAccountsScreen.emptyKey), findsOneWidget);
+      expect(find.text(_en.safetyNoMuted), findsOneWidget);
     });
 
     testWidgets('post menu: mute the author', (tester) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show AsyncNotifierProviderFamily;
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
@@ -166,15 +167,31 @@ class PrivacyScreen extends ConsumerWidget {
   }
 }
 
-/// The accounts the caller blocked (`GET /me/blocks`), paged, with
-/// Unblock.
-class BlockedAccounts extends AsyncNotifier<FeedItems<UserSummary>> {
+/// Which safety list: blocked (`GET /me/blocks`) or muted (`GET /me/mutes`,
+/// CP-007) accounts.
+enum SafetyList { blocked, muted }
+
+/// The accounts the caller blocked or muted, newest first, paged, with
+/// Unblock / Unmute.
+class SafetyAccounts extends AsyncNotifier<FeedItems<UserSummary>> {
+  new(this.kind);
+
+  final SafetyList kind;
   String? _next;
+
+  Future<PageOf<UserSummary>> _page(String? cursor) {
+    final repo = ref.read(safetyRepositoryProvider);
+    return kind == SafetyList.blocked
+        ? repo.blocks(cursor: cursor)
+        : repo.mutes(cursor: cursor);
+  }
 
   @override
   Future<FeedItems<UserSummary>> build() async {
-    ref.watch(currentUserProvider.select((u) => u?.id));
-    final page = await ref.watch(safetyRepositoryProvider).blocks();
+    ref
+      ..watch(currentUserProvider.select((u) => u?.id))
+      ..watch(safetyRepositoryProvider);
+    final page = await _page(null);
     _next = page.next;
     return FeedItems(page.items, hasMore: _next != null);
   }
@@ -184,9 +201,7 @@ class BlockedAccounts extends AsyncNotifier<FeedItems<UserSummary>> {
     if (s == null || !s.hasMore || s.loadingMore) return;
     state = AsyncData(FeedItems(s.items, hasMore: true, loadingMore: true));
     try {
-      final page = await ref
-          .read(safetyRepositoryProvider)
-          .blocks(cursor: _next);
+      final page = await _page(_next);
       if (!ref.mounted) return;
       _next = page.next;
       final known = {for (final u in s.items) u.id};
@@ -203,12 +218,14 @@ class BlockedAccounts extends AsyncNotifier<FeedItems<UserSummary>> {
     }
   }
 
-  /// Unblocks [user] (follows are not restored) and drops them from the
-  /// list; throws its `AppFailure` and keeps them when it fails.
-  Future<void> unblock(UserSummary user) async {
-    await ref
-        .read(safetyRepositoryProvider)
-        .setBlocked(user.username, blocked: false);
+  /// Unblocks or unmutes [user] (an unblock does not restore follows) and
+  /// drops them from the list; throws its `AppFailure` and keeps them when
+  /// it fails.
+  Future<void> undo(UserSummary user) async {
+    final repo = ref.read(safetyRepositoryProvider);
+    await (kind == SafetyList.blocked
+        ? repo.setBlocked(user.username, blocked: false)
+        : repo.setMuted(user.username, muted: false));
     ref.invalidate(postsFeedProvider);
     final s = state.value;
     if (s == null || !ref.mounted) return;
@@ -221,33 +238,68 @@ class BlockedAccounts extends AsyncNotifier<FeedItems<UserSummary>> {
   }
 }
 
-final AsyncNotifierProvider<BlockedAccounts, FeedItems<UserSummary>>
-blockedAccountsProvider =
-    AsyncNotifierProvider.autoDispose<BlockedAccounts, FeedItems<UserSummary>>(
-      BlockedAccounts.new,
-    );
+final AsyncNotifierProviderFamily<
+  SafetyAccounts,
+  FeedItems<UserSummary>,
+  SafetyList
+>
+safetyAccountsProvider = AsyncNotifierProvider.autoDispose.family(
+  SafetyAccounts.new,
+);
 
 /// `/settings/blocked` (KL-060): who you blocked, newest first; Unblock
 /// asks nothing (blocking again is one tap away on their profile).
-class BlockedAccountsScreen extends ConsumerWidget {
+class BlockedAccountsScreen extends StatelessWidget {
   const new({super.key});
 
   static const emptyKey = Key('blocked.empty');
   static Key unblockKey(String username) => Key('blocked.$username.unblock');
 
   @override
+  Widget build(BuildContext context) =>
+      const _SafetyAccountsScreen(kind: SafetyList.blocked);
+}
+
+/// `/settings/muted` (CP-007): who you muted, newest first, with Unmute.
+class MutedAccountsScreen extends StatelessWidget {
+  const new({super.key});
+
+  static const emptyKey = Key('muted.empty');
+  static Key unmuteKey(String username) => Key('muted.$username.unmute');
+
+  @override
+  Widget build(BuildContext context) =>
+      const _SafetyAccountsScreen(kind: SafetyList.muted);
+}
+
+class _SafetyAccountsScreen extends ConsumerWidget {
+  const new({required this.kind});
+
+  final SafetyList kind;
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final blocked = ref.watch(blockedAccountsProvider);
+    final blocked = kind == SafetyList.blocked;
+    final provider = safetyAccountsProvider(kind);
+    final list = ref.watch(provider);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.safetyBlockedAccounts)),
-      body: switch (blocked) {
+      appBar: AppBar(
+        title: Text(
+          blocked ? l10n.safetyBlockedAccounts : l10n.safetyMutedAccounts,
+        ),
+      ),
+      body: switch (list) {
         AsyncValue(value: FeedItems(:final items)) when items.isEmpty =>
           KEmptyState(
-            key: emptyKey,
-            icon: Icons.block_rounded,
-            title: l10n.safetyNoBlocked,
-            message: l10n.safetyNoBlockedBody,
+            key: blocked
+                ? BlockedAccountsScreen.emptyKey
+                : MutedAccountsScreen.emptyKey,
+            icon: blocked ? Icons.block_rounded : Icons.volume_off_outlined,
+            title: blocked ? l10n.safetyNoBlocked : l10n.safetyNoMuted,
+            message: blocked
+                ? l10n.safetyNoBlockedBody
+                : l10n.safetyNoMutedBody,
           ),
         AsyncValue(value: FeedItems(:final items, :final hasMore)) =>
           ListView.builder(
@@ -256,8 +308,7 @@ class BlockedAccountsScreen extends ConsumerWidget {
               if (i == items.length) {
                 return PostGridLoadMore(
                   key: ValueKey(items.length),
-                  onVisible: () =>
-                      ref.read(blockedAccountsProvider.notifier).loadMore(),
+                  onVisible: () => ref.read(provider.notifier).loadMore(),
                 );
               }
               final u = items[i];
@@ -276,15 +327,20 @@ class BlockedAccountsScreen extends ConsumerWidget {
                       : TextAlign.left,
                 ),
                 trailing: OutlinedButton(
-                  key: unblockKey(u.username),
+                  key: blocked
+                      ? BlockedAccountsScreen.unblockKey(u.username)
+                      : MutedAccountsScreen.unmuteKey(u.username),
                   style: profileSecondaryButtonStyle(context),
                   onPressed: () async {
                     try {
-                      await ref
-                          .read(blockedAccountsProvider.notifier)
-                          .unblock(u);
+                      await ref.read(provider.notifier).undo(u);
                       if (context.mounted) {
-                        KSnack.success(context, l10n.safetyUnblocked(name));
+                        KSnack.success(
+                          context,
+                          blocked
+                              ? l10n.safetyUnblocked(name)
+                              : l10n.safetyUnmuted(name),
+                        );
                       }
                     } on Object catch (e) {
                       if (context.mounted) {
@@ -295,7 +351,7 @@ class BlockedAccountsScreen extends ConsumerWidget {
                       }
                     }
                   },
-                  child: Text(l10n.safetyUnblock),
+                  child: Text(blocked ? l10n.safetyUnblock : l10n.safetyUnmute),
                 ),
                 onTap: () => context.push(AppRoutes.userProfile(u.username)),
               );
@@ -304,7 +360,7 @@ class BlockedAccountsScreen extends ConsumerWidget {
         AsyncError(:final error) => FailureErrorState(
           title: l10n.errorTitle,
           failure: toAppFailure(error),
-          onRetry: () => ref.invalidate(blockedAccountsProvider),
+          onRetry: () => ref.invalidate(provider),
         ),
         _ => const Center(child: CircularProgressIndicator()),
       },
