@@ -14,6 +14,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -32,13 +33,15 @@ import 'package:material_ui/material_ui.dart';
 ///   each keeps its scroll position (and each reels pager its page), and
 ///   its provider is not re-fetched on a switch. Switching is by tap only,
 ///   so nothing competes with vertical scrolling or the reels pager.
-/// - Posts are flat and full width (D54), under the stories tray (drawn
-///   only when the stories source has items). Reels are full-bleed and
+/// - Posts are flat and full width (D54), under the stories tray (CP-008:
+///   your entry first — open your stories or add one — then followed
+///   accounts; a ring opens the story viewer). Reels are full-bleed and
 ///   dark; the header floats over the video on a scrim with light
 ///   status-bar icons.
-/// - There is no posts, stories or reels API yet, so each mode shows its
-///   own honest unavailable state with a real way forward ("Watch live
-///   streams" opens Home, the live hub). No content is invented (D39).
+/// - Posts and stories come from their APIs (KL-060, CP-008); reels have
+///   no API before M2, so that mode shows its honest unavailable state
+///   with a real way forward ("Watch live streams" opens Home, the live
+///   hub). No content is invented (D39).
 class FeedScreen extends StatefulWidget {
   const new({
     super.key,
@@ -313,6 +316,7 @@ class _PostsPage extends ConsumerWidget {
       ),
       onRefresh: () {
         ref
+          ..invalidate(storyTrayProvider)
           ..invalidate(homeStoriesProvider)
           ..invalidate(postsFeedProvider(feed));
         return ref.refresh(source.future);
@@ -333,7 +337,13 @@ class _PostsPage extends ConsumerWidget {
       itemsSliver: (posts) => SliverMainAxisGroup(
         slivers: [
           if (stories case FeedItems(:final items) when items.isNotEmpty)
-            SliverToBoxAdapter(child: FeedStoriesTray(stories: items)),
+            SliverToBoxAdapter(
+              child: FeedStoriesTray(
+                stories: items,
+                onOpen: (s) => context.push(AppRoutes.stories(s.username!)),
+                onAdd: () => context.push(AppRoutes.newStory),
+              ),
+            ),
           SliverPadding(
             padding: const EdgeInsets.only(
               top: KSpacing.xs,

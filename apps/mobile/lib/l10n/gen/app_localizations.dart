@@ -4597,6 +4597,168 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'مجدول: {when}'**
   String editPostScheduledBadge(String when);
+
+  /// Stories tray: the caller's own entry
+  ///
+  /// In ar, this message translates to:
+  /// **'قصتك'**
+  String get storyYourStory;
+
+  /// Stories tray: add a story (accessibility)
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف قصة'**
+  String get storyAdd;
+
+  /// Stories tray: open an account's stories (accessibility)
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض قصة {name}'**
+  String storyOpen(String name);
+
+  /// Story viewer: more button
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات القصة'**
+  String get storyMore;
+
+  /// Story viewer/new story: close
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق'**
+  String get storyClose;
+
+  /// Story viewer: delete own story
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف القصة'**
+  String get storyDelete;
+
+  /// Confirm deleting a story
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذه القصة؟'**
+  String get storyDeleteConfirm;
+
+  /// Message after deleting a story
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذفت القصة'**
+  String get storyDeleted;
+
+  /// Story viewer: report
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن القصة'**
+  String get storyReport;
+
+  /// Report reason sheet title for a story
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذه القصة؟'**
+  String get storyReportTitle;
+
+  /// Message after reporting a story
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، وصلنا البلاغ'**
+  String get storyReported;
+
+  /// Story photo accessibility label
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة {name}'**
+  String storyPhotoOf(String name);
+
+  /// Who saw a story: count
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا مشاهدات} =1{مشاهدة واحدة} =2{مشاهدتان} few{{count} مشاهدات} many{{count} مشاهدة} other{{count} مشاهدة}}'**
+  String storyViewCount(int count);
+
+  /// Story viewers empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يشاهدها أحد بعد'**
+  String get storyNoViewers;
+
+  /// Story viewers empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر هنا من يشاهد قصتك خلال 48 ساعة من نشرها.'**
+  String get storyNoViewersBody;
+
+  /// New story screen title
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة جديدة'**
+  String get storyNewTitle;
+
+  /// New story screen explanation
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة واحدة تبقى 24 ساعة، ويمكنك إضافة نص قصير.'**
+  String get storyNewBody;
+
+  /// New story: pick a photo
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر صورة'**
+  String get storyPickPhoto;
+
+  /// New story: change the photo
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الصورة'**
+  String get storyChangePhoto;
+
+  /// New story: share action
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك'**
+  String get storyShare;
+
+  /// Message after posting a story
+  ///
+  /// In ar, this message translates to:
+  /// **'نُشرت قصتك'**
+  String get storyShared;
+
+  /// New story: text hint
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف نصاً (اختياري)'**
+  String get storyTextHint;
+
+  /// New story: preview accessibility
+  ///
+  /// In ar, this message translates to:
+  /// **'معاينة القصة'**
+  String get storyPreview;
+
+  /// Story archive screen and settings tile
+  ///
+  /// In ar, this message translates to:
+  /// **'أرشيف القصص'**
+  String get storyArchiveTitle;
+
+  /// Story archive empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لا قصص بعد'**
+  String get storyArchiveEmpty;
+
+  /// Story archive empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحفظ قصصك هنا بعد انتهائها، ولا يراها غيرك.'**
+  String get storyArchiveEmptyBody;
+
+  /// Story archive cell accessibility
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة {date}'**
+  String storyArchiveCell(String date);
 }
 
 class _AppLocalizationsDelegate

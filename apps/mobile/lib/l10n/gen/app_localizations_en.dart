@@ -2613,4 +2613,102 @@ class AppLocalizationsEn extends AppLocalizations {
   String editPostScheduledBadge(String when) {
     return 'Scheduled: $when';
   }
+
+  @override
+  String get storyYourStory => 'Your story';
+
+  @override
+  String get storyAdd => 'Add a story';
+
+  @override
+  String storyOpen(String name) {
+    return 'Open $name\'s story';
+  }
+
+  @override
+  String get storyMore => 'Story options';
+
+  @override
+  String get storyClose => 'Close';
+
+  @override
+  String get storyDelete => 'Delete story';
+
+  @override
+  String get storyDeleteConfirm => 'Delete this story?';
+
+  @override
+  String get storyDeleted => 'Story deleted';
+
+  @override
+  String get storyReport => 'Report story';
+
+  @override
+  String get storyReportTitle => 'Why are you reporting this story?';
+
+  @override
+  String get storyReported => 'Thanks, we got your report';
+
+  @override
+  String storyPhotoOf(String name) {
+    return '$name\'s story';
+  }
+
+  @override
+  String storyViewCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count views',
+      one: '$count view',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storyNoViewers => 'No views yet';
+
+  @override
+  String get storyNoViewersBody =>
+      'People who view your story appear here for 48 hours after you post it.';
+
+  @override
+  String get storyNewTitle => 'New story';
+
+  @override
+  String get storyNewBody =>
+      'One photo that stays for 24 hours, with an optional short text.';
+
+  @override
+  String get storyPickPhoto => 'Choose a photo';
+
+  @override
+  String get storyChangePhoto => 'Change photo';
+
+  @override
+  String get storyShare => 'Share';
+
+  @override
+  String get storyShared => 'Your story is up';
+
+  @override
+  String get storyTextHint => 'Add text (optional)';
+
+  @override
+  String get storyPreview => 'Story preview';
+
+  @override
+  String get storyArchiveTitle => 'Story archive';
+
+  @override
+  String get storyArchiveEmpty => 'No stories yet';
+
+  @override
+  String get storyArchiveEmptyBody =>
+      'Your stories are kept here after they end; only you can see them.';
+
+  @override
+  String storyArchiveCell(String date) {
+    return 'Story from $date';
+  }
 }

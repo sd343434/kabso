@@ -37,10 +37,13 @@ String? sniffImageType(Uint8List bytes) {
 ///
 /// Every method throws an `AppFailure`.
 abstract interface class MediaRepository {
-  /// Uploads one photo of type [contentType]; [onProgress] gets 0–1.
+  /// Uploads one photo of type [contentType] for a post, or with
+  /// [forStory] for a story (`STORY_IMAGE`, kept at 1 920 px, CP-008);
+  /// [onProgress] gets 0–1.
   Future<MediaAsset> uploadPhoto(
     Uint8List bytes,
     String contentType, {
+    bool forStory = false,
     void Function(double progress)? onProgress,
   });
 }
@@ -58,12 +61,13 @@ class MediaRepositoryImpl implements MediaRepository {
   Future<MediaAsset> uploadPhoto(
     Uint8List bytes,
     String contentType, {
+    bool forStory = false,
     void Function(double progress)? onProgress,
   }) => guardApiCall(() async {
     final slot = (await _api.post<Map<String, dynamic>>(
       '/media/uploads',
       data: {
-        'kind': 'POST_IMAGE',
+        'kind': forStory ? 'STORY_IMAGE' : 'POST_IMAGE',
         'contentType': contentType,
         'byteSize': bytes.length,
       },

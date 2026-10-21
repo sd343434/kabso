@@ -47,6 +47,9 @@ import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
+import 'package:kabso_live/features/stories/presentation/new_story_screen.dart';
+import 'package:kabso_live/features/stories/presentation/story_archive_screen.dart';
+import 'package:kabso_live/features/stories/presentation/story_viewer_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
 final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
@@ -167,6 +170,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
       ),
       GoRoute(path: AppRoutes.drafts, builder: (_, _) => const DraftsScreen()),
+      GoRoute(
+        path: AppRoutes.storiesPattern,
+        builder: (_, state) =>
+            StoryViewerScreen(username: state.pathParameters['username']!),
+      ),
+      GoRoute(
+        path: AppRoutes.newStory,
+        builder: (_, _) => const NewStoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.storyArchive,
+        builder: (_, _) => const StoryArchiveScreen(),
+      ),
       GoRoute(
         path: AppRoutes.editPostPattern,
         builder: (_, state) =>

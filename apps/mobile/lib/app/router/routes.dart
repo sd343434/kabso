@@ -45,6 +45,20 @@ abstract final class AppRoutes {
   /// The screen of post [postId].
   static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
 
+  /// CP-008: one account's stories, full screen (then the next accounts
+  /// of the tray).
+  static const storiesPattern = '/stories/:username';
+
+  /// The stories of [username].
+  static String stories(String username) =>
+      '/stories/${Uri.encodeComponent(username)}';
+
+  /// CP-008: post a photo story.
+  static const newStory = '/story/new';
+
+  /// CP-008: your story archive.
+  static const storyArchive = '/me/stories';
+
   /// KL-060: your drafts and scheduled posts.
   static const drafts = '/me/drafts';
 

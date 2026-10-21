@@ -19,6 +19,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
@@ -29,6 +30,8 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
+import 'package:kabso_live/features/stories/application/stories_controller.dart';
+import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -36,6 +39,7 @@ import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fake_stories_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -152,8 +156,8 @@ ScrollPosition _scroll(WidgetTester tester, HomeTab tab) => tester
     .position;
 
 void main() {
-  test('production providers are honest: stories and reels are '
-      'unavailable (no API yet)', () {
+  test('production providers are honest: reels are unavailable (no API '
+      'before M2)', () {
     final container = ProviderContainer.test();
     for (final feed in HomeFeed.values) {
       expect(
@@ -161,8 +165,38 @@ void main() {
         isA<FeedUnavailable<FeedReelData>>(),
       );
     }
+  });
+
+  test('CP-008: stories come from the stories API — your entry first ("add" '
+      'when you have none), then the tray in order; a failed tray is '
+      'unavailable, never fixtures', () async {
+    final stories = FakeStoriesRepository()
+      ..trayItems = [testTrayItem('sara'), testTrayItem('omar', unseen: false)];
+    final me = testUser();
+    final container = ProviderContainer.test(
+      retry: (_, _) => null,
+      overrides: [
+        storiesRepositoryProvider.overrideWithValue(stories),
+        currentUserProvider.overrideWithValue(me),
+      ],
+    )..listen(homeStoriesProvider, (_, _) {});
+    final load = await container.read(homeStoriesProvider.future);
+    final items = (load as FeedItems<FeedStoryData>).items;
+    expect([for (final s in items) s.username], [me.username, 'sara', 'omar']);
+    expect(items.first.isSelf, isTrue);
+    expect(items.first.hasStory, isFalse);
+    expect([for (final s in items) s.seen], [false, false, true]);
+
+    // Your own active story: your entry has a story.
+    stories.trayItems = [testTrayItem(me.username, id: me.id, unseen: false)];
+    container.invalidate(storyTrayProvider);
+    final mine = await container.read(homeStoriesProvider.future);
+    expect((mine as FeedItems<FeedStoryData>).items.single.hasStory, isTrue);
+
+    stories.failWith = const NetworkFailure.offline();
+    container.invalidate(storyTrayProvider);
     expect(
-      container.read(homeStoriesProvider).value,
+      await container.read(homeStoriesProvider.future),
       isA<FeedUnavailable<FeedStoryData>>(),
     );
   });

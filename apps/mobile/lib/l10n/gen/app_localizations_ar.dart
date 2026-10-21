@@ -2635,4 +2635,105 @@ class AppLocalizationsAr extends AppLocalizations {
   String editPostScheduledBadge(String when) {
     return 'مجدول: $when';
   }
+
+  @override
+  String get storyYourStory => 'قصتك';
+
+  @override
+  String get storyAdd => 'أضف قصة';
+
+  @override
+  String storyOpen(String name) {
+    return 'عرض قصة $name';
+  }
+
+  @override
+  String get storyMore => 'خيارات القصة';
+
+  @override
+  String get storyClose => 'إغلاق';
+
+  @override
+  String get storyDelete => 'حذف القصة';
+
+  @override
+  String get storyDeleteConfirm => 'حذف هذه القصة؟';
+
+  @override
+  String get storyDeleted => 'حُذفت القصة';
+
+  @override
+  String get storyReport => 'الإبلاغ عن القصة';
+
+  @override
+  String get storyReportTitle => 'لماذا تبلّغ عن هذه القصة؟';
+
+  @override
+  String get storyReported => 'شكراً، وصلنا البلاغ';
+
+  @override
+  String storyPhotoOf(String name) {
+    return 'قصة $name';
+  }
+
+  @override
+  String storyViewCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مشاهدة',
+      many: '$count مشاهدة',
+      few: '$count مشاهدات',
+      two: 'مشاهدتان',
+      one: 'مشاهدة واحدة',
+      zero: 'لا مشاهدات',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get storyNoViewers => 'لم يشاهدها أحد بعد';
+
+  @override
+  String get storyNoViewersBody =>
+      'يظهر هنا من يشاهد قصتك خلال 48 ساعة من نشرها.';
+
+  @override
+  String get storyNewTitle => 'قصة جديدة';
+
+  @override
+  String get storyNewBody => 'صورة واحدة تبقى 24 ساعة، ويمكنك إضافة نص قصير.';
+
+  @override
+  String get storyPickPhoto => 'اختر صورة';
+
+  @override
+  String get storyChangePhoto => 'تغيير الصورة';
+
+  @override
+  String get storyShare => 'شارك';
+
+  @override
+  String get storyShared => 'نُشرت قصتك';
+
+  @override
+  String get storyTextHint => 'أضف نصاً (اختياري)';
+
+  @override
+  String get storyPreview => 'معاينة القصة';
+
+  @override
+  String get storyArchiveTitle => 'أرشيف القصص';
+
+  @override
+  String get storyArchiveEmpty => 'لا قصص بعد';
+
+  @override
+  String get storyArchiveEmptyBody =>
+      'تُحفظ قصصك هنا بعد انتهائها، ولا يراها غيرك.';
+
+  @override
+  String storyArchiveCell(String date) {
+    return 'قصة $date';
+  }
 }

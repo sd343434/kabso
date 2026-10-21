@@ -10,6 +10,9 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 /// asset ids `a1`, `a2`, … unless [failWith] is set for the next call.
 class FakeMediaRepository implements MediaRepository {
   final List<String> uploads = [];
+
+  /// How many uploads were for stories.
+  int storyUploads = 0;
   Exception? failWith;
 
   /// Makes uploads wait until completed.
@@ -19,6 +22,7 @@ class FakeMediaRepository implements MediaRepository {
   Future<MediaAsset> uploadPhoto(
     Uint8List bytes,
     String contentType, {
+    bool forStory = false,
     void Function(double progress)? onProgress,
   }) async {
     if (gate case final g?) await g.future;
@@ -27,6 +31,7 @@ class FakeMediaRepository implements MediaRepository {
       throw e;
     }
     uploads.add(contentType);
+    if (forStory) storyUploads++;
     final id = 'a${uploads.length}';
     return MediaAsset(
       id: id,

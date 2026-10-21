@@ -28,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
   static const privacyKey = Key('settings.privacy');
   static const blockedKey = Key('settings.blocked');
   static const mutedKey = Key('settings.muted');
+  static const storyArchiveKey = Key('settings.storyArchive');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,6 +126,14 @@ class SettingsScreen extends ConsumerWidget {
             title: Text(l10n.safetyMutedAccounts),
             onTap: () =>
                 GoRouter.maybeOf(context)?.push(AppRoutes.mutedAccounts),
+          ),
+          // CP-008: your stories, active and expired (only you see them).
+          ListTile(
+            key: storyArchiveKey,
+            leading: const Icon(Icons.history_rounded),
+            title: Text(l10n.storyArchiveTitle),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.storyArchive),
           ),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),

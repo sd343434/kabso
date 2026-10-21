@@ -2825,5 +2825,133 @@
         "type": "String"
       }
     }
+  },
+  "storyYourStory": "قصتك",
+  "@storyYourStory": {
+    "description": "Stories tray: the caller's own entry"
+  },
+  "storyAdd": "أضف قصة",
+  "@storyAdd": {
+    "description": "Stories tray: add a story (accessibility)"
+  },
+  "storyOpen": "عرض قصة {name}",
+  "@storyOpen": {
+    "description": "Stories tray: open an account's stories (accessibility)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "storyMore": "خيارات القصة",
+  "@storyMore": {
+    "description": "Story viewer: more button"
+  },
+  "storyClose": "إغلاق",
+  "@storyClose": {
+    "description": "Story viewer/new story: close"
+  },
+  "storyDelete": "حذف القصة",
+  "@storyDelete": {
+    "description": "Story viewer: delete own story"
+  },
+  "storyDeleteConfirm": "حذف هذه القصة؟",
+  "@storyDeleteConfirm": {
+    "description": "Confirm deleting a story"
+  },
+  "storyDeleted": "حُذفت القصة",
+  "@storyDeleted": {
+    "description": "Message after deleting a story"
+  },
+  "storyReport": "الإبلاغ عن القصة",
+  "@storyReport": {
+    "description": "Story viewer: report"
+  },
+  "storyReportTitle": "لماذا تبلّغ عن هذه القصة؟",
+  "@storyReportTitle": {
+    "description": "Report reason sheet title for a story"
+  },
+  "storyReported": "شكراً، وصلنا البلاغ",
+  "@storyReported": {
+    "description": "Message after reporting a story"
+  },
+  "storyPhotoOf": "قصة {name}",
+  "@storyPhotoOf": {
+    "description": "Story photo accessibility label",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "storyViewCount": "{count, plural, =0{لا مشاهدات} =1{مشاهدة واحدة} =2{مشاهدتان} few{{count} مشاهدات} many{{count} مشاهدة} other{{count} مشاهدة}}",
+  "@storyViewCount": {
+    "description": "Who saw a story: count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "storyNoViewers": "لم يشاهدها أحد بعد",
+  "@storyNoViewers": {
+    "description": "Story viewers empty title"
+  },
+  "storyNoViewersBody": "يظهر هنا من يشاهد قصتك خلال 48 ساعة من نشرها.",
+  "@storyNoViewersBody": {
+    "description": "Story viewers empty body"
+  },
+  "storyNewTitle": "قصة جديدة",
+  "@storyNewTitle": {
+    "description": "New story screen title"
+  },
+  "storyNewBody": "صورة واحدة تبقى 24 ساعة، ويمكنك إضافة نص قصير.",
+  "@storyNewBody": {
+    "description": "New story screen explanation"
+  },
+  "storyPickPhoto": "اختر صورة",
+  "@storyPickPhoto": {
+    "description": "New story: pick a photo"
+  },
+  "storyChangePhoto": "تغيير الصورة",
+  "@storyChangePhoto": {
+    "description": "New story: change the photo"
+  },
+  "storyShare": "شارك",
+  "@storyShare": {
+    "description": "New story: share action"
+  },
+  "storyShared": "نُشرت قصتك",
+  "@storyShared": {
+    "description": "Message after posting a story"
+  },
+  "storyTextHint": "أضف نصاً (اختياري)",
+  "@storyTextHint": {
+    "description": "New story: text hint"
+  },
+  "storyPreview": "معاينة القصة",
+  "@storyPreview": {
+    "description": "New story: preview accessibility"
+  },
+  "storyArchiveTitle": "أرشيف القصص",
+  "@storyArchiveTitle": {
+    "description": "Story archive screen and settings tile"
+  },
+  "storyArchiveEmpty": "لا قصص بعد",
+  "@storyArchiveEmpty": {
+    "description": "Story archive empty title"
+  },
+  "storyArchiveEmptyBody": "تُحفظ قصصك هنا بعد انتهائها، ولا يراها غيرك.",
+  "@storyArchiveEmptyBody": {
+    "description": "Story archive empty body"
+  },
+  "storyArchiveCell": "قصة {date}",
+  "@storyArchiveCell": {
+    "description": "Story archive cell accessibility",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -2,11 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/stories/application/stories_controller.dart';
+import 'package:kabso_live/features/stories/domain/story_models.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The two modes of the Reels shell tab (D52): Posts (default) and Reels,
 /// switched by the header button next to Create.
@@ -53,14 +57,54 @@ final FutureProviderFamily<FeedLoad<FeedPostData>, HomeFeed> homePostsProvider =
       );
     });
 
-/// Stories above the posts. The tray is drawn only for non-empty items, so
-/// it is absent in production until a stories API exists.
+/// Stories above the posts (CP-008, `GET /feed/stories`): the caller's
+/// own entry first — their stories, or "Your story" to add one — then the
+/// followed accounts with active stories, unseen first. A failed tray
+/// loads as unavailable: it never hides the posts.
 final FutureProvider<FeedLoad<FeedStoryData>> homeStoriesProvider =
-    FutureProvider(
-      (ref) => watchDemo(ref)
-          ? DemoData.stories(ar: DemoData.arabic(ref))
-          : const FeedUnavailable<FeedStoryData>(),
-    );
+    FutureProvider((ref) async {
+      if (watchDemo(ref)) return DemoData.stories(ar: DemoData.arabic(ref));
+      final me = ref.watch(currentUserProvider);
+      final List<StoryTrayItem> tray;
+      try {
+        tray = await ref.watch(storyTrayProvider.future);
+      } on Object {
+        return const FeedUnavailable<FeedStoryData>();
+      }
+      FeedStoryData entry(StoryTrayItem i) => FeedStoryData(
+        authorName: i.user.displayName.isEmpty
+            ? i.user.username
+            : i.user.displayName,
+        authorAvatar: switch (i.user.avatarUrl) {
+          final url? => NetworkImage(url),
+          null => null,
+        },
+        seen: !i.hasUnseen,
+        username: i.user.username,
+        isSelf: i.user.id == me?.id,
+      );
+      final own = [
+        for (final i in tray)
+          if (i.user.id == me?.id) entry(i),
+      ];
+      return FeedItems([
+        if (own.isNotEmpty)
+          ...own
+        else if (me != null)
+          FeedStoryData(
+            authorName: me.displayName.isEmpty ? me.username : me.displayName,
+            authorAvatar: switch (me.avatarUrl) {
+              final url? => NetworkImage(url),
+              null => null,
+            },
+            username: me.username,
+            isSelf: true,
+            hasStory: false,
+          ),
+        for (final i in tray)
+          if (i.user.id != me?.id) entry(i),
+      ]);
+    });
 
 /// Reels: full-screen vertical short videos, per [HomeFeed].
 final FutureProviderFamily<FeedLoad<FeedReelData>, HomeFeed> homeReelsProvider =

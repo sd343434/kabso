@@ -10,12 +10,14 @@ import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
+import 'package:kabso_live/features/stories/data/stories_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_live_repository.dart';
 import 'fake_posts_repository.dart';
+import 'fake_stories_repository.dart';
 
 /// Shared preferences with an explicit language.
 Future<SharedPreferences> testPrefs({
@@ -57,6 +59,7 @@ Future<void> pumpKabsoApp(
         ),
         // Never the device plugin: Create offers the system picker.
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -107,6 +110,7 @@ Future<void> pumpScreen(
           postsRepository ?? FakePostsRepository(),
         ),
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         ...overrides,
       ],
       child: MaterialApp(
