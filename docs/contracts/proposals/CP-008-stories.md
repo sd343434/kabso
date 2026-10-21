@@ -92,8 +92,8 @@ StoryTrayItem:
 ### 4. Rules (new CONVENTIONS §11.9)
 
 - **Active** means not deleted and `expiresAt` is in the future. Expired stories leave every
-  list except the author's archive. A worker deletes their media 30 days after expiry, unless
-  they are kept in the archive. The archive keeps the media until the author deletes the story.
+  list except the author's archive, which keeps them (and their media) until the author deletes
+  the story. *(As applied: no expiry worker is needed, since every story stays in the archive.)*
 - **Visibility** follows the post rules (§11.2): the author is ACTIVE, there is no block in either
   direction, and the author is public or followed by the caller. Not visible → 404.
 - **Tray**:

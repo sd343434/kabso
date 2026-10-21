@@ -41,6 +41,8 @@
   a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
 - Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold
   (owner decision); harmful ones are handled by reports and expire after 24 hours.
+- Stories: deleting or removing a story is soft; its photo files stay in object storage (as for
+  deleted posts) until a purge job exists. Video stories (M2) and replies (M7) are not built.
 - App (KL-060 E1–E4): outside sharing is not offered, so `POST /posts/{id}/shares` is unused and
   the share count is display-only; sharing needs post links on a web domain (CP-006 Q7, M7).
 - App: views are recorded best effort — a batch that fails is dropped, and views still waiting
