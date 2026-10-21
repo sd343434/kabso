@@ -2440,4 +2440,47 @@ class AppLocalizationsAr extends AppLocalizations {
   String safetyUnmuted(String name) {
     return 'أُلغي كتم $name';
   }
+
+  @override
+  String get likersTitle => 'الإعجابات';
+
+  @override
+  String get likersOpen => 'عرض من أعجبه المنشور';
+
+  @override
+  String get likersEmpty => 'لا إعجابات بعد';
+
+  @override
+  String get likersEmptyBody => 'عندما يعجب أحد بهذا المنشور سيظهر هنا.';
+
+  @override
+  String get likersHiddenTitle => 'الإعجابات مخفية';
+
+  @override
+  String get likersHiddenBody =>
+      'أخفى صاحب المنشور عدد الإعجابات، فلا يرى القائمة غيره.';
+
+  @override
+  String get feedPostRepost => 'إعادة النشر';
+
+  @override
+  String get feedPostUnrepost => 'إلغاء إعادة النشر';
+
+  @override
+  String get feedPostReposted => 'أُعيد نشره لمتابعيك';
+
+  @override
+  String get feedPostUnreposted => 'أُلغيت إعادة النشر';
+
+  @override
+  String get feedPostRepostRefused => 'لا يمكن إعادة نشر هذا المنشور';
+
+  @override
+  String get profileReposts => 'إعادات النشر';
+
+  @override
+  String get profileNoReposts => 'لا إعادات نشر بعد';
+
+  @override
+  String get profileRepostsEmptyBody => 'المنشورات التي تُعاد نشرها تظهر هنا.';
 }

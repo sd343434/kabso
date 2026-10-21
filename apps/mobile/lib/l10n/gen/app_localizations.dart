@@ -4237,6 +4237,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أُلغي كتم {name}'**
   String safetyUnmuted(String name);
+
+  /// Title of the screen listing who liked a post
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات'**
+  String get likersTitle;
+
+  /// Accessibility label of a post's like count, which opens the likers
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض من أعجبه المنشور'**
+  String get likersOpen;
+
+  /// Likers list empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لا إعجابات بعد'**
+  String get likersEmpty;
+
+  /// Likers list empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يعجب أحد بهذا المنشور سيظهر هنا.'**
+  String get likersEmptyBody;
+
+  /// Likers list when the author hides like counts
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات مخفية'**
+  String get likersHiddenTitle;
+
+  /// Likers list hidden body
+  ///
+  /// In ar, this message translates to:
+  /// **'أخفى صاحب المنشور عدد الإعجابات، فلا يرى القائمة غيره.'**
+  String get likersHiddenBody;
+
+  /// Repost button label
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة النشر'**
+  String get feedPostRepost;
+
+  /// Repost button label when already reposted
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء إعادة النشر'**
+  String get feedPostUnrepost;
+
+  /// Message after reposting
+  ///
+  /// In ar, this message translates to:
+  /// **'أُعيد نشره لمتابعيك'**
+  String get feedPostReposted;
+
+  /// Message after undoing a repost
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغيت إعادة النشر'**
+  String get feedPostUnreposted;
+
+  /// Repost refused (own post or a private account)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إعادة نشر هذا المنشور'**
+  String get feedPostRepostRefused;
+
+  /// Profile Reposts tab label
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادات النشر'**
+  String get profileReposts;
+
+  /// Profile Reposts tab empty title
+  ///
+  /// In ar, this message translates to:
+  /// **'لا إعادات نشر بعد'**
+  String get profileNoReposts;
+
+  /// Profile Reposts tab empty body
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات التي تُعاد نشرها تظهر هنا.'**
+  String get profileRepostsEmptyBody;
 }
 
 class _AppLocalizationsDelegate

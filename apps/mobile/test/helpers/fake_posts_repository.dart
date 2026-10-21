@@ -100,6 +100,48 @@ class FakePostsRepository implements PostsRepository {
     return _slice(savedPosts, cursor);
   }
 
+  /// Reposts per username, and likers per post.
+  final Map<String, List<Post>> userRepostLists = {};
+  final Map<String, List<UserSummary>> postLikers = {};
+
+  /// Post ids whose likers answer 403 (like count hidden from others).
+  final Set<String> hiddenLikers = {};
+
+  /// Repost counts the server answers with (post id → count).
+  final Map<String, int> repostCounts = {};
+
+  @override
+  Future<PageOf<Post>> userReposts(String username, {String? cursor}) async {
+    await _step('userReposts:$username:${cursor ?? ''}');
+    if (hiddenProfiles.contains(username)) throw _notFound;
+    return _slice(userRepostLists[username] ?? const [], cursor);
+  }
+
+  @override
+  Future<RepostState> setReposted(
+    String postId, {
+    required bool reposted,
+  }) async {
+    await _step('repost:$postId:$reposted');
+    final n = (repostCounts[postId] ?? 0) + (reposted ? 1 : -1);
+    repostCounts[postId] = n < 0 ? 0 : n;
+    return (reposted: reposted, repostCount: repostCounts[postId]!);
+  }
+
+  @override
+  Future<PageOf<UserSummary>> likers(String postId, {String? cursor}) async {
+    await _step('likers:$postId:${cursor ?? ''}');
+    if (hiddenLikers.contains(postId)) {
+      throw const ServerFailure(
+        code: ErrorCode.authForbidden,
+        rawCode: 'AUTH_FORBIDDEN',
+        debugMessage: 'Hidden',
+        statusCode: 403,
+      );
+    }
+    return _slicePage(postLikers[postId] ?? const [], cursor);
+  }
+
   @override
   Future<LikeState> setLiked(String postId, {required bool liked}) async {
     await _step('like:$postId:$liked');
@@ -393,6 +435,8 @@ Post testPost(
   int likes = 0,
   bool liked = false,
   bool saved = false,
+  bool reposted = false,
+  int reposts = 0,
   bool isSelf = false,
   bool pending = false,
   int? likeCount,
@@ -431,11 +475,11 @@ Post testPost(
   likeCount: hideLikeCount ? likeCount : (likeCount ?? likes),
   commentCount: commentCount,
   shareCount: 1,
-  repostCount: 0,
+  repostCount: reposts,
   viewCount: 10,
   viewerHasLiked: liked,
   viewerHasSaved: saved,
-  viewerHasReposted: false,
+  viewerHasReposted: reposted,
   isSelf: isSelf,
   pinned: pinned,
   commentsEnabled: commentsEnabled,

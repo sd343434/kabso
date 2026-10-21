@@ -36,6 +36,8 @@ FeedPostData feedPostOf(Post post) {
     shares: post.shareCount,
     liked: post.viewerHasLiked,
     saved: post.viewerHasSaved,
+    reposted: post.viewerHasReposted,
+    reposts: post.repostCount,
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
     repostedBy: post.repostedBy?.displayName,

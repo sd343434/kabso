@@ -183,6 +183,9 @@ class PageOf<T> {
 /// `LikeState`.
 typedef LikeState = ({bool liked, int? likeCount});
 
+/// `RepostState`.
+typedef RepostState = ({bool reposted, int repostCount});
+
 /// The reasons of `ReportReason`.
 enum ReportReason {
   spam('SPAM'),

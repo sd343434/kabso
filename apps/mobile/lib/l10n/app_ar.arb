@@ -2552,5 +2552,61 @@
         "type": "String"
       }
     }
+  },
+  "likersTitle": "الإعجابات",
+  "@likersTitle": {
+    "description": "Title of the screen listing who liked a post"
+  },
+  "likersOpen": "عرض من أعجبه المنشور",
+  "@likersOpen": {
+    "description": "Accessibility label of a post's like count, which opens the likers"
+  },
+  "likersEmpty": "لا إعجابات بعد",
+  "@likersEmpty": {
+    "description": "Likers list empty title"
+  },
+  "likersEmptyBody": "عندما يعجب أحد بهذا المنشور سيظهر هنا.",
+  "@likersEmptyBody": {
+    "description": "Likers list empty body"
+  },
+  "likersHiddenTitle": "الإعجابات مخفية",
+  "@likersHiddenTitle": {
+    "description": "Likers list when the author hides like counts"
+  },
+  "likersHiddenBody": "أخفى صاحب المنشور عدد الإعجابات، فلا يرى القائمة غيره.",
+  "@likersHiddenBody": {
+    "description": "Likers list hidden body"
+  },
+  "feedPostRepost": "إعادة النشر",
+  "@feedPostRepost": {
+    "description": "Repost button label"
+  },
+  "feedPostUnrepost": "إلغاء إعادة النشر",
+  "@feedPostUnrepost": {
+    "description": "Repost button label when already reposted"
+  },
+  "feedPostReposted": "أُعيد نشره لمتابعيك",
+  "@feedPostReposted": {
+    "description": "Message after reposting"
+  },
+  "feedPostUnreposted": "أُلغيت إعادة النشر",
+  "@feedPostUnreposted": {
+    "description": "Message after undoing a repost"
+  },
+  "feedPostRepostRefused": "لا يمكن إعادة نشر هذا المنشور",
+  "@feedPostRepostRefused": {
+    "description": "Repost refused (own post or a private account)"
+  },
+  "profileReposts": "إعادات النشر",
+  "@profileReposts": {
+    "description": "Profile Reposts tab label"
+  },
+  "profileNoReposts": "لا إعادات نشر بعد",
+  "@profileNoReposts": {
+    "description": "Profile Reposts tab empty title"
+  },
+  "profileRepostsEmptyBody": "المنشورات التي تُعاد نشرها تظهر هنا.",
+  "@profileRepostsEmptyBody": {
+    "description": "Profile Reposts tab empty body"
   }
 }

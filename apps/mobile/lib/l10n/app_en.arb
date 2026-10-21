@@ -833,5 +833,19 @@
   "safetyNoMutedBody": "People you mute appear here; you can unmute them any time. No one is told you muted them.",
   "safetyUnmute": "Unmute",
   "safetyUnmuteUser": "Unmute {name}",
-  "safetyUnmuted": "{name} is unmuted"
+  "safetyUnmuted": "{name} is unmuted",
+  "likersTitle": "Likes",
+  "likersOpen": "Show who liked this",
+  "likersEmpty": "No likes yet",
+  "likersEmptyBody": "When someone likes this post, they appear here.",
+  "likersHiddenTitle": "Likes are hidden",
+  "likersHiddenBody": "The author hid the like count, so only they can see who liked it.",
+  "feedPostRepost": "Repost",
+  "feedPostUnrepost": "Undo repost",
+  "feedPostReposted": "Reposted to your followers",
+  "feedPostUnreposted": "Repost removed",
+  "feedPostRepostRefused": "This post can't be reposted",
+  "profileReposts": "Reposts",
+  "profileNoReposts": "No reposts yet",
+  "profileRepostsEmptyBody": "Posts reposted from this profile appear here."
 }

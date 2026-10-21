@@ -25,6 +25,18 @@ abstract interface class PostsRepository {
   /// `GET /me/saved`.
   Future<PageOf<Post>> saved({String? cursor});
 
+  /// `GET /users/{username}/reposts`: posts the user reposted, newest
+  /// repost first.
+  Future<PageOf<Post>> userReposts(String username, {String? cursor});
+
+  /// `PUT`/`DELETE /posts/{postId}/repost`. Own posts and posts of private
+  /// accounts cannot be reposted (400).
+  Future<RepostState> setReposted(String postId, {required bool reposted});
+
+  /// `GET /posts/{postId}/likes`: who liked it, newest first (403 for
+  /// others when the author hides the like count).
+  Future<PageOf<UserSummary>> likers(String postId, {String? cursor});
+
   /// `PUT`/`DELETE /posts/{postId}/like`.
   Future<LikeState> setLiked(String postId, {required bool liked});
 
@@ -148,6 +160,38 @@ class PostsRepositoryImpl implements PostsRepository {
   @override
   Future<PageOf<Post>> saved({String? cursor}) =>
       _page('/me/saved', {'cursor': cursor});
+
+  @override
+  Future<PageOf<Post>> userReposts(String username, {String? cursor}) =>
+      _page('/users/${pathSegment(username)}/reposts', {'cursor': cursor});
+
+  @override
+  Future<RepostState> setReposted(String postId, {required bool reposted}) =>
+      guardApiCall(() async {
+        final path = '/posts/${pathSegment(postId)}/repost';
+        final res = reposted
+            ? await _dio.put<Map<String, dynamic>>(path)
+            : await _dio.delete<Map<String, dynamic>>(path);
+        final body = res.data!;
+        return (
+          reposted: body['reposted']! as bool,
+          repostCount: body['repostCount']! as int,
+        );
+      });
+
+  @override
+  Future<PageOf<UserSummary>> likers(String postId, {String? cursor}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/posts/${pathSegment(postId)}/likes',
+          queryParameters: {'cursor': ?cursor},
+        );
+        final body = res.data!;
+        return PageOf([
+          for (final u in body['data']! as List<dynamic>)
+            UserSummary.fromJson(u as Map<String, dynamic>),
+        ], PageInfo.fromJson(body['page']! as Map<String, dynamic>));
+      });
 
   @override
   Future<LikeState> setLiked(String postId, {required bool liked}) =>

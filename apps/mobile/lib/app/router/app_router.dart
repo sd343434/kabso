@@ -38,6 +38,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/posts/presentation/likers_screen.dart';
 import 'package:kabso_live/features/posts/presentation/post_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -162,6 +163,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.hashtagPattern,
         builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
+      ),
+      GoRoute(
+        path: AppRoutes.postLikesPattern,
+        builder: (_, state) =>
+            LikersScreen(postId: state.pathParameters['postId']!),
       ),
       GoRoute(
         path: AppRoutes.postPattern,

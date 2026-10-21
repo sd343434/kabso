@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
@@ -41,6 +42,8 @@ class FeedPostData {
     this.postId,
     this.liked = false,
     this.saved = false,
+    this.reposted = false,
+    this.reposts = 0,
     this.isSelf = false,
     this.pendingModeration = false,
     this.repostedBy,
@@ -88,6 +91,10 @@ class FeedPostData {
   final String? postId;
   final bool liked;
   final bool saved;
+
+  /// The viewer reposted it, and how many did (`repostCount`).
+  final bool reposted;
+  final int reposts;
 
   /// The viewer wrote it (delete instead of hide/report).
   final bool isSelf;
@@ -147,8 +154,10 @@ abstract final class KPostCard {
 /// hide join the sheet when their APIs exist.
 ///
 /// For a real post (with a [FeedPostData.postId]) like, comment (the
-/// comments sheet) and save are buttons; share stays a count (no share
-/// API in M1). Previews without a post id are display only.
+/// comments sheet), repost (others' posts) and save are buttons, and the
+/// like count opens who liked it; share stays a count (outside sharing
+/// needs post links, CP-006 Q7). Previews without a post id are display
+/// only.
 class FeedPostTile extends StatelessWidget {
   const new({required this.post, super.key});
 
@@ -164,6 +173,8 @@ class FeedPostTile extends StatelessWidget {
   static const likeKey = Key('feed.post.like');
   static const commentKey = Key('feed.post.comment');
   static const saveKey = Key('feed.post.save');
+  static const repostKey = Key('feed.post.repost');
+  static const likersKey = Key('feed.post.likers');
   static const hideActionKey = Key('feed.post.more.hide');
   static const reportActionKey = Key('feed.post.more.report');
   static const deleteActionKey = Key('feed.post.more.delete');
@@ -857,11 +868,12 @@ class _Counts extends StatelessWidget {
   }
 }
 
-/// The action row of a real post: like (a button with its count; no count
-/// when the author hides it), the comment and share counts (shown, not yet
-/// buttons: comments and outside sharing arrive next), and save at the end.
-/// Like and save apply at once and are undone with a message when the API
-/// refuses; the counts then come from the server's answer.
+/// The action row of a real post: like (the heart toggles, its count opens
+/// who liked it; no count when the author hides it), comments (the
+/// sheet), repost (not on your own post; a private author's post is
+/// refused by the server), the share count, and save at the end. Like,
+/// repost and save apply at once and are undone with a message when the
+/// API refuses; the counts then come from the server's answer.
 class _Actions extends ConsumerStatefulWidget {
   const new({required this.postId, required this.post});
 
@@ -877,8 +889,54 @@ class _ActionsState extends ConsumerState<_Actions> {
   late int? _likes = widget.post.likes;
   late bool _saved = widget.post.saved;
   late int _comments = widget.post.comments ?? 0;
+  late bool _reposted = widget.post.reposted;
+  late int _reposts = widget.post.reposts;
   bool _liking = false;
   bool _saving = false;
+  bool _reposting = false;
+
+  Future<void> _toggleRepost() async {
+    if (_reposting) return;
+    final (before, beforeCount) = (_reposted, _reposts);
+    final next = !_reposted;
+    setState(() {
+      _reposting = true;
+      _reposted = next;
+      _reposts = (_reposts + (next ? 1 : -1)).clamp(0, 1 << 31);
+    });
+    try {
+      final state = await ref
+          .read(postsRepositoryProvider)
+          .setReposted(widget.postId, reposted: next);
+      if (!mounted) return;
+      setState(() {
+        _reposted = state.reposted;
+        _reposts = state.repostCount;
+      });
+      final l10n = context.l10n;
+      KSnack.success(
+        context,
+        state.reposted ? l10n.feedPostReposted : l10n.feedPostUnreposted,
+      );
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _reposted = before;
+        _reposts = beforeCount;
+      });
+      final failure = toAppFailure(e);
+      KSnack.error(
+        context,
+        failure is ServerFailure && failure.code == ErrorCode.validationFailed
+            ? context.l10n.feedPostRepostRefused
+            : failureMessage(context.l10n, failure),
+      );
+    } finally {
+      if (mounted) setState(() => _reposting = false);
+    }
+  }
+
+  void _openLikers() => context.push(AppRoutes.postLikes(widget.postId));
 
   Future<void> _toggleLike() async {
     if (_liking) return;
@@ -1002,16 +1060,38 @@ class _ActionsState extends ConsumerState<_Actions> {
                           size: KPostCard.actionIcon,
                           color: _liked ? p.primary : p.textPrimary,
                         ),
-                        if (likes != null) ...[
-                          const SizedBox(width: KSpacing.xs),
-                          count(likes),
-                        ],
-                        const SizedBox(width: KPostCard.actionGap),
+                        if (likes == null)
+                          const SizedBox(width: KPostCard.actionGap),
                       ],
                     ),
                   ),
                 ),
               ),
+              // The count opens who liked it (CONVENTIONS §11.4).
+              if (likes != null)
+                Semantics(
+                  button: true,
+                  label: l10n.likersOpen,
+                  value: KFormat.compact(likes, l10n),
+                  onTap: _openLikers,
+                  excludeSemantics: true,
+                  child: InkWell(
+                    key: FeedPostTile.likersKey,
+                    borderRadius: BorderRadius.circular(KRadius.sm),
+                    onTap: _openLikers,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: KSizes.minTouchTarget,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: KPostCard.actionGap,
+                        ),
+                        child: Center(widthFactor: 1, child: count(likes)),
+                      ),
+                    ),
+                  ),
+                ),
               // Opens the comments (CONVENTIONS §11.5); the count follows
               // what the sheet adds or removes.
               Semantics(
@@ -1047,6 +1127,46 @@ class _ActionsState extends ConsumerState<_Actions> {
                   ),
                 ),
               ),
+              if (!widget.post.isSelf)
+                Semantics(
+                  button: true,
+                  toggled: _reposted,
+                  label: _reposted
+                      ? l10n.feedPostUnrepost
+                      : l10n.feedPostRepost,
+                  value: KFormat.compact(_reposts, l10n),
+                  onTap: _toggleRepost,
+                  excludeSemantics: true,
+                  child: InkWell(
+                    key: FeedPostTile.repostKey,
+                    borderRadius: BorderRadius.circular(KRadius.sm),
+                    onTap: _toggleRepost,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: KSizes.minTouchTarget,
+                        minWidth: KSizes.minTouchTarget,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AppIcon(
+                            AppIcons.repost,
+                            size: KPostCard.actionIcon,
+                            color: _reposted ? p.primary : p.textPrimary,
+                          ),
+                          const SizedBox(width: KSpacing.xs),
+                          Text(
+                            KFormat.compact(_reposts, l10n),
+                            style: _reposted
+                                ? style.copyWith(color: p.primary)
+                                : style,
+                          ),
+                          const SizedBox(width: KPostCard.actionGap),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               shown(
                 AppIcons.send,
                 widget.post.shares ?? 0,

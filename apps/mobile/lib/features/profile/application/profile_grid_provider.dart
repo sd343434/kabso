@@ -15,7 +15,7 @@ import 'package:material_ui/material_ui.dart';
 
 /// The profile's content tabs (D57): the posts grid, the reels grid and
 /// (D59, own profile only) the saved posts and reels.
-enum ProfileTab { posts, reels, saved }
+enum ProfileTab { posts, reels, reposts, saved }
 
 /// One cell of a profile grid: a post's or reel's cover.
 @immutable
@@ -69,7 +69,8 @@ typedef ProfileGridKey = ({String username, ProfileTab tab});
 
 /// The pages of a grid on the posts API (v1.5-social): `posts` reads
 /// `GET /users/{username}/posts` (pinned first, then newest), `saved`
-/// reads `GET /me/saved` (newest save first). Reels have no API before M2:
+/// reads `GET /me/saved` (newest save first), `reposts` reads
+/// `GET /users/{username}/reposts` (newest repost first). Reels have no API before M2:
 /// [FeedUnavailable], never sample content. A private account you do not
 /// follow, or a block, answers 404: an empty grid (the profile says why).
 class ProfileGridPages extends AsyncNotifier<FeedLoad<ProfileGridItem>> {
@@ -82,6 +83,7 @@ class ProfileGridPages extends AsyncNotifier<FeedLoad<ProfileGridItem>> {
 
   Future<PageOf<Post>> _page(String? cursor) => switch (key.tab) {
     ProfileTab.saved => _repo.saved(cursor: cursor),
+    ProfileTab.reposts => _repo.userReposts(key.username, cursor: cursor),
     _ => _repo.userPosts(key.username, cursor: cursor),
   };
 

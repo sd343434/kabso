@@ -41,11 +41,11 @@ abstract final class KProfile {
 ///   and the bio;
 /// - a full-width "Edit profile" button (D58; the edit screen is read-only
 ///   until the contract lets `PATCH /me` save the name and bio);
-/// - Posts, Reels and Saved tabs (grid, reels and bookmark icons, an
-///   underline on the selected one) over a 3-column grid of covers. Saved
-///   (D59) holds the posts and reels you saved; only you see it. There is
-///   no posts, reels or saves API yet, so each tab shows its honest
-///   "coming" state.
+/// - Posts, Reels, Reposts and Saved tabs (grid, reels, repost and
+///   bookmark icons, an underline on the selected one) over a 3-column
+///   grid of covers on the posts API (KL-060). Saved (D59) holds what you
+///   saved; only you see it. Reels have no API before M2 and show their
+///   honest "coming" state.
 class ProfileScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -384,6 +384,12 @@ class ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
                 AppIcons.reelsFilled,
                 l10n.homeTabReels,
               ),
+              ProfileTab.reposts => item(
+                t,
+                AppIcons.repost,
+                AppIcons.repost,
+                l10n.profileReposts,
+              ),
               ProfileTab.saved => item(
                 t,
                 AppIcons.bookmark,
@@ -435,6 +441,7 @@ class ProfileGrid extends ConsumerWidget {
           icon: switch (tab) {
             ProfileTab.posts => Icons.grid_on_rounded,
             ProfileTab.reels => Icons.smart_display_outlined,
+            ProfileTab.reposts => Icons.repeat_rounded,
             ProfileTab.saved => Icons.bookmark_border_rounded,
           },
           title: title,
@@ -490,11 +497,15 @@ class ProfileGrid extends ConsumerWidget {
         switch (tab) {
           ProfileTab.posts => l10n.profileNoPosts,
           ProfileTab.reels => l10n.profileNoReels,
+          ProfileTab.reposts => l10n.profileNoReposts,
           ProfileTab.saved => l10n.profileNoSaved,
         },
-        saved || own
-            ? (saved ? l10n.profileSavedEmptyBody : l10n.profileGridEmptyBody)
-            : l10n.profileOtherEmptyBody,
+        switch (tab) {
+          ProfileTab.saved => l10n.profileSavedEmptyBody,
+          ProfileTab.reposts => l10n.profileRepostsEmptyBody,
+          _ when own => l10n.profileGridEmptyBody,
+          _ => l10n.profileOtherEmptyBody,
+        },
       ),
       AsyncValue(value: FeedUnavailable()) => state(
         saved

@@ -2414,4 +2414,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String safetyUnmuted(String name) {
     return '$name is unmuted';
   }
+
+  @override
+  String get likersTitle => 'Likes';
+
+  @override
+  String get likersOpen => 'Show who liked this';
+
+  @override
+  String get likersEmpty => 'No likes yet';
+
+  @override
+  String get likersEmptyBody =>
+      'When someone likes this post, they appear here.';
+
+  @override
+  String get likersHiddenTitle => 'Likes are hidden';
+
+  @override
+  String get likersHiddenBody =>
+      'The author hid the like count, so only they can see who liked it.';
+
+  @override
+  String get feedPostRepost => 'Repost';
+
+  @override
+  String get feedPostUnrepost => 'Undo repost';
+
+  @override
+  String get feedPostReposted => 'Reposted to your followers';
+
+  @override
+  String get feedPostUnreposted => 'Repost removed';
+
+  @override
+  String get feedPostRepostRefused => 'This post can\'t be reposted';
+
+  @override
+  String get profileReposts => 'Reposts';
+
+  @override
+  String get profileNoReposts => 'No reposts yet';
+
+  @override
+  String get profileRepostsEmptyBody =>
+      'Posts reposted from this profile appear here.';
 }

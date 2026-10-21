@@ -45,6 +45,12 @@ abstract final class AppRoutes {
   /// The screen of post [postId].
   static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
 
+  /// KL-060: who liked a post.
+  static const postLikesPattern = '/posts/:postId/likes';
+
+  /// The likers of post [postId].
+  static String postLikes(String postId) => '${post(postId)}/likes';
+
   /// D60: another user's public profile (pushed above the shell).
   static const userProfilePattern = '/users/:username';
 

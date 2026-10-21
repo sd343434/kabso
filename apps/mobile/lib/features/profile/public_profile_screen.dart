@@ -34,8 +34,9 @@ import 'package:material_ui/material_ui.dart';
 ///   username shows "Edit profile" instead. **Message** (D61) opens the
 ///   conversation screen, which is not connected until a messaging API
 ///   exists;
-/// - Posts and Reels tabs over the grid (no Saved: it is private), or "This
-///   account is private" for a private account you do not follow;
+/// - Posts, Reels and Reposts tabs over the grid (no Saved: it is
+///   private), or "This account is private" for a private account you do
+///   not follow;
 /// - a missing account (404) gets its own state, other failures the error
 ///   state with Try again.
 class PublicProfileScreen extends ConsumerStatefulWidget {
@@ -57,7 +58,11 @@ class PublicProfileScreen extends ConsumerStatefulWidget {
   static const privateKey = Key('profile.public.private');
   static const notFoundKey = Key('profile.public.notFound');
 
-  static const List<ProfileTab> tabs = [ProfileTab.posts, ProfileTab.reels];
+  static const List<ProfileTab> tabs = [
+    ProfileTab.posts,
+    ProfileTab.reels,
+    ProfileTab.reposts,
+  ];
 
   @override
   ConsumerState<PublicProfileScreen> createState() =>

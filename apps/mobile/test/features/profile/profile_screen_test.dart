@@ -147,16 +147,24 @@ void main() {
     expect(find.text(_en.profileSavedComingTitle), findsOneWidget);
   });
 
-  testWidgets('D59: three tabs in order Posts, Reels, Saved (bookmark), '
-      'equal widths; Saved is square and says only you see it', (tester) async {
+  testWidgets('D59 + KL-060: four tabs in order Posts, Reels, Reposts, '
+      'Saved (bookmark), equal widths; Saved is square', (tester) async {
     await _pump(tester, overrides: _overrides(grid: _items(6)));
+    expect(ProfileTab.values, [
+      ProfileTab.posts,
+      ProfileTab.reels,
+      ProfileTab.reposts,
+      ProfileTab.saved,
+    ]);
     final rects = [
       for (final tab in ProfileTab.values)
         tester.getRect(find.byKey(ProfileScreen.tabKey(tab))),
     ];
-    expect(rects[0].right, lessThanOrEqualTo(rects[1].left));
-    expect(rects[1].right, lessThanOrEqualTo(rects[2].left));
-    expect(rects[2].width, moreOrLessEquals(393 / 3, epsilon: 0.5));
+    for (var i = 0; i < rects.length - 1; i++) {
+      expect(rects[i].right, lessThanOrEqualTo(rects[i + 1].left));
+    }
+    expect(rects[3].width, moreOrLessEquals(393 / 4, epsilon: 0.5));
+    expect(find.bySemanticsLabel(_en.profileReposts), findsOneWidget);
     expect(find.bySemanticsLabel(_en.profileSaved), findsOneWidget);
     await tester.tap(find.byKey(ProfileScreen.tabKey(ProfileTab.saved)));
     await tester.pumpAndSettle();
