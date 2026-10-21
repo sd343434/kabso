@@ -320,7 +320,7 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
             ],
             TextField(
               key: EditPostScreen.textKey,
-              textDirection: KFormat.firstStrongDirection(_text.text),
+              textDirection: KFormat.inputDirection(_text.text),
               controller: _text,
               enabled: !_saving,
               minLines: 4,

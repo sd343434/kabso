@@ -960,13 +960,13 @@ class _CommentBar extends ConsumerWidget {
                   ),
                   const SizedBox(width: KSpacing.sm),
                   Expanded(
-                    // Direction follows the first letter, so a reply's
-                    // leading @handle reads correctly in Arabic.
+                    // Direction follows the first letter outside tags: a
+                    // reply's lone @handle reads left to right.
                     child: ValueListenableBuilder(
                       valueListenable: controller,
                       builder: (context, value, _) => TextField(
                         key: CommentsSheet.inputKey,
-                        textDirection: KFormat.firstStrongDirection(value.text),
+                        textDirection: KFormat.inputDirection(value.text),
                         controller: controller,
                         focusNode: focusNode,
                         enabled: !sending,

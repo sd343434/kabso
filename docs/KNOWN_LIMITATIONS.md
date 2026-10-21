@@ -43,7 +43,7 @@
   the share count is display-only; sharing needs post links on a web domain (CP-006 Q7, M7).
 - App: views are recorded best effort — a batch that fails is dropped, and views still waiting
   when the app is killed (not just sent to the background) are lost.
-- App: a text field takes its direction from its first letter, so a caption or comment that
-  starts with `@handle` reads correctly in Arabic; an `@handle` typed after Arabic text in the
-  same field still shows its `@` on the right while editing (posted text is displayed with the
+- App: a text field takes its direction from its first letter outside `@handles` and `#tags`
+  (a reply's lone `@handle` reads left to right); in a field that also holds Arabic, a Latin
+  `@handle` still shows its `@` on the right while editing (posted text is displayed with the
   handle isolated).

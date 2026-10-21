@@ -79,12 +79,26 @@ abstract final class KFormat {
 
   /// The direction of [text]'s first letter (like HTML `dir="auto"`), or
   /// `null` when it has none (then the ambient direction applies). A text
-  /// field given this keeps a leading `@handle` in front in Arabic UI.
+  /// field uses [inputDirection].
   static TextDirection? firstStrongDirection(String text) {
     final m = _strong.firstMatch(text);
     if (m == null) return null;
     return m.group(1) != null ? TextDirection.rtl : TextDirection.ltr;
   }
+
+  /// The direction for a text field holding [text]: its first letter
+  /// outside `@handles` and `#tags` decides, so an Arabic sentence that
+  /// starts with a mention stays right to left; text made of tags alone
+  /// (a reply's `@handle `) follows their first letter. `null` when there
+  /// is no letter (the ambient direction applies).
+  static TextDirection? inputDirection(String text) =>
+      firstStrongDirection(text.replaceAll(_entity, ' ')) ??
+      firstStrongDirection(text);
+
+  static final RegExp _entity = RegExp(
+    r'(?<![\p{L}\p{N}_])[@#][\p{L}\p{M}\p{N}_.]+',
+    unicode: true,
+  );
 
   static final RegExp _strong = RegExp(
     r'(\p{Script=Arabic}|\p{Script=Hebrew}|\p{Script=Syriac}|'

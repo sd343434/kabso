@@ -140,5 +140,14 @@ void main() {
       expect(KFormat.firstStrongDirection('😀 123 @'), isNull);
       expect(KFormat.firstStrongDirection(''), isNull);
     });
+
+    test('inputDirection: tags aside; tags alone follow their letter', () {
+      expect(KFormat.inputDirection('@sara شكراً'), TextDirection.rtl);
+      expect(KFormat.inputDirection('@sara thanks'), TextDirection.ltr);
+      expect(KFormat.inputDirection('@sara '), TextDirection.ltr);
+      expect(KFormat.inputDirection('#البتراء'), TextDirection.rtl);
+      expect(KFormat.inputDirection('#petra مرحبا'), TextDirection.rtl);
+      expect(KFormat.inputDirection('🙂'), isNull);
+    });
   });
 }

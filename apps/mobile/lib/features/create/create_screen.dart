@@ -1025,9 +1025,9 @@ class _CaptionBox extends StatelessWidget {
         children: [
           TextField(
             key: CreateScreen.textKey,
-            // Like dir="auto": a caption that starts with @handle or Latin
-            // text reads left to right.
-            textDirection: KFormat.firstStrongDirection(controller.text),
+            // Like dir="auto", tags aside: Arabic reads right to left, a
+            // Latin caption (or tags alone) left to right.
+            textDirection: KFormat.inputDirection(controller.text),
             controller: controller,
             focusNode: focus,
             enabled: enabled,
