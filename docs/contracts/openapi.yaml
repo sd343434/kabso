@@ -14,6 +14,8 @@ info:
     views, comments, hashtags, search, block / mute / hide, reports and privacy settings
     (CONVENTIONS §11); additive, owner-approved scope (D87). **CP-008 (D91, M3)** adds photo
     stories: tray, viewer, seen, viewers and archive (tag `stories`, CONVENTIONS §11.9).
+    **CP-009 (D92, M4)** adds in-app notifications: inbox, unread count, mark read and per-type
+    settings (tag `notifications`, CONVENTIONS §11.10).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -44,6 +46,8 @@ tags:
     description: "Hashtags and prefix search (v1.5-social DRAFT)."
   - name: stories
     description: "Photo stories that last 24 hours: tray, seen, viewers and archive (v1.5-social DRAFT, CP-008)."
+  - name: notifications
+    description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -2093,6 +2097,81 @@ paths:
               schema: { $ref: '#/components/schemas/StoryPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+  /api/v1/notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: "The caller's notifications, newest activity first"
+      description: CONVENTIONS §11.10. Grouped likes and reposts carry up to 3 recent actors and the total.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [notifications]
+      operationId: getUnreadNotificationCount
+      summary: "Unread notifications for the badge (capped at 99)"
+      responses:
+        '200':
+          description: The count.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnreadCount' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/notifications/read:
+    post:
+      tags: [notifications]
+      operationId: markNotificationsRead
+      summary: "Mark some or all notifications read (idempotent)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarkNotificationsReadRequest' }
+      responses:
+        '204': { description: Marked. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/notification-settings:
+    get:
+      tags: [notifications]
+      operationId: getNotificationSettings
+      summary: "Which notification types the caller receives"
+      responses:
+        '200':
+          description: The settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+        '401': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [notifications]
+      operationId: updateNotificationSettings
+      summary: "Switch notification types on or off"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateNotificationSettingsRequest' }
+      responses:
+        '200':
+          description: The new settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
   /api/v1/me/mutes:
     get:
       tags: [safety]
@@ -3419,6 +3498,81 @@ components:
           type: array
           items: { $ref: '#/components/schemas/StoryTrayItem' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    NotificationType:
+      type: string
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED]
+    NotificationTarget:
+      type: object
+      required: [type, id, postId, thumbUrl, text]
+      properties:
+        type: { type: string, enum: [POST, COMMENT, STORY, USER] }
+        id: { type: string, description: "A post, comment or story id, or a username for USER." }
+        postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
+        thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
+        text: { type: [string, 'null'], maxLength: 80, description: A short excerpt of the comment or caption. }
+    Notification:
+      type: object
+      required: [id, type, actors, actorCount, target, createdAt, read]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/NotificationType' }
+        actors:
+          type: array
+          maxItems: 3
+          description: The most recent actors, newest first (empty for system types).
+          items: { $ref: '#/components/schemas/UserSummary' }
+        actorCount: { type: integer, minimum: 0, description: All distinct visible actors in the group. }
+        target:
+          oneOf:
+            - $ref: '#/components/schemas/NotificationTarget'
+            - type: 'null'
+        createdAt: { type: string, format: date-time, description: The latest activity in the group. }
+        read: { type: boolean }
+    NotificationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    UnreadCount:
+      type: object
+      required: [count]
+      properties:
+        count: { type: integer, minimum: 0, maximum: 99 }
+    MarkNotificationsReadRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      maxProperties: 1
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        all: { type: boolean, const: true }
+    NotificationSettings:
+      type: object
+      required: [likes, comments, mentions, follows, reposts]
+      properties:
+        likes: { type: boolean }
+        comments: { type: boolean, description: Comments on your posts and replies to your comments. }
+        mentions: { type: boolean }
+        follows: { type: boolean }
+        reposts: { type: boolean }
+    UpdateNotificationSettingsRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        likes: { type: boolean }
+        comments: { type: boolean }
+        mentions: { type: boolean }
+        follows: { type: boolean }
+        reposts: { type: boolean }
     CreateReportRequest:
       type: object
       additionalProperties: false

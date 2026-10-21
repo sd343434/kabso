@@ -39,6 +39,8 @@
   separate admin tool. There is no admin web panel for the queue yet (API only).
 - Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
   a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
+- Notifications (CP-009, D92): in-app only — no push to the phone until a Firebase project
+  exists (CP-006 Q4); the badge refreshes by polling (on foreground and every 60 s), not live.
 - Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold
   (owner decision); harmful ones are handled by reports and expire after 24 hours.
 - Stories: deleting or removing a story is soft; its photo files stay in object storage (as for

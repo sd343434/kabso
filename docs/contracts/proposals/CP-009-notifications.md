@@ -1,7 +1,9 @@
-# CP-009 — In-app notifications (CP-006 M4) (PROPOSED)
+# CP-009 — In-app notifications (CP-006 M4) (APPROVED)
 
-**Status:** proposed on 2026-10-21 for the owner's approval. Nothing is applied to `openapi.yaml`
-or CONVENTIONS until it is approved.
+**Status:** approved by the owner on 2026-10-21 (D92). Q1: yes, a mute also silences
+notifications. Q2: yes, likes and reposts group while unread. **Q3: retention is 30 days** (the
+owner's choice, instead of the proposed 90). Applied to `openapi.yaml` (v1.5-social, draft) and
+CONVENTIONS §11.7, §11.8 and §11.10.
 
 ## Why
 

@@ -403,6 +403,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | tokens v1.2 | 2026-10-18 | `design-tokens.json` v1.2 (D47): `typography.fontFamilyArabic` IBM Plex Sans Arabic → Readex Pro (OFL-1.1), bundled at 400/500/600/700. | Visual only; no shape change. Flutter swaps the bundled Arabic font in the same change set and regenerates goldens. |
 | v1.4-levels (draft) | 2026-10-20 | **Draft, owner sign-off pending (CP-005, D72).** Four independent level systems. User: `GET /levels/me`, `/levels/me/{category}`, `/levels/me/history`, `/levels/me/points-history` (signed keyset cursors scoped to caller and filter). Admin (`role = ADMIN`, every mutation in `audit_logs`): categories (list/get/patch), versions (list/create/get/replace/validate/preview/publish with `PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`), a user's states, recalculate, manual adjustment (`Idempotency-Key` required; replay 200, different body 409), reconciliation (`DRY_RUN`/`REPAIR`) and its runs, source events and retry, reports, levels audit log. New error codes `LEVEL_CONFIG_INVALID` (422) and `LEVEL_VERSION_NOT_DRAFT` (409). `GET /users/{username}/levels` (levels only, for profiles). Admin routes need a per-route permission (`LEVELS_VIEW|EDIT|PUBLISH|ADJUST|RECONCILE`) besides `role = ADMIN`. No public endpoint accepts points, levels or events. Additive: no existing path, schema or code changes |
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
+| v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
 | v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
 | v1.5-social (draft) | 2026-10-21 | **CP-007 (D89):** `GET /me/mutes` (the caller's muted accounts, newest first, `UserSummaryPage`) and `PublicProfile.isMuted` (the caller's own mute only). §11.7 line added. | Additive: a new path and one new boolean on `PublicProfile`. |
 
@@ -737,7 +738,7 @@ count is eventually consistent (≤ 1 min).
   existing "not found" answer; follow and block writes are serialized). Blocking yourself → 400.
   Their existing comments on your posts are hidden from you.
 - **Mute** is one-way and silent: the muted account's posts, reposts and (CP-008) stories leave
-  the caller's feeds and stories tray; profile, search and direct links still work. The caller sees their mutes in
+  the caller's feeds and stories tray, and (CP-009) it cannot notify the caller; profile, search and direct links still work. The caller sees their mutes in
   `GET /me/mutes` (newest first, every muted account, like `GET /me/blocks`) and on profiles as
   `PublicProfile.isMuted`; the muted account is never told (CP-007).
 - **Hide**: the post leaves the caller's feeds and hashtag pages.
@@ -766,6 +767,8 @@ count is eventually consistent (≤ 1 min).
 | `POST /stories` *(CP-008)* | 30 / hour |
 | `PUT /stories/{id}/seen` *(CP-008)* | 600 / hour |
 | `GET /feed/stories` *(CP-008)* | 300 / 15 min |
+| `GET /notifications`, `GET /notifications/unread-count` *(CP-009)* | one bucket: 300 / 15 min |
+| `POST /notifications/read` *(CP-009)* | 120 / hour |
 
 ### 11.9 Stories *(CP-008, D91 — CP-006 M3, photos only)*
 
@@ -786,3 +789,28 @@ count is eventually consistent (≤ 1 min).
   only) counts distinct viewers. `GET /stories/{id}/viewers` is for the author only and only
   until 48 h after posting; otherwise 404.
 - Replies, video stories, highlights and stickers are not part of M3 (M7, M2, later).
+
+### 11.10 Notifications *(CP-009, D92 — CP-006 M4, in-app only)*
+
+- Types and targets: `LIKE_POST` (post), `LIKE_COMMENT` (comment), `COMMENT` on your post and
+  `REPLY` to your comment (the comment), `MENTION` in a post, comment or story (that item, only
+  when `whoCanMention` allowed it), `FOLLOW` (the follower), `REPOST` (post), and the system types
+  `POST_PUBLISHED` (your scheduled post went live) and `CONTENT_REMOVED` (moderation removed your
+  post, comment or story). Notifications are written in the same transaction as their action.
+- **Never yourself**; never between two users with a block in either direction (existing ones
+  are hidden while it lasts); never from an account the recipient muted (owner, D92); actors no
+  longer ACTIVE are left out of `actors` and `actorCount`, and a group left with no visible actor
+  is hidden.
+- **Grouping (owner, D92):** `LIKE_POST`, `LIKE_COMMENT` and `REPOST` on the same target join one
+  **unread** notification (up to 3 recent `actors`, `actorCount` all); each new actor moves it to
+  the top. A read group is closed: the next one starts a new group. Other types never group.
+- **Undo:** unlike, un-repost, unfollow, deleting the comment and deleting or removing the target
+  take that contribution away; a notification left with no actor is deleted.
+- **Settings** (`/me/notification-settings`, all `true` by default): a switched-off type creates
+  nothing new (`likes` covers both likes, `comments` covers `COMMENT` and `REPLY`). System types
+  are always on.
+- **Unread count** is capped at 99. `POST /notifications/read` takes `ids` (1–100, the caller's
+  own; others are ignored) or `all: true`; idempotent.
+- **Retention (owner, D92):** notifications whose latest activity is older than **30 days** are
+  deleted by a sweeper.
+- Delivery is in-app (the app polls the unread count); push waits on CP-006 Q4.
