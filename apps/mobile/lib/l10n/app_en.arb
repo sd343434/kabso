@@ -847,5 +847,21 @@
   "feedPostRepostRefused": "This post can't be reposted",
   "profileReposts": "Reposts",
   "profileNoReposts": "No reposts yet",
-  "profileRepostsEmptyBody": "Posts reposted from this profile appear here."
+  "profileRepostsEmptyBody": "Posts reposted from this profile appear here.",
+  "feedPostPin": "Pin to profile",
+  "feedPostUnpin": "Unpin from profile",
+  "feedPostPinned": "Pinned to your profile",
+  "feedPostUnpinned": "Unpinned",
+  "feedPostEdit": "Edit",
+  "feedPostTimeEdited": "{time} · Edited",
+  "editPostTitle": "Edit post",
+  "editPostSave": "Save",
+  "editPostSaved": "Changes saved",
+  "editPostPhotosFixed": "Photos can't be changed after posting.",
+  "editPostTextRequired": "A text post needs some text.",
+  "editPostDiscardTitle": "Discard changes?",
+  "editPostKeep": "Keep editing",
+  "editPostDiscard": "Discard",
+  "editPostNoPlace": "No location",
+  "editPostRemovePlace": "Remove location"
 }

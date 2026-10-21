@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show AsyncNotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -13,7 +14,7 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// A [Post] as the feed tile shows it. Images load from the media CDN.
-FeedPostData feedPostOf(Post post) {
+FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
   final cover = post.media.isEmpty ? null : post.media.first;
   return FeedPostData(
     postId: post.id,
@@ -40,7 +41,9 @@ FeedPostData feedPostOf(Post post) {
     reposts: post.repostCount,
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
-    repostedBy: post.repostedBy?.displayName,
+    repostedBy: (repostedBy ?? post.repostedBy)?.displayName,
+    pinned: post.pinned,
+    edited: post.editedAt != null,
     hashtags: {for (final t in post.hashtags) t.toLowerCase()},
     mentions: {for (final m in post.mentions) m.username.toLowerCase()},
     commentsOpen:
@@ -181,6 +184,25 @@ final AsyncNotifierProviderFamily<
   HomeFeed
 >
 postsFeedProvider = AsyncNotifierProvider.family(PostsFeedController.new);
+
+/// The latest version of posts the caller changed in this session (edit,
+/// pin): feeds and the post screen show it instead of what they loaded.
+class PostEdits extends Notifier<Map<String, Post>> {
+  @override
+  Map<String, Post> build() => const {};
+
+  void put(Post post) => state = {...state, post.id: post};
+
+  /// Drops [postId] (its screen reloaded it from the server).
+  void forget(String postId) {
+    if (!state.containsKey(postId)) return;
+    state = {...state}..remove(postId);
+  }
+}
+
+final postEditsProvider = NotifierProvider<PostEdits, Map<String, Post>>(
+  PostEdits.new,
+);
 
 /// Posts hidden or deleted on this device in this session: grids and the
 /// post screen leave them out at once.

@@ -38,14 +38,18 @@ class PostScreen extends ConsumerWidget {
       }
     });
     final post = ref.watch(postProvider(postId));
+    final edited = ref.watch(postEditsProvider.select((e) => e[postId]));
     return Scaffold(
       appBar: AppBar(title: Text(l10n.postTitle)),
       body: switch (post) {
         AsyncData(:final value) => RefreshIndicator(
-          onRefresh: () => ref.refresh(postProvider(postId).future),
+          onRefresh: () {
+            ref.read(postEditsProvider.notifier).forget(postId);
+            return ref.refresh(postProvider(postId).future);
+          },
           child: ListView(
             padding: const EdgeInsets.only(bottom: KSpacing.xl),
-            children: [FeedPostTile(post: feedPostOf(value))],
+            children: [FeedPostTile(post: feedPostOf(edited ?? value))],
           ),
         ),
         AsyncError(:final error) => switch (toAppFailure(error)) {

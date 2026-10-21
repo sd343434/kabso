@@ -45,6 +45,12 @@ abstract final class AppRoutes {
   /// The screen of post [postId].
   static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
 
+  /// KL-060: edit your post (caption, place, settings).
+  static const editPostPattern = '/posts/:postId/edit';
+
+  /// The edit screen of post [postId].
+  static String editPost(String postId) => '${post(postId)}/edit';
+
   /// KL-060: who liked a post.
   static const postLikesPattern = '/posts/:postId/likes';
 

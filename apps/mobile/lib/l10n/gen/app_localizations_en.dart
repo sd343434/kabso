@@ -2459,4 +2459,54 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profileRepostsEmptyBody =>
       'Posts reposted from this profile appear here.';
+
+  @override
+  String get feedPostPin => 'Pin to profile';
+
+  @override
+  String get feedPostUnpin => 'Unpin from profile';
+
+  @override
+  String get feedPostPinned => 'Pinned to your profile';
+
+  @override
+  String get feedPostUnpinned => 'Unpinned';
+
+  @override
+  String get feedPostEdit => 'Edit';
+
+  @override
+  String feedPostTimeEdited(String time) {
+    return '$time · Edited';
+  }
+
+  @override
+  String get editPostTitle => 'Edit post';
+
+  @override
+  String get editPostSave => 'Save';
+
+  @override
+  String get editPostSaved => 'Changes saved';
+
+  @override
+  String get editPostPhotosFixed => 'Photos can\'t be changed after posting.';
+
+  @override
+  String get editPostTextRequired => 'A text post needs some text.';
+
+  @override
+  String get editPostDiscardTitle => 'Discard changes?';
+
+  @override
+  String get editPostKeep => 'Keep editing';
+
+  @override
+  String get editPostDiscard => 'Discard';
+
+  @override
+  String get editPostNoPlace => 'No location';
+
+  @override
+  String get editPostRemovePlace => 'Remove location';
 }

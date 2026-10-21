@@ -44,6 +44,8 @@ class FeedPostData {
     this.saved = false,
     this.reposted = false,
     this.reposts = 0,
+    this.pinned = false,
+    this.edited = false,
     this.isSelf = false,
     this.pendingModeration = false,
     this.repostedBy,
@@ -96,7 +98,13 @@ class FeedPostData {
   final bool reposted;
   final int reposts;
 
-  /// The viewer wrote it (delete instead of hide/report).
+  /// Pinned on the author's profile.
+  final bool pinned;
+
+  /// The caption was edited after publishing (`editedAt`).
+  final bool edited;
+
+  /// The viewer wrote it: pin, edit and delete instead of hide/report.
   final bool isSelf;
 
   /// Waiting for moderation: visible to its author only (CP-006 Q2).
@@ -178,6 +186,9 @@ class FeedPostTile extends StatelessWidget {
   static const hideActionKey = Key('feed.post.more.hide');
   static const reportActionKey = Key('feed.post.more.report');
   static const deleteActionKey = Key('feed.post.more.delete');
+  static const pinActionKey = Key('feed.post.more.pin');
+  static const editActionKey = Key('feed.post.more.edit');
+  static const editedKey = Key('feed.post.edited');
   static const muteActionKey = Key('feed.post.more.mute');
   static const pendingKey = Key('feed.post.pending');
   static const deleteConfirmKey = Key('feed.post.delete.confirm');
@@ -279,7 +290,8 @@ class FeedPostTile extends StatelessWidget {
         Padding(
           padding: inset.add(const EdgeInsets.only(top: KSpacing.xs)),
           child: Text(
-            when,
+            post.edited ? l10n.feedPostTimeEdited(when) : when,
+            key: post.edited ? FeedPostTile.editedKey : null,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: t.caption.copyWith(color: p.textTertiary),
@@ -297,7 +309,7 @@ class FeedPostTile extends StatelessWidget {
 /// API (`PUT`/`DELETE /users/{username}/follow`): the choice applies at
 /// once and comes back with a message on failure. Without a follow state
 /// (your own post, or a source without it) neither is shown.
-enum _MoreAction { follow, hide, mute, report, delete }
+enum _MoreAction { follow, hide, mute, report, pin, edit, delete }
 
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
@@ -390,6 +402,23 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
                   _MoreAction.report,
                 ),
               ],
+              if (id != null && post.isSelf) ...[
+                item(
+                  FeedPostTile.pinActionKey,
+                  Icon(
+                    post.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                    color: color,
+                  ),
+                  post.pinned ? l10n.feedPostUnpin : l10n.feedPostPin,
+                  _MoreAction.pin,
+                ),
+                item(
+                  FeedPostTile.editActionKey,
+                  Icon(Icons.edit_outlined, color: color),
+                  l10n.feedPostEdit,
+                  _MoreAction.edit,
+                ),
+              ],
               if (id != null && post.isSelf)
                 item(
                   FeedPostTile.deleteActionKey,
@@ -429,6 +458,10 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
           (repo, id) => repo.reportPost(id, reason),
           l10n.feedPostReported,
         );
+      case _MoreAction.pin:
+        await _pin(pinned: !post.pinned);
+      case _MoreAction.edit:
+        if (id != null) await context.push(AppRoutes.editPost(id));
       case _MoreAction.delete:
         final ok = await showDialog<bool>(
           context: context,
@@ -450,6 +483,33 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
         if (ok ?? false) {
           await _run((repo, id) => repo.deletePost(id), l10n.feedPostDeleted);
         }
+    }
+  }
+
+  /// Pins or unpins your post on your profile (at most 3: 409 says so);
+  /// feeds, the post screen and the grids take the server's answer.
+  Future<void> _pin({required bool pinned}) async {
+    final id = widget.post.postId;
+    if (id == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final post = await ref
+          .read(postsRepositoryProvider)
+          .setPinned(id, pinned: pinned);
+      if (!mounted) return;
+      ref.read(postEditsProvider.notifier).put(post);
+      KSnack.success(
+        context,
+        post.pinned
+            ? context.l10n.feedPostPinned
+            : context.l10n.feedPostUnpinned,
+      );
+    } on Object catch (e) {
+      if (mounted) {
+        KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 

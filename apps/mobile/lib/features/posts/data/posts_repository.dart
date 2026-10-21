@@ -52,6 +52,14 @@ abstract interface class PostsRepository {
   /// `DELETE /posts/{postId}` (author only).
   Future<void> deletePost(String postId);
 
+  /// `PATCH /posts/{postId}` (author only): caption, place, settings, or a
+  /// draft's status and time. Editing a published caption sets `editedAt`.
+  Future<Post> updatePost(String postId, PostUpdate update);
+
+  /// `PUT`/`DELETE /posts/{postId}/pin`: the caller's published post on
+  /// their profile, at most 3 (409 `PIN_LIMIT_REACHED`).
+  Future<Post> setPinned(String postId, {required bool pinned});
+
   /// `POST /posts` with [idempotencyKey] (a UUID kept for every retry of
   /// the same draft, CONVENTIONS §11.2): a text post, or photos [mediaIds]
   /// with an optional caption.
@@ -244,6 +252,26 @@ class PostsRepositoryImpl implements PostsRepository {
   Future<void> deletePost(String postId) => guardApiCall(() async {
     await _dio.delete<void>('/posts/${pathSegment(postId)}');
   });
+
+  @override
+  Future<Post> updatePost(String postId, PostUpdate update) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          '/posts/${pathSegment(postId)}',
+          data: update.toJson(),
+        );
+        return Post.fromJson(res.data!);
+      });
+
+  @override
+  Future<Post> setPinned(String postId, {required bool pinned}) =>
+      guardApiCall(() async {
+        final path = '/posts/${pathSegment(postId)}/pin';
+        final res = pinned
+            ? await _dio.put<Map<String, dynamic>>(path)
+            : await _dio.delete<Map<String, dynamic>>(path);
+        return Post.fromJson(res.data!);
+      });
 
   @override
   Future<Post> createPost({

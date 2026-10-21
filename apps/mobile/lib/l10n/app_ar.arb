@@ -2608,5 +2608,74 @@
   "profileRepostsEmptyBody": "المنشورات التي تُعاد نشرها تظهر هنا.",
   "@profileRepostsEmptyBody": {
     "description": "Profile Reposts tab empty body"
+  },
+  "feedPostPin": "تثبيت في الملف الشخصي",
+  "@feedPostPin": {
+    "description": "Own post menu: pin it on the profile"
+  },
+  "feedPostUnpin": "إلغاء التثبيت",
+  "@feedPostUnpin": {
+    "description": "Own post menu: unpin it"
+  },
+  "feedPostPinned": "ثُبّت في ملفك الشخصي",
+  "@feedPostPinned": {
+    "description": "Message after pinning"
+  },
+  "feedPostUnpinned": "أُلغي التثبيت",
+  "@feedPostUnpinned": {
+    "description": "Message after unpinning"
+  },
+  "feedPostEdit": "تعديل",
+  "@feedPostEdit": {
+    "description": "Own post menu: edit"
+  },
+  "feedPostTimeEdited": "{time} · معدّل",
+  "@feedPostTimeEdited": {
+    "description": "Post time with the edited mark",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "editPostTitle": "تعديل المنشور",
+  "@editPostTitle": {
+    "description": "Edit post screen title"
+  },
+  "editPostSave": "حفظ",
+  "@editPostSave": {
+    "description": "Edit post save action"
+  },
+  "editPostSaved": "حُفظت التعديلات",
+  "@editPostSaved": {
+    "description": "Message after saving an edit"
+  },
+  "editPostPhotosFixed": "لا يمكن تغيير الصور بعد النشر.",
+  "@editPostPhotosFixed": {
+    "description": "Edit post: note under the photos"
+  },
+  "editPostTextRequired": "المنشور النصي يحتاج إلى نص.",
+  "@editPostTextRequired": {
+    "description": "Edit post: a text-only post cannot be emptied"
+  },
+  "editPostDiscardTitle": "تجاهل التعديلات؟",
+  "@editPostDiscardTitle": {
+    "description": "Edit post: leaving with unsaved changes"
+  },
+  "editPostKeep": "متابعة التعديل",
+  "@editPostKeep": {
+    "description": "Edit post: stay"
+  },
+  "editPostDiscard": "تجاهل",
+  "@editPostDiscard": {
+    "description": "Edit post: leave without saving"
+  },
+  "editPostNoPlace": "بلا موقع",
+  "@editPostNoPlace": {
+    "description": "Edit post: no place set"
+  },
+  "editPostRemovePlace": "إزالة الموقع",
+  "@editPostRemovePlace": {
+    "description": "Edit post: clear the place"
   }
 }

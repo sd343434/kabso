@@ -2483,4 +2483,54 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileRepostsEmptyBody => 'المنشورات التي تُعاد نشرها تظهر هنا.';
+
+  @override
+  String get feedPostPin => 'تثبيت في الملف الشخصي';
+
+  @override
+  String get feedPostUnpin => 'إلغاء التثبيت';
+
+  @override
+  String get feedPostPinned => 'ثُبّت في ملفك الشخصي';
+
+  @override
+  String get feedPostUnpinned => 'أُلغي التثبيت';
+
+  @override
+  String get feedPostEdit => 'تعديل';
+
+  @override
+  String feedPostTimeEdited(String time) {
+    return '$time · معدّل';
+  }
+
+  @override
+  String get editPostTitle => 'تعديل المنشور';
+
+  @override
+  String get editPostSave => 'حفظ';
+
+  @override
+  String get editPostSaved => 'حُفظت التعديلات';
+
+  @override
+  String get editPostPhotosFixed => 'لا يمكن تغيير الصور بعد النشر.';
+
+  @override
+  String get editPostTextRequired => 'المنشور النصي يحتاج إلى نص.';
+
+  @override
+  String get editPostDiscardTitle => 'تجاهل التعديلات؟';
+
+  @override
+  String get editPostKeep => 'متابعة التعديل';
+
+  @override
+  String get editPostDiscard => 'تجاهل';
+
+  @override
+  String get editPostNoPlace => 'بلا موقع';
+
+  @override
+  String get editPostRemovePlace => 'إزالة الموقع';
 }

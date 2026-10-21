@@ -167,6 +167,69 @@ class FakePostsRepository implements PostsRepository {
   @override
   Future<void> deletePost(String postId) => _step('delete:$postId');
 
+  /// Bodies of `updatePost` calls.
+  final List<(String, Map<String, Object?>)> updates = [];
+
+  /// What `updatePost` and `setPinned` answer with (post id → post); else
+  /// the post from [getPost] with the change applied.
+  final Map<String, Post> answers = {};
+
+  /// Pinned post ids; a fourth pin is refused (409).
+  final Set<String> pins = {};
+
+  Future<Post> _current(String postId) async {
+    if (answers[postId] case final p?) return p;
+    for (final p in [
+      ...feeds.values.expand((l) => l),
+      ...profilePosts.values.expand((l) => l),
+      ...myPosts.values.expand((l) => l),
+    ]) {
+      if (p.id == postId) return p;
+    }
+    throw _notFound;
+  }
+
+  @override
+  Future<Post> updatePost(String postId, PostUpdate update) async {
+    await _step('update:$postId');
+    updates.add((postId, update.toJson()));
+    final p = await _current(postId);
+    final json = update.toJson();
+    return answers[postId] = p.copyWithForTest(
+      text: update.text,
+      location: json.containsKey('location')
+          ? () => json['location'] as String?
+          : null,
+      editedAt: update.text != null && update.text != p.text
+          ? DateTime.utc(2026, 10, 21, 12)
+          : null,
+      commentsEnabled: update.commentsEnabled,
+      whoCanComment: update.whoCanComment,
+      hideLikeCount: update.hideLikeCount,
+      status: update.status,
+      publishAt: update.publishAt,
+    );
+  }
+
+  @override
+  Future<Post> setPinned(String postId, {required bool pinned}) async {
+    await _step('pin:$postId:$pinned');
+    if (pinned && !pins.contains(postId) && pins.length >= 3) {
+      throw const ServerFailure(
+        code: ErrorCode.pinLimitReached,
+        rawCode: 'PIN_LIMIT_REACHED',
+        debugMessage: 'Three pins',
+        statusCode: 409,
+      );
+    }
+    pinned ? pins.add(postId) : pins.remove(postId);
+    final p = await _current(postId);
+    return answers[postId] = p.copyWithForTest(pinned: pinned);
+  }
+
+  /// The caller's drafts and scheduled posts (`GET /me/posts?status=`).
+  final Map<String, List<Post>> myPosts = {};
+
   /// Bodies of `createPost` calls, with their keys.
   final List<
     ({
@@ -444,6 +507,8 @@ Post testPost(
   int commentCount = 2,
   int photos = 0,
   bool pinned = false,
+  String? location,
+  DateTime? editedAt,
   List<String> hashtags = const [],
   List<UserSummary> mentions = const [],
   bool commentsEnabled = true,
@@ -467,6 +532,8 @@ Post testPost(
         height: 1080,
       ),
   ],
+  location: location,
+  editedAt: editedAt,
   hashtags: hashtags,
   mentions: mentions,
   status: 'PUBLISHED',
@@ -558,3 +625,52 @@ Comment testComment(
   pinned: pinned,
   canDelete: canDelete,
 );
+
+/// A changed copy of a fixture post, as the server would answer (tests
+/// only). [location] is a getter so `null` can clear the place.
+extension PostTestCopy on Post {
+  Post copyWithForTest({
+    String? text,
+    String? Function()? location,
+    DateTime? editedAt,
+    bool? pinned,
+    bool? commentsEnabled,
+    WhoCanComment? whoCanComment,
+    bool? hideLikeCount,
+    String? status,
+    DateTime? publishAt,
+  }) {
+    final next = status ?? this.status;
+    return Post(
+      id: id,
+      author: author,
+      text: text ?? this.text,
+      media: media,
+      location: location == null ? this.location : location(),
+      hashtags: hashtags,
+      mentions: mentions,
+      status: next,
+      createdAt: createdAt,
+      publishAt: next == 'SCHEDULED' ? (publishAt ?? this.publishAt) : null,
+      publishedAt: next == 'PUBLISHED'
+          ? (publishedAt ?? DateTime.utc(2026, 10, 21, 12))
+          : null,
+      editedAt: editedAt ?? this.editedAt,
+      pinned: pinned ?? this.pinned,
+      likeCount: likeCount,
+      commentCount: commentCount,
+      shareCount: shareCount,
+      repostCount: repostCount,
+      viewCount: viewCount,
+      viewerHasLiked: viewerHasLiked,
+      viewerHasSaved: viewerHasSaved,
+      viewerHasReposted: viewerHasReposted,
+      isSelf: isSelf,
+      commentsEnabled: commentsEnabled ?? this.commentsEnabled,
+      whoCanComment: whoCanComment ?? this.whoCanComment,
+      hideLikeCount: hideLikeCount ?? this.hideLikeCount,
+      pendingModeration: pendingModeration,
+      repostedBy: repostedBy,
+    );
+  }
+}

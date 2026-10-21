@@ -237,6 +237,48 @@ class PostSettingsDraft {
   };
 }
 
+/// `UpdatePostRequest`: only the fields set are sent. [location] `''`
+/// clears the place (sent as `null`). Images never change.
+@immutable
+class PostUpdate {
+  const new({
+    this.text,
+    this.location,
+    this.commentsEnabled,
+    this.whoCanComment,
+    this.hideLikeCount,
+    this.status,
+    this.publishAt,
+  });
+
+  final String? text;
+  final String? location;
+  final bool? commentsEnabled;
+  final WhoCanComment? whoCanComment;
+  final bool? hideLikeCount;
+
+  /// `DRAFT`, `SCHEDULED` or `PUBLISHED` (CONVENTIONS §11.2 transitions).
+  final String? status;
+  final DateTime? publishAt;
+
+  bool get isEmpty => toJson().isEmpty;
+
+  Map<String, Object?> toJson() {
+    final settings = <String, Object>{
+      'commentsEnabled': ?commentsEnabled,
+      'whoCanComment': ?whoCanComment?.wire,
+      'hideLikeCount': ?hideLikeCount,
+    };
+    return {
+      'text': ?text,
+      if (location case final l?) 'location': l.isEmpty ? null : l,
+      if (settings.isNotEmpty) 'settings': settings,
+      'status': ?status,
+      'publishAt': ?publishAt?.toUtc().toIso8601String(),
+    };
+  }
+}
+
 /// Text limit of a comment (CONVENTIONS §11.5), checked again by the
 /// server, which also allows at most five line breaks.
 const int maxCommentText = 500;

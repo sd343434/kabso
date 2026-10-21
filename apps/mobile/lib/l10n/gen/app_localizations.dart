@@ -4321,6 +4321,102 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المنشورات التي تُعاد نشرها تظهر هنا.'**
   String get profileRepostsEmptyBody;
+
+  /// Own post menu: pin it on the profile
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت في الملف الشخصي'**
+  String get feedPostPin;
+
+  /// Own post menu: unpin it
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التثبيت'**
+  String get feedPostUnpin;
+
+  /// Message after pinning
+  ///
+  /// In ar, this message translates to:
+  /// **'ثُبّت في ملفك الشخصي'**
+  String get feedPostPinned;
+
+  /// Message after unpinning
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي التثبيت'**
+  String get feedPostUnpinned;
+
+  /// Own post menu: edit
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get feedPostEdit;
+
+  /// Post time with the edited mark
+  ///
+  /// In ar, this message translates to:
+  /// **'{time} · معدّل'**
+  String feedPostTimeEdited(String time);
+
+  /// Edit post screen title
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل المنشور'**
+  String get editPostTitle;
+
+  /// Edit post save action
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get editPostSave;
+
+  /// Message after saving an edit
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت التعديلات'**
+  String get editPostSaved;
+
+  /// Edit post: note under the photos
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تغيير الصور بعد النشر.'**
+  String get editPostPhotosFixed;
+
+  /// Edit post: a text-only post cannot be emptied
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشور النصي يحتاج إلى نص.'**
+  String get editPostTextRequired;
+
+  /// Edit post: leaving with unsaved changes
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل التعديلات؟'**
+  String get editPostDiscardTitle;
+
+  /// Edit post: stay
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة التعديل'**
+  String get editPostKeep;
+
+  /// Edit post: leave without saving
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get editPostDiscard;
+
+  /// Edit post: no place set
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا موقع'**
+  String get editPostNoPlace;
+
+  /// Edit post: clear the place
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الموقع'**
+  String get editPostRemovePlace;
 }
 
 class _AppLocalizationsDelegate

@@ -111,6 +111,24 @@ class ProfileGridPages extends AsyncNotifier<FeedLoad<ProfileGridItem>> {
           );
         }
       });
+    // A pin or an edit (this session) can move or change a cell: reload
+    // the grids that show that post.
+    ref.listen(postEditsProvider, (before, after) {
+      final s = state.value;
+      for (final e in after.entries) {
+        if (identical(before?[e.key], e.value)) continue;
+        final shown =
+            s is FeedItems<ProfileGridItem> &&
+            s.items.any((c) => c.postId == e.key);
+        final mine =
+            key.tab == ProfileTab.posts &&
+            e.value.author.username == key.username;
+        if (shown || mine) {
+          ref.invalidateSelf();
+          return;
+        }
+      }
+    });
     if (key.tab == ProfileTab.reels) return const FeedUnavailable();
     try {
       final page = await _page(null);

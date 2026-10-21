@@ -41,8 +41,12 @@ final FutureProviderFamily<FeedLoad<FeedPostData>, HomeFeed> homePostsProvider =
     FutureProvider.family<FeedLoad<FeedPostData>, HomeFeed>((ref, feed) async {
       if (watchDemo(ref)) return DemoData.posts(feed, ar: DemoData.arabic(ref));
       final page = await ref.watch(postsFeedProvider(feed).future);
+      final edits = ref.watch(postEditsProvider);
       return FeedItems(
-        [for (final post in page.items) feedPostOf(post)],
+        [
+          for (final post in page.items)
+            feedPostOf(edits[post.id] ?? post, repostedBy: post.repostedBy),
+        ],
         hasMore: page.hasMore,
         loadingMore: page.loadingMore,
         loadMoreError: page.loadMoreError,
