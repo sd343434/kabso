@@ -1,6 +1,8 @@
 /**
  * KL-060: the v1.5-social operations declared in openapi.yaml (CP-006 M1). KL-037's coverage test
- * leaves the four v1.5 paths under /users/{username} to this file, so both lists stay exact.
+ * leaves the four v1.5 paths under /users/{username} to this file, so both lists stay exact. The
+ * CP-008 story operations (M3), including `/feed/stories`, have their own exact list in
+ * kl061-stories.e2e-spec.ts.
  */
 import { describe, expect, it } from 'vitest';
 import { operations } from './helpers/openapi.js';
@@ -13,6 +15,7 @@ describe('KL-060 contract coverage', () => {
     expect(
       operations()
         .filter((o) => V15_PATHS.test(o.path))
+        .filter((o) => !o.path.includes('stories'))
         .map((o) => o.operationId)
         .sort(),
     ).toEqual(

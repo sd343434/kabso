@@ -21,13 +21,14 @@ import {
   type AdminReportsQuery,
   type CreateReportInput,
 } from './safety.schemas.js';
+import { visibleStoryWhere } from '../stories/stories.service.js';
 
 type Tx = Prisma.TransactionClient;
 
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
-  targetType: 'POST' | 'COMMENT' | 'USER';
+  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER';
   targetId: string;
   reason: string;
   note: string | null;
@@ -241,7 +242,12 @@ export class SafetyService {
   private async resolveTarget(
     reporterId: string,
     input: CreateReportInput,
-  ): Promise<{ targetPostId: string } | { targetCommentId: string } | { targetUserId: string }> {
+  ): Promise<
+    | { targetPostId: string }
+    | { targetCommentId: string }
+    | { targetUserId: string }
+    | { targetStoryId: string }
+  > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
       const user = await this.users.findActivePublicUser(input.targetId);
@@ -251,6 +257,16 @@ export class SafetyService {
     }
     if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
     const id = input.targetId.toLowerCase();
+    if (input.targetType === 'STORY') {
+      // CP-008: an active story the reporter may see (expired stories can no longer be seen).
+      const story = await this.prisma.story.findFirst({
+        where: { AND: [{ id, expiresAt: { gt: new Date() } }, visibleStoryWhere(reporterId)] },
+        select: { id: true, authorId: true },
+      });
+      if (!story) throw new AppException(ErrorCode.NOT_FOUND);
+      if (story.authorId === reporterId) throw invalid();
+      return { targetStoryId: story.id };
+    }
     if (input.targetType === 'POST') {
       const post = await this.prisma.post.findFirst({
         where: { AND: [{ id }, visiblePostWhere(reporterId)] },
@@ -331,6 +347,9 @@ export class SafetyService {
           await tx.postPin.deleteMany({ where: { postId: report.targetPostId } });
         } else if (report.targetCommentId) {
           await this.comments.removeIn(tx, report.targetCommentId);
+        } else if (report.targetStoryId) {
+          // CP-008: the story leaves every list, the archive included (soft, audited).
+          await tx.story.update({ where: { id: report.targetStoryId }, data: { removedAt: new Date() } });
         }
         // USER: the decision is recorded only; suspension is a separate admin tool.
       }
@@ -338,7 +357,9 @@ export class SafetyService {
         ? { targetPostId: report.targetPostId }
         : report.targetCommentId
           ? { targetCommentId: report.targetCommentId }
-          : { targetUserId: report.targetUserId };
+          : report.targetStoryId
+            ? { targetStoryId: report.targetStoryId }
+            : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -352,7 +373,12 @@ export class SafetyService {
         action: AuditAction.MODERATION_REPORT_ACTION,
         actorUserId: actor.userId,
         targetType: report.targetType.toLowerCase(),
-        targetId: report.targetPostId ?? report.targetCommentId ?? report.targetUserId ?? undefined,
+        targetId:
+          report.targetPostId ??
+          report.targetCommentId ??
+          report.targetStoryId ??
+          report.targetUserId ??
+          undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
         ip: actor.ip,
         requestId: actor.requestId,
@@ -371,6 +397,7 @@ export class SafetyService {
       targetId:
         row.targetPostId ??
         row.targetCommentId ??
+        row.targetStoryId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',

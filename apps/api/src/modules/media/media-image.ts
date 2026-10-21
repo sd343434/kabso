@@ -10,6 +10,8 @@ export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 export const MAX_IMAGE_SIDE = 8000;
 export const MAX_IMAGE_PIXELS = 50_000_000;
 export const LARGE_SIDE = 1080;
+/** The large variant of a story photo (CP-008): sharp at full screen. */
+export const STORY_LARGE_SIDE = 1920;
 export const THUMB_SIDE = 320;
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
@@ -56,10 +58,14 @@ const SHARP_FORMAT: Readonly<Record<ImageContentType, string>> = {
  * Verifies and re-encodes an upload: the signature must equal `declared` and the decoder must
  * agree; at most 8 000 px per side and 50 MP; EXIF orientation is applied, then every metadata
  * block (EXIF, GPS, XMP, IPTC) is dropped — sharp writes none unless asked — and colours are
- * converted to sRGB. Outputs WebP at 1 080 px and 320 px on the long side (never enlarged) and a
- * 4×3 blurhash. Animated images keep their first frame only.
+ * converted to sRGB. Outputs WebP at `largeSide` (1 080 px; 1 920 px for stories) and 320 px on the
+ * long side (never enlarged) and a 4×3 blurhash. Animated images keep their first frame only.
  */
-export async function processImage(bytes: Buffer, declared: ImageContentType): Promise<ProcessedImage> {
+export async function processImage(
+  bytes: Buffer,
+  declared: ImageContentType,
+  largeSide: number = LARGE_SIDE,
+): Promise<ProcessedImage> {
   const sniffed = sniffImageType(bytes);
   if (sniffed !== declared) throw new InvalidImageError(`signature ${sniffed ?? 'unknown'} ≠ ${declared}`);
   let meta: Metadata;
@@ -78,7 +84,7 @@ export async function processImage(bytes: Buffer, declared: ImageContentType): P
     sharp(bytes, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: 'error' }).rotate().toColorspace('srgb');
   try {
     const large = await base()
-      .resize(LARGE_SIDE, LARGE_SIDE, { fit: 'inside', withoutEnlargement: true })
+      .resize(largeSide, largeSide, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await base()

@@ -450,6 +450,8 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     expect(config.rateLimits.likeUser).toEqual({ max: 600, windowSeconds: 3600 });
     expect(config.rateLimits.feedUser).toEqual({ max: 300, windowSeconds: 900 });
     expect(config.rateLimits.reportUser).toEqual({ max: 30, windowSeconds: 3600 });
+    expect(config.rateLimits.storyCreateUser).toEqual({ max: 30, windowSeconds: 3600 });
+    expect(config.rateLimits.storySeenUser).toEqual({ max: 600, windowSeconds: 3600 });
   });
 
   it('needs the bucket, credentials and public URL when uploads are on, never echoing secrets', () => {

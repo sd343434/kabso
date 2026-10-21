@@ -65,6 +65,9 @@ export interface AppConfig {
     readonly shareUser: RateLimitRule;
     readonly viewsUser: RateLimitRule;
     readonly feedUser: RateLimitRule;
+    /** CP-008: `POST /stories` and `PUT /stories/{id}/seen`; the tray uses `feedUser`. */
+    readonly storyCreateUser: RateLimitRule;
+    readonly storySeenUser: RateLimitRule;
     readonly searchUser: RateLimitRule;
     readonly blockUser: RateLimitRule;
     readonly reportUser: RateLimitRule;
@@ -194,6 +197,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       shareUser: e.RATE_LIMIT_SHARE_USER,
       viewsUser: e.RATE_LIMIT_VIEWS_USER,
       feedUser: e.RATE_LIMIT_FEED_USER,
+      storyCreateUser: e.RATE_LIMIT_STORY_CREATE_USER,
+      storySeenUser: e.RATE_LIMIT_STORY_SEEN_USER,
       searchUser: e.RATE_LIMIT_SEARCH_USER,
       blockUser: e.RATE_LIMIT_BLOCK_USER,
       reportUser: e.RATE_LIMIT_REPORT_USER,

@@ -14,6 +14,8 @@ import {
   InvalidImageError,
   MAX_IMAGE_BYTES,
   processImage,
+  LARGE_SIDE,
+  STORY_LARGE_SIDE,
   type ImageContentType,
 } from './media-image.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
@@ -39,9 +41,13 @@ export interface MediaUploadDto {
   expiresAt: string;
 }
 
+/** `MediaKind`: what an asset may be attached to (CP-008). */
+export const MEDIA_KINDS = ['POST_IMAGE', 'STORY_IMAGE'] as const;
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
 /** `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). */
 export const createMediaUploadSchema = z.strictObject({
-  kind: z.enum(['POST_IMAGE']),
+  kind: z.enum(MEDIA_KINDS),
   contentType: z.enum(IMAGE_CONTENT_TYPES),
   byteSize: z.number().int().min(1).max(MAX_IMAGE_BYTES),
 });
@@ -154,14 +160,16 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     const bytes = await this.storage.get(upload.objectKey, upload.byteSize);
     if (!bytes || bytes.length !== upload.byteSize) return fail('size mismatch');
 
+    const story = upload.kind === 'STORY_IMAGE';
+    const side = story ? STORY_LARGE_SIDE : LARGE_SIDE;
     let image;
     try {
-      image = await processImage(bytes, upload.contentType as ImageContentType);
+      image = await processImage(bytes, upload.contentType as ImageContentType, side);
     } catch (err) {
       if (err instanceof InvalidImageError) return fail(err.message);
       throw err;
     }
-    const largeKey = `media/${upload.id}/1080.webp`;
+    const largeKey = `media/${upload.id}/${side}.webp`;
     const thumbKey = `media/${upload.id}/320.webp`;
     await this.storage.put(largeKey, image.large, 'image/webp', IMMUTABLE_CACHE);
     await this.storage.put(thumbKey, image.thumb, 'image/webp', IMMUTABLE_CACHE);
@@ -172,6 +180,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
           {
             id: upload.id,
             ownerId: userId,
+            kind: story ? 'STORY_IMAGE' : 'POST_IMAGE',
             width: image.width,
             height: image.height,
             blurhash: image.blurhash,
@@ -205,20 +214,23 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Attaches the caller's READY, unattached assets (in `ids` order) inside the caller's
-   * transaction; rows are locked so two posts cannot take the same asset. Returns null when an
-   * id is not one of the caller's attachable assets.
+   * Attaches the caller's READY, unattached assets of `kind` (in `ids` order) inside the caller's
+   * transaction; rows are locked so two posts or stories cannot take the same asset. Returns null
+   * when an id is not one of the caller's attachable assets of that kind (CP-008: a story photo
+   * never attaches to a post, nor the reverse).
    */
   async claimAssetsIn(
     tx: Prisma.TransactionClient,
     userId: string,
     ids: readonly string[],
+    kind: MediaKind = 'POST_IMAGE',
   ): Promise<MediaAsset[] | null> {
     if (ids.length === 0) return [];
     const lower = ids.map((id) => id.toLowerCase());
     const locked = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM media_assets
       WHERE id = ANY(${lower}::uuid[]) AND owner_id = ${userId}::uuid AND attached_at IS NULL
+        AND kind = ${kind}
         AND created_at > now() - interval '24 hours'
       FOR UPDATE`;
     if (locked.length !== lower.length) return null;

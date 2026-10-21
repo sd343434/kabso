@@ -208,6 +208,8 @@ export const envSchema = z
     RATE_LIMIT_SHARE_USER: rateLimit('120/3600'),
     RATE_LIMIT_VIEWS_USER: rateLimit('120/3600'),
     RATE_LIMIT_FEED_USER: rateLimit('300/900'),
+    RATE_LIMIT_STORY_CREATE_USER: rateLimit('30/3600'),
+    RATE_LIMIT_STORY_SEEN_USER: rateLimit('600/3600'),
     RATE_LIMIT_SEARCH_USER: rateLimit('300/900'),
     RATE_LIMIT_BLOCK_USER: rateLimit('60/3600'),
     RATE_LIMIT_REPORT_USER: rateLimit('30/3600'),

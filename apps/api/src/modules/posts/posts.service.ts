@@ -33,7 +33,7 @@ const IDEMPOTENCY_MS = 24 * 3600_000;
 type Tx = Prisma.TransactionClient;
 
 /** JSON with sorted object keys: the request hash does not depend on key order. */
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') {
     return `{${Object.keys(value)
@@ -102,7 +102,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
           data: { idempotencyKey: null, requestHash: null },
         });
         const mediaIds = input.mediaIds ?? [];
-        const assets = await this.media.claimAssetsIn(tx, authorId, mediaIds);
+        const assets = await this.media.claimAssetsIn(tx, authorId, mediaIds, 'POST_IMAGE');
         if (!assets) throw AppException.validation([{ field: 'mediaIds', issue: 'invalid_value' }]);
         const privacy = await tx.privacySettings.findUnique({ where: { userId: authorId } });
         const status = input.status ?? 'PUBLISHED';

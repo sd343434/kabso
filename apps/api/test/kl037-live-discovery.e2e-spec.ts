@@ -96,6 +96,8 @@ describe('KL-037 contract coverage', () => {
       // v1.5-social (draft) adds posts, reposts, block and mute under /users/{username}; KL-060
       // covers them.
       .filter((o) => !/^\/api\/v1\/users\/\{username\}\/(posts|reposts|block|mute)$/.test(o.path))
+      // CP-008 adds /users/{username}/stories; kl061-stories covers it.
+      .filter((o) => o.path !== '/api/v1/users/{username}/stories')
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(
