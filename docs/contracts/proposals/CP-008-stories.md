@@ -1,7 +1,11 @@
-# CP-008 — Stories with photos (CP-006 M3) (PROPOSED)
+# CP-008 — Stories with photos (CP-006 M3) (APPROVED)
 
-**Status:** proposed on 2026-10-21 for the owner's approval. Nothing is applied to `openapi.yaml`
-or CONVENTIONS until it is approved.
+**Status:** approved by the owner on 2026-10-21 (D91) with two decisions that differ from or
+settle the open questions below: **Q1 — story photos are visible at once** (no moderation hold;
+safety relies on reports and the 24-hour expiry), and **Q2 — the existing mute also hides
+stories** (no separate option). Applied to `openapi.yaml` (v1.5-social, draft) and CONVENTIONS
+§11.1, §11.7, §11.8 and §11.9. Because of Q1 the `Story.moderation` field below is not part of
+the applied contract.
 
 ## Why
 

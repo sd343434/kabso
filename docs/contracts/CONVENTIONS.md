@@ -403,6 +403,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | tokens v1.2 | 2026-10-18 | `design-tokens.json` v1.2 (D47): `typography.fontFamilyArabic` IBM Plex Sans Arabic → Readex Pro (OFL-1.1), bundled at 400/500/600/700. | Visual only; no shape change. Flutter swaps the bundled Arabic font in the same change set and regenerates goldens. |
 | v1.4-levels (draft) | 2026-10-20 | **Draft, owner sign-off pending (CP-005, D72).** Four independent level systems. User: `GET /levels/me`, `/levels/me/{category}`, `/levels/me/history`, `/levels/me/points-history` (signed keyset cursors scoped to caller and filter). Admin (`role = ADMIN`, every mutation in `audit_logs`): categories (list/get/patch), versions (list/create/get/replace/validate/preview/publish with `PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`), a user's states, recalculate, manual adjustment (`Idempotency-Key` required; replay 200, different body 409), reconciliation (`DRY_RUN`/`REPAIR`) and its runs, source events and retry, reports, levels audit log. New error codes `LEVEL_CONFIG_INVALID` (422) and `LEVEL_VERSION_NOT_DRAFT` (409). `GET /users/{username}/levels` (levels only, for profiles). Admin routes need a per-route permission (`LEVELS_VIEW|EDIT|PUBLISH|ADJUST|RECONCILE`) besides `role = ADMIN`. No public endpoint accepts points, levels or events. Additive: no existing path, schema or code changes |
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
+| v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
 | v1.5-social (draft) | 2026-10-21 | **CP-007 (D89):** `GET /me/mutes` (the caller's muted accounts, newest first, `UserSummaryPage`) and `PublicProfile.isMuted` (the caller's own mute only). §11.7 line added. | Additive: a new path and one new boolean on `PublicProfile`. |
 
 **Intentionally deferred lint warnings** (`@redocly/cli@2.60.0`, pinned in `tools/redocly`, config `redocly.yaml`):
@@ -654,6 +655,9 @@ these rules.
   ≤ 50 MP), strips every metadata block (EXIF, GPS, XMP, ICC kept as sRGB), writes
   `media/{mediaId}/1080.webp` and `media/{mediaId}/320.webp` and a blurhash, and deletes the
   upload object. Failure → 422 `MEDIA_INVALID`; the slot is closed.
+- *(CP-008)* `STORY_IMAGE` uploads follow the same checks; their large variant is
+  `media/{mediaId}/1920.webp` (at most 1 920 px on the long side) and attaches only to a story,
+  as a `POST_IMAGE` asset attaches only to a post (otherwise 400 `mediaId` / `invalid_value`).
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.
@@ -732,8 +736,8 @@ count is eventually consistent (≤ 1 min).
   unblock). While a block exists in either direction, `followUser` between the two → 404 (the
   existing "not found" answer; follow and block writes are serialized). Blocking yourself → 400.
   Their existing comments on your posts are hidden from you.
-- **Mute** is one-way and silent: the muted account's posts and reposts leave the caller's
-  feeds; profile, search and direct links still work. The caller sees their mutes in
+- **Mute** is one-way and silent: the muted account's posts, reposts and (CP-008) stories leave
+  the caller's feeds and stories tray; profile, search and direct links still work. The caller sees their mutes in
   `GET /me/mutes` (newest first, every muted account, like `GET /me/blocks`) and on profiles as
   `PublicProfile.isMuted`; the muted account is never told (CP-007).
 - **Hide**: the post leaves the caller's feeds and hashtag pages.
@@ -759,3 +763,26 @@ count is eventually consistent (≤ 1 min).
 | `GET /feed/posts`, `GET /search` | 300 / 15 min |
 | `PUT /users/{username}/block` | 60 / hour |
 | `POST /reports` | 30 / hour |
+| `POST /stories` *(CP-008)* | 30 / hour |
+| `PUT /stories/{id}/seen` *(CP-008)* | 600 / hour |
+| `GET /feed/stories` *(CP-008)* | 300 / 15 min |
+
+### 11.9 Stories *(CP-008, D91 — CP-006 M3, photos only)*
+
+- A story is one `STORY_IMAGE` photo and an optional `text` (NFC, trimmed, ≤ 200 code points,
+  §6 hygiene, ≤ 3 line breaks; mentions as §11.6, at most 10; hashtags stay plain text).
+  `createStory` takes an `Idempotency-Key` with the rules of `createPost`.
+- **Active** = not deleted and `expiresAt` (`createdAt` + 24 h) in the future. Expired stories
+  leave every list except the author's archive (`GET /me/stories/archive`, newest first), which
+  keeps them until the author deletes them. Deleting is soft and removes the story everywhere.
+- **No moderation hold (owner, D91):** story photos are visible at once; safety relies on
+  reports (`targetType: STORY`, admin `REMOVE_TARGET` removes the story) and the 24-hour expiry.
+- **Visibility** as posts (§11.2): author ACTIVE, no block either way, author public or followed
+  by the caller (the author always sees their own). Anything else → 404.
+- **Tray** (`GET /feed/stories`): the caller's own entry first when they have an active story;
+  then followed accounts with active stories, those with unseen stories first, each group by the
+  newest story; muted accounts left out (§11.7). Keyset cursor (§5).
+- **Seen**: one row per viewer and story, idempotent, never for the author; `viewCount` (author
+  only) counts distinct viewers. `GET /stories/{id}/viewers` is for the author only and only
+  until 48 h after posting; otherwise 404.
+- Replies, video stories, highlights and stickers are not part of M3 (M7, M2, later).

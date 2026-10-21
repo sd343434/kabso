@@ -12,7 +12,8 @@ info:
     admin paths tagged `levels` / `admin-levels`); it is additive and awaits formal approval.
     **v1.5-social (DRAFT, CP-006 M1)** adds media upload, posts, feeds, likes, saves, reposts,
     views, comments, hashtags, search, block / mute / hide, reports and privacy settings
-    (CONVENTIONS §11); additive, owner-approved scope (D87).
+    (CONVENTIONS §11); additive, owner-approved scope (D87). **CP-008 (D91, M3)** adds photo
+    stories: tray, viewer, seen, viewers and archive (tag `stories`, CONVENTIONS §11.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -41,6 +42,8 @@ tags:
     description: "Comments with one level of replies (v1.5-social DRAFT)."
   - name: search
     description: "Hashtags and prefix search (v1.5-social DRAFT)."
+  - name: stories
+    description: "Photo stories that last 24 hours: tray, seen, viewers and archive (v1.5-social DRAFT, CP-008)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -1959,6 +1962,137 @@ paths:
               schema: { $ref: '#/components/schemas/UserSummaryPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+  /api/v1/stories:
+    post:
+      tags: [stories]
+      operationId: createStory
+      summary: "Post a photo story (24 hours)"
+      description: |
+        CONVENTIONS §11.9. One READY, unattached `STORY_IMAGE` asset of the caller and an optional
+        text. An `Idempotency-Key` (UUID) is required, as for `createPost`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateStoryRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Story' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/stories/{storyId}:
+    get:
+      tags: [stories]
+      operationId: getStory
+      summary: "One active story the caller may see"
+      description: Expired (except for its author), deleted or not visible → 404.
+      parameters:
+        - $ref: '#/components/parameters/StoryIdPath'
+      responses:
+        '200':
+          description: The story.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Story' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [stories]
+      operationId: deleteStory
+      summary: "Delete a story (author); it leaves every list and the archive"
+      parameters:
+        - $ref: '#/components/parameters/StoryIdPath'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/feed/stories:
+    get:
+      tags: [stories]
+      operationId: listStoryTray
+      summary: "The stories tray: the caller first, then followed accounts (unseen first)"
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoryTrayPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/stories:
+    get:
+      tags: [stories]
+      operationId: listUserStories
+      summary: "A user's active stories, oldest first (not paged)"
+      description: Private author not followed, or a block either way → 404.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The active stories.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoryList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/stories/{storyId}/seen:
+    put:
+      tags: [stories]
+      operationId: markStorySeen
+      summary: "Mark a story seen (idempotent; never counts for the author)"
+      parameters:
+        - $ref: '#/components/parameters/StoryIdPath'
+      responses:
+        '204': { description: Seen. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/stories/{storyId}/viewers:
+    get:
+      tags: [stories]
+      operationId: listStoryViewers
+      summary: "Who saw a story, newest first (author only, until 48 hours after posting)"
+      description: Others, or later than 48 hours after posting → 404.
+      parameters:
+        - $ref: '#/components/parameters/StoryIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummaryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/me/stories/archive:
+    get:
+      tags: [stories]
+      operationId: listStoryArchive
+      summary: "The caller's stories, active and expired, newest first (private)"
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoryPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
   /api/v1/me/mutes:
     get:
       tags: [safety]
@@ -1980,7 +2114,7 @@ paths:
     put:
       tags: [safety]
       operationId: muteUser
-      summary: "Mute (idempotent): their posts and reposts leave the caller's feeds; they are not told"
+      summary: "Mute (idempotent): their posts, reposts and stories leave the caller's feeds; they are not told"
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -2031,7 +2165,7 @@ paths:
     post:
       tags: [safety]
       operationId: createReport
-      summary: "Report a post, comment or user"
+      summary: "Report a post, comment, story or user"
       description: One open report per reporter and target (a repeat returns the existing one with 200).
       requestBody:
         required: true
@@ -2228,6 +2362,12 @@ components:
       required: true
       description: Without `#`, any case (compared in NFC lower case). Malformed → 404.
       schema: { type: string, minLength: 1, maxLength: 100 }
+    StoryIdPath:
+      name: storyId
+      in: path
+      required: true
+      description: A malformed id is treated as not found (404).
+      schema: { type: string, format: uuid }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -2958,8 +3098,10 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE]
-      description: M1 has images for posts only; video kinds arrive with M2 (CP-006 §2).
+      enum: [POST_IMAGE, STORY_IMAGE]
+      description: |
+        Images for posts, and (CP-008) for stories; video kinds arrive with M2 (CP-006 §2). An
+        asset is attachable only to its kind's target (a post or a story).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -2996,7 +3138,7 @@ components:
         url:
           type: string
           format: uri
-          description: WebP, at most 1 080 px on the long side.
+          description: WebP, at most 1 080 px on the long side (1 920 px for a `STORY_IMAGE`, CP-008).
         thumbUrl:
           type: string
           format: uri
@@ -3217,17 +3359,77 @@ components:
     ReportReason:
       type: string
       enum: [SPAM, NUDITY, VIOLENCE, HATE, HARASSMENT, ILLEGAL, OTHER]
+    CreateStoryRequest:
+      type: object
+      additionalProperties: false
+      required: [mediaId]
+      properties:
+        mediaId: { type: string, format: uuid, description: "A READY, unattached STORY_IMAGE asset of the caller." }
+        text:
+          type: string
+          maxLength: 200
+          description: After NFC and trim; §6 hygiene; at most 3 line breaks. Mentions are parsed (§11.6, at most 10); hashtags stay plain text.
+    Story:
+      type: object
+      required: [id, author, media, text, mentions, createdAt, expiresAt, viewerHasSeen, isSelf, viewCount]
+      properties:
+        id: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        media: { $ref: '#/components/schemas/MediaAsset' }
+        text: { type: string, description: '"" when none.' }
+        mentions:
+          type: array
+          items: { $ref: '#/components/schemas/UserSummary' }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: createdAt + 24 hours. }
+        viewerHasSeen: { type: boolean, description: Always true for the author's own stories. }
+        isSelf: { type: boolean }
+        viewCount:
+          type: [integer, 'null']
+          minimum: 0
+          description: Distinct viewers other than the author; the author only (null for everyone else).
+    StoryList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Story' }
+    StoryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Story' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    StoryTrayItem:
+      type: object
+      required: [user, storyCount, hasUnseen, latestAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        storyCount: { type: integer, minimum: 1, description: Active stories. }
+        hasUnseen: { type: boolean, description: Any active story the caller has not seen (false for the caller's own entry). }
+        latestAt: { type: string, format: date-time, description: The newest active story. }
+    StoryTrayPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/StoryTrayItem' }
+        page: { $ref: '#/components/schemas/PageInfo' }
     CreateReportRequest:
       type: object
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, USER] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post or comment id, or a username for USER.
+          description: A post, comment or story id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -3235,7 +3437,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, USER] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }

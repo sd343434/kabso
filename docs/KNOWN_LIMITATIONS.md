@@ -39,6 +39,8 @@
   separate admin tool. There is no admin web panel for the queue yet (API only).
 - Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
   a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
+- Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold
+  (owner decision); harmful ones are handled by reports and expire after 24 hours.
 - App (KL-060 E1–E4): outside sharing is not offered, so `POST /posts/{id}/shares` is unused and
   the share count is display-only; sharing needs post links on a web domain (CP-006 Q7, M7).
 - App: views are recorded best effort — a batch that fails is dropped, and views still waiting
