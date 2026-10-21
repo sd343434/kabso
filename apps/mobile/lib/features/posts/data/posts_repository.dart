@@ -73,6 +73,10 @@ abstract interface class PostsRepository {
     DateTime? publishAt,
   });
 
+  /// `POST /views`: up to 50 views in one batch (best effort; the server
+  /// counts one per user, post and 24 hours, §11.4).
+  Future<void> recordViews(List<PostView> views);
+
   /// `GET /me/posts?status=`: the caller's drafts (newest first) or
   /// scheduled posts (soonest first).
   Future<PageOf<Post>> myPosts(String status, {String? cursor});
@@ -302,6 +306,18 @@ class PostsRepositoryImpl implements PostsRepository {
       options: Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
     return Post.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> recordViews(List<PostView> views) => guardApiCall(() async {
+    await _dio.post<void>(
+      '/views',
+      data: {
+        'items': [
+          for (final v in views) {'postId': v.postId, 'watchedMs': v.watchedMs},
+        ],
+      },
+    );
   });
 
   @override

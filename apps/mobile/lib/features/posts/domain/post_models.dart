@@ -183,6 +183,9 @@ class PageOf<T> {
 /// `LikeState`.
 typedef LikeState = ({bool liked, int? likeCount});
 
+/// One item of `RecordViewsRequest`: how long a post was on screen.
+typedef PostView = ({String postId, int watchedMs});
+
 /// `RepostState`.
 typedef RepostState = ({bool reposted, int repostCount});
 

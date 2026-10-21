@@ -500,6 +500,18 @@ void main() {
         Directionality.of(tester.element(find.byKey(CommentsSheet.inputKey))),
         TextDirection.rtl,
       );
+      // The reply starts with a Latin @handle: the field reads left to
+      // right so the handle keeps its @ in front; Arabic text turns it back.
+      TextDirection? fieldDirection() => tester
+          .widget<TextField>(find.byKey(CommentsSheet.inputKey))
+          .textDirection;
+      expect(fieldDirection(), TextDirection.ltr);
+      await tester.enterText(find.byKey(CommentsSheet.inputKey), 'شكراً');
+      await tester.pump();
+      expect(fieldDirection(), TextDirection.rtl);
+      await tester.enterText(find.byKey(CommentsSheet.inputKey), '');
+      await tester.pump();
+      expect(fieldDirection(), isNull);
     });
   });
 }

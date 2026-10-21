@@ -39,3 +39,11 @@
   separate admin tool. There is no admin web panel for the queue yet (API only).
 - Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
   a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
+- App (KL-060 E1–E4): outside sharing is not offered, so `POST /posts/{id}/shares` is unused and
+  the share count is display-only; sharing needs post links on a web domain (CP-006 Q7, M7).
+- App: views are recorded best effort — a batch that fails is dropped, and views still waiting
+  when the app is killed (not just sent to the background) are lost.
+- App: a text field takes its direction from its first letter, so a caption or comment that
+  starts with `@handle` reads correctly in Arabic; an `@handle` typed after Arabic text in the
+  same field still shows its `@` on the right while editing (posted text is displayed with the
+  handle isolated).

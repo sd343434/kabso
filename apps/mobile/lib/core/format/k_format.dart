@@ -1,4 +1,6 @@
-import 'package:intl/intl.dart';
+import 'dart:ui' show TextDirection;
+
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:kabso_live/l10n/l10n.dart';
 
 /// The single place that formats numbers, dates and durations for display.
@@ -74,6 +76,21 @@ abstract final class KFormat {
   /// so a name in the other script does not reorder the sentence around it
   /// (DESIGN_SYSTEM §3.4).
   static String bidiIsolate(String value) => '\u2068$value\u2069';
+
+  /// The direction of [text]'s first letter (like HTML `dir="auto"`), or
+  /// `null` when it has none (then the ambient direction applies). A text
+  /// field given this keeps a leading `@handle` in front in Arabic UI.
+  static TextDirection? firstStrongDirection(String text) {
+    final m = _strong.firstMatch(text);
+    if (m == null) return null;
+    return m.group(1) != null ? TextDirection.rtl : TextDirection.ltr;
+  }
+
+  static final RegExp _strong = RegExp(
+    r'(\p{Script=Arabic}|\p{Script=Hebrew}|\p{Script=Syriac}|'
+    r'\p{Script=Thaana}|\p{Script=Nko})|\p{L}',
+    unicode: true,
+  );
 
   static DateFormat _latin(DateFormat format) =>
       format..useNativeDigits = false;

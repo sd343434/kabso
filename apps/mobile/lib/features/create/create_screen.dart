@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -1024,6 +1025,9 @@ class _CaptionBox extends StatelessWidget {
         children: [
           TextField(
             key: CreateScreen.textKey,
+            // Like dir="auto": a caption that starts with @handle or Latin
+            // text reads left to right.
+            textDirection: KFormat.firstStrongDirection(controller.text),
             controller: controller,
             focusNode: focus,
             enabled: enabled,

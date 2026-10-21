@@ -10,6 +10,7 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
+import 'package:kabso_live/features/posts/application/view_recorder.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
@@ -17,6 +18,7 @@ import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// Input for one Home feed item. Production builds it from the posts API
 /// (`feedPostOf`, v1.5-social) with a [postId], which turns the action row
@@ -165,7 +167,8 @@ abstract final class KPostCard {
 /// comments sheet), repost (others' posts) and save are buttons, and the
 /// like count opens who liked it; share stays a count (outside sharing
 /// needs post links, CP-006 Q7). Previews without a post id are display
-/// only.
+/// only. Someone else's real post records a view while at least half of
+/// it is on screen ([ViewRecorder], `POST /views`).
 class FeedPostTile extends StatelessWidget {
   const new({required this.post, super.key});
 
@@ -210,7 +213,7 @@ class FeedPostTile extends StatelessWidget {
     final media = post.media;
     final (likes, comments, shares) = (post.likes, post.comments, post.shares);
     const inset = EdgeInsetsDirectional.symmetric(horizontal: KPostCard.inset);
-    return Column(
+    final tile = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (post.repostedBy case final by?)
@@ -299,7 +302,47 @@ class FeedPostTile extends StatelessWidget {
         ),
       ],
     );
+    return switch (post.postId) {
+      final id? when !post.isSelf => _ViewTracker(postId: id, child: tile),
+      _ => tile,
+    };
   }
+}
+
+/// Tells the [ViewRecorder] when [postId] is at least half on screen.
+class _ViewTracker extends ConsumerStatefulWidget {
+  const new({required this.postId, required this.child});
+
+  final String postId;
+  final Widget child;
+
+  @override
+  ConsumerState<_ViewTracker> createState() => _ViewTrackerState();
+}
+
+class _ViewTrackerState extends ConsumerState<_ViewTracker> {
+  late final ViewRecorder _recorder;
+
+  @override
+  void initState() {
+    super.initState();
+    _recorder = ref.read(viewRecorderProvider);
+  }
+
+  @override
+  void dispose() {
+    _recorder.hidden(widget.postId);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => VisibilityDetector(
+    key: ValueKey('view.${widget.postId}'),
+    onVisibilityChanged: (info) => info.visibleFraction >= 0.5
+        ? _recorder.visible(widget.postId)
+        : _recorder.hidden(widget.postId),
+    child: widget.child,
+  );
 }
 
 /// The author row: avatar, name and, when known, the location under it.

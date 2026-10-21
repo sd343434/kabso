@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -319,6 +320,7 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
             ],
             TextField(
               key: EditPostScreen.textKey,
+              textDirection: KFormat.firstStrongDirection(_text.text),
               controller: _text,
               enabled: !_saving,
               minLines: 4,

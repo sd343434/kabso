@@ -291,6 +291,15 @@ class FakePostsRepository implements PostsRepository {
     return post;
   }
 
+  /// Batches sent to `recordViews`.
+  final List<List<PostView>> viewBatches = [];
+
+  @override
+  Future<void> recordViews(List<PostView> views) async {
+    await _step('views:${views.length}');
+    viewBatches.add(views);
+  }
+
   @override
   Future<PageOf<Post>> myPosts(String status, {String? cursor}) async {
     await _step('myPosts:$status:${cursor ?? ''}');

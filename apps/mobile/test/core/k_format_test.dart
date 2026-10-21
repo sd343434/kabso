@@ -1,3 +1,5 @@
+import 'dart:ui' show TextDirection;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -129,6 +131,14 @@ void main() {
 
     test('bidiIsolate wraps in FSI … PDI', () {
       expect(KFormat.bidiIsolate('sara'), '\u2068sara\u2069');
+    });
+
+    test('firstStrongDirection: the first letter decides; none → null', () {
+      expect(KFormat.firstStrongDirection('@omar مرحبا'), TextDirection.ltr);
+      expect(KFormat.firstStrongDirection('مرحبا @omar'), TextDirection.rtl);
+      expect(KFormat.firstStrongDirection('  12 #שלום'), TextDirection.rtl);
+      expect(KFormat.firstStrongDirection('😀 123 @'), isNull);
+      expect(KFormat.firstStrongDirection(''), isNull);
     });
   });
 }

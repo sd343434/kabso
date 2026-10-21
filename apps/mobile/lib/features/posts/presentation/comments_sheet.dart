@@ -960,53 +960,59 @@ class _CommentBar extends ConsumerWidget {
                   ),
                   const SizedBox(width: KSpacing.sm),
                   Expanded(
-                    child: TextField(
-                      key: CommentsSheet.inputKey,
-                      controller: controller,
-                      focusNode: focusNode,
-                      enabled: !sending,
-                      minLines: 1,
-                      maxLines: 4,
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(maxCommentText),
-                      ],
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onPost(),
-                      decoration: InputDecoration(
-                        hintText: l10n.commentsHint,
-                        filled: true,
-                        fillColor: p.surfaceOverlay,
-                        isDense: true,
-                        constraints: const BoxConstraints(
-                          minHeight: KCommentsSheet.inputHeight,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.sm,
-                          vertical: KSpacing.sm + 2,
-                        ),
-                        suffixIcon: IconButton(
-                          key: CommentsSheet.emojiKey,
-                          tooltip: l10n.kabiEmojiButton,
-                          onPressed: sending
-                              ? null
-                              : () async {
-                                  final emoji = await showKabiEmojiPicker(
-                                    context,
-                                  );
-                                  if (emoji != null) onEmoji(emoji);
-                                },
-                          icon: AppIcon(
-                            AppIcons.emoji,
-                            size: KCommentsSheet.inputIcon,
-                            color: p.textSecondary,
+                    // Direction follows the first letter, so a reply's
+                    // leading @handle reads correctly in Arabic.
+                    child: ValueListenableBuilder(
+                      valueListenable: controller,
+                      builder: (context, value, _) => TextField(
+                        key: CommentsSheet.inputKey,
+                        textDirection: KFormat.firstStrongDirection(value.text),
+                        controller: controller,
+                        focusNode: focusNode,
+                        enabled: !sending,
+                        minLines: 1,
+                        maxLines: 4,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(maxCommentText),
+                        ],
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => onPost(),
+                        decoration: InputDecoration(
+                          hintText: l10n.commentsHint,
+                          filled: true,
+                          fillColor: p.surfaceOverlay,
+                          isDense: true,
+                          constraints: const BoxConstraints(
+                            minHeight: KCommentsSheet.inputHeight,
                           ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: KSpacing.sm,
+                            vertical: KSpacing.sm + 2,
+                          ),
+                          suffixIcon: IconButton(
+                            key: CommentsSheet.emojiKey,
+                            tooltip: l10n.kabiEmojiButton,
+                            onPressed: sending
+                                ? null
+                                : () async {
+                                    final emoji = await showKabiEmojiPicker(
+                                      context,
+                                    );
+                                    if (emoji != null) onEmoji(emoji);
+                                  },
+                            icon: AppIcon(
+                              AppIcons.emoji,
+                              size: KCommentsSheet.inputIcon,
+                              color: p.textSecondary,
+                            ),
+                          ),
+                          suffixIconConstraints: const BoxConstraints(),
+                          // No outline at rest; the theme's focus border
+                          // shows while typing.
+                          border: noBorder,
+                          enabledBorder: noBorder,
+                          disabledBorder: noBorder,
                         ),
-                        suffixIconConstraints: const BoxConstraints(),
-                        // No outline at rest; the theme's focus border
-                        // shows while typing.
-                        border: noBorder,
-                        enabledBorder: noBorder,
-                        disabledBorder: noBorder,
                       ),
                     ),
                   ),
