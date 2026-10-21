@@ -570,7 +570,9 @@ class PostGridCell extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         ColoredBox(
-          color: p.surfaceRaised,
+          // A tint under the cover (and under a text-only post) so every
+          // cell reads as a tile while its image loads or if it fails.
+          color: p.surfaceOverlay,
           child: cover != null
               ? Image(
                   image: cover,
