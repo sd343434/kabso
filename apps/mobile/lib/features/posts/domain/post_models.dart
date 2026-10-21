@@ -233,3 +233,83 @@ class PostSettingsDraft {
     if (hideLikeCount) 'hideLikeCount': true,
   };
 }
+
+/// Text limit of a comment (CONVENTIONS §11.5), checked again by the
+/// server, which also allows at most five line breaks.
+const int maxCommentText = 500;
+
+/// `Comment`: top level (`parentId == null`) or a reply (one level).
+@immutable
+class Comment {
+  const new({
+    required this.id,
+    required this.postId,
+    required this.author,
+    required this.text,
+    required this.createdAt,
+    required this.likeCount,
+    required this.viewerHasLiked,
+    required this.replyCount,
+    required this.parentId,
+    required this.mentions,
+    required this.pinned,
+    required this.canDelete,
+  });
+
+  factory fromJson(Map<String, dynamic> json) => Comment(
+    id: json['id']! as String,
+    postId: json['postId']! as String,
+    author: UserSummary.fromJson(json['author']! as Map<String, dynamic>),
+    text: json['text']! as String,
+    createdAt: DateTime.parse(json['createdAt']! as String),
+    likeCount: json['likeCount']! as int,
+    viewerHasLiked: json['viewerHasLiked']! as bool,
+    replyCount: json['replyCount']! as int,
+    parentId: json['parentId'] as String?,
+    mentions: [
+      for (final m in json['mentions']! as List<dynamic>)
+        UserSummary.fromJson(m as Map<String, dynamic>),
+    ],
+    pinned: json['pinned']! as bool,
+    canDelete: json['canDelete']! as bool,
+  );
+
+  final String id;
+  final String postId;
+  final UserSummary author;
+  final String text;
+  final DateTime createdAt;
+  final int likeCount;
+  final bool viewerHasLiked;
+  final int replyCount;
+
+  /// The top-level comment of a reply.
+  final String? parentId;
+
+  /// The linked `@mentions` (others stay plain text, §11.6).
+  final List<UserSummary> mentions;
+  final bool pinned;
+
+  /// The caller wrote it or owns the post.
+  final bool canDelete;
+
+  Comment copyWith({
+    int? likeCount,
+    bool? viewerHasLiked,
+    int? replyCount,
+    bool? pinned,
+  }) => Comment(
+    id: id,
+    postId: postId,
+    author: author,
+    text: text,
+    createdAt: createdAt,
+    likeCount: likeCount ?? this.likeCount,
+    viewerHasLiked: viewerHasLiked ?? this.viewerHasLiked,
+    replyCount: replyCount ?? this.replyCount,
+    parentId: parentId,
+    mentions: mentions,
+    pinned: pinned ?? this.pinned,
+    canDelete: canDelete,
+  );
+}

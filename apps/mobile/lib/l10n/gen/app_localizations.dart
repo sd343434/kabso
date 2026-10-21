@@ -3817,6 +3817,126 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'صورة من المعرض'**
   String get createLibraryPhoto;
+
+  /// KL-060 comments: none.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد تعليقات بعد'**
+  String get commentsEmpty;
+
+  /// KL-060 comments: none.
+  ///
+  /// In ar, this message translates to:
+  /// **'كن أول من يعلّق.'**
+  String get commentsEmptyHint;
+
+  /// KL-060 comments: load error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل التعليقات.'**
+  String get commentsFailed;
+
+  /// KL-060 comments: next page error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المزيد.'**
+  String get commentsMoreFailed;
+
+  /// KL-060 reply banner.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرد على {name}'**
+  String commentsReplyingTo(String name);
+
+  /// KL-060 reply banner close.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الرد'**
+  String get commentsCancelReply;
+
+  /// KL-060 commentsEnabled false or NOBODY.
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات مغلقة على هذا المنشور.'**
+  String get commentsClosed;
+
+  /// KL-060 comment 403.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكنك التعليق على هذا المنشور.'**
+  String get commentsNotAllowed;
+
+  /// KL-060 pinned label.
+  ///
+  /// In ar, this message translates to:
+  /// **'مثبّت'**
+  String get commentsPinned;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'تثبيت التعليق'**
+  String get commentsPin;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التثبيت'**
+  String get commentsUnpin;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف التعليق'**
+  String get commentsDelete;
+
+  /// KL-060 confirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف التعليق؟'**
+  String get commentsDeleteTitle;
+
+  /// KL-060 confirm body (top level).
+  ///
+  /// In ar, this message translates to:
+  /// **'ستُحذف الردود عليه أيضاً.'**
+  String get commentsDeleteWithReplies;
+
+  /// KL-060 snack.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذف التعليق'**
+  String get commentsDeleted;
+
+  /// KL-060 menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن التعليق'**
+  String get commentsReport;
+
+  /// KL-060 report sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا التعليق؟'**
+  String get commentsReportTitle;
+
+  /// KL-060 menu semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات التعليق'**
+  String get commentsMore;
+
+  /// KL-060 next replies page.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض ردود أخرى ({count})'**
+  String commentsMoreReplies(int count);
+
+  /// KL-060 comment button semantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض التعليقات'**
+  String get commentsOpen;
 }
 
 class _AppLocalizationsDelegate

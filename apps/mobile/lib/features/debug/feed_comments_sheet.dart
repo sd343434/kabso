@@ -3,45 +3,9 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/feed_glyphs.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
-
-/// Geometry of the KL-056 comments sheet, measured from the owner's Figma
-/// reference (UI kit "Comment page", node 1347:5310, 414x896: sheet 414x653).
-/// Only geometry and type sizes are taken from it; colours are Kabso's and
-/// avatars are initials, never the kit's photos.
-abstract final class KCommentsSheet {
-  /// Sheet height as a share of the screen (653 / 896).
-  static const double heightFactor = 0.73;
-  static const double radius = 8;
-  static const Color barrier = Color(0x33000000);
-  static const double headerHeight = 36;
-  static const double titleSize = 13;
-  static const double closeIcon = 17;
-  static const double closeInset = 16;
-  static const double listInset = 14;
-  static const double listTop = 12;
-  static const double commentGap = 22;
-  static const double avatar = 33;
-  static const double avatarGap = 12;
-  static const double nameSize = 13;
-  static const double verifiedIcon = 12;
-  static const double bodySize = 15;
-  static const double bodyHeight = 1.365;
-  static const double metaSize = 13;
-  static const double metaGap = 8;
-  static const double repliesSize = 12;
-  static const double repliesIcon = 18;
-  static const double likeIcon = 20;
-  static const double likeSize = 13.5;
-  static const double likeColumn = 24;
-  static const double barAvatar = 32;
-  static const double barInset = 12;
-  static const double inputHeight = 38;
-  static const double inputRadius = 8;
-  static const double inputIcon = 24;
-  static const double postIcon = 28;
-}
 
 /// One comment of the preview sheet (labelled test data, D46).
 class CommentPreview {

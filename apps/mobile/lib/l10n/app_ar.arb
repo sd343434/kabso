@@ -2207,5 +2207,95 @@
   "createLibraryPhoto": "صورة من المعرض",
   "@createLibraryPhoto": {
     "description": "KL-060 library tile semantics."
+  },
+  "commentsEmpty": "لا توجد تعليقات بعد",
+  "@commentsEmpty": {
+    "description": "KL-060 comments: none."
+  },
+  "commentsEmptyHint": "كن أول من يعلّق.",
+  "@commentsEmptyHint": {
+    "description": "KL-060 comments: none."
+  },
+  "commentsFailed": "تعذّر تحميل التعليقات.",
+  "@commentsFailed": {
+    "description": "KL-060 comments: load error."
+  },
+  "commentsMoreFailed": "تعذّر تحميل المزيد.",
+  "@commentsMoreFailed": {
+    "description": "KL-060 comments: next page error."
+  },
+  "commentsReplyingTo": "الرد على {name}",
+  "@commentsReplyingTo": {
+    "description": "KL-060 reply banner.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "commentsCancelReply": "إلغاء الرد",
+  "@commentsCancelReply": {
+    "description": "KL-060 reply banner close."
+  },
+  "commentsClosed": "التعليقات مغلقة على هذا المنشور.",
+  "@commentsClosed": {
+    "description": "KL-060 commentsEnabled false or NOBODY."
+  },
+  "commentsNotAllowed": "لا يمكنك التعليق على هذا المنشور.",
+  "@commentsNotAllowed": {
+    "description": "KL-060 comment 403."
+  },
+  "commentsPinned": "مثبّت",
+  "@commentsPinned": {
+    "description": "KL-060 pinned label."
+  },
+  "commentsPin": "تثبيت التعليق",
+  "@commentsPin": {
+    "description": "KL-060 menu."
+  },
+  "commentsUnpin": "إلغاء التثبيت",
+  "@commentsUnpin": {
+    "description": "KL-060 menu."
+  },
+  "commentsDelete": "حذف التعليق",
+  "@commentsDelete": {
+    "description": "KL-060 menu."
+  },
+  "commentsDeleteTitle": "حذف التعليق؟",
+  "@commentsDeleteTitle": {
+    "description": "KL-060 confirm."
+  },
+  "commentsDeleteWithReplies": "ستُحذف الردود عليه أيضاً.",
+  "@commentsDeleteWithReplies": {
+    "description": "KL-060 confirm body (top level)."
+  },
+  "commentsDeleted": "حُذف التعليق",
+  "@commentsDeleted": {
+    "description": "KL-060 snack."
+  },
+  "commentsReport": "الإبلاغ عن التعليق",
+  "@commentsReport": {
+    "description": "KL-060 menu."
+  },
+  "commentsReportTitle": "لماذا تبلّغ عن هذا التعليق؟",
+  "@commentsReportTitle": {
+    "description": "KL-060 report sheet."
+  },
+  "commentsMore": "خيارات التعليق",
+  "@commentsMore": {
+    "description": "KL-060 menu semantics."
+  },
+  "commentsMoreReplies": "عرض ردود أخرى ({count})",
+  "@commentsMoreReplies": {
+    "description": "KL-060 next replies page.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commentsOpen": "عرض التعليقات",
+  "@commentsOpen": {
+    "description": "KL-060 comment button semantics."
   }
 }

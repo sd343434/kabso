@@ -2190,4 +2190,68 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get createLibraryPhoto => 'صورة من المعرض';
+
+  @override
+  String get commentsEmpty => 'لا توجد تعليقات بعد';
+
+  @override
+  String get commentsEmptyHint => 'كن أول من يعلّق.';
+
+  @override
+  String get commentsFailed => 'تعذّر تحميل التعليقات.';
+
+  @override
+  String get commentsMoreFailed => 'تعذّر تحميل المزيد.';
+
+  @override
+  String commentsReplyingTo(String name) {
+    return 'الرد على $name';
+  }
+
+  @override
+  String get commentsCancelReply => 'إلغاء الرد';
+
+  @override
+  String get commentsClosed => 'التعليقات مغلقة على هذا المنشور.';
+
+  @override
+  String get commentsNotAllowed => 'لا يمكنك التعليق على هذا المنشور.';
+
+  @override
+  String get commentsPinned => 'مثبّت';
+
+  @override
+  String get commentsPin => 'تثبيت التعليق';
+
+  @override
+  String get commentsUnpin => 'إلغاء التثبيت';
+
+  @override
+  String get commentsDelete => 'حذف التعليق';
+
+  @override
+  String get commentsDeleteTitle => 'حذف التعليق؟';
+
+  @override
+  String get commentsDeleteWithReplies => 'ستُحذف الردود عليه أيضاً.';
+
+  @override
+  String get commentsDeleted => 'حُذف التعليق';
+
+  @override
+  String get commentsReport => 'الإبلاغ عن التعليق';
+
+  @override
+  String get commentsReportTitle => 'لماذا تبلّغ عن هذا التعليق؟';
+
+  @override
+  String get commentsMore => 'خيارات التعليق';
+
+  @override
+  String commentsMoreReplies(int count) {
+    return 'عرض ردود أخرى ($count)';
+  }
+
+  @override
+  String get commentsOpen => 'عرض التعليقات';
 }

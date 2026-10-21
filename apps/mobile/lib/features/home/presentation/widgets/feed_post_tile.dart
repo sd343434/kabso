@@ -9,7 +9,8 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
-import 'package:kabso_live/features/posts/domain/post_models.dart';
+import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
+import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -25,6 +26,7 @@ class FeedPostData {
     required this.postedAt,
     this.authorAvatar,
     this.authorUsername,
+    this.authorId,
     this.isFollowingAuthor,
     this.location,
     this.text,
@@ -40,6 +42,7 @@ class FeedPostData {
     this.isSelf = false,
     this.pendingModeration = false,
     this.repostedBy,
+    this.commentsOpen = true,
   });
 
   final String authorName;
@@ -47,6 +50,9 @@ class FeedPostData {
 
   /// The author's username, the key of the follow API.
   final String? authorUsername;
+
+  /// The author's id: their comments carry the "creator" label.
+  final String? authorId;
 
   /// Whether the viewer follows the author; `null` when unknown or for
   /// your own post. The "more" menu offers Follow/Unfollow only when known.
@@ -87,6 +93,10 @@ class FeedPostData {
 
   /// The display name of who reposted it into the Following feed.
   final String? repostedBy;
+
+  /// The viewer may try to comment: comments are on and not "nobody" (the
+  /// author always may; "followers only" is decided by the server).
+  final bool commentsOpen;
 }
 
 /// Geometry of a post (D54, layout from the owner's reference; sizes on
@@ -127,10 +137,9 @@ abstract final class KPostCard {
 /// Follow or Unfollow, both through the existing follow API. Report and
 /// hide join the sheet when their APIs exist.
 ///
-/// The action row is display-only and drawn only when the API supplies the
-/// counts: nothing in it is a button until the like/comment/share/save APIs
-/// exist, and there is no comment field or "View all comments" link yet (no
-/// inert controls).
+/// For a real post (with a [FeedPostData.postId]) like, comment (the
+/// comments sheet) and save are buttons; share stays a count (no share
+/// API in M1). Previews without a post id are display only.
 class FeedPostTile extends StatelessWidget {
   const new({required this.post, super.key});
 
@@ -144,6 +153,7 @@ class FeedPostTile extends StatelessWidget {
   static const authorKey = Key('feed.post.author');
   static const followActionKey = Key('feed.post.more.follow');
   static const likeKey = Key('feed.post.like');
+  static const commentKey = Key('feed.post.comment');
   static const saveKey = Key('feed.post.save');
   static const hideActionKey = Key('feed.post.more.hide');
   static const reportActionKey = Key('feed.post.more.report');
@@ -262,18 +272,6 @@ class FeedPostTile extends StatelessWidget {
 /// (your own post, or a source without it) neither is shown.
 enum _MoreAction { follow, hide, report, delete }
 
-/// The label of a report reason.
-String reportReasonLabel(AppLocalizations l10n, ReportReason reason) =>
-    switch (reason) {
-      ReportReason.spam => l10n.reportReasonSpam,
-      ReportReason.nudity => l10n.reportReasonNudity,
-      ReportReason.violence => l10n.reportReasonViolence,
-      ReportReason.hate => l10n.reportReasonHate,
-      ReportReason.harassment => l10n.reportReasonHarassment,
-      ReportReason.illegal => l10n.reportReasonIllegal,
-      ReportReason.other => l10n.reportReasonOther,
-    };
-
 class _AuthorRow extends ConsumerStatefulWidget {
   const new({required this.post});
 
@@ -380,7 +378,10 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
           l10n.feedPostHidden,
         );
       case _MoreAction.report:
-        final reason = await _pickReason();
+        final reason = await pickReportReason(
+          context,
+          l10n.feedPostReportTitle,
+        );
         if (reason == null) return;
         await _run(
           (repo, id) => repo.reportPost(id, reason),
@@ -430,27 +431,6 @@ class _AuthorRowState extends ConsumerState<_AuthorRow> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<ReportReason?> _pickReason() {
-    final l10n = context.l10n;
-    return showModalBottomSheet<ReportReason>(
-      context: context,
-      builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(title: Text(l10n.feedPostReportTitle)),
-            for (final reason in ReportReason.values)
-              ListTile(
-                key: ValueKey('feed.post.report.${reason.name}'),
-                title: Text(reportReasonLabel(l10n, reason)),
-                onTap: () => Navigator.of(sheet).pop(reason),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -793,6 +773,7 @@ class _ActionsState extends ConsumerState<_Actions> {
   late bool _liked = widget.post.liked;
   late int? _likes = widget.post.likes;
   late bool _saved = widget.post.saved;
+  late int _comments = widget.post.comments ?? 0;
   bool _liking = false;
   bool _saving = false;
 
@@ -849,6 +830,20 @@ class _ActionsState extends ConsumerState<_Actions> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _openComments() => showCommentsSheet(
+    context,
+    CommentsTarget(
+      postId: widget.postId,
+      commentCount: _comments,
+      authorId: widget.post.authorId,
+      isSelf: widget.post.isSelf,
+      commentsOpen: widget.post.commentsOpen,
+    ),
+    onCount: (n) {
+      if (mounted) setState(() => _comments = n);
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -914,11 +909,39 @@ class _ActionsState extends ConsumerState<_Actions> {
                   ),
                 ),
               ),
-              shown(
-                AppIcons.comment,
-                widget.post.comments ?? 0,
-                l10n.feedPostCommentCount(
-                  KFormat.compact(widget.post.comments ?? 0, l10n),
+              // Opens the comments (CONVENTIONS §11.5); the count follows
+              // what the sheet adds or removes.
+              Semantics(
+                button: true,
+                label: l10n.commentsOpen,
+                value: l10n.feedPostCommentCount(
+                  KFormat.compact(_comments, l10n),
+                ),
+                onTap: _openComments,
+                excludeSemantics: true,
+                child: InkWell(
+                  key: FeedPostTile.commentKey,
+                  borderRadius: BorderRadius.circular(KRadius.sm),
+                  onTap: _openComments,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: KSizes.minTouchTarget,
+                      minWidth: KSizes.minTouchTarget,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppIcon(
+                          AppIcons.comment,
+                          size: KPostCard.actionIcon,
+                          color: p.textPrimary,
+                        ),
+                        const SizedBox(width: KSpacing.xs),
+                        count(_comments),
+                        const SizedBox(width: KPostCard.actionGap),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               shown(

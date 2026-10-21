@@ -2165,4 +2165,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createLibraryPhoto => 'Gallery photo';
+
+  @override
+  String get commentsEmpty => 'No comments yet';
+
+  @override
+  String get commentsEmptyHint => 'Be the first to comment.';
+
+  @override
+  String get commentsFailed => 'Couldn\'t load the comments.';
+
+  @override
+  String get commentsMoreFailed => 'Couldn\'t load more.';
+
+  @override
+  String commentsReplyingTo(String name) {
+    return 'Replying to $name';
+  }
+
+  @override
+  String get commentsCancelReply => 'Cancel reply';
+
+  @override
+  String get commentsClosed => 'Comments are turned off for this post.';
+
+  @override
+  String get commentsNotAllowed => 'You can\'t comment on this post.';
+
+  @override
+  String get commentsPinned => 'Pinned';
+
+  @override
+  String get commentsPin => 'Pin comment';
+
+  @override
+  String get commentsUnpin => 'Unpin';
+
+  @override
+  String get commentsDelete => 'Delete comment';
+
+  @override
+  String get commentsDeleteTitle => 'Delete this comment?';
+
+  @override
+  String get commentsDeleteWithReplies => 'Its replies will be deleted too.';
+
+  @override
+  String get commentsDeleted => 'Comment deleted';
+
+  @override
+  String get commentsReport => 'Report comment';
+
+  @override
+  String get commentsReportTitle => 'Why are you reporting this comment?';
+
+  @override
+  String get commentsMore => 'Comment options';
+
+  @override
+  String commentsMoreReplies(int count) {
+    return 'View more replies ($count)';
+  }
+
+  @override
+  String get commentsOpen => 'View comments';
 }

@@ -51,7 +51,37 @@ abstract interface class PostsRepository {
   /// `GET /search?type=users`: people to mention (blocked users never
   /// appear); [query] without the leading `@`.
   Future<List<UserSummary>> searchUsers(String query);
+
+  /// `GET /posts/{postId}/comments`: top level, the pinned one first, then
+  /// by likes, then newest.
+  Future<PageOf<Comment>> comments(String postId, {String? cursor});
+
+  /// `GET /comments/{commentId}/replies`: oldest first.
+  Future<PageOf<Comment>> replies(String commentId, {String? cursor});
+
+  /// `POST /posts/{postId}/comments`: a comment, or a reply to [parentId]
+  /// (a reply to a reply attaches to its top-level comment).
+  Future<Comment> createComment(String postId, String text, {String? parentId});
+
+  /// `DELETE /comments/{commentId}` (its author or the post's author);
+  /// replies go with it.
+  Future<void> deleteComment(String commentId);
+
+  /// `PUT`/`DELETE /comments/{commentId}/like`.
+  Future<LikeState> setCommentLiked(String commentId, {required bool liked});
+
+  /// `PUT`/`DELETE /comments/{commentId}/pin` (post author, top level; a
+  /// new pin replaces the previous one).
+  Future<Comment> setCommentPinned(String commentId, {required bool pinned});
+
+  /// `POST /reports` for a comment.
+  Future<void> reportComment(String commentId, ReportReason reason);
 }
+
+PageOf<Comment> _commentPage(Map<String, dynamic> json) => PageOf([
+  for (final c in json['data']! as List<dynamic>)
+    Comment.fromJson(c as Map<String, dynamic>),
+], PageInfo.fromJson(json['page']! as Map<String, dynamic>));
 
 PageOf<Post> _postPage(Map<String, dynamic> json) => PageOf([
   for (final p in json['data']! as List<dynamic>)
@@ -118,15 +148,21 @@ class PostsRepositoryImpl implements PostsRepository {
         await (hidden ? _dio.put<void>(path) : _dio.delete<void>(path));
       });
 
+  Future<void> _report(String type, String id, ReportReason reason) =>
+      guardApiCall(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/reports',
+          data: {'targetType': type, 'targetId': id, 'reason': reason.wire},
+        );
+      });
+
   @override
-  Future<void> reportPost(String postId, ReportReason reason) => guardApiCall(
-    () async {
-      await _dio.post<Map<String, dynamic>>(
-        '/reports',
-        data: {'targetType': 'POST', 'targetId': postId, 'reason': reason.wire},
-      );
-    },
-  );
+  Future<void> reportPost(String postId, ReportReason reason) =>
+      _report('POST', postId, reason);
+
+  @override
+  Future<void> reportComment(String commentId, ReportReason reason) =>
+      _report('COMMENT', commentId, reason);
 
   @override
   Future<void> deletePost(String postId) => guardApiCall(() async {
@@ -165,6 +201,65 @@ class PostsRepositoryImpl implements PostsRepository {
         UserSummary.fromJson(u as Map<String, dynamic>),
     ];
   });
+
+  Future<PageOf<Comment>> _comments(String path, String? cursor) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          path,
+          queryParameters: {'cursor': ?cursor},
+        );
+        return _commentPage(res.data!);
+      });
+
+  @override
+  Future<PageOf<Comment>> comments(String postId, {String? cursor}) =>
+      _comments('/posts/${pathSegment(postId)}/comments', cursor);
+
+  @override
+  Future<PageOf<Comment>> replies(String commentId, {String? cursor}) =>
+      _comments('/comments/${pathSegment(commentId)}/replies', cursor);
+
+  @override
+  Future<Comment> createComment(
+    String postId,
+    String text, {
+    String? parentId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/posts/${pathSegment(postId)}/comments',
+      data: {'text': text, 'parentId': ?parentId},
+    );
+    return Comment.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> deleteComment(String commentId) => guardApiCall(() async {
+    await _dio.delete<void>('/comments/${pathSegment(commentId)}');
+  });
+
+  @override
+  Future<LikeState> setCommentLiked(String commentId, {required bool liked}) =>
+      guardApiCall(() async {
+        final path = '/comments/${pathSegment(commentId)}/like';
+        final res = liked
+            ? await _dio.put<Map<String, dynamic>>(path)
+            : await _dio.delete<Map<String, dynamic>>(path);
+        final body = res.data!;
+        return (
+          liked: body['liked']! as bool,
+          likeCount: body['likeCount'] as int?,
+        );
+      });
+
+  @override
+  Future<Comment> setCommentPinned(String commentId, {required bool pinned}) =>
+      guardApiCall(() async {
+        final path = '/comments/${pathSegment(commentId)}/pin';
+        final res = pinned
+            ? await _dio.put<Map<String, dynamic>>(path)
+            : await _dio.delete<Map<String, dynamic>>(path);
+        return Comment.fromJson(res.data!);
+      });
 }
 
 final postsRepositoryProvider = Provider<PostsRepository>(

@@ -21,6 +21,7 @@ FeedPostData feedPostOf(Post post) {
         ? post.author.username
         : post.author.displayName,
     authorUsername: post.author.username,
+    authorId: post.author.id,
     authorAvatar: switch (post.author.avatarUrl) {
       final url? => NetworkImage(url),
       null => null,
@@ -38,6 +39,9 @@ FeedPostData feedPostOf(Post post) {
     isSelf: post.isSelf,
     pendingModeration: post.pendingModeration,
     repostedBy: post.repostedBy?.displayName,
+    commentsOpen:
+        post.isSelf ||
+        (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),
   );
 }
 
