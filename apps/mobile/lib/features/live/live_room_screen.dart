@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -47,6 +48,9 @@ import 'package:material_ui/material_ui.dart';
 /// heartbeat timeout / other), not found, error and offline with Try again.
 class LiveRoomScreen extends ConsumerWidget {
   const new({required this.roomId, super.key});
+
+  /// CP-012: the live's points next to the viewer count.
+  static const scoreKey = Key('room.score');
 
   final String roomId;
 
@@ -287,11 +291,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ended = room.status == LiveRoomStatus.ended;
     if (ended && canFollow && !following) _endedOfferedFollow = true;
 
+    // CP-012: signed-in viewers other than the host tap to cheer (D95).
+    final me = ref.watch(currentUserProvider);
+    final canTap = !ended && me != null && me.id != host.id;
+    final score = engine.score ?? session.score ?? room.score;
     return KLiveRoomScaffold(
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
-          : _video(session, engine),
+          : LiveTapLayer(
+              onTap: canTap ? _session.tap : null,
+              child: _video(session, engine),
+            ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(
         hostName: host.displayName,
@@ -311,8 +322,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             : () => unawaited(showHostSheet(context, _username)),
       ),
       // Presence does not exist yet: a count only when the API has one.
-      viewers: room.viewerCount > 0
-          ? KViewerStrip(count: room.viewerCount)
+      viewers: room.viewerCount > 0 || score > 0
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (score > 0)
+                  KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
+                if (score > 0 && room.viewerCount > 0)
+                  const SizedBox(width: KSpacing.xs),
+                if (room.viewerCount > 0) KViewerStrip(count: room.viewerCount),
+              ],
+            )
           : null,
       onClose: widget.onClose,
       roomInfo: KRoomInfoRow(title: room.title, category: room.category?.name),

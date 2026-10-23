@@ -5671,6 +5671,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نُسخت دعوة البث، الصقها لمن تريد'**
   String get goLiveShareCopied;
+
+  /// Room score for screen readers
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا نقاط} =1{نقطة واحدة} =2{نقطتان} few{{formatted} نقاط} many{{formatted} نقطة} other{{formatted} نقطة}}'**
+  String liveScore(int count, String formatted);
+
+  /// Score sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط البث'**
+  String get liveScoreTitle;
+
+  /// Score sheet: tap points
+  ///
+  /// In ar, this message translates to:
+  /// **'التكبيس'**
+  String get liveScoreTaps;
+
+  /// Score sheet: support points
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get liveScoreSupport;
+
+  /// Score sheet footnote
+  ///
+  /// In ar, this message translates to:
+  /// **'كل تكبيسة نقطة، وكل كوينزة دعم 100 نقطة. الدعم يبدأ مع الهدايا.'**
+  String get liveScoreHint;
+
+  /// Viewer: tap the live to cheer
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط على البث لتشجيع المضيف'**
+  String get liveTapHint;
 }
 
 class _AppLocalizationsDelegate

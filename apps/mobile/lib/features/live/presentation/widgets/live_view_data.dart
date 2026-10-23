@@ -21,6 +21,7 @@ class LiveRoomCardData {
     this.guestCount,
     this.categoryName,
     this.roomId,
+    this.score = 0,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -41,6 +42,7 @@ class LiveRoomCardData {
       inPk: room.mode == LiveRoomMode.pk,
       categoryName: room.category?.name,
       roomId: room.id,
+      score: room.score,
     );
   }
 
@@ -74,6 +76,9 @@ class LiveRoomCardData {
   /// The room's category (already localized by the server); `null` when
   /// it has none (nothing is shown).
   final String? categoryName;
+
+  /// CP-012: the live's points; 0 shows nothing.
+  final int score;
 }
 
 /// A line in the live chat overlay.

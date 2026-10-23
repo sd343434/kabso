@@ -87,6 +87,37 @@ void main() {
       expect(badge(KBadgeVariant.live), findsNothing);
     });
 
+    testWidgets('CP-012: the score chip shows once the live has points', (
+      tester,
+    ) async {
+      const plain = LiveRoomCardData(
+        hostName: 'Sara',
+        title: 'Night',
+        viewerCount: 4,
+      );
+      await pumpComponent(tester, card(plain));
+      expect(find.byType(KScoreChip), findsNothing);
+      await pumpComponent(
+        tester,
+        card(
+          const LiveRoomCardData(
+            hostName: 'Sara',
+            title: 'Night',
+            viewerCount: 4,
+            score: 12400,
+          ),
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(KScoreChip),
+          matching: find.text('12.4K'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(RegExp('12.4K points')), findsOneWidget);
+    });
+
     testWidgets('VG-11: 0 viewers shows "New", 1 viewer shows "1"', (
       tester,
     ) async {

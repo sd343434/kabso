@@ -113,6 +113,9 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     /// CP-011: guests seated now.
     @Default(0) int occupiedSeats,
     @Default(LiveThemes.classic) String theme,
+
+    /// CP-012: the live's points (taps + support); `popular` orders by it.
+    @Default(0) int score,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -144,9 +147,35 @@ abstract class LiveRoom with _$LiveRoom {
     int? seatCount,
     @Default(0) int occupiedSeats,
     @Default(LiveThemes.classic) String theme,
+
+    /// CP-012 (see [LiveRoomSummary]) and its parts.
+    @Default(0) int score,
+    LiveScore? scoreParts,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
+}
+
+/// `LiveScore` (CP-012): a live's points. One counted tap is 1 point; one
+/// support coin is 100 (L3; 0 until then).
+@freezed
+abstract class LiveScore with _$LiveScore {
+  const factory({
+    required int total,
+    required int tapPoints,
+    required int supportPoints,
+  }) = _LiveScore;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveScoreFromJson(json);
+}
+
+/// `LiveTapsResult` (CP-012): the taps counted from a batch and the score.
+@freezed
+abstract class LiveTapsResult with _$LiveTapsResult {
+  const factory({required int accepted, required LiveScore score}) =
+      _LiveTapsResult;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveTapsResultFromJson(json);
 }
 
 /// `LiveRoomPage`: one cursor page of `GET /live/rooms`.

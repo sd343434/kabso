@@ -70,6 +70,7 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
       seatCount: (json['seatCount'] as num?)?.toInt(),
       occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
       theme: json['theme'] as String? ?? LiveThemes.classic,
+      score: (json['score'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -85,6 +86,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'seatCount': instance.seatCount,
       'occupiedSeats': instance.occupiedSeats,
       'theme': instance.theme,
+      'score': instance.score,
     };
 
 const _$LiveRoomModeEnumMap = {
@@ -122,6 +124,10 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   seatCount: (json['seatCount'] as num?)?.toInt(),
   occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
   theme: json['theme'] as String? ?? LiveThemes.classic,
+  score: (json['score'] as num?)?.toInt() ?? 0,
+  scoreParts: json['scoreParts'] == null
+      ? null
+      : LiveScore.fromJson(json['scoreParts'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -140,6 +146,8 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'seatCount': instance.seatCount,
   'occupiedSeats': instance.occupiedSeats,
   'theme': instance.theme,
+  'score': instance.score,
+  'scoreParts': instance.scoreParts,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -154,6 +162,28 @@ const _$LiveRoomEndReasonEnumMap = {
   LiveRoomEndReason.admin: 'ADMIN',
   LiveRoomEndReason.unknown: 'unknown',
 };
+
+_LiveScore _$LiveScoreFromJson(Map<String, dynamic> json) => _LiveScore(
+  total: (json['total'] as num).toInt(),
+  tapPoints: (json['tapPoints'] as num).toInt(),
+  supportPoints: (json['supportPoints'] as num).toInt(),
+);
+
+Map<String, dynamic> _$LiveScoreToJson(_LiveScore instance) =>
+    <String, dynamic>{
+      'total': instance.total,
+      'tapPoints': instance.tapPoints,
+      'supportPoints': instance.supportPoints,
+    };
+
+_LiveTapsResult _$LiveTapsResultFromJson(Map<String, dynamic> json) =>
+    _LiveTapsResult(
+      accepted: (json['accepted'] as num).toInt(),
+      score: LiveScore.fromJson(json['score'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$LiveTapsResultToJson(_LiveTapsResult instance) =>
+    <String, dynamic>{'accepted': instance.accepted, 'score': instance.score};
 
 _LiveRoomPage _$LiveRoomPageFromJson(Map<String, dynamic> json) =>
     _LiveRoomPage(

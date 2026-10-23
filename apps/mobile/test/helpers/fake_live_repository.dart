@@ -111,6 +111,9 @@ class FakeLiveRepository implements LiveRepository {
   Future<LiveRoom> getRoom(String roomId) async {
     roomRequests.add(roomId);
     final handler = room;
+    // The host's own room, as the server would answer it.
+    final own = hostRoom;
+    if (handler == null && own != null && own.id == roomId) return own;
     if (handler == null) throw roomNotFound;
     return await handler(roomId);
   }
@@ -459,6 +462,28 @@ class FakeLiveRepository implements LiveRepository {
     String roomId, {
     String? cursor,
   }) async => (items: viewerList, next: null);
+
+  /// Each `tap` batch sent (CP-012) and the room's tap points.
+  final List<({String roomId, int count})> tapBatches = [];
+  int tapPoints = 0;
+
+  /// At most this many taps are counted per batch (the server's limits).
+  int tapAllowance = 50;
+
+  @override
+  Future<LiveTapsResult> tap(String roomId, int count) async {
+    tapBatches.add((roomId: roomId, count: count));
+    final accepted = count < tapAllowance ? count : tapAllowance;
+    tapPoints += accepted;
+    return LiveTapsResult(
+      accepted: accepted,
+      score: LiveScore(
+        total: tapPoints,
+        tapPoints: tapPoints,
+        supportPoints: 0,
+      ),
+    );
+  }
 }
 
 /// Overrides that point live discovery at [repo] with a fixed scope (no

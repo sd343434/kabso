@@ -3664,5 +3664,37 @@
   },
   "@goLiveShareCopied": {
     "description": "After Share copied the invite"
+  },
+  "liveScore": "{count, plural, =0{لا نقاط} =1{نقطة واحدة} =2{نقطتان} few{{formatted} نقاط} many{{formatted} نقطة} other{{formatted} نقطة}}",
+  "@liveScore": {
+    "description": "Room score for screen readers",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "formatted": {
+        "type": "String"
+      }
+    }
+  },
+  "liveScoreTitle": "نقاط البث",
+  "@liveScoreTitle": {
+    "description": "Score sheet title"
+  },
+  "liveScoreTaps": "التكبيس",
+  "@liveScoreTaps": {
+    "description": "Score sheet: tap points"
+  },
+  "liveScoreSupport": "الدعم",
+  "@liveScoreSupport": {
+    "description": "Score sheet: support points"
+  },
+  "liveScoreHint": "كل تكبيسة نقطة، وكل كوينزة دعم 100 نقطة. الدعم يبدأ مع الهدايا.",
+  "@liveScoreHint": {
+    "description": "Score sheet footnote"
+  },
+  "liveTapHint": "اضغط على البث لتشجيع المضيف",
+  "@liveTapHint": {
+    "description": "Viewer: tap the live to cheer"
   }
 }

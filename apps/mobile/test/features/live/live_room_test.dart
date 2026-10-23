@@ -30,6 +30,7 @@ import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -820,6 +821,65 @@ void main() {
       expect(contrast(KStatusColors.onStatus, p.error), greaterThan(4.5));
     });
   });
+  group('taps and the score (CP-012, D95)', () {
+    testWidgets('a signed-in viewer taps: hearts rise, one batch a second, '
+        'the score shows', (tester) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final (repo, _) = await _pumpRoom(
+        tester,
+        engine: engine,
+        user: testUser(),
+      );
+      expect(find.byKey(LiveRoomScreen.scoreKey), findsNothing);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byKey(LiveTapLayer.tapKey));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
+      expect(repo.tapBatches, isEmpty);
+      await tester.pump(const Duration(seconds: 1));
+      expect(repo.tapBatches.single, (roomId: 'room-0', count: 3));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomScreen.scoreKey),
+          matching: find.text('3'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the media room metadata moves the score for everyone', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..scoreNow = 12400;
+      await _pumpRoom(tester, engine: engine);
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomScreen.scoreKey),
+          matching: find.text('12.4K'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('guests without an account and the host do not tap', (
+      tester,
+    ) async {
+      await _pumpRoom(tester, engine: FakeLiveMediaEngine());
+      expect(find.byKey(LiveTapLayer.tapKey), findsNothing);
+      final host = testUser().copyWith(id: 'user-0');
+      final (repo, _) = await _pumpRoom(
+        tester,
+        engine: FakeLiveMediaEngine(),
+        user: host,
+      );
+      expect(find.byKey(LiveTapLayer.tapKey), findsNothing);
+      expect(repo.tapBatches, isEmpty);
+    });
+  });
+
   group('media and seats (CP-010, CP-011)', () {
     final l10n = l10nFor(AppLanguage.en);
     const omar = UserSummary(

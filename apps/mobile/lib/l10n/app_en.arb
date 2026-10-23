@@ -1072,5 +1072,11 @@
   "goLiveChatPill": "Chat…",
   "goLiveShare": "Share",
   "goLiveShareText": "I'm live on Kabso Live: “{title}” — follow @{username}",
-  "goLiveShareCopied": "Live invite copied — paste it anywhere"
+  "goLiveShareCopied": "Live invite copied — paste it anywhere",
+  "liveScore": "{count, plural, =1{{formatted} point} other{{formatted} points}}",
+  "liveScoreTitle": "Live points",
+  "liveScoreTaps": "Taps",
+  "liveScoreSupport": "Support",
+  "liveScoreHint": "Each tap is 1 point and each support coin is 100 points. Support starts with gifts.",
+  "liveTapHint": "Tap the live to cheer the host"
 }

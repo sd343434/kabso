@@ -358,4 +358,8 @@ class DemoLiveRepository implements LiveRepository {
     String roomId, {
     String? cursor,
   }) async => (items: const <LiveViewer>[], next: null);
+
+  @override
+  Future<LiveTapsResult> tap(String roomId, int count) async =>
+      throw _serverOnly;
 }

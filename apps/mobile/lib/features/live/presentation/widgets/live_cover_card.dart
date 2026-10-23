@@ -64,11 +64,18 @@ class KLiveCoverCard extends StatelessWidget {
     final withMode = mode == null
         ? base
         : l10n.liveCardSemanticsMode(base, mode);
+    // CP-012: the points, read like the mode.
+    final withScore = room.score > 0
+        ? l10n.liveCardSemanticsMode(
+            withMode,
+            l10n.liveScore(room.score, KFormat.compact(room.score, l10n)),
+          )
+        : withMode;
     final category = room.categoryName;
     final hasCategory = category != null && category.isNotEmpty;
     final semantics = hasCategory
-        ? l10n.liveCardSemanticsCategory(withMode, category)
-        : withMode;
+        ? l10n.liveCardSemanticsCategory(withScore, category)
+        : withScore;
     final fallback = _CoverFallback(room: room);
     final Widget viewers = isNew
         ? const KBadge.newRoom()
@@ -110,6 +117,11 @@ class KLiveCoverCard extends StatelessWidget {
                             const SizedBox(width: KSpacing.xs),
                           ],
                           viewers,
+                          // CP-012: the points rooms compete on (D95).
+                          if (room.score > 0) ...[
+                            const SizedBox(width: KSpacing.xs),
+                            KScoreChip(score: room.score),
+                          ],
                         ],
                       ),
                     ),

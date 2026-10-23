@@ -18,7 +18,11 @@ class LiveRoomSessionState {
     this.seats,
     this.publishing = false,
     this.captureFailed = false,
+    this.score,
   });
+
+  /// CP-012: the room score from this viewer's last counted tap batch.
+  final int? score;
 
   /// Connected to the room's media session.
   final bool joined;
@@ -48,12 +52,14 @@ class LiveRoomSessionState {
     LiveSeats? seats,
     bool? publishing,
     bool? captureFailed,
+    int? score,
   }) => LiveRoomSessionState(
     joined: joined ?? this.joined,
     joinFailure: joinFailure ?? this.joinFailure,
     seats: seats ?? this.seats,
     publishing: publishing ?? this.publishing,
     captureFailed: captureFailed ?? this.captureFailed,
+    score: score ?? this.score,
   );
 }
 
@@ -82,6 +88,8 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   late LiveRepository _repo;
   LiveRoomMode _mode = LiveRoomMode.solo;
   Timer? _poll;
+  Timer? _tapFlush;
+  int _pendingTaps = 0;
   StreamSubscription<String>? _invites;
   bool _refreshing = false;
   bool _syncing = false;
@@ -98,11 +106,36 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     });
     ref.onDispose(() {
       _poll?.cancel();
+      _tapFlush?.cancel();
       unawaited(_invites?.cancel());
       _engine.changes.removeListener(_onChanges);
       unawaited(_engine.stop().then((_) {}, onError: (_) {}));
     });
     return const LiveRoomSessionState();
+  }
+
+  /// CP-012: one tap to cheer the host. Taps are sent in batches, at most
+  /// one request a second and 50 taps a batch; the server counts at most 10
+  /// a second and 10 000 a live and answers with the room's score.
+  void tap() {
+    _pendingTaps++;
+    _tapFlush ??= Timer(const Duration(seconds: 1), _flushTaps);
+  }
+
+  Future<void> _flushTaps() async {
+    _tapFlush = null;
+    final count = _pendingTaps < 50 ? _pendingTaps : 50;
+    if (count == 0) return;
+    _pendingTaps -= count;
+    try {
+      final result = await _repo.tap(roomId, count);
+      if (ref.mounted) state = state.copyWith(score: result.score.total);
+    } on Object {
+      // Best effort: a lost batch only loses points, never the room.
+    }
+    if (ref.mounted && _pendingTaps > 0) {
+      _tapFlush ??= Timer(const Duration(seconds: 1), _flushTaps);
+    }
   }
 
   /// Joins the media session of [room] (once).

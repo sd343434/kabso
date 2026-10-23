@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -563,6 +564,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ),
       );
     } else if (audioOnAir) {
+      // CP-012: the score from the media room's metadata, else the room's.
+      final score = engine.score ?? room?.score ?? 0;
       final viewers = room == null
           ? null
           : ref.watch(liveViewersPreviewProvider(room.id)).value;
@@ -589,6 +592,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
+          scoreText: score > 0 ? KFormat.compact(score, l10n) : null,
+          scoreLabel: l10n.liveScore(score, KFormat.grouped(score)),
+          onTap: room == null
+              ? null
+              : () => unawaited(showLiveScoreSheet(context, room.id)),
           shareKey: GoLiveScreen.shareKey,
           shareTooltip: l10n.goLiveShare,
           onShare: user == null || room == null

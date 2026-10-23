@@ -155,6 +155,56 @@ class KViewerCountChip extends StatelessWidget {
   }
 }
 
+/// A live's points (CP-012): a flame and the short count on `scrim`, the
+/// same size as [KViewerCountChip].
+class KScoreChip extends StatelessWidget {
+  const new({required this.score, super.key});
+
+  final int score;
+
+  /// The flame's colour (warm orange, legible on `scrim`).
+  static const flame = Color(0xFFFFA43A);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final formatted = KFormat.compact(score, l10n);
+    return Semantics(
+      label: l10n.liveScore(score, formatted),
+      container: true,
+      child: ExcludeSemantics(
+        child: Container(
+          height: KMetrics.badgeHeight,
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: KSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: KPalette.dark.scrim,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.local_fire_department_rounded,
+                size: KMetrics.iconXs,
+                color: flame,
+              ),
+              const SizedBox(width: KSpacing.xxs),
+              Text(
+                formatted,
+                maxLines: 1,
+                textScaler: TextScaler.noScaling,
+                style: _badgeText(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// `live` badge next to the viewer chip (§9.10 tile, room header).
 class KLiveWithViewers extends StatelessWidget {
   const new({required this.count, super.key});

@@ -153,6 +153,12 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   int? get seatsVersion => version;
 
+  /// The room score the media room's metadata carries (CP-012).
+  int? scoreNow;
+
+  @override
+  int? get score => scoreNow;
+
   @override
   Stream<String> get seatInvites => _invites.stream;
 

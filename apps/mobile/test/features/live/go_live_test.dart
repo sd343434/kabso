@@ -540,6 +540,26 @@ void main() {
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
+      // CP-012: the score replaces @username once there are points; the
+      // room bar opens the breakdown.
+      expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
+      camera
+        ..scoreNow = 12400
+        ..ping();
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byKey(LiveAudioRoomHeader.scoreKey),
+          matching: find.text('12.4K'),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(LiveAudioRoomHeader.scoreKey));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveScoreTitle), findsOneWidget);
+      expect(find.text(l10n.liveScoreTaps), findsOneWidget);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
       // PK is not in the contract yet: the button says so.
       await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
       await tester.pump();

@@ -122,6 +122,9 @@ abstract interface class LiveRepository {
     String? cursor,
   });
 
+  /// `POST /live/rooms/{roomId}/taps` (CP-012): a batch of 1–50 taps.
+  Future<LiveTapsResult> tap(String roomId, int count);
+
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
 }
@@ -249,6 +252,16 @@ class LiveRepositoryImpl implements LiveRepository {
       next: page.hasMore ? page.nextCursor : null,
     );
   });
+
+  @override
+  Future<LiveTapsResult> tap(String roomId, int count) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/taps',
+          data: {'count': count},
+        );
+        return LiveTapsResult.fromJson(res.data!);
+      });
 
   @override
   Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme}) =>

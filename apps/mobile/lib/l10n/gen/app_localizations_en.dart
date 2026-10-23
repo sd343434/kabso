@@ -3239,4 +3239,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goLiveShareCopied => 'Live invite copied — paste it anywhere';
+
+  @override
+  String liveScore(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted points',
+      one: '$formatted point',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get liveScoreTitle => 'Live points';
+
+  @override
+  String get liveScoreTaps => 'Taps';
+
+  @override
+  String get liveScoreSupport => 'Support';
+
+  @override
+  String get liveScoreHint =>
+      'Each tap is 1 point and each support coin is 100 points. Support starts with gifts.';
+
+  @override
+  String get liveTapHint => 'Tap the live to cheer the host';
 }

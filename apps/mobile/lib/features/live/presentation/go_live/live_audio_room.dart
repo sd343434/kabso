@@ -248,11 +248,26 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.onShare,
     this.shareTooltip,
     this.shareKey,
+    this.scoreText,
+    this.scoreLabel,
+    this.onTap,
   });
+
+  /// CP-012: the live's points, shortened (12.4K); shown with a flame in
+  /// place of [subtitle] once there are points.
+  final String? scoreText;
+
+  /// [scoreText] for screen readers.
+  final String? scoreLabel;
+
+  /// Opens the score's breakdown.
+  final VoidCallback? onTap;
 
   final VoidCallback? onShare;
   final String? shareTooltip;
   final Key? shareKey;
+
+  static const scoreKey = Key('liveRoom.score');
 
   final Widget cover;
   final String title;
@@ -276,66 +291,96 @@ class LiveAudioRoomHeader extends StatelessWidget {
             alignment: AlignmentDirectional.centerStart,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 220),
-              child: Container(
-                height: 38,
-                padding: const EdgeInsetsDirectional.fromSTEB(4, 4, 12, 4),
-                decoration: BoxDecoration(
-                  color: KAudioRoom.glass,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: SizedBox.square(dimension: 30, child: cover),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.caption.copyWith(
-                              fontSize: 13,
-                              height: 1.15,
-                              color: KAudioRoom.text,
-                              fontWeight: FontWeight.w700,
+              child: GestureDetector(
+                onTap: onTap,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsetsDirectional.fromSTEB(4, 4, 12, 4),
+                  decoration: BoxDecoration(
+                    color: KAudioRoom.glass,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: SizedBox.square(dimension: 30, child: cover),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.caption.copyWith(
+                                fontSize: 13,
+                                height: 1.15,
+                                color: KAudioRoom.text,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          if (subtitle != null && subtitle.isNotEmpty)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.verified_user_rounded,
-                                  size: 10,
-                                  color: KAudioRoom.hostTag,
+                            if (scoreText case final points?)
+                              Semantics(
+                                label: scoreLabel,
+                                excludeSemantics: true,
+                                child: Row(
+                                  key: LiveAudioRoomHeader.scoreKey,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      size: 12,
+                                      color: KScoreChip.flame,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      points,
+                                      style: text.caption.copyWith(
+                                        fontSize: 10.5,
+                                        height: 1.15,
+                                        color: KAudioRoom.text,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 3),
-                                Flexible(
-                                  child: Text(
-                                    subtitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textDirection: TextDirection.ltr,
-                                    style: text.caption.copyWith(
-                                      fontSize: 10,
-                                      height: 1.15,
-                                      color: KAudioRoom.textSoft,
+                              )
+                            else if (subtitle != null && subtitle.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.verified_user_rounded,
+                                    size: 10,
+                                    color: KAudioRoom.hostTag,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textDirection: TextDirection.ltr,
+                                      style: text.caption.copyWith(
+                                        fontSize: 10,
+                                        height: 1.15,
+                                        color: KAudioRoom.textSoft,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                        ],
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

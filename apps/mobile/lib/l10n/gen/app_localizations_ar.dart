@@ -3265,4 +3265,35 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveShareCopied => 'نُسخت دعوة البث، الصقها لمن تريد';
+
+  @override
+  String liveScore(int count, String formatted) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$formatted نقطة',
+      many: '$formatted نقطة',
+      few: '$formatted نقاط',
+      two: 'نقطتان',
+      one: 'نقطة واحدة',
+      zero: 'لا نقاط',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get liveScoreTitle => 'نقاط البث';
+
+  @override
+  String get liveScoreTaps => 'التكبيس';
+
+  @override
+  String get liveScoreSupport => 'الدعم';
+
+  @override
+  String get liveScoreHint =>
+      'كل تكبيسة نقطة، وكل كوينزة دعم 100 نقطة. الدعم يبدأ مع الهدايا.';
+
+  @override
+  String get liveTapHint => 'اضغط على البث لتشجيع المضيف';
 }
