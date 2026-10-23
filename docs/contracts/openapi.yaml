@@ -16,6 +16,10 @@ info:
     stories: tray, viewer, seen, viewers and archive (tag `stories`, CONVENTIONS §11.9).
     **CP-009 (D92, M4)** adds in-app notifications: inbox, unread count, mark read and per-type
     settings (tag `notifications`, CONVENTIONS §11.10).
+    **CP-010 (D93, Live L1, DRAFT v1.6-live)** adds live video: media access tokens for hosts,
+    viewers and guests without an account, the real viewer count, the host's viewer list and
+    guests switch, the hosting permission (admin-granted until agencies and identity checks,
+    L1b) and `LIVE_ROOM` reports (CONVENTIONS §10.7).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -34,6 +38,8 @@ tags:
     description: "Live discovery (categories, room lists, room detail) and the host lifecycle of live rooms (v1.3)."
   - name: levels
     description: "The caller's four independent level systems (v1.4-levels DRAFT, CP-005)."
+  - name: admin-live
+    description: "Admin: the hosting permission (v1.6-live DRAFT, CP-010)."
   - name: media
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
   - name: posts
@@ -499,6 +505,7 @@ paths:
     get:
       tags: [live]
       operationId: getLiveConfig
+      security: [{}, {bearerAuth: []}]
       summary: "Live feature switch and server-driven timings (v1.3)"
       description: |
         Lets the client render honest states (`hostingEnabled = false` → "Going live is not
@@ -551,15 +558,17 @@ paths:
     get:
       tags: [live]
       operationId: listLiveRooms
+      security: [{}, {bearerAuth: []}]
       summary: "List live rooms for a discovery tab (cursor-paginated; v1.3)"
       description: |
         CONVENTIONS §10.2 and §10.4. Only rooms with `status = LIVE`, a fresh heartbeat and an
         `ACTIVE` host. Stale rooms are filtered out; this read never writes (v1.3.1, SEC-035). Orderings: `popular` = viewerCount desc, startedAt desc, id desc; `new` =
         startedAt desc, id desc; `following` = rooms of hosts the caller follows, startedAt desc,
-        id desc. `category` filters every tab. A well-formed slug that is unknown or inactive
+        id desc. `category` filters every tab. CP-010: guests (no token) may call `popular` and
+        `new`; `following` without a token → 401. A well-formed slug that is unknown or inactive
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
-        `id`** (HL-H5). While `viewerCount` is always 0 (no presence yet), `popular` orders like
-        `new`.
+        `id`** (HL-H5). CP-010: `viewerCount` counts people watching now, so `popular` orders by
+        it.
       parameters:
         - name: tab
           in: query
@@ -625,13 +634,15 @@ paths:
         has no `mode`. No `Idempotency-Key`: a retry after a lost response gets 409 and the
         client resumes the room found via `getPublicProfile` (own username → `liveRoomId`).
         Requires a verified email (every v1.2+ account is verified at creation; a legacy
-        unverified account gets 403 `AUTH_FORBIDDEN`).
+        unverified account gets 403 `AUTH_FORBIDDEN`). CP-010: also requires the **hosting
+        permission** (`Me.canHost`), else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
+        `LIVE_HOSTING_ENABLED`). `allowGuests` defaults to true.
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/StartLiveRoomRequest' }
-            example: { title: سهرة طرب, categorySlug: music }
+            example: { title: سهرة طرب, categorySlug: music, allowGuests: true }
       responses:
         '201':
           description: Room created; the caller starts heartbeats at the cadence from `getLiveConfig`.
@@ -657,6 +668,7 @@ paths:
     get:
       tags: [live]
       operationId: getLiveRoom
+      security: [{}, {bearerAuth: []}]
       summary: "Get a live room, including ended rooms (v1.3)"
       description: |
         A LIVE room whose heartbeat is stale is never reported as LIVE: it is returned as
@@ -690,6 +702,92 @@ paths:
                     status: ENDED
                     endedAt: '2026-10-16T20:12:45.120Z'
                     endReason: HOST_ENDED
+                    allowGuests: true
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+    patch:
+      tags: [live]
+      operationId: updateLiveRoom
+      summary: "Host: change a LIVE room's settings (CP-010)"
+      description: |
+        Host only (else 404). `allowGuests: false` removes every connected guest at once and
+        refuses new guest tokens (403 `LIVE_GUESTS_NOT_ALLOWED`); `true` lets them in again.
+        Ended room → 409 `LIVE_ROOM_ENDED`. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateLiveRoomRequest' }
+      responses:
+        '200':
+          description: The room.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoom' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/media-token:
+    post:
+      tags: [live]
+      operationId: createLiveMediaToken
+      summary: "Access to a LIVE room's video: publish (host) or watch (viewer, guest) (CP-010)"
+      description: |
+        CONVENTIONS §10.7. Optional token: a signed-in caller gets `role` HOST (their own room,
+        publish camera and microphone only) or VIEWER (watch only); a caller without a token is
+        a **guest** and must send `guestId` (a random UUID the app keeps for the session), else
+        400. The token is valid for 10 minutes **to join**; a joined session stays open, and the
+        app asks again to rejoin. Order: rate limit (120/h per user, per IP for guests) →
+        `LIVE_HOSTING_ENABLED` (else 503 `LIVE_HOSTING_UNAVAILABLE`) → room visible (else 404:
+        nonexistent, host not ACTIVE, or a block either way) → room LIVE (else 409
+        `LIVE_ROOM_ENDED`) → a guest needs `allowGuests` (else 403 `LIVE_GUESTS_NOT_ALLOWED`).
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveMediaTokenRequest' }
+      responses:
+        '200':
+          description: Media access for this room.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveMediaAccess' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/viewers:
+    get:
+      tags: [live]
+      operationId: listLiveRoomViewers
+      summary: "Host: who is watching now, newest first (CP-010)"
+      description: |
+        Host only (else 404). Users and guests connected now, newest first, paged by the shared
+        cursor. A guest is shown as "Guest" with `guestNumber`. Ended room → an empty list.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of viewers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveViewerPage' }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -746,6 +844,38 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LiveRoom' }
         '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/admin/live/hosts/{username}:
+    put:
+      tags: [admin-live]
+      operationId: grantLiveHost
+      summary: "Admin: grant the hosting permission (CP-010)"
+      description: |
+        Permission `LIVE_HOSTS` (else 403). Idempotent; audited. Source `ADMIN` (agencies and
+        identity checks grant it in L1b). Unknown or not ACTIVE user → 404.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: The user may go live. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [admin-live]
+      operationId: revokeLiveHost
+      summary: "Admin: revoke the hosting permission (CP-010)"
+      description: |
+        Permission `LIVE_HOSTS`. Idempotent; audited. Ends the user's LIVE room, if any, with
+        `endReason: ADMIN`.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: The user may no longer go live. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -2571,7 +2701,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -2584,6 +2714,7 @@ components:
         role: { type: string, enum: [USER, ADMIN] }
         isPrivate: { type: boolean }
         createdAt: { type: string, format: date-time }
+        canHost: { type: boolean, description: "CP-010: the caller holds the hosting permission (may go live)." }
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -2692,7 +2823,7 @@ components:
         viewerCount:
           type: integer
           minimum: 0
-          description: Always 0 in v1.3 (no realtime presence yet); the card shows the "New" chip.
+          description: People watching now, guests included, the host excluded (CP-010; 0 before v1.6-live). At 0 the card shows the "New" chip.
         startedAt: { type: string, format: date-time }
         coverUrl:
           type: [string, 'null']
@@ -2708,9 +2839,10 @@ components:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason]
+          required: [status, endedAt, endReason, allowGuests]
           properties:
             status: { type: string, enum: [LIVE, ENDED] }
+            allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }
             endReason:
               type: [string, 'null']
@@ -2730,6 +2862,50 @@ components:
       properties:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug: { $ref: '#/components/schemas/CategorySlug' }
+        allowGuests: { type: boolean, default: true }
+    UpdateLiveRoomRequest:
+      type: object
+      required: [allowGuests]
+      additionalProperties: false
+      properties:
+        allowGuests: { type: boolean }
+    LiveMediaTokenRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        guestId:
+          type: string
+          format: uuid
+          description: Required without a bearer token (a guest); ignored with one.
+    LiveMediaAccess:
+      type: object
+      required: [url, token, expiresAt, role, identity, guestNumber]
+      properties:
+        url: { type: string, format: uri, description: The media server (wss://). }
+        token: { type: string, description: "Access token for this room only; valid 10 minutes to join." }
+        expiresAt: { type: string, format: date-time }
+        role: { type: string, enum: [HOST, VIEWER] }
+        identity: { type: string, maxLength: 64, description: "The caller's identity in the session (a user id, or guest:<guestId>)." }
+        guestNumber: { type: [integer, 'null'], minimum: 1000, maximum: 9999, description: Guests only. }
+    LiveViewer:
+      type: object
+      required: [kind, user, guestNumber, joinedAt]
+      properties:
+        kind: { type: string, enum: [USER, GUEST] }
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        guestNumber: { type: [integer, 'null'], minimum: 1000, maximum: 9999 }
+        joinedAt: { type: string, format: date-time }
+    LiveViewerPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LiveViewer' }
+        page: { $ref: '#/components/schemas/PageInfo' }
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string
@@ -3578,12 +3754,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment or story id, or a username for USER.
+          description: A post, comment, story or live room id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -3591,7 +3767,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }

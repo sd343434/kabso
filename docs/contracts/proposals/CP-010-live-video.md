@@ -1,8 +1,26 @@
-# CP-010 — Live video: going live and watching (Live L1) (PROPOSED)
+# CP-010 — Live video: going live and watching (Live L1) (APPROVED)
 
-**Status:** proposed for the owner on 2026-10-23. The owner chose to start the live system with
-**L1, going live and watching**, and to run **LiveKit** (D3) locally for development and
-**LiveKit Cloud** in production later (B1). Not applied to `openapi.yaml` yet.
+**Status:** approved by the owner on 2026-10-23 (D93), with these decisions:
+
+- **Order (owner):** video first (L1). Agencies and identity verification follow as **L1b**.
+  - Until L1b, an admin grants the hosting permission for testing.
+  - Going live stays switched off in production until both L1 and L1b are done.
+- **Who can go live (owner):**
+  - a host who joined a **host agency**: the agency invites them, or they ask to join with the
+    agency's code and the agency owner accepts;
+  - or a host who went live on their own after their **identity was verified**.
+  - L1b specifies both paths. L1 adds the permission they will grant.
+- **Private accounts (owner):** they can go live, and **everyone** can watch. Their posts,
+  reels and stories stay followers-only.
+- **Time limit (owner):** none.
+- **Guests (owner):** people without an account may watch, but not comment or do anything else.
+  - The host sees each of them as "Guest" with a short number.
+  - Guests are allowed by default. The host can switch guests off before or during the live;
+    guests already watching are removed at once.
+- **Media server (owner):** LiveKit (D3), local for development; LiveKit Cloud in production
+  with the owner's keys (B1).
+
+The open questions at the end are answered by these decisions.
 
 ## Why
 
@@ -20,10 +38,16 @@ In scope (L1):
 - a real **viewer count** (people watching now);
 - ending: by the host, by the heartbeat timeout, by suspension or by an admin, which also
   disconnects everyone at once;
-- **reporting a live room**, and an admin action that ends it.
+- **reporting a live room**, and an admin action that ends it;
+- the **hosting permission**: an admin grants or revokes it (agencies and identity
+  verification grant it in L1b);
+- **guest viewing** without an account, the host's viewer list, and the host's "allow guests"
+  switch.
 
 Later milestones, not in this proposal:
 
+- **L1b:** host agencies (invite, or join with a code), identity verification, and granting
+  the hosting permission through them;
 - **L2:** chat, hearts, Kabi emojis, and muting or removing a viewer;
 - **L3:** coins, gifts and the wallet;
 - **L4:** guests on stage;
@@ -90,29 +114,65 @@ LiveMediaAccess:
 - **Development:** a local LiveKit server (`livekit-server --dev`). Production uses LiveKit
   Cloud with the owner's keys (B1), with no code change.
 
+
+### 4a. Hosting permission
+
+- `startLiveRoom` also requires the caller to hold the **hosting permission**. Without it
+  → 403 `LIVE_HOSTING_NOT_ALLOWED`.
+- The app shows how to get the permission (L1b), and until then "Going live is not available
+  for your account yet".
+- `GET /me` gains `canHost` (boolean).
+- **Admin control (permission `LIVE_HOSTS`, audited):**
+  `PUT /admin/live/hosts/{username}` grants the permission and `DELETE` revokes it.
+- **Source:** the grant records where it came from (`ADMIN`; later `AGENCY` or `IDENTITY`).
+  Revoking ends the user's live room if one is running.
+
+### 4b. Guests and the host's viewers
+
+- **Endpoints guests can call without a token (rate-limited by IP):**
+  - `GET /live/config`;
+  - `GET /live/rooms` (`popular` and `new` only; `following` needs an account → 401);
+  - `GET /live/rooms/{roomId}`;
+  - `POST /live/rooms/{roomId}/media-token`.
+- **A guest's token:**
+  - identifies them as `guest:<random id>`, with a 4-digit `guestNumber` the host sees
+    ("Guest 4821");
+  - the app keeps the random id for the session, so the number stays the same.
+- **Room switch:** `LiveRoom.allowGuests` (default `true`).
+  - It can be set in `StartLiveRoomRequest`, and changed live with
+    `PATCH /live/rooms/{roomId}` `{allowGuests}` (host only).
+  - Switching it off removes every connected guest at once. New guest tokens are then refused
+    with 403 `LIVE_GUESTS_NOT_ALLOWED`.
+- **Viewer count:** guests count in `viewerCount`.
+- **Viewer list:** `GET /live/rooms/{roomId}/viewers` (host only) lists who is watching now,
+  newest first and paged. Each item is either a user (`UserSummary`) or a guest
+  (`{guestNumber}`).
+- **Guests can do nothing else:** follow, comment and report open "Sign in to continue" in the
+  app. The API refuses them anyway, since those endpoints need a token.
+- **Blocks:** a block cannot apply to a guest (there is no account).
+
 ### 5. Compatibility
 
 - **Additive:**
-  - one new operation, `createLiveMediaToken`;
-  - one new report target (`LIVE_ROOM`);
+  - new operations: `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`,
+    `grantLiveHost` and `revokeLiveHost`;
+  - new fields: `allowGuests` on the room and `canHost` on `/me`;
+  - one new report target (`LIVE_ROOM`) and two error codes;
   - `viewerCount` starts counting. Its shape is unchanged.
+- **Tightening:** going live now needs the hosting permission. It is switched off in
+  production today, so nobody loses anything.
+- **Relaxing:** four live reads accept no token (guests).
 - **Database:**
-  - a `live_room_viewers` table (room, user, joined_at) for the count;
+  - a `live_room_viewers` table (room, user or guest id, joined_at) for the count and the list;
+  - a `live_hosts` table (user, source, granted_by, granted_at);
+  - `live_rooms.allow_guests`;
   - a column linking a report to a room.
 
-## Open questions for the owner
+## Owner decisions
 
-- **Q1 — Who can go live.** You had no preference. v1.3 already allows every account with a
-  verified email.
-  - **Recommendation:** keep it that way, with reports and admin ending as the safety net.
-- **Q2 — Private accounts.** Can a private account go live, and who can watch it?
-  - **Recommendation:** for now, a private account's live is visible only to its followers,
-    the same rule as its posts and stories.
-- **Q3 — Time limit.** Should one live have a maximum length?
-  - **Recommendation:** no limit in L1; the heartbeat ends abandoned rooms.
-- **Q4 — Watching without an account.** Watching needs an account, as everything else in the
-  app does today.
-  - **Recommendation:** keep it.
+The questions in the first draft are settled in the Status section above. Pending for L1b: how
+identity is verified (the owner asked whether a small in-house document-and-face check is
+possible; to be specified in L1b).
 
 ## Work if approved
 
@@ -126,7 +186,11 @@ LiveMediaAccess:
    - configuration checks;
    - e2e tests against a real local LiveKit server.
 3. **App:**
-   - "Go live": camera preview, title, category, then start;
+   - "Go live": camera preview, title, category and "allow guests", then start; without the
+     hosting permission, an honest explanation;
+   - signed out: "Watch as guest" on the welcome screen opens the live hub (Popular and New)
+     and rooms; follow, comment and report ask the guest to sign in;
+   - the host's viewer list, including "Guest 4821", and the guests switch during the live;
    - the host screen: publish, flip camera, mute, end, reconnecting;
    - viewers: video in the room and in the hub pager (only the visible page plays), the viewer
      count, "The host will be right back" and "Live ended";

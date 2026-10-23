@@ -39,6 +39,10 @@
   separate admin tool. There is no admin web panel for the queue yet (API only).
 - Counters (`like_count`, `comment_count`, …) are kept in the same transaction as their rows;
   a hard deletion of a user (FK cascade) does not adjust the counters of other users' posts.
+- Live video (CP-010, D93, L1): the hosting permission is admin-granted until host agencies
+  and identity checks exist (L1b), so going live stays switched off in production until then.
+  No live chat, gifts, guests on stage or PK yet (L2–L5); no recording or replays. Development
+  runs a local LiveKit server; production needs LiveKit Cloud keys (B1).
 - Notifications (CP-009, D92): in-app only — no push to the phone until a Firebase project
   exists (CP-006 Q4); the badge refreshes by polling (on foreground and every 60 s), not live.
 - Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold

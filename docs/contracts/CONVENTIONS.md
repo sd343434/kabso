@@ -89,6 +89,8 @@ All non-2xx responses use one envelope:
 | 409 | `IDEMPOTENCY_CONFLICT` | Same Idempotency-Key reused with a different payload. |
 | 409 | `LIVE_ROOM_ALREADY_ACTIVE` | *(v1.3)* Go-live refused: the caller already has a LIVE room with a fresh heartbeat (§10.3). The client resumes or ends it; the room id comes from the caller's own public profile (`liveRoomId`), not from the error. |
 | 409 | `LIVE_ROOM_ENDED` | *(v1.3)* Heartbeat for a room that is no longer LIVE (ended by the host, heartbeat timeout, suspension or admin). The host client stops heartbeats and shows the ended state. |
+| 403 | `LIVE_HOSTING_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* Go-live refused: the caller does not hold the hosting permission (`Me.canHost`; admin-granted, later through an agency or an identity check). The app explains how to get it. |
+| 403 | `LIVE_GUESTS_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* A guest (no account) asked to watch a room whose host switched guests off. The app offers to sign in. |
 | 410 | `TOKEN_EXPIRED` | Email-verification / password-reset token expired or already used. |
 | 422 | `TOKEN_INVALID` | Email-verification / password-reset token malformed or unknown. |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header (seconds) is set. |
@@ -315,6 +317,10 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
 | `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
 | `POST /live/rooms/{roomId}/end` *(v1.3)* | 30 / hour per user |
+| `POST /live/rooms/{roomId}/media-token` *(v1.6-live, CP-010)* | 120 / hour per user; guests 60 / hour per IP |
+| `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
+| `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
+| Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
 | `PUT` + `DELETE /users/{username}/follow` *(v1.3)* | one shared bucket per user: 60 / hour and 300 / day; idempotent no-op calls count too (anti follow/unfollow churn) |
 | `POST /auth/password/forgot` | 3 / hour per email, 10 / hour per IP |
 | `POST /auth/refresh` | 60 / 15 min per session |
@@ -403,6 +409,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | tokens v1.2 | 2026-10-18 | `design-tokens.json` v1.2 (D47): `typography.fontFamilyArabic` IBM Plex Sans Arabic → Readex Pro (OFL-1.1), bundled at 400/500/600/700. | Visual only; no shape change. Flutter swaps the bundled Arabic font in the same change set and regenerates goldens. |
 | v1.4-levels (draft) | 2026-10-20 | **Draft, owner sign-off pending (CP-005, D72).** Four independent level systems. User: `GET /levels/me`, `/levels/me/{category}`, `/levels/me/history`, `/levels/me/points-history` (signed keyset cursors scoped to caller and filter). Admin (`role = ADMIN`, every mutation in `audit_logs`): categories (list/get/patch), versions (list/create/get/replace/validate/preview/publish with `PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`), a user's states, recalculate, manual adjustment (`Idempotency-Key` required; replay 200, different body 409), reconciliation (`DRY_RUN`/`REPAIR`) and its runs, source events and retry, reports, levels audit log. New error codes `LEVEL_CONFIG_INVALID` (422) and `LEVEL_VERSION_NOT_DRAFT` (409). `GET /users/{username}/levels` (levels only, for profiles). Admin routes need a per-route permission (`LEVELS_VIEW|EDIT|PUBLISH|ADJUST|RECONCILE`) besides `role = ADMIN`. No public endpoint accepts points, levels or events. Additive: no existing path, schema or code changes |
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
+| v1.6-live (draft) | 2026-10-23 | **CP-010 (D93, Live L1):** live video — `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`, `grantLiveHost`, `revokeLiveHost`; schemas `LiveMediaAccess`, `LiveMediaTokenRequest`, `UpdateLiveRoomRequest`, `LiveViewer`, `LiveViewerPage`; `LiveRoom.allowGuests`, `StartLiveRoomRequest.allowGuests`, `Me.canHost`; report `targetType: LIVE_ROOM`; codes `LIVE_HOSTING_NOT_ALLOWED`, `LIVE_GUESTS_NOT_ALLOWED`; guests read the live hub without a token; `viewerCount` counts people watching. §4, §7 rows and §10.8. | **Additive**, plus one **tightening** (go-live needs the hosting permission; hosting is switched off in production today, so nobody loses anything) and one **relaxing** (four live operations accept no token). |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
 | v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
 | v1.5-social (draft) | 2026-10-21 | **CP-007 (D89):** `GET /me/mutes` (the caller's muted accounts, newest first, `UserSummaryPage`) and `PublicProfile.isMuted` (the caller's own mute only). §11.7 line added. | Additive: a new path and one new boolean on `PublicProfile`. |
@@ -627,16 +634,64 @@ until a media provider is wired in.
 
 ### 10.7 Out of scope for v1.3 (recorded so nobody assumes otherwise)
 
-- Media and streaming (playback, publish tokens, LiveKit) — B1.
-- Realtime presence and real viewer counts; the realtime events contract.
+- Media and streaming (playback, publish tokens, LiveKit) — B1. *(CP-010: see §10.8.)*
+- Realtime presence and real viewer counts; the realtime events contract. *(CP-010: real viewer
+  counts, §10.8; the realtime events contract is still out of scope.)*
 - Live chat, gifts, PK and multi-guest.
 - Blocking and muting; follower and following lists; follow requests for private accounts;
   follow notifications.
-- Moderation and reporting of rooms or titles; admin end-room (`ADMIN` is reserved).
+- Moderation and reporting of rooms or titles; admin end-room (`ADMIN` is reserved). *(CP-010:
+  room reports and admin ending, §10.8.)*
 - Admin category management.
 - Search; the featured strip (HL-H4); the "Live now from people you follow" rail as a separate
   endpoint (the client derives it from `tab=following`).
 - Editing a room's title or category after go-live; covers and cover upload.
+
+### 10.8 Live video *(v1.6-live, DRAFT — CP-010, D93, Live L1)*
+
+- **Media server:** LiveKit (D3) behind a `LiveMediaProvider` port. Config `LIVEKIT_URL`,
+  `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`: `LIVE_HOSTING_ENABLED=true` requires all three,
+  and production requires `wss://`. A LiveKit room is named by the live room's id.
+- **Hosting permission** (`live_hosts`, `Me.canHost`):
+  - `startLiveRoom` needs it, else 403 `LIVE_HOSTING_NOT_ALLOWED` (checked after
+    `LIVE_HOSTING_ENABLED`);
+  - admins with `LIVE_HOSTS` grant and revoke it (audited);
+  - revoking ends a running room (`ADMIN`);
+  - each grant keeps its source (`ADMIN`; `AGENCY` and `IDENTITY` arrive in L1b, owner D93).
+- **Visibility:** a room is visible to anyone, private hosts included (owner D93: a live is
+  public; only posts, reels and stories follow §11.2). Hidden only when the host is not ACTIVE
+  or a block exists either way (404). Guests have no account, so blocks do not apply to them.
+- **Media token** (`createLiveMediaToken`):
+  - roles:
+    - HOST: the host of a LIVE room; may publish camera and microphone only;
+    - VIEWER: everyone else; subscribe only;
+  - viewers are hidden participants (no viewer roster on the media session);
+  - valid 10 minutes to join; a joined session is not cut at expiry;
+  - the identity is the user id, or `guest:<guestId>` for a guest.
+- **Guests** (no bearer token; owner D93):
+  - **may:** `GET /live/config`, `GET /live/rooms` (`popular`, `new`), `GET /live/rooms/{roomId}`
+    and `createLiveMediaToken` with a `guestId` (a UUID the app keeps per session);
+  - **may not:** everything else; those endpoints need a token;
+  - **room switch:** `allowGuests` (default true) is set at go-live or with
+    `PATCH /live/rooms/{roomId}`;
+  - **switching off:** removes connected guests at once and refuses new guest tokens
+    (403 `LIVE_GUESTS_NOT_ALLOWED`);
+  - **`guestNumber`:** 1000–9999, derived from the guest id with a server secret, so it is
+    stable for a session and reveals nothing.
+- **Presence and counts:**
+  - the media server's signed webhook (`POST /internal/livekit/webhook`, not public API)
+    records joins and leaves in `live_room_viewers`, one row per room and identity;
+  - the sweeper reconciles with the media server;
+  - `viewerCount` = connected identities other than the host, guests included;
+  - `popular` orders by it;
+  - the host lists them with `listLiveRoomViewers`, newest first.
+- **Ending:** whenever a room ends (host, heartbeat timeout, suspension, admin, revoked
+  permission), the media session is closed for everyone. A host who drops out without ending
+  keeps the room until the heartbeat timeout (§10.3); the app says "The host will be right
+  back".
+- **Reports:** `POST /reports` accepts `targetType: LIVE_ROOM` (a LIVE or recently ended room the
+  reporter can see; not your own). `REMOVE_TARGET` ends the room with `ADMIN` (audited).
+- **No time limit** on a live (owner D93).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
