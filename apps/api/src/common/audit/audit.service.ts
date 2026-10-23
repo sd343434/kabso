@@ -27,6 +27,10 @@ export enum AuditAction {
   LIVE_ROOM_END = 'live.room.end',
   /** Ended for a stale heartbeat (sweeper or a read path). */
   LIVE_ROOM_TIMEOUT = 'live.room.timeout',
+  // v1.6-live (DRAFT, CP-010): the hosting permission and the room's guests switch.
+  LIVE_HOST_GRANT = 'live.host.grant',
+  LIVE_HOST_REVOKE = 'live.host.revoke',
+  LIVE_ROOM_GUESTS = 'live.room.guests',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',

@@ -60,6 +60,9 @@ model User {
   verificationTokens VerificationToken[]
   auditLogs          AuditLog[]
   liveRooms          LiveRoom[]
+  liveHost           LiveHost?             @relation("LiveHostUser")
+  liveHostsGranted   LiveHost[]            @relation("LiveHostGrantedBy")
+  liveViews          LiveRoomViewer[]
   following          Follow[]              @relation("FollowFollower")
   followers          Follow[]              @relation("FollowFollowee")
   levelStates        UserLevelState[]
@@ -277,6 +280,47 @@ model LiveCategory {
 }
 
 /// A live room is metadata plus a host heartbeat (no media in v1.3, B1).
+/// CP-010: where a hosting permission came from (owner D93: agencies and identity checks in L1b).
+enum LiveHostSource {
+  ADMIN
+  AGENCY
+  IDENTITY
+
+  @@map("live_host_source")
+}
+
+/// CP-010: users who may go live (`Me.canHost`).
+model LiveHost {
+  userId      String         @id @map("user_id") @db.Uuid
+  source      LiveHostSource
+  grantedById String?        @map("granted_by_id") @db.Uuid
+  grantedAt   DateTime       @default(now()) @map("granted_at") @db.Timestamptz(3)
+
+  user      User  @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy User? @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@index([grantedById], map: "live_hosts_granted_by_idx")
+  @@map("live_hosts")
+}
+
+/// CP-010: who is connected to a room's media session now (from the media server's webhook).
+/// `identity` is the user id, or `guest:<guestId>` for a guest.
+model LiveRoomViewer {
+  roomId   String   @map("room_id") @db.Uuid
+  identity String   @db.VarChar(80)
+  userId   String?  @map("user_id") @db.Uuid
+  guestId  String?  @map("guest_id") @db.Uuid
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, identity], map: "live_room_viewers_pkey")
+  @@index([roomId, joinedAt(sort: Desc), identity(sort: Desc)], map: "live_room_viewers_room_joined_idx")
+  @@index([userId], map: "live_room_viewers_user_idx")
+  @@map("live_room_viewers")
+}
+
 model LiveRoom {
   id              String             @id @default(uuid(7)) @db.Uuid
   hostUserId      String             @map("host_user_id") @db.Uuid
@@ -289,15 +333,19 @@ model LiveRoom {
   lastHeartbeatAt DateTime           @default(now()) @map("last_heartbeat_at") @db.Timestamptz(3)
   endedAt         DateTime?          @map("ended_at") @db.Timestamptz(3)
   endReason       LiveRoomEndReason? @map("end_reason")
-  /// Always 0 in v1.3 (no realtime presence).
+  /// CP-010: connected viewers other than the host, guests included (kept from `live_room_viewers`).
   viewerCount     Int                @default(0) @map("viewer_count")
+  /// CP-010: people without an account may watch (owner D93: allowed by default).
+  allowGuests     Boolean            @default(true) @map("allow_guests")
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host     User          @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category LiveCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  host     User             @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category LiveCategory?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  viewers  LiveRoomViewer[]
+  reports  Report[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -621,6 +669,8 @@ enum AdminPermission {
   LEVELS_RECONCILE
   /// v1.5-social (CP-006): the report queue.
   MODERATION
+  /// v1.6-live (CP-010): grant and revoke the hosting permission.
+  LIVE_HOSTS
 
   @@map("admin_permission")
 }
@@ -689,6 +739,7 @@ enum ReportTargetType {
   COMMENT
   USER
   STORY
+  LIVE_ROOM
 
   @@map("report_target_type")
 }
@@ -1043,37 +1094,41 @@ model PostHide {
 /// A report (§11.7). Exactly one target column is set (CHECK `reports_one_target`); one OPEN
 /// report per reporter and target (partial unique indexes in the migration).
 model Report {
-  id              String           @id @default(uuid(7)) @db.Uuid
-  reporterId      String           @map("reporter_id") @db.Uuid
-  targetType      ReportTargetType @map("target_type")
-  targetPostId    String?          @map("target_post_id") @db.Uuid
-  targetCommentId String?          @map("target_comment_id") @db.Uuid
-  targetUserId    String?          @map("target_user_id") @db.Uuid
-  targetStoryId   String?          @map("target_story_id") @db.Uuid
-  reason          ReportReason
-  note            String?          @db.VarChar(500)
-  status          ReportStatus     @default(OPEN)
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  resolvedAt      DateTime?        @map("resolved_at") @db.Timestamptz(3)
-  resolvedById    String?          @map("resolved_by_id") @db.Uuid
-  resolutionNote  String?          @map("resolution_note") @db.VarChar(500)
+  id               String           @id @default(uuid(7)) @db.Uuid
+  reporterId       String           @map("reporter_id") @db.Uuid
+  targetType       ReportTargetType @map("target_type")
+  targetPostId     String?          @map("target_post_id") @db.Uuid
+  targetCommentId  String?          @map("target_comment_id") @db.Uuid
+  targetUserId     String?          @map("target_user_id") @db.Uuid
+  targetStoryId    String?          @map("target_story_id") @db.Uuid
+  targetLiveRoomId String?          @map("target_live_room_id") @db.Uuid
+  reason           ReportReason
+  note             String?          @db.VarChar(500)
+  status           ReportStatus     @default(OPEN)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt       DateTime?        @map("resolved_at") @db.Timestamptz(3)
+  resolvedById     String?          @map("resolved_by_id") @db.Uuid
+  resolutionNote   String?          @map("resolution_note") @db.VarChar(500)
 
-  reporter      User     @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetPost    Post?    @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-  targetComment Comment? @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
-  targetUser    User?    @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  targetStory   Story?   @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
-  resolvedBy    User?    @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  reporter       User      @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost     Post?     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetComment  Comment?  @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
+  targetUser     User?     @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetStory    Story?    @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
+  targetLiveRoom LiveRoom? @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
+  resolvedBy     User?     @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
   @@unique([reporterId, targetCommentId], map: "reports_open_comment_once", where: raw("status = 'OPEN'::report_status AND target_comment_id IS NOT NULL"))
   @@unique([reporterId, targetUserId], map: "reports_open_user_once", where: raw("status = 'OPEN'::report_status AND target_user_id IS NOT NULL"))
   @@unique([reporterId, targetStoryId], map: "reports_open_story_once", where: raw("status = 'OPEN'::report_status AND target_story_id IS NOT NULL"))
+  @@unique([reporterId, targetLiveRoomId], map: "reports_open_live_room_once", where: raw("status = 'OPEN'::report_status AND target_live_room_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
   @@index([targetUserId], map: "reports_target_user_idx")
   @@index([targetStoryId], map: "reports_target_story_idx")
+  @@index([targetLiveRoomId], map: "reports_target_live_room_idx")
   @@map("reports")
 }
 

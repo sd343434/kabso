@@ -43,6 +43,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   status: 'LIVE' | 'ENDED';
   endedAt: string | null;
   endReason: LiveRoomEndReason | null;
+  /** CP-010: people without an account may watch. */
+  allowGuests: boolean;
 }
 
 export interface LiveRoomPageDto {
@@ -64,7 +66,7 @@ export interface RequestMeta {
 
 // ---- Persistence -------------------------------------------------------------------------------
 
-interface RoomRow {
+export interface RoomRow {
   id: string;
   title: string;
   mode: LiveRoomMode;
@@ -75,6 +77,7 @@ interface RoomRow {
   ended_at: Date | null;
   end_reason: LiveRoomEndReason | null;
   cover_url: string | null;
+  allow_guests: boolean;
   host_user_id: string;
   host_status: string;
   username: string;
@@ -94,6 +97,7 @@ interface RoomRow {
 const ROOM_SELECT = Prisma.sql`
   SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
+         r.allow_guests,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en
@@ -174,6 +178,17 @@ export function keysetAfter(tab: LiveTab, position: CursorPosition): Prisma.Sql 
 
 function notFound(): AppException {
   return new AppException(ErrorCode.NOT_FOUND);
+}
+
+/**
+ * CP-010 (§10.8): rooms of hosts the viewer blocked, or who blocked the viewer, are hidden.
+ * Guests (no account) have no blocks.
+ */
+function notBlockedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`TRUE`;
+  return Prisma.sql`NOT EXISTS (SELECT 1 FROM user_blocks b
+                    WHERE (b.blocker_id = ${viewerId}::uuid AND b.blocked_id = r.host_user_id)
+                       OR (b.blocker_id = r.host_user_id AND b.blocked_id = ${viewerId}::uuid))`;
 }
 
 /**
@@ -421,24 +436,31 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       status: row.status,
       endedAt: row.ended_at?.toISOString() ?? null,
       endReason: row.end_reason,
+      allowGuests: row.allow_guests,
     };
   }
 
-  private async selectRoom(roomId: string): Promise<RoomRow | null> {
-    const rows = await this.prisma.$queryRaw<RoomRow[]>`${ROOM_SELECT} WHERE r.id = ${roomId}::uuid`;
+  private async selectRoom(roomId: string, viewerId: string | null = null): Promise<RoomRow | null> {
+    const rows = await this.prisma.$queryRaw<RoomRow[]>`
+      ${ROOM_SELECT} WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
     return rows[0] ?? null;
   }
 
   /**
    * `GET /live/rooms` (§10.4): LIVE, fresh, ACTIVE host; keyset pagination with a signed cursor.
    * Stale rooms are filtered out by the freshness predicate; the list performs no writes (§10.2).
+   * CP-010: a guest (`callerId` null) may list `popular` and `new` (`following` → 401); rooms
+   * across a block are hidden from a signed-in caller.
    */
   async listRooms(
-    callerId: string,
+    callerId: string | null,
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    const scope = cursorScope(query.tab, query.category, callerId);
+    if (callerId === null && query.tab === 'following') {
+      throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+    }
+    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest');
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
@@ -452,6 +474,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       Prisma.sql`r.status = 'LIVE'`,
       Prisma.sql`r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz`,
       Prisma.sql`u.status = 'ACTIVE'`,
+      notBlockedSql(callerId),
     ];
     if (query.category !== undefined) {
       // Unknown or inactive slug → no category id → empty list (200), §10.4.
@@ -461,7 +484,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
     if (query.tab === 'following') {
       conditions.push(
-        Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId}::uuid AND f.followee_id = r.host_user_id)`,
+        Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId ?? ''}::uuid AND f.followee_id = r.host_user_id)`,
       );
     }
     if (position) conditions.push(keysetAfter(query.tab, position));
@@ -493,18 +516,29 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
-   * rooms are the same 404. A stale LIVE room is ended (that single room) and returned as ENDED.
+   * rooms are the same 404, and so (CP-010) is a room across a block with `viewerId`. A stale
+   * LIVE room is ended (that single room) and returned as ENDED. `viewerId` null: a guest.
    */
-  async getRoom(roomId: string, lang: ContentLanguage): Promise<LiveRoomDto> {
+  async getRoom(roomId: string, lang: ContentLanguage, viewerId: string | null = null): Promise<LiveRoomDto> {
+    return this.toRoom(await this.visibleRow(roomId, viewerId), lang);
+  }
+
+  /** The room row as {@link getRoom} sees it (stale rooms ended first), else 404. */
+  async visibleRow(roomId: string, viewerId: string | null): Promise<RoomRow> {
     if (!isUuid(roomId)) throw notFound();
-    let row = await this.selectRoom(roomId);
+    let row = await this.selectRoom(roomId, viewerId);
     if (!row || row.host_status !== 'ACTIVE') throw notFound();
     const now = this.clock.now();
     if (row.status === 'LIVE' && !this.isFresh(row.last_heartbeat_at, now)) {
       await this.endStaleOne(Prisma.sql`id = ${roomId}::uuid`, now);
-      row = await this.selectRoom(roomId);
+      row = await this.selectRoom(roomId, viewerId);
       if (!row || row.host_status !== 'ACTIVE') throw notFound();
     }
+    return row;
+  }
+
+  /** The room DTO of a row from {@link visibleRow}. */
+  roomDto(row: RoomRow, lang: ContentLanguage): LiveRoomDto {
     return this.toRoom(row, lang);
   }
 
@@ -543,6 +577,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     meta: RequestMeta,
   ): Promise<LiveRoomDto> {
     this.assertHostingEnabled();
+    // CP-010 (§10.8): the hosting permission, checked right after the hosting switch.
+    if ((await this.prisma.liveHost.count({ where: { userId: callerId } })) === 0) {
+      throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
+    }
     const parsed = startLiveRoomSchema.safeParse(body, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
@@ -574,6 +612,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             categoryId,
             startedAt: now,
             lastHeartbeatAt: now,
+            allowGuests: input.allowGuests ?? true,
           },
           select: { id: true },
         });
@@ -697,5 +736,32 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         metadata: { reason: 'HOST_SUSPENDED', hostUserId },
       })),
     );
+  }
+
+  /**
+   * CP-010: an admin ends a LIVE room (report action) with `ADMIN`, inside the caller's
+   * transaction, audited by the caller (scope: one room, or the host's room when the hosting
+   * permission is revoked). A stale room is ended as HEARTBEAT_TIMEOUT instead. Returns the ids
+   * this call ended with `ADMIN`.
+   */
+  async endByAdminIn(
+    tx: Prisma.TransactionClient,
+    scope: { roomId: string } | { hostUserId: string },
+  ): Promise<string[]> {
+    const now = this.clock.now();
+    const where =
+      'roomId' in scope
+        ? Prisma.sql`id = ${scope.roomId}::uuid`
+        : Prisma.sql`host_user_id = ${scope.hostUserId}::uuid`;
+    await this.endStaleIn(tx, where, now);
+    const ended = await tx.$queryRaw<{ id: string }[]>`
+      UPDATE live_rooms
+         SET status = 'ENDED', end_reason = 'ADMIN',
+             ended_at = GREATEST(${ts(now)}::timestamptz, last_heartbeat_at),
+             updated_at = ${ts(now)}::timestamptz
+       WHERE ${where} AND status = 'LIVE'
+         AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
+   RETURNING id::text AS id`;
+    return ended.map((row) => row.id);
   }
 }

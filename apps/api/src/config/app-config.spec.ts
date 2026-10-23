@@ -10,6 +10,13 @@ const base = {
   APP_PUBLIC_URL: 'https://kabso.example/',
 };
 
+/** CP-010: livekit-server's public --dev settings. */
+const LIVEKIT = {
+  LIVEKIT_URL: 'ws://127.0.0.1:7880',
+  LIVEKIT_API_KEY: 'devkey',
+  LIVEKIT_API_SECRET: 'secret',
+};
+
 describe('loadConfig', () => {
   it('applies CONVENTIONS defaults', () => {
     const config = loadConfig(base);
@@ -299,11 +306,41 @@ describe('loadConfig', () => {
     });
 
     it('LIVE_HOSTING_ENABLED accepts only "true" / "false"', () => {
-      expect(loadConfig({ ...base, LIVE_HOSTING_ENABLED: 'true' }).live.hostingEnabled).toBe(true);
+      // CP-010: turning hosting on also needs the media server (next test).
+      expect(loadConfig({ ...base, ...LIVEKIT, LIVE_HOSTING_ENABLED: 'true' }).live.hostingEnabled).toBe(
+        true,
+      );
       expect(loadConfig({ ...base, LIVE_HOSTING_ENABLED: 'false' }).live.hostingEnabled).toBe(false);
       for (const value of ['1', 'yes', 'TRUE', 'on', '']) {
         expect(problemsFor({ ...base, LIVE_HOSTING_ENABLED: value }, 'LIVE_HOSTING_ENABLED')).toHaveLength(1);
       }
+    });
+
+    it('hosting needs LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET; production needs wss (CP-010)', () => {
+      for (const key of ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const) {
+        expect(problemsFor({ ...base, LIVE_HOSTING_ENABLED: 'true' }, key)).toEqual([
+          `${key}: is required when LIVE_HOSTING_ENABLED=true`,
+        ]);
+      }
+      expect(loadConfig({ ...base, ...LIVEKIT }).live.livekit).toEqual({
+        url: 'ws://127.0.0.1:7880',
+        apiKey: 'devkey',
+        apiSecret: 'secret',
+      });
+      expect(loadConfig(base).live.livekit).toBeNull();
+      expect(problemsFor({ ...base, LIVEKIT_URL: 'http://x' }, 'LIVEKIT_URL')).toHaveLength(1);
+      expect(
+        problemsFor(
+          prod({ LIVEKIT_URL: 'ws://media.example', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 'secret' }),
+          'LIVEKIT_URL',
+        ),
+      ).toEqual(['LIVEKIT_URL: must use wss in production']);
+      expect(
+        problemsFor(
+          prod({ LIVEKIT_URL: 'wss://media.example', LIVEKIT_API_KEY: 'k', LIVEKIT_API_SECRET: 'secret' }),
+          'LIVEKIT_API_SECRET',
+        ),
+      ).toHaveLength(1);
     });
 
     it('heartbeat interval is 5–60 s and the stale window at least twice the interval', () => {

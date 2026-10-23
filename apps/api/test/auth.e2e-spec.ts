@@ -60,6 +60,8 @@ describe('POST /auth/register', () => {
       role: 'USER',
       isPrivate: false,
       createdAt: expect.stringMatching(ISO),
+      // CP-010: a new account cannot go live until it is granted the hosting permission.
+      canHost: false,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

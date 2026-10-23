@@ -42,7 +42,15 @@ export const liveTitleSchema = z
 export const startLiveRoomSchema = z.strictObject({
   title: liveTitleSchema,
   categorySlug: categorySlugSchema.optional(),
+  /** CP-010: default true (owner D93). */
+  allowGuests: z.boolean().optional(),
 });
+
+/** `UpdateLiveRoomRequest` (CP-010). */
+export const updateLiveRoomSchema = z.strictObject({ allowGuests: z.boolean() });
+
+/** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
+export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;
 
 /** `limit`: integer 1–50, default 20 (CONVENTIONS §5). */

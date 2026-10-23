@@ -1,12 +1,31 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { languageFromAcceptLanguage, type ContentLanguage } from '../../common/http/content-language.js';
-import { clientIp, type AppRequest, type AuthContext } from '../../common/http/request-context.js';
-import { byUserId, RateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
+import { clientIp, type AppRequest } from '../../common/http/request-context.js';
+import { byIp, byUserId, RateLimit, SkipRateLimit } from '../../common/rate-limit/rate-limit.decorator.js';
 import { getRequestId } from '../../common/request-id/request-id.js';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode } from '../../common/errors/error-codes.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
-import { CurrentAuth } from '../auth/current-auth.decorator.js';
+import { OptionalAuth, Public } from '../auth/public.decorator.js';
+import { AdminGuard, RequireAdminPermission } from '../levels/admin.guard.js';
+import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
+import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
 import {
   LiveRoomsService,
   type LiveConfigDto,
@@ -16,47 +35,74 @@ import {
 } from './live-rooms.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
-/** Live discovery and host lifecycle (contract v1.3, CONVENTIONS §10). Every route needs a token. */
+/** The caller's user id; a guest has none (CP-010 `@OptionalAuth()` routes). */
+function callerOf(req: AppRequest): string | null {
+  return req.auth?.userId ?? null;
+}
+
+function requireCaller(req: AppRequest): string {
+  const id = callerOf(req);
+  if (id === null) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
+  return id;
+}
+
+function meta(req: AppRequest): RequestMeta {
+  return { ip: clientIp(req), requestId: getRequestId(req) };
+}
+
+/** Guest reads (CP-010): per IP instead of per user. */
+const GUEST_READ = {
+  bucket: 'live:guest:read',
+  rule: 'liveGuestReadIp',
+  key: byIp,
+  replacesDefault: true,
+  appliesTo: 'guest',
+} as const;
+
+/**
+ * Live discovery, host lifecycle and live video (contract v1.3 + v1.6-live draft, CONVENTIONS
+ * §10). Every route needs a token, except the guest reads and the media token (CP-010).
+ */
 @Controller('live')
 export class LiveController {
   constructor(
     private readonly rooms: LiveRoomsService,
+    private readonly media: LiveMediaService,
     private readonly categories: LiveCategoriesService,
     private readonly users: UsersService,
   ) {}
 
-  /** §10.1: `Accept-Language` (ar|en), else the caller's stored locale, else `ar`. */
-  private async language(req: AppRequest, auth: AuthContext): Promise<ContentLanguage> {
-    return (
-      languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId))
-    );
-  }
-
-  private meta(req: AppRequest): RequestMeta {
-    return { ip: clientIp(req), requestId: getRequestId(req) };
+  /** §10.1: `Accept-Language` (ar|en), else the caller's stored locale, else `ar` (guests too). */
+  private async language(req: AppRequest): Promise<ContentLanguage> {
+    const header = languageFromAcceptLanguage(req.headers['accept-language']);
+    if (header) return header;
+    const caller = callerOf(req);
+    return caller === null ? 'ar' : this.users.getLocale(caller);
   }
 
   @Get('config')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
   config(): LiveConfigDto {
     return this.rooms.getConfig();
   }
 
   @Get('categories')
-  async listCategories(
-    @CurrentAuth() auth: AuthContext,
-    @Req() req: AppRequest,
-  ): Promise<{ data: LiveCategoryDto[] }> {
-    return { data: await this.categories.listActive(await this.language(req, auth)) };
+  async listCategories(@Req() req: AppRequest): Promise<{ data: LiveCategoryDto[] }> {
+    return { data: await this.categories.listActive(await this.language(req)) };
   }
 
   @Get('rooms')
-  @RateLimit({ bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true })
+  @OptionalAuth()
+  @RateLimit(
+    { bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true, appliesTo: 'user' },
+    GUEST_READ,
+  )
   async listRooms(
-    @CurrentAuth() auth: AuthContext,
     @Req() req: AppRequest,
     @Query(new ZodValidationPipe(listLiveRoomsQuerySchema)) query: ListLiveRoomsQuery,
   ): Promise<LiveRoomPageDto> {
-    return this.rooms.listRooms(auth.userId, query, await this.language(req, auth));
+    return this.rooms.listRooms(callerOf(req), query, await this.language(req));
   }
 
   /**
@@ -69,38 +115,127 @@ export class LiveController {
     { bucket: 'live:start:h', rule: 'liveStartHourUser', key: byUserId, replacesDefault: true },
     { bucket: 'live:start:d', rule: 'liveStartDayUser', key: byUserId, replacesDefault: true },
   )
-  async startRoom(
-    @CurrentAuth() auth: AuthContext,
-    @Req() req: AppRequest,
-    @Body() body: unknown,
-  ): Promise<LiveRoomDto> {
-    return this.rooms.startRoom(auth.userId, body, await this.language(req, auth), this.meta(req));
+  async startRoom(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveRoomDto> {
+    return this.rooms.startRoom(requireCaller(req), body, await this.language(req), meta(req));
   }
 
   @Get('rooms/:roomId')
-  async getRoom(
-    @CurrentAuth() auth: AuthContext,
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  async getRoom(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveRoomDto> {
+    return this.rooms.getRoom(roomId, await this.language(req), callerOf(req));
+  }
+
+  /** CP-010: the host's guests switch. */
+  @Patch('rooms/:roomId')
+  @RateLimit({ bucket: 'live:update', rule: 'liveUpdateUser', key: byUserId, replacesDefault: true })
+  async updateRoom(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
+    @Body() body: unknown,
   ): Promise<LiveRoomDto> {
-    return this.rooms.getRoom(roomId, await this.language(req, auth));
+    const host = requireCaller(req);
+    const id = await this.media.updateRoom(host, roomId, body, meta(req));
+    return this.rooms.getRoom(id, await this.language(req), host);
+  }
+
+  /** CP-010: access to the room's video (host, viewer or guest). */
+  @Post('rooms/:roomId/media-token')
+  @HttpCode(200)
+  @OptionalAuth()
+  @RateLimit(
+    {
+      bucket: 'live:media',
+      rule: 'liveMediaTokenUser',
+      key: byUserId,
+      replacesDefault: true,
+      appliesTo: 'user',
+    },
+    {
+      bucket: 'live:media:guest',
+      rule: 'liveMediaTokenGuestIp',
+      key: byIp,
+      replacesDefault: true,
+      appliesTo: 'guest',
+    },
+  )
+  mediaToken(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveMediaAccessDto> {
+    return this.media.mediaToken(callerOf(req), roomId, body);
+  }
+
+  /** CP-010: who is watching now (host only). */
+  @Get('rooms/:roomId/viewers')
+  @RateLimit({ bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true })
+  viewers(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+  ): Promise<{ data: LiveViewerDto[]; page: { nextCursor: string | null; hasMore: boolean } }> {
+    return this.media.viewers(requireCaller(req), roomId, query);
   }
 
   @Post('rooms/:roomId/heartbeat')
   @HttpCode(204)
   @RateLimit({ bucket: 'live:heartbeat', rule: 'liveHeartbeatUser', key: byUserId, replacesDefault: true })
-  async heartbeat(@CurrentAuth() auth: AuthContext, @Param('roomId') roomId: string): Promise<void> {
-    await this.rooms.heartbeat(auth.userId, roomId);
+  async heartbeat(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
+    await this.rooms.heartbeat(requireCaller(req), roomId);
   }
 
   @Post('rooms/:roomId/end')
   @HttpCode(200)
   @RateLimit({ bucket: 'live:end', rule: 'liveEndUser', key: byUserId, replacesDefault: true })
-  async endRoom(
-    @CurrentAuth() auth: AuthContext,
+  async endRoom(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveRoomDto> {
+    const room = await this.rooms.endRoom(requireCaller(req), roomId, await this.language(req), meta(req));
+    // CP-010: the media session closes for everyone (idempotent; the sweeper repeats it).
+    await this.media.closeMedia(room.id);
+    return room;
+  }
+}
+
+/** CP-010: the hosting permission (admins with LIVE_HOSTS; audited). */
+@Controller('admin/live')
+@UseGuards(AdminGuard)
+export class AdminLiveController {
+  constructor(private readonly media: LiveMediaService) {}
+
+  @Put('hosts/:username')
+  @HttpCode(204)
+  @RequireAdminPermission('LIVE_HOSTS')
+  async grant(@Req() req: AppRequest, @Param('username') username: string): Promise<void> {
+    await this.media.grantHost(requireCaller(req), username, meta(req));
+  }
+
+  @Delete('hosts/:username')
+  @HttpCode(204)
+  @RequireAdminPermission('LIVE_HOSTS')
+  async revoke(@Req() req: AppRequest, @Param('username') username: string): Promise<void> {
+    await this.media.revokeHost(requireCaller(req), username, meta(req));
+  }
+}
+
+/**
+ * CP-010: the media server's signed webhook (`POST /internal/livekit/webhook`, outside
+ * `/api/v1`; not public API). The signature over the raw body is the authentication.
+ */
+@Controller('internal/livekit')
+export class LiveMediaWebhookController {
+  constructor(private readonly media: LiveMediaService) {}
+
+  @Post('webhook')
+  @HttpCode(200)
+  @Public()
+  @SkipRateLimit()
+  async webhook(
     @Req() req: AppRequest,
-    @Param('roomId') roomId: string,
-  ): Promise<LiveRoomDto> {
-    return this.rooms.endRoom(auth.userId, roomId, await this.language(req, auth), this.meta(req));
+    @Headers('authorization') authorization: string | undefined,
+  ): Promise<{ ok: true }> {
+    const body: unknown = req.body;
+    if (!Buffer.isBuffer(body)) throw AppException.validation([{ field: 'body', issue: 'invalid_type' }]);
+    await this.media.webhook(body.toString('utf8'), authorization);
+    return { ok: true };
   }
 }

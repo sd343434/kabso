@@ -493,6 +493,15 @@ a `CONNECTION LIMIT`.
   0 in production) closes expired slots and deletes assets never attached to a post within 24 h.
   A bucket lifecycle rule that deletes `uploads/` objects older than 2 days is a recommended
   backstop.
+- **Live video (CP-010, D93):** LiveKit (D3). Set `LIVEKIT_URL` (`wss://` in production),
+  `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` from the secret manager (B1); all three are required
+  when `LIVE_HOSTING_ENABLED=true`. Configure the LiveKit project's webhook to
+  `POST https://<api-host>/internal/livekit/webhook` (signed with the same key; outside `/api/v1`,
+  not public API): it records who is watching. The in-process reconciliation (every
+  `LIVE_SWEEP_INTERVAL_SECONDS`) closes media sessions of rooms that are no longer live. Going live
+  also needs the hosting permission (`PUT /api/v1/admin/live/hosts/{username}`, admin permission
+  `LIVE_HOSTS`); keep `LIVE_HOSTING_ENABLED=false` in production until L1b (agencies and identity
+  checks) is done. Locally: `livekit-server --dev --bind 127.0.0.1` with the `.env.example` values.
 - **Notifications retention (CP-009):** the in-process sweeper
   (`NOTIFICATIONS_SWEEP_INTERVAL_SECONDS`, 3600 s, refused at 0 in production) deletes
   notifications whose latest activity is older than 30 days. `POST /notifications/read` is

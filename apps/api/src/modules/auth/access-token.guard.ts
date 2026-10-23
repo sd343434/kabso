@@ -4,14 +4,15 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { AppRequest } from '../../common/http/request-context.js';
 import { AccessTokenService } from './access-token.service.js';
-import { IS_PUBLIC_KEY } from './public.decorator.js';
+import { IS_OPTIONAL_AUTH_KEY, IS_PUBLIC_KEY } from './public.decorator.js';
 import { SessionsService } from './sessions.service.js';
 
 // RFC 7235: the auth scheme is case-insensitive (QA-002).
 const BEARER = /^Bearer +([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
 
 /**
- * Global guard: every route requires a valid access token unless marked `@Public()`.
+ * Global guard: every route requires a valid access token unless marked `@Public()` (or, with no
+ * `Authorization` header at all, `@OptionalAuth()`: a guest, CP-010).
  * Besides the JWT itself it checks the session (not revoked, not expired) and that the user
  * is ACTIVE, so logout, revocation and suspension take effect immediately (CONVENTIONS §6).
  */
@@ -34,6 +35,15 @@ export class AccessTokenGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<AppRequest>();
     const header = req.headers.authorization;
+    if (
+      header === undefined &&
+      this.reflector.getAllAndOverride<boolean>(IS_OPTIONAL_AUTH_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    ) {
+      return true; // a guest (CP-010)
+    }
     const match = typeof header === 'string' ? BEARER.exec(header) : null;
     if (!match?.[1]) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
 

@@ -42,6 +42,9 @@ const cp = (...points: number[]) => String.fromCodePoint(...points);
 async function signup(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}): Promise<TestUser> {
   const { res } = await registerVerified(ctx, overrides);
   expect(res.status, JSON.stringify(res.body)).toBe(201);
+  // CP-010 (D93): going live needs the hosting permission. These v1.3 suites are about hosting,
+  // so every account they create may host; kl063-live-video covers the refusal without it.
+  await ctx.prisma.liveHost.create({ data: { userId: res.body.user.id as string, source: 'ADMIN' } });
   return { id: res.body.user.id, username: res.body.user.username, token: res.body.tokens.accessToken };
 }
 

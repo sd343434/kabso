@@ -52,6 +52,10 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     maxAge: 600,
   });
   app.useBodyParser('json', { limit: config.http.bodyLimit, strict: true });
+  // CP-010: the media server's signed webhook (`application/webhook+json`) is verified against
+  // its exact bytes, so that one content type is kept raw (a Buffer); no route but the webhook
+  // accepts it.
+  app.useBodyParser('raw', { type: 'application/webhook+json', limit: config.http.bodyLimit });
   // Body-parser failures happen before routing; render them with the contract envelope.
   app.use(expressErrorHandler);
 
@@ -59,6 +63,7 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
     exclude: [
       { path: 'health/live', method: RequestMethod.GET },
       { path: 'health/ready', method: RequestMethod.GET },
+      { path: 'internal/livekit/webhook', method: RequestMethod.POST },
     ],
   });
   app.enableShutdownHooks();

@@ -16,11 +16,15 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { ConfigValidationError, loadConfig } from '../../src/config/app-config.js';
 import { AuthController } from '../../src/modules/auth/auth.controller.js';
-import { IS_PUBLIC_KEY } from '../../src/modules/auth/public.decorator.js';
+import { IS_OPTIONAL_AUTH_KEY, IS_PUBLIC_KEY } from '../../src/modules/auth/public.decorator.js';
 import { HealthController } from '../../src/modules/health/health.controller.js';
 import { MAIL_SENDER } from '../../src/modules/mail/mail-sender.js';
 import { UsersController } from '../../src/modules/users/users.controller.js';
-import { LiveController } from '../../src/modules/live/live.controller.js';
+import {
+  AdminLiveController,
+  LiveController,
+  LiveMediaWebhookController,
+} from '../../src/modules/live/live.controller.js';
 import { FollowsController } from '../../src/modules/social/follows.controller.js';
 import { PublicProfileController } from '../../src/modules/users/profiles/public-profile.controller.js';
 import {
@@ -49,6 +53,20 @@ const PUBLIC_ALLOWLIST = [
   'POST /api/v1/auth/password/forgot',
   'POST /api/v1/auth/password/reset',
   'GET /api/v1/users/username-availability',
+  // CP-010: the media server's webhook; its signature over the raw body is the authentication
+  // (pinned below: an unsigned or wrongly signed call is 401).
+  'POST /internal/livekit/webhook',
+].sort();
+
+/**
+ * CP-010 (D93): the only routes that also serve guests (`@OptionalAuth()`): without an
+ * `Authorization` header they answer; with an invalid token they are 401 like every route.
+ */
+const OPTIONAL_AUTH_ALLOWLIST = [
+  'GET /api/v1/live/config',
+  'GET /api/v1/live/rooms',
+  'GET /api/v1/live/rooms/:roomId',
+  'POST /api/v1/live/rooms/:roomId/media-token',
 ].sort();
 
 interface RouteInfo {
@@ -56,6 +74,7 @@ interface RouteInfo {
   readonly method: string;
   readonly path: string;
   readonly isPublic: boolean;
+  readonly isOptional: boolean;
 }
 
 function join(...parts: string[]): string {
@@ -79,9 +98,11 @@ function declaredRoutes(controllers: readonly (abstract new (...args: never[]) =
       const methodId = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod | undefined;
       if (sub === undefined || methodId === undefined) continue;
       const method = RequestMethod[methodId];
-      const path = controller === HealthController ? join(base, sub) : join('api/v1', base, sub);
+      const unversioned = controller === HealthController || controller === LiveMediaWebhookController;
+      const path = unversioned ? join(base, sub) : join('api/v1', base, sub);
       const isPublic = classPublic || Reflect.getMetadata(IS_PUBLIC_KEY, handler) === true;
-      routes.push({ key: `${method} ${path}`, method, path, isPublic });
+      const isOptional = Reflect.getMetadata(IS_OPTIONAL_AUTH_KEY, handler) === true;
+      routes.push({ key: `${method} ${path}`, method, path, isPublic, isOptional });
     }
   }
   return routes;
@@ -95,6 +116,9 @@ const CONTROLLERS = [
   LiveController,
   FollowsController,
   PublicProfileController,
+  // CP-010 (KL-063): admin hosting permission and the media server's webhook.
+  AdminLiveController,
+  LiveMediaWebhookController,
 ] as const;
 
 describe('KL-007 security regression', () => {
@@ -129,8 +153,32 @@ describe('KL-007 security regression', () => {
       ).toEqual(PUBLIC_ALLOWLIST);
     });
 
+    it('only the allow-listed routes also serve guests (@OptionalAuth)', () => {
+      expect(
+        declaredRoutes(CONTROLLERS)
+          .filter((r) => r.isOptional)
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(OPTIONAL_AUTH_ALLOWLIST);
+    });
+
+    it('guest routes still refuse an invalid token (401), and the webhook an unsigned call', async () => {
+      for (const route of declaredRoutes(CONTROLLERS).filter((r) => r.isOptional)) {
+        const path = route.path.replace(/:[A-Za-z]+/g, '0192f1c2-0000-7000-8000-000000000000');
+        const res = await ctx.http[route.method.toLowerCase() as 'get' | 'post'](path)
+          .set('Authorization', 'Bearer not.a.token')
+          .send({});
+        expect({ route: route.key, status: res.status }).toEqual({ route: route.key, status: 401 });
+      }
+      const webhook = await ctx.http
+        .post('/internal/livekit/webhook')
+        .set('Content-Type', 'application/webhook+json')
+        .send('{"event":"room_finished","room":{"name":"x"}}');
+      expect(webhook.status).toBe(401);
+    });
+
     it('every non-public route answers 401 AUTH_UNAUTHENTICATED without a token', async () => {
-      const protectedRoutes = declaredRoutes(CONTROLLERS).filter((r) => !r.isPublic);
+      const protectedRoutes = declaredRoutes(CONTROLLERS).filter((r) => !r.isPublic && !r.isOptional);
       expect(protectedRoutes.length).toBeGreaterThanOrEqual(5);
       for (const route of protectedRoutes) {
         const path = route.path.replace(/:[A-Za-z]+/g, '0192f1c2-0000-7000-8000-000000000000');

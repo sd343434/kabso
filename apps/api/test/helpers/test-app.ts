@@ -1,3 +1,5 @@
+import { LIVE_MEDIA_PROVIDER } from '../../src/modules/live/media/live-media.provider.js';
+import { MemoryLiveMedia } from './memory-live-media.js';
 import 'reflect-metadata';
 import { randomBytes } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -149,6 +151,16 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_LIVE_START_DAY_USER: GENEROUS,
     RATE_LIMIT_LIVE_HEARTBEAT_USER: GENEROUS,
     RATE_LIMIT_LIVE_END_USER: GENEROUS,
+    // CP-010 (KL-063)
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_USER: GENEROUS,
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: GENEROUS,
+    RATE_LIMIT_LIVE_UPDATE_USER: GENEROUS,
+    RATE_LIMIT_LIVE_GUEST_READ_IP: GENEROUS,
+    // A LiveKit identity for signing tokens; the media server itself is the in-memory fake
+    // (createTestApp) unless a spec passes the real adapter.
+    LIVEKIT_URL: 'ws://127.0.0.1:7880',
+    LIVEKIT_API_KEY: 'devkey',
+    LIVEKIT_API_SECRET: 'secret',
     RATE_LIMIT_FOLLOW_HOUR_USER: GENEROUS,
     RATE_LIMIT_FOLLOW_DAY_USER: GENEROUS,
     // v1.5-social (KL-060)
@@ -243,7 +255,11 @@ export async function createTestApp(
   let builder = Test.createTestingModule({ imports: [AppModule.register(config)] })
     .overrideProvider(MAIL_SENDER)
     .useValue(mail);
-  for (const override of providerOverrides) {
+  // CP-010: never a real media server unless a spec passes one (the in-memory fake by default).
+  const overridesWithMedia = providerOverrides.some((o) => o.token === LIVE_MEDIA_PROVIDER)
+    ? providerOverrides
+    : [{ token: LIVE_MEDIA_PROVIDER, value: new MemoryLiveMedia() }, ...providerOverrides];
+  for (const override of overridesWithMedia) {
     builder = builder.overrideProvider(override.token).useValue(override.value);
   }
   const moduleRef = await builder.compile();

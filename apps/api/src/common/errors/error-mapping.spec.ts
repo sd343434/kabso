@@ -35,6 +35,8 @@ describe('ErrorCode', () => {
         'LIVE_ROOM_ALREADY_ACTIVE',
         'LIVE_ROOM_ENDED',
         'LIVE_HOSTING_UNAVAILABLE',
+        'LIVE_HOSTING_NOT_ALLOWED',
+        'LIVE_GUESTS_NOT_ALLOWED',
         // v1.4-levels (DRAFT, CP-005)
         'LEVEL_CONFIG_INVALID',
         'LEVEL_VERSION_NOT_DRAFT',

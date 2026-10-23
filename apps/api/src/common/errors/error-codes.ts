@@ -24,6 +24,10 @@ export enum ErrorCode {
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   /** v1.3: going live / heartbeating disabled by LIVE_HOSTING_ENABLED=false (no Retry-After). */
   LIVE_HOSTING_UNAVAILABLE = 'LIVE_HOSTING_UNAVAILABLE',
+  /** CP-010: going live needs the hosting permission. */
+  LIVE_HOSTING_NOT_ALLOWED = 'LIVE_HOSTING_NOT_ALLOWED',
+  /** CP-010: the host switched guests off. */
+  LIVE_GUESTS_NOT_ALLOWED = 'LIVE_GUESTS_NOT_ALLOWED',
   /** v1.4-levels (DRAFT, CP-005): a level configuration breaks the publication rules. */
   LEVEL_CONFIG_INVALID = 'LEVEL_CONFIG_INVALID',
   /** v1.4-levels (DRAFT, CP-005): only DRAFT versions change. */
@@ -58,6 +62,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.INTERNAL_ERROR]: 500,
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 503,
+  [ErrorCode.LIVE_HOSTING_NOT_ALLOWED]: 403,
+  [ErrorCode.LIVE_GUESTS_NOT_ALLOWED]: 403,
   [ErrorCode.LEVEL_CONFIG_INVALID]: 422,
   [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 409,
   [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 503,
@@ -86,6 +92,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.INTERNAL_ERROR]: 'Internal server error.',
   [ErrorCode.SERVICE_UNAVAILABLE]: 'Service temporarily unavailable.',
   [ErrorCode.LIVE_HOSTING_UNAVAILABLE]: 'Going live is not available.',
+  [ErrorCode.LIVE_HOSTING_NOT_ALLOWED]: 'Your account cannot go live yet.',
+  [ErrorCode.LIVE_GUESTS_NOT_ALLOWED]: 'Sign in to watch this live.',
   [ErrorCode.LEVEL_CONFIG_INVALID]: 'The level configuration is invalid.',
   [ErrorCode.LEVEL_VERSION_NOT_DRAFT]: 'Only draft versions can change.',
   [ErrorCode.MEDIA_UPLOADS_UNAVAILABLE]: 'Uploading is not available.',

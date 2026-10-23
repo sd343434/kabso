@@ -196,6 +196,10 @@ export const envSchema = z
     RATE_LIMIT_LIVE_START_DAY_USER: rateLimit('30/86400'),
     RATE_LIMIT_LIVE_HEARTBEAT_USER: rateLimit('12/60'),
     RATE_LIMIT_LIVE_END_USER: rateLimit('30/3600'),
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_USER: rateLimit('120/3600'),
+    RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: rateLimit('60/3600'),
+    RATE_LIMIT_LIVE_UPDATE_USER: rateLimit('60/3600'),
+    RATE_LIMIT_LIVE_GUEST_READ_IP: rateLimit('300/900'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -248,6 +252,18 @@ export const envSchema = z
       .min(1)
       .refine((v) => Buffer.byteLength(v, 'utf8') >= MIN_SECRET_BYTES, 'must be at least 32 bytes')
       .optional(),
+    /**
+     * CP-010 (CONVENTIONS §10.8, D3, B1): the LiveKit media server. Required when
+     * LIVE_HOSTING_ENABLED=true; `wss://` in production. Locally `livekit-server --dev`
+     * (ws://127.0.0.1:7880); LiveKit Cloud in production with the owner's keys.
+     */
+    LIVEKIT_URL: z
+      .string()
+      .url({ protocol: /^wss?$/ })
+      .transform((v) => v.replace(/\/+$/, ''))
+      .optional(),
+    LIVEKIT_API_KEY: z.string().min(1).max(128).optional(),
+    LIVEKIT_API_SECRET: z.string().min(1).max(512).optional(),
 
     /**
      * v1.5-social (CONVENTIONS §11.1, B12): uploads are refused with 503
@@ -352,6 +368,17 @@ export const envSchema = z
         message: 'must be at least 2 × LIVE_HEARTBEAT_INTERVAL_SECONDS',
       });
     }
+    if (env.LIVE_HOSTING_ENABLED) {
+      for (const key of ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const) {
+        if (env[key] === undefined) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'is required when LIVE_HOSTING_ENABLED=true',
+          });
+        }
+      }
+    }
     if (env.MEDIA_UPLOADS_ENABLED) {
       for (const key of [
         'S3_BUCKET',
@@ -369,6 +396,13 @@ export const envSchema = z
       }
     }
     if (env.NODE_ENV === 'production') {
+      if (env.LIVEKIT_URL !== undefined && !env.LIVEKIT_URL.startsWith('wss://')) {
+        ctx.addIssue({ code: 'custom', path: ['LIVEKIT_URL'], message: 'must use wss in production' });
+      }
+      if (env.LIVEKIT_API_SECRET !== undefined) {
+        const problem = productionSecretProblem(env.LIVEKIT_API_SECRET);
+        if (problem) ctx.addIssue({ code: 'custom', path: ['LIVEKIT_API_SECRET'], message: problem });
+      }
       for (const key of ['S3_ENDPOINT', 'MEDIA_PUBLIC_BASE_URL'] as const) {
         const value = env[key];
         if (value !== undefined && !value.startsWith('https://')) {

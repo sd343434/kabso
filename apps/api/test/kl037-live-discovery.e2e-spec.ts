@@ -37,6 +37,9 @@ const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 async function signup(ctx: TestContext, overrides: Partial<Record<string, unknown>> = {}): Promise<TestUser> {
   const { res } = await registerVerified(ctx, overrides);
   expect(res.status).toBe(201);
+  // CP-010 (D93): going live needs the hosting permission. These v1.3 suites are about hosting,
+  // so every account they create may host; kl063-live-video covers the refusal without it.
+  await ctx.prisma.liveHost.create({ data: { userId: res.body.user.id as string, source: 'ADMIN' } });
   return { id: res.body.user.id, username: res.body.user.username, token: res.body.tokens.accessToken };
 }
 
@@ -98,6 +101,11 @@ describe('KL-037 contract coverage', () => {
       .filter((o) => !/^\/api\/v1\/users\/\{username\}\/(posts|reposts|block|mute)$/.test(o.path))
       // CP-008 adds /users/{username}/stories; kl061-stories covers it.
       .filter((o) => o.path !== '/api/v1/users/{username}/stories')
+      // CP-010 (v1.6-live draft) adds live video operations under /live/; kl063-live-video
+      // covers them with its own exact list.
+      .filter(
+        (o) => !['createLiveMediaToken', 'updateLiveRoom', 'listLiveRoomViewers'].includes(o.operationId),
+      )
       .map((o) => o.operationId)
       .sort();
     expect(v13).toEqual(
@@ -253,6 +261,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         status: 'LIVE',
         endedAt: null,
         endReason: null,
+        // CP-010: guests may watch unless the host says otherwise (default true).
+        allowGuests: true,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -1144,13 +1154,14 @@ describe('KL-037 authentication', () => {
     await ctx?.close();
   });
 
-  it('every v1.3 operation answers 401 AUTH_UNAUTHENTICATED without a token', async () => {
+  // CP-010 (D93): guests may read the live config, the popular and new lists and a room; those
+  // reads are covered in kl063-live-video. Everything else still needs a token, including the
+  // following list.
+  it('every v1.3 operation answers 401 AUTH_UNAUTHENTICATED without a token (except the guest reads)', async () => {
     const calls: [string, () => Promise<{ status: number; body: { error?: { code?: string } } }>][] = [
-      ['getLiveConfig', () => ctx.http.get('/api/v1/live/config')],
       ['listLiveCategories', () => ctx.http.get('/api/v1/live/categories')],
-      ['listLiveRooms', () => ctx.http.get('/api/v1/live/rooms?tab=new')],
+      ['listLiveRooms', () => ctx.http.get('/api/v1/live/rooms?tab=following')],
       ['startLiveRoom', () => ctx.http.post('/api/v1/live/rooms').send({ title: 'x' })],
-      ['getLiveRoom', () => ctx.http.get(`/api/v1/live/rooms/${MISSING_ROOM}`)],
       ['heartbeatLiveRoom', () => ctx.http.post(`/api/v1/live/rooms/${MISSING_ROOM}/heartbeat`)],
       ['endLiveRoom', () => ctx.http.post(`/api/v1/live/rooms/${MISSING_ROOM}/end`)],
       ['getPublicProfile', () => ctx.http.get('/api/v1/users/someone')],

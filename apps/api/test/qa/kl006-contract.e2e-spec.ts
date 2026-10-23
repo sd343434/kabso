@@ -32,6 +32,8 @@ const ME_REQUIRED = [
   'role',
   'isPrivate',
   'createdAt',
+  // CP-010 (D93): the hosting permission.
+  'canHost',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];

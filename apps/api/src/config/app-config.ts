@@ -52,6 +52,11 @@ export interface AppConfig {
     readonly profileUser: RateLimitRule;
     readonly liveStartHourUser: RateLimitRule;
     readonly liveStartDayUser: RateLimitRule;
+    /** CP-010: media tokens (per user; guests per IP), room settings, guest reads (per IP). */
+    readonly liveMediaTokenUser: RateLimitRule;
+    readonly liveMediaTokenGuestIp: RateLimitRule;
+    readonly liveUpdateUser: RateLimitRule;
+    readonly liveGuestReadIp: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -106,6 +111,10 @@ export interface AppConfig {
     readonly sweepBatchSize: number;
     /** Source of the cursor HMAC key (HKDF `live-cursor/v1`): LIVE_CURSOR_KEY, else rateLimitKeySecret. */
     readonly cursorKey: string;
+    /** CP-010: the LiveKit media server, or null when not configured (hosting must then be off). */
+    readonly livekit: { readonly url: string; readonly apiKey: string; readonly apiSecret: string } | null;
+    /** Source of the guest-number HMAC key (HKDF `live-guest/v1`): rateLimitKeySecret. */
+    readonly guestKey: string;
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -188,6 +197,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       profileUser: e.RATE_LIMIT_PROFILE_USER,
       liveStartHourUser: e.RATE_LIMIT_LIVE_START_HOUR_USER,
       liveStartDayUser: e.RATE_LIMIT_LIVE_START_DAY_USER,
+      liveMediaTokenUser: e.RATE_LIMIT_LIVE_MEDIA_TOKEN_USER,
+      liveMediaTokenGuestIp: e.RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP,
+      liveUpdateUser: e.RATE_LIMIT_LIVE_UPDATE_USER,
+      liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -233,6 +246,11 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       sweepIntervalSeconds: e.LIVE_SWEEP_INTERVAL_SECONDS,
       sweepBatchSize: e.LIVE_SWEEP_BATCH_SIZE,
       cursorKey: e.LIVE_CURSOR_KEY ?? rateLimitKeySecret,
+      livekit:
+        e.LIVEKIT_URL !== undefined && e.LIVEKIT_API_KEY !== undefined && e.LIVEKIT_API_SECRET !== undefined
+          ? { url: e.LIVEKIT_URL, apiKey: e.LIVEKIT_API_KEY, apiSecret: e.LIVEKIT_API_SECRET }
+          : null,
+      guestKey: rateLimitKeySecret,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

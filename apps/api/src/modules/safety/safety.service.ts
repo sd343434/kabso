@@ -5,6 +5,8 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { LiveMediaService } from '../live/live-media.service.js';
+import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
@@ -29,7 +31,7 @@ type Tx = Prisma.TransactionClient;
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
-  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER';
+  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM';
   targetId: string;
   reason: string;
   note: string | null;
@@ -65,6 +67,8 @@ export class SafetyService {
     private readonly comments: CommentsService,
     private readonly audit: AuditService,
     private readonly notifier: Notifier,
+    private readonly liveRooms: LiveRoomsService,
+    private readonly liveMedia: LiveMediaService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -249,6 +253,7 @@ export class SafetyService {
     | { targetCommentId: string }
     | { targetUserId: string }
     | { targetStoryId: string }
+    | { targetLiveRoomId: string }
   > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
@@ -259,6 +264,12 @@ export class SafetyService {
     }
     if (!isUuid(input.targetId)) throw new AppException(ErrorCode.NOT_FOUND);
     const id = input.targetId.toLowerCase();
+    if (input.targetType === 'LIVE_ROOM') {
+      // CP-010: a room the reporter can see (live or ended), not their own.
+      const room = await this.liveRooms.visibleRow(id, reporterId);
+      if (room.host_user_id === reporterId) throw invalid();
+      return { targetLiveRoomId: room.id };
+    }
     if (input.targetType === 'STORY') {
       // CP-008: an active story the reporter may see (expired stories can no longer be seen).
       const story = await this.prisma.story.findFirst({
@@ -335,6 +346,7 @@ export class SafetyService {
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const { action, note } = parsed.data;
     const id = reportId.toLowerCase();
+    const endedRooms: string[] = [];
     await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<
         { id: string }[]
@@ -390,6 +402,10 @@ export class SafetyService {
             });
           }
         }
+        if (report.targetLiveRoomId) {
+          // CP-010: the room ends with ADMIN; its media session closes after the commit.
+          endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
+        }
         // USER: the decision is recorded only; suspension is a separate admin tool.
       }
       const target: Prisma.ReportWhereInput = report.targetPostId
@@ -398,7 +414,9 @@ export class SafetyService {
           ? { targetCommentId: report.targetCommentId }
           : report.targetStoryId
             ? { targetStoryId: report.targetStoryId }
-            : { targetUserId: report.targetUserId };
+            : report.targetLiveRoomId
+              ? { targetLiveRoomId: report.targetLiveRoomId }
+              : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -416,6 +434,7 @@ export class SafetyService {
           report.targetPostId ??
           report.targetCommentId ??
           report.targetStoryId ??
+          report.targetLiveRoomId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -423,6 +442,7 @@ export class SafetyService {
         requestId: actor.requestId,
       });
     });
+    for (const roomId of endedRooms) await this.liveMedia.closeMedia(roomId);
     return this.toDto(
       await this.prisma.report.findUniqueOrThrow({ where: { id }, include: REPORT_INCLUDE }),
       true,
@@ -437,6 +457,7 @@ export class SafetyService {
         row.targetPostId ??
         row.targetCommentId ??
         row.targetStoryId ??
+        row.targetLiveRoomId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',
