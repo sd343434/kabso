@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -496,6 +497,15 @@ void main() {
       ];
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
       await reveal(tester, find.byKey(GoLiveScreen.startKey));
+      final startSemantics = tester.ensureSemantics();
+      expect(
+        tester
+            .getSemantics(find.byKey(GoLiveScreen.startKey))
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+      startSemantics.dispose();
       await tester.tap(find.byKey(GoLiveScreen.startKey));
       await tester.pumpAndSettle();
       final l10n = _l10n(tester);
@@ -593,6 +603,36 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioChatKey), findsOneWidget);
+      // Screen readers (and the web's semantics layer) can press every
+      // room button: each offers the tap action (regression, real web run).
+      final handle = tester.ensureSemantics();
+      for (final key in [
+        GoLiveScreen.micKey,
+        GoLiveScreen.closeKey,
+        GoLiveScreen.minimizeKey,
+        GoLiveScreen.shareKey,
+        GoLiveScreen.audioMoreKey,
+        GoLiveScreen.audioChatKey,
+        GoLiveScreen.audioPkKey,
+        GoLiveKeys.tool('requests'),
+      ]) {
+        expect(
+          tester
+              .getSemantics(
+                find
+                    .descendant(
+                      of: find.byKey(key),
+                      matching: find.byType(GestureDetector),
+                    )
+                    .first,
+              )
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: '$key',
+        );
+      }
+      handle.dispose();
       // ✕ at the top asks first, then ends.
       await tester.tap(find.byKey(GoLiveScreen.closeKey));
       await tester.pumpAndSettle();

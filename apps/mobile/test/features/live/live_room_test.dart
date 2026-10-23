@@ -864,6 +864,35 @@ void main() {
       );
     });
 
+    testWidgets('the host ends the live: the media session drops and the '
+        'viewer sees the ended state (real web run)', (tester) async {
+      var ended = false;
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final (repo, _) = await _pumpRoom(
+        tester,
+        engine: engine,
+        user: testUser(),
+        repo: FakeLiveRepository(
+          room: (id) => ended
+              ? apiRoom(
+                  id: id,
+                  status: LiveRoomStatus.ended,
+                  endReason: LiveRoomEndReason.hostEnded,
+                )
+              : apiRoom(id: id),
+        ),
+      );
+      expect(find.byType(KRoomEndedOverlay), findsNothing);
+      final before = repo.roomRequests.length;
+      ended = true;
+      engine
+        ..dropped = true
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(repo.roomRequests.length, before + 1);
+      expect(find.byType(KRoomEndedOverlay), findsOneWidget);
+    });
+
     testWidgets('guests without an account and the host do not tap', (
       tester,
     ) async {

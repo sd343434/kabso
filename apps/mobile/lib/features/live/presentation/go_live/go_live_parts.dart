@@ -251,6 +251,7 @@ class _Pill extends StatelessWidget {
     toggled: toggled,
     hint: hint,
     label: label,
+    onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
       onTap: onTap,
@@ -380,6 +381,7 @@ class GoLiveSeatCountPicker extends StatelessWidget {
                 button: true,
                 selected: c == selected,
                 label: l10n.goLiveSeatCount(c),
+                onTap: onSelect == null ? null : () => onSelect!(c),
                 excludeSemantics: true,
                 child: GestureDetector(
                   key: GoLiveKeys.seatCount(c),
@@ -669,6 +671,7 @@ class _ThemeThumb extends StatelessWidget {
         button: true,
         selected: selected,
         label: art.name(context.l10n),
+        onTap: onTap,
         excludeSemantics: true,
         child: GestureDetector(
           key: GoLiveKeys.theme(slug),

@@ -19,7 +19,12 @@ class LiveRoomSessionState {
     this.publishing = false,
     this.captureFailed = false,
     this.score,
+    this.disconnected = false,
   });
+
+  /// The media session dropped after joining (the host ended the live,
+  /// or the network): the screen re-reads the room to show why.
+  final bool disconnected;
 
   /// CP-012: the room score from this viewer's last counted tap batch.
   final int? score;
@@ -53,6 +58,7 @@ class LiveRoomSessionState {
     bool? publishing,
     bool? captureFailed,
     int? score,
+    bool? disconnected,
   }) => LiveRoomSessionState(
     joined: joined ?? this.joined,
     joinFailure: joinFailure ?? this.joinFailure,
@@ -60,6 +66,7 @@ class LiveRoomSessionState {
     publishing: publishing ?? this.publishing,
     captureFailed: captureFailed ?? this.captureFailed,
     score: score ?? this.score,
+    disconnected: disconnected ?? this.disconnected,
   );
 }
 
@@ -164,6 +171,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   }
 
   void _onChanges() {
+    if (state.joined && !state.disconnected && !_engine.connected) {
+      state = state.copyWith(disconnected: true);
+      return;
+    }
     final version = _engine.seatsVersion;
     final seats = state.seats;
     if (_mode.hasSeats &&

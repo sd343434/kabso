@@ -362,6 +362,7 @@ class _SeatCircle extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       label: host ? '$name · ${l10n.goLiveHostTag}' : name,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,

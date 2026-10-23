@@ -165,6 +165,9 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   Listenable get changes => _changes;
 
+  /// The media server closed the session (the room was deleted).
+  bool dropped = false;
+
   @override
-  bool get connected => joined != null || published != null;
+  bool get connected => !dropped && (joined != null || published != null);
 }

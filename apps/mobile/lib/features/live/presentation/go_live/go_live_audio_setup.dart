@@ -209,6 +209,9 @@ class GoLiveAudioSetup extends StatelessWidget {
                           button: true,
                           selected: c == seatCount,
                           label: l10n.goLiveSeatCount(c),
+                          onTap: onSeatCount == null
+                              ? null
+                              : () => onSeatCount!(c),
                           excludeSemantics: true,
                           child: GestureDetector(
                             key: GoLiveKeys.seatCount(c),
@@ -377,6 +380,7 @@ class _ModePill extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: true,
     label: label,
+    onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
       key: GoLiveAudioSetup.modesKey,
@@ -440,6 +444,7 @@ class _RoomLook extends StatelessWidget {
     return Semantics(
       button: true,
       label: l10n.goLiveChangeTheme,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         key: GoLiveAudioSetup.themeKey,
@@ -588,6 +593,7 @@ class _CategoryTile extends StatelessWidget {
     button: true,
     selected: selected,
     label: label,
+    onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
       key: GoLiveKeys.category(slug),
@@ -647,6 +653,7 @@ class _Choice extends StatelessWidget {
     selected: selected,
     label: title,
     hint: hint,
+    onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
       onTap: onTap,

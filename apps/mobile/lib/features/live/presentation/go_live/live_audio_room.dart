@@ -525,6 +525,7 @@ class LiveRoundButton extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -607,6 +608,7 @@ class LiveChatPill extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: true,
     label: hint,
+    onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
       onTap: onTap,
@@ -681,6 +683,7 @@ class LiveViewersStack extends StatelessWidget {
     return Semantics(
       button: onTap != null,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -758,6 +761,7 @@ class _TopIcon extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       label: label,
+      onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,

@@ -153,6 +153,7 @@ class LiveGlowButton extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: label,
+      onTap: onPressed,
       excludeSemantics: true,
       child: GestureDetector(
         key: const Key('goLive.start'),

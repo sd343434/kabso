@@ -255,7 +255,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final room = widget.room;
     _start();
     final session = ref.watch(liveRoomSessionProvider(room.id));
-    ref.listen(liveRoomSessionProvider(room.id), (_, next) {
+    ref.listen(liveRoomSessionProvider(room.id), (previous, next) {
+      // The media session dropped (the host ended the live): re-read the
+      // room so the ended state shows.
+      if (next.disconnected && !(previous?.disconnected ?? false)) {
+        ref.invalidate(liveRoomProvider(room.id));
+      }
       final invite = next.mine?.invite;
       if (invite != null && invite.id != _inviteShown) {
         _inviteShown = invite.id;
