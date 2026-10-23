@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -8,6 +10,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
+import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,15 +25,49 @@ final FutureProviderFamily<Post, String> postProvider = FutureProvider
 /// save and the "more" sheet — opened from a profile grid, search or a
 /// hashtag. A post that is gone or not visible to the viewer (404) says so;
 /// hiding or deleting it here goes back.
-class PostScreen extends ConsumerWidget {
-  const new({required this.postId, super.key});
+class PostScreen extends ConsumerStatefulWidget {
+  const new({required this.postId, this.openComments = false, super.key});
 
   final String postId;
+
+  /// Opens the comments sheet once the post has loaded (from a comment
+  /// notification, CP-009).
+  final bool openComments;
 
   static const unavailableKey = Key('post.unavailable');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PostScreen> createState() => _PostScreenState();
+}
+
+class _PostScreenState extends ConsumerState<PostScreen> {
+  bool _commentsOpened = false;
+
+  String get postId => widget.postId;
+
+  void _maybeOpenComments(Post post) {
+    if (!widget.openComments || _commentsOpened) return;
+    _commentsOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final feed = feedPostOf(post);
+      unawaited(
+        showCommentsSheet(
+          context,
+          CommentsTarget(
+            postId: post.id,
+            commentCount: feed.comments ?? 0,
+            authorId: feed.authorId,
+            isSelf: feed.isSelf,
+            commentsOpen: feed.commentsOpen,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     ref.listen(removedPostsProvider, (_, removed) {
       if (removed.contains(postId) && Navigator.of(context).canPop()) {
@@ -39,6 +76,7 @@ class PostScreen extends ConsumerWidget {
     });
     final post = ref.watch(postProvider(postId));
     final edited = ref.watch(postEditsProvider.select((e) => e[postId]));
+    if (post case AsyncData(:final value)) _maybeOpenComments(value);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.postTitle)),
       body: switch (post) {
@@ -54,7 +92,7 @@ class PostScreen extends ConsumerWidget {
         ),
         AsyncError(:final error) => switch (toAppFailure(error)) {
           ServerFailure(code: ErrorCode.notFound) => KEmptyState(
-            key: unavailableKey,
+            key: PostScreen.unavailableKey,
             icon: Icons.visibility_off_outlined,
             title: l10n.postUnavailableTitle,
             message: l10n.postUnavailableBody,

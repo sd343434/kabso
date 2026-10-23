@@ -26,6 +26,9 @@ abstract final class AppIcons {
   static const String plus = '$_p/plus.svg';
   static const String createButton = '$_p/create_button.svg';
   static const String createButtonLight = '$_p/create_button_light.svg';
+
+  /// CP-009: the notifications bell on the Posts header.
+  static const String bell = '$_p/bell_outline.svg';
   static const String heart = '$_p/heart_outline.svg';
   static const String heartFilled = '$_p/heart_filled.svg';
   static const String comment = '$_p/comment_outline.svg';

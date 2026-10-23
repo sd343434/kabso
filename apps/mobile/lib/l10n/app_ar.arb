@@ -2957,5 +2957,191 @@
   "storyOpenOwn": "عرض قصتك",
   "@storyOpenOwn": {
     "description": "Stories tray: open your own stories (accessibility)"
+  },
+  "notificationsTitle": "الإشعارات",
+  "@notificationsTitle": {
+    "description": "Notifications screen title (CP-009)"
+  },
+  "notificationsBell": "{count, plural, =0{الإشعارات، لا جديد} =1{الإشعارات، إشعار واحد غير مقروء} =2{الإشعارات، إشعاران غير مقروءين} few{الإشعارات، {count} إشعارات غير مقروءة} many{الإشعارات، {count} إشعارًا غير مقروء} other{الإشعارات، {count} إشعار غير مقروء}}",
+  "@notificationsBell": {
+    "description": "Bell on the Posts header: accessible label with the unread count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifActors": "{count, plural, =0{{name}} =1{{name} وشخص آخر} =2{{name} وشخصان آخران} few{{name} و{count} أشخاص آخرين} many{{name} و{count} شخصًا آخر} other{{name} و{count} شخص آخر}}",
+  "@notifActors": {
+    "description": "Who did it: the latest actor and how many others",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notifLikePost": "أعجب {who} بمنشورك",
+  "@notifLikePost": {
+    "description": "Notification: post liked",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifLikeComment": "أعجب {who} بتعليقك",
+  "@notifLikeComment": {
+    "description": "Notification: comment liked",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifComment": "علّق {who} على منشورك",
+  "@notifComment": {
+    "description": "Notification: comment on your post",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifReply": "ردّ {who} على تعليقك",
+  "@notifReply": {
+    "description": "Notification: reply to your comment",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMentionPost": "أشار إليك {who} في منشور",
+  "@notifMentionPost": {
+    "description": "Notification: mention in a post",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMentionComment": "أشار إليك {who} في تعليق",
+  "@notifMentionComment": {
+    "description": "Notification: mention in a comment",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMentionStory": "أشار إليك {who} في قصة",
+  "@notifMentionStory": {
+    "description": "Notification: mention in a story",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFollow": "بدأ {who} بمتابعتك",
+  "@notifFollow": {
+    "description": "Notification: new follower",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRepost": "أعاد {who} نشر منشورك",
+  "@notifRepost": {
+    "description": "Notification: repost",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifPostPublished": "نُشر منشورك المجدول",
+  "@notifPostPublished": {
+    "description": "Notification: scheduled post published"
+  },
+  "notifRemovedPost": "أُزيل منشورك لمخالفته إرشادات المجتمع",
+  "@notifRemovedPost": {
+    "description": "Notification: post removed by moderation"
+  },
+  "notifRemovedComment": "أُزيل تعليقك لمخالفته إرشادات المجتمع",
+  "@notifRemovedComment": {
+    "description": "Notification: comment removed by moderation"
+  },
+  "notifRemovedStory": "أُزيلت قصتك لمخالفتها إرشادات المجتمع",
+  "@notifRemovedStory": {
+    "description": "Notification: story removed by moderation"
+  },
+  "notifSectionToday": "اليوم",
+  "@notifSectionToday": {
+    "description": "Notifications section"
+  },
+  "notifSectionWeek": "هذا الأسبوع",
+  "@notifSectionWeek": {
+    "description": "Notifications section"
+  },
+  "notifSectionEarlier": "سابقًا",
+  "@notifSectionEarlier": {
+    "description": "Notifications section"
+  },
+  "notifUnread": "غير مقروء",
+  "@notifUnread": {
+    "description": "Accessibility: an unread notification"
+  },
+  "notificationsEmpty": "لا توجد إشعارات بعد",
+  "@notificationsEmpty": {
+    "description": "Empty notifications"
+  },
+  "notificationsEmptyBody": "ستظهر هنا الإعجابات والتعليقات والإشارات والمتابعون الجدد.",
+  "@notificationsEmptyBody": {
+    "description": "Empty notifications body"
+  },
+  "notificationsMarkAllRead": "تعيين الكل كمقروء",
+  "@notificationsMarkAllRead": {
+    "description": "Notifications action"
+  },
+  "notificationsSettings": "إعدادات الإشعارات",
+  "@notificationsSettings": {
+    "description": "Notifications: open settings"
+  },
+  "notifSettingLikes": "الإعجابات",
+  "@notifSettingLikes": {
+    "description": "Notification setting"
+  },
+  "notifSettingLikesBody": "على منشوراتك وتعليقاتك",
+  "@notifSettingLikesBody": {
+    "description": "Notification setting detail"
+  },
+  "notifSettingComments": "التعليقات والردود",
+  "@notifSettingComments": {
+    "description": "Notification setting"
+  },
+  "notifSettingMentions": "الإشارات",
+  "@notifSettingMentions": {
+    "description": "Notification setting"
+  },
+  "notifSettingFollows": "المتابعون الجدد",
+  "@notifSettingFollows": {
+    "description": "Notification setting"
+  },
+  "notifSettingReposts": "إعادات النشر",
+  "@notifSettingReposts": {
+    "description": "Notification setting"
+  },
+  "notifSettingsHint": "تظهر الإشعارات داخل التطبيق. يصلك دائمًا إشعار عند نشر منشور مجدول أو إزالة محتوى لك.",
+  "@notifSettingsHint": {
+    "description": "Notification settings footnote"
+  },
+  "notifSettingsSaved": "حُفظ",
+  "@notifSettingsSaved": {
+    "description": "Notification setting saved"
   }
 }

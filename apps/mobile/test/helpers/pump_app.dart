@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/stories/data/stories_repository.dart';
@@ -16,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_live_repository.dart';
+import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
 import 'fake_stories_repository.dart';
 
@@ -60,6 +62,9 @@ Future<void> pumpKabsoApp(
         // Never the device plugin: Create offers the system picker.
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
+        notificationsRepositoryProvider.overrideWithValue(
+          FakeNotificationsRepository(),
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -111,6 +116,9 @@ Future<void> pumpScreen(
         ),
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
+        notificationsRepositoryProvider.overrideWithValue(
+          FakeNotificationsRepository(),
+        ),
         ...overrides,
       ],
       child: MaterialApp(

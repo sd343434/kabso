@@ -29,6 +29,7 @@ class SettingsScreen extends ConsumerWidget {
   static const blockedKey = Key('settings.blocked');
   static const mutedKey = Key('settings.muted');
   static const storyArchiveKey = Key('settings.storyArchive');
+  static const notificationsKey = Key('settings.notifications');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -107,6 +108,14 @@ class SettingsScreen extends ConsumerWidget {
           const _SessionsSection(),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.safetySection),
+          // CP-009: which kinds of activity notify you.
+          ListTile(
+            key: notificationsKey,
+            leading: const Icon(Icons.notifications_none_rounded),
+            title: Text(l10n.notificationsSettings),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.notificationSettings),
+          ),
           ListTile(
             key: privacyKey,
             leading: const Icon(Icons.lock_outline_rounded),

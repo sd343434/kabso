@@ -38,6 +38,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/posts/presentation/drafts_screen.dart';
 import 'package:kabso_live/features/posts/presentation/edit_post_screen.dart';
 import 'package:kabso_live/features/posts/presentation/likers_screen.dart';
@@ -166,6 +167,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const MutedAccountsScreen(),
       ),
       GoRoute(
+        path: AppRoutes.notifications,
+        builder: (_, _) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notificationSettings,
+        builder: (_, _) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.hashtagPattern,
         builder: (_, state) => HashtagScreen(tag: state.pathParameters['tag']!),
       ),
@@ -195,8 +204,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.postPattern,
-        builder: (_, state) =>
-            PostScreen(postId: state.pathParameters['postId']!),
+        builder: (_, state) => PostScreen(
+          postId: state.pathParameters['postId']!,
+          openComments: state.uri.queryParameters['comments'] == '1',
+        ),
       ),
       GoRoute(
         path: AppRoutes.userProfilePattern,

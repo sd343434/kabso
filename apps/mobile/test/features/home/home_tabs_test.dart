@@ -28,6 +28,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
@@ -261,14 +262,19 @@ void main() {
       // the screen.
       final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
       expect(tabs.center.dx, moreOrLessEquals(393 / 2, epsilon: 0.5));
-      // The only icon button is Search.
+      // The icon buttons are Search (start) and, since CP-009, the
+      // notifications bell (end), each a 48 dp target in an equal inset.
       expect(
         find.descendant(
           of: find.byKey(FeedScreen.headerKey),
           matching: find.byType(IconButton),
         ),
-        findsOneWidget,
+        findsNWidgets(2),
       );
+      final bell = tester.getRect(find.byKey(NotificationsBell.bellKey));
+      expect(bell.size, const Size.square(KSizes.minTouchTarget));
+      expect(bell.right, moreOrLessEquals(393 - KSpacing.xs));
+      expect(bell.left, greaterThanOrEqualTo(tabs.right));
       expect(find.byTooltip(_en.navCreate), findsNothing);
       expect(find.byType(AppBar), findsNothing);
       expect(find.byType(KLogo), findsNothing);

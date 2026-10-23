@@ -2714,4 +2714,141 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storyOpenOwn => 'Open your story';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String notificationsBell(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread notifications',
+      one: '$count unread notification',
+      zero: '$count unread notifications',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notifActors(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name and $count others',
+      one: '$name and $count other',
+      zero: '$name',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notifLikePost(String who) {
+    return '$who liked your post';
+  }
+
+  @override
+  String notifLikeComment(String who) {
+    return '$who liked your comment';
+  }
+
+  @override
+  String notifComment(String who) {
+    return '$who commented on your post';
+  }
+
+  @override
+  String notifReply(String who) {
+    return '$who replied to your comment';
+  }
+
+  @override
+  String notifMentionPost(String who) {
+    return '$who mentioned you in a post';
+  }
+
+  @override
+  String notifMentionComment(String who) {
+    return '$who mentioned you in a comment';
+  }
+
+  @override
+  String notifMentionStory(String who) {
+    return '$who mentioned you in a story';
+  }
+
+  @override
+  String notifFollow(String who) {
+    return '$who started following you';
+  }
+
+  @override
+  String notifRepost(String who) {
+    return '$who reposted your post';
+  }
+
+  @override
+  String get notifPostPublished => 'Your scheduled post is now live';
+
+  @override
+  String get notifRemovedPost =>
+      'Your post was removed for breaking the community guidelines';
+
+  @override
+  String get notifRemovedComment =>
+      'Your comment was removed for breaking the community guidelines';
+
+  @override
+  String get notifRemovedStory =>
+      'Your story was removed for breaking the community guidelines';
+
+  @override
+  String get notifSectionToday => 'Today';
+
+  @override
+  String get notifSectionWeek => 'This week';
+
+  @override
+  String get notifSectionEarlier => 'Earlier';
+
+  @override
+  String get notifUnread => 'Unread';
+
+  @override
+  String get notificationsEmpty => 'No notifications yet';
+
+  @override
+  String get notificationsEmptyBody =>
+      'Likes, comments, mentions and new followers will show up here.';
+
+  @override
+  String get notificationsMarkAllRead => 'Mark all as read';
+
+  @override
+  String get notificationsSettings => 'Notification settings';
+
+  @override
+  String get notifSettingLikes => 'Likes';
+
+  @override
+  String get notifSettingLikesBody => 'On your posts and comments';
+
+  @override
+  String get notifSettingComments => 'Comments and replies';
+
+  @override
+  String get notifSettingMentions => 'Mentions';
+
+  @override
+  String get notifSettingFollows => 'New followers';
+
+  @override
+  String get notifSettingReposts => 'Reposts';
+
+  @override
+  String get notifSettingsHint =>
+      'Notifications appear in the app. You are always told when a scheduled post goes live or your content is removed.';
+
+  @override
+  String get notifSettingsSaved => 'Saved';
 }

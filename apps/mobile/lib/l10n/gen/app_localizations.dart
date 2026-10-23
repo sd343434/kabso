@@ -4765,6 +4765,198 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عرض قصتك'**
   String get storyOpenOwn;
+
+  /// Notifications screen title (CP-009)
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشعارات'**
+  String get notificationsTitle;
+
+  /// Bell on the Posts header: accessible label with the unread count
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{الإشعارات، لا جديد} =1{الإشعارات، إشعار واحد غير مقروء} =2{الإشعارات، إشعاران غير مقروءين} few{الإشعارات، {count} إشعارات غير مقروءة} many{الإشعارات، {count} إشعارًا غير مقروء} other{الإشعارات، {count} إشعار غير مقروء}}'**
+  String notificationsBell(int count);
+
+  /// Who did it: the latest actor and how many others
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{{name}} =1{{name} وشخص آخر} =2{{name} وشخصان آخران} few{{name} و{count} أشخاص آخرين} many{{name} و{count} شخصًا آخر} other{{name} و{count} شخص آخر}}'**
+  String notifActors(String name, int count);
+
+  /// Notification: post liked
+  ///
+  /// In ar, this message translates to:
+  /// **'أعجب {who} بمنشورك'**
+  String notifLikePost(String who);
+
+  /// Notification: comment liked
+  ///
+  /// In ar, this message translates to:
+  /// **'أعجب {who} بتعليقك'**
+  String notifLikeComment(String who);
+
+  /// Notification: comment on your post
+  ///
+  /// In ar, this message translates to:
+  /// **'علّق {who} على منشورك'**
+  String notifComment(String who);
+
+  /// Notification: reply to your comment
+  ///
+  /// In ar, this message translates to:
+  /// **'ردّ {who} على تعليقك'**
+  String notifReply(String who);
+
+  /// Notification: mention in a post
+  ///
+  /// In ar, this message translates to:
+  /// **'أشار إليك {who} في منشور'**
+  String notifMentionPost(String who);
+
+  /// Notification: mention in a comment
+  ///
+  /// In ar, this message translates to:
+  /// **'أشار إليك {who} في تعليق'**
+  String notifMentionComment(String who);
+
+  /// Notification: mention in a story
+  ///
+  /// In ar, this message translates to:
+  /// **'أشار إليك {who} في قصة'**
+  String notifMentionStory(String who);
+
+  /// Notification: new follower
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأ {who} بمتابعتك'**
+  String notifFollow(String who);
+
+  /// Notification: repost
+  ///
+  /// In ar, this message translates to:
+  /// **'أعاد {who} نشر منشورك'**
+  String notifRepost(String who);
+
+  /// Notification: scheduled post published
+  ///
+  /// In ar, this message translates to:
+  /// **'نُشر منشورك المجدول'**
+  String get notifPostPublished;
+
+  /// Notification: post removed by moderation
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل منشورك لمخالفته إرشادات المجتمع'**
+  String get notifRemovedPost;
+
+  /// Notification: comment removed by moderation
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل تعليقك لمخالفته إرشادات المجتمع'**
+  String get notifRemovedComment;
+
+  /// Notification: story removed by moderation
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيلت قصتك لمخالفتها إرشادات المجتمع'**
+  String get notifRemovedStory;
+
+  /// Notifications section
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get notifSectionToday;
+
+  /// Notifications section
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الأسبوع'**
+  String get notifSectionWeek;
+
+  /// Notifications section
+  ///
+  /// In ar, this message translates to:
+  /// **'سابقًا'**
+  String get notifSectionEarlier;
+
+  /// Accessibility: an unread notification
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مقروء'**
+  String get notifUnread;
+
+  /// Empty notifications
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد إشعارات بعد'**
+  String get notificationsEmpty;
+
+  /// Empty notifications body
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا الإعجابات والتعليقات والإشارات والمتابعون الجدد.'**
+  String get notificationsEmptyBody;
+
+  /// Notifications action
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين الكل كمقروء'**
+  String get notificationsMarkAllRead;
+
+  /// Notifications: open settings
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات الإشعارات'**
+  String get notificationsSettings;
+
+  /// Notification setting
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعجابات'**
+  String get notifSettingLikes;
+
+  /// Notification setting detail
+  ///
+  /// In ar, this message translates to:
+  /// **'على منشوراتك وتعليقاتك'**
+  String get notifSettingLikesBody;
+
+  /// Notification setting
+  ///
+  /// In ar, this message translates to:
+  /// **'التعليقات والردود'**
+  String get notifSettingComments;
+
+  /// Notification setting
+  ///
+  /// In ar, this message translates to:
+  /// **'الإشارات'**
+  String get notifSettingMentions;
+
+  /// Notification setting
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابعون الجدد'**
+  String get notifSettingFollows;
+
+  /// Notification setting
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادات النشر'**
+  String get notifSettingReposts;
+
+  /// Notification settings footnote
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر الإشعارات داخل التطبيق. يصلك دائمًا إشعار عند نشر منشور مجدول أو إزالة محتوى لك.'**
+  String get notifSettingsHint;
+
+  /// Notification setting saved
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظ'**
+  String get notifSettingsSaved;
 }
 
 class _AppLocalizationsDelegate

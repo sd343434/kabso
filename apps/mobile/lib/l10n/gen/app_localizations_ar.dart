@@ -2739,4 +2739,144 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get storyOpenOwn => 'عرض قصتك';
+
+  @override
+  String get notificationsTitle => 'الإشعارات';
+
+  @override
+  String notificationsBell(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'الإشعارات، $count إشعار غير مقروء',
+      many: 'الإشعارات، $count إشعارًا غير مقروء',
+      few: 'الإشعارات، $count إشعارات غير مقروءة',
+      two: 'الإشعارات، إشعاران غير مقروءين',
+      one: 'الإشعارات، إشعار واحد غير مقروء',
+      zero: 'الإشعارات، لا جديد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notifActors(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$name و$count شخص آخر',
+      many: '$name و$count شخصًا آخر',
+      few: '$name و$count أشخاص آخرين',
+      two: '$name وشخصان آخران',
+      one: '$name وشخص آخر',
+      zero: '$name',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String notifLikePost(String who) {
+    return 'أعجب $who بمنشورك';
+  }
+
+  @override
+  String notifLikeComment(String who) {
+    return 'أعجب $who بتعليقك';
+  }
+
+  @override
+  String notifComment(String who) {
+    return 'علّق $who على منشورك';
+  }
+
+  @override
+  String notifReply(String who) {
+    return 'ردّ $who على تعليقك';
+  }
+
+  @override
+  String notifMentionPost(String who) {
+    return 'أشار إليك $who في منشور';
+  }
+
+  @override
+  String notifMentionComment(String who) {
+    return 'أشار إليك $who في تعليق';
+  }
+
+  @override
+  String notifMentionStory(String who) {
+    return 'أشار إليك $who في قصة';
+  }
+
+  @override
+  String notifFollow(String who) {
+    return 'بدأ $who بمتابعتك';
+  }
+
+  @override
+  String notifRepost(String who) {
+    return 'أعاد $who نشر منشورك';
+  }
+
+  @override
+  String get notifPostPublished => 'نُشر منشورك المجدول';
+
+  @override
+  String get notifRemovedPost => 'أُزيل منشورك لمخالفته إرشادات المجتمع';
+
+  @override
+  String get notifRemovedComment => 'أُزيل تعليقك لمخالفته إرشادات المجتمع';
+
+  @override
+  String get notifRemovedStory => 'أُزيلت قصتك لمخالفتها إرشادات المجتمع';
+
+  @override
+  String get notifSectionToday => 'اليوم';
+
+  @override
+  String get notifSectionWeek => 'هذا الأسبوع';
+
+  @override
+  String get notifSectionEarlier => 'سابقًا';
+
+  @override
+  String get notifUnread => 'غير مقروء';
+
+  @override
+  String get notificationsEmpty => 'لا توجد إشعارات بعد';
+
+  @override
+  String get notificationsEmptyBody =>
+      'ستظهر هنا الإعجابات والتعليقات والإشارات والمتابعون الجدد.';
+
+  @override
+  String get notificationsMarkAllRead => 'تعيين الكل كمقروء';
+
+  @override
+  String get notificationsSettings => 'إعدادات الإشعارات';
+
+  @override
+  String get notifSettingLikes => 'الإعجابات';
+
+  @override
+  String get notifSettingLikesBody => 'على منشوراتك وتعليقاتك';
+
+  @override
+  String get notifSettingComments => 'التعليقات والردود';
+
+  @override
+  String get notifSettingMentions => 'الإشارات';
+
+  @override
+  String get notifSettingFollows => 'المتابعون الجدد';
+
+  @override
+  String get notifSettingReposts => 'إعادات النشر';
+
+  @override
+  String get notifSettingsHint =>
+      'تظهر الإشعارات داخل التطبيق. يصلك دائمًا إشعار عند نشر منشور مجدول أو إزالة محتوى لك.';
+
+  @override
+  String get notifSettingsSaved => 'حُفظ';
 }

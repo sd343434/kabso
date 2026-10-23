@@ -50,7 +50,7 @@ class PostsPreviewScreen extends StatelessWidget {
         profileRepositoryProvider.overrideWithValue(_PreviewFollow()),
       ],
       child: Scaffold(
-        body: FeedScreen(initialTab: initialTab),
+        body: FeedScreen(initialTab: initialTab, showNotifications: false),
         bottomNavigationBar: KBottomNav(
           currentIndex: AppRoutes.shellBranches.indexOf(AppRoutes.reels),
           onSelect: (i) => context.go(AppRoutes.shellBranches[i]),

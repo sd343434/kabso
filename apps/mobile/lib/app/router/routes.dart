@@ -42,8 +42,10 @@ abstract final class AppRoutes {
   static String hashtag(String tag) =>
       '/hashtags/${Uri.encodeComponent(tag.replaceFirst('#', '').toLowerCase())}';
 
-  /// The screen of post [postId].
-  static String post(String postId) => '/posts/${Uri.encodeComponent(postId)}';
+  /// The screen of post [postId]; with [comments] its comments open at
+  /// once (a comment notification, CP-009).
+  static String post(String postId, {bool comments = false}) =>
+      '/posts/${Uri.encodeComponent(postId)}${comments ? '?comments=1' : ''}';
 
   /// CP-008: one account's stories, full screen (then the next accounts
   /// of the tray).
@@ -102,6 +104,10 @@ abstract final class AppRoutes {
 
   /// CP-007: muted accounts.
   static const mutedAccounts = '/settings/muted';
+
+  /// CP-009: in-app notifications and their settings.
+  static const notifications = '/notifications';
+  static const notificationSettings = '/settings/notifications';
 
   /// D72: the caller's four levels (CP-005), pushed above the shell.
   static const levels = '/levels';

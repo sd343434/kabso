@@ -13,6 +13,7 @@ import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -47,12 +48,17 @@ class FeedScreen extends StatefulWidget {
     super.key,
     this.initialTab = HomeTab.initial,
     this.showSearch = true,
+    this.showNotifications = true,
   });
 
   final HomeTab initialTab;
 
   /// Whether the header shows Search (D55: yes).
   final bool showSearch;
+
+  /// Whether the header shows the notifications bell (CP-009: yes; the
+  /// debug previews, which have no session, leave it out).
+  final bool showNotifications;
 
   static const headerKey = Key('home.header');
   static const tabsKey = Key('home.tabs');
@@ -91,6 +97,7 @@ class _FeedScreenState extends State<FeedScreen> {
         tab: _tab,
         feed: _feed,
         showSearch: widget.showSearch,
+        showNotifications: widget.showNotifications,
         onSwitch: () => setState(() => _tab = _tab.other),
         onFeed: (feed) {
           if (feed != _feed) setState(() => _feed = feed);
@@ -177,6 +184,7 @@ class _FeedHeader extends StatelessWidget {
     required this.tab,
     required this.feed,
     required this.showSearch,
+    required this.showNotifications,
     required this.onSwitch,
     required this.onFeed,
   });
@@ -184,11 +192,12 @@ class _FeedHeader extends StatelessWidget {
   final HomeTab tab;
   final HomeFeed feed;
   final bool showSearch;
+  final bool showNotifications;
   final VoidCallback onSwitch;
   final ValueChanged<HomeFeed> onFeed;
 
   /// Equal side insets keep the words centred on the screen; Search, when
-  /// shown, sits in the start one.
+  /// shown, sits in the start one and the bell in the end one.
   static const double _searchSlot = KSizes.minTouchTarget + KSpacing.xs;
 
   @override
@@ -203,7 +212,9 @@ class _FeedHeader extends StatelessWidget {
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: showSearch ? _searchSlot : KSpacing.xs,
+                horizontal: showSearch || showNotifications
+                    ? _searchSlot
+                    : KSpacing.xs,
               ),
               child: KPrimaryTabs(
                 key: FeedScreen.tabsKey,
@@ -242,6 +253,13 @@ class _FeedHeader extends StatelessWidget {
                   color: p.textPrimary,
                 ),
               ),
+            ),
+          if (showNotifications)
+            const PositionedDirectional(
+              end: KSpacing.xs,
+              top: 0,
+              bottom: 0,
+              child: NotificationsBell(),
             ),
         ],
       ),

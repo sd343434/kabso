@@ -411,7 +411,7 @@ class _HomeDemo extends StatelessWidget {
         homePostsProvider.overrideWith((ref, _) => FeedItems(posts)),
         homeReelsProvider.overrideWith((ref, _) => FeedItems(reels)),
       ],
-      child: const FeedScreen(),
+      child: const FeedScreen(showNotifications: false),
     );
   }
 }
