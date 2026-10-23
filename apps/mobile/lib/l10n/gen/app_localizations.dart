@@ -4991,7 +4991,7 @@ abstract class AppLocalizations {
   /// Go-live title field hint
   ///
   /// In ar, this message translates to:
-  /// **'أضف عنواناً'**
+  /// **'أضف عنواناً للبث'**
   String get goLiveTitleHint;
 
   /// Snack when Go live is tapped without a title
@@ -5161,6 +5161,516 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'البث المباشر غير متاح بعد'**
   String get goLiveUnavailableTitle;
+
+  /// Go-live mode: multi-guest video (CP-011)
+  ///
+  /// In ar, this message translates to:
+  /// **'بث متعدد'**
+  String get goLiveModeMulti;
+
+  /// Go-live mode: one host on camera
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر'**
+  String get goLiveModeSolo;
+
+  /// Go-live mode: voice room
+  ///
+  /// In ar, this message translates to:
+  /// **'بث صوتي'**
+  String get goLiveModeAudio;
+
+  /// An empty seat tile
+  ///
+  /// In ar, this message translates to:
+  /// **'مقعد {number}'**
+  String goLiveSeat(int number);
+
+  /// Tag on the host's tile
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف'**
+  String get goLiveHostTag;
+
+  /// Seat count option (semantics)
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{مقعد واحد} =2{مقعدان} few{{count} مقاعد} many{{count} مقعدًا} other{{count} مقعد}}'**
+  String goLiveSeatCount(int count);
+
+  /// Beauty tool
+  ///
+  /// In ar, this message translates to:
+  /// **'تجميل'**
+  String get goLiveBeauty;
+
+  /// Beauty sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'التجميل'**
+  String get goLiveBeautyTitle;
+
+  /// Beauty on/off switch
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل التجميل'**
+  String get goLiveBeautySwitch;
+
+  /// Beauty: smoothing slider
+  ///
+  /// In ar, this message translates to:
+  /// **'تنعيم البشرة'**
+  String get goLiveBeautySmooth;
+
+  /// Beauty: brightening slider
+  ///
+  /// In ar, this message translates to:
+  /// **'إضاءة'**
+  String get goLiveBeautyBrighten;
+
+  /// Beauty unsupported on this platform
+  ///
+  /// In ar, this message translates to:
+  /// **'التجميل غير متاح على هذا الجهاز بعد.'**
+  String get goLiveBeautyUnsupported;
+
+  /// Theme tool
+  ///
+  /// In ar, this message translates to:
+  /// **'الثيم'**
+  String get goLiveTheme;
+
+  /// Theme sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'ثيم الغرفة'**
+  String get goLiveThemeTitle;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'كلاسيكي'**
+  String get liveThemeClassic;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'قصر الجليد'**
+  String get liveThemeIcePalace;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'ليل الصحراء'**
+  String get liveThemeDesertNight;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'حديقة الورد'**
+  String get liveThemeRoseGarden;
+
+  /// Guests chip on
+  ///
+  /// In ar, this message translates to:
+  /// **'الزوار مسموح'**
+  String get goLiveGuestsAllowedChip;
+
+  /// Guests chip off
+  ///
+  /// In ar, this message translates to:
+  /// **'للمسجّلين فقط'**
+  String get goLiveGuestsOffChip;
+
+  /// Viewer: ask for a seat
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب مقعداً'**
+  String get liveSeatRequest;
+
+  /// Viewer: pending request (tap cancels)
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الطلب · إلغاء'**
+  String get liveSeatRequested;
+
+  /// Seated: leave
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة المقعد'**
+  String get liveSeatLeave;
+
+  /// Invite dialog title
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة للصعود'**
+  String get liveSeatInviteTitle;
+
+  /// Invite dialog body
+  ///
+  /// In ar, this message translates to:
+  /// **'يدعوك {name} للصعود إلى مقعد.'**
+  String liveSeatInviteBody(String name);
+
+  /// Accept invitation
+  ///
+  /// In ar, this message translates to:
+  /// **'صعود'**
+  String get liveSeatInviteAccept;
+
+  /// Decline invitation
+  ///
+  /// In ar, this message translates to:
+  /// **'لاحقاً'**
+  String get liveSeatInviteDecline;
+
+  /// Host disconnected but the room is live
+  ///
+  /// In ar, this message translates to:
+  /// **'سيعود المضيف قريباً'**
+  String get liveHostAway;
+
+  /// Seated guest muted by the host
+  ///
+  /// In ar, this message translates to:
+  /// **'كتمك المضيف'**
+  String get liveSeatMutedByHost;
+
+  /// Seated: capture failed
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل الكاميرا أو الميكروفون.'**
+  String get liveSeatCaptureFailed;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم'**
+  String get liveSeatMute;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الكتم'**
+  String get liveSeatUnmute;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'إنزال من المقعد'**
+  String get liveSeatRemove;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'قفل المقعد'**
+  String get liveSeatLock;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح المقعد'**
+  String get liveSeatUnlock;
+
+  /// Seat action
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة مشاهد'**
+  String get liveSeatInvite;
+
+  /// Seat/viewer action
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين مشرفاً'**
+  String get liveSeatMakeModerator;
+
+  /// Seat/viewer action
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الإشراف'**
+  String get liveSeatRemoveModerator;
+
+  /// Moderator tag
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف'**
+  String get liveSeatModeratorTag;
+
+  /// Tool: seat requests
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات'**
+  String get liveSeatRequests;
+
+  /// Requests sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات الصعود'**
+  String get liveSeatRequestsTitle;
+
+  /// Requests sheet empty
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات الآن.'**
+  String get liveSeatRequestsEmpty;
+
+  /// Accept a request
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get liveSeatAccept;
+
+  /// Decline a request
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get liveSeatDecline;
+
+  /// Invite sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة إلى مقعد'**
+  String get liveSeatInviteSheetTitle;
+
+  /// Invite sheet empty
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مشاهدون مسجّلون الآن.'**
+  String get liveSeatInviteEmpty;
+
+  /// Invite button
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة'**
+  String get liveSeatInviteSend;
+
+  /// Snack after inviting
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت الدعوة'**
+  String get liveSeatInvited;
+
+  /// Tool: seat count while live
+  ///
+  /// In ar, this message translates to:
+  /// **'المقاعد'**
+  String get liveSeats;
+
+  /// Seat count sheet title
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد المقاعد'**
+  String get liveSeatsTitle;
+
+  /// A guest viewer
+  ///
+  /// In ar, this message translates to:
+  /// **'زائر {number}'**
+  String liveSeatGuestNumber(int number);
+
+  /// Audio go-live headline
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث الصوتي'**
+  String get goLiveAudioHeadline;
+
+  /// Audio go-live subtitle
+  ///
+  /// In ar, this message translates to:
+  /// **'شارك صوتك وتواصل مع جمهورك'**
+  String get goLiveAudioSubtitle;
+
+  /// Category section
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الفئة'**
+  String get goLiveChooseCategory;
+
+  /// Guests section
+  ///
+  /// In ar, this message translates to:
+  /// **'من يمكنه المشاهدة؟'**
+  String get goLiveWhoCanWatch;
+
+  /// Guests allowed option
+  ///
+  /// In ar, this message translates to:
+  /// **'الجميع'**
+  String get goLiveWatchEveryone;
+
+  /// Guests allowed hint
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى من لا يملك حساباً'**
+  String get goLiveWatchEveryoneHint;
+
+  /// Guests off option
+  ///
+  /// In ar, this message translates to:
+  /// **'المسجّلون فقط'**
+  String get goLiveWatchSignedIn;
+
+  /// Guests off hint
+  ///
+  /// In ar, this message translates to:
+  /// **'أصحاب الحسابات فقط'**
+  String get goLiveWatchSignedInHint;
+
+  /// Voice section
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات الصوت'**
+  String get goLiveVoiceSettings;
+
+  /// Mic row
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون'**
+  String get goLiveMicrophone;
+
+  /// Mic row hint
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك كتمه في أي وقت'**
+  String get goLiveMicrophoneHint;
+
+  /// Voice option
+  ///
+  /// In ar, this message translates to:
+  /// **'تقليل الضوضاء'**
+  String get goLiveNoiseReduction;
+
+  /// Voice option hint
+  ///
+  /// In ar, this message translates to:
+  /// **'صوت أنقى في الأماكن المزدحمة'**
+  String get goLiveNoiseReductionHint;
+
+  /// Voice option
+  ///
+  /// In ar, this message translates to:
+  /// **'تحسين الصوت'**
+  String get goLiveVoiceEnhance;
+
+  /// Voice option hint
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى متوازن بلا صدى'**
+  String get goLiveVoiceEnhanceHint;
+
+  /// Audio start button
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث الصوتي'**
+  String get goLiveStartAudio;
+
+  /// Theme thumbnail action
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الثيم'**
+  String get goLiveChangeTheme;
+
+  /// Seats section
+  ///
+  /// In ar, this message translates to:
+  /// **'عدد المقاعد'**
+  String get goLiveSeatsSection;
+
+  /// Minimize the live into a floating window
+  ///
+  /// In ar, this message translates to:
+  /// **'تصغير البث'**
+  String get goLiveMinimize;
+
+  /// Floating window: open the live full screen
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى البث'**
+  String get goLiveBackToLive;
+
+  /// Categories: open the full list
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الكل'**
+  String get goLiveAllCategories;
+
+  /// Audio setup: the room theme card
+  ///
+  /// In ar, this message translates to:
+  /// **'مظهر الغرفة: {name}'**
+  String goLiveRoomLook(String name);
+
+  /// Sheet title: choose multi / LIVE / audio
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع البث'**
+  String get goLiveLiveType;
+
+  /// Audio room: the big centre mic button while the mic is on
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الصوت'**
+  String get goLiveMuteMic;
+
+  /// Audio room: the big centre mic button while muted
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الصوت'**
+  String get goLiveUnmuteMic;
+
+  /// Audio room bottom bar: the chat button
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة'**
+  String get goLiveChat;
+
+  /// Audio room bar: the PK (versus) button
+  ///
+  /// In ar, this message translates to:
+  /// **'تحدي PK'**
+  String get goLivePk;
+
+  /// PK is not in the contract yet
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديات PK غير متاحة بعد.'**
+  String get goLivePkSoon;
+
+  /// Audio room: the chat box placeholder
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالة…'**
+  String get goLiveChatHint;
+
+  /// Audio room: send a chat message
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get goLiveChatSend;
+
+  /// Audio room bar: the short chat pill (opens the chat box)
+  ///
+  /// In ar, this message translates to:
+  /// **'دردشة…'**
+  String get goLiveChatPill;
+
+  /// Audio room top bar: share the live
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get goLiveShare;
+
+  /// The invite copied by Share
+  ///
+  /// In ar, this message translates to:
+  /// **'أنا مباشر الآن على Kabso Live: «{title}» — تابعني @{username}'**
+  String goLiveShareText(String title, String username);
+
+  /// After Share copied the invite
+  ///
+  /// In ar, this message translates to:
+  /// **'نُسخت دعوة البث، الصقها لمن تريد'**
+  String get goLiveShareCopied;
 }
 
 class _AppLocalizationsDelegate

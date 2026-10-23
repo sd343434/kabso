@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -38,16 +39,24 @@ class KabsoApp extends ConsumerWidget {
       darkTheme: buildAppTheme(brightness: Brightness.dark, locale: locale),
       themeAnimationDuration: KMotion.base,
       themeAnimationCurve: KMotion.standard,
-      builder: _emulatePhoneInsets
-          ? (context, child) {
-              const insets = EdgeInsets.only(top: 47, bottom: 34);
-              return MediaQuery(
-                data: MediaQuery.of(context)
-                    .copyWith(padding: insets, viewPadding: insets),
-                child: child!,
-              );
-            }
-          : null,
+      builder: (context, child) {
+        // D94: a minimized live floats over every screen.
+        Widget app = Stack(
+          children: [
+            child!,
+            LiveMiniWindow(router: router),
+          ],
+        );
+        if (_emulatePhoneInsets) {
+          const insets = EdgeInsets.only(top: 47, bottom: 34);
+          app = MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(padding: insets, viewPadding: insets),
+            child: app,
+          );
+        }
+        return app;
+      },
     );
   }
 }

@@ -13,13 +13,18 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
+import 'package:kabso_live/features/auth/domain/entities.dart';
+import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
@@ -35,6 +40,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
 import '../../helpers/component_harness.dart';
+import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
@@ -64,9 +70,13 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.phone,
   bool settle = true,
+  FakeLiveMediaEngine? engine,
+  FakeLiveRepository? repo,
+  User? user,
 }) async {
   final ar = language == AppLanguage.ar;
-  final live = FakeLiveRepository(room: room ?? (id) => apiRoom(id: id));
+  final live =
+      repo ?? FakeLiveRepository(room: room ?? (id) => apiRoom(id: id));
   final profiles = FakeProfileRepository(profile ?? apiProfile(ar: ar));
   setViewport(tester, viewport);
   // A fresh tree (and provider container) for every call in a test.
@@ -75,9 +85,11 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
     tester,
     const LiveRoomScreen(roomId: 'room-0'),
     language: language,
+    liveMediaEngine: engine,
     overrides: [
       liveRepositoryProvider.overrideWithValue(live),
       profileRepositoryProvider.overrideWithValue(profiles),
+      if (user != null) currentUserProvider.overrideWithValue(user),
     ],
   );
   settle
@@ -87,6 +99,9 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
 }
 
 Finder _label(String label) => find.bySemanticsLabel(label);
+
+/// CP-010: the stage while the host is not in the media session.
+const _hostAway = Key('room.hostAway');
 
 /// The host pill (its label starts with "host, host profile").
 Finder _hostPill(AppLocalizations l, String host) => find.bySemanticsLabel(
@@ -141,7 +156,7 @@ void main() {
       expect(find.byType(LiveRoomScreen), findsOneWidget);
       expect(live.roomRequests, ['room-0']);
       expect(find.byKey(const Key('nav.home')), findsNothing);
-      expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
+      expect(find.byKey(_hostAway), findsOneWidget);
 
       await tester.tap(_label(l10n.liveClose));
       await tester.pumpAndSettle();
@@ -211,6 +226,7 @@ void main() {
             profileRepositoryProvider.overrideWithValue(
               FakeProfileRepository(apiProfile()),
             ),
+            liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -246,12 +262,12 @@ void main() {
       await _pumpRoom(tester, room: (_) => never.future, settle: false);
       expect(find.byKey(const Key('room.loading')), findsOneWidget);
       expect(find.byType(KHostPillSkeleton), findsOneWidget);
-      expect(find.byType(KRoomVideoUnavailable), findsNothing);
+      expect(find.byKey(_hostAway), findsNothing);
       expect(_label(l10n.liveClose), findsOneWidget);
     });
 
-    testWidgets('live: the honest video-unavailable stage with real room and '
-        'host data', (tester) async {
+    testWidgets('live: "the host will be right back" while the host is not '
+        'in the media session, with real room and host data', (tester) async {
       await _pumpRoom(
         tester,
         room: (id) => apiRoom(
@@ -259,8 +275,8 @@ void main() {
           category: const LiveCategory(slug: 'music', name: 'Music'),
         ),
       );
-      expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
-      expect(find.text(l10n.liveRoomVideoUnavailableTitle), findsOneWidget);
+      expect(find.byKey(_hostAway), findsOneWidget);
+      expect(find.text(l10n.liveHostAway), findsOneWidget);
       // Room detail: title and category; host from the room, follower
       // count from the public profile.
       expect(find.text('Arabic music night'), findsOneWidget);
@@ -295,7 +311,7 @@ void main() {
         expect(find.text(text), findsOneWidget);
         expect(_chat(l10n.liveRoomChatUnavailable), findsNothing);
         expect(find.byType(KRoomActionBar), findsNothing);
-        expect(find.byType(KRoomVideoUnavailable), findsNothing);
+        expect(find.byKey(_hostAway), findsNothing);
         expect(find.byKey(const Key('room.back')), findsOneWidget);
         // Not following yet: Follow is offered.
         expect(find.byKey(const Key('room.follow')), findsOneWidget);
@@ -369,7 +385,7 @@ void main() {
       await tester.tap(find.text(l10n.actionRetry));
       await tester.pumpAndSettle();
       expect(live.roomRequests, ['room-0', 'room-0', 'room-0']);
-      expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
+      expect(find.byKey(_hostAway), findsOneWidget);
     });
 
     testWidgets('offline: its own state; Try again re-requests', (
@@ -387,7 +403,7 @@ void main() {
       await tester.tap(find.text(l10n.actionRetry));
       await tester.pumpAndSettle();
       expect(live.roomRequests, hasLength(2));
-      expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
+      expect(find.byKey(_hostAway), findsOneWidget);
     });
 
     testWidgets('the host profile failing leaves the room usable, without '
@@ -406,7 +422,7 @@ void main() {
         ],
       );
       await tester.pumpAndSettle();
-      expect(find.byType(KRoomVideoUnavailable), findsOneWidget);
+      expect(find.byKey(_hostAway), findsOneWidget);
       expect(find.text('Sara'), findsOneWidget);
       expect(_label(l10n.liveFollow), findsNothing);
       expect(find.textContaining('followers'), findsNothing);
@@ -802,6 +818,249 @@ void main() {
 
     test('urgent PK timer: onStatus on error ≥ 4.5:1', () {
       expect(contrast(KStatusColors.onStatus, p.error), greaterThan(4.5));
+    });
+  });
+  group('media and seats (CP-010, CP-011)', () {
+    final l10n = l10nFor(AppLanguage.en);
+    const omar = UserSummary(
+      id: 'u-omar',
+      username: 'omar',
+      displayName: 'Omar',
+      avatarUrl: null,
+    );
+
+    LiveSeats seats({
+      LiveRoomMode mode = LiveRoomMode.multi,
+      int count = 6,
+      LiveSeatsMine? mine,
+      List<LiveSeat>? list,
+    }) => LiveSeats(
+      roomId: 'room-0',
+      mode: mode,
+      version: 1,
+      seatCount: count,
+      seats:
+          list ??
+          [
+            for (var i = 1; i < count; i++)
+              LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+          ],
+      moderators: const [],
+      mine:
+          mine ??
+          const LiveSeatsMine(
+            role: LiveSeatRole.viewer,
+            seatIndex: null,
+            request: null,
+            invite: null,
+          ),
+    );
+
+    FakeLiveRepository seatRoom(LiveRoomMode mode, int count) =>
+        FakeLiveRepository(
+          room: (id) =>
+              apiRoom(id: id)
+                  .copyWith(mode: mode, seatCount: count, theme: 'ice-palace'),
+        )..seatState = seats(mode: mode, count: count);
+
+    testWidgets("the host's video while they are in the session", (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final (repo, _) = await _pumpRoom(tester, engine: engine);
+      expect(find.byKey(const Key('remote.user-0')), findsOneWidget);
+      expect(find.byKey(_hostAway), findsNothing);
+      // Signed out: a guest, with the app run's guest id.
+      expect(repo.tokenRequests.single.guestId, isNotNull);
+      expect(engine.joined, isNotNull);
+    });
+
+    testWidgets('signed in: the token without a guest id', (tester) async {
+      final (repo, _) = await _pumpRoom(
+        tester,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+      );
+      expect(repo.tokenRequests.single.guestId, isNull);
+    });
+
+    testWidgets('an ended room does not join the media session', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine();
+      final (repo, _) = await _pumpRoom(
+        tester,
+        engine: engine,
+        room: (id) => apiRoom(
+          id: id,
+          status: LiveRoomStatus.ended,
+          endReason: LiveRoomEndReason.hostEnded,
+        ),
+      );
+      expect(repo.tokenRequests, isEmpty);
+      expect(engine.joined, isNull);
+    });
+
+    testWidgets('multi-guest: the seats, and asking for one', (tester) async {
+      final repo = seatRoom(LiveRoomMode.multi, 6);
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+      );
+      expect(find.byType(VideoSeatGrid), findsOneWidget);
+      expect(find.byKey(VideoSeatGrid.seatKey(5)), findsOneWidget);
+      await tester.tap(find.byKey(const Key('room.seat.request')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('requestSeat:'));
+      // An empty seat asks for that seat.
+      await tester.tap(find.byKey(VideoSeatGrid.seatKey(3)));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('requestSeat:3'));
+    });
+
+    testWidgets('a pending request can be cancelled', (tester) async {
+      final repo = seatRoom(LiveRoomMode.audio, 9)
+        ..seatState = seats(
+          mode: LiveRoomMode.audio,
+          count: 9,
+          mine: LiveSeatsMine(
+            role: LiveSeatRole.viewer,
+            seatIndex: null,
+            request: LiveSeatRequest(
+              id: 'r1',
+              user: omar,
+              seatIndex: null,
+              createdAt: DateTime.utc(2026, 10, 23),
+            ),
+            invite: null,
+          ),
+        );
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+      );
+      expect(find.byType(AudioSeatRing), findsOneWidget);
+      await tester.tap(find.byKey(const Key('room.seat.cancel')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('cancelSeatRequest'));
+    });
+
+    testWidgets('an invitation asks first; joining seats and publishes', (
+      tester,
+    ) async {
+      final repo = seatRoom(LiveRoomMode.multi, 4)
+        ..seatState = seats(
+          count: 4,
+          mine: LiveSeatsMine(
+            role: LiveSeatRole.viewer,
+            seatIndex: null,
+            request: null,
+            invite: LiveSeatInvite(
+              id: 'inv-1',
+              user: omar,
+              seatIndex: 2,
+              invitedBy: const UserSummary(
+                id: 'user-0',
+                username: 'host0',
+                displayName: 'Sara',
+                avatarUrl: null,
+              ),
+              expiresAt: DateTime.utc(2030),
+            ),
+          ),
+        );
+      final engine = FakeLiveMediaEngine()..publishAllowed = true;
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      expect(find.byKey(const Key('room.seatInvite')), findsOneWidget);
+      expect(find.text(l10n.liveSeatInviteBody('Sara')), findsOneWidget);
+
+      // The server seats us when we accept.
+      repo.seatState = seats(
+        count: 4,
+        mine: const LiveSeatsMine(
+          role: LiveSeatRole.seated,
+          seatIndex: 2,
+          request: null,
+          invite: null,
+        ),
+        list: [
+          const LiveSeat(index: 1, state: LiveSeatState.empty, user: null),
+          const LiveSeat(index: 2, state: LiveSeatState.taken, user: omar),
+          const LiveSeat(index: 3, state: LiveSeatState.empty, user: null),
+        ],
+      );
+      await tester.tap(find.byKey(const Key('room.seatInvite.accept')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('acceptSeatInvite'));
+      expect(engine.publishLocalCalls, [true]);
+      expect(find.byKey(const Key('room.seat.leave')), findsOneWidget);
+
+      // Leaving the seat stops publishing.
+      repo.seatState = seats(count: 4);
+      await tester.tap(find.byKey(const Key('room.seat.leave')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('leaveSeat'));
+      expect(engine.unpublishLocalCalls, 1);
+    });
+
+    testWidgets('guests without an account only watch: no seat button', (
+      tester,
+    ) async {
+      await _pumpRoom(
+        tester,
+        repo: seatRoom(LiveRoomMode.audio, 5),
+        engine: FakeLiveMediaEngine(),
+      );
+      expect(find.byKey(const Key('room.seat.request')), findsNothing);
+    });
+
+    testWidgets('a moderator gets the requests and seat actions', (
+      tester,
+    ) async {
+      final repo = seatRoom(LiveRoomMode.multi, 4)
+        ..seatState = seats(
+          count: 4,
+          mine: const LiveSeatsMine(
+            role: LiveSeatRole.moderator,
+            seatIndex: null,
+            request: null,
+            invite: null,
+          ),
+          list: [
+            const LiveSeat(index: 1, state: LiveSeatState.taken, user: omar),
+            const LiveSeat(index: 2, state: LiveSeatState.empty, user: null),
+            const LiveSeat(index: 3, state: LiveSeatState.empty, user: null),
+          ],
+        )
+        ..pendingSeatRequests = [
+          LiveSeatRequest(
+            id: 'r9',
+            user: omar,
+            seatIndex: null,
+            createdAt: DateTime.utc(2026, 10, 23),
+          ),
+        ];
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+      );
+      await tester.tap(find.byKey(VideoSeatGrid.seatKey(1)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.liveSeatMute));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('muteSeat:1:true'));
+
+      await tester.tap(find.byKey(const Key('room.seat.requests')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.liveSeatAccept));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('acceptSeatRequest:r9:'));
     });
   });
 }

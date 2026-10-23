@@ -258,7 +258,86 @@ class DemoLiveRepository implements LiveRepository {
     required String title,
     String? categorySlug,
     bool allowGuests = true,
+    LiveRoomMode mode = LiveRoomMode.solo,
+    int? seatCount,
+    String? theme,
   }) async => throw _serverOnly;
+
+  @override
+  Future<LiveRoom> updateRoom(
+    String roomId, {
+    int? seatCount,
+    String? theme,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> seats(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex}) async =>
+      throw _serverOnly;
+
+  @override
+  Future<void> cancelSeatRequest(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<({List<LiveSeatRequest> items, String? next})> seatRequests(
+    String roomId, {
+    String? cursor,
+  }) async => (items: const <LiveSeatRequest>[], next: null);
+
+  @override
+  Future<LiveSeats> acceptSeatRequest(
+    String roomId,
+    String requestId, {
+    int? seatIndex,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<void> declineSeatRequest(String roomId, String requestId) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveSeatInvite> inviteToSeat(
+    String roomId,
+    String username, {
+    int? seatIndex,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> acceptSeatInvite(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<void> declineSeatInvite(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<void> leaveSeat(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> muteSeat(
+    String roomId,
+    int index, {
+    required bool muted,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> removeFromSeat(String roomId, int index) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveSeats> lockSeat(
+    String roomId,
+    int index, {
+    required bool locked,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveSeats> addModerator(String roomId, String username) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveSeats> removeModerator(String roomId, String username) async =>
+      throw _serverOnly;
 
   @override
   Future<void> heartbeat(String roomId) async => throw _serverOnly;

@@ -7,6 +7,7 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -16,6 +17,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_live_media_engine.dart';
 import 'fake_live_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
@@ -45,6 +47,7 @@ Future<void> pumpKabsoApp(
   String language = 'en',
   LiveRepository? liveRepository,
   PostsRepository? postsRepository,
+  FakeLiveMediaEngine? liveMediaEngine,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -61,6 +64,12 @@ Future<void> pumpKabsoApp(
         ),
         // Never the device plugin: Create offers the system picker.
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        // Never a camera or a media server: an in-memory engine.
+        liveMediaEngineProvider.overrideWithValue(
+          liveMediaEngine == null
+              ? FakeLiveMediaEngine.new
+              : () => liveMediaEngine,
+        ),
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),
@@ -103,6 +112,7 @@ Future<void> pumpScreen(
   List<Override> overrides = const [],
   AppLanguage language = AppLanguage.en,
   PostsRepository? postsRepository,
+  FakeLiveMediaEngine? liveMediaEngine,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -115,6 +125,12 @@ Future<void> pumpScreen(
           postsRepository ?? FakePostsRepository(),
         ),
         mediaLibraryProvider.overrideWithValue(const UnsupportedMediaLibrary()),
+        // Never a camera or a media server: an in-memory engine.
+        liveMediaEngineProvider.overrideWithValue(
+          liveMediaEngine == null
+              ? FakeLiveMediaEngine.new
+              : () => liveMediaEngine,
+        ),
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),

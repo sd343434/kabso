@@ -2869,7 +2869,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createModeLive => 'LIVE';
 
   @override
-  String get goLiveTitleHint => 'Add a title';
+  String get goLiveTitleHint => 'Add a live title';
 
   @override
   String get goLiveTitleRequired => 'Add a title for your live first.';
@@ -2963,4 +2963,280 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goLiveUnavailableTitle => 'Going live isn\'t available yet';
+
+  @override
+  String get goLiveModeMulti => 'Multi-guest';
+
+  @override
+  String get goLiveModeSolo => 'LIVE';
+
+  @override
+  String get goLiveModeAudio => 'Audio LIVE';
+
+  @override
+  String goLiveSeat(int number) {
+    return 'Seat $number';
+  }
+
+  @override
+  String get goLiveHostTag => 'Host';
+
+  @override
+  String goLiveSeatCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seats',
+      one: '$count seat',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get goLiveBeauty => 'Beauty';
+
+  @override
+  String get goLiveBeautyTitle => 'Beauty';
+
+  @override
+  String get goLiveBeautySwitch => 'Beauty on';
+
+  @override
+  String get goLiveBeautySmooth => 'Smooth skin';
+
+  @override
+  String get goLiveBeautyBrighten => 'Brighten';
+
+  @override
+  String get goLiveBeautyUnsupported =>
+      'Beauty isn\'t available on this device yet.';
+
+  @override
+  String get goLiveTheme => 'Theme';
+
+  @override
+  String get goLiveThemeTitle => 'Room theme';
+
+  @override
+  String get liveThemeClassic => 'Classic';
+
+  @override
+  String get liveThemeIcePalace => 'Ice palace';
+
+  @override
+  String get liveThemeDesertNight => 'Desert night';
+
+  @override
+  String get liveThemeRoseGarden => 'Rose garden';
+
+  @override
+  String get goLiveGuestsAllowedChip => 'Guests allowed';
+
+  @override
+  String get goLiveGuestsOffChip => 'Signed-in only';
+
+  @override
+  String get liveSeatRequest => 'Ask for a seat';
+
+  @override
+  String get liveSeatRequested => 'Requested · Cancel';
+
+  @override
+  String get liveSeatLeave => 'Leave seat';
+
+  @override
+  String get liveSeatInviteTitle => 'Invitation to a seat';
+
+  @override
+  String liveSeatInviteBody(String name) {
+    return '$name invites you onto a seat.';
+  }
+
+  @override
+  String get liveSeatInviteAccept => 'Join';
+
+  @override
+  String get liveSeatInviteDecline => 'Not now';
+
+  @override
+  String get liveHostAway => 'The host will be right back';
+
+  @override
+  String get liveSeatMutedByHost => 'The host muted you';
+
+  @override
+  String get liveSeatCaptureFailed =>
+      'Couldn\'t start your camera or microphone.';
+
+  @override
+  String get liveSeatMute => 'Mute';
+
+  @override
+  String get liveSeatUnmute => 'Unmute';
+
+  @override
+  String get liveSeatRemove => 'Take off the seat';
+
+  @override
+  String get liveSeatLock => 'Lock seat';
+
+  @override
+  String get liveSeatUnlock => 'Unlock seat';
+
+  @override
+  String get liveSeatInvite => 'Invite a viewer';
+
+  @override
+  String get liveSeatMakeModerator => 'Make moderator';
+
+  @override
+  String get liveSeatRemoveModerator => 'Remove moderator';
+
+  @override
+  String get liveSeatModeratorTag => 'Moderator';
+
+  @override
+  String get liveSeatRequests => 'Requests';
+
+  @override
+  String get liveSeatRequestsTitle => 'Seat requests';
+
+  @override
+  String get liveSeatRequestsEmpty => 'No requests right now.';
+
+  @override
+  String get liveSeatAccept => 'Accept';
+
+  @override
+  String get liveSeatDecline => 'Decline';
+
+  @override
+  String get liveSeatInviteSheetTitle => 'Invite to a seat';
+
+  @override
+  String get liveSeatInviteEmpty => 'No signed-in viewers right now.';
+
+  @override
+  String get liveSeatInviteSend => 'Invite';
+
+  @override
+  String get liveSeatInvited => 'Invitation sent';
+
+  @override
+  String get liveSeats => 'Seats';
+
+  @override
+  String get liveSeatsTitle => 'Number of seats';
+
+  @override
+  String liveSeatGuestNumber(int number) {
+    return 'Guest $number';
+  }
+
+  @override
+  String get goLiveAudioHeadline => 'Start an audio live';
+
+  @override
+  String get goLiveAudioSubtitle =>
+      'Share your voice and connect with your audience';
+
+  @override
+  String get goLiveChooseCategory => 'Choose a category';
+
+  @override
+  String get goLiveWhoCanWatch => 'Who can watch?';
+
+  @override
+  String get goLiveWatchEveryone => 'Everyone';
+
+  @override
+  String get goLiveWatchEveryoneHint => 'Even people without an account';
+
+  @override
+  String get goLiveWatchSignedIn => 'Signed-in only';
+
+  @override
+  String get goLiveWatchSignedInHint => 'Only people with an account';
+
+  @override
+  String get goLiveVoiceSettings => 'Voice settings';
+
+  @override
+  String get goLiveMicrophone => 'Microphone';
+
+  @override
+  String get goLiveMicrophoneHint => 'You can mute it any time';
+
+  @override
+  String get goLiveNoiseReduction => 'Noise reduction';
+
+  @override
+  String get goLiveNoiseReductionHint => 'A clearer voice in noisy places';
+
+  @override
+  String get goLiveVoiceEnhance => 'Voice enhancement';
+
+  @override
+  String get goLiveVoiceEnhanceHint => 'A balanced level with no echo';
+
+  @override
+  String get goLiveStartAudio => 'Start audio live';
+
+  @override
+  String get goLiveChangeTheme => 'Change theme';
+
+  @override
+  String get goLiveSeatsSection => 'Number of seats';
+
+  @override
+  String get goLiveMinimize => 'Minimize live';
+
+  @override
+  String get goLiveBackToLive => 'Back to your live';
+
+  @override
+  String get goLiveAllCategories => 'View all';
+
+  @override
+  String goLiveRoomLook(String name) {
+    return 'Room look: $name';
+  }
+
+  @override
+  String get goLiveLiveType => 'Live type';
+
+  @override
+  String get goLiveMuteMic => 'Mute';
+
+  @override
+  String get goLiveUnmuteMic => 'Unmute';
+
+  @override
+  String get goLiveChat => 'Chat';
+
+  @override
+  String get goLivePk => 'PK challenge';
+
+  @override
+  String get goLivePkSoon => 'PK challenges aren\'t available yet.';
+
+  @override
+  String get goLiveChatHint => 'Say something…';
+
+  @override
+  String get goLiveChatSend => 'Send';
+
+  @override
+  String get goLiveChatPill => 'Chat…';
+
+  @override
+  String get goLiveShare => 'Share';
+
+  @override
+  String goLiveShareText(String title, String username) {
+    return 'I\'m live on Kabso Live: “$title” — follow @$username';
+  }
+
+  @override
+  String get goLiveShareCopied => 'Live invite copied — paste it anywhere';
 }

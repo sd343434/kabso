@@ -11,6 +11,12 @@ _LiveConfig _$LiveConfigFromJson(Map<String, dynamic> json) => _LiveConfig(
   heartbeatIntervalSeconds: (json['heartbeatIntervalSeconds'] as num).toInt(),
   heartbeatStaleAfterSeconds: (json['heartbeatStaleAfterSeconds'] as num)
       .toInt(),
+  themes:
+      (json['themes'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const <String>[LiveThemes.classic],
+  seatCounts: json['seatCounts'] == null
+      ? const LiveSeatCounts()
+      : LiveSeatCounts.fromJson(json['seatCounts'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
@@ -18,7 +24,26 @@ Map<String, dynamic> _$LiveConfigToJson(_LiveConfig instance) =>
       'hostingEnabled': instance.hostingEnabled,
       'heartbeatIntervalSeconds': instance.heartbeatIntervalSeconds,
       'heartbeatStaleAfterSeconds': instance.heartbeatStaleAfterSeconds,
+      'themes': instance.themes,
+      'seatCounts': instance.seatCounts,
     };
+
+_LiveSeatCounts _$LiveSeatCountsFromJson(Map<String, dynamic> json) =>
+    _LiveSeatCounts(
+      multi:
+          (json['MULTI'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          const <int>[4, 6, 9, 12],
+      audio:
+          (json['AUDIO'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          const <int>[5, 9, 13],
+    );
+
+Map<String, dynamic> _$LiveSeatCountsToJson(_LiveSeatCounts instance) =>
+    <String, dynamic>{'MULTI': instance.multi, 'AUDIO': instance.audio};
 
 _LiveCategory _$LiveCategoryFromJson(Map<String, dynamic> json) =>
     _LiveCategory(slug: json['slug'] as String, name: json['name'] as String);
@@ -42,6 +67,9 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
           ? null
           : LiveCategory.fromJson(json['category'] as Map<String, dynamic>),
       host: UserSummary.fromJson(json['host'] as Map<String, dynamic>),
+      seatCount: (json['seatCount'] as num?)?.toInt(),
+      occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
+      theme: json['theme'] as String? ?? LiveThemes.classic,
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -54,12 +82,16 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'coverUrl': instance.coverUrl,
       'category': instance.category,
       'host': instance.host,
+      'seatCount': instance.seatCount,
+      'occupiedSeats': instance.occupiedSeats,
+      'theme': instance.theme,
     };
 
 const _$LiveRoomModeEnumMap = {
   LiveRoomMode.solo: 'SOLO',
   LiveRoomMode.pk: 'PK',
   LiveRoomMode.multi: 'MULTI',
+  LiveRoomMode.audio: 'AUDIO',
 };
 
 _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
@@ -87,6 +119,9 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
     unknownValue: LiveRoomEndReason.unknown,
   ),
   allowGuests: json['allowGuests'] as bool? ?? true,
+  seatCount: (json['seatCount'] as num?)?.toInt(),
+  occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
+  theme: json['theme'] as String? ?? LiveThemes.classic,
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -102,6 +137,9 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'endedAt': instance.endedAt?.toIso8601String(),
   'endReason': _$LiveRoomEndReasonEnumMap[instance.endReason],
   'allowGuests': instance.allowGuests,
+  'seatCount': instance.seatCount,
+  'occupiedSeats': instance.occupiedSeats,
+  'theme': instance.theme,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -155,6 +193,7 @@ Map<String, dynamic> _$LiveMediaAccessToJson(_LiveMediaAccess instance) =>
 const _$LiveMediaRoleEnumMap = {
   LiveMediaRole.host: 'HOST',
   LiveMediaRole.viewer: 'VIEWER',
+  LiveMediaRole.speaker: 'SPEAKER',
 };
 
 _LiveViewer _$LiveViewerFromJson(Map<String, dynamic> json) => _LiveViewer(
@@ -182,3 +221,129 @@ const _$LiveViewerKindEnumMap = {
   LiveViewerKind.user: 'USER',
   LiveViewerKind.guest: 'GUEST',
 };
+
+_LiveSeat _$LiveSeatFromJson(Map<String, dynamic> json) => _LiveSeat(
+  index: (json['index'] as num).toInt(),
+  state: $enumDecode(
+    _$LiveSeatStateEnumMap,
+    json['state'],
+    unknownValue: LiveSeatState.empty,
+  ),
+  user: json['user'] == null
+      ? null
+      : UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+  mutedByHost: json['mutedByHost'] as bool? ?? false,
+);
+
+Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
+  'index': instance.index,
+  'state': _$LiveSeatStateEnumMap[instance.state]!,
+  'user': instance.user,
+  'mutedByHost': instance.mutedByHost,
+};
+
+const _$LiveSeatStateEnumMap = {
+  LiveSeatState.empty: 'EMPTY',
+  LiveSeatState.locked: 'LOCKED',
+  LiveSeatState.taken: 'TAKEN',
+};
+
+_LiveSeatRequest _$LiveSeatRequestFromJson(Map<String, dynamic> json) =>
+    _LiveSeatRequest(
+      id: json['id'] as String,
+      user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+      seatIndex: (json['seatIndex'] as num?)?.toInt(),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+
+Map<String, dynamic> _$LiveSeatRequestToJson(_LiveSeatRequest instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'user': instance.user,
+      'seatIndex': instance.seatIndex,
+      'createdAt': instance.createdAt.toIso8601String(),
+    };
+
+_LiveSeatInvite _$LiveSeatInviteFromJson(Map<String, dynamic> json) =>
+    _LiveSeatInvite(
+      id: json['id'] as String,
+      user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+      seatIndex: (json['seatIndex'] as num?)?.toInt(),
+      invitedBy: UserSummary.fromJson(
+        json['invitedBy'] as Map<String, dynamic>,
+      ),
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+    );
+
+Map<String, dynamic> _$LiveSeatInviteToJson(_LiveSeatInvite instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'user': instance.user,
+      'seatIndex': instance.seatIndex,
+      'invitedBy': instance.invitedBy,
+      'expiresAt': instance.expiresAt.toIso8601String(),
+    };
+
+_LiveSeatsMine _$LiveSeatsMineFromJson(Map<String, dynamic> json) =>
+    _LiveSeatsMine(
+      role: $enumDecode(
+        _$LiveSeatRoleEnumMap,
+        json['role'],
+        unknownValue: LiveSeatRole.viewer,
+      ),
+      seatIndex: (json['seatIndex'] as num?)?.toInt(),
+      request: json['request'] == null
+          ? null
+          : LiveSeatRequest.fromJson(json['request'] as Map<String, dynamic>),
+      invite: json['invite'] == null
+          ? null
+          : LiveSeatInvite.fromJson(json['invite'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$LiveSeatsMineToJson(_LiveSeatsMine instance) =>
+    <String, dynamic>{
+      'role': _$LiveSeatRoleEnumMap[instance.role]!,
+      'seatIndex': instance.seatIndex,
+      'request': instance.request,
+      'invite': instance.invite,
+    };
+
+const _$LiveSeatRoleEnumMap = {
+  LiveSeatRole.host: 'HOST',
+  LiveSeatRole.moderator: 'MODERATOR',
+  LiveSeatRole.seated: 'SEATED',
+  LiveSeatRole.viewer: 'VIEWER',
+};
+
+_LiveSeats _$LiveSeatsFromJson(Map<String, dynamic> json) => _LiveSeats(
+  roomId: json['roomId'] as String,
+  mode: $enumDecode(
+    _$LiveRoomModeEnumMap,
+    json['mode'],
+    unknownValue: LiveRoomMode.multi,
+  ),
+  version: (json['version'] as num).toInt(),
+  seatCount: (json['seatCount'] as num).toInt(),
+  seats: (json['seats'] as List<dynamic>)
+      .map((e) => LiveSeat.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  moderators: (json['moderators'] as List<dynamic>)
+      .map((e) => UserSummary.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  pendingRequests: (json['pendingRequests'] as num?)?.toInt(),
+  mine: json['mine'] == null
+      ? null
+      : LiveSeatsMine.fromJson(json['mine'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$LiveSeatsToJson(_LiveSeats instance) =>
+    <String, dynamic>{
+      'roomId': instance.roomId,
+      'mode': _$LiveRoomModeEnumMap[instance.mode]!,
+      'version': instance.version,
+      'seatCount': instance.seatCount,
+      'seats': instance.seats,
+      'moderators': instance.moderators,
+      'pendingRequests': instance.pendingRequests,
+      'mine': instance.mine,
+    };

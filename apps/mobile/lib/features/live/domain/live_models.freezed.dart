@@ -16,7 +16,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LiveConfig {
 
- bool get hostingEnabled; int get heartbeatIntervalSeconds; int get heartbeatStaleAfterSeconds;
+ bool get hostingEnabled; int get heartbeatIntervalSeconds; int get heartbeatStaleAfterSeconds;/// CP-011: room themes the server accepts (the first is the default).
+ List<String> get themes;/// CP-011: allowed seat counts per mode, the host's tile included.
+ LiveSeatCounts get seatCounts;
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +32,20 @@ $LiveConfigCopyWith<LiveConfig> get copyWith => _$LiveConfigCopyWithImpl<LiveCon
 @override
 bool operator ==(Object other) {
   final _this = this as LiveConfig;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveConfig&&(identical(other.hostingEnabled, _this.hostingEnabled) || other.hostingEnabled == _this.hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, _this.heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == _this.heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, _this.heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == _this.heartbeatStaleAfterSeconds));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveConfig&&(identical(other.hostingEnabled, _this.hostingEnabled) || other.hostingEnabled == _this.hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, _this.heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == _this.heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, _this.heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == _this.heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _this.themes)&&(identical(other.seatCounts, _this.seatCounts) || other.seatCounts == _this.seatCounts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveConfig;
-  return Object.hash(runtimeType,_this.hostingEnabled,_this.heartbeatIntervalSeconds,_this.heartbeatStaleAfterSeconds);
+  return Object.hash(runtimeType,_this.hostingEnabled,_this.heartbeatIntervalSeconds,_this.heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_this.themes),_this.seatCounts);
 }
 
 @override
 String toString() {
   final _this = this as LiveConfig;
-  return 'LiveConfig(hostingEnabled: ${_this.hostingEnabled}, heartbeatIntervalSeconds: ${_this.heartbeatIntervalSeconds}, heartbeatStaleAfterSeconds: ${_this.heartbeatStaleAfterSeconds})';
+  return 'LiveConfig(hostingEnabled: ${_this.hostingEnabled}, heartbeatIntervalSeconds: ${_this.heartbeatIntervalSeconds}, heartbeatStaleAfterSeconds: ${_this.heartbeatStaleAfterSeconds}, themes: ${_this.themes}, seatCounts: ${_this.seatCounts})';
 }
 
 
@@ -54,11 +56,11 @@ abstract mixin class $LiveConfigCopyWith<$Res>  {
   factory $LiveConfigCopyWith(LiveConfig value, $Res Function(LiveConfig) _then) = _$LiveConfigCopyWithImpl;
 @useResult
 $Res call({
- bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds
+ bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts
 });
 
 
-
+$LiveSeatCountsCopyWith<$Res> get seatCounts;
 
 }
 /// @nodoc
@@ -71,15 +73,26 @@ class _$LiveConfigCopyWithImpl<$Res>
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,}) {
   return _then(LiveConfig(
 hostingEnabled: null == hostingEnabled ? _self.hostingEnabled : hostingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,heartbeatIntervalSeconds: null == heartbeatIntervalSeconds ? _self.heartbeatIntervalSeconds : heartbeatIntervalSeconds // ignore: cast_nullable_to_non_nullable
 as int,heartbeatStaleAfterSeconds: null == heartbeatStaleAfterSeconds ? _self.heartbeatStaleAfterSeconds : heartbeatStaleAfterSeconds // ignore: cast_nullable_to_non_nullable
-as int,
+as int,themes: null == themes ? _self.themes : themes // ignore: cast_nullable_to_non_nullable
+as List<String>,seatCounts: null == seatCounts ? _self.seatCounts : seatCounts // ignore: cast_nullable_to_non_nullable
+as LiveSeatCounts,
   ));
 }
-
+/// Create a copy of LiveConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatCountsCopyWith<$Res> get seatCounts {
+  
+  return $LiveSeatCountsCopyWith<$Res>(_self.seatCounts, (value) {
+    return _then(_self.copyWith(seatCounts: value));
+  });
+}
 }
 
 
@@ -161,10 +174,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveConfig() when $default != null:
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts);case _:
   return orElse();
 
 }
@@ -182,10 +195,10 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts)  $default,) {final _that = this;
 switch (_that) {
 case _LiveConfig():
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +215,10 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool hostingEnabled,  int heartbeatIntervalSeconds,  int heartbeatStaleAfterSeconds,  List<String> themes,  LiveSeatCounts seatCounts)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveConfig() when $default != null:
-return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds);case _:
+return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartbeatStaleAfterSeconds,_that.themes,_that.seatCounts);case _:
   return null;
 
 }
@@ -217,12 +230,23 @@ return $default(_that.hostingEnabled,_that.heartbeatIntervalSeconds,_that.heartb
 @JsonSerializable()
 
 class _LiveConfig implements LiveConfig {
-  const _LiveConfig({required this.hostingEnabled, required this.heartbeatIntervalSeconds, required this.heartbeatStaleAfterSeconds});
+  const _LiveConfig({required this.hostingEnabled, required this.heartbeatIntervalSeconds, required this.heartbeatStaleAfterSeconds,  List<String> themes = const <String>[LiveThemes.classic], this.seatCounts = const LiveSeatCounts()}): _themes = themes;
   factory _LiveConfig.fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);
 
 @override final  bool hostingEnabled;
 @override final  int heartbeatIntervalSeconds;
 @override final  int heartbeatStaleAfterSeconds;
+/// CP-011: room themes the server accepts (the first is the default).
+ final  List<String> _themes;
+/// CP-011: room themes the server accepts (the first is the default).
+@override@JsonKey() List<String> get themes {
+  if (_themes is EqualUnmodifiableListView) return _themes;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_themes);
+}
+
+/// CP-011: allowed seat counts per mode, the host's tile included.
+@override@JsonKey() final  LiveSeatCounts seatCounts;
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -237,18 +261,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveConfig&&(identical(other.hostingEnabled, hostingEnabled) || other.hostingEnabled == hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == heartbeatStaleAfterSeconds));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveConfig&&(identical(other.hostingEnabled, hostingEnabled) || other.hostingEnabled == hostingEnabled)&&(identical(other.heartbeatIntervalSeconds, heartbeatIntervalSeconds) || other.heartbeatIntervalSeconds == heartbeatIntervalSeconds)&&(identical(other.heartbeatStaleAfterSeconds, heartbeatStaleAfterSeconds) || other.heartbeatStaleAfterSeconds == heartbeatStaleAfterSeconds)&&const DeepCollectionEquality().equals(other.themes, _themes)&&(identical(other.seatCounts, seatCounts) || other.seatCounts == seatCounts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,hostingEnabled,heartbeatIntervalSeconds,heartbeatStaleAfterSeconds);
+    return Object.hash(runtimeType,hostingEnabled,heartbeatIntervalSeconds,heartbeatStaleAfterSeconds,const DeepCollectionEquality().hash(_themes),seatCounts);
 }
 
 @override
 String toString() {
-    return 'LiveConfig(hostingEnabled: $hostingEnabled, heartbeatIntervalSeconds: $heartbeatIntervalSeconds, heartbeatStaleAfterSeconds: $heartbeatStaleAfterSeconds)';
+    return 'LiveConfig(hostingEnabled: $hostingEnabled, heartbeatIntervalSeconds: $heartbeatIntervalSeconds, heartbeatStaleAfterSeconds: $heartbeatStaleAfterSeconds, themes: $themes, seatCounts: $seatCounts)';
 }
 
 
@@ -259,11 +283,11 @@ abstract mixin class _$LiveConfigCopyWith<$Res> implements $LiveConfigCopyWith<$
   factory _$LiveConfigCopyWith(_LiveConfig value, $Res Function(_LiveConfig) _then) = __$LiveConfigCopyWithImpl;
 @override @useResult
 $Res call({
- bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds
+ bool hostingEnabled, int heartbeatIntervalSeconds, int heartbeatStaleAfterSeconds, List<String> themes, LiveSeatCounts seatCounts
 });
 
 
-
+@override $LiveSeatCountsCopyWith<$Res> get seatCounts;
 
 }
 /// @nodoc
@@ -276,12 +300,308 @@ class __$LiveConfigCopyWithImpl<$Res>
 
 /// Create a copy of LiveConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? hostingEnabled = null,Object? heartbeatIntervalSeconds = null,Object? heartbeatStaleAfterSeconds = null,Object? themes = null,Object? seatCounts = null,}) {
   return _then(_LiveConfig(
 hostingEnabled: null == hostingEnabled ? _self.hostingEnabled : hostingEnabled // ignore: cast_nullable_to_non_nullable
 as bool,heartbeatIntervalSeconds: null == heartbeatIntervalSeconds ? _self.heartbeatIntervalSeconds : heartbeatIntervalSeconds // ignore: cast_nullable_to_non_nullable
 as int,heartbeatStaleAfterSeconds: null == heartbeatStaleAfterSeconds ? _self.heartbeatStaleAfterSeconds : heartbeatStaleAfterSeconds // ignore: cast_nullable_to_non_nullable
-as int,
+as int,themes: null == themes ? _self._themes : themes // ignore: cast_nullable_to_non_nullable
+as List<String>,seatCounts: null == seatCounts ? _self.seatCounts : seatCounts // ignore: cast_nullable_to_non_nullable
+as LiveSeatCounts,
+  ));
+}
+
+/// Create a copy of LiveConfig
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatCountsCopyWith<$Res> get seatCounts {
+  
+  return $LiveSeatCountsCopyWith<$Res>(_self.seatCounts, (value) {
+    return _then(_self.copyWith(seatCounts: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeatCounts {
+
+@JsonKey(name: 'MULTI') List<int> get multi;@JsonKey(name: 'AUDIO') List<int> get audio;
+/// Create a copy of LiveSeatCounts
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatCountsCopyWith<LiveSeatCounts> get copyWith => _$LiveSeatCountsCopyWithImpl<LiveSeatCounts>(this as LiveSeatCounts, _$identity);
+
+  /// Serializes this LiveSeatCounts to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeatCounts;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeatCounts&&const DeepCollectionEquality().equals(other.multi, _this.multi)&&const DeepCollectionEquality().equals(other.audio, _this.audio));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeatCounts;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.multi),const DeepCollectionEquality().hash(_this.audio));
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeatCounts;
+  return 'LiveSeatCounts(multi: ${_this.multi}, audio: ${_this.audio})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatCountsCopyWith<$Res>  {
+  factory $LiveSeatCountsCopyWith(LiveSeatCounts value, $Res Function(LiveSeatCounts) _then) = _$LiveSeatCountsCopyWithImpl;
+@useResult
+$Res call({
+@JsonKey(name: 'MULTI') List<int> multi,@JsonKey(name: 'AUDIO') List<int> audio
+});
+
+
+
+
+}
+/// @nodoc
+class _$LiveSeatCountsCopyWithImpl<$Res>
+    implements $LiveSeatCountsCopyWith<$Res> {
+  _$LiveSeatCountsCopyWithImpl(this._self, this._then);
+
+  final LiveSeatCounts _self;
+  final $Res Function(LiveSeatCounts) _then;
+
+/// Create a copy of LiveSeatCounts
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? multi = null,Object? audio = null,}) {
+  return _then(LiveSeatCounts(
+multi: null == multi ? _self.multi : multi // ignore: cast_nullable_to_non_nullable
+as List<int>,audio: null == audio ? _self.audio : audio // ignore: cast_nullable_to_non_nullable
+as List<int>,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeatCounts].
+extension LiveSeatCountsPatterns on LiveSeatCounts {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeatCounts value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeatCounts() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeatCounts value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatCounts():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeatCounts value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatCounts() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'MULTI')  List<int> multi, @JsonKey(name: 'AUDIO')  List<int> audio)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeatCounts() when $default != null:
+return $default(_that.multi,_that.audio);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'MULTI')  List<int> multi, @JsonKey(name: 'AUDIO')  List<int> audio)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatCounts():
+return $default(_that.multi,_that.audio);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'MULTI')  List<int> multi, @JsonKey(name: 'AUDIO')  List<int> audio)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatCounts() when $default != null:
+return $default(_that.multi,_that.audio);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeatCounts implements LiveSeatCounts {
+  const _LiveSeatCounts({@JsonKey(name: 'MULTI')  List<int> multi = const <int>[4, 6, 9, 12], @JsonKey(name: 'AUDIO')  List<int> audio = const <int>[5, 9, 13]}): _multi = multi,_audio = audio;
+  factory _LiveSeatCounts.fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);
+
+ final  List<int> _multi;
+@override@JsonKey(name: 'MULTI') List<int> get multi {
+  if (_multi is EqualUnmodifiableListView) return _multi;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_multi);
+}
+
+ final  List<int> _audio;
+@override@JsonKey(name: 'AUDIO') List<int> get audio {
+  if (_audio is EqualUnmodifiableListView) return _audio;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_audio);
+}
+
+
+/// Create a copy of LiveSeatCounts
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatCountsCopyWith<_LiveSeatCounts> get copyWith => __$LiveSeatCountsCopyWithImpl<_LiveSeatCounts>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatCountsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeatCounts&&const DeepCollectionEquality().equals(other.multi, _multi)&&const DeepCollectionEquality().equals(other.audio, _audio));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_multi),const DeepCollectionEquality().hash(_audio));
+}
+
+@override
+String toString() {
+    return 'LiveSeatCounts(multi: $multi, audio: $audio)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatCountsCopyWith<$Res> implements $LiveSeatCountsCopyWith<$Res> {
+  factory _$LiveSeatCountsCopyWith(_LiveSeatCounts value, $Res Function(_LiveSeatCounts) _then) = __$LiveSeatCountsCopyWithImpl;
+@override @useResult
+$Res call({
+@JsonKey(name: 'MULTI') List<int> multi,@JsonKey(name: 'AUDIO') List<int> audio
+});
+
+
+
+
+}
+/// @nodoc
+class __$LiveSeatCountsCopyWithImpl<$Res>
+    implements _$LiveSeatCountsCopyWith<$Res> {
+  __$LiveSeatCountsCopyWithImpl(this._self, this._then);
+
+  final _LiveSeatCounts _self;
+  final $Res Function(_LiveSeatCounts) _then;
+
+/// Create a copy of LiveSeatCounts
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? multi = null,Object? audio = null,}) {
+  return _then(_LiveSeatCounts(
+multi: null == multi ? _self._multi : multi // ignore: cast_nullable_to_non_nullable
+as List<int>,audio: null == audio ? _self._audio : audio // ignore: cast_nullable_to_non_nullable
+as List<int>,
   ));
 }
 
@@ -565,7 +885,9 @@ as String,
 /// @nodoc
 mixin _$LiveRoomSummary {
 
- String get id; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; DateTime get startedAt; String? get coverUrl; LiveCategory? get category; UserSummary get host;
+ String get id; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; DateTime get startedAt; String? get coverUrl; LiveCategory? get category; UserSummary get host;/// CP-011: tiles (host included) in a MULTI or AUDIO room.
+ int? get seatCount;/// CP-011: guests seated now.
+ int get occupiedSeats; String get theme;
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -579,20 +901,20 @@ $LiveRoomSummaryCopyWith<LiveRoomSummary> get copyWith => _$LiveRoomSummaryCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoomSummary;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoomSummary;
-  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host);
+  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.seatCount,_this.occupiedSeats,_this.theme);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoomSummary;
-  return 'LiveRoomSummary(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host})';
+  return 'LiveRoomSummary(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme})';
 }
 
 
@@ -603,7 +925,7 @@ abstract mixin class $LiveRoomSummaryCopyWith<$Res>  {
   factory $LiveRoomSummaryCopyWith(LiveRoomSummary value, $Res Function(LiveRoomSummary) _then) = _$LiveRoomSummaryCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme
 });
 
 
@@ -620,7 +942,7 @@ class _$LiveRoomSummaryCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,}) {
   return _then(LiveRoomSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -630,7 +952,10 @@ as int,startedAt: null == startedAt ? _self.startedAt : startedAt // ignore: cas
 as DateTime,coverUrl: freezed == coverUrl ? _self.coverUrl : coverUrl // ignore: cast_nullable_to_non_nullable
 as String?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as LiveCategory?,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
-as UserSummary,
+as UserSummary,seatCount: freezed == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int?,occupiedSeats: null == occupiedSeats ? _self.occupiedSeats : occupiedSeats // ignore: cast_nullable_to_non_nullable
+as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 /// Create a copy of LiveRoomSummary
@@ -736,10 +1061,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   return orElse();
 
 }
@@ -757,10 +1082,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -777,10 +1102,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  int? seatCount,  int occupiedSeats,  String theme)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomSummary() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   return null;
 
 }
@@ -792,7 +1117,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoomSummary implements LiveRoomSummary {
-  const _LiveRoomSummary({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host});
+  const _LiveRoomSummary({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic});
   factory _LiveRoomSummary.fromJson(Map<String, dynamic> json) => _$LiveRoomSummaryFromJson(json);
 
 @override final  String id;
@@ -803,6 +1128,11 @@ class _LiveRoomSummary implements LiveRoomSummary {
 @override final  String? coverUrl;
 @override final  LiveCategory? category;
 @override final  UserSummary host;
+/// CP-011: tiles (host included) in a MULTI or AUDIO room.
+@override final  int? seatCount;
+/// CP-011: guests seated now.
+@override@JsonKey() final  int occupiedSeats;
+@override@JsonKey() final  String theme;
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -817,18 +1147,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host);
+    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,seatCount,occupiedSeats,theme);
 }
 
 @override
 String toString() {
-    return 'LiveRoomSummary(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host)';
+    return 'LiveRoomSummary(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme)';
 }
 
 
@@ -839,7 +1169,7 @@ abstract mixin class _$LiveRoomSummaryCopyWith<$Res> implements $LiveRoomSummary
   factory _$LiveRoomSummaryCopyWith(_LiveRoomSummary value, $Res Function(_LiveRoomSummary) _then) = __$LiveRoomSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, int? seatCount, int occupiedSeats, String theme
 });
 
 
@@ -856,7 +1186,7 @@ class __$LiveRoomSummaryCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,}) {
   return _then(_LiveRoomSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -866,7 +1196,10 @@ as int,startedAt: null == startedAt ? _self.startedAt : startedAt // ignore: cas
 as DateTime,coverUrl: freezed == coverUrl ? _self.coverUrl : coverUrl // ignore: cast_nullable_to_non_nullable
 as String?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as LiveCategory?,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
-as UserSummary,
+as UserSummary,seatCount: freezed == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int?,occupiedSeats: null == occupiedSeats ? _self.occupiedSeats : occupiedSeats // ignore: cast_nullable_to_non_nullable
+as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -899,7 +1232,8 @@ $UserSummaryCopyWith<$Res> get host {
 mixin _$LiveRoom {
 
  String get id; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; DateTime get startedAt; String? get coverUrl; LiveCategory? get category; UserSummary get host; LiveRoomStatus get status; DateTime? get endedAt;@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? get endReason;/// CP-010: people without an account may watch.
- bool get allowGuests;
+ bool get allowGuests;/// CP-011 (see [LiveRoomSummary]).
+ int? get seatCount; int get occupiedSeats; String get theme;
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -913,20 +1247,20 @@ $LiveRoomCopyWith<LiveRoom> get copyWith => _$LiveRoomCopyWithImpl<LiveRoom>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoom;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoom;
-  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests);
+  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests,_this.seatCount,_this.occupiedSeats,_this.theme);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoom;
-  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests})';
+  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme})';
 }
 
 
@@ -937,7 +1271,7 @@ abstract mixin class $LiveRoomCopyWith<$Res>  {
   factory $LiveRoomCopyWith(LiveRoom value, $Res Function(LiveRoom) _then) = _$LiveRoomCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme
 });
 
 
@@ -954,7 +1288,7 @@ class _$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,}) {
   return _then(LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -968,7 +1302,10 @@ as UserSummary,status: null == status ? _self.status : status // ignore: cast_nu
 as LiveRoomStatus,endedAt: freezed == endedAt ? _self.endedAt : endedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endReason: freezed == endReason ? _self.endReason : endReason // ignore: cast_nullable_to_non_nullable
 as LiveRoomEndReason?,allowGuests: null == allowGuests ? _self.allowGuests : allowGuests // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,seatCount: freezed == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int?,occupiedSeats: null == occupiedSeats ? _self.occupiedSeats : occupiedSeats // ignore: cast_nullable_to_non_nullable
+as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 /// Create a copy of LiveRoom
@@ -1074,10 +1411,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   return orElse();
 
 }
@@ -1095,10 +1432,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1115,10 +1452,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme);case _:
   return null;
 
 }
@@ -1130,7 +1467,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoom implements LiveRoom {
-  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true});
+  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic});
   factory _LiveRoom.fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
 
 @override final  String id;
@@ -1146,6 +1483,10 @@ class _LiveRoom implements LiveRoom {
 @override@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) final  LiveRoomEndReason? endReason;
 /// CP-010: people without an account may watch.
 @override@JsonKey() final  bool allowGuests;
+/// CP-011 (see [LiveRoomSummary]).
+@override final  int? seatCount;
+@override@JsonKey() final  int occupiedSeats;
+@override@JsonKey() final  String theme;
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
@@ -1160,18 +1501,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests);
+    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests,seatCount,occupiedSeats,theme);
 }
 
 @override
 String toString() {
-    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests)';
+    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme)';
 }
 
 
@@ -1182,7 +1523,7 @@ abstract mixin class _$LiveRoomCopyWith<$Res> implements $LiveRoomCopyWith<$Res>
   factory _$LiveRoomCopyWith(_LiveRoom value, $Res Function(_LiveRoom) _then) = __$LiveRoomCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme
 });
 
 
@@ -1199,7 +1540,7 @@ class __$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,}) {
   return _then(_LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -1213,7 +1554,10 @@ as UserSummary,status: null == status ? _self.status : status // ignore: cast_nu
 as LiveRoomStatus,endedAt: freezed == endedAt ? _self.endedAt : endedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endReason: freezed == endReason ? _self.endReason : endReason // ignore: cast_nullable_to_non_nullable
 as LiveRoomEndReason?,allowGuests: null == allowGuests ? _self.allowGuests : allowGuests // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,seatCount: freezed == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int?,occupiedSeats: null == occupiedSeats ? _self.occupiedSeats : occupiedSeats // ignore: cast_nullable_to_non_nullable
+as int,theme: null == theme ? _self.theme : theme // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -2122,6 +2466,1582 @@ $UserSummaryCopyWith<$Res>? get user {
 
   return $UserSummaryCopyWith<$Res>(_self.user!, (value) {
     return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeat {
+
+ int get index;@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState get state; UserSummary? get user; bool get mutedByHost;
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatCopyWith<LiveSeat> get copyWith => _$LiveSeatCopyWithImpl<LiveSeat>(this as LiveSeat, _$identity);
+
+  /// Serializes this LiveSeat to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeat;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeat&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.mutedByHost, _this.mutedByHost) || other.mutedByHost == _this.mutedByHost));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeat;
+  return Object.hash(runtimeType,_this.index,_this.state,_this.user,_this.mutedByHost);
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeat;
+  return 'LiveSeat(index: ${_this.index}, state: ${_this.state}, user: ${_this.user}, mutedByHost: ${_this.mutedByHost})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatCopyWith<$Res>  {
+  factory $LiveSeatCopyWith(LiveSeat value, $Res Function(LiveSeat) _then) = _$LiveSeatCopyWithImpl;
+@useResult
+$Res call({
+ int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost
+});
+
+
+$UserSummaryCopyWith<$Res>? get user;
+
+}
+/// @nodoc
+class _$LiveSeatCopyWithImpl<$Res>
+    implements $LiveSeatCopyWith<$Res> {
+  _$LiveSeatCopyWithImpl(this._self, this._then);
+
+  final LiveSeat _self;
+  final $Res Function(LiveSeat) _then;
+
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,}) {
+  return _then(LiveSeat(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as LiveSeatState,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary?,mutedByHost: null == mutedByHost ? _self.mutedByHost : mutedByHost // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get user {
+    if (_self.user == null) {
+    return null;
+  }
+
+  return $UserSummaryCopyWith<$Res>(_self.user!, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeat].
+extension LiveSeatPatterns on LiveSeat {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeat value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeat() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeat value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeat():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeat value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeat() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeat() when $default != null:
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeat():
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeat() when $default != null:
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeat implements LiveSeat {
+  const _LiveSeat({required this.index, @JsonKey(unknownEnumValue: LiveSeatState.empty) required this.state, required this.user, this.mutedByHost = false});
+  factory _LiveSeat.fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);
+
+@override final  int index;
+@override@JsonKey(unknownEnumValue: LiveSeatState.empty) final  LiveSeatState state;
+@override final  UserSummary? user;
+@override@JsonKey() final  bool mutedByHost;
+
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatCopyWith<_LiveSeat> get copyWith => __$LiveSeatCopyWithImpl<_LiveSeat>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeat&&(identical(other.index, index) || other.index == index)&&(identical(other.state, state) || other.state == state)&&(identical(other.user, user) || other.user == user)&&(identical(other.mutedByHost, mutedByHost) || other.mutedByHost == mutedByHost));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,index,state,user,mutedByHost);
+}
+
+@override
+String toString() {
+    return 'LiveSeat(index: $index, state: $state, user: $user, mutedByHost: $mutedByHost)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatCopyWith<$Res> implements $LiveSeatCopyWith<$Res> {
+  factory _$LiveSeatCopyWith(_LiveSeat value, $Res Function(_LiveSeat) _then) = __$LiveSeatCopyWithImpl;
+@override @useResult
+$Res call({
+ int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost
+});
+
+
+@override $UserSummaryCopyWith<$Res>? get user;
+
+}
+/// @nodoc
+class __$LiveSeatCopyWithImpl<$Res>
+    implements _$LiveSeatCopyWith<$Res> {
+  __$LiveSeatCopyWithImpl(this._self, this._then);
+
+  final _LiveSeat _self;
+  final $Res Function(_LiveSeat) _then;
+
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,}) {
+  return _then(_LiveSeat(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as LiveSeatState,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary?,mutedByHost: null == mutedByHost ? _self.mutedByHost : mutedByHost // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+/// Create a copy of LiveSeat
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get user {
+    if (_self.user == null) {
+    return null;
+  }
+
+  return $UserSummaryCopyWith<$Res>(_self.user!, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeatRequest {
+
+ String get id; UserSummary get user; int? get seatIndex; DateTime get createdAt;
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatRequestCopyWith<LiveSeatRequest> get copyWith => _$LiveSeatRequestCopyWithImpl<LiveSeatRequest>(this as LiveSeatRequest, _$identity);
+
+  /// Serializes this LiveSeatRequest to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeatRequest;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeatRequest&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.seatIndex, _this.seatIndex) || other.seatIndex == _this.seatIndex)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeatRequest;
+  return Object.hash(runtimeType,_this.id,_this.user,_this.seatIndex,_this.createdAt);
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeatRequest;
+  return 'LiveSeatRequest(id: ${_this.id}, user: ${_this.user}, seatIndex: ${_this.seatIndex}, createdAt: ${_this.createdAt})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatRequestCopyWith<$Res>  {
+  factory $LiveSeatRequestCopyWith(LiveSeatRequest value, $Res Function(LiveSeatRequest) _then) = _$LiveSeatRequestCopyWithImpl;
+@useResult
+$Res call({
+ String id, UserSummary user, int? seatIndex, DateTime createdAt
+});
+
+
+$UserSummaryCopyWith<$Res> get user;
+
+}
+/// @nodoc
+class _$LiveSeatRequestCopyWithImpl<$Res>
+    implements $LiveSeatRequestCopyWith<$Res> {
+  _$LiveSeatRequestCopyWithImpl(this._self, this._then);
+
+  final LiveSeatRequest _self;
+  final $Res Function(LiveSeatRequest) _then;
+
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? user = null,Object? seatIndex = freezed,Object? createdAt = null,}) {
+  return _then(LiveSeatRequest(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get user {
+  
+  return $UserSummaryCopyWith<$Res>(_self.user, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeatRequest].
+extension LiveSeatRequestPatterns on LiveSeatRequest {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeatRequest value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeatRequest() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeatRequest value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatRequest():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeatRequest value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatRequest() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  UserSummary user,  int? seatIndex,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeatRequest() when $default != null:
+return $default(_that.id,_that.user,_that.seatIndex,_that.createdAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  UserSummary user,  int? seatIndex,  DateTime createdAt)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatRequest():
+return $default(_that.id,_that.user,_that.seatIndex,_that.createdAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  UserSummary user,  int? seatIndex,  DateTime createdAt)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatRequest() when $default != null:
+return $default(_that.id,_that.user,_that.seatIndex,_that.createdAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeatRequest implements LiveSeatRequest {
+  const _LiveSeatRequest({required this.id, required this.user, required this.seatIndex, required this.createdAt});
+  factory _LiveSeatRequest.fromJson(Map<String, dynamic> json) => _$LiveSeatRequestFromJson(json);
+
+@override final  String id;
+@override final  UserSummary user;
+@override final  int? seatIndex;
+@override final  DateTime createdAt;
+
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatRequestCopyWith<_LiveSeatRequest> get copyWith => __$LiveSeatRequestCopyWithImpl<_LiveSeatRequest>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatRequestToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeatRequest&&(identical(other.id, id) || other.id == id)&&(identical(other.user, user) || other.user == user)&&(identical(other.seatIndex, seatIndex) || other.seatIndex == seatIndex)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,user,seatIndex,createdAt);
+}
+
+@override
+String toString() {
+    return 'LiveSeatRequest(id: $id, user: $user, seatIndex: $seatIndex, createdAt: $createdAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatRequestCopyWith<$Res> implements $LiveSeatRequestCopyWith<$Res> {
+  factory _$LiveSeatRequestCopyWith(_LiveSeatRequest value, $Res Function(_LiveSeatRequest) _then) = __$LiveSeatRequestCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, UserSummary user, int? seatIndex, DateTime createdAt
+});
+
+
+@override $UserSummaryCopyWith<$Res> get user;
+
+}
+/// @nodoc
+class __$LiveSeatRequestCopyWithImpl<$Res>
+    implements _$LiveSeatRequestCopyWith<$Res> {
+  __$LiveSeatRequestCopyWithImpl(this._self, this._then);
+
+  final _LiveSeatRequest _self;
+  final $Res Function(_LiveSeatRequest) _then;
+
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? user = null,Object? seatIndex = freezed,Object? createdAt = null,}) {
+  return _then(_LiveSeatRequest(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+/// Create a copy of LiveSeatRequest
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get user {
+  
+  return $UserSummaryCopyWith<$Res>(_self.user, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeatInvite {
+
+ String get id; UserSummary get user; int? get seatIndex; UserSummary get invitedBy; DateTime get expiresAt;
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatInviteCopyWith<LiveSeatInvite> get copyWith => _$LiveSeatInviteCopyWithImpl<LiveSeatInvite>(this as LiveSeatInvite, _$identity);
+
+  /// Serializes this LiveSeatInvite to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeatInvite;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeatInvite&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.seatIndex, _this.seatIndex) || other.seatIndex == _this.seatIndex)&&(identical(other.invitedBy, _this.invitedBy) || other.invitedBy == _this.invitedBy)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeatInvite;
+  return Object.hash(runtimeType,_this.id,_this.user,_this.seatIndex,_this.invitedBy,_this.expiresAt);
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeatInvite;
+  return 'LiveSeatInvite(id: ${_this.id}, user: ${_this.user}, seatIndex: ${_this.seatIndex}, invitedBy: ${_this.invitedBy}, expiresAt: ${_this.expiresAt})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatInviteCopyWith<$Res>  {
+  factory $LiveSeatInviteCopyWith(LiveSeatInvite value, $Res Function(LiveSeatInvite) _then) = _$LiveSeatInviteCopyWithImpl;
+@useResult
+$Res call({
+ String id, UserSummary user, int? seatIndex, UserSummary invitedBy, DateTime expiresAt
+});
+
+
+$UserSummaryCopyWith<$Res> get user;$UserSummaryCopyWith<$Res> get invitedBy;
+
+}
+/// @nodoc
+class _$LiveSeatInviteCopyWithImpl<$Res>
+    implements $LiveSeatInviteCopyWith<$Res> {
+  _$LiveSeatInviteCopyWithImpl(this._self, this._then);
+
+  final LiveSeatInvite _self;
+  final $Res Function(LiveSeatInvite) _then;
+
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? user = null,Object? seatIndex = freezed,Object? invitedBy = null,Object? expiresAt = null,}) {
+  return _then(LiveSeatInvite(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,invitedBy: null == invitedBy ? _self.invitedBy : invitedBy // ignore: cast_nullable_to_non_nullable
+as UserSummary,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get user {
+  
+  return $UserSummaryCopyWith<$Res>(_self.user, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get invitedBy {
+  
+  return $UserSummaryCopyWith<$Res>(_self.invitedBy, (value) {
+    return _then(_self.copyWith(invitedBy: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeatInvite].
+extension LiveSeatInvitePatterns on LiveSeatInvite {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeatInvite value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeatInvite() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeatInvite value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatInvite():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeatInvite value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatInvite() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  UserSummary user,  int? seatIndex,  UserSummary invitedBy,  DateTime expiresAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeatInvite() when $default != null:
+return $default(_that.id,_that.user,_that.seatIndex,_that.invitedBy,_that.expiresAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  UserSummary user,  int? seatIndex,  UserSummary invitedBy,  DateTime expiresAt)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatInvite():
+return $default(_that.id,_that.user,_that.seatIndex,_that.invitedBy,_that.expiresAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  UserSummary user,  int? seatIndex,  UserSummary invitedBy,  DateTime expiresAt)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatInvite() when $default != null:
+return $default(_that.id,_that.user,_that.seatIndex,_that.invitedBy,_that.expiresAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeatInvite implements LiveSeatInvite {
+  const _LiveSeatInvite({required this.id, required this.user, required this.seatIndex, required this.invitedBy, required this.expiresAt});
+  factory _LiveSeatInvite.fromJson(Map<String, dynamic> json) => _$LiveSeatInviteFromJson(json);
+
+@override final  String id;
+@override final  UserSummary user;
+@override final  int? seatIndex;
+@override final  UserSummary invitedBy;
+@override final  DateTime expiresAt;
+
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatInviteCopyWith<_LiveSeatInvite> get copyWith => __$LiveSeatInviteCopyWithImpl<_LiveSeatInvite>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatInviteToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeatInvite&&(identical(other.id, id) || other.id == id)&&(identical(other.user, user) || other.user == user)&&(identical(other.seatIndex, seatIndex) || other.seatIndex == seatIndex)&&(identical(other.invitedBy, invitedBy) || other.invitedBy == invitedBy)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,id,user,seatIndex,invitedBy,expiresAt);
+}
+
+@override
+String toString() {
+    return 'LiveSeatInvite(id: $id, user: $user, seatIndex: $seatIndex, invitedBy: $invitedBy, expiresAt: $expiresAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatInviteCopyWith<$Res> implements $LiveSeatInviteCopyWith<$Res> {
+  factory _$LiveSeatInviteCopyWith(_LiveSeatInvite value, $Res Function(_LiveSeatInvite) _then) = __$LiveSeatInviteCopyWithImpl;
+@override @useResult
+$Res call({
+ String id, UserSummary user, int? seatIndex, UserSummary invitedBy, DateTime expiresAt
+});
+
+
+@override $UserSummaryCopyWith<$Res> get user;@override $UserSummaryCopyWith<$Res> get invitedBy;
+
+}
+/// @nodoc
+class __$LiveSeatInviteCopyWithImpl<$Res>
+    implements _$LiveSeatInviteCopyWith<$Res> {
+  __$LiveSeatInviteCopyWithImpl(this._self, this._then);
+
+  final _LiveSeatInvite _self;
+  final $Res Function(_LiveSeatInvite) _then;
+
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? user = null,Object? seatIndex = freezed,Object? invitedBy = null,Object? expiresAt = null,}) {
+  return _then(_LiveSeatInvite(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,invitedBy: null == invitedBy ? _self.invitedBy : invitedBy // ignore: cast_nullable_to_non_nullable
+as UserSummary,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get user {
+  
+  return $UserSummaryCopyWith<$Res>(_self.user, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}/// Create a copy of LiveSeatInvite
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res> get invitedBy {
+  
+  return $UserSummaryCopyWith<$Res>(_self.invitedBy, (value) {
+    return _then(_self.copyWith(invitedBy: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeatsMine {
+
+@JsonKey(unknownEnumValue: LiveSeatRole.viewer) LiveSeatRole get role; int? get seatIndex; LiveSeatRequest? get request; LiveSeatInvite? get invite;
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatsMineCopyWith<LiveSeatsMine> get copyWith => _$LiveSeatsMineCopyWithImpl<LiveSeatsMine>(this as LiveSeatsMine, _$identity);
+
+  /// Serializes this LiveSeatsMine to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeatsMine;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeatsMine&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.seatIndex, _this.seatIndex) || other.seatIndex == _this.seatIndex)&&(identical(other.request, _this.request) || other.request == _this.request)&&(identical(other.invite, _this.invite) || other.invite == _this.invite));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeatsMine;
+  return Object.hash(runtimeType,_this.role,_this.seatIndex,_this.request,_this.invite);
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeatsMine;
+  return 'LiveSeatsMine(role: ${_this.role}, seatIndex: ${_this.seatIndex}, request: ${_this.request}, invite: ${_this.invite})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatsMineCopyWith<$Res>  {
+  factory $LiveSeatsMineCopyWith(LiveSeatsMine value, $Res Function(LiveSeatsMine) _then) = _$LiveSeatsMineCopyWithImpl;
+@useResult
+$Res call({
+@JsonKey(unknownEnumValue: LiveSeatRole.viewer) LiveSeatRole role, int? seatIndex, LiveSeatRequest? request, LiveSeatInvite? invite
+});
+
+
+$LiveSeatRequestCopyWith<$Res>? get request;$LiveSeatInviteCopyWith<$Res>? get invite;
+
+}
+/// @nodoc
+class _$LiveSeatsMineCopyWithImpl<$Res>
+    implements $LiveSeatsMineCopyWith<$Res> {
+  _$LiveSeatsMineCopyWithImpl(this._self, this._then);
+
+  final LiveSeatsMine _self;
+  final $Res Function(LiveSeatsMine) _then;
+
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? role = null,Object? seatIndex = freezed,Object? request = freezed,Object? invite = freezed,}) {
+  return _then(LiveSeatsMine(
+role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as LiveSeatRole,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,request: freezed == request ? _self.request : request // ignore: cast_nullable_to_non_nullable
+as LiveSeatRequest?,invite: freezed == invite ? _self.invite : invite // ignore: cast_nullable_to_non_nullable
+as LiveSeatInvite?,
+  ));
+}
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatRequestCopyWith<$Res>? get request {
+    if (_self.request == null) {
+    return null;
+  }
+
+  return $LiveSeatRequestCopyWith<$Res>(_self.request!, (value) {
+    return _then(_self.copyWith(request: value));
+  });
+}/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatInviteCopyWith<$Res>? get invite {
+    if (_self.invite == null) {
+    return null;
+  }
+
+  return $LiveSeatInviteCopyWith<$Res>(_self.invite!, (value) {
+    return _then(_self.copyWith(invite: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeatsMine].
+extension LiveSeatsMinePatterns on LiveSeatsMine {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeatsMine value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeatsMine() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeatsMine value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatsMine():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeatsMine value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeatsMine() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(unknownEnumValue: LiveSeatRole.viewer)  LiveSeatRole role,  int? seatIndex,  LiveSeatRequest? request,  LiveSeatInvite? invite)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeatsMine() when $default != null:
+return $default(_that.role,_that.seatIndex,_that.request,_that.invite);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(unknownEnumValue: LiveSeatRole.viewer)  LiveSeatRole role,  int? seatIndex,  LiveSeatRequest? request,  LiveSeatInvite? invite)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatsMine():
+return $default(_that.role,_that.seatIndex,_that.request,_that.invite);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(unknownEnumValue: LiveSeatRole.viewer)  LiveSeatRole role,  int? seatIndex,  LiveSeatRequest? request,  LiveSeatInvite? invite)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeatsMine() when $default != null:
+return $default(_that.role,_that.seatIndex,_that.request,_that.invite);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeatsMine implements LiveSeatsMine {
+  const _LiveSeatsMine({@JsonKey(unknownEnumValue: LiveSeatRole.viewer) required this.role, required this.seatIndex, required this.request, required this.invite});
+  factory _LiveSeatsMine.fromJson(Map<String, dynamic> json) => _$LiveSeatsMineFromJson(json);
+
+@override@JsonKey(unknownEnumValue: LiveSeatRole.viewer) final  LiveSeatRole role;
+@override final  int? seatIndex;
+@override final  LiveSeatRequest? request;
+@override final  LiveSeatInvite? invite;
+
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatsMineCopyWith<_LiveSeatsMine> get copyWith => __$LiveSeatsMineCopyWithImpl<_LiveSeatsMine>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatsMineToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeatsMine&&(identical(other.role, role) || other.role == role)&&(identical(other.seatIndex, seatIndex) || other.seatIndex == seatIndex)&&(identical(other.request, request) || other.request == request)&&(identical(other.invite, invite) || other.invite == invite));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,role,seatIndex,request,invite);
+}
+
+@override
+String toString() {
+    return 'LiveSeatsMine(role: $role, seatIndex: $seatIndex, request: $request, invite: $invite)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatsMineCopyWith<$Res> implements $LiveSeatsMineCopyWith<$Res> {
+  factory _$LiveSeatsMineCopyWith(_LiveSeatsMine value, $Res Function(_LiveSeatsMine) _then) = __$LiveSeatsMineCopyWithImpl;
+@override @useResult
+$Res call({
+@JsonKey(unknownEnumValue: LiveSeatRole.viewer) LiveSeatRole role, int? seatIndex, LiveSeatRequest? request, LiveSeatInvite? invite
+});
+
+
+@override $LiveSeatRequestCopyWith<$Res>? get request;@override $LiveSeatInviteCopyWith<$Res>? get invite;
+
+}
+/// @nodoc
+class __$LiveSeatsMineCopyWithImpl<$Res>
+    implements _$LiveSeatsMineCopyWith<$Res> {
+  __$LiveSeatsMineCopyWithImpl(this._self, this._then);
+
+  final _LiveSeatsMine _self;
+  final $Res Function(_LiveSeatsMine) _then;
+
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? role = null,Object? seatIndex = freezed,Object? request = freezed,Object? invite = freezed,}) {
+  return _then(_LiveSeatsMine(
+role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as LiveSeatRole,seatIndex: freezed == seatIndex ? _self.seatIndex : seatIndex // ignore: cast_nullable_to_non_nullable
+as int?,request: freezed == request ? _self.request : request // ignore: cast_nullable_to_non_nullable
+as LiveSeatRequest?,invite: freezed == invite ? _self.invite : invite // ignore: cast_nullable_to_non_nullable
+as LiveSeatInvite?,
+  ));
+}
+
+/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatRequestCopyWith<$Res>? get request {
+    if (_self.request == null) {
+    return null;
+  }
+
+  return $LiveSeatRequestCopyWith<$Res>(_self.request!, (value) {
+    return _then(_self.copyWith(request: value));
+  });
+}/// Create a copy of LiveSeatsMine
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatInviteCopyWith<$Res>? get invite {
+    if (_self.invite == null) {
+    return null;
+  }
+
+  return $LiveSeatInviteCopyWith<$Res>(_self.invite!, (value) {
+    return _then(_self.copyWith(invite: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveSeats {
+
+ String get roomId;@JsonKey(unknownEnumValue: LiveRoomMode.multi) LiveRoomMode get mode; int get version; int get seatCount; List<LiveSeat> get seats; List<UserSummary> get moderators;/// Host and moderators only.
+ int? get pendingRequests;/// Signed-in callers only.
+ LiveSeatsMine? get mine;
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveSeatsCopyWith<LiveSeats> get copyWith => _$LiveSeatsCopyWithImpl<LiveSeats>(this as LiveSeats, _$identity);
+
+  /// Serializes this LiveSeats to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveSeats;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeats&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.version, _this.version) || other.version == _this.version)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&const DeepCollectionEquality().equals(other.seats, _this.seats)&&const DeepCollectionEquality().equals(other.moderators, _this.moderators)&&(identical(other.pendingRequests, _this.pendingRequests) || other.pendingRequests == _this.pendingRequests)&&(identical(other.mine, _this.mine) || other.mine == _this.mine));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveSeats;
+  return Object.hash(runtimeType,_this.roomId,_this.mode,_this.version,_this.seatCount,const DeepCollectionEquality().hash(_this.seats),const DeepCollectionEquality().hash(_this.moderators),_this.pendingRequests,_this.mine);
+}
+
+@override
+String toString() {
+  final _this = this as LiveSeats;
+  return 'LiveSeats(roomId: ${_this.roomId}, mode: ${_this.mode}, version: ${_this.version}, seatCount: ${_this.seatCount}, seats: ${_this.seats}, moderators: ${_this.moderators}, pendingRequests: ${_this.pendingRequests}, mine: ${_this.mine})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveSeatsCopyWith<$Res>  {
+  factory $LiveSeatsCopyWith(LiveSeats value, $Res Function(LiveSeats) _then) = _$LiveSeatsCopyWithImpl;
+@useResult
+$Res call({
+ String roomId,@JsonKey(unknownEnumValue: LiveRoomMode.multi) LiveRoomMode mode, int version, int seatCount, List<LiveSeat> seats, List<UserSummary> moderators, int? pendingRequests, LiveSeatsMine? mine
+});
+
+
+$LiveSeatsMineCopyWith<$Res>? get mine;
+
+}
+/// @nodoc
+class _$LiveSeatsCopyWithImpl<$Res>
+    implements $LiveSeatsCopyWith<$Res> {
+  _$LiveSeatsCopyWithImpl(this._self, this._then);
+
+  final LiveSeats _self;
+  final $Res Function(LiveSeats) _then;
+
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? roomId = null,Object? mode = null,Object? version = null,Object? seatCount = null,Object? seats = null,Object? moderators = null,Object? pendingRequests = freezed,Object? mine = freezed,}) {
+  return _then(LiveSeats(
+roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as LiveRoomMode,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
+as int,seatCount: null == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int,seats: null == seats ? _self.seats : seats // ignore: cast_nullable_to_non_nullable
+as List<LiveSeat>,moderators: null == moderators ? _self.moderators : moderators // ignore: cast_nullable_to_non_nullable
+as List<UserSummary>,pendingRequests: freezed == pendingRequests ? _self.pendingRequests : pendingRequests // ignore: cast_nullable_to_non_nullable
+as int?,mine: freezed == mine ? _self.mine : mine // ignore: cast_nullable_to_non_nullable
+as LiveSeatsMine?,
+  ));
+}
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatsMineCopyWith<$Res>? get mine {
+    if (_self.mine == null) {
+    return null;
+  }
+
+  return $LiveSeatsMineCopyWith<$Res>(_self.mine!, (value) {
+    return _then(_self.copyWith(mine: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveSeats].
+extension LiveSeatsPatterns on LiveSeats {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveSeats value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveSeats() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveSeats value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeats():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveSeats value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveSeats() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String roomId, @JsonKey(unknownEnumValue: LiveRoomMode.multi)  LiveRoomMode mode,  int version,  int seatCount,  List<LiveSeat> seats,  List<UserSummary> moderators,  int? pendingRequests,  LiveSeatsMine? mine)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveSeats() when $default != null:
+return $default(_that.roomId,_that.mode,_that.version,_that.seatCount,_that.seats,_that.moderators,_that.pendingRequests,_that.mine);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String roomId, @JsonKey(unknownEnumValue: LiveRoomMode.multi)  LiveRoomMode mode,  int version,  int seatCount,  List<LiveSeat> seats,  List<UserSummary> moderators,  int? pendingRequests,  LiveSeatsMine? mine)  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeats():
+return $default(_that.roomId,_that.mode,_that.version,_that.seatCount,_that.seats,_that.moderators,_that.pendingRequests,_that.mine);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String roomId, @JsonKey(unknownEnumValue: LiveRoomMode.multi)  LiveRoomMode mode,  int version,  int seatCount,  List<LiveSeat> seats,  List<UserSummary> moderators,  int? pendingRequests,  LiveSeatsMine? mine)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveSeats() when $default != null:
+return $default(_that.roomId,_that.mode,_that.version,_that.seatCount,_that.seats,_that.moderators,_that.pendingRequests,_that.mine);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveSeats implements LiveSeats {
+  const _LiveSeats({required this.roomId, @JsonKey(unknownEnumValue: LiveRoomMode.multi) required this.mode, required this.version, required this.seatCount, required  List<LiveSeat> seats, required  List<UserSummary> moderators, this.pendingRequests, this.mine}): _seats = seats,_moderators = moderators;
+  factory _LiveSeats.fromJson(Map<String, dynamic> json) => _$LiveSeatsFromJson(json);
+
+@override final  String roomId;
+@override@JsonKey(unknownEnumValue: LiveRoomMode.multi) final  LiveRoomMode mode;
+@override final  int version;
+@override final  int seatCount;
+ final  List<LiveSeat> _seats;
+@override List<LiveSeat> get seats {
+  if (_seats is EqualUnmodifiableListView) return _seats;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_seats);
+}
+
+ final  List<UserSummary> _moderators;
+@override List<UserSummary> get moderators {
+  if (_moderators is EqualUnmodifiableListView) return _moderators;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_moderators);
+}
+
+/// Host and moderators only.
+@override final  int? pendingRequests;
+/// Signed-in callers only.
+@override final  LiveSeatsMine? mine;
+
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveSeatsCopyWith<_LiveSeats> get copyWith => __$LiveSeatsCopyWithImpl<_LiveSeats>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveSeatsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeats&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.version, version) || other.version == version)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&const DeepCollectionEquality().equals(other.seats, _seats)&&const DeepCollectionEquality().equals(other.moderators, _moderators)&&(identical(other.pendingRequests, pendingRequests) || other.pendingRequests == pendingRequests)&&(identical(other.mine, mine) || other.mine == mine));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,roomId,mode,version,seatCount,const DeepCollectionEquality().hash(_seats),const DeepCollectionEquality().hash(_moderators),pendingRequests,mine);
+}
+
+@override
+String toString() {
+    return 'LiveSeats(roomId: $roomId, mode: $mode, version: $version, seatCount: $seatCount, seats: $seats, moderators: $moderators, pendingRequests: $pendingRequests, mine: $mine)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveSeatsCopyWith<$Res> implements $LiveSeatsCopyWith<$Res> {
+  factory _$LiveSeatsCopyWith(_LiveSeats value, $Res Function(_LiveSeats) _then) = __$LiveSeatsCopyWithImpl;
+@override @useResult
+$Res call({
+ String roomId,@JsonKey(unknownEnumValue: LiveRoomMode.multi) LiveRoomMode mode, int version, int seatCount, List<LiveSeat> seats, List<UserSummary> moderators, int? pendingRequests, LiveSeatsMine? mine
+});
+
+
+@override $LiveSeatsMineCopyWith<$Res>? get mine;
+
+}
+/// @nodoc
+class __$LiveSeatsCopyWithImpl<$Res>
+    implements _$LiveSeatsCopyWith<$Res> {
+  __$LiveSeatsCopyWithImpl(this._self, this._then);
+
+  final _LiveSeats _self;
+  final $Res Function(_LiveSeats) _then;
+
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? roomId = null,Object? mode = null,Object? version = null,Object? seatCount = null,Object? seats = null,Object? moderators = null,Object? pendingRequests = freezed,Object? mine = freezed,}) {
+  return _then(_LiveSeats(
+roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
+as String,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as LiveRoomMode,version: null == version ? _self.version : version // ignore: cast_nullable_to_non_nullable
+as int,seatCount: null == seatCount ? _self.seatCount : seatCount // ignore: cast_nullable_to_non_nullable
+as int,seats: null == seats ? _self._seats : seats // ignore: cast_nullable_to_non_nullable
+as List<LiveSeat>,moderators: null == moderators ? _self._moderators : moderators // ignore: cast_nullable_to_non_nullable
+as List<UserSummary>,pendingRequests: freezed == pendingRequests ? _self.pendingRequests : pendingRequests // ignore: cast_nullable_to_non_nullable
+as int?,mine: freezed == mine ? _self.mine : mine // ignore: cast_nullable_to_non_nullable
+as LiveSeatsMine?,
+  ));
+}
+
+/// Create a copy of LiveSeats
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveSeatsMineCopyWith<$Res>? get mine {
+    if (_self.mine == null) {
+    return null;
+  }
+
+  return $LiveSeatsMineCopyWith<$Res>(_self.mine!, (value) {
+    return _then(_self.copyWith(mine: value));
   });
 }
 }

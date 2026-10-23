@@ -31,11 +31,15 @@ abstract interface class LiveRepository {
   /// `GET /live/rooms/{roomId}` (also returns ended rooms).
   Future<LiveRoom> getRoom(String roomId);
 
-  /// `POST /live/rooms` (CP-010: needs the hosting permission).
+  /// `POST /live/rooms` (CP-010: needs the hosting permission). CP-011:
+  /// [mode] SOLO, MULTI or AUDIO; [seatCount] for MULTI and AUDIO only.
   Future<LiveRoom> startRoom({
     required String title,
     String? categorySlug,
     bool allowGuests = true,
+    LiveRoomMode mode = LiveRoomMode.solo,
+    int? seatCount,
+    String? theme,
   });
 
   /// `POST /live/rooms/{roomId}/heartbeat` (host).
@@ -46,6 +50,67 @@ abstract interface class LiveRepository {
 
   /// `PATCH /live/rooms/{roomId}` (host): the guests switch.
   Future<LiveRoom> setAllowGuests(String roomId, {required bool allow});
+
+  /// `PATCH /live/rooms/{roomId}` (host, CP-011): seat count and theme.
+  Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme});
+
+  // ---- CP-011 seats ----------------------------------------------------
+
+  /// `GET /live/rooms/{roomId}/seats`.
+  Future<LiveSeats> seats(String roomId);
+
+  /// `POST /live/rooms/{roomId}/seat-requests`.
+  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex});
+
+  /// `DELETE /live/rooms/{roomId}/seat-requests/me`.
+  Future<void> cancelSeatRequest(String roomId);
+
+  /// `GET /live/rooms/{roomId}/seat-requests` (host, moderators).
+  Future<({List<LiveSeatRequest> items, String? next})> seatRequests(
+    String roomId, {
+    String? cursor,
+  });
+
+  /// `POST …/seat-requests/{requestId}/accept`.
+  Future<LiveSeats> acceptSeatRequest(
+    String roomId,
+    String requestId, {
+    int? seatIndex,
+  });
+
+  /// `POST …/seat-requests/{requestId}/decline`.
+  Future<void> declineSeatRequest(String roomId, String requestId);
+
+  /// `POST /live/rooms/{roomId}/seat-invites`.
+  Future<LiveSeatInvite> inviteToSeat(
+    String roomId,
+    String username, {
+    int? seatIndex,
+  });
+
+  /// `POST …/seat-invites/me/accept`.
+  Future<LiveSeats> acceptSeatInvite(String roomId);
+
+  /// `POST …/seat-invites/me/decline`.
+  Future<void> declineSeatInvite(String roomId);
+
+  /// `POST …/seats/me/leave`.
+  Future<void> leaveSeat(String roomId);
+
+  /// `POST …/seats/{index}/mute`.
+  Future<LiveSeats> muteSeat(String roomId, int index, {required bool muted});
+
+  /// `POST …/seats/{index}/remove`.
+  Future<LiveSeats> removeFromSeat(String roomId, int index);
+
+  /// `POST …/seats/{index}/lock` (host).
+  Future<LiveSeats> lockSeat(String roomId, int index, {required bool locked});
+
+  /// `PUT /live/rooms/{roomId}/moderators/{username}` (host).
+  Future<LiveSeats> addModerator(String roomId, String username);
+
+  /// `DELETE /live/rooms/{roomId}/moderators/{username}` (host).
+  Future<LiveSeats> removeModerator(String roomId, String username);
 
   /// `POST /live/rooms/{roomId}/media-token`; [guestId] only without an
   /// account.
@@ -114,6 +179,9 @@ class LiveRepositoryImpl implements LiveRepository {
     required String title,
     String? categorySlug,
     bool allowGuests = true,
+    LiveRoomMode mode = LiveRoomMode.solo,
+    int? seatCount,
+    String? theme,
   }) => guardApiCall(() async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/live/rooms',
@@ -121,6 +189,9 @@ class LiveRepositoryImpl implements LiveRepository {
         'title': title,
         'categorySlug': ?categorySlug,
         'allowGuests': allowGuests,
+        if (mode != LiveRoomMode.solo) 'mode': mode.wire,
+        'seatCount': ?seatCount,
+        'theme': ?theme,
       },
     );
     return LiveRoom.fromJson(res.data!);
@@ -178,6 +249,145 @@ class LiveRepositoryImpl implements LiveRepository {
       next: page.hasMore ? page.nextCursor : null,
     );
   });
+
+  @override
+  Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}',
+          data: {'seatCount': ?seatCount, 'theme': ?theme},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  String _room(String roomId) => '/live/rooms/${pathSegment(roomId)}';
+
+  Future<LiveSeats> _seatsCall(
+    Future<Response<Map<String, dynamic>>> Function() call,
+  ) => guardApiCall(() async => LiveSeats.fromJson((await call()).data!));
+
+  @override
+  Future<LiveSeats> seats(String roomId) =>
+      _seatsCall(() => _dio.get('${_room(roomId)}/seats'));
+
+  @override
+  Future<LiveSeatRequest> requestSeat(String roomId, {int? seatIndex}) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/seat-requests',
+          data: {'seatIndex': ?seatIndex},
+        );
+        return LiveSeatRequest.fromJson(res.data!);
+      });
+
+  @override
+  Future<void> cancelSeatRequest(String roomId) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/seat-requests/me');
+  });
+
+  @override
+  Future<({List<LiveSeatRequest> items, String? next})> seatRequests(
+    String roomId, {
+    String? cursor,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-requests',
+      queryParameters: {'cursor': ?cursor},
+    );
+    final body = res.data!;
+    final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
+    return (
+      items: [
+        for (final r in body['data']! as List<dynamic>)
+          LiveSeatRequest.fromJson(r as Map<String, dynamic>),
+      ],
+      next: page.hasMore ? page.nextCursor : null,
+    );
+  });
+
+  @override
+  Future<LiveSeats> acceptSeatRequest(
+    String roomId,
+    String requestId, {
+    int? seatIndex,
+  }) => _seatsCall(
+    () => _dio.post(
+      '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/accept',
+      data: {'seatIndex': ?seatIndex},
+    ),
+  );
+
+  @override
+  Future<void> declineSeatRequest(String roomId, String requestId) =>
+      guardApiCall(() async {
+        await _dio.post<void>(
+          '${_room(roomId)}/seat-requests/${pathSegment(requestId)}/decline',
+        );
+      });
+
+  @override
+  Future<LiveSeatInvite> inviteToSeat(
+    String roomId,
+    String username, {
+    int? seatIndex,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/seat-invites',
+      data: {'username': username, 'seatIndex': ?seatIndex},
+    );
+    return LiveSeatInvite.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveSeats> acceptSeatInvite(String roomId) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seat-invites/me/accept'));
+
+  @override
+  Future<void> declineSeatInvite(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/seat-invites/me/decline');
+  });
+
+  @override
+  Future<void> leaveSeat(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('${_room(roomId)}/seats/me/leave');
+  });
+
+  @override
+  Future<LiveSeats> muteSeat(String roomId, int index, {required bool muted}) =>
+      _seatsCall(
+        () => _dio.post(
+          '${_room(roomId)}/seats/$index/mute',
+          data: {'muted': muted},
+        ),
+      );
+
+  @override
+  Future<LiveSeats> removeFromSeat(String roomId, int index) =>
+      _seatsCall(() => _dio.post('${_room(roomId)}/seats/$index/remove'));
+
+  @override
+  Future<LiveSeats> lockSeat(
+    String roomId,
+    int index, {
+    required bool locked,
+  }) => _seatsCall(
+    () => _dio.post(
+      '${_room(roomId)}/seats/$index/lock',
+      data: {'locked': locked},
+    ),
+  );
+
+  @override
+  Future<LiveSeats> addModerator(String roomId, String username) => _seatsCall(
+    () => _dio.put('${_room(roomId)}/moderators/${pathSegment(username)}'),
+  );
+
+  @override
+  Future<LiveSeats> removeModerator(String roomId, String username) =>
+      _seatsCall(
+        () =>
+            _dio.delete('${_room(roomId)}/moderators/${pathSegment(username)}'),
+      );
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

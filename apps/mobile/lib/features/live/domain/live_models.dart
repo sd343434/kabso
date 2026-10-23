@@ -14,9 +14,31 @@ abstract class LiveConfig with _$LiveConfig {
     required bool hostingEnabled,
     required int heartbeatIntervalSeconds,
     required int heartbeatStaleAfterSeconds,
+
+    /// CP-011: room themes the server accepts (the first is the default).
+    @Default(<String>[LiveThemes.classic]) List<String> themes,
+
+    /// CP-011: allowed seat counts per mode, the host's tile included.
+    @Default(LiveSeatCounts()) LiveSeatCounts seatCounts,
   }) = _LiveConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveConfigFromJson(json);
+}
+
+/// `LiveConfig.seatCounts` (CP-011).
+@freezed
+abstract class LiveSeatCounts with _$LiveSeatCounts {
+  const factory({
+    @JsonKey(name: 'MULTI') @Default(<int>[4, 6, 9, 12]) List<int> multi,
+    @JsonKey(name: 'AUDIO') @Default(<int>[5, 9, 13]) List<int> audio,
+  }) = _LiveSeatCounts;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);
+}
+
+/// Theme slugs (CP-011). The server's list is in `LiveConfig.themes`.
+abstract final class LiveThemes {
+  static const classic = 'classic';
 }
 
 /// `LiveCategory`; [name] is already localized by `Accept-Language`.
@@ -27,8 +49,8 @@ abstract class LiveCategory with _$LiveCategory {
   factory fromJson(Map<String, dynamic> json) => _$LiveCategoryFromJson(json);
 }
 
-/// `LiveRoomMode`. Only SOLO exists in v1.3; an unrecognised future value is
-/// rendered as SOLO (contract).
+/// `LiveRoomMode`: SOLO, PK (L5), MULTI and AUDIO (CP-011). An unrecognised
+/// future value is rendered as SOLO (contract).
 enum LiveRoomMode {
   @JsonValue('SOLO')
   solo,
@@ -36,6 +58,19 @@ enum LiveRoomMode {
   pk,
   @JsonValue('MULTI')
   multi,
+  @JsonValue('AUDIO')
+  audio;
+
+  /// The wire value (requests).
+  String get wire => switch (this) {
+    solo => 'SOLO',
+    pk => 'PK',
+    multi => 'MULTI',
+    audio => 'AUDIO',
+  };
+
+  /// MULTI and AUDIO rooms have seats.
+  bool get hasSeats => this == multi || this == audio;
 }
 
 enum LiveRoomStatus {
@@ -71,6 +106,13 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
     required String? coverUrl,
     required LiveCategory? category,
     required UserSummary host,
+
+    /// CP-011: tiles (host included) in a MULTI or AUDIO room.
+    int? seatCount,
+
+    /// CP-011: guests seated now.
+    @Default(0) int occupiedSeats,
+    @Default(LiveThemes.classic) String theme,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -97,6 +139,11 @@ abstract class LiveRoom with _$LiveRoom {
 
     /// CP-010: people without an account may watch.
     @Default(true) bool allowGuests,
+
+    /// CP-011 (see [LiveRoomSummary]).
+    int? seatCount,
+    @Default(0) int occupiedSeats,
+    @Default(LiveThemes.classic) String theme,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -144,6 +191,10 @@ enum LiveMediaRole {
   host,
   @JsonValue('VIEWER')
   viewer,
+
+  /// CP-011: a seated guest (publishes while seated).
+  @JsonValue('SPEAKER')
+  speaker,
 }
 
 /// `LiveViewer` (CP-010): someone watching now; a guest has a number only.
@@ -165,4 +216,101 @@ enum LiveViewerKind {
   user,
   @JsonValue('GUEST')
   guest,
+}
+
+/// `LiveSeat` (CP-011): seat [index] 1 … seatCount-1 (the host is 0).
+@freezed
+abstract class LiveSeat with _$LiveSeat {
+  const factory({
+    required int index,
+    @JsonKey(unknownEnumValue: LiveSeatState.empty)
+    required LiveSeatState state,
+    required UserSummary? user,
+    @Default(false) bool mutedByHost,
+  }) = _LiveSeat;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);
+}
+
+enum LiveSeatState {
+  @JsonValue('EMPTY')
+  empty,
+  @JsonValue('LOCKED')
+  locked,
+  @JsonValue('TAKEN')
+  taken,
+}
+
+/// `LiveSeatRequest` (CP-011).
+@freezed
+abstract class LiveSeatRequest with _$LiveSeatRequest {
+  const factory({
+    required String id,
+    required UserSummary user,
+    required int? seatIndex,
+    required DateTime createdAt,
+  }) = _LiveSeatRequest;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveSeatRequestFromJson(json);
+}
+
+/// `LiveSeatInvite` (CP-011): expires 60 s after it was sent.
+@freezed
+abstract class LiveSeatInvite with _$LiveSeatInvite {
+  const factory({
+    required String id,
+    required UserSummary user,
+    required int? seatIndex,
+    required UserSummary invitedBy,
+    required DateTime expiresAt,
+  }) = _LiveSeatInvite;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatInviteFromJson(json);
+}
+
+enum LiveSeatRole {
+  @JsonValue('HOST')
+  host,
+  @JsonValue('MODERATOR')
+  moderator,
+  @JsonValue('SEATED')
+  seated,
+  @JsonValue('VIEWER')
+  viewer,
+}
+
+/// `LiveSeatsMine` (CP-011): the caller's place in the room.
+@freezed
+abstract class LiveSeatsMine with _$LiveSeatsMine {
+  const factory({
+    @JsonKey(unknownEnumValue: LiveSeatRole.viewer) required LiveSeatRole role,
+    required int? seatIndex,
+    required LiveSeatRequest? request,
+    required LiveSeatInvite? invite,
+  }) = _LiveSeatsMine;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatsMineFromJson(json);
+}
+
+/// `LiveSeats` (CP-011): who is on which seat; [version] moves on every
+/// change.
+@freezed
+abstract class LiveSeats with _$LiveSeats {
+  const factory({
+    required String roomId,
+    @JsonKey(unknownEnumValue: LiveRoomMode.multi) required LiveRoomMode mode,
+    required int version,
+    required int seatCount,
+    required List<LiveSeat> seats,
+    required List<UserSummary> moderators,
+
+    /// Host and moderators only.
+    int? pendingRequests,
+
+    /// Signed-in callers only.
+    LiveSeatsMine? mine,
+  }) = _LiveSeats;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatsFromJson(json);
 }

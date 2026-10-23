@@ -3164,7 +3164,7 @@
   "@createModeLive": {
     "description": "Create mode bar: go live"
   },
-  "goLiveTitleHint": "أضف عنواناً",
+  "goLiveTitleHint": "أضف عنواناً للبث",
   "@goLiveTitleHint": {
     "description": "Go-live title field hint"
   },
@@ -3291,5 +3291,378 @@
   "goLiveUnavailableTitle": "البث المباشر غير متاح بعد",
   "@goLiveUnavailableTitle": {
     "description": "hostingEnabled false title"
+  },
+  "goLiveModeMulti": "بث متعدد",
+  "@goLiveModeMulti": {
+    "description": "Go-live mode: multi-guest video (CP-011)"
+  },
+  "goLiveModeSolo": "بث مباشر",
+  "@goLiveModeSolo": {
+    "description": "Go-live mode: one host on camera"
+  },
+  "goLiveModeAudio": "بث صوتي",
+  "@goLiveModeAudio": {
+    "description": "Go-live mode: voice room"
+  },
+  "goLiveSeat": "مقعد {number}",
+  "@goLiveSeat": {
+    "description": "An empty seat tile",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "goLiveHostTag": "المضيف",
+  "@goLiveHostTag": {
+    "description": "Tag on the host's tile"
+  },
+  "goLiveSeatCount": "{count, plural, =1{مقعد واحد} =2{مقعدان} few{{count} مقاعد} many{{count} مقعدًا} other{{count} مقعد}}",
+  "@goLiveSeatCount": {
+    "description": "Seat count option (semantics)",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "goLiveBeauty": "تجميل",
+  "@goLiveBeauty": {
+    "description": "Beauty tool"
+  },
+  "goLiveBeautyTitle": "التجميل",
+  "@goLiveBeautyTitle": {
+    "description": "Beauty sheet title"
+  },
+  "goLiveBeautySwitch": "تشغيل التجميل",
+  "@goLiveBeautySwitch": {
+    "description": "Beauty on/off switch"
+  },
+  "goLiveBeautySmooth": "تنعيم البشرة",
+  "@goLiveBeautySmooth": {
+    "description": "Beauty: smoothing slider"
+  },
+  "goLiveBeautyBrighten": "إضاءة",
+  "@goLiveBeautyBrighten": {
+    "description": "Beauty: brightening slider"
+  },
+  "goLiveBeautyUnsupported": "التجميل غير متاح على هذا الجهاز بعد.",
+  "@goLiveBeautyUnsupported": {
+    "description": "Beauty unsupported on this platform"
+  },
+  "goLiveTheme": "الثيم",
+  "@goLiveTheme": {
+    "description": "Theme tool"
+  },
+  "goLiveThemeTitle": "ثيم الغرفة",
+  "@goLiveThemeTitle": {
+    "description": "Theme sheet title"
+  },
+  "liveThemeClassic": "كلاسيكي",
+  "@liveThemeClassic": {
+    "description": "Theme name"
+  },
+  "liveThemeIcePalace": "قصر الجليد",
+  "@liveThemeIcePalace": {
+    "description": "Theme name"
+  },
+  "liveThemeDesertNight": "ليل الصحراء",
+  "@liveThemeDesertNight": {
+    "description": "Theme name"
+  },
+  "liveThemeRoseGarden": "حديقة الورد",
+  "@liveThemeRoseGarden": {
+    "description": "Theme name"
+  },
+  "goLiveGuestsAllowedChip": "الزوار مسموح",
+  "@goLiveGuestsAllowedChip": {
+    "description": "Guests chip on"
+  },
+  "goLiveGuestsOffChip": "للمسجّلين فقط",
+  "@goLiveGuestsOffChip": {
+    "description": "Guests chip off"
+  },
+  "liveSeatRequest": "اطلب مقعداً",
+  "@liveSeatRequest": {
+    "description": "Viewer: ask for a seat"
+  },
+  "liveSeatRequested": "تم الطلب · إلغاء",
+  "@liveSeatRequested": {
+    "description": "Viewer: pending request (tap cancels)"
+  },
+  "liveSeatLeave": "مغادرة المقعد",
+  "@liveSeatLeave": {
+    "description": "Seated: leave"
+  },
+  "liveSeatInviteTitle": "دعوة للصعود",
+  "@liveSeatInviteTitle": {
+    "description": "Invite dialog title"
+  },
+  "liveSeatInviteBody": "يدعوك {name} للصعود إلى مقعد.",
+  "@liveSeatInviteBody": {
+    "description": "Invite dialog body",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatInviteAccept": "صعود",
+  "@liveSeatInviteAccept": {
+    "description": "Accept invitation"
+  },
+  "liveSeatInviteDecline": "لاحقاً",
+  "@liveSeatInviteDecline": {
+    "description": "Decline invitation"
+  },
+  "liveHostAway": "سيعود المضيف قريباً",
+  "@liveHostAway": {
+    "description": "Host disconnected but the room is live"
+  },
+  "liveSeatMutedByHost": "كتمك المضيف",
+  "@liveSeatMutedByHost": {
+    "description": "Seated guest muted by the host"
+  },
+  "liveSeatCaptureFailed": "تعذّر تشغيل الكاميرا أو الميكروفون.",
+  "@liveSeatCaptureFailed": {
+    "description": "Seated: capture failed"
+  },
+  "liveSeatMute": "كتم",
+  "@liveSeatMute": {
+    "description": "Seat action"
+  },
+  "liveSeatUnmute": "إلغاء الكتم",
+  "@liveSeatUnmute": {
+    "description": "Seat action"
+  },
+  "liveSeatRemove": "إنزال من المقعد",
+  "@liveSeatRemove": {
+    "description": "Seat action"
+  },
+  "liveSeatLock": "قفل المقعد",
+  "@liveSeatLock": {
+    "description": "Seat action"
+  },
+  "liveSeatUnlock": "فتح المقعد",
+  "@liveSeatUnlock": {
+    "description": "Seat action"
+  },
+  "liveSeatInvite": "دعوة مشاهد",
+  "@liveSeatInvite": {
+    "description": "Seat action"
+  },
+  "liveSeatMakeModerator": "تعيين مشرفاً",
+  "@liveSeatMakeModerator": {
+    "description": "Seat/viewer action"
+  },
+  "liveSeatRemoveModerator": "إلغاء الإشراف",
+  "@liveSeatRemoveModerator": {
+    "description": "Seat/viewer action"
+  },
+  "liveSeatModeratorTag": "مشرف",
+  "@liveSeatModeratorTag": {
+    "description": "Moderator tag"
+  },
+  "liveSeatRequests": "الطلبات",
+  "@liveSeatRequests": {
+    "description": "Tool: seat requests"
+  },
+  "liveSeatRequestsTitle": "طلبات الصعود",
+  "@liveSeatRequestsTitle": {
+    "description": "Requests sheet title"
+  },
+  "liveSeatRequestsEmpty": "لا توجد طلبات الآن.",
+  "@liveSeatRequestsEmpty": {
+    "description": "Requests sheet empty"
+  },
+  "liveSeatAccept": "قبول",
+  "@liveSeatAccept": {
+    "description": "Accept a request"
+  },
+  "liveSeatDecline": "رفض",
+  "@liveSeatDecline": {
+    "description": "Decline a request"
+  },
+  "liveSeatInviteSheetTitle": "دعوة إلى مقعد",
+  "@liveSeatInviteSheetTitle": {
+    "description": "Invite sheet title"
+  },
+  "liveSeatInviteEmpty": "لا يوجد مشاهدون مسجّلون الآن.",
+  "@liveSeatInviteEmpty": {
+    "description": "Invite sheet empty"
+  },
+  "liveSeatInviteSend": "دعوة",
+  "@liveSeatInviteSend": {
+    "description": "Invite button"
+  },
+  "liveSeatInvited": "أُرسلت الدعوة",
+  "@liveSeatInvited": {
+    "description": "Snack after inviting"
+  },
+  "liveSeats": "المقاعد",
+  "@liveSeats": {
+    "description": "Tool: seat count while live"
+  },
+  "liveSeatsTitle": "عدد المقاعد",
+  "@liveSeatsTitle": {
+    "description": "Seat count sheet title"
+  },
+  "liveSeatGuestNumber": "زائر {number}",
+  "@liveSeatGuestNumber": {
+    "description": "A guest viewer",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "goLiveAudioHeadline": "ابدأ البث الصوتي",
+  "@goLiveAudioHeadline": {
+    "description": "Audio go-live headline"
+  },
+  "goLiveAudioSubtitle": "شارك صوتك وتواصل مع جمهورك",
+  "@goLiveAudioSubtitle": {
+    "description": "Audio go-live subtitle"
+  },
+  "goLiveChooseCategory": "اختر الفئة",
+  "@goLiveChooseCategory": {
+    "description": "Category section"
+  },
+  "goLiveWhoCanWatch": "من يمكنه المشاهدة؟",
+  "@goLiveWhoCanWatch": {
+    "description": "Guests section"
+  },
+  "goLiveWatchEveryone": "الجميع",
+  "@goLiveWatchEveryone": {
+    "description": "Guests allowed option"
+  },
+  "goLiveWatchEveryoneHint": "حتى من لا يملك حساباً",
+  "@goLiveWatchEveryoneHint": {
+    "description": "Guests allowed hint"
+  },
+  "goLiveWatchSignedIn": "المسجّلون فقط",
+  "@goLiveWatchSignedIn": {
+    "description": "Guests off option"
+  },
+  "goLiveWatchSignedInHint": "أصحاب الحسابات فقط",
+  "@goLiveWatchSignedInHint": {
+    "description": "Guests off hint"
+  },
+  "goLiveVoiceSettings": "إعدادات الصوت",
+  "@goLiveVoiceSettings": {
+    "description": "Voice section"
+  },
+  "goLiveMicrophone": "الميكروفون",
+  "@goLiveMicrophone": {
+    "description": "Mic row"
+  },
+  "goLiveMicrophoneHint": "يمكنك كتمه في أي وقت",
+  "@goLiveMicrophoneHint": {
+    "description": "Mic row hint"
+  },
+  "goLiveNoiseReduction": "تقليل الضوضاء",
+  "@goLiveNoiseReduction": {
+    "description": "Voice option"
+  },
+  "goLiveNoiseReductionHint": "صوت أنقى في الأماكن المزدحمة",
+  "@goLiveNoiseReductionHint": {
+    "description": "Voice option hint"
+  },
+  "goLiveVoiceEnhance": "تحسين الصوت",
+  "@goLiveVoiceEnhance": {
+    "description": "Voice option"
+  },
+  "goLiveVoiceEnhanceHint": "مستوى متوازن بلا صدى",
+  "@goLiveVoiceEnhanceHint": {
+    "description": "Voice option hint"
+  },
+  "goLiveStartAudio": "ابدأ البث الصوتي",
+  "@goLiveStartAudio": {
+    "description": "Audio start button"
+  },
+  "goLiveChangeTheme": "تغيير الثيم",
+  "@goLiveChangeTheme": {
+    "description": "Theme thumbnail action"
+  },
+  "goLiveSeatsSection": "عدد المقاعد",
+  "@goLiveSeatsSection": {
+    "description": "Seats section"
+  },
+  "goLiveMinimize": "تصغير البث",
+  "@goLiveMinimize": {
+    "description": "Minimize the live into a floating window"
+  },
+  "goLiveBackToLive": "العودة إلى البث",
+  "@goLiveBackToLive": {
+    "description": "Floating window: open the live full screen"
+  },
+  "goLiveAllCategories": "عرض الكل",
+  "@goLiveAllCategories": {
+    "description": "Categories: open the full list"
+  },
+  "goLiveRoomLook": "مظهر الغرفة: {name}",
+  "@goLiveRoomLook": {
+    "description": "Audio setup: the room theme card",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "goLiveLiveType": "نوع البث",
+  "@goLiveLiveType": {
+    "description": "Sheet title: choose multi / LIVE / audio"
+  },
+  "goLiveMuteMic": "كتم الصوت",
+  "@goLiveMuteMic": {
+    "description": "Audio room: the big centre mic button while the mic is on"
+  },
+  "goLiveUnmuteMic": "تشغيل الصوت",
+  "@goLiveUnmuteMic": {
+    "description": "Audio room: the big centre mic button while muted"
+  },
+  "goLiveChat": "الدردشة",
+  "@goLiveChat": {
+    "description": "Audio room bottom bar: the chat button"
+  },
+  "goLivePk": "تحدي PK",
+  "goLivePkSoon": "تحديات PK غير متاحة بعد.",
+  "@goLivePk": {
+    "description": "Audio room bar: the PK (versus) button"
+  },
+  "@goLivePkSoon": {
+    "description": "PK is not in the contract yet"
+  },
+  "goLiveChatHint": "اكتب رسالة…",
+  "goLiveChatSend": "إرسال",
+  "@goLiveChatHint": {
+    "description": "Audio room: the chat box placeholder"
+  },
+  "@goLiveChatSend": {
+    "description": "Audio room: send a chat message"
+  },
+  "goLiveChatPill": "دردشة…",
+  "@goLiveChatPill": {
+    "description": "Audio room bar: the short chat pill (opens the chat box)"
+  },
+  "goLiveShare": "مشاركة",
+  "goLiveShareText": "أنا مباشر الآن على Kabso Live: «{title}» — تابعني @{username}",
+  "goLiveShareCopied": "نُسخت دعوة البث، الصقها لمن تريد",
+  "@goLiveShare": {
+    "description": "Audio room top bar: share the live"
+  },
+  "@goLiveShareText": {
+    "description": "The invite copied by Share",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "@goLiveShareCopied": {
+    "description": "After Share copied the invite"
   }
 }

@@ -2897,7 +2897,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createModeLive => 'بث مباشر';
 
   @override
-  String get goLiveTitleHint => 'أضف عنواناً';
+  String get goLiveTitleHint => 'أضف عنواناً للبث';
 
   @override
   String get goLiveTitleRequired => 'أضف عنواناً لبثك أولاً.';
@@ -2989,4 +2989,280 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveUnavailableTitle => 'البث المباشر غير متاح بعد';
+
+  @override
+  String get goLiveModeMulti => 'بث متعدد';
+
+  @override
+  String get goLiveModeSolo => 'بث مباشر';
+
+  @override
+  String get goLiveModeAudio => 'بث صوتي';
+
+  @override
+  String goLiveSeat(int number) {
+    return 'مقعد $number';
+  }
+
+  @override
+  String get goLiveHostTag => 'المضيف';
+
+  @override
+  String goLiveSeatCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مقعد',
+      many: '$count مقعدًا',
+      few: '$count مقاعد',
+      two: 'مقعدان',
+      one: 'مقعد واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get goLiveBeauty => 'تجميل';
+
+  @override
+  String get goLiveBeautyTitle => 'التجميل';
+
+  @override
+  String get goLiveBeautySwitch => 'تشغيل التجميل';
+
+  @override
+  String get goLiveBeautySmooth => 'تنعيم البشرة';
+
+  @override
+  String get goLiveBeautyBrighten => 'إضاءة';
+
+  @override
+  String get goLiveBeautyUnsupported => 'التجميل غير متاح على هذا الجهاز بعد.';
+
+  @override
+  String get goLiveTheme => 'الثيم';
+
+  @override
+  String get goLiveThemeTitle => 'ثيم الغرفة';
+
+  @override
+  String get liveThemeClassic => 'كلاسيكي';
+
+  @override
+  String get liveThemeIcePalace => 'قصر الجليد';
+
+  @override
+  String get liveThemeDesertNight => 'ليل الصحراء';
+
+  @override
+  String get liveThemeRoseGarden => 'حديقة الورد';
+
+  @override
+  String get goLiveGuestsAllowedChip => 'الزوار مسموح';
+
+  @override
+  String get goLiveGuestsOffChip => 'للمسجّلين فقط';
+
+  @override
+  String get liveSeatRequest => 'اطلب مقعداً';
+
+  @override
+  String get liveSeatRequested => 'تم الطلب · إلغاء';
+
+  @override
+  String get liveSeatLeave => 'مغادرة المقعد';
+
+  @override
+  String get liveSeatInviteTitle => 'دعوة للصعود';
+
+  @override
+  String liveSeatInviteBody(String name) {
+    return 'يدعوك $name للصعود إلى مقعد.';
+  }
+
+  @override
+  String get liveSeatInviteAccept => 'صعود';
+
+  @override
+  String get liveSeatInviteDecline => 'لاحقاً';
+
+  @override
+  String get liveHostAway => 'سيعود المضيف قريباً';
+
+  @override
+  String get liveSeatMutedByHost => 'كتمك المضيف';
+
+  @override
+  String get liveSeatCaptureFailed => 'تعذّر تشغيل الكاميرا أو الميكروفون.';
+
+  @override
+  String get liveSeatMute => 'كتم';
+
+  @override
+  String get liveSeatUnmute => 'إلغاء الكتم';
+
+  @override
+  String get liveSeatRemove => 'إنزال من المقعد';
+
+  @override
+  String get liveSeatLock => 'قفل المقعد';
+
+  @override
+  String get liveSeatUnlock => 'فتح المقعد';
+
+  @override
+  String get liveSeatInvite => 'دعوة مشاهد';
+
+  @override
+  String get liveSeatMakeModerator => 'تعيين مشرفاً';
+
+  @override
+  String get liveSeatRemoveModerator => 'إلغاء الإشراف';
+
+  @override
+  String get liveSeatModeratorTag => 'مشرف';
+
+  @override
+  String get liveSeatRequests => 'الطلبات';
+
+  @override
+  String get liveSeatRequestsTitle => 'طلبات الصعود';
+
+  @override
+  String get liveSeatRequestsEmpty => 'لا توجد طلبات الآن.';
+
+  @override
+  String get liveSeatAccept => 'قبول';
+
+  @override
+  String get liveSeatDecline => 'رفض';
+
+  @override
+  String get liveSeatInviteSheetTitle => 'دعوة إلى مقعد';
+
+  @override
+  String get liveSeatInviteEmpty => 'لا يوجد مشاهدون مسجّلون الآن.';
+
+  @override
+  String get liveSeatInviteSend => 'دعوة';
+
+  @override
+  String get liveSeatInvited => 'أُرسلت الدعوة';
+
+  @override
+  String get liveSeats => 'المقاعد';
+
+  @override
+  String get liveSeatsTitle => 'عدد المقاعد';
+
+  @override
+  String liveSeatGuestNumber(int number) {
+    return 'زائر $number';
+  }
+
+  @override
+  String get goLiveAudioHeadline => 'ابدأ البث الصوتي';
+
+  @override
+  String get goLiveAudioSubtitle => 'شارك صوتك وتواصل مع جمهورك';
+
+  @override
+  String get goLiveChooseCategory => 'اختر الفئة';
+
+  @override
+  String get goLiveWhoCanWatch => 'من يمكنه المشاهدة؟';
+
+  @override
+  String get goLiveWatchEveryone => 'الجميع';
+
+  @override
+  String get goLiveWatchEveryoneHint => 'حتى من لا يملك حساباً';
+
+  @override
+  String get goLiveWatchSignedIn => 'المسجّلون فقط';
+
+  @override
+  String get goLiveWatchSignedInHint => 'أصحاب الحسابات فقط';
+
+  @override
+  String get goLiveVoiceSettings => 'إعدادات الصوت';
+
+  @override
+  String get goLiveMicrophone => 'الميكروفون';
+
+  @override
+  String get goLiveMicrophoneHint => 'يمكنك كتمه في أي وقت';
+
+  @override
+  String get goLiveNoiseReduction => 'تقليل الضوضاء';
+
+  @override
+  String get goLiveNoiseReductionHint => 'صوت أنقى في الأماكن المزدحمة';
+
+  @override
+  String get goLiveVoiceEnhance => 'تحسين الصوت';
+
+  @override
+  String get goLiveVoiceEnhanceHint => 'مستوى متوازن بلا صدى';
+
+  @override
+  String get goLiveStartAudio => 'ابدأ البث الصوتي';
+
+  @override
+  String get goLiveChangeTheme => 'تغيير الثيم';
+
+  @override
+  String get goLiveSeatsSection => 'عدد المقاعد';
+
+  @override
+  String get goLiveMinimize => 'تصغير البث';
+
+  @override
+  String get goLiveBackToLive => 'العودة إلى البث';
+
+  @override
+  String get goLiveAllCategories => 'عرض الكل';
+
+  @override
+  String goLiveRoomLook(String name) {
+    return 'مظهر الغرفة: $name';
+  }
+
+  @override
+  String get goLiveLiveType => 'نوع البث';
+
+  @override
+  String get goLiveMuteMic => 'كتم الصوت';
+
+  @override
+  String get goLiveUnmuteMic => 'تشغيل الصوت';
+
+  @override
+  String get goLiveChat => 'الدردشة';
+
+  @override
+  String get goLivePk => 'تحدي PK';
+
+  @override
+  String get goLivePkSoon => 'تحديات PK غير متاحة بعد.';
+
+  @override
+  String get goLiveChatHint => 'اكتب رسالة…';
+
+  @override
+  String get goLiveChatSend => 'إرسال';
+
+  @override
+  String get goLiveChatPill => 'دردشة…';
+
+  @override
+  String get goLiveShare => 'مشاركة';
+
+  @override
+  String goLiveShareText(String title, String username) {
+    return 'أنا مباشر الآن على Kabso Live: «$title» — تابعني @$username';
+  }
+
+  @override
+  String get goLiveShareCopied => 'نُسخت دعوة البث، الصقها لمن تريد';
 }
