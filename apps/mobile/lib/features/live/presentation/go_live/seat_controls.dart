@@ -199,10 +199,18 @@ class _RequestListState extends ConsumerState<_RequestList> {
 
   Future<void> _act(Future<void> Function() action) async {
     await runSeatAction(context, action);
-    if (mounted) {
-      setState(() {
-        _load = _fetch();
-      });
+    if (!mounted) return;
+    final next = _fetch();
+    setState(() {
+      _load = next;
+    });
+    // The last request handled: nothing left to do here, the sheet closes.
+    try {
+      if ((await next).isEmpty && mounted) {
+        await Navigator.of(context).maybePop();
+      }
+    } on Object {
+      // The list shows the failure.
     }
   }
 

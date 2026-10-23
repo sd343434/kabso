@@ -155,10 +155,25 @@ void main() {
       'liveRoomReconnecting',
       'liveRoomCameraOff',
       'KViewerStrip(names',
-      'onShare:',
-      'onComment:',
     ]) {
       expect(room, isNot(contains(fixtureOnly)), reason: fixtureOnly);
+    }
+    // The action bar's share and comment are fixture-only (no room chat
+    // contract yet). The audio room's share copies the real invite, like the
+    // host's (live_room_test covers it), so only the action bar is checked.
+    final bar = RegExp(r'KRoomActionBar\(');
+    expect(bar.hasMatch(room), isTrue);
+    for (final call in bar.allMatches(room)) {
+      var depth = 0;
+      var end = call.end - 1;
+      do {
+        if (room[end] == '(') depth++;
+        if (room[end] == ')') depth--;
+        end++;
+      } while (depth > 0);
+      final args = room.substring(call.start, end);
+      expect(args, isNot(contains('onShare:')), reason: args);
+      expect(args, isNot(contains('onComment:')), reason: args);
     }
   });
 }

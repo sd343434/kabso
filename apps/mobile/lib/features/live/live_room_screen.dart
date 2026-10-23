@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -167,6 +168,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   String get _username => widget.room.host.username;
 
+  // The audio room's chat box (D94: the same as the host's).
+  final _chat = TextEditingController();
+  final _chatFocus = FocusNode();
+  bool _writing = false;
+
+  @override
+  void dispose() {
+    _chat.dispose();
+    _chatFocus.dispose();
+    super.dispose();
+  }
+
   bool _started = false;
   String? _inviteShown;
   bool _mutedShown = false;
@@ -300,6 +313,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.watch(currentUserProvider);
     final canTap = !ended && me != null && me.id != host.id;
     final score = engine.score ?? session.score ?? room.score;
+    if (!ended && room.mode == LiveRoomMode.audio) {
+      return _audioRoom(
+        session: session,
+        engine: engine,
+        score: score,
+        canTap: canTap,
+        signedIn: me != null,
+        canFollow: canFollow && !following,
+      );
+    }
     return KLiveRoomScaffold(
       // Ended: the overlay explains; no video message underneath it.
       video: ended
@@ -390,6 +413,214 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             )
           : null,
     );
+  }
+
+  /// AUDIO (owner D94): the host's audio room, seen by a viewer — the room
+  /// bar (Follow, share, ✕), LIVE · time and the viewer count, the seats,
+  /// the chat bubble, and the bar: the chat pill, emoji, the seat button
+  /// (ask, cancel, leave), the requests for moderators, gifts, and the
+  /// microphone while seated.
+  Widget _audioRoom({
+    required LiveRoomSessionState session,
+    required LiveMediaEngine engine,
+    required int score,
+    required bool canTap,
+    required bool signedIn,
+    required bool canFollow,
+  }) {
+    final l10n = context.l10n;
+    final room = widget.room;
+    final host = room.host;
+    final mine = session.mine;
+    final pending = session.seats?.pendingRequests ?? 0;
+    void chatSoon() {
+      setState(() => _writing = true);
+      _chatFocus.requestFocus();
+    }
+
+    void send() {
+      if (_chat.text.trim().isEmpty) return;
+      KSnack.info(context, l10n.liveRoomChatUnavailable);
+    }
+
+    // The seat button follows the viewer's state (CP-011).
+    LiveRoundButton? seatButton;
+    if (signedIn && mine != null) {
+      if (session.seated) {
+        seatButton = LiveRoundButton(
+          key: AudioRoomViewKeys.leave,
+          icon: Icons.logout_rounded,
+          label: l10n.liveSeatLeave,
+          onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
+        );
+      } else if (mine.request != null) {
+        seatButton = LiveRoundButton(
+          key: AudioRoomViewKeys.cancel,
+          icon: Icons.hourglass_top_rounded,
+          label: l10n.liveSeatRequested,
+          onTap: () =>
+              unawaited(runSeatAction(context, _session.cancelRequest)),
+        );
+      } else {
+        seatButton = LiveRoundButton(
+          key: AudioRoomViewKeys.request,
+          icon: Icons.weekend_rounded,
+          asset: 'assets/live_room_icons/seat.png',
+          tintAsset: true,
+          label: l10n.liveSeatRequest,
+          onTap: () =>
+              unawaited(runSeatAction(context, () => _session.requestSeat())),
+        );
+      }
+    }
+    return KLiveSurface(
+      child: Material(
+        color: KPalette.dark.background,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            LiveTapLayer(
+              onTap: canTap ? _session.tap : null,
+              child: _video(session, engine),
+            ),
+            LiveAudioRoomLayout(
+              header: LiveAudioRoomHeader(
+                cover: KAvatar(
+                  name: host.displayName,
+                  imageUrl: host.avatarUrl,
+                  size: 30,
+                ),
+                title: room.title,
+                subtitle: '@${host.username}',
+                scoreText: score > 0 ? KFormat.compact(score, l10n) : null,
+                scoreLabel: l10n.liveScore(score, KFormat.grouped(score)),
+                onTap: () => unawaited(showHostSheet(context, _username)),
+                action: canFollow
+                    ? LiveRoundButton(
+                        key: AudioRoomViewKeys.follow,
+                        icon: Icons.person_add_alt_1_rounded,
+                        label: l10n.liveFollow,
+                        size: 24,
+                        iconSize: 14,
+                        color: const Color(0xFFFF4D7A),
+                        onTap: () => unawaited(_setFollowing(follow: true)),
+                      )
+                    : null,
+                showMinimize: false,
+                minimizeTooltip: '',
+                onMinimize: null,
+                shareKey: AudioRoomViewKeys.share,
+                shareTooltip: l10n.goLiveShare,
+                onShare: () => unawaited(_share(room.title, host.username)),
+                endKey: AudioRoomViewKeys.close,
+                endTooltip: l10n.liveClose,
+                onEnd: widget.onClose,
+              ),
+              chips: Row(
+                children: [
+                  Expanded(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: LiveClockChip(since: room.startedAt),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (room.viewerCount > 0)
+                    LiveViewersStack(
+                      avatars: const [],
+                      count: KFormat.compact(room.viewerCount, l10n),
+                      label: l10n.liveViewers(
+                        room.viewerCount,
+                        KFormat.grouped(room.viewerCount),
+                      ),
+                    ),
+                ],
+              ),
+              stage: _stage(session, engine),
+              chat: [LiveRoomBubble(l10n.liveRoomChatUnavailable)],
+              composer: _writing
+                  ? TapRegion(
+                      onTapOutside: (_) => setState(() {
+                        _writing = false;
+                        _chatFocus.unfocus();
+                      }),
+                      child: LiveChatComposer(
+                        controller: _chat,
+                        focusNode: _chatFocus,
+                        hint: l10n.goLiveChatHint,
+                        sendLabel: l10n.goLiveChatSend,
+                        onSend: send,
+                      ),
+                    )
+                  : null,
+              barLead: LiveChatPill(
+                key: AudioRoomViewKeys.chat,
+                hint: l10n.goLiveChatPill,
+                onTap: chatSoon,
+              ),
+              barStart: const [],
+              barEnd: [
+                LiveRoundButton(
+                  icon: Icons.emoji_emotions_rounded,
+                  asset: 'assets/live_room_icons/emoji.png',
+                  tintAsset: true,
+                  label: l10n.livePreviewEmoji,
+                  onTap: chatSoon,
+                ),
+                ?seatButton,
+                if (session.canModerate)
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.requests,
+                    icon: Icons.front_hand_rounded,
+                    label: l10n.liveSeatRequests,
+                    badge: pending,
+                    onTap: () => unawaited(
+                      showSeatRequests(
+                        context,
+                        roomId: room.id,
+                        onAccept: _session.accept,
+                        onDecline: _session.decline,
+                      ),
+                    ),
+                  ),
+                LiveRoundButton(
+                  key: AudioRoomViewKeys.gift,
+                  icon: Icons.card_giftcard_rounded,
+                  asset: 'assets/live_room_icons/gift.png',
+                  label: l10n.liveGifts,
+                  onTap: () => unawaited(_openGifts(context)),
+                ),
+                if (session.seated)
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.mic,
+                    icon: engine.micEnabled
+                        ? Icons.mic_rounded
+                        : Icons.mic_off_rounded,
+                    asset: engine.micEnabled
+                        ? 'assets/live_room_icons/mic.png'
+                        : 'assets/live_room_icons/mic_off.png',
+                    tintAsset: true,
+                    label: engine.micEnabled
+                        ? l10n.goLiveMuteMic
+                        : l10n.goLiveUnmuteMic,
+                    onTap: () => unawaited(
+                      engine.setMicEnabled(enabled: !engine.micEnabled),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _share(String title, String username) async {
+    final l10n = context.l10n;
+    await Clipboard.setData(
+      ClipboardData(text: l10n.goLiveShareText(title, username)),
+    );
+    if (mounted) KSnack.success(context, l10n.goLiveShareCopied);
   }
 
   /// SOLO: the host's video, "the host will be right back" while they are
@@ -836,4 +1067,18 @@ class _SeatBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The viewer's audio room buttons (D94).
+abstract final class AudioRoomViewKeys {
+  static const follow = Key('audioRoom.follow');
+  static const share = Key('audioRoom.share');
+  static const close = Key('audioRoom.close');
+  static const chat = Key('audioRoom.chat');
+  static const request = Key('audioRoom.seat.request');
+  static const cancel = Key('audioRoom.seat.cancel');
+  static const leave = Key('audioRoom.seat.leave');
+  static const requests = Key('audioRoom.requests');
+  static const gift = Key('audioRoom.gift');
+  static const mic = Key('audioRoom.mic');
 }

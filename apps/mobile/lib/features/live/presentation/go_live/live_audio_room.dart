@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:clock/clock.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The audio room on air, laid out after the owner's screen recording (D94;
@@ -251,7 +255,15 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.scoreText,
     this.scoreLabel,
     this.onTap,
+    this.action,
+    this.showMinimize = true,
   });
+
+  /// At the end of the room bar (a viewer's Follow).
+  final Widget? action;
+
+  /// Viewers have no floating window.
+  final bool showMinimize;
 
   /// CP-012: the live's points, shortened (12.4K); shown with a flame in
   /// place of [subtitle] once there are points.
@@ -379,6 +391,10 @@ class LiveAudioRoomHeader extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (action case final action?) ...[
+                        const SizedBox(width: 8),
+                        action,
+                      ],
                     ],
                   ),
                 ),
@@ -395,12 +411,13 @@ class LiveAudioRoomHeader extends StatelessWidget {
             label: shareTooltip ?? '',
             onTap: onShare,
           ),
-        _TopIcon(
-          key: minimizeKey,
-          asset: 'assets/live_room_icons/minimize.png',
-          label: minimizeTooltip,
-          onTap: onMinimize,
-        ),
+        if (showMinimize)
+          _TopIcon(
+            key: minimizeKey,
+            asset: 'assets/live_room_icons/minimize.png',
+            label: minimizeTooltip,
+            onTap: onMinimize,
+          ),
         _TopIcon(
           key: endKey,
           asset: 'assets/live_room_icons/close.png',
@@ -784,4 +801,80 @@ class _TopIcon extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// `m:ss`, or `h:mm:ss` from an hour.
+String formatLiveDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60);
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
+}
+
+/// The compact LIVE · time chip (host and viewers); it ticks every second.
+class LiveClockChip extends StatefulWidget {
+  const new({required this.since, super.key, this.semanticsKey});
+
+  final DateTime? since;
+  final Key? semanticsKey;
+
+  @override
+  State<LiveClockChip> createState() => _LiveClockChipState();
+}
+
+class _LiveClockChipState extends State<LiveClockChip> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final since = widget.since;
+    final elapsed = formatLiveDuration(
+      since == null ? Duration.zero : clock.now().difference(since),
+    );
+    return Semantics(
+      key: widget.semanticsKey,
+      label: l10n.goLiveElapsed(elapsed),
+      excludeSemantics: true,
+      child: LiveChip(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: KAudioRoom.badge,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(l10n.liveBadge),
+            const SizedBox(width: 5),
+            Text(
+              elapsed,
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

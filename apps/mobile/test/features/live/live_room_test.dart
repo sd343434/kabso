@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,7 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
@@ -1009,6 +1011,94 @@ void main() {
       expect(repo.seatCalls, contains('requestSeat:3'));
     });
 
+    testWidgets("audio room (D94): the viewer sees the host's design — "
+        'room bar, chat pill, seat button, gifts; seated: leave and mic', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo = seatRoom(LiveRoomMode.audio, 9);
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      expect(find.byType(LiveAudioRoomLayout), findsOneWidget);
+      expect(find.byType(KLiveRoomScaffold), findsNothing);
+      for (final key in [
+        AudioRoomViewKeys.share,
+        AudioRoomViewKeys.close,
+        AudioRoomViewKeys.chat,
+        AudioRoomViewKeys.request,
+        AudioRoomViewKeys.gift,
+      ]) {
+        expect(find.byKey(key), findsOneWidget, reason: '$key');
+      }
+      expect(find.byKey(AudioRoomViewKeys.mic), findsNothing);
+      // Share copies the live's invite, as on the host's screen.
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final shown = apiRoom();
+      await tester.tap(find.byKey(AudioRoomViewKeys.share));
+      await tester.pump();
+      expect(
+        copied,
+        l10nFor(AppLanguage.en)
+            .goLiveShareText(shown.title, shown.host.username),
+      );
+      ScaffoldMessenger.of(tester.element(find.byType(LiveAudioRoomLayout)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(AudioRoomViewKeys.request));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('requestSeat:'));
+      // Seated: leave instead of ask, and the microphone.
+      repo.seatState = seats(
+        mode: LiveRoomMode.audio,
+        count: 9,
+        mine: const LiveSeatsMine(
+          role: LiveSeatRole.seated,
+          seatIndex: 1,
+          request: null,
+          invite: null,
+        ),
+        list: [
+          LiveSeat(
+            index: 1,
+            state: LiveSeatState.taken,
+            user: UserSummary(
+              id: testUser().id,
+              username: 'layla.k',
+              displayName: 'Layla',
+              avatarUrl: null,
+            ),
+          ),
+          for (var i = 2; i < 9; i++)
+            LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+        ],
+      ).copyWith(version: 2);
+      engine
+        ..version = 2
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(find.byKey(AudioRoomViewKeys.leave), findsOneWidget);
+      expect(find.byKey(AudioRoomViewKeys.mic), findsOneWidget);
+      await tester.tap(find.byKey(AudioRoomViewKeys.mic));
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isFalse);
+      await tester.tap(find.byKey(AudioRoomViewKeys.close));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('a pending request can be cancelled', (tester) async {
       final repo = seatRoom(LiveRoomMode.audio, 9)
         ..seatState = seats(
@@ -1033,7 +1123,8 @@ void main() {
         user: testUser(),
       );
       expect(find.byType(AudioSeatRing), findsOneWidget);
-      await tester.tap(find.byKey(const Key('room.seat.cancel')));
+      // D94: the audio room's bar holds the seat button (as the host's).
+      await tester.tap(find.byKey(AudioRoomViewKeys.cancel));
       await tester.pumpAndSettle();
       expect(repo.seatCalls, contains('cancelSeatRequest'));
     });
@@ -1104,6 +1195,7 @@ void main() {
         repo: seatRoom(LiveRoomMode.audio, 5),
         engine: FakeLiveMediaEngine(),
       );
+      expect(find.byKey(AudioRoomViewKeys.request), findsNothing);
       expect(find.byKey(const Key('room.seat.request')), findsNothing);
     });
 

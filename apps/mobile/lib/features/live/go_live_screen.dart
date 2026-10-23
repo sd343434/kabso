@@ -611,7 +611,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             Expanded(
               child: Row(
                 children: [
-                  _LiveClockChip(since: state.liveSince),
+                  LiveClockChip(
+                    since: state.liveSince,
+                    semanticsKey: GoLiveScreen.elapsedKey,
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: LiveChip(
@@ -1171,51 +1174,6 @@ class _LiveClock extends StatelessWidget {
   }
 }
 
-/// The audio room's compact LIVE · time chip (the recording's chip size).
-class _LiveClockChip extends StatelessWidget {
-  const new({required this.since});
-
-  final DateTime? since;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final elapsed = formatLiveDuration(
-      since == null ? Duration.zero : clock.now().difference(since!),
-    );
-    return Semantics(
-      key: GoLiveScreen.elapsedKey,
-      label: l10n.goLiveElapsed(elapsed),
-      excludeSemantics: true,
-      child: LiveChip(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: KAudioRoom.badge,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(l10n.liveBadge),
-            const SizedBox(width: 5),
-            Text(
-              elapsed,
-              textDirection: TextDirection.ltr,
-              style: const TextStyle(
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Over: the duration and Done.
 class _Ended extends StatelessWidget {
   const new({required this.state, required this.onDone});
@@ -1274,12 +1232,4 @@ class _Ended extends StatelessWidget {
       ),
     );
   }
-}
-
-/// `m:ss`, or `h:mm:ss` from an hour.
-String formatLiveDuration(Duration d) {
-  final h = d.inHours;
-  final m = d.inMinutes.remainder(60);
-  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$s' : '$m:$s';
 }

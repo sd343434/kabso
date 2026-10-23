@@ -30,6 +30,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -550,6 +551,27 @@ void main() {
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
+      // The last request accepted: the sheet closes by itself (real run).
+      repo.pendingSeatRequests = [
+        LiveSeatRequest(
+          id: 'req-1',
+          user: const UserSummary(
+            id: 'u-huda',
+            username: 'huda',
+            displayName: 'Huda',
+            avatarUrl: null,
+          ),
+          seatIndex: null,
+          createdAt: DateTime.utc(2026, 10, 23),
+        ),
+      ];
+      await tester.tap(find.byKey(GoLiveKeys.tool('requests')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatRequestsTitle), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.accept('req-1')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatRequestsTitle), findsNothing);
+      expect(find.text(l10n.liveSeatRequestsEmpty), findsNothing);
       // CP-012: the score replaces @username once there are points; the
       // room bar opens the breakdown.
       expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
