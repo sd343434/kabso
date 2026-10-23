@@ -282,6 +282,33 @@ void main() {
       expect(find.text(_en.homeEmptyTitle), findsOneWidget);
     });
 
+    // With the real fonts (not the test font), every word fits at 360 and
+    // 393 dp in both languages at normal text size: the spacing tightens
+    // before anything is cut (English at 360 used to clip "Reels").
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('real fonts, ${language.name} ${viewport.name}: '
+            'Trending, Following and the switch word all fit', (tester) async {
+          await loadAppFonts();
+          await _pump(tester, language: language, viewport: viewport);
+          final scroll = tester.state<ScrollableState>(
+            find
+                .descendant(
+                  of: find.byKey(FeedScreen.tabsKey),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          expect(scroll.position.maxScrollExtent, 0);
+          final tabs = tester.getRect(find.byKey(FeedScreen.tabsKey));
+          final word = tester.getRect(find.byKey(FeedScreen.switchKey));
+          expect(word.left, greaterThanOrEqualTo(tabs.left));
+          expect(word.right, lessThanOrEqualTo(tabs.right));
+          expect(word.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
+        });
+      }
+    }
+
     for (final language in AppLanguage.values) {
       testWidgets('mirrors in ${language.name}: Search at the '
           'reading start; Trending, Following, then the switch word in the '

@@ -116,53 +116,99 @@ class KPrimaryTabs extends StatelessWidget {
   /// Extra space between centred tabs, on top of each tab's own padding.
   static const double centeredGap = KSpacing.md;
 
+  /// Each label's side padding; [compactPadding] when the words would not
+  /// fit otherwise (a 48 dp touch target is kept either way).
+  static const double padding = KSpacing.lg / 2;
+  static const double compactPadding = KSpacing.xs + 2;
+
+  /// [centeredGap] when the words would not fit otherwise.
+  static const double compactGap = KSpacing.xs;
+
+  /// The row's natural width with [pad] around each word and [gap] between
+  /// them (centred), measured with the labels' own styles and text scale.
+  double _naturalWidth(BuildContext context, double pad, double gap) {
+    final t = context.textStyles;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.topBarMaxTextScale);
+    final direction = Directionality.of(context);
+    double word(String text, TextStyle style) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      return (width + 2 * pad).clamp(KSizes.minTouchTarget, double.infinity);
+    }
+
+    var width = 0.0;
+    for (var i = 0; i < labels.length; i++) {
+      if (centered && i > 0) width += gap;
+      width += word(labels[i], i == selectedIndex ? t.title : t.bodyStrong);
+    }
+    if (action case final action?) {
+      width += KMetrics.hairline + (centered ? gap : 0);
+      width += word(action.label, t.bodyStrong);
+    }
+    return width;
+  }
+
   @override
   Widget build(BuildContext context) => SizedBox(
     height: KMetrics.topBarHeight,
-    // Scrolls only if large text no longer fits; otherwise it is static.
+    // Tighter spacing first when the words do not fit (English at 360 dp);
+    // scrolls only if large text still does not fit; otherwise static.
     child: LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: KSpacing.lg / 2,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: centered
-                ? (constraints.maxWidth - KSpacing.lg).clamp(0, double.infinity)
-                : 0,
+      builder: (context, constraints) {
+        final available = constraints.maxWidth - KSpacing.lg;
+        final compact =
+            _naturalWidth(context, padding, centeredGap) > available;
+        final pad = compact ? compactPadding : padding;
+        final gap = compact ? compactGap : centeredGap;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: KSpacing.lg / 2,
           ),
-          child: Row(
-            mainAxisAlignment: centered
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < labels.length; i++) ...[
-                if (centered && i > 0) const SizedBox(width: centeredGap),
-                _Tab(
-                  label: labels[i],
-                  selected: i == selectedIndex,
-                  onTap: () => onSelected(i),
-                  style: _TabStyle.primary,
-                ),
-              ],
-              if (action case final action?) ...[
-                if (centered) const SizedBox(width: centeredGap / 2),
-                Center(
-                  child: Container(
-                    width: KMetrics.hairline,
-                    height: KSpacing.lg,
-                    color: context.palette.border,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: centered ? available.clamp(0, double.infinity) : 0,
+            ),
+            child: Row(
+              mainAxisAlignment: centered
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < labels.length; i++) ...[
+                  if (centered && i > 0) SizedBox(width: gap),
+                  _Tab(
+                    label: labels[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onSelected(i),
+                    style: _TabStyle.primary,
+                    padding: pad,
                   ),
-                ),
-                if (centered) const SizedBox(width: centeredGap / 2),
-                _ActionTab(action: action),
+                ],
+                if (action case final action?) ...[
+                  if (centered) SizedBox(width: gap / 2),
+                  Center(
+                    child: Container(
+                      width: KMetrics.hairline,
+                      height: KSpacing.lg,
+                      color: context.palette.border,
+                    ),
+                  ),
+                  if (centered) SizedBox(width: gap / 2),
+                  _ActionTab(action: action, padding: pad),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     ),
   );
 }
@@ -186,9 +232,10 @@ class KTabAction {
 }
 
 class _ActionTab extends StatelessWidget {
-  const new({required this.action});
+  const new({required this.action, required this.padding});
 
   final KTabAction action;
+  final double padding;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -201,9 +248,7 @@ class _ActionTab extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: KSizes.minTouchTarget),
         child: Padding(
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: KSpacing.lg / 2,
-          ),
+          padding: EdgeInsetsDirectional.symmetric(horizontal: padding),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -238,12 +283,16 @@ class _Tab extends StatelessWidget {
     required this.onTap,
     required this.style,
     super.key,
+    this.padding = KPrimaryTabs.padding,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final _TabStyle style;
+
+  /// Side padding of a primary tab.
+  final double padding;
 
   @override
   Widget build(BuildContext context) {
@@ -300,7 +349,7 @@ class _Tab extends StatelessWidget {
           ),
           child: Padding(
             padding: EdgeInsetsDirectional.symmetric(
-              horizontal: primary ? KSpacing.lg / 2 : KSpacing.sm,
+              horizontal: primary ? padding : KSpacing.sm,
             ),
             child: primary
                 ? Column(
