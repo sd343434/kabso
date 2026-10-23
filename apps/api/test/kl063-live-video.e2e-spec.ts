@@ -383,6 +383,22 @@ describe('CP-010 live video', () => {
       await ctx.http.post(`/api/v1/live/rooms/${quiet}/end`).set(auth(h2)).expect(200);
     });
 
+    it('reconciliation records a viewer whose join webhook was missed (real two-browser run)', async () => {
+      const [h, a] = [await host(), await signup()];
+      const roomId = await goLive(h);
+      // In the media session, but the server never got participant_joined.
+      if (!media.rooms.has(roomId)) media.rooms.set(roomId, new Set());
+      media.rooms.get(roomId)!.add(a.id);
+      media.rooms.get(roomId)!.add(h.id);
+      expect((await room(roomId)).body.viewerCount).toBe(0);
+      await ctx.app.get(LiveMediaService).reconcile();
+      // The viewer counts once; the host is not a viewer.
+      expect((await room(roomId)).body.viewerCount).toBe(1);
+      await ctx.app.get(LiveMediaService).reconcile();
+      expect((await room(roomId)).body.viewerCount).toBe(1);
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
+    });
+
     it('reconciliation closes sessions of rooms that are no longer live and drops stale presence', async () => {
       const [h, a] = [await host(), await signup()];
       const roomId = await goLive(h);

@@ -358,19 +358,28 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (isUuid(event.identity)) await this.seats.onLeft(roomId, event.identity.toLowerCase());
       return;
     }
+    await this.onJoined(roomId, event.identity);
+  }
+
+  /**
+   * A participant is in the room's media session (the `participant_joined` webhook, or found by
+   * reconciliation when that webhook was missed): recorded as a viewer when allowed, else
+   * disconnected. Idempotent.
+   */
+  private async onJoined(roomId: string, identity: string): Promise<void> {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { status: true, hostUserId: true, allowGuests: true },
     });
-    const guestId = guestIdOf(event.identity);
-    const userId = guestId === null && isUuid(event.identity) ? event.identity.toLowerCase() : null;
+    const guestId = guestIdOf(identity);
+    const userId = guestId === null && isUuid(identity) ? identity.toLowerCase() : null;
     if (!room || room.status !== 'LIVE' || (guestId === null && userId === null)) {
-      await this.kick(roomId, event.identity);
+      await this.kick(roomId, identity);
       return;
     }
     if (userId === room.hostUserId) return; // the host is not a viewer
     if (guestId !== null && !room.allowGuests) {
-      await this.kick(roomId, event.identity);
+      await this.kick(roomId, identity);
       return;
     }
     if (userId !== null) {
@@ -380,12 +389,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
                             WHERE (b.blocker_id = ${userId}::uuid AND b.blocked_id = ${room.hostUserId}::uuid)
                                OR (b.blocker_id = ${room.hostUserId}::uuid AND b.blocked_id = ${userId}::uuid)) AS ok`;
       if (!allowed?.ok) {
-        await this.kick(roomId, event.identity);
+        await this.kick(roomId, identity);
         return;
       }
     }
     await this.prisma.liveRoomViewer.createMany({
-      data: [{ roomId, identity: event.identity, userId, guestId, joinedAt: this.clock.now() }],
+      data: [{ roomId, identity, userId, guestId, joinedAt: this.clock.now() }],
       skipDuplicates: true,
     });
     await this.recount(this.prisma, roomId);
@@ -451,6 +460,11 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         select: { identity: true },
       });
       const gone = rows.map((r) => r.identity).filter((i) => !connected.has(i));
+      // Joins whose webhook was missed are recorded (or refused) like the webhook would.
+      const recorded = new Set(rows.map((r) => r.identity));
+      for (const identity of connected) {
+        if (!recorded.has(identity)) await this.onJoined(name.toLowerCase(), identity);
+      }
       if (gone.length > 0) {
         await this.prisma.liveRoomViewer.deleteMany({ where: { roomId: name, identity: { in: gone } } });
         await this.recount(this.prisma, name);
