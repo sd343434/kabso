@@ -573,7 +573,7 @@ paths:
         `new`; `following` without a token → 401. A well-formed slug that is unknown or inactive
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
         `id`** (HL-H5). CP-012: the room score changes while people tap, so rooms move between
-        pages more often; v1.8-live cursors carry the score (older `popular` cursors → 400).
+        pages more often; v1.8-live cursors carry the score (cursors of an older format, any tab → 400).
       parameters:
         - name: tab
           in: query
