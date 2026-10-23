@@ -1,0 +1,1042 @@
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { z } from 'zod';
+import { AppException } from '../../common/errors/app-exception.js';
+import { ErrorCode, type ErrorDetail } from '../../common/errors/error-codes.js';
+import { Clock } from '../../common/time/clock.js';
+import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import { Prisma } from '../../generated/prisma/client.js';
+import { safeErrorLog } from '../../logging/redact-text.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
+import { SocialCursorCodec } from '../posts/social-cursor.js';
+import { UsersService } from '../users/users.service.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import {
+  LiveRoomsService,
+  LIVE_TX_OPTIONS,
+  type LiveRoomMode,
+  type RoomRow,
+  type UserSummaryDto,
+} from './live-rooms.service.js';
+import { bumpSeatsVersionIn, releaseUserIn, type ReleasedUser } from './live-seats.store.js';
+import {
+  isSeatedMode,
+  isUuid,
+  liveSeatInviteBodySchema,
+  liveSeatLockBodySchema,
+  liveSeatMuteBodySchema,
+  liveSeatRequestBodySchema,
+  parseSeatIndexPath,
+  type SeatedMode,
+} from './live.schemas.js';
+import {
+  LIVE_MEDIA_PROVIDER,
+  type LiveMediaPermission,
+  type LiveMediaProvider,
+  type LiveMediaSource,
+} from './media/live-media.provider.js';
+
+// ---- Response shapes (openapi v1.7-live, CP-011) -----------------------------------------------
+
+export interface LiveSeatDto {
+  index: number;
+  state: 'EMPTY' | 'LOCKED' | 'TAKEN';
+  user: UserSummaryDto | null;
+  mutedByHost: boolean;
+}
+
+export interface LiveSeatRequestDto {
+  id: string;
+  user: UserSummaryDto;
+  seatIndex: number | null;
+  createdAt: string;
+}
+
+export interface LiveSeatInviteDto {
+  id: string;
+  user: UserSummaryDto;
+  seatIndex: number | null;
+  invitedBy: UserSummaryDto;
+  expiresAt: string;
+}
+
+export type LiveSeatRole = 'HOST' | 'MODERATOR' | 'SEATED' | 'VIEWER';
+
+export interface LiveSeatsDto {
+  roomId: string;
+  mode: SeatedMode;
+  version: number;
+  seatCount: number;
+  seats: LiveSeatDto[];
+  moderators: UserSummaryDto[];
+  pendingRequests?: number;
+  mine?: {
+    role: LiveSeatRole;
+    seatIndex: number | null;
+    request: LiveSeatRequestDto | null;
+    invite: LiveSeatInviteDto | null;
+  };
+}
+
+export interface PageDto<T> {
+  data: T[];
+  page: { nextCursor: string | null; hasMore: boolean };
+}
+
+/** An invitation is valid for 60 seconds (owner D94). */
+export const SEAT_INVITE_TTL_SECONDS = 60;
+/** Up to 5 moderators per room (owner D94). */
+export const MAX_ROOM_MODERATORS = 5;
+const REQUEST_PAGE_MAX = 50;
+
+/** The media permission of a guest on a seat of `mode` (§10.9). */
+export function seatPermission(mode: SeatedMode, mutedByHost: boolean): LiveMediaPermission {
+  const sources: LiveMediaSource[] =
+    mode === 'MULTI'
+      ? mutedByHost
+        ? ['camera']
+        : ['camera', 'microphone']
+      : mutedByHost
+        ? []
+        : ['microphone'];
+  return { visible: true, sources };
+}
+
+/** A viewer: hidden, publishing nothing. */
+export const VIEWER_PERMISSION: LiveMediaPermission = { visible: false, sources: [] };
+
+/** What the host of a room of `mode` may publish (CP-011: an AUDIO host the microphone only). */
+export function hostSources(mode: LiveRoomMode): LiveMediaSource[] {
+  return mode === 'AUDIO' ? ['microphone'] : ['camera', 'microphone'];
+}
+
+/** 422 `VALIDATION_FAILED` (openapi `addLiveModerator`: the moderator limit and a bad target). */
+class UnprocessableValidation extends AppException {
+  override readonly status = 422;
+  constructor(details: readonly ErrorDetail[]) {
+    super(ErrorCode.VALIDATION_FAILED, undefined, details);
+  }
+}
+
+function seatUnavailable(): AppException {
+  return new AppException(ErrorCode.LIVE_SEAT_UNAVAILABLE);
+}
+
+function notPending(): AppException {
+  return new AppException(ErrorCode.LIVE_REQUEST_NOT_PENDING);
+}
+
+function forbidden(): AppException {
+  return new AppException(ErrorCode.AUTH_FORBIDDEN);
+}
+
+function notFound(): AppException {
+  return new AppException(ErrorCode.NOT_FOUND);
+}
+
+function parseBody<S extends z.ZodType>(schema: S, body: unknown): z.output<S> {
+  const parsed = schema.safeParse(body ?? {}, { reportInput: true });
+  if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+  return parsed.data;
+}
+
+/**
+ * The `{seatIndex}` path segment. A segment that is not an integer names no seat of the room, like
+ * an out-of-range index: 409 LIVE_SEAT_UNAVAILABLE after the room checks (openapi documents no 400
+ * for `removeFromLiveSeat`, and 400 on mute and lock is for the body).
+ */
+function seatIndexOf(raw: string): number {
+  return parseSeatIndexPath(raw) ?? -1;
+}
+
+/** A locked LIVE room (`SELECT … FOR UPDATE`). */
+interface LockedRoom {
+  id: string;
+  hostUserId: string;
+  mode: SeatedMode;
+  seatCount: number;
+}
+
+/** Media work to do after a seat transaction commits (best effort). */
+type Effect =
+  | { readonly kind: 'permission'; readonly identity: string; readonly permission: LiveMediaPermission }
+  | { readonly kind: 'data'; readonly identity: string; readonly payload: string };
+
+/** The outcome of a seat transaction: the new version (if it changed) and media effects. */
+interface Change<T> {
+  readonly result: T;
+  readonly version: number | null;
+  readonly effects: readonly Effect[];
+  /** Thrown after the commit (e.g. an expired invitation that was marked EXPIRED). */
+  readonly error?: AppException;
+}
+
+/**
+ * Seats in MULTI and AUDIO rooms (CP-011, CONVENTIONS §10.9): reading the seats, requests,
+ * invitations, the host's and moderators' controls and moderators.
+ *
+ * Every change runs in one transaction that first locks the room row (`FOR UPDATE`), so changes
+ * of one room are serialized (two accepts racing for the last seat: exactly one wins), and
+ * increases the room's `seats_version`. After the commit the media server is told, best effort:
+ * the room metadata `{"seatsVersion": n}`, the guest's publish permission, and the invitation data
+ * message. A media failure never undoes the change; the sweeper's reconciliation repeats the
+ * permission and metadata ({@link reconcileRoom}).
+ */
+@Injectable()
+export class LiveSeatsService {
+  private readonly logger = new Logger(LiveSeatsService.name);
+  private readonly cursors: SocialCursorCodec;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rooms: LiveRoomsService,
+    private readonly users: UsersService,
+    private readonly clock: Clock,
+    @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
+    @Inject(APP_CONFIG) config: AppConfig,
+  ) {
+    this.cursors = new SocialCursorCodec(config.social.cursorKey);
+  }
+
+  // ---- Room checks -----------------------------------------------------------------------------
+
+  /** A visible (404), LIVE (409 LIVE_ROOM_ENDED) room with seats (409 LIVE_SEAT_UNAVAILABLE). */
+  private async seatedRoom(roomId: string, callerId: string | null): Promise<RoomRow> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    if (!isSeatedMode(row.mode)) throw seatUnavailable();
+    return row;
+  }
+
+  /** Locks the room row; it must still be LIVE (a concurrent end → 409 LIVE_ROOM_ENDED). */
+  private async lockRoom(tx: Prisma.TransactionClient, roomId: string): Promise<LockedRoom> {
+    const [room] = await tx.$queryRaw<
+      { id: string; host_user_id: string; mode: string; seat_count: number | null; status: string }[]
+    >`
+      SELECT id::text AS id, host_user_id::text AS host_user_id, mode::text AS mode,
+             seat_count::int AS seat_count, status::text AS status
+        FROM live_rooms WHERE id = ${roomId}::uuid FOR UPDATE`;
+    if (!room) throw notFound();
+    if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    if (!isSeatedMode(room.mode) || room.seat_count === null) throw seatUnavailable();
+    return { id: room.id, hostUserId: room.host_user_id, mode: room.mode, seatCount: room.seat_count };
+  }
+
+  private async isModerator(
+    db: Prisma.TransactionClient | PrismaService,
+    roomId: string,
+    userId: string,
+  ): Promise<boolean> {
+    return (await db.liveRoomModerator.count({ where: { roomId, userId } })) > 0;
+  }
+
+  /** The caller's privilege in a room: HOST, MODERATOR or none (→ 403). */
+  private async privilege(
+    tx: Prisma.TransactionClient,
+    room: { id: string; hostUserId: string },
+    callerId: string,
+  ): Promise<'HOST' | 'MODERATOR'> {
+    if (callerId === room.hostUserId) return 'HOST';
+    if (await this.isModerator(tx, room.id, callerId)) return 'MODERATOR';
+    throw forbidden();
+  }
+
+  /** A moderator never acts on the host or another moderator (§10.9); acting on oneself is fine. */
+  private async assertMayActOn(
+    tx: Prisma.TransactionClient,
+    room: LockedRoom,
+    callerId: string,
+    privilege: 'HOST' | 'MODERATOR',
+    targetId: string,
+  ): Promise<void> {
+    if (privilege === 'HOST' || targetId === callerId) return;
+    if (targetId === room.hostUserId || (await this.isModerator(tx, room.id, targetId))) throw forbidden();
+  }
+
+  private async blockedWithHost(
+    tx: Prisma.TransactionClient | PrismaService,
+    hostId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const count = await tx.userBlock.count({
+      where: {
+        OR: [
+          { blockerId: hostId, blockedId: userId },
+          { blockerId: userId, blockedId: hostId },
+        ],
+      },
+    });
+    return count > 0;
+  }
+
+  /** Seats 1 … seatCount-1 that are EMPTY, in order. */
+  private async freeSeats(tx: Prisma.TransactionClient, room: LockedRoom): Promise<number[]> {
+    const used = new Set(
+      (await tx.liveRoomSeat.findMany({ where: { roomId: room.id }, select: { seatIndex: true } })).map(
+        (s) => s.seatIndex,
+      ),
+    );
+    const free: number[] = [];
+    for (let i = 1; i < room.seatCount; i += 1) if (!used.has(i)) free.push(i);
+    return free;
+  }
+
+  /**
+   * The seat to use: `explicit` must be free (else 409); otherwise `preferred` if free, else the
+   * first free seat; none → 409 LIVE_SEAT_UNAVAILABLE.
+   */
+  private async pickSeat(
+    tx: Prisma.TransactionClient,
+    room: LockedRoom,
+    explicit: number | null,
+    preferred: number | null,
+  ): Promise<number> {
+    const free = await this.freeSeats(tx, room);
+    if (explicit !== null) {
+      if (!free.includes(explicit)) throw seatUnavailable();
+      return explicit;
+    }
+    if (preferred !== null && free.includes(preferred)) return preferred;
+    const first = free[0];
+    if (first === undefined) throw seatUnavailable();
+    return first;
+  }
+
+  private async seatOf(tx: Prisma.TransactionClient, roomId: string, userId: string): Promise<number | null> {
+    const seat = await tx.liveRoomSeat.findFirst({ where: { roomId, userId }, select: { seatIndex: true } });
+    return seat?.seatIndex ?? null;
+  }
+
+  /** Seats `userId` and closes their pending request and invitation (ACCEPTED). */
+  private async seatUserIn(
+    tx: Prisma.TransactionClient,
+    room: LockedRoom,
+    userId: string,
+    seatIndex: number,
+    now: Date,
+  ): Promise<Effect> {
+    await tx.liveRoomSeat.create({
+      data: { roomId: room.id, seatIndex, userId, locked: false, mutedByHost: false, updatedAt: now },
+    });
+    await tx.liveSeatRequest.updateMany({
+      where: { roomId: room.id, userId, status: 'PENDING' },
+      data: { status: 'ACCEPTED', handledAt: now },
+    });
+    await tx.liveSeatInvite.updateMany({
+      where: { roomId: room.id, userId, status: 'PENDING' },
+      data: { status: 'ACCEPTED', handledAt: now },
+    });
+    return { kind: 'permission', identity: userId, permission: seatPermission(room.mode, false) };
+  }
+
+  private async bump(tx: Prisma.TransactionClient, roomId: string): Promise<number> {
+    return (await bumpSeatsVersionIn(tx, [roomId])).get(roomId) ?? 0;
+  }
+
+  // ---- Transactions and media effects -----------------------------------------------------------
+
+  /** Runs a seat transaction, then applies its media effects; rethrows a deferred error. */
+  private async change<T>(
+    roomId: string,
+    fn: (tx: Prisma.TransactionClient, now: Date) => Promise<Change<T>>,
+  ): Promise<T> {
+    const now = this.clock.now();
+    const outcome = await this.prisma.$transaction((tx) => fn(tx, now), LIVE_TX_OPTIONS);
+    await this.applyEffects(roomId, outcome.version, outcome.effects);
+    if (outcome.error) throw outcome.error;
+    return outcome.result;
+  }
+
+  /**
+   * Best effort: permission changes and data messages first, then the metadata (so an app that
+   * refetches on the new version finds its permission already changed). Failures are logged without
+   * identities and repaired by {@link reconcileRoom}.
+   */
+  private async applyEffects(
+    roomId: string,
+    version: number | null,
+    effects: readonly Effect[],
+  ): Promise<void> {
+    for (const effect of effects) {
+      try {
+        if (effect.kind === 'permission') {
+          await this.media.setPermission(roomId, effect.identity, effect.permission);
+        } else {
+          await this.media.sendData(roomId, effect.identity, effect.payload);
+        }
+      } catch (err) {
+        this.logger.warn(
+          { effect: effect.kind, error: safeErrorLog(err) },
+          'Could not apply a seat change on the media server; reconciliation repeats it',
+        );
+      }
+    }
+    if (version !== null) await this.pushVersion(roomId, version);
+  }
+
+  private async pushVersion(roomId: string, version: number): Promise<void> {
+    try {
+      await this.media.setRoomMetadata(roomId, JSON.stringify({ seatsVersion: version }));
+    } catch (err) {
+      this.logger.warn(
+        { error: safeErrorLog(err) },
+        'Could not write the seat version into the media room; reconciliation repeats it',
+      );
+    }
+  }
+
+  // ---- Reading ---------------------------------------------------------------------------------
+
+  /** `GET /live/rooms/{roomId}/seats` (guests too: no `mine`, no `pendingRequests`). */
+  async getSeats(callerId: string | null, roomId: string): Promise<LiveSeatsDto> {
+    const row = await this.seatedRoom(roomId, callerId);
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** The seats of a room as `callerId` sees them (after a change, or for a read). */
+  private async seatsOf(roomId: string, callerId: string | null): Promise<LiveSeatsDto> {
+    const room = await this.prisma.liveRoom.findUniqueOrThrow({
+      where: { id: roomId },
+      select: { id: true, mode: true, seatCount: true, seatsVersion: true, hostUserId: true },
+    });
+    const mode = room.mode as SeatedMode;
+    const seatCount = room.seatCount ?? 0;
+    const [rows, moderators] = await Promise.all([
+      this.prisma.liveRoomSeat.findMany({
+        where: { roomId, seatIndex: { lt: seatCount } },
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      }),
+      this.prisma.liveRoomModerator.findMany({
+        where: { roomId, user: { status: 'ACTIVE' } },
+        orderBy: [{ addedAt: 'asc' }, { userId: 'asc' }],
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      }),
+    ]);
+    const byIndex = new Map(rows.map((r) => [r.seatIndex, r]));
+    const seats: LiveSeatDto[] = [];
+    for (let index = 1; index < seatCount; index += 1) {
+      const row = byIndex.get(index);
+      if (row?.user) {
+        seats.push({ index, state: 'TAKEN', user: userSummary(row.user), mutedByHost: row.mutedByHost });
+      } else if (row?.locked) {
+        seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false });
+      } else {
+        seats.push({ index, state: 'EMPTY', user: null, mutedByHost: false });
+      }
+    }
+    const dto: LiveSeatsDto = {
+      roomId: room.id,
+      mode,
+      version: room.seatsVersion,
+      seatCount,
+      seats,
+      moderators: moderators.map((m) => userSummary(m.user)),
+    };
+    if (callerId === null) return dto;
+
+    const isHost = callerId === room.hostUserId;
+    const isModerator = moderators.some((m) => m.userId === callerId);
+    if (isHost || isModerator) {
+      dto.pendingRequests = await this.prisma.liveSeatRequest.count({
+        where: { roomId, status: 'PENDING', user: { status: 'ACTIVE' } },
+      });
+    }
+    const mySeat = rows.find((r) => r.userId === callerId)?.seatIndex ?? null;
+    const [request, invite] = await Promise.all([
+      this.prisma.liveSeatRequest.findFirst({
+        where: { roomId, userId: callerId, status: 'PENDING' },
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      }),
+      this.prisma.liveSeatInvite.findFirst({
+        where: { roomId, userId: callerId, status: 'PENDING', expiresAt: { gt: this.clock.now() } },
+        include: { user: { select: USER_SUMMARY_SELECT }, invitedBy: { select: USER_SUMMARY_SELECT } },
+      }),
+    ]);
+    dto.mine = {
+      role: isHost ? 'HOST' : isModerator ? 'MODERATOR' : mySeat !== null ? 'SEATED' : 'VIEWER',
+      seatIndex: mySeat,
+      request: request ? requestDto(request) : null,
+      invite: invite ? inviteDto(invite) : null,
+    };
+    return dto;
+  }
+
+  // ---- Seat requests ---------------------------------------------------------------------------
+
+  /** `POST /live/rooms/{roomId}/seat-requests`: 201 new, 200 the pending one. */
+  async requestSeat(
+    callerId: string,
+    roomId: string,
+    body: unknown,
+  ): Promise<{ created: boolean; request: LiveSeatRequestDto }> {
+    const input = parseBody(liveSeatRequestBodySchema, body);
+    const row = await this.seatedRoom(roomId, callerId);
+    const outcome = await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      if (callerId === room.hostUserId) throw seatUnavailable();
+      if ((await this.seatOf(tx, room.id, callerId)) !== null) throw seatUnavailable();
+      const pending = await tx.liveSeatRequest.findFirst({
+        where: { roomId: room.id, userId: callerId, status: 'PENDING' },
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      });
+      if (pending)
+        return { result: { created: false, request: requestDto(pending) }, version: null, effects: [] };
+      const asked = input.seatIndex ?? null;
+      if (asked !== null && asked >= room.seatCount) throw seatUnavailable();
+      await this.pickSeat(tx, room, asked, null);
+      const created = await tx.liveSeatRequest.create({
+        data: { roomId: room.id, userId: callerId, seatIndex: asked, createdAt: now },
+        include: { user: { select: USER_SUMMARY_SELECT } },
+      });
+      return {
+        result: { created: true, request: requestDto(created) },
+        version: await this.bump(tx, room.id),
+        effects: [],
+      };
+    });
+    return outcome;
+  }
+
+  /** `DELETE /live/rooms/{roomId}/seat-requests/me` (idempotent). */
+  async cancelRequest(callerId: string, roomId: string): Promise<void> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const updated = await tx.liveSeatRequest.updateMany({
+        where: { roomId: row.id, userId: callerId, status: 'PENDING' },
+        data: { status: 'CANCELLED', handledAt: now },
+      });
+      return {
+        result: undefined,
+        version: updated.count > 0 ? await this.bump(tx, row.id) : null,
+        effects: [],
+      };
+    });
+  }
+
+  /** `GET /live/rooms/{roomId}/seat-requests` (host and moderators): pending, oldest first. */
+  async listRequests(
+    callerId: string,
+    roomId: string,
+    query: { cursor?: string; limit: number },
+  ): Promise<PageDto<LiveSeatRequestDto>> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (callerId !== row.host_user_id && !(await this.isModerator(this.prisma, row.id, callerId))) {
+      throw forbidden();
+    }
+    const scope = `live-seat-requests:${row.id}`;
+    let after: { at: Date; id: string } | null = null;
+    if (query.cursor !== undefined) {
+      after = this.cursors.decode(query.cursor, scope);
+      if (!after) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+    }
+    const limit = Math.min(query.limit, REQUEST_PAGE_MAX);
+    const rows =
+      row.status === 'LIVE' && isSeatedMode(row.mode)
+        ? await this.prisma.liveSeatRequest.findMany({
+            where: {
+              roomId: row.id,
+              status: 'PENDING',
+              user: { status: 'ACTIVE' },
+              ...(after
+                ? { OR: [{ createdAt: { gt: after.at } }, { createdAt: after.at, id: { gt: after.id } }] }
+                : {}),
+            },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            take: limit + 1,
+            include: { user: { select: USER_SUMMARY_SELECT } },
+          })
+        : [];
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return {
+      data: page.map(requestDto),
+      page: {
+        hasMore,
+        nextCursor: hasMore && last ? this.cursors.encode(scope, { at: last.createdAt, id: last.id }) : null,
+      },
+    };
+  }
+
+  /** `POST …/seat-requests/{requestId}/accept` (host or moderator). */
+  async acceptRequest(
+    callerId: string,
+    roomId: string,
+    requestId: string,
+    body: unknown,
+  ): Promise<LiveSeatsDto> {
+    const input = parseBody(liveSeatRequestBodySchema, body);
+    if (!isUuid(requestId)) throw notFound();
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      const privilege = await this.privilege(tx, room, callerId);
+      const request = await tx.liveSeatRequest.findFirst({
+        where: { id: requestId.toLowerCase(), roomId: room.id },
+      });
+      if (!request) throw notFound();
+      if (request.status !== 'PENDING') throw notPending();
+      await this.assertMayActOn(tx, room, callerId, privilege, request.userId);
+      // A requester who is no longer ACTIVE, is blocked with the host or already sits is not
+      // waiting any more: the request expires (committed) and the caller gets 409.
+      const active = await tx.user.count({ where: { id: request.userId, status: 'ACTIVE' } });
+      if (
+        active === 0 ||
+        (await this.blockedWithHost(tx, room.hostUserId, request.userId)) ||
+        (await this.seatOf(tx, room.id, request.userId)) !== null
+      ) {
+        await tx.liveSeatRequest.update({
+          where: { id: request.id },
+          data: { status: 'EXPIRED', handledAt: now },
+        });
+        return { result: undefined, version: await this.bump(tx, room.id), effects: [], error: notPending() };
+      }
+      if (input.seatIndex !== undefined && input.seatIndex >= room.seatCount) throw seatUnavailable();
+      const seatIndex = await this.pickSeat(tx, room, input.seatIndex ?? null, request.seatIndex);
+      const effect = await this.seatUserIn(tx, room, request.userId, seatIndex, now);
+      return { result: undefined, version: await this.bump(tx, room.id), effects: [effect] };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** `POST …/seat-requests/{requestId}/decline` (host or moderator; already handled → 204). */
+  async declineRequest(callerId: string, roomId: string, requestId: string): Promise<void> {
+    if (!isUuid(requestId)) throw notFound();
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      await tx.$queryRaw`SELECT id FROM live_rooms WHERE id = ${row.id}::uuid FOR UPDATE`;
+      const host = { id: row.id, hostUserId: row.host_user_id };
+      const privilege = await this.privilege(tx, host, callerId);
+      const request = await tx.liveSeatRequest.findFirst({
+        where: { id: requestId.toLowerCase(), roomId: row.id },
+      });
+      if (!request) throw notFound();
+      if (privilege === 'MODERATOR' && request.userId !== callerId) {
+        if (await this.isModerator(tx, row.id, request.userId)) throw forbidden();
+      }
+      if (request.status !== 'PENDING') return { result: undefined, version: null, effects: [] };
+      await tx.liveSeatRequest.update({
+        where: { id: request.id },
+        data: { status: 'DECLINED', handledAt: now },
+      });
+      return { result: undefined, version: await this.bump(tx, row.id), effects: [] };
+    });
+  }
+
+  // ---- Invitations -----------------------------------------------------------------------------
+
+  /** `POST /live/rooms/{roomId}/seat-invites` (host or moderator) → 201. */
+  async invite(callerId: string, roomId: string, body: unknown): Promise<LiveSeatInviteDto> {
+    const input = parseBody(liveSeatInviteBodySchema, body);
+    const row = await this.seatedRoom(roomId, callerId);
+    const target = await this.users.findActivePublicUser(input.username);
+    return this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      const privilege = await this.privilege(tx, room, callerId);
+      if (!target || (await this.blockedWithHost(tx, room.hostUserId, target.id))) throw notFound();
+      if (target.id === room.hostUserId) throw seatUnavailable();
+      await this.assertMayActOn(tx, room, callerId, privilege, target.id);
+      if ((await this.seatOf(tx, room.id, target.id)) !== null) throw seatUnavailable();
+      // Watching now: connected to the room's media session (CP-010 presence).
+      const watching = await tx.liveRoomViewer.count({ where: { roomId: room.id, identity: target.id } });
+      if (watching === 0) throw seatUnavailable();
+      const asked = input.seatIndex ?? null;
+      if (asked !== null && asked >= room.seatCount) throw seatUnavailable();
+      await this.pickSeat(tx, room, asked, null);
+      await tx.liveSeatInvite.updateMany({
+        where: { roomId: room.id, userId: target.id, status: 'PENDING' },
+        data: { status: 'REPLACED', handledAt: now },
+      });
+      const created = await tx.liveSeatInvite.create({
+        data: {
+          roomId: room.id,
+          userId: target.id,
+          seatIndex: asked,
+          invitedById: callerId,
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + SEAT_INVITE_TTL_SECONDS * 1000),
+        },
+        include: { user: { select: USER_SUMMARY_SELECT }, invitedBy: { select: USER_SUMMARY_SELECT } },
+      });
+      return {
+        result: inviteDto(created),
+        version: await this.bump(tx, room.id),
+        effects: [
+          {
+            kind: 'data',
+            identity: target.id,
+            payload: JSON.stringify({ type: 'seat-invite', roomId: room.id }),
+          },
+        ],
+      };
+    });
+  }
+
+  /** `POST /live/rooms/{roomId}/seat-invites/me/accept`. */
+  async acceptInvite(callerId: string, roomId: string): Promise<LiveSeatsDto> {
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      const invite = await tx.liveSeatInvite.findFirst({
+        where: { roomId: room.id, userId: callerId, status: 'PENDING' },
+      });
+      if (!invite) throw notPending();
+      if (invite.expiresAt.getTime() <= now.getTime()) {
+        await tx.liveSeatInvite.update({
+          where: { id: invite.id },
+          data: { status: 'EXPIRED', handledAt: now },
+        });
+        return { result: undefined, version: null, effects: [], error: notPending() };
+      }
+      if ((await this.seatOf(tx, room.id, callerId)) !== null) throw seatUnavailable();
+      const seatIndex = await this.pickSeat(tx, room, null, invite.seatIndex);
+      const effect = await this.seatUserIn(tx, room, callerId, seatIndex, now);
+      return { result: undefined, version: await this.bump(tx, room.id), effects: [effect] };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** `POST /live/rooms/{roomId}/seat-invites/me/decline` (idempotent). */
+  async declineInvite(callerId: string, roomId: string): Promise<void> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const updated = await tx.liveSeatInvite.updateMany({
+        where: { roomId: row.id, userId: callerId, status: 'PENDING' },
+        data: { status: 'DECLINED', handledAt: now },
+      });
+      return {
+        result: undefined,
+        version: updated.count > 0 ? await this.bump(tx, row.id) : null,
+        effects: [],
+      };
+    });
+  }
+
+  // ---- On the seat -----------------------------------------------------------------------------
+
+  /** `POST /live/rooms/{roomId}/seats/me/leave` (idempotent). */
+  async leaveSeat(callerId: string, roomId: string): Promise<void> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    await this.change(row.id, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM live_rooms WHERE id = ${row.id}::uuid FOR UPDATE`;
+      const removed = await tx.liveRoomSeat.deleteMany({ where: { roomId: row.id, userId: callerId } });
+      if (removed.count === 0) return { result: undefined, version: null, effects: [] };
+      return {
+        result: undefined,
+        version: await this.bump(tx, row.id),
+        effects: [{ kind: 'permission', identity: callerId, permission: VIEWER_PERMISSION }],
+      };
+    });
+  }
+
+  /** The seat at `index` of a locked room (out of range → 409). */
+  private async seatAt(tx: Prisma.TransactionClient, room: LockedRoom, index: number) {
+    if (index < 1 || index >= room.seatCount) throw seatUnavailable();
+    return tx.liveRoomSeat.findUnique({ where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } } });
+  }
+
+  /** `POST /live/rooms/{roomId}/seats/{seatIndex}/mute` (host or moderator; idempotent). */
+  async mute(callerId: string, roomId: string, rawIndex: string, body: unknown): Promise<LiveSeatsDto> {
+    const input = parseBody(liveSeatMuteBodySchema, body);
+    const index = seatIndexOf(rawIndex);
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      const privilege = await this.privilege(tx, room, callerId);
+      const seat = await this.seatAt(tx, room, index);
+      if (!seat?.userId) throw seatUnavailable();
+      await this.assertMayActOn(tx, room, callerId, privilege, seat.userId);
+      if (seat.mutedByHost === input.muted) return { result: undefined, version: null, effects: [] };
+      await tx.liveRoomSeat.update({
+        where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } },
+        data: { mutedByHost: input.muted, updatedAt: now },
+      });
+      return {
+        result: undefined,
+        version: await this.bump(tx, room.id),
+        effects: [
+          { kind: 'permission', identity: seat.userId, permission: seatPermission(room.mode, input.muted) },
+        ],
+      };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** `POST /live/rooms/{roomId}/seats/{seatIndex}/remove` (host or moderator; empty → unchanged). */
+  async remove(callerId: string, roomId: string, rawIndex: string): Promise<LiveSeatsDto> {
+    const index = seatIndexOf(rawIndex);
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx) => {
+      const room = await this.lockRoom(tx, row.id);
+      const privilege = await this.privilege(tx, room, callerId);
+      const seat = await this.seatAt(tx, room, index);
+      if (!seat?.userId) return { result: undefined, version: null, effects: [] };
+      await this.assertMayActOn(tx, room, callerId, privilege, seat.userId);
+      await tx.liveRoomSeat.delete({ where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } } });
+      return {
+        result: undefined,
+        version: await this.bump(tx, room.id),
+        effects: [{ kind: 'permission', identity: seat.userId, permission: VIEWER_PERMISSION }],
+      };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** `POST /live/rooms/{roomId}/seats/{seatIndex}/lock` (host only; an occupied seat → 409). */
+  async lock(callerId: string, roomId: string, rawIndex: string, body: unknown): Promise<LiveSeatsDto> {
+    const input = parseBody(liveSeatLockBodySchema, body);
+    const index = seatIndexOf(rawIndex);
+    const row = await this.seatedRoom(roomId, callerId);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      if (callerId !== room.hostUserId) throw forbidden();
+      const seat = await this.seatAt(tx, room, index);
+      if (seat?.userId) {
+        if (input.locked) throw seatUnavailable();
+        return { result: undefined, version: null, effects: [] };
+      }
+      if (input.locked === (seat?.locked ?? false)) return { result: undefined, version: null, effects: [] };
+      if (input.locked) {
+        await tx.liveRoomSeat.create({
+          data: { roomId: room.id, seatIndex: index, locked: true, updatedAt: now },
+        });
+      } else {
+        await tx.liveRoomSeat.delete({ where: { roomId_seatIndex: { roomId: room.id, seatIndex: index } } });
+      }
+      return { result: undefined, version: await this.bump(tx, room.id), effects: [] };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /**
+   * `PATCH /live/rooms/{roomId}` with `seatCount` and/or `theme` (the host; checked by the caller).
+   * Shrinking below an occupied seat → 409; locked seats beyond the new count are dropped.
+   */
+  async updateSettings(roomId: string, input: { seatCount?: number; theme?: string }): Promise<void> {
+    await this.change(roomId, async (tx) => {
+      let version: number | null = null;
+      if (input.seatCount !== undefined) {
+        const room = await this.lockRoom(tx, roomId);
+        if (input.seatCount !== room.seatCount) {
+          const beyond = await tx.liveRoomSeat.count({
+            where: { roomId, seatIndex: { gte: input.seatCount }, userId: { not: null } },
+          });
+          if (beyond > 0) throw seatUnavailable();
+          await tx.liveRoomSeat.deleteMany({ where: { roomId, seatIndex: { gte: input.seatCount } } });
+          await tx.liveRoom.update({ where: { id: roomId }, data: { seatCount: input.seatCount } });
+          version = await this.bump(tx, roomId);
+        }
+      }
+      if (input.theme !== undefined) {
+        await tx.liveRoom.update({ where: { id: roomId }, data: { theme: input.theme } });
+      }
+      return { result: undefined, version, effects: [] };
+    });
+  }
+
+  // ---- Moderators ------------------------------------------------------------------------------
+
+  /** `PUT /live/rooms/{roomId}/moderators/{username}` (host only; up to 5; idempotent). */
+  async addModerator(callerId: string, roomId: string, username: string): Promise<LiveSeatsDto> {
+    const row = await this.seatedRoom(roomId, callerId);
+    const target = await this.users.findActivePublicUser(username);
+    await this.change(row.id, async (tx, now) => {
+      const room = await this.lockRoom(tx, row.id);
+      if (callerId !== room.hostUserId) throw forbidden();
+      if (!target || (await this.blockedWithHost(tx, room.hostUserId, target.id))) throw notFound();
+      if (target.id === room.hostUserId) {
+        throw new UnprocessableValidation([{ field: 'username', issue: 'invalid_value' }]);
+      }
+      if (await this.isModerator(tx, room.id, target.id))
+        return { result: undefined, version: null, effects: [] };
+      if ((await tx.liveRoomModerator.count({ where: { roomId: room.id } })) >= MAX_ROOM_MODERATORS) {
+        throw new UnprocessableValidation([{ field: 'moderators', issue: 'too_many' }]);
+      }
+      await tx.liveRoomModerator.create({ data: { roomId: room.id, userId: target.id, addedAt: now } });
+      return { result: undefined, version: await this.bump(tx, room.id), effects: [] };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  /** `DELETE /live/rooms/{roomId}/moderators/{username}` (host only; idempotent). */
+  async removeModerator(callerId: string, roomId: string, username: string): Promise<LiveSeatsDto> {
+    const row = await this.seatedRoom(roomId, callerId);
+    const target = await this.users.findActivePublicUser(username);
+    await this.change(row.id, async (tx) => {
+      const room = await this.lockRoom(tx, row.id);
+      if (callerId !== room.hostUserId) throw forbidden();
+      if (!target) throw notFound();
+      const removed = await tx.liveRoomModerator.deleteMany({
+        where: { roomId: room.id, userId: target.id },
+      });
+      return {
+        result: undefined,
+        version: removed.count > 0 ? await this.bump(tx, room.id) : null,
+        effects: [],
+      };
+    });
+    return this.seatsOf(row.id, callerId);
+  }
+
+  // ---- Losing a seat (presence, blocks) and media ------------------------------------------------
+
+  /** Media effects of {@link releaseUserIn}: withdraw publishing, push the versions. */
+  private async afterRelease(userId: string, released: readonly ReleasedUser[]): Promise<void> {
+    for (const r of released) {
+      await this.applyEffects(
+        r.roomId,
+        r.version,
+        r.wasSeated ? [{ kind: 'permission', identity: userId, permission: VIEWER_PERMISSION }] : [],
+      );
+    }
+  }
+
+  /**
+   * A user left the room's media session (webhook or reconciliation): they lose their seat, their
+   * pending request and their invitation (§10.9). Cheap when they had none.
+   */
+  async onLeft(roomId: string, userId: string): Promise<void> {
+    const [has] = await this.prisma.$queryRaw<{ ok: boolean }[]>`
+      SELECT (EXISTS (SELECT 1 FROM live_room_seats WHERE room_id = ${roomId}::uuid AND user_id = ${userId}::uuid)
+           OR EXISTS (SELECT 1 FROM live_seat_requests
+                       WHERE room_id = ${roomId}::uuid AND user_id = ${userId}::uuid AND status = 'PENDING')
+           OR EXISTS (SELECT 1 FROM live_seat_invites
+                       WHERE room_id = ${roomId}::uuid AND user_id = ${userId}::uuid AND status = 'PENDING')) AS ok`;
+    if (!has?.ok) return;
+    const released = await this.prisma.$transaction(
+      (tx) => releaseUserIn(tx, userId, this.clock.now(), { roomScope: Prisma.sql`r.id = ${roomId}::uuid` }),
+      LIVE_TX_OPTIONS,
+    );
+    await this.afterRelease(userId, released);
+  }
+
+  /**
+   * A block between two users (either way): in each one's LIVE room, the other loses their seat,
+   * request, invitation and moderator role (§10.9).
+   */
+  async onBlock(a: string, b: string): Promise<void> {
+    for (const [hostId, userId] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const released = await this.prisma.$transaction(
+        (tx) =>
+          releaseUserIn(tx, userId, this.clock.now(), {
+            roomScope: Prisma.sql`r.host_user_id = ${hostId}::uuid`,
+            moderator: true,
+          }),
+        LIVE_TX_OPTIONS,
+      );
+      await this.afterRelease(userId, released);
+    }
+  }
+
+  /**
+   * A user joined the media session: if they hold a seat (e.g. they rejoined with a token issued
+   * before they were seated), their seat's permission is applied at once.
+   */
+  async onJoined(roomId: string, userId: string): Promise<void> {
+    const seat = await this.prisma.liveRoomSeat.findFirst({
+      where: { roomId, userId },
+      select: { mutedByHost: true, room: { select: { mode: true } } },
+    });
+    if (!seat || !isSeatedMode(seat.room.mode)) return;
+    await this.applyEffects(roomId, null, [
+      { kind: 'permission', identity: userId, permission: seatPermission(seat.room.mode, seat.mutedByHost) },
+    ]);
+  }
+
+  /** The publish permission a joined user should have in a room now (media token, CP-011). */
+  async seatOfUser(roomId: string, userId: string): Promise<{ mutedByHost: boolean } | null> {
+    const seat = await this.prisma.liveRoomSeat.findFirst({
+      where: { roomId, userId },
+      select: { mutedByHost: true },
+    });
+    return seat;
+  }
+
+  /** Sweeper: pending invitations past their 60 seconds become EXPIRED (they already read as none). */
+  async expireInvites(): Promise<number> {
+    const now = this.clock.now();
+    const updated = await this.prisma.liveSeatInvite.updateMany({
+      where: { status: 'PENDING', expiresAt: { lte: now } },
+      data: { status: 'EXPIRED', handledAt: now },
+    });
+    return updated.count;
+  }
+
+  /**
+   * Reconciliation of one LIVE room with seats (§10.9): every connected participant other than the
+   * host gets the permission its seat implies (repairing a failed or missed change), and the room
+   * metadata carries the current version. Returns the number of repairs.
+   */
+  async reconcileRoom(roomId: string): Promise<number> {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { mode: true, status: true, hostUserId: true, seatsVersion: true },
+    });
+    if (!room || room.status !== 'LIVE' || !isSeatedMode(room.mode)) return 0;
+    const mode = room.mode;
+    const seats = new Map(
+      (
+        await this.prisma.liveRoomSeat.findMany({
+          where: { roomId, userId: { not: null } },
+          select: { userId: true, mutedByHost: true },
+        })
+      ).map((s) => [s.userId!, s.mutedByHost]),
+    );
+    let repairs = 0;
+    for (const participant of await this.media.listParticipants(roomId)) {
+      if (participant.identity === room.hostUserId) continue;
+      const muted = seats.get(participant.identity);
+      const want = muted === undefined ? VIEWER_PERMISSION : seatPermission(mode, muted);
+      if (samePermission(participant.permission, want)) continue;
+      await this.media.setPermission(roomId, participant.identity, want);
+      repairs += 1;
+    }
+    const metadata = JSON.stringify({ seatsVersion: room.seatsVersion });
+    const current = await this.media.roomMetadata(roomId);
+    if (current !== null && current !== metadata) {
+      await this.media.setRoomMetadata(roomId, metadata);
+      repairs += 1;
+    }
+    return repairs;
+  }
+}
+
+function samePermission(a: LiveMediaPermission, b: LiveMediaPermission): boolean {
+  return a.visible === b.visible && [...a.sources].sort().join(',') === [...b.sources].sort().join(',');
+}
+
+function requestDto(row: {
+  id: string;
+  seatIndex: number | null;
+  createdAt: Date;
+  user: { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
+}): LiveSeatRequestDto {
+  return {
+    id: row.id,
+    user: userSummary(row.user),
+    seatIndex: row.seatIndex,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function inviteDto(row: {
+  id: string;
+  seatIndex: number | null;
+  expiresAt: Date;
+  user: { id: string; profile: { username: string; displayName: string; avatarUrl: string | null } | null };
+  invitedBy: {
+    id: string;
+    profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+  };
+}): LiveSeatInviteDto {
+  return {
+    id: row.id,
+    user: userSummary(row.user),
+    seatIndex: row.seatIndex,
+    invitedBy: userSummary(row.invitedBy),
+    expiresAt: row.expiresAt.toISOString(),
+  };
+}

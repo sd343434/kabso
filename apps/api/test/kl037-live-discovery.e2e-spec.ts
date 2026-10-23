@@ -102,9 +102,16 @@ describe('KL-037 contract coverage', () => {
       // CP-008 adds /users/{username}/stories; kl061-stories covers it.
       .filter((o) => o.path !== '/api/v1/users/{username}/stories')
       // CP-010 (v1.6-live draft) adds live video operations under /live/; kl063-live-video
-      // covers them with its own exact list.
+      // covers them with its own exact list. CP-011 (v1.7-live draft) adds the seat operations;
+      // kl064-live-seats covers them with its own exact list.
       .filter(
         (o) => !['createLiveMediaToken', 'updateLiveRoom', 'listLiveRoomViewers'].includes(o.operationId),
+      )
+      .filter(
+        (o) =>
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators)(\/|$)/.test(
+            o.path,
+          ),
       )
       .map((o) => o.operationId)
       .sort();
@@ -200,6 +207,9 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         hostingEnabled: true,
         heartbeatIntervalSeconds: 15,
         heartbeatStaleAfterSeconds: 45,
+        // CP-011 (v1.7-live): room themes and seat counts per mode.
+        themes: ['classic', 'ice-palace', 'desert-night', 'rose-garden'],
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] },
       });
     });
 
@@ -263,6 +273,10 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         endReason: null,
         // CP-010: guests may watch unless the host says otherwise (default true).
         allowGuests: true,
+        // CP-011 (v1.7-live): a SOLO room has no seats; the default theme.
+        seatCount: null,
+        occupiedSeats: 0,
+        theme: 'classic',
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -284,7 +298,9 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         [{ title: 'line\nbreak' }, [{ field: 'title', issue: 'invalid_format' }]],
         [{ title: '...' }, [{ field: 'title', issue: 'invalid_format' }]],
         [{ title: 42 }, [{ field: 'title', issue: 'invalid_type' }]],
-        [{ title: 'ok', mode: 'SOLO' }, [{ field: 'mode', issue: 'unknown_field' }]],
+        // CP-011 (v1.7-live) made `mode` a field (SOLO, MULTI, AUDIO); PK cannot be started.
+        [{ title: 'ok', mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
+        [{ title: 'ok', foo: 1 }, [{ field: 'foo', issue: 'unknown_field' }]],
         [{ title: 'ok', categorySlug: 'Bad Slug' }, [{ field: 'categorySlug', issue: 'invalid_format' }]],
         [{ title: 'ok', categorySlug: 'unknown-cat' }, [{ field: 'categorySlug', issue: 'invalid_value' }]],
         [{ title: 'ok', categorySlug: 'inactive-cat' }, [{ field: 'categorySlug', issue: 'invalid_value' }]],

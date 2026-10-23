@@ -7,6 +7,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
+import { LiveSeatsService } from '../live/live-seats.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
@@ -69,6 +70,7 @@ export class SafetyService {
     private readonly notifier: Notifier,
     private readonly liveRooms: LiveRoomsService,
     private readonly liveMedia: LiveMediaService,
+    private readonly liveSeats: LiveSeatsService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -87,7 +89,7 @@ export class SafetyService {
 
   /** `PUT /users/{username}/block`: also deletes follows both ways (not restored by unblock). */
   async block(callerId: string, username: string, blocked: boolean): Promise<{ blocked: boolean }> {
-    await this.prisma.$transaction(async (tx) => {
+    const targetId = await this.prisma.$transaction(async (tx) => {
       const targetId = await this.target(tx, callerId, username);
       await lockUserPairIn(tx, callerId, targetId);
       if (blocked) {
@@ -106,7 +108,11 @@ export class SafetyService {
       } else {
         await tx.userBlock.deleteMany({ where: { blockerId: callerId, blockedId: targetId } });
       }
+      return targetId;
     });
+    // CP-011 (§10.9): a block with a live host ends the other user's seat, request, invitation and
+    // moderator role in that host's room.
+    if (blocked) await this.liveSeats.onBlock(callerId, targetId);
     return { blocked };
   }
 

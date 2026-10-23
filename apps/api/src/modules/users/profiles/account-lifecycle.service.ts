@@ -8,7 +8,8 @@ import { UsersService } from '../users.service.js';
  * Account status transitions with their v1.3 side effects, each in ONE transaction:
  *
  *  - {@link suspend}: ACTIVE → SUSPENDED and the host's LIVE room is ended with HOST_SUSPENDED
- *    (CONVENTIONS §10.2). Follow rows are kept so they return on unsuspension (§3 of
+ *    (CONVENTIONS §10.2); CP-011: the user's seats, seat requests, invitations and moderator roles
+ *    in other rooms end too (§10.9; also on soft delete). Follow rows are kept so they return on unsuspension (§3 of
  *    DB_PHASE2_DISCOVERY).
  *  - {@link softDelete}: → DELETED (`deleted_at` stamped) and every follow row of the user is
  *    deleted in both directions (DB_PHASE2_DISCOVERY §3; FK cascades fire only on hard deletion).
@@ -33,6 +34,8 @@ export class AccountLifecycleService {
     return this.prisma.$transaction(async (tx) => {
       if (!(await this.users.deactivate(tx, userId, 'SUSPENDED', new Date()))) return false;
       await this.live.endForSuspendedHostIn(tx, userId);
+      // CP-011: the user also loses seats, requests, invitations and moderator roles elsewhere.
+      await this.live.releaseSeatsOfUserIn(tx, userId);
       return true;
     });
   }
@@ -42,6 +45,7 @@ export class AccountLifecycleService {
     return this.prisma.$transaction(async (tx) => {
       if (!(await this.users.deactivate(tx, userId, 'DELETED', new Date()))) return false;
       await this.follows.deleteAllEdgesOfIn(tx, userId);
+      await this.live.releaseSeatsOfUserIn(tx, userId);
       return true;
     });
   }

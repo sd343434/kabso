@@ -63,6 +63,11 @@ model User {
   liveHost           LiveHost?             @relation("LiveHostUser")
   liveHostsGranted   LiveHost[]            @relation("LiveHostGrantedBy")
   liveViews          LiveRoomViewer[]
+  liveSeats          LiveRoomSeat[]
+  liveSeatRequests   LiveSeatRequest[]
+  liveSeatInvites    LiveSeatInvite[]      @relation("LiveSeatInvitee")
+  liveSeatInvitesBy  LiveSeatInvite[]      @relation("LiveSeatInviter")
+  liveModeratorOf    LiveRoomModerator[]
   following          Follow[]              @relation("FollowFollower")
   followers          Follow[]              @relation("FollowFollowee")
   levelStates        UserLevelState[]
@@ -249,6 +254,8 @@ enum LiveRoomMode {
   SOLO
   PK
   MULTI
+  /// CP-011 (D94): voice only, with seats.
+  AUDIO
 
   @@map("live_room_mode")
 }
@@ -337,6 +344,13 @@ model LiveRoom {
   viewerCount     Int                @default(0) @map("viewer_count")
   /// CP-010: people without an account may watch (owner D93: allowed by default).
   allowGuests     Boolean            @default(true) @map("allow_guests")
+  /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (5, 9, 13) room; null for
+  /// SOLO. CHECK `live_rooms_seat_count_mode` (migration 20261027090000_live_seats).
+  seatCount       Int?               @map("seat_count") @db.SmallInt
+  /// CP-011: a slug of LiveConfig.themes (CHECK `live_rooms_theme_format`).
+  theme           String             @default("classic") @db.VarChar(32)
+  /// CP-011: increases on every change of the room's seats, requests, invitations or moderators.
+  seatsVersion    Int                @default(0) @map("seats_version")
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -346,6 +360,10 @@ model LiveRoom {
   category LiveCategory?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers  LiveRoomViewer[]
   reports  Report[]
+  seats        LiveRoomSeat[]
+  seatRequests LiveSeatRequest[]
+  seatInvites  LiveSeatInvite[]
+  moderators   LiveRoomModerator[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -356,6 +374,95 @@ model LiveRoom {
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
   @@index([categoryId], map: "live_rooms_category_id_idx")
   @@map("live_rooms")
+}
+
+/// CP-011: a seat that is not EMPTY — either LOCKED (no user) or TAKEN (a user). An EMPTY seat has
+/// no row. Seats are numbered 1 … seat_count-1 (the host is 0). CHECKs `live_room_seats_index`
+/// and `live_room_seats_locked_or_taken` (migration 20261027090000_live_seats).
+model LiveRoomSeat {
+  roomId      String   @map("room_id") @db.Uuid
+  seatIndex   Int      @map("seat_index") @db.SmallInt
+  locked      Boolean  @default(false)
+  userId      String?  @map("user_id") @db.Uuid
+  mutedByHost Boolean  @default(false) @map("muted_by_host")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, seatIndex], map: "live_room_seats_pkey")
+  @@unique([roomId, userId], map: "live_room_seats_one_per_user")
+  @@index([userId], map: "live_room_seats_user_idx")
+  @@map("live_room_seats")
+}
+
+/// CP-011: the state of a seat request or invitation.
+enum LiveSeatOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+  REPLACED
+
+  @@map("live_seat_offer_status")
+}
+
+/// CP-011: a viewer asks for a seat. At most one PENDING per room and user.
+model LiveSeatRequest {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  roomId    String              @map("room_id") @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  seatIndex Int?                @map("seat_index") @db.SmallInt
+  status    LiveSeatOfferStatus @default(PENDING)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  handledAt DateTime?           @map("handled_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId], map: "live_seat_requests_one_pending", where: raw("status = 'PENDING'::live_seat_offer_status"))
+  @@index([roomId, createdAt, id], map: "live_seat_requests_pending_idx", where: raw("status = 'PENDING'::live_seat_offer_status"))
+  @@index([userId], map: "live_seat_requests_user_idx")
+  @@map("live_seat_requests")
+}
+
+/// CP-011: the host or a moderator invites a viewer; expires after 60 s. At most one PENDING per
+/// room and user (a new one REPLACES it).
+model LiveSeatInvite {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  roomId      String              @map("room_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  seatIndex   Int?                @map("seat_index") @db.SmallInt
+  invitedById String              @map("invited_by_id") @db.Uuid
+  status      LiveSeatOfferStatus @default(PENDING)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime            @map("expires_at") @db.Timestamptz(3)
+  handledAt   DateTime?           @map("handled_at") @db.Timestamptz(3)
+
+  room      LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation("LiveSeatInvitee", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User     @relation("LiveSeatInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId], map: "live_seat_invites_one_pending", where: raw("status = 'PENDING'::live_seat_offer_status"))
+  @@index([expiresAt], map: "live_seat_invites_pending_expiry_idx", where: raw("status = 'PENDING'::live_seat_offer_status"))
+  @@index([userId], map: "live_seat_invites_user_idx")
+  @@index([invitedById], map: "live_seat_invites_invited_by_idx")
+  @@map("live_seat_invites")
+}
+
+/// CP-011: up to 5 moderators per room, appointed by the host for that room only.
+model LiveRoomModerator {
+  roomId  String   @map("room_id") @db.Uuid
+  userId  String   @map("user_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId], map: "live_room_moderators_pkey")
+  @@index([userId], map: "live_room_moderators_user_idx")
+  @@map("live_room_moderators")
 }
 
 /// Follow graph edge (social module). CHECK `follows_no_self_follow`.

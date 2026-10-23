@@ -68,11 +68,43 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
     expect(parsed.title).toBe(`Caf${cp(0xe9)} night`);
   });
 
-  it('has no mode field and a strict body', () => {
-    const result = startLiveRoomSchema.safeParse({ title: 'ok', mode: 'SOLO' }, { reportInput: true });
+  // CP-011 (v1.7-live) added `mode`, `seatCount` and `theme`; the body stays strict.
+  it('has a strict body', () => {
+    const result = startLiveRoomSchema.safeParse({ title: 'ok', foo: 1 }, { reportInput: true });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(zodErrorToDetails(result.error)).toEqual([{ field: 'mode', issue: 'unknown_field' }]);
+      expect(zodErrorToDetails(result.error)).toEqual([{ field: 'foo', issue: 'unknown_field' }]);
+    }
+  });
+
+  it('CP-011: mode, seatCount (per mode, host tile included) and theme', () => {
+    const details = (body: unknown) => {
+      const result = startLiveRoomSchema.safeParse(body, { reportInput: true });
+      return result.success ? [] : zodErrorToDetails(result.error);
+    };
+    for (const body of [
+      { title: 'ok', mode: 'SOLO' },
+      { title: 'ok', mode: 'MULTI', seatCount: 4 },
+      { title: 'ok', mode: 'MULTI', seatCount: 12 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 5 },
+      { title: 'ok', mode: 'AUDIO', seatCount: 13, theme: 'rose-garden' },
+      { title: 'ok', theme: 'classic' },
+    ]) {
+      expect({ body, details: details(body) }).toEqual({ body, details: [] });
+    }
+    const cases: [unknown, { field: string; issue: string }[]][] = [
+      [{ title: 'ok', mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'MULTI' }, [{ field: 'seatCount', issue: 'required' }]],
+      [{ title: 'ok', mode: 'MULTI', seatCount: 5 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 7 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+      [{ title: 'ok', mode: 'MULTI', seatCount: '4' }, [{ field: 'seatCount', issue: 'invalid_type' }]],
+      [{ title: 'ok', theme: 'Bad Theme' }, [{ field: 'theme', issue: 'invalid_format' }]],
+      [{ title: 'ok', theme: 'not-a-theme' }, [{ field: 'theme', issue: 'invalid_value' }]],
+    ];
+    for (const [body, expected] of cases) {
+      expect({ body, details: details(body) }).toEqual({ body, details: expected });
     }
   });
 

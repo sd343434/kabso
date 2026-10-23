@@ -57,6 +57,10 @@ export interface AppConfig {
     readonly liveMediaTokenGuestIp: RateLimitRule;
     readonly liveUpdateUser: RateLimitRule;
     readonly liveGuestReadIp: RateLimitRule;
+    /** CP-011: seat requests and invitations; host/moderator seat actions; seat reads (per user). */
+    readonly liveSeatAskUser: RateLimitRule;
+    readonly liveSeatActionUser: RateLimitRule;
+    readonly liveSeatsReadUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -201,6 +205,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveMediaTokenGuestIp: e.RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP,
       liveUpdateUser: e.RATE_LIMIT_LIVE_UPDATE_USER,
       liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,
+      liveSeatAskUser: e.RATE_LIMIT_LIVE_SEAT_ASK_USER,
+      liveSeatActionUser: e.RATE_LIMIT_LIVE_SEAT_ACTION_USER,
+      liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,

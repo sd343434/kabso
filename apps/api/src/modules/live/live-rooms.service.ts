@@ -13,7 +13,15 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
-import { isUuid, startLiveRoomSchema, type ListLiveRoomsQuery } from './live.schemas.js';
+import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
+import {
+  DEFAULT_LIVE_THEME,
+  isUuid,
+  LIVE_SEAT_COUNTS,
+  LIVE_THEMES,
+  startLiveRoomSchema,
+  type ListLiveRoomsQuery,
+} from './live.schemas.js';
 
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
@@ -25,7 +33,7 @@ export interface UserSummaryDto {
   avatarUrl: string | null;
 }
 
-export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI';
+export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
 export type LiveRoomEndReason = 'HOST_ENDED' | 'HEARTBEAT_TIMEOUT' | 'HOST_SUSPENDED' | 'ADMIN';
 
 export interface LiveRoomSummaryDto {
@@ -37,6 +45,12 @@ export interface LiveRoomSummaryDto {
   coverUrl: string | null;
   category: LiveCategoryDto | null;
   host: UserSummaryDto;
+  /** CP-011: tiles (host included) of a MULTI or AUDIO room; null for SOLO. */
+  seatCount: number | null;
+  /** CP-011: guests seated now. */
+  occupiedSeats: number;
+  /** CP-011: a slug of `LiveConfig.themes`. */
+  theme: string;
 }
 
 export interface LiveRoomDto extends LiveRoomSummaryDto {
@@ -56,6 +70,10 @@ export interface LiveConfigDto {
   hostingEnabled: boolean;
   heartbeatIntervalSeconds: number;
   heartbeatStaleAfterSeconds: number;
+  /** CP-011: accepted room themes, in display order (the first is the default). */
+  themes: string[];
+  /** CP-011: allowed seat counts per mode (host tile included). */
+  seatCounts: { MULTI: number[]; AUDIO: number[] };
 }
 
 /** Request facts recorded in the audit trail. */
@@ -78,6 +96,10 @@ export interface RoomRow {
   end_reason: LiveRoomEndReason | null;
   cover_url: string | null;
   allow_guests: boolean;
+  seat_count: number | null;
+  theme: string;
+  seats_version: number;
+  occupied_seats: number;
   host_user_id: string;
   host_status: string;
   username: string;
@@ -97,7 +119,9 @@ export interface RoomRow {
 const ROOM_SELECT = Prisma.sql`
   SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
-         r.allow_guests,
+         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version,
+         (SELECT count(*)::int FROM live_room_seats s
+           WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en
@@ -267,6 +291,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       hostingEnabled: this.config.live.hostingEnabled,
       heartbeatIntervalSeconds: this.config.live.heartbeatIntervalSeconds,
       heartbeatStaleAfterSeconds: this.config.live.heartbeatStaleSeconds,
+      themes: [...LIVE_THEMES],
+      seatCounts: { MULTI: [...LIVE_SEAT_COUNTS.MULTI], AUDIO: [...LIVE_SEAT_COUNTS.AUDIO] },
     };
   }
 
@@ -314,6 +340,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE status = 'LIVE' AND last_heartbeat_at <= ${ts(this.cutoff(now))}::timestamptz AND ${scope}
    RETURNING id::text AS id, host_user_id::text AS host_user_id`;
     await this.auditTimeouts(tx, rows);
+    await clearEndedRoomSeatsIn(
+      tx,
+      rows.map((row) => row.id),
+      now,
+    );
     return rows.length;
   }
 
@@ -355,6 +386,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND status = 'LIVE' AND last_heartbeat_at <= ${cutoff}::timestamptz
      RETURNING id::text AS id, host_user_id::text AS host_user_id`;
       await this.auditTimeouts(tx, rows);
+      await clearEndedRoomSeatsIn(
+        tx,
+        rows.map((row) => row.id),
+        now,
+      );
       return locked.length;
     }, LIVE_TX_OPTIONS);
   }
@@ -427,6 +463,9 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         displayName: row.display_name,
         avatarUrl: row.avatar_url,
       },
+      seatCount: row.seat_count,
+      occupiedSeats: row.occupied_seats,
+      theme: row.theme,
     };
   }
 
@@ -613,6 +652,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             startedAt: now,
             lastHeartbeatAt: now,
             allowGuests: input.allowGuests ?? true,
+            // CP-011: the mode, its seat count (validated with the mode) and the theme.
+            mode: input.mode ?? 'SOLO',
+            seatCount: input.seatCount ?? null,
+            theme: input.theme ?? DEFAULT_LIVE_THEME,
           },
           select: { id: true },
         });
@@ -621,7 +664,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           actorUserId: callerId,
           targetType: 'live_room',
           targetId: room.id,
-          metadata: { categorySlug: input.categorySlug ?? null },
+          metadata: {
+            categorySlug: input.categorySlug ?? null,
+            mode: input.mode ?? 'SOLO',
+            seatCount: input.seatCount ?? null,
+          },
           ip: meta.ip,
           requestId: meta.requestId,
         });
@@ -695,6 +742,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
      RETURNING id::text AS id`;
       if (ended.length === 1) {
+        await clearEndedRoomSeatsIn(tx, [roomId], now);
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_ROOM_END,
           actorUserId: callerId,
@@ -727,6 +775,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE host_user_id = ${hostUserId}::uuid AND status = 'LIVE'
          AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
+    await clearEndedRoomSeatsIn(
+      tx,
+      ended.map((row) => row.id),
+      now,
+    );
     await this.audit.recordManyIn(
       tx,
       ended.map((row): AuditEntry => ({
@@ -736,6 +789,15 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         metadata: { reason: 'HOST_SUSPENDED', hostUserId },
       })),
     );
+  }
+
+  /**
+   * CP-011 (§10.9): a suspended or deleted account loses its seats, pending seat requests and
+   * invitations and moderator roles in every LIVE room, inside the caller's transaction. The media
+   * permission and room metadata are re-applied by the sweeper's reconciliation.
+   */
+  async releaseSeatsOfUserIn(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await releaseUserIn(tx, userId, this.clock.now(), { moderator: true });
   }
 
   /**
@@ -762,6 +824,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE ${where} AND status = 'LIVE'
          AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
+    await clearEndedRoomSeatsIn(
+      tx,
+      ended.map((row) => row.id),
+      now,
+    );
     return ended.map((row) => row.id);
   }
 }

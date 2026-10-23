@@ -362,6 +362,10 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_en_length',
       'live_categories_slug_format',
       'live_rooms_end_state',
+      // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.
+      'live_rooms_seat_count_mode',
+      'live_rooms_seats_version_nonneg',
+      'live_rooms_theme_format',
       'live_rooms_time_order',
       'live_rooms_title_length',
       'live_rooms_viewer_count_nonneg',

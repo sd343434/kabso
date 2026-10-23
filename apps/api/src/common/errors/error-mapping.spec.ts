@@ -45,6 +45,9 @@ describe('ErrorCode', () => {
         'MEDIA_INVALID',
         'PIN_LIMIT_REACHED',
         'REPORT_ALREADY_RESOLVED',
+        // v1.7-live (DRAFT, CP-011)
+        'LIVE_SEAT_UNAVAILABLE',
+        'LIVE_REQUEST_NOT_PENDING',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -72,6 +75,8 @@ describe('ErrorCode', () => {
       MEDIA_INVALID: 422,
       PIN_LIMIT_REACHED: 409,
       REPORT_ALREADY_RESOLVED: 409,
+      LIVE_SEAT_UNAVAILABLE: 409,
+      LIVE_REQUEST_NOT_PENDING: 409,
     });
   });
 

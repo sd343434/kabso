@@ -67,6 +67,8 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rooms',
   'GET /api/v1/live/rooms/:roomId',
   'POST /api/v1/live/rooms/:roomId/media-token',
+  // CP-011: who is on which seat (guests read it like the room).
+  'GET /api/v1/live/rooms/:roomId/seats',
 ].sort();
 
 interface RouteInfo {

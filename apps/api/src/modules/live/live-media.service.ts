@@ -18,15 +18,27 @@ import {
   type RequestMeta,
   type UserSummaryDto,
 } from './live-rooms.service.js';
-import { isUuid, liveMediaTokenSchema, updateLiveRoomSchema } from './live.schemas.js';
-import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
+import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
+import {
+  isSeatedMode,
+  isUuid,
+  liveMediaTokenSchema,
+  seatCountFits,
+  updateLiveRoomSchema,
+} from './live.schemas.js';
+import {
+  LIVE_MEDIA_PROVIDER,
+  type LiveMediaProvider,
+  type LiveMediaSource,
+} from './media/live-media.provider.js';
 
 /** `LiveMediaAccess` (openapi v1.6-live, CP-010). */
 export interface LiveMediaAccessDto {
   url: string;
   token: string;
   expiresAt: string;
-  role: 'HOST' | 'VIEWER';
+  /** CP-011: SPEAKER is a seated guest. */
+  role: 'HOST' | 'VIEWER' | 'SPEAKER';
   identity: string;
   guestNumber: number | null;
 }
@@ -72,6 +84,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly users: UsersService,
     private readonly audit: AuditService,
     private readonly clock: Clock,
+    private readonly seats: LiveSeatsService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -138,18 +151,33 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       const me = await this.users.getMe(callerId!);
       name = me?.displayName || me?.username || '';
     }
+    // CP-011: the host publishes per mode (AUDIO: microphone only); a seated guest is a SPEAKER
+    // with the seat's sources (§10.9); everyone else watches.
+    let role: LiveMediaAccessDto['role'] = 'VIEWER';
+    let sources: LiveMediaSource[] = [];
+    if (isHost) {
+      role = 'HOST';
+      sources = hostSources(row.mode);
+    } else if (callerId !== null && isSeatedMode(row.mode)) {
+      const seat = await this.seats.seatOfUser(row.id, callerId);
+      if (seat) {
+        role = 'SPEAKER';
+        sources = [...seatPermission(row.mode, seat.mutedByHost).sources];
+      }
+    }
     const token = await this.media.issueToken({
       room: row.id,
       identity,
       name,
-      publish: isHost,
+      publish: role !== 'VIEWER',
+      ...(role !== 'VIEWER' ? { sources } : {}),
       ttlSeconds: MEDIA_TOKEN_TTL_SECONDS,
     });
     return {
       url: this.media.url,
       token,
       expiresAt: new Date(this.clock.now().getTime() + MEDIA_TOKEN_TTL_SECONDS * 1000).toISOString(),
-      role: isHost ? 'HOST' : 'VIEWER',
+      role,
       identity,
       guestNumber,
     };
@@ -168,14 +196,26 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     return room;
   }
 
-  /** `PATCH /live/rooms/{roomId}`: the guests switch; off removes connected guests at once. */
+  /**
+   * `PATCH /live/rooms/{roomId}`: the guests switch (off removes connected guests at once) and,
+   * CP-011, the seat count (an allowed count for the room's mode, else 400; below an occupied seat
+   * → 409 LIVE_SEAT_UNAVAILABLE) and the theme. The seat change is applied first, so a refused
+   * change leaves everything as it was.
+   */
   async updateRoom(hostId: string, roomId: string, body: unknown, meta: RequestMeta): Promise<string> {
-    const parsed = updateLiveRoomSchema.safeParse(body ?? {});
+    const parsed = updateLiveRoomSchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const room = await this.hostLiveRoom(hostId, roomId);
     const row = await this.rooms.visibleRow(room.id, hostId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const allowGuests = parsed.data.allowGuests;
+    const { allowGuests, seatCount, theme } = parsed.data;
+    if (seatCount !== undefined && !seatCountFits(row.mode, seatCount)) {
+      throw AppException.validation([{ field: 'seatCount', issue: 'invalid_value' }]);
+    }
+    if (seatCount !== undefined || theme !== undefined) {
+      await this.seats.updateSettings(room.id, { seatCount, theme });
+    }
+    if (allowGuests === undefined) return room.id;
     if (allowGuests !== room.allowGuests) {
       await this.prisma.$transaction(async (tx) => {
         await tx.liveRoom.update({ where: { id: room.id }, data: { allowGuests } });
@@ -314,6 +354,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (event.kind === 'left') {
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, identity: event.identity } });
       await this.recount(this.prisma, roomId);
+      // CP-011: leaving the media session ends the user's seat, request and invitation.
+      if (isUuid(event.identity)) await this.seats.onLeft(roomId, event.identity.toLowerCase());
       return;
     }
     const room = await this.prisma.liveRoom.findUnique({
@@ -347,6 +389,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       skipDuplicates: true,
     });
     await this.recount(this.prisma, roomId);
+    // CP-011: a seated user who (re)joins gets their seat's permission.
+    if (userId !== null) await this.seats.onJoined(roomId, userId);
   }
 
   private async kick(roomId: string, identity: string): Promise<void> {
@@ -379,6 +423,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
    */
   async reconcile(): Promise<number> {
     if (this.config.live.livekit === null) return 0;
+    // CP-011: invitations past their 60 seconds (they already read as none).
+    await this.seats.expireInvites();
     await this.prisma.$executeRaw`
       DELETE FROM live_room_viewers v USING live_rooms r
        WHERE r.id = v.room_id AND r.status <> 'LIVE'`;
@@ -408,6 +454,15 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (gone.length > 0) {
         await this.prisma.liveRoomViewer.deleteMany({ where: { roomId: name, identity: { in: gone } } });
         await this.recount(this.prisma, name);
+        // CP-011: a seated user who is gone loses the seat (as with a `participant_left` webhook).
+        for (const identity of gone)
+          if (isUuid(identity)) await this.seats.onLeft(name, identity.toLowerCase());
+      }
+      // CP-011: re-apply seat permissions and the seat version a failed call may have missed.
+      try {
+        await this.seats.reconcileRoom(name.toLowerCase());
+      } catch (err) {
+        this.logger.warn({ error: safeErrorLog(err) }, 'Could not reconcile the seats of a media room');
       }
     }
     return closed;
