@@ -18,6 +18,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   createdAt: DateTime.parse(json['createdAt'] as String),
   bio: json['bio'] as String?,
   avatarUrl: json['avatarUrl'] as String?,
+  canHost: json['canHost'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -32,6 +33,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'role': instance.role,
   'isPrivate': instance.isPrivate,
   'createdAt': instance.createdAt.toIso8601String(),
+  'canHost': instance.canHost,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

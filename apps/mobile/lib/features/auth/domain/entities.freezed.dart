@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$User {
 
- String get id; String get email; bool get emailVerified; String get username; String get displayName; String get locale; UserRole get role; bool get isPrivate; DateTime get createdAt; String? get bio; String? get avatarUrl;
+ String get id; String get email; bool get emailVerified; String get username; String get displayName; String get locale; UserRole get role; bool get isPrivate; DateTime get createdAt; String? get bio; String? get avatarUrl;/// CP-010: holds the hosting permission (may go live).
+ bool get canHost;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +28,20 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as User;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.emailVerified, _this.emailVerified) || other.emailVerified == _this.emailVerified)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.locale, _this.locale) || other.locale == _this.locale)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.emailVerified, _this.emailVerified) || other.emailVerified == _this.emailVerified)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.locale, _this.locale) || other.locale == _this.locale)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.isPrivate, _this.isPrivate) || other.isPrivate == _this.isPrivate)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.canHost, _this.canHost) || other.canHost == _this.canHost));
 }
 
 
 @override
 int get hashCode {
   final _this = this as User;
-  return Object.hash(runtimeType,_this.id,_this.email,_this.emailVerified,_this.username,_this.displayName,_this.locale,_this.role,_this.isPrivate,_this.createdAt,_this.bio,_this.avatarUrl);
+  return Object.hash(runtimeType,_this.id,_this.email,_this.emailVerified,_this.username,_this.displayName,_this.locale,_this.role,_this.isPrivate,_this.createdAt,_this.bio,_this.avatarUrl,_this.canHost);
 }
 
 @override
 String toString() {
   final _this = this as User;
-  return 'User(id: ${_this.id}, email: ${_this.email}, emailVerified: ${_this.emailVerified}, username: ${_this.username}, displayName: ${_this.displayName}, locale: ${_this.locale}, role: ${_this.role}, isPrivate: ${_this.isPrivate}, createdAt: ${_this.createdAt}, bio: ${_this.bio}, avatarUrl: ${_this.avatarUrl})';
+  return 'User(id: ${_this.id}, email: ${_this.email}, emailVerified: ${_this.emailVerified}, username: ${_this.username}, displayName: ${_this.displayName}, locale: ${_this.locale}, role: ${_this.role}, isPrivate: ${_this.isPrivate}, createdAt: ${_this.createdAt}, bio: ${_this.bio}, avatarUrl: ${_this.avatarUrl}, canHost: ${_this.canHost})';
 }
 
 
@@ -51,7 +52,7 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl
+ String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost
 });
 
 
@@ -68,7 +69,7 @@ class _$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,}) {
   return _then(User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -81,7 +82,8 @@ as UserRole,isPrivate: null == isPrivate ? _self.isPrivate : isPrivate // ignore
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
 as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,canHost: null == canHost ? _self.canHost : canHost // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -166,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost);case _:
   return orElse();
 
 }
@@ -187,10 +189,10 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost)  $default,) {final _that = this;
 switch (_that) {
 case _User():
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -207,10 +209,10 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  bool emailVerified,  String username,  String displayName,  String locale,  UserRole role,  bool isPrivate,  DateTime createdAt,  String? bio,  String? avatarUrl,  bool canHost)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.displayName,_that.locale,_that.role,_that.isPrivate,_that.createdAt,_that.bio,_that.avatarUrl,_that.canHost);case _:
   return null;
 
 }
@@ -222,7 +224,7 @@ return $default(_that.id,_that.email,_that.emailVerified,_that.username,_that.di
 
 
 class _User implements User {
-  const _User({required this.id, required this.email, required this.emailVerified, required this.username, required this.displayName, required this.locale, required this.role, required this.isPrivate, required this.createdAt, this.bio, this.avatarUrl});
+  const _User({required this.id, required this.email, required this.emailVerified, required this.username, required this.displayName, required this.locale, required this.role, required this.isPrivate, required this.createdAt, this.bio, this.avatarUrl, this.canHost = false});
   
 
 @override final  String id;
@@ -236,6 +238,8 @@ class _User implements User {
 @override final  DateTime createdAt;
 @override final  String? bio;
 @override final  String? avatarUrl;
+/// CP-010: holds the hosting permission (may go live).
+@override@JsonKey() final  bool canHost;
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
@@ -247,18 +251,18 @@ _$UserCopyWith<_User> get copyWith => __$UserCopyWithImpl<_User>(this, _$identit
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.role, role) || other.role == role)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.locale, locale) || other.locale == locale)&&(identical(other.role, role) || other.role == role)&&(identical(other.isPrivate, isPrivate) || other.isPrivate == isPrivate)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.canHost, canHost) || other.canHost == canHost));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,email,emailVerified,username,displayName,locale,role,isPrivate,createdAt,bio,avatarUrl);
+    return Object.hash(runtimeType,id,email,emailVerified,username,displayName,locale,role,isPrivate,createdAt,bio,avatarUrl,canHost);
 }
 
 @override
 String toString() {
-    return 'User(id: $id, email: $email, emailVerified: $emailVerified, username: $username, displayName: $displayName, locale: $locale, role: $role, isPrivate: $isPrivate, createdAt: $createdAt, bio: $bio, avatarUrl: $avatarUrl)';
+    return 'User(id: $id, email: $email, emailVerified: $emailVerified, username: $username, displayName: $displayName, locale: $locale, role: $role, isPrivate: $isPrivate, createdAt: $createdAt, bio: $bio, avatarUrl: $avatarUrl, canHost: $canHost)';
 }
 
 
@@ -269,7 +273,7 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl
+ String id, String email, bool emailVerified, String username, String displayName, String locale, UserRole role, bool isPrivate, DateTime createdAt, String? bio, String? avatarUrl, bool canHost
 });
 
 
@@ -286,7 +290,7 @@ class __$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? emailVerified = null,Object? username = null,Object? displayName = null,Object? locale = null,Object? role = null,Object? isPrivate = null,Object? createdAt = null,Object? bio = freezed,Object? avatarUrl = freezed,Object? canHost = null,}) {
   return _then(_User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -299,7 +303,8 @@ as UserRole,isPrivate: null == isPrivate ? _self.isPrivate : isPrivate // ignore
 as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
 as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,canHost: null == canHost ? _self.canHost : canHost // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

@@ -28,6 +28,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.liveHostingUnavailable => l10n.errorLiveHostingUnavailable,
     ErrorCode.liveRoomAlreadyActive => l10n.errorLiveRoomAlreadyActive,
     ErrorCode.liveRoomEnded => l10n.errorLiveRoomEnded,
+    ErrorCode.liveHostingNotAllowed => l10n.errorLiveHostingNotAllowed,
+    ErrorCode.liveGuestsNotAllowed => l10n.errorLiveGuestsNotAllowed,
     ErrorCode.mediaUploadsUnavailable => l10n.errorMediaUploadsUnavailable,
     ErrorCode.mediaInvalid => l10n.errorMediaInvalid,
     ErrorCode.pinLimitReached => l10n.errorPinLimitReached,

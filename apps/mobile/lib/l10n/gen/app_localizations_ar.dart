@@ -2879,4 +2879,114 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifSettingsSaved => 'حُفظ';
+
+  @override
+  String get errorLiveHostingNotAllowed => 'لا يمكن لحسابك البث المباشر بعد.';
+
+  @override
+  String get errorLiveGuestsNotAllowed =>
+      'يسمح المضيف بمشاهدة هذا البث للمسجّلين فقط.';
+
+  @override
+  String get createModePost => 'منشور';
+
+  @override
+  String get createModeStory => 'قصة';
+
+  @override
+  String get createModeLive => 'بث مباشر';
+
+  @override
+  String get goLiveTitleHint => 'أضف عنواناً';
+
+  @override
+  String get goLiveTitleRequired => 'أضف عنواناً لبثك أولاً.';
+
+  @override
+  String get goLiveFlip => 'قلب';
+
+  @override
+  String get goLiveMic => 'الميكروفون';
+
+  @override
+  String get goLiveMicOff => 'مكتوم';
+
+  @override
+  String get goLiveGuests => 'الزوار';
+
+  @override
+  String get goLiveGuestsOnHint => 'يمكن لمن لا يملك حساباً المشاهدة';
+
+  @override
+  String get goLiveGuestsOffHint => 'المشاهدة للمسجّلين فقط';
+
+  @override
+  String get goLiveGuestsOn => 'سُمح للزوار بالمشاهدة';
+
+  @override
+  String get goLiveGuestsOff => 'أُخرج الزوار وأصبحت المشاهدة للمسجّلين فقط';
+
+  @override
+  String get goLiveNoCategory => 'بلا فئة';
+
+  @override
+  String get goLiveStart => 'ابدأ البث';
+
+  @override
+  String get goLiveStarting => 'جارٍ بدء البث…';
+
+  @override
+  String get goLiveEnd => 'إنهاء';
+
+  @override
+  String get goLiveEndConfirmTitle => 'إنهاء البث؟';
+
+  @override
+  String get goLiveEndConfirmBody => 'سيرى المشاهدون أن البث انتهى.';
+
+  @override
+  String get goLiveEndConfirm => 'إنهاء البث';
+
+  @override
+  String get goLiveKeepGoing => 'متابعة البث';
+
+  @override
+  String goLiveElapsed(String duration) {
+    return 'مباشر منذ $duration';
+  }
+
+  @override
+  String get goLiveEndedTitle => 'انتهى بثك';
+
+  @override
+  String goLiveEndedDuration(String duration) {
+    return 'المدة $duration';
+  }
+
+  @override
+  String get goLiveDone => 'تم';
+
+  @override
+  String get goLiveCameraDeniedTitle => 'اسمح بالكاميرا والميكروفون';
+
+  @override
+  String get goLiveCameraDeniedBody =>
+      'يحتاجهما Kabso Live ليعرضك مباشرة. اسمح بالوصول من الإعدادات ثم حاول مجدداً.';
+
+  @override
+  String get goLiveCameraUnavailableTitle => 'الكاميرا غير متاحة';
+
+  @override
+  String get goLiveCameraUnavailableBody =>
+      'لم يُعثر على كاميرا أو ميكروفون، أو يستخدمهما تطبيق آخر.';
+
+  @override
+  String get goLiveNotAllowedTitle => 'البث يحتاج حساب مضيف';
+
+  @override
+  String get goLiveNotAllowedBody =>
+      'يبث المضيفون عبر وكالة مضيفين في Kabso Live أو بعد توثيق هويتهم. التسجيل قريباً.';
+
+  @override
+  String get goLiveUnavailableTitle => 'البث المباشر غير متاح بعد';
 }

@@ -30,6 +30,12 @@ enum ErrorCode {
   /// v1.3: heartbeat for a room that is no longer LIVE (409).
   liveRoomEnded('LIVE_ROOM_ENDED'),
 
+  /// CP-010: going live needs the hosting permission (`Me.canHost`, 403).
+  liveHostingNotAllowed('LIVE_HOSTING_NOT_ALLOWED'),
+
+  /// CP-010: the host does not let people without an account watch (403).
+  liveGuestsNotAllowed('LIVE_GUESTS_NOT_ALLOWED'),
+
   /// v1.5-social: photo uploads are switched off by server config (503, not
   /// transient, no `Retry-After`).
   mediaUploadsUnavailable('MEDIA_UPLOADS_UNAVAILABLE'),

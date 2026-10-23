@@ -74,8 +74,8 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kabso Live shows your photos when you create a post or attach one to a message.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Kabso Live uses the camera when you take a photo or video to send in a message.</string>
+	<string>Kabso Live uses the camera when you go live or take a photo or video to send in a message.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kabso Live records sound with the videos you record to send in a message.</string>
+	<string>Kabso Live uses the microphone when you go live and for the videos you record to send in a message.</string>
 </dict>
 </plist>

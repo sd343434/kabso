@@ -21,6 +21,7 @@ class MeDto {
     required this.createdAt,
     this.bio,
     this.avatarUrl,
+    this.canHost = false,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -37,6 +38,10 @@ class MeDto {
   final bool isPrivate;
   final DateTime createdAt;
 
+  /// CP-010: may go live. Absent in a user cached before v1.6 → false.
+  @JsonKey(defaultValue: false)
+  final bool canHost;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -51,6 +56,7 @@ class MeDto {
     role: role == 'ADMIN' ? UserRole.admin : UserRole.user,
     isPrivate: isPrivate,
     createdAt: createdAt,
+    canHost: canHost,
   );
 }
 

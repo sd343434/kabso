@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
@@ -242,4 +243,40 @@ class DemoLiveRepository implements LiveRepository {
       endReason: null,
     );
   }
+
+  // D86: the demo shows the designed live hub only; going live, media and
+  // viewers need the real server.
+  static const _serverOnly = ServerFailure(
+    code: ErrorCode.liveHostingUnavailable,
+    rawCode: 'LIVE_HOSTING_UNAVAILABLE',
+    debugMessage: 'Demo data: going live needs the server',
+    statusCode: 503,
+  );
+
+  @override
+  Future<LiveRoom> startRoom({
+    required String title,
+    String? categorySlug,
+    bool allowGuests = true,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<void> heartbeat(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<LiveRoom> endRoom(String roomId) async => throw _serverOnly;
+
+  @override
+  Future<LiveRoom> setAllowGuests(String roomId, {required bool allow}) async =>
+      throw _serverOnly;
+
+  @override
+  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId}) async =>
+      throw _serverOnly;
+
+  @override
+  Future<({List<LiveViewer> items, String? next})> viewers(
+    String roomId, {
+    String? cursor,
+  }) async => (items: const <LiveViewer>[], next: null);
 }

@@ -2851,4 +2851,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifSettingsSaved => 'Saved';
+
+  @override
+  String get errorLiveHostingNotAllowed => 'Your account can\'t go live yet.';
+
+  @override
+  String get errorLiveGuestsNotAllowed =>
+      'The host lets only signed-in people watch this live.';
+
+  @override
+  String get createModePost => 'Post';
+
+  @override
+  String get createModeStory => 'Story';
+
+  @override
+  String get createModeLive => 'LIVE';
+
+  @override
+  String get goLiveTitleHint => 'Add a title';
+
+  @override
+  String get goLiveTitleRequired => 'Add a title for your live first.';
+
+  @override
+  String get goLiveFlip => 'Flip';
+
+  @override
+  String get goLiveMic => 'Mic';
+
+  @override
+  String get goLiveMicOff => 'Muted';
+
+  @override
+  String get goLiveGuests => 'Guests';
+
+  @override
+  String get goLiveGuestsOnHint => 'People without an account can watch';
+
+  @override
+  String get goLiveGuestsOffHint => 'Only signed-in people can watch';
+
+  @override
+  String get goLiveGuestsOn => 'Guests can watch';
+
+  @override
+  String get goLiveGuestsOff =>
+      'Guests removed; only signed-in people can watch';
+
+  @override
+  String get goLiveNoCategory => 'No category';
+
+  @override
+  String get goLiveStart => 'Go LIVE';
+
+  @override
+  String get goLiveStarting => 'Starting your live…';
+
+  @override
+  String get goLiveEnd => 'End';
+
+  @override
+  String get goLiveEndConfirmTitle => 'End your live?';
+
+  @override
+  String get goLiveEndConfirmBody =>
+      'Viewers will see that your live has ended.';
+
+  @override
+  String get goLiveEndConfirm => 'End live';
+
+  @override
+  String get goLiveKeepGoing => 'Keep going';
+
+  @override
+  String goLiveElapsed(String duration) {
+    return 'Live for $duration';
+  }
+
+  @override
+  String get goLiveEndedTitle => 'Your live has ended';
+
+  @override
+  String goLiveEndedDuration(String duration) {
+    return 'Duration $duration';
+  }
+
+  @override
+  String get goLiveDone => 'Done';
+
+  @override
+  String get goLiveCameraDeniedTitle => 'Allow camera and microphone';
+
+  @override
+  String get goLiveCameraDeniedBody =>
+      'Kabso Live needs them to show you live. Allow access in your settings, then try again.';
+
+  @override
+  String get goLiveCameraUnavailableTitle => 'Camera unavailable';
+
+  @override
+  String get goLiveCameraUnavailableBody =>
+      'No camera or microphone was found, or another app is using it.';
+
+  @override
+  String get goLiveNotAllowedTitle => 'Going live needs a host account';
+
+  @override
+  String get goLiveNotAllowedBody =>
+      'Hosts go live through a Kabso Live host agency or after verifying their identity. Sign-up is coming soon.';
+
+  @override
+  String get goLiveUnavailableTitle => 'Going live isn\'t available yet';
 }

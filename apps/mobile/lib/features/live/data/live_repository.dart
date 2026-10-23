@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
@@ -29,6 +30,32 @@ abstract interface class LiveRepository {
 
   /// `GET /live/rooms/{roomId}` (also returns ended rooms).
   Future<LiveRoom> getRoom(String roomId);
+
+  /// `POST /live/rooms` (CP-010: needs the hosting permission).
+  Future<LiveRoom> startRoom({
+    required String title,
+    String? categorySlug,
+    bool allowGuests = true,
+  });
+
+  /// `POST /live/rooms/{roomId}/heartbeat` (host).
+  Future<void> heartbeat(String roomId);
+
+  /// `POST /live/rooms/{roomId}/end` (host; idempotent).
+  Future<LiveRoom> endRoom(String roomId);
+
+  /// `PATCH /live/rooms/{roomId}` (host): the guests switch.
+  Future<LiveRoom> setAllowGuests(String roomId, {required bool allow});
+
+  /// `POST /live/rooms/{roomId}/media-token`; [guestId] only without an
+  /// account.
+  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId});
+
+  /// `GET /live/rooms/{roomId}/viewers` (host): who is watching now.
+  Future<({List<LiveViewer> items, String? next})> viewers(
+    String roomId, {
+    String? cursor,
+  });
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -80,6 +107,76 @@ class LiveRepositoryImpl implements LiveRepository {
       '/live/rooms/${pathSegment(roomId)}',
     );
     return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoom> startRoom({
+    required String title,
+    String? categorySlug,
+    bool allowGuests = true,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms',
+      data: {
+        'title': title,
+        'categorySlug': ?categorySlug,
+        'allowGuests': allowGuests,
+      },
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> heartbeat(String roomId) => guardApiCall(() async {
+    await _dio.post<void>('/live/rooms/${pathSegment(roomId)}/heartbeat');
+  });
+
+  @override
+  Future<LiveRoom> endRoom(String roomId) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/end',
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoom> setAllowGuests(String roomId, {required bool allow}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}',
+          data: {'allowGuests': allow},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId}) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/media-token',
+          data: {'guestId': ?guestId},
+        );
+        return LiveMediaAccess.fromJson(res.data!);
+      });
+
+  @override
+  Future<({List<LiveViewer> items, String? next})> viewers(
+    String roomId, {
+    String? cursor,
+  }) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/live/rooms/${pathSegment(roomId)}/viewers',
+      queryParameters: {'cursor': ?cursor},
+    );
+    final body = res.data!;
+    final page = PageInfo.fromJson(body['page']! as Map<String, dynamic>);
+    return (
+      items: [
+        for (final v in body['data']! as List<dynamic>)
+          LiveViewer.fromJson(v as Map<String, dynamic>),
+      ],
+      next: page.hasMore ? page.nextCursor : null,
+    );
   });
 }
 

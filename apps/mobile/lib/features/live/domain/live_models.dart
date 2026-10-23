@@ -94,6 +94,9 @@ abstract class LiveRoom with _$LiveRoom {
     required DateTime? endedAt,
     @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)
     required LiveRoomEndReason? endReason,
+
+    /// CP-010: people without an account may watch.
+    @Default(true) bool allowGuests,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -117,4 +120,49 @@ enum LiveRoomsTab {
   new(this.wire);
 
   final String wire;
+}
+
+/// `LiveMediaAccess` (CP-010): what joining a room's video needs.
+@freezed
+abstract class LiveMediaAccess with _$LiveMediaAccess {
+  const factory({
+    required String url,
+    required String token,
+    required DateTime expiresAt,
+    @JsonKey(unknownEnumValue: LiveMediaRole.viewer)
+    required LiveMediaRole role,
+    required String identity,
+    int? guestNumber,
+  }) = _LiveMediaAccess;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveMediaAccessFromJson(json);
+}
+
+enum LiveMediaRole {
+  @JsonValue('HOST')
+  host,
+  @JsonValue('VIEWER')
+  viewer,
+}
+
+/// `LiveViewer` (CP-010): someone watching now; a guest has a number only.
+@freezed
+abstract class LiveViewer with _$LiveViewer {
+  const factory({
+    @JsonKey(unknownEnumValue: LiveViewerKind.user)
+    required LiveViewerKind kind,
+    required UserSummary? user,
+    required int? guestNumber,
+    required DateTime joinedAt,
+  }) = _LiveViewer;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveViewerFromJson(json);
+}
+
+enum LiveViewerKind {
+  @JsonValue('USER')
+  user,
+  @JsonValue('GUEST')
+  guest,
 }

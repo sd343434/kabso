@@ -86,6 +86,7 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
     json['endReason'],
     unknownValue: LiveRoomEndReason.unknown,
   ),
+  allowGuests: json['allowGuests'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -100,6 +101,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'status': _$LiveRoomStatusEnumMap[instance.status]!,
   'endedAt': instance.endedAt?.toIso8601String(),
   'endReason': _$LiveRoomEndReasonEnumMap[instance.endReason],
+  'allowGuests': instance.allowGuests,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -125,3 +127,58 @@ _LiveRoomPage _$LiveRoomPageFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$LiveRoomPageToJson(_LiveRoomPage instance) =>
     <String, dynamic>{'data': instance.data, 'page': instance.page};
+
+_LiveMediaAccess _$LiveMediaAccessFromJson(Map<String, dynamic> json) =>
+    _LiveMediaAccess(
+      url: json['url'] as String,
+      token: json['token'] as String,
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+      role: $enumDecode(
+        _$LiveMediaRoleEnumMap,
+        json['role'],
+        unknownValue: LiveMediaRole.viewer,
+      ),
+      identity: json['identity'] as String,
+      guestNumber: (json['guestNumber'] as num?)?.toInt(),
+    );
+
+Map<String, dynamic> _$LiveMediaAccessToJson(_LiveMediaAccess instance) =>
+    <String, dynamic>{
+      'url': instance.url,
+      'token': instance.token,
+      'expiresAt': instance.expiresAt.toIso8601String(),
+      'role': _$LiveMediaRoleEnumMap[instance.role]!,
+      'identity': instance.identity,
+      'guestNumber': instance.guestNumber,
+    };
+
+const _$LiveMediaRoleEnumMap = {
+  LiveMediaRole.host: 'HOST',
+  LiveMediaRole.viewer: 'VIEWER',
+};
+
+_LiveViewer _$LiveViewerFromJson(Map<String, dynamic> json) => _LiveViewer(
+  kind: $enumDecode(
+    _$LiveViewerKindEnumMap,
+    json['kind'],
+    unknownValue: LiveViewerKind.user,
+  ),
+  user: json['user'] == null
+      ? null
+      : UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+  guestNumber: (json['guestNumber'] as num?)?.toInt(),
+  joinedAt: DateTime.parse(json['joinedAt'] as String),
+);
+
+Map<String, dynamic> _$LiveViewerToJson(_LiveViewer instance) =>
+    <String, dynamic>{
+      'kind': _$LiveViewerKindEnumMap[instance.kind]!,
+      'user': instance.user,
+      'guestNumber': instance.guestNumber,
+      'joinedAt': instance.joinedAt.toIso8601String(),
+    };
+
+const _$LiveViewerKindEnumMap = {
+  LiveViewerKind.user: 'USER',
+  LiveViewerKind.guest: 'GUEST',
+};

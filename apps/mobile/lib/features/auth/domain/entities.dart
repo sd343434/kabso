@@ -21,6 +21,9 @@ abstract class User with _$User {
     required DateTime createdAt,
     String? bio,
     String? avatarUrl,
+
+    /// CP-010: holds the hosting permission (may go live).
+    @Default(false) bool canHost,
   }) = _User;
 }
 

@@ -34,6 +34,7 @@ import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_detail_screen.dart';
 import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
+import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
@@ -188,6 +189,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.newStory,
         builder: (_, _) => const NewStoryScreen(),
       ),
+      GoRoute(path: AppRoutes.goLive, builder: (_, _) => const GoLiveScreen()),
       GoRoute(
         path: AppRoutes.storyArchive,
         builder: (_, _) => const StoryArchiveScreen(),

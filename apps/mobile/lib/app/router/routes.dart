@@ -58,6 +58,9 @@ abstract final class AppRoutes {
   /// CP-008: post a photo story.
   static const newStory = '/story/new';
 
+  /// CP-010: go live (camera preview, then on air).
+  static const goLive = '/live/new';
+
   /// CP-008: your story archive.
   static const storyArchive = '/me/stories';
 

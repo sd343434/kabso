@@ -898,7 +898,8 @@ $UserSummaryCopyWith<$Res> get host {
 /// @nodoc
 mixin _$LiveRoom {
 
- String get id; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; DateTime get startedAt; String? get coverUrl; LiveCategory? get category; UserSummary get host; LiveRoomStatus get status; DateTime? get endedAt;@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? get endReason;
+ String get id; String get title;@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode get mode; int get viewerCount; DateTime get startedAt; String? get coverUrl; LiveCategory? get category; UserSummary get host; LiveRoomStatus get status; DateTime? get endedAt;@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? get endReason;/// CP-010: people without an account may watch.
+ bool get allowGuests;
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -912,20 +913,20 @@ $LiveRoomCopyWith<LiveRoom> get copyWith => _$LiveRoomCopyWithImpl<LiveRoom>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoom;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoom;
-  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason);
+  return Object.hash(runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoom;
-  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason})';
+  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests})';
 }
 
 
@@ -936,7 +937,7 @@ abstract mixin class $LiveRoomCopyWith<$Res>  {
   factory $LiveRoomCopyWith(LiveRoom value, $Res Function(LiveRoom) _then) = _$LiveRoomCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests
 });
 
 
@@ -953,7 +954,7 @@ class _$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,}) {
   return _then(LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -966,7 +967,8 @@ as LiveCategory?,host: null == host ? _self.host : host // ignore: cast_nullable
 as UserSummary,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LiveRoomStatus,endedAt: freezed == endedAt ? _self.endedAt : endedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endReason: freezed == endReason ? _self.endReason : endReason // ignore: cast_nullable_to_non_nullable
-as LiveRoomEndReason?,
+as LiveRoomEndReason?,allowGuests: null == allowGuests ? _self.allowGuests : allowGuests // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 /// Create a copy of LiveRoom
@@ -1072,10 +1074,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
   return orElse();
 
 }
@@ -1093,10 +1095,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1113,10 +1115,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests);case _:
   return null;
 
 }
@@ -1128,7 +1130,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoom implements LiveRoom {
-  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason});
+  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true});
   factory _LiveRoom.fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
 
 @override final  String id;
@@ -1142,6 +1144,8 @@ class _LiveRoom implements LiveRoom {
 @override final  LiveRoomStatus status;
 @override final  DateTime? endedAt;
 @override@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) final  LiveRoomEndReason? endReason;
+/// CP-010: people without an account may watch.
+@override@JsonKey() final  bool allowGuests;
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
@@ -1156,18 +1160,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason);
+    return Object.hash(runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests);
 }
 
 @override
 String toString() {
-    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason)';
+    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests)';
 }
 
 
@@ -1178,7 +1182,7 @@ abstract mixin class _$LiveRoomCopyWith<$Res> implements $LiveRoomCopyWith<$Res>
   factory _$LiveRoomCopyWith(_LiveRoom value, $Res Function(_LiveRoom) _then) = __$LiveRoomCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests
 });
 
 
@@ -1195,7 +1199,7 @@ class __$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,}) {
   return _then(_LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -1208,7 +1212,8 @@ as LiveCategory?,host: null == host ? _self.host : host // ignore: cast_nullable
 as UserSummary,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LiveRoomStatus,endedAt: freezed == endedAt ? _self.endedAt : endedAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,endReason: freezed == endReason ? _self.endReason : endReason // ignore: cast_nullable_to_non_nullable
-as LiveRoomEndReason?,
+as LiveRoomEndReason?,allowGuests: null == allowGuests ? _self.allowGuests : allowGuests // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -1529,6 +1534,594 @@ $PageInfoCopyWith<$Res> get page {
   
   return $PageInfoCopyWith<$Res>(_self.page, (value) {
     return _then(_self.copyWith(page: value));
+  });
+}
+}
+
+
+/// @nodoc
+mixin _$LiveMediaAccess {
+
+ String get url; String get token; DateTime get expiresAt;@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole get role; String get identity; int? get guestNumber;
+/// Create a copy of LiveMediaAccess
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveMediaAccessCopyWith<LiveMediaAccess> get copyWith => _$LiveMediaAccessCopyWithImpl<LiveMediaAccess>(this as LiveMediaAccess, _$identity);
+
+  /// Serializes this LiveMediaAccess to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveMediaAccess;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveMediaAccess&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.token, _this.token) || other.token == _this.token)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.role, _this.role) || other.role == _this.role)&&(identical(other.identity, _this.identity) || other.identity == _this.identity)&&(identical(other.guestNumber, _this.guestNumber) || other.guestNumber == _this.guestNumber));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveMediaAccess;
+  return Object.hash(runtimeType,_this.url,_this.token,_this.expiresAt,_this.role,_this.identity,_this.guestNumber);
+}
+
+@override
+String toString() {
+  final _this = this as LiveMediaAccess;
+  return 'LiveMediaAccess(url: ${_this.url}, token: ${_this.token}, expiresAt: ${_this.expiresAt}, role: ${_this.role}, identity: ${_this.identity}, guestNumber: ${_this.guestNumber})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveMediaAccessCopyWith<$Res>  {
+  factory $LiveMediaAccessCopyWith(LiveMediaAccess value, $Res Function(LiveMediaAccess) _then) = _$LiveMediaAccessCopyWithImpl;
+@useResult
+$Res call({
+ String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber
+});
+
+
+
+
+}
+/// @nodoc
+class _$LiveMediaAccessCopyWithImpl<$Res>
+    implements $LiveMediaAccessCopyWith<$Res> {
+  _$LiveMediaAccessCopyWithImpl(this._self, this._then);
+
+  final LiveMediaAccess _self;
+  final $Res Function(LiveMediaAccess) _then;
+
+/// Create a copy of LiveMediaAccess
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,}) {
+  return _then(LiveMediaAccess(
+url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
+as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as LiveMediaRole,identity: null == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
+as String,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [LiveMediaAccess].
+extension LiveMediaAccessPatterns on LiveMediaAccess {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveMediaAccess value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveMediaAccess() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveMediaAccess value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveMediaAccess():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveMediaAccess value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveMediaAccess() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveMediaAccess() when $default != null:
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)  $default,) {final _that = this;
+switch (_that) {
+case _LiveMediaAccess():
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String url,  String token,  DateTime expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer)  LiveMediaRole role,  String identity,  int? guestNumber)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveMediaAccess() when $default != null:
+return $default(_that.url,_that.token,_that.expiresAt,_that.role,_that.identity,_that.guestNumber);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveMediaAccess implements LiveMediaAccess {
+  const _LiveMediaAccess({required this.url, required this.token, required this.expiresAt, @JsonKey(unknownEnumValue: LiveMediaRole.viewer) required this.role, required this.identity, this.guestNumber});
+  factory _LiveMediaAccess.fromJson(Map<String, dynamic> json) => _$LiveMediaAccessFromJson(json);
+
+@override final  String url;
+@override final  String token;
+@override final  DateTime expiresAt;
+@override@JsonKey(unknownEnumValue: LiveMediaRole.viewer) final  LiveMediaRole role;
+@override final  String identity;
+@override final  int? guestNumber;
+
+/// Create a copy of LiveMediaAccess
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveMediaAccessCopyWith<_LiveMediaAccess> get copyWith => __$LiveMediaAccessCopyWithImpl<_LiveMediaAccess>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveMediaAccessToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveMediaAccess&&(identical(other.url, url) || other.url == url)&&(identical(other.token, token) || other.token == token)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.role, role) || other.role == role)&&(identical(other.identity, identity) || other.identity == identity)&&(identical(other.guestNumber, guestNumber) || other.guestNumber == guestNumber));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,url,token,expiresAt,role,identity,guestNumber);
+}
+
+@override
+String toString() {
+    return 'LiveMediaAccess(url: $url, token: $token, expiresAt: $expiresAt, role: $role, identity: $identity, guestNumber: $guestNumber)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveMediaAccessCopyWith<$Res> implements $LiveMediaAccessCopyWith<$Res> {
+  factory _$LiveMediaAccessCopyWith(_LiveMediaAccess value, $Res Function(_LiveMediaAccess) _then) = __$LiveMediaAccessCopyWithImpl;
+@override @useResult
+$Res call({
+ String url, String token, DateTime expiresAt,@JsonKey(unknownEnumValue: LiveMediaRole.viewer) LiveMediaRole role, String identity, int? guestNumber
+});
+
+
+
+
+}
+/// @nodoc
+class __$LiveMediaAccessCopyWithImpl<$Res>
+    implements _$LiveMediaAccessCopyWith<$Res> {
+  __$LiveMediaAccessCopyWithImpl(this._self, this._then);
+
+  final _LiveMediaAccess _self;
+  final $Res Function(_LiveMediaAccess) _then;
+
+/// Create a copy of LiveMediaAccess
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? url = null,Object? token = null,Object? expiresAt = null,Object? role = null,Object? identity = null,Object? guestNumber = freezed,}) {
+  return _then(_LiveMediaAccess(
+url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
+as String,expiresAt: null == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as DateTime,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
+as LiveMediaRole,identity: null == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
+as String,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$LiveViewer {
+
+@JsonKey(unknownEnumValue: LiveViewerKind.user) LiveViewerKind get kind; UserSummary? get user; int? get guestNumber; DateTime get joinedAt;
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveViewerCopyWith<LiveViewer> get copyWith => _$LiveViewerCopyWithImpl<LiveViewer>(this as LiveViewer, _$identity);
+
+  /// Serializes this LiveViewer to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveViewer;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveViewer&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.guestNumber, _this.guestNumber) || other.guestNumber == _this.guestNumber)&&(identical(other.joinedAt, _this.joinedAt) || other.joinedAt == _this.joinedAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveViewer;
+  return Object.hash(runtimeType,_this.kind,_this.user,_this.guestNumber,_this.joinedAt);
+}
+
+@override
+String toString() {
+  final _this = this as LiveViewer;
+  return 'LiveViewer(kind: ${_this.kind}, user: ${_this.user}, guestNumber: ${_this.guestNumber}, joinedAt: ${_this.joinedAt})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveViewerCopyWith<$Res>  {
+  factory $LiveViewerCopyWith(LiveViewer value, $Res Function(LiveViewer) _then) = _$LiveViewerCopyWithImpl;
+@useResult
+$Res call({
+@JsonKey(unknownEnumValue: LiveViewerKind.user) LiveViewerKind kind, UserSummary? user, int? guestNumber, DateTime joinedAt
+});
+
+
+$UserSummaryCopyWith<$Res>? get user;
+
+}
+/// @nodoc
+class _$LiveViewerCopyWithImpl<$Res>
+    implements $LiveViewerCopyWith<$Res> {
+  _$LiveViewerCopyWithImpl(this._self, this._then);
+
+  final LiveViewer _self;
+  final $Res Function(LiveViewer) _then;
+
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? kind = null,Object? user = freezed,Object? guestNumber = freezed,Object? joinedAt = null,}) {
+  return _then(LiveViewer(
+kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as LiveViewerKind,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary?,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
+as int?,joinedAt: null == joinedAt ? _self.joinedAt : joinedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get user {
+    if (_self.user == null) {
+    return null;
+  }
+
+  return $UserSummaryCopyWith<$Res>(_self.user!, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveViewer].
+extension LiveViewerPatterns on LiveViewer {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveViewer value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveViewer() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveViewer value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveViewer():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveViewer value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveViewer() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(unknownEnumValue: LiveViewerKind.user)  LiveViewerKind kind,  UserSummary? user,  int? guestNumber,  DateTime joinedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveViewer() when $default != null:
+return $default(_that.kind,_that.user,_that.guestNumber,_that.joinedAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(unknownEnumValue: LiveViewerKind.user)  LiveViewerKind kind,  UserSummary? user,  int? guestNumber,  DateTime joinedAt)  $default,) {final _that = this;
+switch (_that) {
+case _LiveViewer():
+return $default(_that.kind,_that.user,_that.guestNumber,_that.joinedAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(unknownEnumValue: LiveViewerKind.user)  LiveViewerKind kind,  UserSummary? user,  int? guestNumber,  DateTime joinedAt)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveViewer() when $default != null:
+return $default(_that.kind,_that.user,_that.guestNumber,_that.joinedAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveViewer implements LiveViewer {
+  const _LiveViewer({@JsonKey(unknownEnumValue: LiveViewerKind.user) required this.kind, required this.user, required this.guestNumber, required this.joinedAt});
+  factory _LiveViewer.fromJson(Map<String, dynamic> json) => _$LiveViewerFromJson(json);
+
+@override@JsonKey(unknownEnumValue: LiveViewerKind.user) final  LiveViewerKind kind;
+@override final  UserSummary? user;
+@override final  int? guestNumber;
+@override final  DateTime joinedAt;
+
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveViewerCopyWith<_LiveViewer> get copyWith => __$LiveViewerCopyWithImpl<_LiveViewer>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveViewerToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveViewer&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.user, user) || other.user == user)&&(identical(other.guestNumber, guestNumber) || other.guestNumber == guestNumber)&&(identical(other.joinedAt, joinedAt) || other.joinedAt == joinedAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,kind,user,guestNumber,joinedAt);
+}
+
+@override
+String toString() {
+    return 'LiveViewer(kind: $kind, user: $user, guestNumber: $guestNumber, joinedAt: $joinedAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveViewerCopyWith<$Res> implements $LiveViewerCopyWith<$Res> {
+  factory _$LiveViewerCopyWith(_LiveViewer value, $Res Function(_LiveViewer) _then) = __$LiveViewerCopyWithImpl;
+@override @useResult
+$Res call({
+@JsonKey(unknownEnumValue: LiveViewerKind.user) LiveViewerKind kind, UserSummary? user, int? guestNumber, DateTime joinedAt
+});
+
+
+@override $UserSummaryCopyWith<$Res>? get user;
+
+}
+/// @nodoc
+class __$LiveViewerCopyWithImpl<$Res>
+    implements _$LiveViewerCopyWith<$Res> {
+  __$LiveViewerCopyWithImpl(this._self, this._then);
+
+  final _LiveViewer _self;
+  final $Res Function(_LiveViewer) _then;
+
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? kind = null,Object? user = freezed,Object? guestNumber = freezed,Object? joinedAt = null,}) {
+  return _then(_LiveViewer(
+kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as LiveViewerKind,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as UserSummary?,guestNumber: freezed == guestNumber ? _self.guestNumber : guestNumber // ignore: cast_nullable_to_non_nullable
+as int?,joinedAt: null == joinedAt ? _self.joinedAt : joinedAt // ignore: cast_nullable_to_non_nullable
+as DateTime,
+  ));
+}
+
+/// Create a copy of LiveViewer
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$UserSummaryCopyWith<$Res>? get user {
+    if (_self.user == null) {
+    return null;
+  }
+
+  return $UserSummaryCopyWith<$Res>(_self.user!, (value) {
+    return _then(_self.copyWith(user: value));
   });
 }
 }

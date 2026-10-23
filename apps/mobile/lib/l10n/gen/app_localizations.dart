@@ -4957,6 +4957,210 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حُفظ'**
   String get notifSettingsSaved;
+
+  /// LIVE_HOSTING_NOT_ALLOWED (403, CP-010).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن لحسابك البث المباشر بعد.'**
+  String get errorLiveHostingNotAllowed;
+
+  /// LIVE_GUESTS_NOT_ALLOWED (403, CP-010).
+  ///
+  /// In ar, this message translates to:
+  /// **'يسمح المضيف بمشاهدة هذا البث للمسجّلين فقط.'**
+  String get errorLiveGuestsNotAllowed;
+
+  /// Create mode bar: post
+  ///
+  /// In ar, this message translates to:
+  /// **'منشور'**
+  String get createModePost;
+
+  /// Create mode bar: story
+  ///
+  /// In ar, this message translates to:
+  /// **'قصة'**
+  String get createModeStory;
+
+  /// Create mode bar: go live
+  ///
+  /// In ar, this message translates to:
+  /// **'بث مباشر'**
+  String get createModeLive;
+
+  /// Go-live title field hint
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف عنواناً'**
+  String get goLiveTitleHint;
+
+  /// Snack when Go live is tapped without a title
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف عنواناً لبثك أولاً.'**
+  String get goLiveTitleRequired;
+
+  /// Flip camera
+  ///
+  /// In ar, this message translates to:
+  /// **'قلب'**
+  String get goLiveFlip;
+
+  /// Microphone toggle (on)
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون'**
+  String get goLiveMic;
+
+  /// Microphone toggle (off)
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتوم'**
+  String get goLiveMicOff;
+
+  /// Guests switch label
+  ///
+  /// In ar, this message translates to:
+  /// **'الزوار'**
+  String get goLiveGuests;
+
+  /// Guests switch on (semantics)
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن لمن لا يملك حساباً المشاهدة'**
+  String get goLiveGuestsOnHint;
+
+  /// Guests switch off (semantics)
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدة للمسجّلين فقط'**
+  String get goLiveGuestsOffHint;
+
+  /// Snack after allowing guests while live
+  ///
+  /// In ar, this message translates to:
+  /// **'سُمح للزوار بالمشاهدة'**
+  String get goLiveGuestsOn;
+
+  /// Snack after turning guests off while live
+  ///
+  /// In ar, this message translates to:
+  /// **'أُخرج الزوار وأصبحت المشاهدة للمسجّلين فقط'**
+  String get goLiveGuestsOff;
+
+  /// Category chip: none
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا فئة'**
+  String get goLiveNoCategory;
+
+  /// Big start button
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأ البث'**
+  String get goLiveStart;
+
+  /// Starting state
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ بدء البث…'**
+  String get goLiveStarting;
+
+  /// End button while live
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get goLiveEnd;
+
+  /// End confirmation title
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء البث؟'**
+  String get goLiveEndConfirmTitle;
+
+  /// End confirmation body
+  ///
+  /// In ar, this message translates to:
+  /// **'سيرى المشاهدون أن البث انتهى.'**
+  String get goLiveEndConfirmBody;
+
+  /// End confirmation action
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء البث'**
+  String get goLiveEndConfirm;
+
+  /// End confirmation cancel
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة البث'**
+  String get goLiveKeepGoing;
+
+  /// Elapsed time (semantics)
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر منذ {duration}'**
+  String goLiveElapsed(String duration);
+
+  /// Ended summary title
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى بثك'**
+  String get goLiveEndedTitle;
+
+  /// Ended summary duration
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة {duration}'**
+  String goLiveEndedDuration(String duration);
+
+  /// Ended summary button
+  ///
+  /// In ar, this message translates to:
+  /// **'تم'**
+  String get goLiveDone;
+
+  /// Capture denied title
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح بالكاميرا والميكروفون'**
+  String get goLiveCameraDeniedTitle;
+
+  /// Capture denied body
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتاجهما Kabso Live ليعرضك مباشرة. اسمح بالوصول من الإعدادات ثم حاول مجدداً.'**
+  String get goLiveCameraDeniedBody;
+
+  /// Capture unavailable title
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا غير متاحة'**
+  String get goLiveCameraUnavailableTitle;
+
+  /// Capture unavailable body
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُعثر على كاميرا أو ميكروفون، أو يستخدمهما تطبيق آخر.'**
+  String get goLiveCameraUnavailableBody;
+
+  /// canHost false title
+  ///
+  /// In ar, this message translates to:
+  /// **'البث يحتاج حساب مضيف'**
+  String get goLiveNotAllowedTitle;
+
+  /// canHost false body
+  ///
+  /// In ar, this message translates to:
+  /// **'يبث المضيفون عبر وكالة مضيفين في Kabso Live أو بعد توثيق هويتهم. التسجيل قريباً.'**
+  String get goLiveNotAllowedBody;
+
+  /// hostingEnabled false title
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر غير متاح بعد'**
+  String get goLiveUnavailableTitle;
 }
 
 class _AppLocalizationsDelegate

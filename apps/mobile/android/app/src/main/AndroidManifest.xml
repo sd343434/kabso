@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Required in every build type: the app talks to the Kabso API. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- CP-010 (live video): camera and microphone while going live; network state for reconnects. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <!-- KL-060 Create: the in-app photo gallery (photo_manager). Android 13+
          reads images only; Android 14+ may grant a user-selected subset.

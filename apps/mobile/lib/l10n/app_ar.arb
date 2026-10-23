@@ -3143,5 +3143,153 @@
   "notifSettingsSaved": "حُفظ",
   "@notifSettingsSaved": {
     "description": "Notification setting saved"
+  },
+  "errorLiveHostingNotAllowed": "لا يمكن لحسابك البث المباشر بعد.",
+  "@errorLiveHostingNotAllowed": {
+    "description": "LIVE_HOSTING_NOT_ALLOWED (403, CP-010)."
+  },
+  "errorLiveGuestsNotAllowed": "يسمح المضيف بمشاهدة هذا البث للمسجّلين فقط.",
+  "@errorLiveGuestsNotAllowed": {
+    "description": "LIVE_GUESTS_NOT_ALLOWED (403, CP-010)."
+  },
+  "createModePost": "منشور",
+  "@createModePost": {
+    "description": "Create mode bar: post"
+  },
+  "createModeStory": "قصة",
+  "@createModeStory": {
+    "description": "Create mode bar: story"
+  },
+  "createModeLive": "بث مباشر",
+  "@createModeLive": {
+    "description": "Create mode bar: go live"
+  },
+  "goLiveTitleHint": "أضف عنواناً",
+  "@goLiveTitleHint": {
+    "description": "Go-live title field hint"
+  },
+  "goLiveTitleRequired": "أضف عنواناً لبثك أولاً.",
+  "@goLiveTitleRequired": {
+    "description": "Snack when Go live is tapped without a title"
+  },
+  "goLiveFlip": "قلب",
+  "@goLiveFlip": {
+    "description": "Flip camera"
+  },
+  "goLiveMic": "الميكروفون",
+  "@goLiveMic": {
+    "description": "Microphone toggle (on)"
+  },
+  "goLiveMicOff": "مكتوم",
+  "@goLiveMicOff": {
+    "description": "Microphone toggle (off)"
+  },
+  "goLiveGuests": "الزوار",
+  "@goLiveGuests": {
+    "description": "Guests switch label"
+  },
+  "goLiveGuestsOnHint": "يمكن لمن لا يملك حساباً المشاهدة",
+  "@goLiveGuestsOnHint": {
+    "description": "Guests switch on (semantics)"
+  },
+  "goLiveGuestsOffHint": "المشاهدة للمسجّلين فقط",
+  "@goLiveGuestsOffHint": {
+    "description": "Guests switch off (semantics)"
+  },
+  "goLiveGuestsOn": "سُمح للزوار بالمشاهدة",
+  "@goLiveGuestsOn": {
+    "description": "Snack after allowing guests while live"
+  },
+  "goLiveGuestsOff": "أُخرج الزوار وأصبحت المشاهدة للمسجّلين فقط",
+  "@goLiveGuestsOff": {
+    "description": "Snack after turning guests off while live"
+  },
+  "goLiveNoCategory": "بلا فئة",
+  "@goLiveNoCategory": {
+    "description": "Category chip: none"
+  },
+  "goLiveStart": "ابدأ البث",
+  "@goLiveStart": {
+    "description": "Big start button"
+  },
+  "goLiveStarting": "جارٍ بدء البث…",
+  "@goLiveStarting": {
+    "description": "Starting state"
+  },
+  "goLiveEnd": "إنهاء",
+  "@goLiveEnd": {
+    "description": "End button while live"
+  },
+  "goLiveEndConfirmTitle": "إنهاء البث؟",
+  "@goLiveEndConfirmTitle": {
+    "description": "End confirmation title"
+  },
+  "goLiveEndConfirmBody": "سيرى المشاهدون أن البث انتهى.",
+  "@goLiveEndConfirmBody": {
+    "description": "End confirmation body"
+  },
+  "goLiveEndConfirm": "إنهاء البث",
+  "@goLiveEndConfirm": {
+    "description": "End confirmation action"
+  },
+  "goLiveKeepGoing": "متابعة البث",
+  "@goLiveKeepGoing": {
+    "description": "End confirmation cancel"
+  },
+  "goLiveElapsed": "مباشر منذ {duration}",
+  "@goLiveElapsed": {
+    "description": "Elapsed time (semantics)",
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "12:04"
+      }
+    }
+  },
+  "goLiveEndedTitle": "انتهى بثك",
+  "@goLiveEndedTitle": {
+    "description": "Ended summary title"
+  },
+  "goLiveEndedDuration": "المدة {duration}",
+  "@goLiveEndedDuration": {
+    "description": "Ended summary duration",
+    "placeholders": {
+      "duration": {
+        "type": "String",
+        "example": "12:04"
+      }
+    }
+  },
+  "goLiveDone": "تم",
+  "@goLiveDone": {
+    "description": "Ended summary button"
+  },
+  "goLiveCameraDeniedTitle": "اسمح بالكاميرا والميكروفون",
+  "@goLiveCameraDeniedTitle": {
+    "description": "Capture denied title"
+  },
+  "goLiveCameraDeniedBody": "يحتاجهما Kabso Live ليعرضك مباشرة. اسمح بالوصول من الإعدادات ثم حاول مجدداً.",
+  "@goLiveCameraDeniedBody": {
+    "description": "Capture denied body"
+  },
+  "goLiveCameraUnavailableTitle": "الكاميرا غير متاحة",
+  "@goLiveCameraUnavailableTitle": {
+    "description": "Capture unavailable title"
+  },
+  "goLiveCameraUnavailableBody": "لم يُعثر على كاميرا أو ميكروفون، أو يستخدمهما تطبيق آخر.",
+  "@goLiveCameraUnavailableBody": {
+    "description": "Capture unavailable body"
+  },
+  "goLiveNotAllowedTitle": "البث يحتاج حساب مضيف",
+  "@goLiveNotAllowedTitle": {
+    "description": "canHost false title"
+  },
+  "goLiveNotAllowedBody": "يبث المضيفون عبر وكالة مضيفين في Kabso Live أو بعد توثيق هويتهم. التسجيل قريباً.",
+  "@goLiveNotAllowedBody": {
+    "description": "canHost false body"
+  },
+  "goLiveUnavailableTitle": "البث المباشر غير متاح بعد",
+  "@goLiveUnavailableTitle": {
+    "description": "hostingEnabled false title"
   }
 }

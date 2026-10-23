@@ -28,6 +28,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveHostingUnavailable: 503,
   ErrorCode.liveRoomAlreadyActive: 409,
   ErrorCode.liveRoomEnded: 409,
+  ErrorCode.liveHostingNotAllowed: 403,
+  ErrorCode.liveGuestsNotAllowed: 403,
   // v1.5-social
   ErrorCode.mediaUploadsUnavailable: 503,
   ErrorCode.mediaInvalid: 422,
@@ -66,6 +68,8 @@ void main() {
           'AUTH_FORBIDDEN',
           'ACCOUNT_SUSPENDED',
           'NOT_FOUND',
+          'LIVE_HOSTING_NOT_ALLOWED',
+          'LIVE_GUESTS_NOT_ALLOWED',
           'EMAIL_TAKEN',
           'USERNAME_TAKEN',
           'IDEMPOTENCY_CONFLICT',

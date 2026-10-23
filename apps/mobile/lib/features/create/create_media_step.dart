@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/create/compose_widgets.dart';
+import 'package:kabso_live/features/create/create_mode_bar.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/application/media_library_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -176,6 +179,15 @@ class _CreateMediaStepState extends ConsumerState<CreateMediaStep> {
                 const SizedBox(height: KSpacing.sm),
               ],
               const _UpToNote(),
+              const SizedBox(height: KSpacing.xs),
+              CreateModeBar(
+                selected: CreateMode.post,
+                onSelect: (mode) => switch (mode) {
+                  CreateMode.post => null,
+                  CreateMode.story => context.push(AppRoutes.newStory),
+                  CreateMode.live => context.push(AppRoutes.goLive),
+                },
+              ),
             ],
           ),
         ),
