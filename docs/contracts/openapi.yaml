@@ -567,13 +567,13 @@ paths:
       summary: "List live rooms for a discovery tab (cursor-paginated; v1.3)"
       description: |
         CONVENTIONS §10.2 and §10.4. Only rooms with `status = LIVE`, a fresh heartbeat and an
-        `ACTIVE` host. Stale rooms are filtered out; this read never writes (v1.3.1, SEC-035). Orderings: `popular` = viewerCount desc, startedAt desc, id desc; `new` =
+        `ACTIVE` host. Stale rooms are filtered out; this read never writes (v1.3.1, SEC-035). Orderings: `popular` = score desc, startedAt desc, id desc (v1.8-live, CP-012; was viewerCount); `new` =
         startedAt desc, id desc; `following` = rooms of hosts the caller follows, startedAt desc,
         id desc. `category` filters every tab. CP-010: guests (no token) may call `popular` and
         `new`; `following` without a token → 401. A well-formed slug that is unknown or inactive
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
-        `id`** (HL-H5). CP-010: `viewerCount` counts people watching now, so `popular` orders by
-        it.
+        `id`** (HL-H5). CP-012: the room score changes while people tap, so rooms move between
+        pages more often; v1.8-live cursors carry the score (older `popular` cursors → 400).
       parameters:
         - name: tab
           in: query
@@ -617,6 +617,7 @@ paths:
                         seatCount: null
                         occupiedSeats: 0
                         theme: classic
+                        score: 1240
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
           description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
@@ -714,6 +715,8 @@ paths:
                     seatCount: null
                     occupiedSeats: 0
                     theme: classic
+                    score: 1240
+                    scoreParts: { total: 1240, tapPoints: 1240, supportPoints: 0 }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -801,6 +804,38 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/taps:
+    post:
+      tags: [live]
+      operationId: tapLiveRoom
+      summary: "Tap a live to cheer the host: 1 point a counted tap (CP-012)"
+      description: |
+        CONVENTIONS §10.10. Signed-in callers only (a guest → 401). The app batches taps and
+        sends at most one request a second. Counted per caller and room: at most 10 a second
+        (a batch adds at most 10 × the seconds since the caller's last counted batch, and at
+        most 10 for the first one) and at most 10 000 in the live. The host's own taps count 0;
+        seated guests and moderators count like any viewer. Taps past a limit are dropped and
+        the answer is still 200, with `accepted` below `count`. Ended room → 409
+        `LIVE_ROOM_ENDED`; a room the caller may not see → 404.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveTapsRequest' }
+      responses:
+        '200':
+          description: The taps counted from this batch and the room's score after it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveTapsResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/rooms/{roomId}/heartbeat:
@@ -3202,7 +3237,7 @@ components:
         mixed-script rule do **not** apply.
     LiveRoomSummary:
       type: object
-      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host, seatCount, occupiedSeats, theme]
+      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host, seatCount, occupiedSeats, theme, score]
       properties:
         id: { type: string, format: uuid }
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
@@ -3229,12 +3264,18 @@ components:
             - { type: 'null' }
         occupiedSeats: { type: integer, minimum: 0, description: "CP-011 — guests seated now (0 for SOLO)." }
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
+        score:
+          type: integer
+          format: int64
+          minimum: 0
+          description: CP-012 — the live's points (taps + support); `popular` orders by it.
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason, allowGuests]
+          required: [status, endedAt, endReason, allowGuests, scoreParts]
           properties:
+            scoreParts: { $ref: '#/components/schemas/LiveScore' }
             status: { type: string, enum: [LIVE, ENDED] }
             allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }
@@ -3413,6 +3454,30 @@ components:
           description: Signed-in callers only; absent for guests.
           allOf:
             - $ref: '#/components/schemas/LiveSeatsMine'
+    LiveScore:
+      type: object
+      description: CP-012 — a live's points. A new live starts at 0; an ended room keeps them.
+      required: [total, tapPoints, supportPoints]
+      properties:
+        total: { type: integer, format: int64, minimum: 0, description: tapPoints + supportPoints. }
+        tapPoints: { type: integer, format: int64, minimum: 0, description: 1 per counted tap. }
+        supportPoints:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 100 per support coin, written with the gift (L3); 0 until then.
+    LiveTapsRequest:
+      type: object
+      required: [count]
+      additionalProperties: false
+      properties:
+        count: { type: integer, minimum: 1, maximum: 50, description: Taps since the last batch. }
+    LiveTapsResult:
+      type: object
+      required: [accepted, score]
+      properties:
+        accepted: { type: integer, minimum: 0, maximum: 50, description: Taps counted from this batch. }
+        score: { $ref: '#/components/schemas/LiveScore' }
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string

@@ -323,6 +323,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | Seat requests and invitations *(v1.7-live, CP-011)* | 30 / 10 min per user |
 | Host and moderator seat actions (accept, decline, mute, remove, lock, moderators, `seatCount`/`theme` in `PATCH`) *(v1.7-live, CP-011)* | 300 / hour per user |
 | `GET /live/rooms/{roomId}/seats` *(v1.7-live, CP-011)* | 600 / 15 min per user; guests share the CP-010 guest read limit per IP |
+| `POST /live/rooms/{roomId}/taps` *(v1.8-live, CP-012)* | 120 / min per user (one batch a second = 60 / min; 2× headroom). **Replaces** the per-user default (it would exhaust 600 / 15 min). The 10-a-second and 10 000-a-live limits are counting rules, not rate limits: past them taps are dropped with 200 (§10.10) |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -342,7 +343,7 @@ always replace the default bucket:
 - **Replaces the per-user default** (600 / 15 min): only the rows marked *(v1.3)* that carry an
   endpoint limit — `GET /live/rooms`, `GET /users/{username}`, `POST /live/rooms`,
   `POST /live/rooms/{roomId}/heartbeat`, `POST /live/rooms/{roomId}/end`, and `PUT` + `DELETE
-  /users/{username}/follow`. These requests count only against their own buckets.
+  /users/{username}/follow`; *(v1.8-live)* also `POST /live/rooms/{roomId}/taps`. These requests count only against their own buckets.
 - **Counts both** its own bucket and the per-user default: the older authenticated rows,
   `PATCH /me` and `POST /auth/email/resend`. This is stricter and therefore safe; it stays as is.
 - **Per-user default only:** every other authenticated route, including `GET /live/config`,
@@ -416,6 +417,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
 | v1.6-live (draft) | 2026-10-23 | **CP-010 (D93, Live L1):** live video — `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`, `grantLiveHost`, `revokeLiveHost`; schemas `LiveMediaAccess`, `LiveMediaTokenRequest`, `UpdateLiveRoomRequest`, `LiveViewer`, `LiveViewerPage`; `LiveRoom.allowGuests`, `StartLiveRoomRequest.allowGuests`, `Me.canHost`; report `targetType: LIVE_ROOM`; codes `LIVE_HOSTING_NOT_ALLOWED`, `LIVE_GUESTS_NOT_ALLOWED`; guests read the live hub without a token; `viewerCount` counts people watching. §4, §7 rows and §10.8. | **Additive**, plus one **tightening** (go-live needs the hosting permission; hosting is switched off in production today, so nobody loses anything) and one **relaxing** (four live operations accept no token). |
 | v1.7-live (draft) | 2026-10-23 | **CP-011 (D94):** multi-guest video and audio rooms — `LiveRoomMode.AUDIO`; `StartLiveRoomRequest.mode`, `seatCount`, `theme`; `LiveRoomSummary.seatCount`, `occupiedSeats`, `theme`; `LiveConfig.themes`, `seatCounts`; `UpdateLiveRoomRequest.seatCount`, `theme` (now at least one field); media role `SPEAKER`; operations `getLiveRoomSeats`, `requestLiveSeat`, `listLiveSeatRequests`, `cancelLiveSeatRequest`, `acceptLiveSeatRequest`, `declineLiveSeatRequest`, `inviteToLiveSeat`, `acceptLiveSeatInvite`, `declineLiveSeatInvite`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, `addLiveModerator`, `removeLiveModerator`; codes `LIVE_SEAT_UNAVAILABLE`, `LIVE_REQUEST_NOT_PENDING`. §4, §7 rows and §10.9. | **Additive** (a new enum value older apps show as SOLO; new optional request fields; new response fields and operations). |
+| v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and `popular` cursors issued before v1.8-live become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
 | v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
 | v1.5-social (draft) | 2026-10-21 | **CP-007 (D89):** `GET /me/mutes` (the caller's muted accounts, newest first, `UserSummaryPage`) and `PublicProfile.isMuted` (the caller's own mute only). §11.7 line added. | Additive: a new path and one new boolean on `PublicProfile`. |
@@ -560,11 +562,11 @@ until a media provider is wired in.
 
   | Tab | Order |
   | --- | ----- |
-  | `popular` | `viewerCount` desc, then `startedAt` desc |
+  | `popular` | *(v1.8-live)* `score` desc (§10.10), then `startedAt` desc. *(v1.3–v1.7)* `viewerCount` desc |
   | `new` | `startedAt` desc |
   | `following` | `startedAt` desc, over rooms whose host the caller follows |
 
-  While `viewerCount` is 0, `popular` orders like `new`.
+  While every score is 0, `popular` orders like `new`.
 - **`category`** is optional and filters **every** tab, so the semantics are uniform. Per HL-H3
   the client sends it only on Popular.
   - A malformed slug → 400 (`field "category"`).
@@ -573,7 +575,8 @@ until a media provider is wired in.
     honest answer.
 - **Cursor:** base64url of a compact payload, a `.`, then a truncated HMAC-SHA-256 tag (128-bit).
   - The payload holds a format version, `tab`, `category`, the caller's user id (`following`
-    only), and the sort key of the last row (`viewerCount`, `startedAt`, `id`).
+    only), and the sort key of the last row (*(v1.8-live)* `score`, `startedAt`, `id`;
+    earlier `viewerCount`). A cursor of an older format version → 400 as below.
   - The HMAC key is derived from server configuration (implementation: KL-037).
   - The cursor fails with 400 `VALIDATION_FAILED` (`field "cursor"`, `issue "invalid_value"`)
     when it:
@@ -733,6 +736,30 @@ until a media provider is wired in.
   ships in the app; an unknown slug shows the default.
 - **Hub:** `LiveRoomSummary.seatCount` and `occupiedSeats` let cards show the mode and how
   many guests are on.
+
+### 10.10 Live taps and the room score *(v1.8-live, DRAFT — CP-012, D95)*
+
+- **Points:** a counted tap is 1 point; a support coin is 100 points (L3 writes
+  `supportPoints` in the gift's own transaction, and takes them back on a refund). Nothing
+  else changes the score. `LiveScore.total` = `tapPoints` + `supportPoints`. The score
+  belongs to one room: a new live starts at 0 and an ended room keeps its score.
+- **Who may tap:** signed-in callers who may see the room. Guests without an account → 401
+  (owner D95). The host's own taps count 0. Seated guests and moderators count like any
+  viewer (owner D95).
+- **Counting (per caller and room, in the same transaction as the score update):**
+  - **10 a second:** a batch adds at most `10 × seconds since the caller's last counted
+    batch` (whole and part seconds), at most 10 for the caller's first batch in the room,
+    and never more than `count` (1–50).
+  - **10 000 a live:** the caller's counted taps in the room never exceed 10 000.
+  - Dropped taps are not an error: 200 with `accepted` < `count`.
+- **Live updates:** the server writes `{"score": total}` into the media room's metadata
+  (next to `seatsVersion`, §10.9), at most once every 2 seconds per room. Apps show it
+  without polling; `GET /live/rooms/{roomId}` returns `scoreParts`.
+- **Hub:** `LiveRoomSummary.score` is on every card; `popular` orders by it (§10.4) so rooms
+  compete to rise (owner D95).
+- **Levels:** the score does not count towards any level (owner D95, for now).
+- **Abuse watch:** each caller's counted taps per room are kept (`live_room_tappers`) for
+  admins looking into a suspicious room. No public list.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
