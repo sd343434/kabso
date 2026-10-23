@@ -6,6 +6,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
+import { Notifier } from '../notifications/notifier.js';
 import { UsersService } from '../users/users.service.js';
 import type { LikeStateDto } from './post-interactions.service.js';
 import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from './post-views.js';
@@ -69,6 +70,7 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly posts: PostsService,
     private readonly users: UsersService,
+    private readonly notifier: Notifier,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -92,14 +94,16 @@ export class CommentsService {
       await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${post.id}::uuid FOR UPDATE`;
       await this.checkMayComment(tx, authorId, post);
       let parentId: string | null = null;
+      let repliedTo: string | null = null;
       if (input.parentId !== undefined) {
         const parent = await tx.comment.findFirst({
           where: {
             AND: [{ id: input.parentId.toLowerCase(), postId: post.id }, visibleCommentWhere(authorId)],
           },
-          select: { id: true, parentId: true },
+          select: { id: true, parentId: true, authorId: true },
         });
         if (!parent) throw AppException.validation([{ field: 'parentId', issue: 'invalid_value' }]);
+        repliedTo = parent.authorId;
         // One level: a reply to a reply attaches to the top-level comment.
         parentId = parent.parentId ?? parent.id;
         await tx.$queryRaw`SELECT 1 FROM comments WHERE id = ${parentId}::uuid AND deleted_at IS NULL FOR UPDATE`;
@@ -119,6 +123,21 @@ export class CommentsService {
       await tx.post.update({ where: { id: post.id }, data: { commentCount: { increment: 1 } } });
       if (parentId)
         await tx.comment.update({ where: { id: parentId }, data: { replyCount: { increment: 1 } } });
+      // §11.10: COMMENT to the post's author (top level), REPLY to the author of the comment
+      // replied to, MENTION to the others it names (once each).
+      const target = { actorId: authorId, postId: post.id, commentId: comment.id };
+      const told = new Set([authorId]);
+      if (repliedTo === null) {
+        await this.notifier.notify(tx, { type: 'COMMENT', recipientId: post.authorId, ...target });
+        told.add(post.authorId);
+      } else {
+        await this.notifier.notify(tx, { type: 'REPLY', recipientId: repliedTo, ...target });
+        told.add(repliedTo);
+      }
+      for (const userId of mentioned) {
+        if (!told.has(userId))
+          await this.notifier.notify(tx, { type: 'MENTION', recipientId: userId, ...target });
+      }
       return comment.id;
     });
     return this.one(authorId, id);
@@ -298,6 +317,9 @@ export class CommentsService {
   async like(userId: string, commentId: string, liked: boolean): Promise<LikeStateDto> {
     return this.prisma.$transaction(async (tx) => {
       const found = await this.findVisible(tx, userId, commentId);
+      // Lock order everywhere: the post, then a comment. The LIKE_COMMENT notification references
+      // the post, so taking the comment first would deadlock with a reply being created (§11.10).
+      await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${found.postId}::uuid FOR UPDATE`;
       await tx.$queryRaw`SELECT 1 FROM comments WHERE id = ${found.id}::uuid FOR UPDATE`;
       const changed = liked
         ? (await tx.commentLike.createMany({ data: [{ commentId: found.id, userId }], skipDuplicates: true }))
@@ -310,6 +332,16 @@ export class CommentsService {
             select: { likeCount: true },
           })
         : await tx.comment.findUniqueOrThrow({ where: { id: found.id }, select: { likeCount: true } });
+      if (changed) {
+        const n = {
+          type: 'LIKE_COMMENT',
+          recipientId: found.authorId,
+          actorId: userId,
+          postId: found.postId,
+          commentId: found.id,
+        } as const;
+        await (liked ? this.notifier.notify(tx, n) : this.notifier.undo(tx, n));
+      }
       return { liked, likeCount };
     });
   }

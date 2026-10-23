@@ -5,6 +5,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { Notifier } from '../notifications/notifier.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import type { AdminActor } from '../levels/level-config.service.js';
@@ -63,6 +64,7 @@ export class SafetyService {
     private readonly posts: PostsService,
     private readonly comments: CommentsService,
     private readonly audit: AuditService,
+    private readonly notifier: Notifier,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -341,15 +343,52 @@ export class SafetyService {
       const report = await tx.report.findUniqueOrThrow({ where: { id } });
       if (report.status !== 'OPEN') throw new AppException(ErrorCode.REPORT_ALREADY_RESOLVED);
       if (action === 'REMOVE_TARGET') {
+        // §11.10: the author is told (CONTENT_REMOVED) when this action removed the item.
         if (report.targetPostId) {
           await tx.$queryRaw`SELECT 1 FROM posts WHERE id = ${report.targetPostId}::uuid FOR UPDATE`;
-          await tx.post.update({ where: { id: report.targetPostId }, data: { moderation: 'REMOVED' } });
-          await tx.postPin.deleteMany({ where: { postId: report.targetPostId } });
+          const post = await tx.post.findUniqueOrThrow({
+            where: { id: report.targetPostId },
+            select: { id: true, authorId: true, moderation: true, deletedAt: true },
+          });
+          await tx.post.update({ where: { id: post.id }, data: { moderation: 'REMOVED' } });
+          await tx.postPin.deleteMany({ where: { postId: post.id } });
+          if (post.moderation !== 'REMOVED' && post.deletedAt === null) {
+            await this.notifier.system(tx, {
+              type: 'CONTENT_REMOVED',
+              recipientId: post.authorId,
+              postId: post.id,
+            });
+          }
         } else if (report.targetCommentId) {
-          await this.comments.removeIn(tx, report.targetCommentId);
+          const comment = await tx.comment.findUniqueOrThrow({
+            where: { id: report.targetCommentId },
+            select: { id: true, postId: true, authorId: true },
+          });
+          if (await this.comments.removeIn(tx, comment.id)) {
+            await this.notifier.system(tx, {
+              type: 'CONTENT_REMOVED',
+              recipientId: comment.authorId,
+              postId: comment.postId,
+              commentId: comment.id,
+            });
+          }
         } else if (report.targetStoryId) {
           // CP-008: the story leaves every list, the archive included (soft, audited).
-          await tx.story.update({ where: { id: report.targetStoryId }, data: { removedAt: new Date() } });
+          const removed = await tx.story.updateMany({
+            where: { id: report.targetStoryId, removedAt: null },
+            data: { removedAt: new Date() },
+          });
+          const story = await tx.story.findUniqueOrThrow({
+            where: { id: report.targetStoryId },
+            select: { id: true, authorId: true, deletedAt: true },
+          });
+          if (removed.count > 0 && story.deletedAt === null) {
+            await this.notifier.system(tx, {
+              type: 'CONTENT_REMOVED',
+              recipientId: story.authorId,
+              storyId: story.id,
+            });
+          }
         }
         // USER: the decision is recorded only; suspension is a separate admin tool.
       }

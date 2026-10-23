@@ -481,6 +481,16 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     expect(config.media.publicBaseUrl).toBe('http://localhost:9000/kabso-media-dev');
   });
 
+  it('runs the notifications sweeper hourly by default and limits marking read to 120 per hour (CP-009)', () => {
+    const config = loadConfig(base);
+    expect(config.social.notificationsSweepIntervalSeconds).toBe(3600);
+    expect(config.rateLimits.notificationsReadUser).toEqual({ max: 120, windowSeconds: 3600 });
+    expect(
+      loadConfig({ ...base, NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0' }).social
+        .notificationsSweepIntervalSeconds,
+    ).toBe(0);
+  });
+
   it('refuses plain http storage, disabled workers and a weak cursor key in production', () => {
     expect(() =>
       loadConfig({
@@ -490,10 +500,11 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
         MEDIA_PUBLIC_BASE_URL: 'http://cdn.example',
         MEDIA_SWEEP_INTERVAL_SECONDS: '0',
         POSTS_PUBLISH_INTERVAL_SECONDS: '0',
+        NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
         SOCIAL_CURSOR_KEY: 'replace-me-with-a-long-random-string-of-at-least-32-bytes',
       }),
     ).toThrow(
-      /S3_ENDPOINT: must use https[\s\S]*MEDIA_PUBLIC_BASE_URL: must use https[\s\S]*MEDIA_SWEEP_INTERVAL_SECONDS[\s\S]*POSTS_PUBLISH_INTERVAL_SECONDS[\s\S]*SOCIAL_CURSOR_KEY/,
+      /S3_ENDPOINT: must use https[\s\S]*MEDIA_PUBLIC_BASE_URL: must use https[\s\S]*MEDIA_SWEEP_INTERVAL_SECONDS[\s\S]*POSTS_PUBLISH_INTERVAL_SECONDS[\s\S]*NOTIFICATIONS_SWEEP_INTERVAL_SECONDS[\s\S]*SOCIAL_CURSOR_KEY/,
     );
   });
 });

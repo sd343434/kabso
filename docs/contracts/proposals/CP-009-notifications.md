@@ -106,7 +106,8 @@ What each type means (the target is in brackets):
 - **Settings:** a type switched off creates no new notifications. `COMMENT` and `REPLY` share
   `comments`, and `LIKE_*` share `likes`. System types (`POST_PUBLISHED`, `CONTENT_REMOVED`)
   are always on.
-- **Retention:** notifications older than 90 days are deleted by a sweeper.
+- **Retention:** notifications older than 90 days are deleted by a sweeper. *(As approved: 30
+  days, Q3.)*
 - **Delivery:** in-app only, with no realtime channel. The app refreshes the unread count when
   it comes to the foreground and every 60 seconds while it is open.
 - **Rate limits:** `GET /notifications` and the unread count share the feed rule (300 / 15 min);

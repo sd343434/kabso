@@ -18,6 +18,7 @@ import { MediaModule } from './modules/media/media.module.js';
 import { PostsModule } from './modules/posts/posts.module.js';
 import { SafetyModule } from './modules/safety/safety.module.js';
 import { StoriesModule } from './modules/stories/stories.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -54,6 +55,7 @@ export class AppModule {
         PostsModule,
         SafetyModule,
         StoriesModule,
+        NotificationsModule,
         PublicProfileModule,
       ],
       providers: [

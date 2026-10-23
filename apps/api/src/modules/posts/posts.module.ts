@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { CommentsController } from './comments.controller.js';
 import { CommentsService } from './comments.service.js';
@@ -17,7 +18,7 @@ import { SearchService } from './search.service.js';
  * and `comment_*`.
  */
 @Module({
-  imports: [MediaModule, UsersModule],
+  imports: [MediaModule, NotificationsModule, UsersModule],
   controllers: [PostsController, InteractionsController, CommentsController, SearchController],
   providers: [PostsService, PostViews, PostInteractionsService, FeedService, CommentsService, SearchService],
   exports: [PostsService, PostViews, CommentsService],

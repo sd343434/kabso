@@ -493,6 +493,11 @@ a `CONNECTION LIMIT`.
   0 in production) closes expired slots and deletes assets never attached to a post within 24 h.
   A bucket lifecycle rule that deletes `uploads/` objects older than 2 days is a recommended
   backstop.
+- **Notifications retention (CP-009):** the in-process sweeper
+  (`NOTIFICATIONS_SWEEP_INTERVAL_SECONDS`, 3600 s, refused at 0 in production) deletes
+  notifications whose latest activity is older than 30 days. `POST /notifications/read` is
+  limited by `RATE_LIMIT_NOTIFICATIONS_READ_USER` (120 / hour); the inbox and the unread count
+  share `RATE_LIMIT_FEED_USER`.
 - **Verification:** `apps/api/test/kl060-s3-storage.e2e-spec.ts` runs the production adapter
   against any S3-compatible server when `S3_TEST_ENDPOINT` (plus `S3_TEST_ACCESS_KEY_ID` /
   `S3_TEST_SECRET_ACCESS_KEY`) is set; verified against moto 5.1 in development (MinIO could not

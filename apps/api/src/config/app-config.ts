@@ -68,6 +68,8 @@ export interface AppConfig {
     /** CP-008: `POST /stories` and `PUT /stories/{id}/seen`; the tray uses `feedUser`. */
     readonly storyCreateUser: RateLimitRule;
     readonly storySeenUser: RateLimitRule;
+    /** CP-009: `POST /notifications/read`; the inbox and the unread count use `feedUser`. */
+    readonly notificationsReadUser: RateLimitRule;
     readonly searchUser: RateLimitRule;
     readonly blockUser: RateLimitRule;
     readonly reportUser: RateLimitRule;
@@ -89,6 +91,8 @@ export interface AppConfig {
   /** v1.5-social posts (CONVENTIONS §11). */
   readonly social: {
     readonly publishIntervalSeconds: number;
+    /** CP-009 notifications retention sweeper; 0 = disabled (tests; refused in production). */
+    readonly notificationsSweepIntervalSeconds: number;
     readonly cursorKey: string;
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
@@ -199,6 +203,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       feedUser: e.RATE_LIMIT_FEED_USER,
       storyCreateUser: e.RATE_LIMIT_STORY_CREATE_USER,
       storySeenUser: e.RATE_LIMIT_STORY_SEEN_USER,
+      notificationsReadUser: e.RATE_LIMIT_NOTIFICATIONS_READ_USER,
       searchUser: e.RATE_LIMIT_SEARCH_USER,
       blockUser: e.RATE_LIMIT_BLOCK_USER,
       reportUser: e.RATE_LIMIT_REPORT_USER,
@@ -218,6 +223,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     social: {
       publishIntervalSeconds: e.POSTS_PUBLISH_INTERVAL_SECONDS,
+      notificationsSweepIntervalSeconds: e.NOTIFICATIONS_SWEEP_INTERVAL_SECONDS,
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     live: {

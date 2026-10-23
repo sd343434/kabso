@@ -91,6 +91,9 @@ model User {
   stories            Story[]
   storyViews         StoryView[]
   storyMentions      StoryMention[]
+  notifications      Notification[]
+  notificationActs   NotificationActor[]
+  notificationPrefs  NotificationSettings?
 
   @@map("users")
 }
@@ -784,19 +787,20 @@ model Post {
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  media    PostMedia[]
-  likes    PostLike[]
-  saves    PostSave[]
-  reposts  PostRepost[]
-  views    PostView[]
-  shares   PostShareEvent[]
-  pin      PostPin?
-  hashtags PostHashtag[]
-  mentions PostMention[]
-  comments Comment[]
-  hides    PostHide[]
-  reports  Report[]
+  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media         PostMedia[]
+  likes         PostLike[]
+  saves         PostSave[]
+  reposts       PostRepost[]
+  views         PostView[]
+  shares        PostShareEvent[]
+  pin           PostPin?
+  hashtags      PostHashtag[]
+  mentions      PostMention[]
+  comments      Comment[]
+  hides         PostHide[]
+  reports       Report[]
+  notifications Notification[]
 
   @@unique([authorId, idempotencyKey], map: "posts_author_idempotency_key")
   @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_author_published_idx", where: raw("status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
@@ -951,13 +955,14 @@ model Comment {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
 
-  post     Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent   Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  Comment[]        @relation("CommentReplies")
-  likes    CommentLike[]
-  mentions CommentMention[]
-  reports  Report[]
+  post          Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent        Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]        @relation("CommentReplies")
+  likes         CommentLike[]
+  mentions      CommentMention[]
+  reports       Report[]
+  notifications Notification[]
 
   @@unique([postId], map: "comments_one_pin_per_post", where: raw("pinned_at IS NOT NULL AND deleted_at IS NULL"))
   @@index([postId, likeCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)], map: "comments_top_idx", where: raw("parent_id IS NULL AND deleted_at IS NULL"))
@@ -1099,11 +1104,12 @@ model Story {
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
   removedAt      DateTime? @map("removed_at") @db.Timestamptz(3)
 
-  author     User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  mediaAsset MediaAsset     @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
-  views      StoryView[]
-  mentions   StoryMention[]
-  reports    Report[]
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset     @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  views         StoryView[]
+  mentions      StoryMention[]
+  reports       Report[]
+  notifications Notification[]
 
   @@unique([authorId, idempotencyKey], map: "stories_author_idempotency_key")
   @@index([authorId, expiresAt], map: "stories_author_active_idx", where: raw("deleted_at IS NULL AND removed_at IS NULL"))
@@ -1137,4 +1143,79 @@ model StoryMention {
   @@id([storyId, userId], map: "story_mentions_pkey")
   @@index([userId], map: "story_mentions_user_id_idx")
   @@map("story_mentions")
+}
+
+enum NotificationType {
+  LIKE_POST
+  LIKE_COMMENT
+  COMMENT
+  REPLY
+  MENTION
+  FOLLOW
+  REPOST
+  POST_PUBLISHED
+  CONTENT_REMOVED
+
+  @@map("notification_type")
+}
+
+/// An in-app notification (CP-009, CONVENTIONS §11.10). At most one of post / comment / story is
+/// the target (a FOLLOW targets its actor); a COMMENT target also sets `post_id`. `group_key` is
+/// set on unread likes and reposts so new actors join the same row; `updated_at` is the latest
+/// activity (the list order and the 30-day retention).
+model Notification {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  type        NotificationType
+  postId      String?          @map("post_id") @db.Uuid
+  commentId   String?          @map("comment_id") @db.Uuid
+  storyId     String?          @map("story_id") @db.Uuid
+  groupKey    String?          @map("group_key") @db.VarChar(80)
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  recipient User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post      Post?               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  story     Story?              @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  actors    NotificationActor[]
+
+  @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
+  @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
+  @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
+  @@index([updatedAt], map: "notifications_updated_idx")
+  @@index([postId], map: "notifications_post_id_idx")
+  @@index([commentId], map: "notifications_comment_id_idx")
+  @@index([storyId], map: "notifications_story_id_idx")
+  @@map("notifications")
+}
+
+/// Who caused a notification (one row per actor; grouped likes and reposts have several).
+model NotificationActor {
+  notificationId String   @map("notification_id") @db.Uuid
+  actorId        String   @map("actor_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  actor        User         @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, actorId], map: "notification_actors_pkey")
+  @@index([actorId], map: "notification_actors_actor_id_idx")
+  @@map("notification_actors")
+}
+
+/// Per-type in-app notification switches (CP-009); no row = all on.
+model NotificationSettings {
+  userId    String   @id @map("user_id") @db.Uuid
+  likes     Boolean  @default(true)
+  comments  Boolean  @default(true)
+  mentions  Boolean  @default(true)
+  follows   Boolean  @default(true)
+  reposts   Boolean  @default(true)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_settings")
 }

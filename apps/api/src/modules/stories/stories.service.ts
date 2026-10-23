@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import { MediaService, type MediaAssetDto } from '../media/media.service.js';
+import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import type { PageQuery } from '../posts/posts.schemas.js';
 import { canonical, PostsService } from '../posts/posts.service.js';
@@ -96,6 +97,7 @@ export class StoriesService {
     private readonly media: MediaService,
     private readonly users: UsersService,
     private readonly posts: PostsService,
+    private readonly notifier: Notifier,
   ) {}
 
   toDto(row: StoryRow, viewerId: string): StoryDto {
@@ -160,6 +162,14 @@ export class StoriesService {
           await tx.storyMention.createMany({
             data: userIds.map((userId) => ({ storyId: story.id, userId })),
           });
+          for (const userId of userIds) {
+            await this.notifier.notify(tx, {
+              type: 'MENTION',
+              recipientId: userId,
+              actorId: authorId,
+              storyId: story.id,
+            });
+          }
         }
         return story.id;
       });

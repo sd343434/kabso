@@ -3,6 +3,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { Notifier } from '../notifications/notifier.js';
 import { isValidUsername } from '../users/username.js';
 import { UsersService } from '../users/users.service.js';
 import { blockedEitherWayIn, lockUserPairIn } from './pair-lock.js';
@@ -37,6 +38,7 @@ export class FollowsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
+    private readonly notifier: Notifier,
   ) {}
 
   /**
@@ -70,10 +72,13 @@ export class FollowsService {
       if (existing === 0) {
         // v1.3: no follow requests yet, so private accounts cannot gain new followers.
         if (target.isPrivate) throw new AppException(ErrorCode.AUTH_FORBIDDEN);
-        await tx.follow.createMany({
+        const { count } = await tx.follow.createMany({
           data: [{ followerId: callerId, followeeId: target.id }],
           skipDuplicates: true,
         });
+        if (count > 0) {
+          await this.notifier.notify(tx, { type: 'FOLLOW', recipientId: target.id, actorId: callerId });
+        }
       }
       return {
         isFollowing: true,
@@ -87,7 +92,12 @@ export class FollowsService {
     assertWellFormed(username);
     return this.prisma.$transaction(async (tx) => {
       const target = await this.lockPair(tx, callerId, username);
-      await tx.follow.deleteMany({ where: { followerId: callerId, followeeId: target.id } });
+      const { count } = await tx.follow.deleteMany({
+        where: { followerId: callerId, followeeId: target.id },
+      });
+      if (count > 0) {
+        await this.notifier.undo(tx, { type: 'FOLLOW', recipientId: target.id, actorId: callerId });
+      }
       return {
         isFollowing: false,
         followerCount: await tx.follow.count({ where: { followeeId: target.id } }),

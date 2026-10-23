@@ -6,6 +6,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
+import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, visiblePostWhere, type PageDto } from './post-views.js';
 import { recordViewsSchema, type PageQuery } from './posts.schemas.js';
 import { PostsService } from './posts.service.js';
@@ -31,6 +32,7 @@ export class PostInteractionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly posts: PostsService,
+    private readonly notifier: Notifier,
   ) {}
 
   /** A published post the viewer may see, locked FOR UPDATE in `tx` (its counters change next), else 404. */
@@ -61,6 +63,15 @@ export class PostInteractionsService {
             select: { likeCount: true },
           })
         : await tx.post.findUniqueOrThrow({ where: { id: post.id }, select: { likeCount: true } });
+      if (changed) {
+        const n = {
+          type: 'LIKE_POST',
+          recipientId: post.authorId,
+          actorId: userId,
+          postId: post.id,
+        } as const;
+        await (liked ? this.notifier.notify(tx, n) : this.notifier.undo(tx, n));
+      }
       return { liked, likeCount: post.hideLikeCount && post.authorId !== userId ? null : likeCount };
     });
   }
@@ -148,6 +159,10 @@ export class PostInteractionsService {
             select: { repostCount: true },
           })
         : await tx.post.findUniqueOrThrow({ where: { id: post.id }, select: { repostCount: true } });
+      if (changed) {
+        const n = { type: 'REPOST', recipientId: post.authorId, actorId: userId, postId: post.id } as const;
+        await (reposted ? this.notifier.notify(tx, n) : this.notifier.undo(tx, n));
+      }
       return { reposted, repostCount };
     });
   }

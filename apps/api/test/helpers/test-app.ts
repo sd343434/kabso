@@ -162,6 +162,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_VIEWS_USER: GENEROUS,
     RATE_LIMIT_STORY_CREATE_USER: GENEROUS,
     RATE_LIMIT_STORY_SEEN_USER: GENEROUS,
+    RATE_LIMIT_NOTIFICATIONS_READ_USER: GENEROUS,
     RATE_LIMIT_FEED_USER: GENEROUS,
     RATE_LIMIT_SEARCH_USER: GENEROUS,
     RATE_LIMIT_BLOCK_USER: GENEROUS,
@@ -169,6 +170,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // No background workers in tests: specs call MediaService.sweep() / the publisher directly.
     MEDIA_SWEEP_INTERVAL_SECONDS: '0',
     POSTS_PUBLISH_INTERVAL_SECONDS: '0',
+    NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

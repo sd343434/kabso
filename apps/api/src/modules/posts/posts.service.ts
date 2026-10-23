@@ -9,6 +9,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isUuid } from '../live/live.schemas.js';
 import { MediaService } from '../media/media.service.js';
+import { Notifier } from '../notifications/notifier.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { PostViews, visiblePostWhere, type PageDto, type PostDto } from './post-views.js';
 import {
@@ -62,6 +63,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
     private readonly media: MediaService,
     private readonly users: UsersService,
     private readonly views: PostViews,
+    private readonly notifier: Notifier,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
@@ -131,6 +133,7 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
           });
         }
         await this.writeEntities(tx, post.id, authorId, post.text);
+        if (status === 'PUBLISHED') await this.notifyMentions(tx, post.id, authorId);
         return post.id;
       });
       return this.views.one(authorId, id);
@@ -193,6 +196,17 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
     const userIds = await this.mentionableUserIds(tx, authorId, parseMentions(text));
     if (userIds.length > 0) {
       await tx.postMention.createMany({ data: userIds.map((userId) => ({ postId, userId })) });
+    }
+  }
+
+  /**
+   * MENTION for each user a published post links (§11.10); once per user and post, so an edit
+   * notifies only the newly mentioned.
+   */
+  private async notifyMentions(tx: Tx, postId: string, authorId: string): Promise<void> {
+    const mentions = await tx.postMention.findMany({ where: { postId }, select: { userId: true } });
+    for (const m of mentions) {
+      await this.notifier.notify(tx, { type: 'MENTION', recipientId: m.userId, actorId: authorId, postId });
     }
   }
 
@@ -309,6 +323,9 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
         },
       });
       if (textChanged) await this.writeEntities(tx, post.id, authorId, text);
+      if (nextStatus === 'PUBLISHED' && (textChanged || post.status !== 'PUBLISHED')) {
+        await this.notifyMentions(tx, post.id, authorId);
+      }
       return post.id;
     });
     return this.views.one(authorId, id);
@@ -483,13 +500,28 @@ export class PostsService implements OnModuleInit, OnModuleDestroy {
   // ---------------------------------------------------------------------------------------------
   // Scheduled publishing
 
-  /** Publishes every due scheduled post (publishedAt = its publishAt). Returns how many. */
+  /**
+   * Publishes every due scheduled post (publishedAt = its publishAt), telling each author
+   * (POST_PUBLISHED) and the users it mentions in the same transaction. Returns how many.
+   */
   async publishDue(now: Date = new Date()): Promise<number> {
-    return this.prisma.$executeRaw`
-      UPDATE posts SET status = 'PUBLISHED'::post_status, published_at = publish_at, updated_at = now()
-       WHERE id IN (SELECT id FROM posts
-                     WHERE status = 'SCHEDULED'::post_status AND deleted_at IS NULL AND publish_at <= ${now}
-                     ORDER BY publish_at LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+    return this.prisma.$transaction(async (tx) => {
+      const published = await tx.$queryRaw<{ id: string; author_id: string }[]>`
+        UPDATE posts SET status = 'PUBLISHED'::post_status, published_at = publish_at, updated_at = now()
+         WHERE id IN (SELECT id FROM posts
+                       WHERE status = 'SCHEDULED'::post_status AND deleted_at IS NULL AND publish_at <= ${now}
+                       ORDER BY publish_at LIMIT 500 FOR UPDATE SKIP LOCKED)
+        RETURNING id::text AS id, author_id::text AS author_id`;
+      for (const post of published) {
+        await this.notifier.system(tx, {
+          type: 'POST_PUBLISHED',
+          recipientId: post.author_id,
+          postId: post.id,
+        });
+        await this.notifyMentions(tx, post.id, post.author_id);
+      }
+      return published.length;
+    });
   }
 
   private schedulePublisher(): void {

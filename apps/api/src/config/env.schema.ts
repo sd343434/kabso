@@ -210,6 +210,7 @@ export const envSchema = z
     RATE_LIMIT_FEED_USER: rateLimit('300/900'),
     RATE_LIMIT_STORY_CREATE_USER: rateLimit('30/3600'),
     RATE_LIMIT_STORY_SEEN_USER: rateLimit('600/3600'),
+    RATE_LIMIT_NOTIFICATIONS_READ_USER: rateLimit('120/3600'),
     RATE_LIMIT_SEARCH_USER: rateLimit('300/900'),
     RATE_LIMIT_BLOCK_USER: rateLimit('60/3600'),
     RATE_LIMIT_REPORT_USER: rateLimit('30/3600'),
@@ -276,6 +277,8 @@ export const envSchema = z
     MEDIA_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86400),
     /** Period of the scheduled-post publisher; 0 disables it (not in production). */
     POSTS_PUBLISH_INTERVAL_SECONDS: intSetting(30, 0, 3600),
+    /** Period of the notifications retention sweeper (30 days, CP-009); 0 disables it (not in production). */
+    NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86400),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
@@ -384,6 +387,13 @@ export const envSchema = z
           code: 'custom',
           path: ['POSTS_PUBLISH_INTERVAL_SECONDS'],
           message: 'the scheduled-post publisher cannot be disabled in production',
+        });
+      }
+      if (env.NOTIFICATIONS_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['NOTIFICATIONS_SWEEP_INTERVAL_SECONDS'],
+          message: 'the notifications sweeper cannot be disabled in production',
         });
       }
       if (env.SOCIAL_CURSOR_KEY !== undefined) {
