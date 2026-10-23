@@ -19,6 +19,7 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { bumpSeatsVersionIn, releaseUserIn, type ReleasedUser } from './live-seats.store.js';
+import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
   isSeatedMode,
   isUuid,
@@ -178,8 +179,8 @@ interface Change<T> {
  * Every change runs in one transaction that first locks the room row (`FOR UPDATE`), so changes
  * of one room are serialized (two accepts racing for the last seat: exactly one wins), and
  * increases the room's `seats_version`. After the commit the media server is told, best effort:
- * the room metadata `{"seatsVersion": n}`, the guest's publish permission, and the invitation data
- * message. A media failure never undoes the change; the sweeper's reconciliation repeats the
+ * the room metadata `{"seatsVersion": n, "score": total}` (the score: CP-012), the guest's
+ * publish permission, and the invitation data message. A media failure never undoes the change; the sweeper's reconciliation repeats the
  * permission and metadata ({@link reconcileRoom}).
  */
 @Injectable()
@@ -194,6 +195,7 @@ export class LiveSeatsService {
     private readonly clock: Clock,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) config: AppConfig,
+    private readonly metadata: LiveRoomMetadataService,
   ) {
     this.cursors = new SocialCursorCodec(config.social.cursorKey);
   }
@@ -371,18 +373,7 @@ export class LiveSeatsService {
         );
       }
     }
-    if (version !== null) await this.pushVersion(roomId, version);
-  }
-
-  private async pushVersion(roomId: string, version: number): Promise<void> {
-    try {
-      await this.media.setRoomMetadata(roomId, JSON.stringify({ seatsVersion: version }));
-    } catch (err) {
-      this.logger.warn(
-        { error: safeErrorLog(err) },
-        'Could not write the seat version into the media room; reconciliation repeats it',
-      );
-    }
+    if (version !== null) await this.metadata.write(roomId);
   }
 
   // ---- Reading ---------------------------------------------------------------------------------
@@ -973,9 +964,10 @@ export class LiveSeatsService {
   async reconcileRoom(roomId: string): Promise<number> {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { mode: true, status: true, hostUserId: true, seatsVersion: true },
+      select: { mode: true, status: true, hostUserId: true },
     });
-    if (!room || room.status !== 'LIVE' || !isSeatedMode(room.mode)) return 0;
+    if (!room || room.status !== 'LIVE') return 0;
+    if (!isSeatedMode(room.mode)) return this.reconcileMetadata(roomId, false);
     const mode = room.mode;
     const seats = new Map(
       (
@@ -994,13 +986,21 @@ export class LiveSeatsService {
       await this.media.setPermission(roomId, participant.identity, want);
       repairs += 1;
     }
-    const metadata = JSON.stringify({ seatsVersion: room.seatsVersion });
+    return repairs + (await this.reconcileMetadata(roomId, true));
+  }
+
+  /**
+   * The room metadata carries the current seat version and score (CP-011, CP-012). A room without
+   * seats that nobody has tapped yet needs no metadata. Returns 1 when it was repaired.
+   */
+  private async reconcileMetadata(roomId: string, seated: boolean): Promise<number> {
+    const expected = await this.metadata.expected(roomId);
+    if (!expected) return 0;
     const current = await this.media.roomMetadata(roomId);
-    if (current !== null && current !== metadata) {
-      await this.media.setRoomMetadata(roomId, metadata);
-      repairs += 1;
-    }
-    return repairs;
+    if (current === null || current === expected.json) return 0;
+    if (!seated && current === '' && expected.score === 0) return 0;
+    await this.media.setRoomMetadata(roomId, expected.json);
+    return 1;
   }
 }
 

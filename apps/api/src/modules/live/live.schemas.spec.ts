@@ -166,18 +166,18 @@ describe('GET /live/rooms query', () => {
 
 describe('list ordering (CONVENTIONS §10.4)', () => {
   const text = (sql: Prisma.Sql) => sql.sql.replace(/\s+/g, ' ').trim();
-  const position = { viewerCount: 7, startedAt: new Date('2026-10-16T19:00:00.000Z'), id: 'room-id' };
+  const position = { score: 7, startedAt: new Date('2026-10-16T19:00:00.000Z'), id: 'room-id' };
 
-  it('popular = viewerCount desc, startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
-    expect(text(orderBy('popular'))).toBe('r.viewer_count DESC, r.started_at DESC, r.id DESC');
+  it('popular = score desc (CP-012), startedAt desc, id desc; new/following = startedAt desc, id desc', () => {
+    expect(text(orderBy('popular'))).toBe('r.score DESC, r.started_at DESC, r.id DESC');
     expect(text(orderBy('new'))).toBe('r.started_at DESC, r.id DESC');
     expect(text(orderBy('following'))).toBe('r.started_at DESC, r.id DESC');
   });
 
   it('keyset continues strictly after the last row with the same key columns as the order', () => {
     const popular = keysetAfter('popular', position);
-    expect(text(popular)).toBe('(r.viewer_count, r.started_at, r.id) < (?::int, ?::timestamptz, ?::uuid)');
-    expect(popular.values).toEqual([7, '2026-10-16T19:00:00.000Z', 'room-id']);
+    expect(text(popular)).toBe('(r.score, r.started_at, r.id) < (?::bigint, ?::timestamptz, ?::uuid)');
+    expect(popular.values).toEqual(['7', '2026-10-16T19:00:00.000Z', 'room-id']);
     for (const tab of ['new', 'following'] as const) {
       const sql = keysetAfter(tab, position);
       expect(text(sql)).toBe('(r.started_at, r.id) < (?::timestamptz, ?::uuid)');

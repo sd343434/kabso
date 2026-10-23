@@ -343,6 +343,11 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       expect(byName[name], name).toMatch(/WHERE \(status = 'LIVE'::live_room_status\)$/);
     }
     expect(byName.live_rooms_one_live_per_host).toMatch(/^CREATE UNIQUE INDEX/);
+    // CP-012 (v1.8-live): the popular keyset indexes order by the score.
+    expect(byName.live_rooms_live_popular_idx).toContain('(score DESC, started_at DESC, id DESC)');
+    expect(byName.live_rooms_live_cat_popular_idx).toContain(
+      '(category_id, score DESC, started_at DESC, id DESC)',
+    );
     expect(Object.keys(byName)).toEqual(
       expect.arrayContaining([
         'live_rooms_host_started_idx',
@@ -362,6 +367,8 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_en_length',
       'live_categories_slug_format',
       'live_rooms_end_state',
+      // CP-012 (20261028090000_live_taps): the score is never negative.
+      'live_rooms_score_nonneg',
       // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.
       'live_rooms_seat_count_mode',
       'live_rooms_seats_version_nonneg',
@@ -370,6 +377,83 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_rooms_title_length',
       'live_rooms_viewer_count_nonneg',
     ]);
+  });
+});
+
+describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000b001',
+    room: '0192f1c2-0000-7000-8000-00000000b002',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id = '${ids.user}'`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('live_room_scores', 'live_room_tappers')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'live_room_scores', owner: migrationUser },
+      { t: 'live_room_tappers', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conrelid IN ('live_room_scores'::regclass, 'live_room_tappers'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual(['live_room_scores_nonneg', 'live_room_tappers_counted']);
+  });
+
+  it('the runtime role has DML on both; the CHECKs hold; DDL and TRUNCATE are refused', async () => {
+    await runtimeExec(
+      `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${ids.user}', 'cp012-${suffix}@example.com', 'x', now())`,
+    );
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, status, mode, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', 'LIVE'::live_room_status, 'SOLO'::live_room_mode, now())`,
+    );
+    await runtimeExec(`INSERT INTO live_room_scores (room_id, tap_points) VALUES ('${ids.room}', 3)`);
+    await runtimeExec(
+      `INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at) VALUES ('${ids.room}', '${ids.user}', 3, now())`,
+    );
+    expect(await runtimeExec(`UPDATE live_rooms SET score = score + 3 WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      await runtimeExec(
+        `UPDATE live_room_scores SET tap_points = tap_points + 1 WHERE room_id = '${ids.room}'`,
+      ),
+    ).toBe(1);
+    await expect(runtimeExec(`UPDATE live_rooms SET score = -1 WHERE id = '${ids.room}'`)).rejects.toThrow(
+      /live_rooms_score_nonneg/,
+    );
+    await expect(
+      runtimeExec(`UPDATE live_room_scores SET support_points = -1 WHERE room_id = '${ids.room}'`),
+    ).rejects.toThrow(/live_room_scores_nonneg/);
+    await expect(
+      runtimeExec(`UPDATE live_room_tappers SET counted = 10001 WHERE room_id = '${ids.room}'`),
+    ).rejects.toThrow(/live_room_tappers_counted/);
+    for (const sql of [
+      'TRUNCATE TABLE live_room_scores',
+      'TRUNCATE TABLE live_room_tappers',
+      'ALTER TABLE live_room_tappers DROP CONSTRAINT live_room_tappers_counted',
+      'DROP INDEX live_rooms_live_popular_idx',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The rows go with the room (ON DELETE CASCADE).
+    expect(await runtimeExec(`DELETE FROM live_rooms WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      Number(
+        await scalar<bigint>(
+          runtime,
+          `SELECT (SELECT count(*) FROM live_room_scores WHERE room_id = '${ids.room}') + (SELECT count(*) FROM live_room_tappers WHERE room_id = '${ids.room}') AS v`,
+        ),
+      ),
+    ).toBe(0);
   });
 });
 

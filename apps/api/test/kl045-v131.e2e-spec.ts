@@ -16,7 +16,7 @@ import { performance } from 'node:perf_hooks';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppException } from '../src/common/errors/app-exception.js';
 import { Clock } from '../src/common/time/clock.js';
-import { CURSOR_MAX_STARTED_AT_MS, CURSOR_MAX_VIEWER_COUNT } from '../src/modules/live/live-cursor.js';
+import { CURSOR_MAX_SCORE, CURSOR_MAX_STARTED_AT_MS } from '../src/modules/live/live-cursor.js';
 import { LiveRoomsService } from '../src/modules/live/live-rooms.service.js';
 import { expectContract } from './helpers/openapi.js';
 import { createTestApp, newUser, registerVerified, type TestContext } from './helpers/test-app.js';
@@ -356,12 +356,13 @@ describe('KL-045 v1.3.1 behaviour', () => {
     it('validly signed cursors at the bounds return 200; beyond them 400 (never 500)', async () => {
       const viewer = await signup(ctx);
       const id = '0192f1d0-0000-7000-8000-000000000000';
-      const base = { v: 1, c: null, u: null, i: id };
+      // v2 (CP-012, v1.8-live): `n` is the score (int8).
+      const base = { v: 2, c: null, u: null, i: id };
       for (const tab of ['popular', 'new'] as const) {
         for (const [n, s] of [
-          [CURSOR_MAX_VIEWER_COUNT, CURSOR_MAX_STARTED_AT_MS],
+          [CURSOR_MAX_SCORE, CURSOR_MAX_STARTED_AT_MS],
           [0, 0],
-          [CURSOR_MAX_VIEWER_COUNT, 0],
+          [CURSOR_MAX_SCORE, 0],
           [0, CURSOR_MAX_STARTED_AT_MS],
         ]) {
           const res = await ctx.http
@@ -372,7 +373,7 @@ describe('KL-045 v1.3.1 behaviour', () => {
           expect({ tab, n, s, status: res.status }).toEqual({ tab, n, s, status: 200 });
         }
         for (const bad of [
-          { n: CURSOR_MAX_VIEWER_COUNT + 1, s: 0 },
+          { n: CURSOR_MAX_SCORE + 1, s: 0 },
           { n: 0, s: CURSOR_MAX_STARTED_AT_MS + 1 },
           { n: 0, s: 8_640_000_000_000_000 },
         ]) {

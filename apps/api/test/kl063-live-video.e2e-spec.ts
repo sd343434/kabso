@@ -322,8 +322,16 @@ describe('CP-010 live video', () => {
       await hook('participant_joined', roomId, `guest:${guestId}`).expect(200);
       await hook('track_published', roomId).expect(200);
       expect((await room(roomId)).body.viewerCount).toBe(3);
-      const popular = await ctx.http.get('/api/v1/live/rooms?tab=popular&limit=50');
-      const ids = popular.body.data.map((r: { id: string }) => r.id);
+      const popularIds = async () =>
+        (await ctx.http.get('/api/v1/live/rooms?tab=popular&limit=50')).body.data.map(
+          (r: { id: string }) => r.id,
+        ) as string[];
+      // CP-012 (v1.8-live): Popular orders by the score, no longer by viewers: with both scores at
+      // 0 the newer room comes first despite its 0 viewers; a viewer's taps lift the watched room.
+      let ids = await popularIds();
+      expect(ids.indexOf(quiet)).toBeLessThan(ids.indexOf(roomId));
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/taps`).set(auth(a)).send({ count: 3 }).expect(200);
+      ids = await popularIds();
       expect(ids.indexOf(roomId)).toBeLessThan(ids.indexOf(quiet));
 
       const page1 = await ctx.http.get(`/api/v1/live/rooms/${roomId}/viewers?limit=2`).set(auth(h));

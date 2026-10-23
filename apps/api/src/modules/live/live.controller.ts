@@ -45,6 +45,7 @@ import {
   type LiveSeatsDto,
   type PageDto,
 } from './live-seats.service.js';
+import { LiveTapsService, type LiveTapsResultDto } from './live-taps.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
 /** The caller's user id; a guest has none (CP-010 `@OptionalAuth()` routes). */
@@ -99,6 +100,7 @@ export class LiveController {
     private readonly categories: LiveCategoriesService,
     private readonly users: UsersService,
     private readonly seats: LiveSeatsService,
+    private readonly taps: LiveTapsService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
   ) {}
@@ -371,6 +373,20 @@ export class LiveController {
     @Param('username') username: string,
   ): Promise<LiveSeatsDto> {
     return this.seats.removeModerator(requireCaller(req), roomId, username);
+  }
+
+  // ---- CP-012: taps and the room score (CONVENTIONS §10.10) --------------------------------------
+
+  /** Signed-in callers only (a guest → 401); 120 / min per user, replacing the default (§7). */
+  @Post('rooms/:roomId/taps')
+  @HttpCode(200)
+  @RateLimit({ bucket: 'live:taps', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  tap(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveTapsResultDto> {
+    return this.taps.tap(requireCaller(req), roomId, body);
   }
 
   @Post('rooms/:roomId/heartbeat')

@@ -220,7 +220,7 @@ describe.skipIf(!url)('CP-011 seats against a real LiveKit server', () => {
 /**
  * KL-064 / CP-011 through the API with the real LiveKit adapter: seating, muting and removing a
  * guest change their permission on the server at once, and every change moves the room's
- * `seatsVersion` metadata.
+ * `seatsVersion` metadata; CP-012: a tap's score is written next to it.
  */
 describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', () => {
   const provider = new LiveKitMediaProvider(url ?? '', key, secret);
@@ -273,7 +273,8 @@ describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', (
 
       const asked = await ctx.http.post(`${base}/seat-requests`).set(bearer(guest)).send({});
       expect(asked.status).toBe(201);
-      expect(await metadata()).toBe('{"seatsVersion":1}');
+      // CP-012: the score rides next to the seat version.
+      expect(await metadata()).toBe('{"seatsVersion":1,"score":0}');
       const accepted = await ctx.http
         .post(`${base}/seat-requests/${asked.body.id}/accept`)
         .set(bearer(host))
@@ -284,15 +285,22 @@ describe.skipIf(!url)('CP-011 seats through the API on a real LiveKit server', (
         hidden: false,
         sources: [TrackSource.CAMERA, TrackSource.MICROPHONE].sort(),
       });
-      expect(await metadata()).toBe('{"seatsVersion":2}');
+      expect(await metadata()).toBe('{"seatsVersion":2,"score":0}');
 
       await ctx.http.post(`${base}/seats/1/mute`).set(bearer(host)).send({ muted: true }).expect(200);
       expect(await permission()).toEqual({ canPublish: true, hidden: false, sources: [TrackSource.CAMERA] });
-      expect(await metadata()).toBe('{"seatsVersion":3}');
+      expect(await metadata()).toBe('{"seatsVersion":3,"score":0}');
+
+      // CP-012: the seated guest's taps count; the score reaches the room metadata next to the
+      // seat version (the first write of a room is immediate), and the next seat change keeps it.
+      const tapped = await ctx.http.post(`${base}/taps`).set(bearer(guest)).send({ count: 5 });
+      expect(tapped.status).toBe(200);
+      expect(tapped.body).toEqual({ accepted: 5, score: { total: 5, tapPoints: 5, supportPoints: 0 } });
+      expect(await metadata()).toBe('{"seatsVersion":3,"score":5}');
 
       await ctx.http.post(`${base}/seats/1/remove`).set(bearer(host)).send({}).expect(200);
       expect(await permission()).toEqual({ canPublish: false, hidden: true, sources: [] });
-      expect(await metadata()).toBe('{"seatsVersion":4}');
+      expect(await metadata()).toBe('{"seatsVersion":4,"score":5}');
     } finally {
       ws.close();
       await ctx.http.post(`${base}/end`).set(bearer(host)).expect(200);

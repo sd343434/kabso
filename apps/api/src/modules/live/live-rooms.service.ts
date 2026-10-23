@@ -51,6 +51,15 @@ export interface LiveRoomSummaryDto {
   occupiedSeats: number;
   /** CP-011: a slug of `LiveConfig.themes`. */
   theme: string;
+  /** CP-012: the live's points (taps + support); `popular` orders by it. */
+  score: number;
+}
+
+/** `LiveScore` (CP-012). */
+export interface LiveScoreDto {
+  total: number;
+  tapPoints: number;
+  supportPoints: number;
 }
 
 export interface LiveRoomDto extends LiveRoomSummaryDto {
@@ -59,6 +68,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   endReason: LiveRoomEndReason | null;
   /** CP-010: people without an account may watch. */
   allowGuests: boolean;
+  /** CP-012: the score and its parts. */
+  scoreParts: LiveScoreDto;
 }
 
 export interface LiveRoomPageDto {
@@ -99,6 +110,10 @@ export interface RoomRow {
   seat_count: number | null;
   theme: string;
   seats_version: number;
+  /** CP-012: `live_rooms.score` and its parts (`live_room_scores`; 0 without a row). */
+  score: bigint;
+  tap_points: bigint;
+  support_points: bigint;
   occupied_seats: number;
   host_user_id: string;
   host_status: string;
@@ -119,7 +134,9 @@ export interface RoomRow {
 const ROOM_SELECT = Prisma.sql`
   SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
-         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version,
+         r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score,
+         COALESCE(sc.tap_points, 0)::bigint AS tap_points,
+         COALESCE(sc.support_points, 0)::bigint AS support_points,
          (SELECT count(*)::int FROM live_room_seats s
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
@@ -128,7 +145,8 @@ const ROOM_SELECT = Prisma.sql`
     FROM live_rooms r
     JOIN users u ON u.id = r.host_user_id
     JOIN user_profiles p ON p.user_id = r.host_user_id
-    LEFT JOIN live_categories c ON c.id = r.category_id`;
+    LEFT JOIN live_categories c ON c.id = r.category_id
+    LEFT JOIN live_room_scores sc ON sc.room_id = r.id`;
 
 const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
 
@@ -139,6 +157,11 @@ const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
  */
 export const LIVE_TX_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;
 const LIVE_STATEMENT_TIMEOUT_MS = 8_000;
+
+/** Sets the live statement timeout (SEC-035) for the rest of the transaction `tx`. */
+export async function setLiveStatementTimeout(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.$queryRaw`SELECT set_config('statement_timeout', ${String(LIVE_STATEMENT_TIMEOUT_MS)}, true)`;
+}
 
 /** Per-run budget of the sweeper (SEC-035): whichever is reached first ends the run. */
 export const SWEEP_MAX_BATCHES_PER_RUN = 100;
@@ -182,13 +205,13 @@ function ts(date: Date): string {
 }
 
 /**
- * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = viewerCount, startedAt, id (all desc);
+ * ORDER BY of a tab (CONVENTIONS §10.4): `popular` = score (CP-012), startedAt, id (all desc);
  * `new` and `following` = startedAt, id (desc). `id` is always the final tiebreak, so the order
  * is total and keyset pages neither repeat nor skip rows of an unchanged result set.
  */
 export function orderBy(tab: LiveTab): Prisma.Sql {
   return tab === 'popular'
-    ? Prisma.sql`r.viewer_count DESC, r.started_at DESC, r.id DESC`
+    ? Prisma.sql`r.score DESC, r.started_at DESC, r.id DESC`
     : Prisma.sql`r.started_at DESC, r.id DESC`;
 }
 
@@ -196,7 +219,7 @@ export function orderBy(tab: LiveTab): Prisma.Sql {
 export function keysetAfter(tab: LiveTab, position: CursorPosition): Prisma.Sql {
   const startedAt = ts(position.startedAt);
   return tab === 'popular'
-    ? Prisma.sql`(r.viewer_count, r.started_at, r.id) < (${position.viewerCount}::int, ${startedAt}::timestamptz, ${position.id}::uuid)`
+    ? Prisma.sql`(r.score, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)`
     : Prisma.sql`(r.started_at, r.id) < (${startedAt}::timestamptz, ${position.id}::uuid)`;
 }
 
@@ -307,7 +330,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   // ---- Stale handling --------------------------------------------------------------------------
 
   private async setStatementTimeout(tx: Prisma.TransactionClient): Promise<void> {
-    await tx.$queryRaw`SELECT set_config('statement_timeout', ${String(LIVE_STATEMENT_TIMEOUT_MS)}, true)`;
+    await setLiveStatementTimeout(tx);
   }
 
   /** Audits `live.room.timeout` for the rooms a statement just ended. */
@@ -466,6 +489,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,
       theme: row.theme,
+      score: Number(row.score),
     };
   }
 
@@ -476,6 +500,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       endedAt: row.ended_at?.toISOString() ?? null,
       endReason: row.end_reason,
       allowGuests: row.allow_guests,
+      scoreParts: {
+        total: Number(row.score),
+        tapPoints: Number(row.tap_points),
+        supportPoints: Number(row.support_points),
+      },
     };
   }
 
@@ -543,7 +572,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         nextCursor:
           hasMore && last
             ? this.cursors.encode(scope, {
-                viewerCount: last.viewer_count,
+                score: Number(last.score),
                 startedAt: last.started_at,
                 id: last.id,
               })

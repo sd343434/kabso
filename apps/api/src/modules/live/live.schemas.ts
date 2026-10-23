@@ -147,6 +147,9 @@ export function parseSeatIndexPath(raw: string): number | null {
   return Number(raw);
 }
 
+/** `LiveTapsRequest` (CP-012): the taps since the last batch, 1–50. */
+export const liveTapsRequestSchema = z.strictObject({ count: z.number().int().min(1).max(50) });
+
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;

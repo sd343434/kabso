@@ -68,6 +68,7 @@ model User {
   liveSeatInvites    LiveSeatInvite[]      @relation("LiveSeatInvitee")
   liveSeatInvitesBy  LiveSeatInvite[]      @relation("LiveSeatInviter")
   liveModeratorOf    LiveRoomModerator[]
+  liveTaps           LiveRoomTapper[]
   following          Follow[]              @relation("FollowFollower")
   followers          Follow[]              @relation("FollowFollowee")
   levelStates        UserLevelState[]
@@ -351,24 +352,29 @@ model LiveRoom {
   theme           String             @default("classic") @db.VarChar(32)
   /// CP-011: increases on every change of the room's seats, requests, invitations or moderators.
   seatsVersion    Int                @default(0) @map("seats_version")
+  /// CP-012: the room's total score (tap + support points), kept equal to the room's
+  /// `live_room_scores` row in the same transaction; `popular` orders by it (CONVENTIONS §10.4).
+  score           BigInt             @default(0)
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host     User             @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category LiveCategory?    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  viewers  LiveRoomViewer[]
-  reports  Report[]
+  host         User                @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category     LiveCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  viewers      LiveRoomViewer[]
+  reports      Report[]
   seats        LiveRoomSeat[]
   seatRequests LiveSeatRequest[]
   seatInvites  LiveSeatInvite[]
   moderators   LiveRoomModerator[]
+  scoreParts   LiveRoomScore?
+  tappers      LiveRoomTapper[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
-  @@index([viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_new_idx", where: raw("status = 'LIVE'::live_room_status"))
-  @@index([categoryId, viewerCount(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
+  @@index([categoryId, score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([categoryId, startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_cat_new_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([lastHeartbeatAt], map: "live_rooms_live_heartbeat_idx", where: raw("status = 'LIVE'::live_room_status"))
   @@index([hostUserId, startedAt(sort: Desc)], map: "live_rooms_host_started_idx")
@@ -463,6 +469,37 @@ model LiveRoomModerator {
   @@id([roomId, userId], map: "live_room_moderators_pkey")
   @@index([userId], map: "live_room_moderators_user_idx")
   @@map("live_room_moderators")
+}
+
+/// CP-012 (D95): a room's score parts. `tap_points` is 1 per counted tap; `support_points` is 100
+/// per support coin, written by L3 with the gift (0 until then). `live_rooms.score` holds the total
+/// (CONVENTIONS §10.10). CHECK `live_room_scores_nonneg` (migration 20261028090000_live_taps).
+model LiveRoomScore {
+  roomId        String   @id @map("room_id") @db.Uuid
+  tapPoints     BigInt   @default(0) @map("tap_points")
+  supportPoints BigInt   @default(0) @map("support_points")
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("live_room_scores")
+}
+
+/// CP-012 (D95): a caller's counted taps in one room and the time of their last counted batch; the
+/// 10-a-second and 10 000-a-live limits are checked against it. Kept for admins (abuse watch, no
+/// endpoint). CHECK `live_room_tappers_counted` (migration 20261028090000_live_taps).
+model LiveRoomTapper {
+  roomId      String   @map("room_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  counted     Int      @default(0)
+  lastBatchAt DateTime @map("last_batch_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId], map: "live_room_tappers_pkey")
+  @@index([userId], map: "live_room_tappers_user_idx")
+  @@map("live_room_tappers")
 }
 
 /// Follow graph edge (social module). CHECK `follows_no_self_follow`.

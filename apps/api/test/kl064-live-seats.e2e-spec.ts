@@ -289,7 +289,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expectContract(again, 'requestLiveSeat');
       expect(again.body.id).toBe(created.body.id);
       expect(await version(roomId)).toBe(1);
-      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: 1 }));
+      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: 1, score: 0 }));
       expect((await seats(roomId, a)).body.mine.request).toMatchObject({ id: created.body.id, seatIndex: 2 });
 
       const bReq = await ask(roomId, b);
@@ -338,7 +338,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expect(media.permissions.slice(before)).toEqual([
         { room: roomId, identity: a.id, permission: { visible: true, sources: ['camera', 'microphone'] } },
       ]);
-      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: 4 }));
+      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: 4, score: 0 }));
       expect((await ctx.http.get(`/api/v1/live/rooms/${roomId}`)).body.occupiedSeats).toBe(1);
       const mine = (await seats(roomId, a)).body.mine;
       expect(mine).toEqual({ role: 'SEATED', seatIndex: 2, request: null, invite: null });
@@ -875,7 +875,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expect(await ctx.prisma.liveRoomSeat.count({ where: { roomId, seatIndex: { gte: 4 } } })).toBe(0);
       const after = await seats(roomId);
       expect(after.body.seats.map((s: { state: string }) => s.state)).toEqual(['EMPTY', 'TAKEN', 'EMPTY']);
-      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: v + 1 }));
+      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: v + 1, score: 0 }));
       const themeOnly = await call('patch', roomId, h, { theme: 'classic' });
       expect(themeOnly.body.theme).toBe('classic');
 
@@ -989,13 +989,13 @@ describe('CP-011 multi-guest and audio rooms', () => {
       }
       expect(await ctx.prisma.liveRoomSeat.count({ where: { roomId, userId: a.id } })).toBe(1);
       const v = await version(roomId);
-      expect(media.metadata.get(roomId)).not.toBe(JSON.stringify({ seatsVersion: v }));
+      expect(media.metadata.get(roomId)).not.toBe(JSON.stringify({ seatsVersion: v, score: 0 }));
       await ctx.app.get(LiveMediaService).reconcile();
       expect(media.lastPermission(roomId, a.id)).toEqual({
         visible: true,
         sources: ['camera', 'microphone'],
       });
-      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: v }));
+      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: v, score: 0 }));
       // Nothing more to repair.
       const writes = media.permissions.length;
       await ctx.app.get(LiveMediaService).reconcile();

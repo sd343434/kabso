@@ -102,10 +102,14 @@ describe('KL-037 contract coverage', () => {
       // CP-008 adds /users/{username}/stories; kl061-stories covers it.
       .filter((o) => o.path !== '/api/v1/users/{username}/stories')
       // CP-010 (v1.6-live draft) adds live video operations under /live/; kl063-live-video
-      // covers them with its own exact list. CP-011 (v1.7-live draft) adds the seat operations;
+      // covers them with its own exact list. CP-012 (v1.8-live draft) adds tapLiveRoom;
+      // kl065-live-taps covers it. CP-011 (v1.7-live draft) adds the seat operations;
       // kl064-live-seats covers them with its own exact list.
       .filter(
-        (o) => !['createLiveMediaToken', 'updateLiveRoom', 'listLiveRoomViewers'].includes(o.operationId),
+        (o) =>
+          !['createLiveMediaToken', 'updateLiveRoom', 'listLiveRoomViewers', 'tapLiveRoom'].includes(
+            o.operationId,
+          ),
       )
       .filter(
         (o) =>
@@ -277,6 +281,9 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         seatCount: null,
         occupiedSeats: 0,
         theme: 'classic',
+        // CP-012 (v1.8-live): a new live starts at 0 points.
+        score: 0,
+        scoreParts: { total: 0, tapPoints: 0, supportPoints: 0 },
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -559,7 +566,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         const newTab = await allPages(viewer, { tab: 'new' }, limit);
         expect(newTab.ids).toEqual(byNew);
         expect(newTab.pages).toBe(Math.max(1, Math.ceil(9 / limit)));
-        // popular ≡ new while every viewerCount is 0.
+        // popular ≡ new while every score is 0 (CP-012, §10.4).
         expect((await allPages(viewer, { tab: 'popular' }, limit)).ids).toEqual(byNew);
         const followed = new Set(created.slice(0, 6).map((r) => r.id));
         expect((await allPages(viewer, { tab: 'following' }, limit)).ids).toEqual(
@@ -567,10 +574,12 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         );
       }
 
-      // popular orders by viewerCount first (fixture: presence does not exist yet in v1.3).
-      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { viewerCount: 5 } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { viewerCount: 5 } });
-      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { viewerCount: 2 } });
+      // CP-012 (v1.8-live): popular orders by score first (fixture written directly; kl065 covers
+      // scores reached by tapping). The viewer count no longer orders it.
+      await ctx.prisma.liveRoom.update({ where: { id: created[0]!.id }, data: { score: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[4]!.id }, data: { score: BigInt(5) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[8]!.id }, data: { score: BigInt(2) } });
+      await ctx.prisma.liveRoom.update({ where: { id: created[1]!.id }, data: { viewerCount: 50 } });
       const top = [created[4]!, created[0]!].sort(
         (a, b) => b.startedAt - a.startedAt || (a.id < b.id ? 1 : -1),
       );
@@ -584,13 +593,14 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
       }
       const page = await list(viewer, { tab: 'popular', limit: 1 });
       expect(page.body.data[0]).toMatchObject({
-        viewerCount: 5,
+        score: 5,
+        viewerCount: 0,
         mode: 'SOLO',
         coverUrl: null,
         category: null,
       });
       expect(page.body.data[0].startedAt).toMatch(ISO_Z);
-      await ctx.prisma.liveRoom.updateMany({ data: { viewerCount: 0 } });
+      await ctx.prisma.liveRoom.updateMany({ data: { viewerCount: 0, score: BigInt(0) } });
     });
 
     it('filters every tab by category; unknown/inactive slug → 200 empty; malformed → 400', async () => {
