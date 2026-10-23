@@ -154,7 +154,22 @@ export const envSchema = z
     PASSWORD_RESET_TOKEN_TTL_SECONDS: positiveInt(3600),
 
     APP_PUBLIC_URL: z.url({ protocol: /^https?$/ }).transform((v) => v.replace(/\/+$/, '')),
-    MAIL_TRANSPORT: z.enum(['log']).default('log'),
+    /**
+     * `log` writes mail to the log (development only). `smtp` sends through the SMTP_* server
+     * (KL-042, B2) over TLS: implicit TLS when SMTP_SECURE=true (port 465), otherwise STARTTLS,
+     * which is then required.
+     */
+    MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
+    /** Sender of every message, e.g. `Kabso Live <no-reply@example.com>`. Required with smtp. */
+    MAIL_FROM: z.string().trim().min(3).max(256).optional(),
+    SMTP_HOST: z.string().trim().min(1).max(255).optional(),
+    SMTP_PORT: intSetting(465, 1, 65535),
+    SMTP_SECURE: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('true')
+      .transform((v) => v === 'true'),
+    SMTP_USER: z.string().trim().min(1).max(256).optional(),
+    SMTP_PASSWORD: z.string().min(1).max(512).optional(),
 
     CORS_ORIGINS: z
       .string()
@@ -409,6 +424,23 @@ export const envSchema = z
         }
       }
     }
+    if (env.MAIL_TRANSPORT === 'smtp') {
+      for (const key of ['MAIL_FROM', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'] as const) {
+        if (env[key] === undefined) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'is required when MAIL_TRANSPORT=smtp' });
+        }
+      }
+      if (
+        env.MAIL_FROM !== undefined &&
+        !/^(?:[^<>@]*<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/.test(env.MAIL_FROM)
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MAIL_FROM'],
+          message: 'must be an address or "Name <address>"',
+        });
+      }
+    }
     if (env.MEDIA_UPLOADS_ENABLED) {
       for (const key of [
         'S3_BUCKET',
@@ -569,7 +601,7 @@ export const envSchema = z
           path: ['MAIL_TRANSPORT'],
           message:
             '"log" is a development transport (it writes token links to logs) and is refused in ' +
-            'production; a real transport is BLOCKED on B2 (SMTP provider)',
+            'production; use MAIL_TRANSPORT=smtp with the SMTP_* settings (KL-042)',
         });
       }
     }

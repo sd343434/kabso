@@ -26,6 +26,15 @@ export interface AppConfig {
   };
   readonly appPublicUrl: string;
   readonly mailTransport: Env['MAIL_TRANSPORT'];
+  /** Outbound SMTP (KL-042); null unless MAIL_TRANSPORT=smtp. */
+  readonly smtp: {
+    readonly host: string;
+    readonly port: number;
+    readonly secure: boolean;
+    readonly user: string;
+    readonly password: string;
+    readonly from: string;
+  } | null;
   readonly http: {
     readonly corsOrigins: readonly string[];
     readonly trustProxy: boolean | number | string[];
@@ -189,6 +198,21 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     },
     appPublicUrl: e.APP_PUBLIC_URL,
     mailTransport: e.MAIL_TRANSPORT,
+    smtp:
+      e.MAIL_TRANSPORT === 'smtp' &&
+      e.SMTP_HOST !== undefined &&
+      e.SMTP_USER !== undefined &&
+      e.SMTP_PASSWORD !== undefined &&
+      e.MAIL_FROM !== undefined
+        ? {
+            host: e.SMTP_HOST,
+            port: e.SMTP_PORT,
+            secure: e.SMTP_SECURE,
+            user: e.SMTP_USER,
+            password: e.SMTP_PASSWORD,
+            from: e.MAIL_FROM,
+          }
+        : null,
     http: { corsOrigins: e.CORS_ORIGINS, trustProxy: e.TRUST_PROXY, bodyLimit: e.BODY_LIMIT },
     rateLimits: {
       loginIpAccount: e.RATE_LIMIT_LOGIN_IP_ACCOUNT,

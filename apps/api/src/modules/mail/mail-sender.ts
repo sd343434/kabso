@@ -27,7 +27,7 @@ export interface AccountExistsMail {
   readonly appUrl: string;
 }
 
-/** Outbound mail port. Adapters: `log` (development). SMTP is BLOCKED (B2). */
+/** Outbound mail port. Adapters: `log` (development) and `smtp` (KL-042). */
 export interface MailSender {
   sendEmailVerification(mail: TokenMail): Promise<void>;
   sendPasswordReset(mail: TokenMail): Promise<void>;

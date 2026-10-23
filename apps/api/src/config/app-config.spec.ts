@@ -146,6 +146,57 @@ describe('loadConfig', () => {
       expect(problems(prod()).map((p) => p.split(':')[0])).toEqual(['MAIL_TRANSPORT']);
     });
 
+    describe('SMTP mail (KL-042)', () => {
+      const smtp = {
+        MAIL_TRANSPORT: 'smtp',
+        MAIL_FROM: 'Kabso Live <no-reply@kabso.example>',
+        SMTP_HOST: 'smtp.kabso.example',
+        SMTP_USER: 'no-reply@kabso.example',
+        SMTP_PASSWORD: 'app-password',
+      };
+
+      it('is the production transport: a production config with SMTP has no problems', () => {
+        expect(problems(prod(smtp))).toEqual([]);
+        expect(loadConfig(prod(smtp)).smtp).toEqual({
+          host: 'smtp.kabso.example',
+          port: 465,
+          secure: true,
+          user: 'no-reply@kabso.example',
+          password: 'app-password',
+          from: 'Kabso Live <no-reply@kabso.example>',
+        });
+        expect(loadConfig(prod({ ...smtp, SMTP_PORT: '587', SMTP_SECURE: 'false' })).smtp).toMatchObject({
+          port: 587,
+          secure: false,
+        });
+      });
+
+      it.each(['MAIL_FROM', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'])('requires %s with smtp', (key) => {
+        const env: Record<string, string> = { ...smtp };
+        delete env[key];
+        expect(about(prod(env), key)).toEqual([`${key}: is required when MAIL_TRANSPORT=smtp`]);
+      });
+
+      it.each(['no-reply', 'Kabso <no-reply>', '<a@b>', 'a@b', 'Kabso <a@b.c', 'a@b.c>'])(
+        'refuses the sender %s',
+        (from) => {
+          expect(about(prod({ ...smtp, MAIL_FROM: from }), 'MAIL_FROM')).toHaveLength(1);
+        },
+      );
+
+      it.each(['no-reply@kabso.example', 'Kabso Live <no-reply@kabso.example>'])(
+        'accepts the sender %s',
+        (from) => {
+          expect(about(prod({ ...smtp, MAIL_FROM: from }), 'MAIL_FROM')).toEqual([]);
+        },
+      );
+
+      it('has no SMTP settings with the log transport', () => {
+        expect(loadConfig(base).smtp).toBeNull();
+        expect(() => loadConfig({ ...base, SMTP_SECURE: 'yes' })).toThrow(/SMTP_SECURE/);
+      });
+    });
+
     it('generates a per-process rate-limit key outside production', () => {
       const a = loadConfig(base).rateLimitKeySecret;
       const b = loadConfig(base).rateLimitKeySecret;
