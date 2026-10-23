@@ -91,6 +91,8 @@ All non-2xx responses use one envelope:
 | 409 | `LIVE_ROOM_ENDED` | *(v1.3)* Heartbeat for a room that is no longer LIVE (ended by the host, heartbeat timeout, suspension or admin). The host client stops heartbeats and shows the ended state. |
 | 403 | `LIVE_HOSTING_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* Go-live refused: the caller does not hold the hosting permission (`Me.canHost`; admin-granted, later through an agency or an identity check). The app explains how to get it. |
 | 403 | `LIVE_GUESTS_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* A guest (no account) asked to watch a room whose host switched guests off. The app offers to sign in. |
+| 409 | `LIVE_SEAT_UNAVAILABLE` | *(v1.7-live, DRAFT, CP-011)* The seat or seats asked for cannot be used: taken, locked, out of range, none free, a room without seats (SOLO), the user already seated, the host, or (invitation) not watching now; also shrinking `seatCount` below an occupied seat and locking an occupied seat. |
+| 409 | `LIVE_REQUEST_NOT_PENDING` | *(v1.7-live, DRAFT, CP-011)* The seat request or invitation was already accepted, declined, cancelled, replaced or expired. |
 | 410 | `TOKEN_EXPIRED` | Email-verification / password-reset token expired or already used. |
 | 422 | `TOKEN_INVALID` | Email-verification / password-reset token malformed or unknown. |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header (seconds) is set. |
@@ -318,6 +320,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/heartbeat` *(v1.3)* | 12 / min per user (expected cadence 1 / 15 s = 4 / min; 3× headroom for retries) |
 | `POST /live/rooms/{roomId}/end` *(v1.3)* | 30 / hour per user |
 | `POST /live/rooms/{roomId}/media-token` *(v1.6-live, CP-010)* | 120 / hour per user; guests 60 / hour per IP |
+| Seat requests and invitations *(v1.7-live, CP-011)* | 30 / 10 min per user |
+| Host and moderator seat actions (accept, decline, mute, remove, lock, moderators, `seatCount`/`theme` in `PATCH`) *(v1.7-live, CP-011)* | 300 / hour per user |
+| `GET /live/rooms/{roomId}/seats` *(v1.7-live, CP-011)* | 600 / 15 min per user; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -410,6 +415,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.4-levels (draft) | 2026-10-20 | **Draft, owner sign-off pending (CP-005, D72).** Four independent level systems. User: `GET /levels/me`, `/levels/me/{category}`, `/levels/me/history`, `/levels/me/points-history` (signed keyset cursors scoped to caller and filter). Admin (`role = ADMIN`, every mutation in `audit_logs`): categories (list/get/patch), versions (list/create/get/replace/validate/preview/publish with `PRESERVE_POINTS` or `RECOMPUTE_FROM_LEDGER`), a user's states, recalculate, manual adjustment (`Idempotency-Key` required; replay 200, different body 409), reconciliation (`DRY_RUN`/`REPAIR`) and its runs, source events and retry, reports, levels audit log. New error codes `LEVEL_CONFIG_INVALID` (422) and `LEVEL_VERSION_NOT_DRAFT` (409). `GET /users/{username}/levels` (levels only, for profiles). Admin routes need a per-route permission (`LEVELS_VIEW|EDIT|PUBLISH|ADJUST|RECONCILE`) besides `role = ADMIN`. No public endpoint accepts points, levels or events. Additive: no existing path, schema or code changes |
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
 | v1.6-live (draft) | 2026-10-23 | **CP-010 (D93, Live L1):** live video — `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`, `grantLiveHost`, `revokeLiveHost`; schemas `LiveMediaAccess`, `LiveMediaTokenRequest`, `UpdateLiveRoomRequest`, `LiveViewer`, `LiveViewerPage`; `LiveRoom.allowGuests`, `StartLiveRoomRequest.allowGuests`, `Me.canHost`; report `targetType: LIVE_ROOM`; codes `LIVE_HOSTING_NOT_ALLOWED`, `LIVE_GUESTS_NOT_ALLOWED`; guests read the live hub without a token; `viewerCount` counts people watching. §4, §7 rows and §10.8. | **Additive**, plus one **tightening** (go-live needs the hosting permission; hosting is switched off in production today, so nobody loses anything) and one **relaxing** (four live operations accept no token). |
+| v1.7-live (draft) | 2026-10-23 | **CP-011 (D94):** multi-guest video and audio rooms — `LiveRoomMode.AUDIO`; `StartLiveRoomRequest.mode`, `seatCount`, `theme`; `LiveRoomSummary.seatCount`, `occupiedSeats`, `theme`; `LiveConfig.themes`, `seatCounts`; `UpdateLiveRoomRequest.seatCount`, `theme` (now at least one field); media role `SPEAKER`; operations `getLiveRoomSeats`, `requestLiveSeat`, `listLiveSeatRequests`, `cancelLiveSeatRequest`, `acceptLiveSeatRequest`, `declineLiveSeatRequest`, `inviteToLiveSeat`, `acceptLiveSeatInvite`, `declineLiveSeatInvite`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, `addLiveModerator`, `removeLiveModerator`; codes `LIVE_SEAT_UNAVAILABLE`, `LIVE_REQUEST_NOT_PENDING`. §4, §7 rows and §10.9. | **Additive** (a new enum value older apps show as SOLO; new optional request fields; new response fields and operations). |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
 | v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
 | v1.5-social (draft) | 2026-10-21 | **CP-007 (D89):** `GET /me/mutes` (the caller's muted accounts, newest first, `UserSummaryPage`) and `PublicProfile.isMuted` (the caller's own mute only). §11.7 line added. | Additive: a new path and one new boolean on `PublicProfile`. |
@@ -692,6 +698,41 @@ until a media provider is wired in.
 - **Reports:** `POST /reports` accepts `targetType: LIVE_ROOM` (a LIVE or recently ended room the
   reporter can see; not your own). `REMOVE_TARGET` ends the room with `ADMIN` (audited).
 - **No time limit** on a live (owner D93).
+
+### 10.9 Multi-guest and audio rooms *(v1.7-live, DRAFT — CP-011, D94)*
+
+- **Modes:** `SOLO` (§10.8), `MULTI` (video seats) and `AUDIO` (voice seats). `PK` stays
+  reserved (L5). `seatCount` counts the host's tile: `MULTI` 4, 6, 9 or 12; `AUDIO` 5, 9 or 13
+  (owner D94). Seats are numbered 1 … `seatCount`-1; the host is 0.
+- **Seat state:** `EMPTY`, `LOCKED` or `TAKEN` (with the user and `mutedByHost`). Every change
+  increases the room's seat `version` in the same transaction and writes `{"seatsVersion": n}`
+  into the media room's metadata; apps refetch `getLiveRoomSeats` when it moves.
+- **Roles in a room:** the host; up to 5 **moderators** the host appoints for this room; seated
+  guests; viewers. Guests without an account watch only (owner D94): they cannot ask, be
+  invited or moderate.
+- **Getting a seat (owner D94: both ways):**
+  - a viewer asks (`requestLiveSeat`); the host or a moderator accepts or declines;
+  - the host or a moderator invites a viewer watching now (`inviteToLiveSeat`); the invitee
+    accepts or declines within 60 seconds; the invitation also reaches them as a media data
+    message `{"type":"seat-invite","roomId":…}` addressed to their identity;
+  - a request or invitation names a seat or lets the server pick the first free one.
+- **Who may do what:**
+  - host and moderators: accept, decline, invite, mute, take off;
+  - host only: lock or unlock seats, change `seatCount` and `theme`, appoint moderators;
+  - a moderator never acts on the host or another moderator.
+- **Media permission:** seating a guest (role `SPEAKER`) grants publishing on the media server
+  at once: `MULTI` camera and microphone, `AUDIO` microphone. `mutedByHost` withdraws the
+  microphone; taking off withdraws publishing and unpublishes. An `AUDIO` host publishes the
+  microphone only.
+- **Losing a seat or a pending request:** leaving the media session (webhook or
+  reconciliation), suspension, a block with the host, removal by the host or a moderator,
+  leaving the seat, or the room ending.
+- **Locks and resizing:** an occupied seat cannot be locked; `seatCount` cannot shrink below an
+  occupied seat (409 `LIVE_SEAT_UNAVAILABLE`).
+- **Themes:** `theme` is a slug from `LiveConfig.themes` (the first is the default). The art
+  ships in the app; an unknown slug shows the default.
+- **Hub:** `LiveRoomSummary.seatCount` and `occupiedSeats` let cards show the mode and how
+  many guests are on.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

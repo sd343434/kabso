@@ -20,6 +20,9 @@ info:
     viewers and guests without an account, the real viewer count, the host's viewer list and
     guests switch, the hosting permission (admin-granted until agencies and identity checks,
     L1b) and `LIVE_ROOM` reports (CONVENTIONS §10.7).
+    **CP-011 (D94, DRAFT v1.7-live)** adds multi-guest video and audio rooms with seats: asking
+    for a seat, invitations, the host's and moderators' controls (mute, take off, lock, seat
+    count), room moderators and room themes (CONVENTIONS §10.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -521,6 +524,8 @@ paths:
                 hostingEnabled: false
                 heartbeatIntervalSeconds: 15
                 heartbeatStaleAfterSeconds: 45
+                themes: [classic, ice-palace, desert-night, rose-garden]
+                seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -609,6 +614,9 @@ paths:
                           username: layla.k
                           displayName: ليلى
                           avatarUrl: null
+                        seatCount: null
+                        occupiedSeats: 0
+                        theme: classic
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
           description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
@@ -703,6 +711,9 @@ paths:
                     endedAt: '2026-10-16T20:12:45.120Z'
                     endReason: HOST_ENDED
                     allowGuests: true
+                    seatCount: null
+                    occupiedSeats: 0
+                    theme: classic
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -845,6 +856,356 @@ paths:
               schema: { $ref: '#/components/schemas/LiveRoom' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats:
+    get:
+      tags: [live]
+      operationId: getLiveRoomSeats
+      security: [{}, {bearerAuth: []}]
+      summary: "Who is on which seat in a MULTI or AUDIO room (CP-011)"
+      description: |
+        CONVENTIONS §10.9. Open to everyone who may see the room, guests included (rate-limited
+        by IP). `version` increases on every seat change; the API also writes it into the media
+        room's metadata so connected apps refetch only when it moves. `pendingRequests` is
+        present for the host and moderators only; `mine` for a signed-in caller only. A SOLO
+        room → 409 `LIVE_SEAT_UNAVAILABLE`. Ended room → 409 `LIVE_ROOM_ENDED`. Not visible → 404.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The seats.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests:
+    post:
+      tags: [live]
+      operationId: requestLiveSeat
+      summary: "A viewer asks for a seat (CP-011)"
+      description: |
+        Signed-in viewers only (a guest → 401). One pending request per user and room: asking
+        again returns the pending one (200; 201 when created). Refused with 409
+        `LIVE_SEAT_UNAVAILABLE` when the room has no seats (SOLO), the caller is the host or
+        already seated, the asked seat is taken, locked or out of range, or no seat is free.
+        The request ends when the caller leaves the media session or the room ends.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatRequestBody' }
+      responses:
+        '200':
+          description: The pending request (already asked).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatRequest' }
+        '201':
+          description: The new request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatRequest' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [live]
+      operationId: listLiveSeatRequests
+      summary: "Host or moderator: pending seat requests, oldest first (CP-011)"
+      description: Host and moderators only (else 403 `AUTH_FORBIDDEN`). Cursor-paged.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatRequestPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests/me:
+    delete:
+      tags: [live]
+      operationId: cancelLiveSeatRequest
+      summary: "Cancel my pending seat request (CP-011, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: No pending request now. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/accept:
+    post:
+      tags: [live]
+      operationId: acceptLiveSeatRequest
+      summary: "Host or moderator: seat the requester (CP-011)"
+      description: |
+        Seats the user on `seatIndex`, else the seat they asked for, else the first free seat.
+        Already handled, cancelled or the requester left → 409 `LIVE_REQUEST_NOT_PENDING`; no
+        usable seat → 409 `LIVE_SEAT_UNAVAILABLE`. Not host or moderator → 403.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatRequestIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatRequestBody' }
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-requests/{requestId}/decline:
+    post:
+      tags: [live]
+      operationId: declineLiveSeatRequest
+      summary: "Host or moderator: decline a seat request (CP-011)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatRequestIdPath'
+      responses:
+        '204': { description: Declined (or already handled). }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-invites:
+    post:
+      tags: [live]
+      operationId: inviteToLiveSeat
+      summary: "Host or moderator: invite a viewer onto a seat (CP-011)"
+      description: |
+        The user must be signed in and watching now (else 409 `LIVE_SEAT_UNAVAILABLE`), not
+        seated, and not blocked either way with the host (else 404). One pending invitation per
+        user: inviting again replaces it. Expires after 60 seconds. The invitee is told through a
+        media data message and sees it in `mine.invite`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatInviteBody' }
+      responses:
+        '201':
+          description: The invitation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatInvite' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-invites/me/accept:
+    post:
+      tags: [live]
+      operationId: acceptLiveSeatInvite
+      summary: "Accept my seat invitation (CP-011)"
+      description: |
+        Seats the caller on the invited seat if still usable, else the first free seat. None,
+        expired or replaced → 409 `LIVE_REQUEST_NOT_PENDING`; no usable seat → 409
+        `LIVE_SEAT_UNAVAILABLE`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-invites/me/decline:
+    post:
+      tags: [live]
+      operationId: declineLiveSeatInvite
+      summary: "Decline my seat invitation (CP-011, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: No pending invitation now. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/me/leave:
+    post:
+      tags: [live]
+      operationId: leaveLiveSeat
+      summary: "Leave my seat (CP-011, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '204': { description: Not seated now. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/{seatIndex}/mute:
+    post:
+      tags: [live]
+      operationId: muteLiveSeat
+      summary: "Host or moderator: mute or unmute a seated guest (CP-011)"
+      description: |
+        While `mutedByHost`, the media server withdraws the guest's microphone, so they cannot
+        unmute themselves. An empty seat → 409 `LIVE_SEAT_UNAVAILABLE`. A moderator cannot mute
+        another moderator (403). Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [muted]
+              additionalProperties: false
+              properties:
+                muted: { type: boolean }
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/{seatIndex}/remove:
+    post:
+      tags: [live]
+      operationId: removeFromLiveSeat
+      summary: "Host or moderator: take a guest off their seat (CP-011)"
+      description: |
+        The guest keeps watching. An empty seat → 200 unchanged. A moderator cannot remove another
+        moderator (403).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seats/{seatIndex}/lock:
+    post:
+      tags: [live]
+      operationId: lockLiveSeat
+      summary: "Host: lock or unlock an empty seat (CP-011)"
+      description: |
+        Host only (moderators → 403). An occupied seat cannot be locked → 409
+        `LIVE_SEAT_UNAVAILABLE`. A locked seat cannot be asked for or given. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/SeatIndexPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locked]
+              additionalProperties: false
+              properties:
+                locked: { type: boolean }
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/moderators/{username}:
+    put:
+      tags: [live]
+      operationId: addLiveModerator
+      summary: "Host: make a viewer a moderator of this room (CP-011)"
+      description: |
+        Host only (else 403). The user must be signed in, ACTIVE and not blocked either way with
+        the host (else 404). Up to 5 per room (else 422 `VALIDATION_FAILED`, field `moderators`). Moderators last for the room only.
+        Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The seats (with the moderator list) after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: removeLiveModerator
+      summary: "Host: remove a moderator (CP-011, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The seats after the change.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeats' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/admin/live/hosts/{username}:
@@ -2493,6 +2854,18 @@ components:
       required: true
       description: Lowercase username. A malformed value is treated as not found (404), never 400.
       schema: { type: string, minLength: 1, maxLength: 64 }
+    SeatIndexPath:
+      name: seatIndex
+      in: path
+      required: true
+      description: CP-011 — 1 … seatCount-1 (the host is 0). Out of range → 409 `LIVE_SEAT_UNAVAILABLE`.
+      schema: { type: integer, minimum: 1, maximum: 12 }
+    SeatRequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      description: CP-011 — a malformed or unknown id → 404.
+      schema: { type: string, format: uuid }
     RoomIdPath:
       name: roomId
       in: path
@@ -2792,17 +3165,31 @@ components:
           description: Localized by `Accept-Language` (ar|en), else the caller's stored locale (CONVENTIONS §10.1).
     LiveConfig:
       type: object
-      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds]
+      required: [hostingEnabled, heartbeatIntervalSeconds, heartbeatStaleAfterSeconds, themes, seatCounts]
       properties:
         hostingEnabled:
           type: boolean
           description: Server config `LIVE_HOSTING_ENABLED` (default false until a media provider exists, B1).
         heartbeatIntervalSeconds: { type: integer, minimum: 1, example: 15 }
         heartbeatStaleAfterSeconds: { type: integer, minimum: 1, example: 45 }
+        themes:
+          type: array
+          items: { $ref: '#/components/schemas/LiveThemeSlug' }
+          description: CP-011 — room themes the server accepts, in display order (the first is the default).
+        seatCounts:
+          type: object
+          description: CP-011 — the seat counts allowed per mode (host tile included).
+          required: [MULTI, AUDIO]
+          properties:
+            MULTI: { type: array, items: { type: integer }, example: [4, 6, 9, 12] }
+            AUDIO: { type: array, items: { type: integer }, example: [5, 9, 13] }
     LiveRoomMode:
       type: string
-      enum: [SOLO, PK, MULTI]
-      description: Only SOLO rooms exist in v1.3. Clients render an unrecognised future value as SOLO.
+      enum: [SOLO, PK, MULTI, AUDIO]
+      description: |
+        SOLO (one host on camera), MULTI (CP-011: multi-guest video with seats), AUDIO (CP-011:
+        voice only with seats). PK is reserved for L5. Clients render an unrecognised future
+        value as SOLO.
     LiveRoomTitle:
       type: string
       minLength: 1
@@ -2815,7 +3202,7 @@ components:
         mixed-script rule do **not** apply.
     LiveRoomSummary:
       type: object
-      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host]
+      required: [id, title, mode, viewerCount, startedAt, coverUrl, category, host, seatCount, occupiedSeats, theme]
       properties:
         id: { type: string, format: uuid }
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
@@ -2835,6 +3222,13 @@ components:
             - { $ref: '#/components/schemas/LiveCategory' }
             - { type: 'null' }
         host: { $ref: '#/components/schemas/UserSummary' }
+        seatCount:
+          description: CP-011 — tiles (host included) in a MULTI or AUDIO room; null for SOLO.
+          oneOf:
+            - { $ref: '#/components/schemas/LiveSeatCount' }
+            - { type: 'null' }
+        occupiedSeats: { type: integer, minimum: 0, description: "CP-011 — guests seated now (0 for SOLO)." }
+        theme: { $ref: '#/components/schemas/LiveThemeSlug' }
     LiveRoom:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
@@ -2863,12 +3257,28 @@ components:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug: { $ref: '#/components/schemas/CategorySlug' }
         allowGuests: { type: boolean, default: true }
+        mode:
+          type: string
+          enum: [SOLO, MULTI, AUDIO]
+          default: SOLO
+          description: CP-011. PK cannot be started here (L5).
+        seatCount:
+          description: CP-011 — required for MULTI and AUDIO, forbidden for SOLO (else 400).
+          allOf:
+            - $ref: '#/components/schemas/LiveSeatCount'
+        theme: { $ref: '#/components/schemas/LiveThemeSlug' }
     UpdateLiveRoomRequest:
       type: object
-      required: [allowGuests]
+      minProperties: 1
       additionalProperties: false
+      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`).
       properties:
         allowGuests: { type: boolean }
+        seatCount:
+          description: An allowed count for the room's mode; below an occupied seat → 409 `LIVE_SEAT_UNAVAILABLE`.
+          allOf:
+            - $ref: '#/components/schemas/LiveSeatCount'
+        theme: { $ref: '#/components/schemas/LiveThemeSlug' }
     LiveMediaTokenRequest:
       type: object
       additionalProperties: false
@@ -2884,7 +3294,10 @@ components:
         url: { type: string, format: uri, description: The media server (wss://). }
         token: { type: string, description: "Access token for this room only; valid 10 minutes to join." }
         expiresAt: { type: string, format: date-time }
-        role: { type: string, enum: [HOST, VIEWER] }
+        role:
+          type: string
+          enum: [HOST, VIEWER, SPEAKER]
+          description: SPEAKER (CP-011) is a seated guest; seating and removing also change a joined session's permission at once.
         identity: { type: string, maxLength: 64, description: "The caller's identity in the session (a user id, or guest:<guestId>)." }
         guestNumber: { type: [integer, 'null'], minimum: 1000, maximum: 9999, description: Guests only. }
     LiveViewer:
@@ -2906,6 +3319,100 @@ components:
           type: array
           items: { $ref: '#/components/schemas/LiveViewer' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    # ---- v1.7-live (DRAFT, CP-011) --------------------------------------------------------
+    LiveSeatCount:
+      type: integer
+      enum: [4, 5, 6, 9, 12, 13]
+      description: |
+        CP-011: tiles in a MULTI or AUDIO room, the host's included. MULTI: 4, 6, 9 or 12;
+        AUDIO: 5, 9 or 13 (`LiveConfig.seatCounts`). Any other mode/count pair → 400.
+    LiveThemeSlug:
+      type: string
+      pattern: '^[a-z0-9-]{2,32}$'
+      description: CP-011 room theme; one of `LiveConfig.themes` (else 400). The app shows an unknown slug as the default theme.
+    LiveSeatRequestBody:
+      type: object
+      additionalProperties: false
+      properties:
+        seatIndex: { type: integer, minimum: 1, maximum: 12 }
+    LiveSeatInviteBody:
+      type: object
+      required: [username]
+      additionalProperties: false
+      properties:
+        username: { type: string }
+        seatIndex: { type: integer, minimum: 1, maximum: 12 }
+    LiveSeat:
+      type: object
+      required: [index, state, user, mutedByHost]
+      properties:
+        index: { type: integer, minimum: 1, maximum: 12, description: "1 … seatCount-1; the host is tile 0 and not listed." }
+        state: { type: string, enum: [EMPTY, LOCKED, TAKEN] }
+        user:
+          description: TAKEN only.
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        mutedByHost: { type: boolean, description: "TAKEN only; false otherwise." }
+    LiveSeatRequest:
+      type: object
+      required: [id, user, seatIndex, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 12 }
+        createdAt: { type: string, format: date-time }
+    LiveSeatRequestPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LiveSeatRequest' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    LiveSeatInvite:
+      type: object
+      required: [id, user, seatIndex, invitedBy, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 12 }
+        invitedBy: { $ref: '#/components/schemas/UserSummary' }
+        expiresAt: { type: string, format: date-time }
+    LiveSeatsMine:
+      type: object
+      required: [role, seatIndex, request, invite]
+      properties:
+        role: { type: string, enum: [HOST, MODERATOR, SEATED, VIEWER], description: "A seated moderator is MODERATOR with a seatIndex." }
+        seatIndex: { type: [integer, 'null'] }
+        request:
+          oneOf:
+            - $ref: '#/components/schemas/LiveSeatRequest'
+            - type: 'null'
+        invite:
+          oneOf:
+            - $ref: '#/components/schemas/LiveSeatInvite'
+            - type: 'null'
+    LiveSeats:
+      type: object
+      required: [roomId, mode, version, seatCount, seats, moderators]
+      properties:
+        roomId: { type: string, format: uuid }
+        mode: { type: string, enum: [MULTI, AUDIO] }
+        version: { type: integer, minimum: 0 }
+        seatCount: { $ref: '#/components/schemas/LiveSeatCount' }
+        seats:
+          type: array
+          items: { $ref: '#/components/schemas/LiveSeat' }
+        moderators:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/UserSummary' }
+        pendingRequests: { type: integer, minimum: 0, description: Host and moderators only; absent for others. }
+        mine:
+          description: Signed-in callers only; absent for guests.
+          allOf:
+            - $ref: '#/components/schemas/LiveSeatsMine'
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string
