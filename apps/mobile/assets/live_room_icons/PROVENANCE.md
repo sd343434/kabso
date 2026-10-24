@@ -32,3 +32,4 @@ Viewers sheet (2026-10-24, owner-supplied; the owner confirmed the icon is Kabso
 | File | Used for |
 | ---- | -------- |
 | `seat_invite.svg` | Invite a viewer to a seat (armchair with +). Redrawn as a vector from the owner's 1254×1254 image (the image itself was not available as a file); drawn in the panel ink (#2E3130, in the file) |
+| `seat_outline.svg` | An empty seat (audio go-live preview, Seats tool): the owner's invite icon without the +, both arms drawn; white, the app sets its opacity |

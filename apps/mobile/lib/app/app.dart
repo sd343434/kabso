@@ -18,6 +18,13 @@ class KabsoApp extends ConsumerWidget {
   static const bool _emulatePhoneInsets =
       !kReleaseMode && bool.fromEnvironment('KABSO_EMULATE_PHONE_INSETS');
 
+  /// The emulated top inset: 47 by default; 59 for a Dynamic Island phone
+  /// (`--dart-define=KABSO_EMULATE_TOP_INSET=59`, reference captures).
+  static const int _emulatedTopInset = int.fromEnvironment(
+    'KABSO_EMULATE_TOP_INSET',
+    defaultValue: 47,
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
@@ -48,7 +55,10 @@ class KabsoApp extends ConsumerWidget {
           ],
         );
         if (_emulatePhoneInsets) {
-          const insets = EdgeInsets.only(top: 47, bottom: 34);
+          final insets = EdgeInsets.only(
+            top: _emulatedTopInset.toDouble(),
+            bottom: 34,
+          );
           app = MediaQuery(
             data: MediaQuery.of(context)
                 .copyWith(padding: insets, viewPadding: insets),

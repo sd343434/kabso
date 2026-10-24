@@ -189,6 +189,12 @@ Future<void> showLiveVoiceSheet(
   required bool enhance,
   required Future<void> Function({bool? noiseReduction, bool? enhance})
   onChanged,
+  // Before going live the sheet also holds the microphone switch.
+  bool? micEnabled,
+  VoidCallback? onMic,
+  Key? micKey,
+  Key? noiseKey,
+  Key? enhanceKey,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: const Color(0xFFFFFFFF),
@@ -198,6 +204,7 @@ Future<void> showLiveVoiceSheet(
   builder: (sheet) {
     var noise = noiseReduction;
     var clear = enhance;
+    var mic = micEnabled;
     final l10n = sheet.l10n;
     final ink = sheet.textStyles.body.copyWith(color: _ToolsSheet.ink);
     final hint = sheet.textStyles.caption.copyWith(
@@ -209,15 +216,26 @@ Future<void> showLiveVoiceSheet(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
-              child: Text(
-                l10n.goLiveVoiceSettings,
-                style: ink.copyWith(fontWeight: FontWeight.w800, fontSize: 17),
-              ),
+            // The mixer sheet's header (owner ref 69).
+            LiveWhiteSheetHeader(
+              title: l10n.goLiveVoiceSettings,
+              centred: true,
             ),
+            if (mic case final on?)
+              SwitchListTile(
+                key: micKey ?? const Key('liveVoice.mic'),
+                title: Text(l10n.goLiveMicrophone, style: ink),
+                subtitle: Text(l10n.goLiveMicrophoneHint, style: hint),
+                value: on,
+                onChanged: onMic == null
+                    ? null
+                    : (v) {
+                        setState(() => mic = v);
+                        onMic();
+                      },
+              ),
             SwitchListTile(
-              key: const Key('liveVoice.noise'),
+              key: noiseKey ?? const Key('liveVoice.noise'),
               title: Text(l10n.goLiveNoiseReduction, style: ink),
               subtitle: Text(l10n.goLiveNoiseReductionHint, style: hint),
               value: noise,
@@ -227,7 +245,7 @@ Future<void> showLiveVoiceSheet(
               },
             ),
             SwitchListTile(
-              key: const Key('liveVoice.enhance'),
+              key: enhanceKey ?? const Key('liveVoice.enhance'),
               title: Text(l10n.goLiveVoiceEnhance, style: ink),
               subtitle: Text(l10n.goLiveVoiceEnhanceHint, style: hint),
               value: clear,

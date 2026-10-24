@@ -68,6 +68,8 @@ flutter:
     # D94 live room themes (Kabso's own, AI-generated; PROVENANCE.md).
     - assets/live_themes/
     - assets/live_room_icons/
+    # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).
+    - assets/category_icons/
     # D63 launch animation and voice (owner-supplied).
     - assets/splash/
     # D66 Kabi emojis (owner-supplied, outline added by

@@ -116,6 +116,18 @@ Future<void> _goLive(
   await tester.pumpAndSettle();
 }
 
+/// Audio: Go LIVE, then the 3-2-1 countdown, then the room.
+Future<void> _startAudio(WidgetTester tester) async {
+  await tester.tap(find.byKey(GoLiveScreen.startKey));
+  await tester.pump();
+  expect(find.byKey(GoLiveScreen.countdownKey), findsOneWidget);
+  for (var i = 0; i < 3; i++) {
+    await tester.pump(const Duration(seconds: 1));
+  }
+  await tester.pumpAndSettle();
+  expect(find.byKey(GoLiveScreen.countdownKey), findsNothing);
+}
+
 AppLocalizations _l10n(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(GoLiveScreen)));
 
@@ -417,20 +429,6 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Future<void> reveal(WidgetTester tester, Finder finder) async {
-      await tester.scrollUntilVisible(
-        finder,
-        200,
-        scrollable: find
-            .descendant(
-              of: find.byType(GoLiveAudioSetup),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await tester.pumpAndSettle();
-    }
-
     testWidgets('audio: microphone only, its own setup, sent with the room', (
       tester,
     ) async {
@@ -440,26 +438,28 @@ void main() {
       expect(find.byType(GoLiveAudioSetup), findsOneWidget);
       expect(find.byKey(GoLiveScreen.flipKey), findsNothing);
       expect(find.byKey(GoLiveScreen.beautyKey), findsNothing);
-      expect(find.text(_l10n(tester).goLiveAudioHeadline), findsOneWidget);
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
-      // Categories as tiles with icons.
+      // Categories as tiles in the room card.
       await tester.tap(find.byKey(GoLiveScreen.categoryKey('music')));
-      // Who can watch: signed-in only.
-      await reveal(tester, find.byKey(GoLiveAudioSetup.watchSignedInKey));
-      await tester.tap(find.byKey(GoLiveAudioSetup.watchSignedInKey));
+      // Settings: guests off (signed-in only).
+      await tester.tap(find.byKey(GoLiveAudioSetup.settingsKey));
       await tester.pumpAndSettle();
-      // Seats 5 / 9 / 13.
-      await reveal(tester, find.byKey(GoLiveKeys.seatCount(13)));
+      await tester.tap(find.byKey(GoLiveAudioSetup.guestsKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(_l10n(tester).liveClose).last);
+      await tester.pumpAndSettle();
+      // Seats: 5 / 9 / 13 in the sheet; a pick closes it.
+      await tester.tap(find.byKey(GoLiveAudioSetup.seatsKey));
+      await tester.pumpAndSettle();
       for (final c in [5, 9, 13]) {
         expect(find.byKey(GoLiveKeys.seatCount(c)), findsOneWidget);
       }
       expect(find.byKey(GoLiveKeys.seatCount(6)), findsNothing);
       await tester.tap(find.byKey(GoLiveKeys.seatCount(13)));
       await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.seatCount(13)), findsNothing);
 
-      await reveal(tester, find.byKey(GoLiveScreen.startKey));
-      await tester.tap(find.byKey(GoLiveScreen.startKey));
-      await tester.pumpAndSettle();
+      await _startAudio(tester);
       final request = repo.startRequests.single;
       expect(request.mode, LiveRoomMode.audio);
       expect(request.seatCount, 13);
@@ -475,11 +475,10 @@ void main() {
         'mic, numbered seats and ✕ to end', (tester) async {
       final (repo, camera) = await _pump(tester);
       await mode(tester, LiveRoomMode.audio);
-      // The pill opens the three modes; picking multi leaves the setup.
-      await tester.tap(find.byKey(GoLiveAudioSetup.modesKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)));
+      // The mode tabs: picking LIVE leaves the setup (Multi-guest runs off
+      // the edge, as in the reference).
+      expect(find.byKey(GoLiveKeys.mode(LiveRoomMode.multi)), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.solo)));
       await tester.pumpAndSettle();
       expect(find.byType(GoLiveAudioSetup), findsNothing);
       await mode(tester, LiveRoomMode.audio);
@@ -498,7 +497,6 @@ void main() {
         ),
       ];
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
-      await reveal(tester, find.byKey(GoLiveScreen.startKey));
       final startSemantics = tester.ensureSemantics();
       expect(
         tester
@@ -508,8 +506,7 @@ void main() {
         isTrue,
       );
       startSemantics.dispose();
-      await tester.tap(find.byKey(GoLiveScreen.startKey));
-      await tester.pumpAndSettle();
+      await _startAudio(tester);
       final l10n = _l10n(tester);
       // Who is watching, from GET /viewers: the avatar and the count.
       expect(
@@ -731,7 +728,9 @@ void main() {
     ) async {
       final (_, camera) = await _pump(tester);
       await mode(tester, LiveRoomMode.audio);
-      await reveal(tester, find.byKey(GoLiveAudioSetup.enhanceKey));
+      // The voice tool's sheet: microphone, noise reduction, enhancement.
+      await tester.tap(find.byKey(GoLiveAudioSetup.voiceKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(GoLiveAudioSetup.noiseKey));
       await tester.pumpAndSettle();
       expect(camera.voice, (noiseReduction: false, enhance: true));

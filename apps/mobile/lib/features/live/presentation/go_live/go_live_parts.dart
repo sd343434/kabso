@@ -623,7 +623,73 @@ class GoLiveModeBar extends StatelessWidget {
   }
 }
 
-/// The room theme picker: the server's themes as tall thumbnails.
+/// The header of the white sheets (owner refs 66, 68, 70): the title
+/// (centred or at the start) and ✕, measured from the sheet's top.
+class LiveWhiteSheetHeader extends StatelessWidget {
+  const new({
+    required this.title,
+    super.key,
+    this.centred = false,
+    this.titleTop = 14.4,
+    this.closeTop = 2.5,
+    this.closeEnd = 6,
+  });
+
+  final String title;
+  final bool centred;
+  final double titleTop;
+  final double closeTop;
+  final double closeEnd;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 54,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          top: titleTop,
+          child: Align(
+            alignment: centred
+                ? Alignment.topCenter
+                : AlignmentDirectional.topStart,
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(start: centred ? 0 : 21.4),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: context.textStyles.title.copyWith(
+                    color: const Color(0xFF1C1B1F),
+                    fontSize: 17.5,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        PositionedDirectional(
+          top: closeTop,
+          end: closeEnd,
+          child: IconButton(
+            tooltip: context.l10n.liveClose,
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: Color(0xFF1C1B1F),
+              size: 25,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// The room theme picker (owner ref 68): a white half-height sheet, the
+/// Theme tab, and the server's themes as cards two by two, the chosen one
+/// framed in teal.
 Future<void> showLiveThemeSheet(
   BuildContext context, {
   required List<String> themes,
@@ -631,105 +697,188 @@ Future<void> showLiveThemeSheet(
   required ValueChanged<String> onSelect,
 }) => showModalBottomSheet<void>(
   context: context,
-  backgroundColor: const Color(0x00000000),
-  builder: (sheet) => LiveSheetFrame(
-    title: sheet.l10n.goLiveThemeTitle,
-    child: SizedBox(
-      height: 210,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+  isScrollControlled: true,
+  backgroundColor: const Color(0xFFFFFFFF),
+  // The reference leaves the room undimmed behind the sheet.
+  barrierColor: const Color(0x00000000),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  ),
+  builder: (sheet) {
+    final text = sheet.textStyles;
+    return SizedBox(
+      height: MediaQuery.sizeOf(sheet).height * 0.5,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final slug in themes)
-            _ThemeThumb(
-              slug: slug,
-              selected: slug == selected,
-              onTap: () {
-                onSelect(slug);
-                Navigator.of(sheet).pop();
-              },
+          // The handle (36 x 5 pt, 6 pt down).
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 6),
+              width: 36,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFFCCCCCC),
+                borderRadius: BorderRadius.circular(2.5),
+              ),
             ),
+          ),
+          LiveWhiteSheetHeader(
+            title: sheet.l10n.goLiveThemeTitle,
+            titleTop: 21,
+            closeTop: 10.6,
+            closeEnd: 1.3,
+          ),
+          // The Theme tab (the reference's other tabs have no feature here).
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 14, top: 8),
+            child: Container(
+              height: 21.4,
+              padding: const EdgeInsets.fromLTRB(12.6, 3.5, 12.6, 0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F5F8),
+                borderRadius: BorderRadius.circular(10.7),
+              ),
+              child: Text(
+                sheet.l10n.goLiveTheme,
+                style: text.bodyStrong.copyWith(
+                  color: const Color(0xFF2D2F33),
+                  fontSize: 12.5,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              padding: const EdgeInsets.fromLTRB(20, 18.6, 20, 16),
+              crossAxisSpacing: 15.4,
+              childAspectRatio: 187.3 / 152.8,
+              children: [
+                for (final slug in themes)
+                  _ThemeCard(
+                    slug: slug,
+                    selected: slug == selected,
+                    onTap: () {
+                      onSelect(slug);
+                      Navigator.of(sheet).pop();
+                    },
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
-    ),
-  ),
+    );
+  },
 );
 
-class _ThemeThumb extends StatelessWidget {
+/// A theme (ref 68): its look with an empty seat, a wave and the host's
+/// circle, 187.3 x 118.3 pt, the name under it.
+class _ThemeCard extends StatelessWidget {
   const new({required this.slug, required this.selected, required this.onTap});
 
   final String slug;
   final bool selected;
   final VoidCallback onTap;
 
+  static const teal = Color(0xFF34CAC0);
+
   @override
   Widget build(BuildContext context) {
     final art = LiveThemeArt.of(slug);
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: art.name(context.l10n),
+    final name = art.name(context.l10n);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: name,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: GoLiveKeys.theme(slug),
         onTap: onTap,
-        excludeSemantics: true,
-        child: GestureDetector(
-          key: GoLiveKeys.theme(slug),
-          onTap: onTap,
-          child: Column(
-            children: [
-              Container(
-                width: 100,
-                height: 170,
+        child: Column(
+          children: [
+            AspectRatio(
+              aspectRatio: 187.3 / 118.3,
+              child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(KRadius.lg),
-                  border: Border.all(
-                    color: selected
-                        ? art.accent
-                        : _white.withValues(alpha: 0.15),
-                    width: selected ? 2.5 : 1,
-                  ),
+                  borderRadius: BorderRadius.circular(9.3),
                   boxShadow: selected
-                      ? [
-                          BoxShadow(
-                            color: art.accent.withValues(alpha: 0.6),
-                            blurRadius: 14,
-                          ),
-                        ]
+                      ? const [BoxShadow(color: teal, spreadRadius: 2.3)]
                       : null,
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(KRadius.lg - 1),
+                  borderRadius: BorderRadius.circular(9.3),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       LiveThemeBackground(theme: slug),
-                      if (selected)
-                        Align(
-                          alignment: AlignmentDirectional.topEnd,
-                          child: Padding(
-                            padding: const EdgeInsets.all(KSpacing.xs + 2),
-                            child: Icon(
-                              Icons.check_circle_rounded,
-                              color: art.accent,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 45,
+                            height: 45,
+                            decoration: const BoxDecoration(
+                              color: Color(0x38FFFFFF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Color(0xCCFFFFFF),
                               size: 22,
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 7),
+                          const Icon(
+                            Icons.graphic_eq_rounded,
+                            color: Color(0xCCFFFFFF),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 7),
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFE6FFFA),
+                              border: Border.all(color: art.accent, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: art.accent.withValues(alpha: 0.6),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.mic_rounded,
+                              color: Color(0xFF2EC4B6),
+                              size: 24,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: KSpacing.xs + 2),
-              Text(
-                art.name(context.l10n),
-                style: context.textStyles.caption.copyWith(
-                  color: _white,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.body.copyWith(
+                color: const Color(0xFF1C1B1F),
+                fontSize: 15,
+                height: 1.2,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

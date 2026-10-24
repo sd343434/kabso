@@ -1,17 +1,23 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
-import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Audio go-live (owner D94, laid out after their audio reference): the
-/// top bar (the mode pill and ✕), the headline, the room's look, the title
-/// with its counter, the categories, who can watch, the seats, the voice
-/// settings and the glowing start button, on calm navy. Every control
-/// works; what needs a contract (a room photo, tags, followers-only or
-/// invitation-only rooms, hearing yourself) is not shown.
+/// Audio go-live, laid out after the owner's references (refs 65, 66, 68,
+/// iPhone 15 Pro Max, 430 pt): the room's own look behind everything, ✕
+/// at the top, the room card (the host's picture, the title and its
+/// counter, the categories), the empty seats, then the tools (seats,
+/// theme, voice, settings), Go LIVE and the mode tabs.
+///
+/// Every control works. What the reference has without a contract or a
+/// feature here is left out: a room photo ("Edit"), the announcement, the
+/// academy, Game LIVE.
 class GoLiveAudioSetup extends StatelessWidget {
   const new({
     required this.controller,
@@ -35,7 +41,9 @@ class GoLiveAudioSetup extends StatelessWidget {
     required this.busy,
     required this.onStart,
     required this.onClose,
-    required this.onModes,
+    required this.onMode,
+    required this.hostName,
+    required this.hostAvatarUrl,
     super.key,
   });
 
@@ -49,6 +57,7 @@ class GoLiveAudioSetup extends StatelessWidget {
   final ValueChanged<String?> onCategory;
   final bool allowGuests;
   final ValueChanged<bool>? onAllowGuests;
+
   final bool micEnabled;
   final VoidCallback? onMic;
   final bool noiseReduction;
@@ -61,295 +70,194 @@ class GoLiveAudioSetup extends StatelessWidget {
   final VoidCallback? onStart;
   final VoidCallback? onClose;
 
-  /// The mode pill: switch to multi-guest or LIVE.
-  final VoidCallback? onModes;
+  /// A mode tab: switch to multi-guest or LIVE.
+  final ValueChanged<LiveRoomMode>? onMode;
+  final String hostName;
+  final String? hostAvatarUrl;
 
-  static const watchEveryoneKey = Key('goLive.audio.everyone');
-  static const watchSignedInKey = Key('goLive.audio.signedIn');
+  static const guestsKey = Key('goLive.audio.guests');
   static const noiseKey = Key('goLive.audio.noise');
   static const enhanceKey = Key('goLive.audio.enhance');
   static const micKey = Key('goLive.audio.mic');
   static const themeKey = Key('goLive.audio.theme');
-  static const modesKey = Key('goLive.audio.modes');
-  static const allCategoriesKey = Key('goLive.audio.allCategories');
+  static const seatsKey = Key('goLive.audio.seats');
+  static const voiceKey = Key('goLive.audio.voice');
+  static const settingsKey = Key('goLive.audio.settings');
+  static const Key startKey = GoLiveKeys.start;
+
+  /// Measured on the owner's reference (430 pt; y from the safe area).
+  static const _cardTop = 56.1;
+  static const _seatsGap = 31.2;
+  static const _seat = 55.2;
+  static const _seatPitch = 84.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final text = context.textStyles;
-    return Column(
+    // The reference darkens the room's look at the top and the bottom.
+    final background = Stack(
+      fit: StackFit.expand,
       children: [
-        // Top bar: the mode pill at the start, ✕ at the end.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            KSpacing.lg,
-            KSpacing.sm,
-            KSpacing.sm,
-            0,
-          ),
-          child: Row(
-            children: [
-              _ModePill(label: l10n.goLiveModeAudio, onTap: onModes),
-              const Spacer(),
-              IconButton(
-                key: const Key('goLive.close'),
-                tooltip: l10n.liveClose,
-                onPressed: onClose,
-                icon: const Icon(
-                  Icons.close_rounded,
-                  color: KLiveStyle.text,
-                  size: 30,
-                ),
-              ),
-            ],
+        if (theme == LiveThemes.classic)
+          const LiveAudioRoomBackground()
+        else
+          LiveThemeBackground(theme: theme, waves: true),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x66000000),
+                Color(0x00000000),
+                Color(0x00000000),
+                Color(0xD90A0820),
+              ],
+              stops: [0, 0.14, 0.62, 1],
+            ),
           ),
         ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              KSpacing.lg,
-              KSpacing.md,
-              KSpacing.lg,
-              KSpacing.xl,
-            ),
+      ],
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        background,
+        SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  l10n.goLiveAudioHeadline,
-                  style: text.headline.copyWith(
-                    color: KLiveStyle.text,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(height: KSpacing.xs),
-              Text(
-                l10n.goLiveAudioSubtitle,
-                style: text.body.copyWith(color: KLiveStyle.textSecondary),
-              ),
-              const SizedBox(height: KSpacing.xl),
-              _RoomLook(theme: theme, onTap: onTheme),
-              const SizedBox(height: KSpacing.md),
-              _TitleField(
-                controller: controller,
-                focusNode: focusNode,
-                enabled: enabled,
-              ),
-              if (categories.isNotEmpty) ...[
-                LiveSectionTitle(
-                  l10n.goLiveChooseCategory,
-                  action: l10n.goLiveAllCategories,
-                  onAction: () => _showAll(context),
-                ),
-                SizedBox(
-                  height: 84,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final c in [null, ...categories])
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(
-                            end: KSpacing.sm,
-                          ),
-                          child: _CategoryTile(
-                            slug: c?.slug,
-                            label: c?.name ?? l10n.goLiveNoCategory,
-                            icon: c == null
-                                ? Icons.all_inclusive_rounded
-                                : categoryIcon(c.slug),
-                            selected: category == c?.slug,
-                            onTap: enabled ? () => onCategory(c?.slug) : null,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-              LiveSectionTitle(l10n.goLiveWhoCanWatch),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Choice(
-                      key: watchEveryoneKey,
-                      icon: Icons.public_rounded,
-                      title: l10n.goLiveWatchEveryone,
-                      hint: l10n.goLiveWatchEveryoneHint,
-                      selected: allowGuests,
-                      onTap: onAllowGuests == null
-                          ? null
-                          : () => onAllowGuests!(true),
+              // ✕ centred 21.8 pt down, 21.2 pt from the end (ref 65).
+              SizedBox(
+                height: _cardTop,
+                child: Align(
+                  alignment: AlignmentDirectional.topEnd,
+                  child: Transform.translate(
+                    offset: Offset(
+                      Directionality.of(context) == TextDirection.rtl
+                          ? -2.8
+                          : 2.8,
+                      -2.1,
                     ),
-                  ),
-                  const SizedBox(width: KSpacing.sm),
-                  Expanded(
-                    child: _Choice(
-                      key: watchSignedInKey,
-                      icon: Icons.group_outlined,
-                      title: l10n.goLiveWatchSignedIn,
-                      hint: l10n.goLiveWatchSignedInHint,
-                      selected: !allowGuests,
-                      onTap: onAllowGuests == null
-                          ? null
-                          : () => onAllowGuests!(false),
-                    ),
-                  ),
-                ],
-              ),
-              LiveSectionTitle(l10n.goLiveSeatsSection),
-              Row(
-                children: [
-                  for (final c in seatCounts)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.xs,
-                        ),
-                        child: Semantics(
-                          button: true,
-                          selected: c == seatCount,
-                          label: l10n.goLiveSeatCount(c),
-                          onTap: onSeatCount == null
-                              ? null
-                              : () => onSeatCount!(c),
-                          excludeSemantics: true,
-                          child: GestureDetector(
-                            key: GoLiveKeys.seatCount(c),
-                            onTap: onSeatCount == null
-                                ? null
-                                : () => onSeatCount!(c),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              height: 52,
-                              decoration: KLiveStyle.cardDecoration(
-                                selected: c == seatCount,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.weekend_outlined,
-                                    size: 20,
-                                    color: c == seatCount
-                                        ? KLiveStyle.accent
-                                        : KLiveStyle.text,
-                                  ),
-                                  const SizedBox(width: KSpacing.xs + 2),
-                                  Text(
-                                    KFormatSeat.of(c),
-                                    style: text.bodyStrong.copyWith(
-                                      color: c == seatCount
-                                          ? KLiveStyle.accent
-                                          : KLiveStyle.text,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                    child: IconButton(
+                      key: const Key('goLive.close'),
+                      tooltip: l10n.liveClose,
+                      onPressed: onClose,
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFFFFFFFF),
+                        size: 28,
                       ),
                     ),
-                ],
-              ),
-              LiveSectionTitle(l10n.goLiveVoiceSettings),
-              Container(
-                decoration: KLiveStyle.cardDecoration(),
-                child: Column(
-                  children: [
-                    _SwitchRow(
-                      key: micKey,
-                      icon: micEnabled
-                          ? Icons.mic_none_rounded
-                          : Icons.mic_off_rounded,
-                      title: l10n.goLiveMicrophone,
-                      hint: l10n.goLiveMicrophoneHint,
-                      value: micEnabled,
-                      onChanged: onMic == null ? null : (_) => onMic!(),
-                    ),
-                    const Divider(height: 1, color: KLiveStyle.edge),
-                    _SwitchRow(
-                      key: noiseKey,
-                      icon: Icons.graphic_eq_rounded,
-                      title: l10n.goLiveNoiseReduction,
-                      hint: l10n.goLiveNoiseReductionHint,
-                      value: noiseReduction,
-                      onChanged: onVoice == null
-                          ? null
-                          : (v) => onVoice!(noiseReduction: v),
-                    ),
-                    const Divider(height: 1, color: KLiveStyle.edge),
-                    _SwitchRow(
-                      key: enhanceKey,
-                      icon: Icons.hearing_rounded,
-                      title: l10n.goLiveVoiceEnhance,
-                      hint: l10n.goLiveVoiceEnhanceHint,
-                      value: enhance,
-                      onChanged: onVoice == null
-                          ? null
-                          : (v) => onVoice!(enhance: v),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(height: KSpacing.xl),
-              LiveGlowButton(
-                label: busy ? l10n.goLiveStarting : l10n.goLiveStartAudio,
-                busy: busy,
-                onPressed: onStart,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.9),
+                child: _RoomCard(
+                  controller: controller,
+                  focusNode: focusNode,
+                  enabled: enabled,
+                  hostName: hostName,
+                  hostAvatarUrl: hostAvatarUrl,
+                  categories: categories,
+                  category: category,
+                  onCategory: onCategory,
+                ),
               ),
+              const SizedBox(height: _seatsGap),
+              _SeatsPreview(count: seatCount),
+              const Spacer(),
+              _Tools(
+                children: [
+                  _Tool(
+                    key: seatsKey,
+                    icon: SvgPicture.asset(
+                      'assets/live_room_icons/seat_outline.svg',
+                      width: 23.6,
+                    ),
+                    label: l10n.liveSeats,
+                    onTap: onSeatCount == null
+                        ? null
+                        : () => showLiveSeatCountPicker(
+                            context,
+                            counts: seatCounts,
+                            selected: seatCount,
+                            onSelect: onSeatCount!,
+                          ),
+                  ),
+                  _Tool(
+                    key: themeKey,
+                    icon: const Icon(
+                      Icons.checkroom_rounded,
+                      color: Color(0xFFFFFFFF),
+                      size: 26,
+                    ),
+                    label: l10n.goLiveTheme,
+                    onTap: onTheme,
+                  ),
+                  _Tool(
+                    key: voiceKey,
+                    icon: const Icon(
+                      Icons.tune_rounded,
+                      color: Color(0xFFFFFFFF),
+                      size: 26,
+                    ),
+                    label: l10n.liveToolsVoice,
+                    onTap: onVoice == null
+                        ? null
+                        : () => showLiveVoiceSheet(
+                            context,
+                            noiseReduction: noiseReduction,
+                            enhance: enhance,
+                            onChanged: ({noiseReduction, enhance}) async =>
+                                onVoice!(
+                                  noiseReduction: noiseReduction,
+                                  enhance: enhance,
+                                ),
+                            micEnabled: micEnabled,
+                            onMic: onMic,
+                            micKey: micKey,
+                            noiseKey: noiseKey,
+                            enhanceKey: enhanceKey,
+                          ),
+                  ),
+                  _Tool(
+                    key: settingsKey,
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Color(0xFFFFFFFF),
+                      size: 26,
+                    ),
+                    label: l10n.settingsTitle,
+                    onTap: onAllowGuests == null
+                        ? null
+                        : () => showLiveSetupSettings(
+                            context,
+                            allowGuests: allowGuests,
+                            onAllowGuests: onAllowGuests!,
+                            guestsKey: guestsKey,
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 26.9),
+              Center(
+                child: _GoLiveButton(
+                  label: busy ? l10n.goLiveStarting : l10n.goLiveStart,
+                  busy: busy,
+                  onPressed: onStart,
+                ),
+              ),
+              const SizedBox(height: 29.1),
+              _ModeTabs(selected: LiveRoomMode.audio, onSelect: onMode),
+              const SizedBox(height: 24.9),
             ],
           ),
         ),
       ],
     );
   }
-
-  Future<void> _showAll(BuildContext context) => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: KLiveStyle.card,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(KRadius.xl)),
-    ),
-    builder: (sheet) => SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(KSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              sheet.l10n.goLiveChooseCategory,
-              style: sheet.textStyles.title.copyWith(color: KLiveStyle.text),
-            ),
-            const SizedBox(height: KSpacing.lg),
-            Wrap(
-              spacing: KSpacing.sm,
-              runSpacing: KSpacing.sm,
-              children: [
-                for (final c in [null, ...categories])
-                  _CategoryTile(
-                    slug: c?.slug,
-                    label: c?.name ?? sheet.l10n.goLiveNoCategory,
-                    icon: c == null
-                        ? Icons.all_inclusive_rounded
-                        : categoryIcon(c.slug),
-                    selected: category == c?.slug,
-                    onTap: enabled
-                        ? () {
-                            onCategory(c?.slug);
-                            Navigator.of(sheet).pop();
-                          }
-                        : null,
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 /// Digits for a seat count.
@@ -370,209 +278,183 @@ IconData categoryIcon(String slug) => switch (slug) {
   _ => Icons.tag_rounded,
 };
 
-class _ModePill extends StatelessWidget {
-  const new({required this.label, required this.onTap});
+/// The owner's picture for a category slug, or null (then [categoryIcon]).
+String? categoryArt(String slug) => switch (slug) {
+  'chat' => 'assets/category_icons/chat.png',
+  'dating' || 'friends' => 'assets/category_icons/dating.png',
+  'games' || 'gaming' => 'assets/category_icons/games.png',
+  'interests' || 'hobbies' => 'assets/category_icons/interests.png',
+  'emotional' || 'feelings' => 'assets/category_icons/emotional.png',
+  _ => null,
+};
 
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: label,
-    onTap: onTap,
-    excludeSemantics: true,
-    child: GestureDetector(
-      key: GoLiveAudioSetup.modesKey,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.lg,
-          vertical: KSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0E2A44),
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          border: Border.all(color: KLiveStyle.accent.withValues(alpha: 0.7)),
-          boxShadow: [
-            BoxShadow(
-              color: KLiveStyle.accent.withValues(alpha: 0.3),
-              blurRadius: 12,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.graphic_eq_rounded,
-              color: KLiveStyle.accent,
-              size: 20,
-            ),
-            const SizedBox(width: KSpacing.sm),
-            Text(
-              label,
-              style: context.textStyles.bodyStrong.copyWith(
-                color: KLiveStyle.accent,
-              ),
-            ),
-            const SizedBox(width: KSpacing.xs),
-            const Icon(
-              Icons.expand_more_rounded,
-              color: KLiveStyle.accent,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-/// The room's look: the theme as a wide card with a microphone in the
-/// middle and the change button (the reference's room-photo card; a photo
-/// needs a contract).
-class _RoomLook extends StatelessWidget {
-  const new({required this.theme, required this.onTap});
-
-  final String theme;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Semantics(
-      button: true,
-      label: l10n.goLiveChangeTheme,
-      onTap: onTap,
-      excludeSemantics: true,
-      child: GestureDetector(
-        key: GoLiveAudioSetup.themeKey,
-        onTap: onTap,
-        child: Container(
-          height: 112,
-          decoration: KLiveStyle.cardDecoration(),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(KRadius.lg - 1),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (theme == LiveThemes.classic)
-                  const LiveNavyBackground()
-                else
-                  Opacity(
-                    opacity: 0.55,
-                    child: LiveThemeBackground(theme: theme),
-                  ),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.mic_none_rounded,
-                        color: KLiveStyle.text,
-                        size: 30,
-                      ),
-                      const SizedBox(height: KSpacing.xs),
-                      Text(
-                        l10n.goLiveRoomLook(LiveThemeArt.of(theme).name(l10n)),
-                        style: context.textStyles.label.copyWith(
-                          color: KLiveStyle.text,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                PositionedDirectional(
-                  end: KSpacing.md,
-                  top: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: KLiveStyle.cardRaised,
-                        border: Border.all(color: KLiveStyle.edge),
-                      ),
-                      child: const Icon(
-                        Icons.palette_outlined,
-                        color: KLiveStyle.text,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TitleField extends StatelessWidget {
+/// The glass room card (ref 65): 134.2 pt tall, a 1 pt light edge.
+class _RoomCard extends StatelessWidget {
   const new({
     required this.controller,
     required this.focusNode,
     required this.enabled,
+    required this.hostName,
+    required this.hostAvatarUrl,
+    required this.categories,
+    required this.category,
+    required this.onCategory,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool enabled;
+  final String hostName;
+  final String? hostAvatarUrl;
+  final List<LiveCategory> categories;
+  final String? category;
+  final ValueChanged<String?> onCategory;
+
+  static const _white = Color(0xFFFFFFFF);
+
+  Widget _initial(KTextStyles text) => Text(
+    hostName.characters.firstOrNull ?? '',
+    style: text.title.copyWith(color: _white, fontSize: 24),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final text = context.textStyles;
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-      decoration: KLiveStyle.cardDecoration(),
-      child: Row(
+      constraints: const BoxConstraints(minHeight: 134.2),
+      decoration: BoxDecoration(
+        color: const Color(0x1AFFFFFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x80D7C6FF)),
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(10.3, 8.4, 10.3, 6.2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextField(
-              key: GoLiveKeys.title,
-              controller: controller,
-              focusNode: focusNode,
-              enabled: enabled,
-              maxLength: GoLiveTitleCard.titleMaxLength,
-              style: text.body.copyWith(color: KLiveStyle.text),
-              cursorColor: KLiveStyle.accent,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                counterText: '',
-                hintText: context.l10n.goLiveTitleHint,
-                hintStyle: text.body.copyWith(color: KLiveStyle.textSecondary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The host's picture as a rounded square (a room photo needs
+              // a contract).
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Container(
+                  width: 55.9,
+                  height: 55.9,
+                  color: const Color(0xFF15131F),
+                  alignment: Alignment.center,
+                  child: hostAvatarUrl != null
+                      ? Image.network(
+                          hostAvatarUrl!,
+                          width: 55.9,
+                          height: 55.9,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _initial(text),
+                        )
+                      : _initial(text),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      key: GoLiveKeys.title,
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: enabled,
+                      maxLength: GoLiveTitleCard.titleMaxLength,
+                      cursorColor: _white,
+                      style: text.title.copyWith(
+                        color: _white,
+                        fontSize: 18,
+                        height: 1.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        contentPadding: const EdgeInsets.only(top: 1),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        counterText: '',
+                        hintText: l10n.goLiveTitleHint,
+                        hintStyle: text.title.copyWith(
+                          color: _white.withValues(alpha: 0.6),
+                          fontSize: 18,
+                          height: 1.2,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // In place of the reference's announcement: the title
+                    // counter (there is no announcement yet).
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: controller,
+                      builder: (context, value, _) => Row(
+                        children: [
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 14,
+                            color: _white.withValues(alpha: 0.75),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${value.text.characters.length}/'
+                            '${GoLiveTitleCard.titleMaxLength}',
+                            textDirection: TextDirection.ltr,
+                            style: text.body.copyWith(
+                              color: _white.withValues(alpha: 0.75),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (categories.isNotEmpty) ...[
+            const SizedBox(height: 10.3),
+            SizedBox(
+              height: 53.6,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final c in categories)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 10.3),
+                      child: _CategoryTile(
+                        slug: c.slug,
+                        label: c.name,
+                        icon: categoryIcon(c.slug),
+                        selected: category == c.slug,
+                        // Tapping the chosen one again: no category.
+                        onTap: enabled
+                            ? () =>
+                                  onCategory(category == c.slug ? null : c.slug)
+                            : null,
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (context, value, _) => Text(
-              _counter(value.text.characters.length),
-              textDirection: TextDirection.ltr,
-              style: text.caption.copyWith(color: KLiveStyle.textSecondary),
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// `12/80`.
-String _counter(int length) => '$length/${GoLiveTitleCard.titleMaxLength}';
-
+/// A category (ref 65): a 59.6 x 35 pt tile with its label 6.5 pt below.
 class _CategoryTile extends StatelessWidget {
   const new({
     required this.slug,
@@ -582,7 +464,7 @@ class _CategoryTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final String? slug;
+  final String slug;
   final String label;
   final IconData icon;
   final bool selected;
@@ -597,30 +479,51 @@ class _CategoryTile extends StatelessWidget {
     excludeSemantics: true,
     child: GestureDetector(
       key: GoLiveKeys.category(slug),
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: 80,
-        height: 80,
-        decoration: KLiveStyle.cardDecoration(selected: selected),
+      child: SizedBox(
+        width: 59.6,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 26,
-              color: selected ? KLiveStyle.accent : KLiveStyle.text,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              height: 35,
+              decoration: BoxDecoration(
+                color: const Color(0x1FFFFFFF),
+                borderRadius: BorderRadius.circular(6.5),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFFD4BDF5)
+                      : const Color(0x00000000),
+                  width: 1.4,
+                ),
+              ),
+              alignment: Alignment.center,
+              // The owner's picture (about 19.6 x 17.2 pt on ref 65), else
+              // a plain icon.
+              child: switch (categoryArt(slug)) {
+                final art? => Image.asset(art, width: 23, height: 23),
+                null => Icon(icon, size: 19.6, color: const Color(0xFFFFFFFF)),
+              },
             ),
-            const SizedBox(height: KSpacing.xs + 2),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.textStyles.caption.copyWith(
-                  color: selected ? KLiveStyle.accent : KLiveStyle.text,
-                  fontWeight: FontWeight.w600,
+            const SizedBox(height: 3.6),
+            // Like the reference, a long name may run past the tile
+            // (e.g. "Emotional"); the gap to the next tile is 10.3 pt.
+            SizedBox(
+              height: 14.4,
+              child: OverflowBox(
+                maxWidth: 59.6 + 10,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: context.textStyles.caption.copyWith(
+                    color: const Color(0xFFFFFFFF),
+                    fontSize: 12,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -631,60 +534,130 @@ class _CategoryTile extends StatelessWidget {
   );
 }
 
-class _Choice extends StatelessWidget {
+/// The room's empty seats (ref 65): 55.2 pt circles every 84 pt, five a
+/// row, 19.2 pt from the edges; narrower screens shrink the pitch.
+class _SeatsPreview extends StatelessWidget {
+  const new({required this.count});
+
+  final int count;
+
+  static const _edge = 19.2;
+
+  @override
+  Widget build(BuildContext context) {
+    const perRow = 5;
+    const seat = GoLiveAudioSetup._seat;
+    final rows = (count / perRow).ceil();
+    return ExcludeSemantics(
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final pitch = ((box.maxWidth - 2 * _edge - seat) / (perRow - 1))
+              .clamp(seat + 4, GoLiveAudioSetup._seatPitch);
+          return Padding(
+            padding: const EdgeInsetsDirectional.only(start: _edge),
+            child: Column(
+              children: [
+                for (var r = 0; r < rows; r++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: r < rows - 1 ? pitch - seat : 0,
+                    ),
+                    child: Row(
+                      children: [
+                        for (
+                          var i = r * perRow;
+                          i < count && i < (r + 1) * perRow;
+                          i++
+                        ) ...[
+                          if (i > r * perRow) SizedBox(width: pitch - seat),
+                          const _EmptySeat(),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EmptySeat extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: GoLiveAudioSetup._seat,
+    height: GoLiveAudioSetup._seat,
+    decoration: const BoxDecoration(
+      color: Color(0x38FFFFFF),
+      shape: BoxShape.circle,
+    ),
+    alignment: Alignment.center,
+    child: Opacity(
+      opacity: 0.65,
+      child: SvgPicture.asset(
+        'assets/live_room_icons/seat_outline.svg',
+        width: 16.8,
+      ),
+    ),
+  );
+}
+
+/// The tools row (ref 65): one every 62 pt, centred.
+class _Tools extends StatelessWidget {
+  const new({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [for (final c in children) SizedBox(width: 62, child: c)],
+  );
+}
+
+class _Tool extends StatelessWidget {
   const new({
     required this.icon,
-    required this.title,
-    required this.hint,
-    required this.selected,
+    required this.label,
     required this.onTap,
     super.key,
   });
 
-  final IconData icon;
-  final String title;
-  final String hint;
-  final bool selected;
+  final Widget icon;
+  final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    selected: selected,
-    label: title,
-    hint: hint,
+    enabled: onTap != null,
+    label: label,
     onTap: onTap,
     excludeSemantics: true,
     child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.sm,
-          vertical: KSpacing.md,
-        ),
-        decoration: KLiveStyle.cardDecoration(selected: selected),
+      child: Opacity(
+        opacity: onTap == null ? 0.4 : 1,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 26,
-              color: selected ? KLiveStyle.accent : KLiveStyle.text,
-            ),
-            const SizedBox(height: KSpacing.xs + 2),
+            SizedBox(height: 26, child: Center(child: icon)),
+            const SizedBox(height: 4.5),
             Text(
-              title,
-              textAlign: TextAlign.center,
-              style: context.textStyles.bodyStrong.copyWith(
-                color: KLiveStyle.text,
-              ),
-            ),
-            const SizedBox(height: KSpacing.xxs),
-            Text(
-              hint,
-              textAlign: TextAlign.center,
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              softWrap: false,
               style: context.textStyles.caption.copyWith(
-                color: KLiveStyle.textSecondary,
+                color: const Color(0xFFFFFFFF),
+                fontSize: 11.5,
+                height: 1.2,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -694,51 +667,214 @@ class _Choice extends StatelessWidget {
   );
 }
 
-class _SwitchRow extends StatelessWidget {
-  const new({
-    required this.icon,
-    required this.title,
-    required this.hint,
-    required this.value,
-    required this.onChanged,
-    super.key,
-  });
+/// Go LIVE: the reference's 300.5 x 48.5 pt pill in Kabso's colours (the
+/// owner asked for the brand's live gradient instead of the reference's
+/// teal).
+class _GoLiveButton extends StatelessWidget {
+  const new({required this.label, required this.busy, required this.onPressed});
 
-  final IconData icon;
-  final String title;
-  final String hint;
-  final bool value;
-  final ValueChanged<bool>? onChanged;
+  final String label;
+  final bool busy;
+  final VoidCallback? onPressed;
 
   @override
-  // Its own transparent Material: the navy card would hide the ink.
-  Widget build(BuildContext context) => Material(
-    type: MaterialType.transparency,
-    child: SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
-      value: value,
-      onChanged: onChanged,
-      activeTrackColor: KLiveStyle.accent,
-      secondary: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: KLiveStyle.cardRaised,
-          border: Border.all(color: KLiveStyle.edge),
-        ),
-        child: Icon(icon, color: KLiveStyle.accent, size: 22),
-      ),
-      title: Text(
-        title,
-        style: context.textStyles.bodyStrong.copyWith(color: KLiveStyle.text),
-      ),
-      subtitle: Text(
-        hint,
-        style: context.textStyles.caption.copyWith(
-          color: KLiveStyle.textSecondary,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onPressed != null,
+    label: label,
+    onTap: onPressed,
+    excludeSemantics: true,
+    child: GestureDetector(
+      key: GoLiveAudioSetup.startKey,
+      onTap: onPressed,
+      child: Opacity(
+        opacity: onPressed == null && !busy ? 0.5 : 1,
+        child: Container(
+          width: 300.5,
+          height: 48.5,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [KBrandColors.red400, KBrandColors.red500],
+            ),
+            borderRadius: BorderRadius.circular(24.25),
+            boxShadow: [
+              BoxShadow(
+                color: KBrandColors.red500.withValues(alpha: 0.45),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: busy
+              ? const SizedBox.square(
+                  dimension: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    color: Color(0xFFFFFFFF),
+                  ),
+                )
+              : Text(
+                  label,
+                  style: context.textStyles.bodyStrong.copyWith(
+                    color: const Color(0xFFFFFFFF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ),
     ),
   );
 }
+
+/// Multi-guest · LIVE · Audio LIVE (ref 65): the chosen mode centred,
+/// larger, with a dot under it; the others run off the start edge.
+class _ModeTabs extends StatelessWidget {
+  const new({required this.selected, required this.onSelect});
+
+  final LiveRoomMode selected;
+  final ValueChanged<LiveRoomMode>? onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final modes = [
+      (LiveRoomMode.multi, l10n.goLiveModeMulti),
+      (LiveRoomMode.solo, l10n.goLiveModeSolo),
+      (LiveRoomMode.audio, l10n.goLiveModeAudio),
+    ];
+    final at = modes.indexWhere((m) => m.$1 == selected);
+    Widget tab((LiveRoomMode, String) m) {
+      final on = m.$1 == selected;
+      return Semantics(
+        button: true,
+        selected: on,
+        label: m.$2,
+        onTap: on || onSelect == null ? null : () => onSelect!(m.$1),
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: GoLiveKeys.mode(m.$1),
+          behavior: HitTestBehavior.opaque,
+          onTap: on || onSelect == null ? null : () => onSelect!(m.$1),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7.5),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  m.$2,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: text.title.copyWith(
+                    color: on
+                        ? const Color(0xFFFFFFFF)
+                        : const Color(0xFFFFFFFF).withValues(alpha: 0.7),
+                    fontSize: on ? 18 : 15,
+                    height: 1.2,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6.1),
+                Container(
+                  width: 5.1,
+                  height: 5.1,
+                  decoration: BoxDecoration(
+                    color: on
+                        ? const Color(0xFFFFFFFF)
+                        : const Color(0x00000000),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget side(List<(LiveRoomMode, String)> items, {required bool before}) =>
+        ClipRect(
+          child: OverflowBox(
+            maxWidth: double.infinity,
+            alignment: before
+                ? AlignmentDirectional.centerEnd
+                : AlignmentDirectional.centerStart,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [for (final m in items) tab(m)],
+            ),
+          ),
+        );
+    return SizedBox(
+      height: 34,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: side(modes.sublist(0, at), before: true)),
+          tab(modes[at]),
+          Expanded(child: side(modes.sublist(at + 1), before: false)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Settings before going live (ref 70): who can watch.
+Future<void> showLiveSetupSettings(
+  BuildContext context, {
+  required bool allowGuests,
+  required ValueChanged<bool> onAllowGuests,
+  Key? guestsKey,
+}) => showModalBottomSheet<void>(
+  context: context,
+  backgroundColor: const Color(0xFFFFFFFF),
+  barrierColor: const Color(0x00000000),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  ),
+  builder: (sheet) {
+    var allow = allowGuests;
+    final l10n = sheet.l10n;
+    final text = sheet.textStyles;
+    const ink = Color(0xFF000000);
+    return StatefulBuilder(
+      builder: (context, setState) => SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LiveWhiteSheetHeader(title: l10n.settingsTitle, centred: true),
+            SwitchListTile(
+              key: guestsKey,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16.5),
+              title: Text(
+                l10n.goLiveGuests,
+                style: text.title.copyWith(
+                  color: ink,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              subtitle: Text(
+                allow
+                    ? l10n.goLiveWatchEveryoneHint
+                    : l10n.goLiveWatchSignedInHint,
+                style: text.caption.copyWith(color: const Color(0xFF7A7B8C)),
+              ),
+              value: allow,
+              onChanged: (v) {
+                setState(() => allow = v);
+                onAllowGuests(v);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  },
+);

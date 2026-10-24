@@ -733,22 +733,107 @@ Future<void> showSeatCountSheet(
   required int selected,
   required Future<void> Function(int count) onSelect,
   required Color accent,
+}) => showLiveSeatCountPicker(
+  context,
+  counts: counts,
+  selected: selected,
+  onSelect: (c) => unawaited(runSeatAction(context, () => onSelect(c))),
+);
+
+/// Number of seats (owner ref 66): a white sheet, the title centred, one
+/// pill per allowed count, the chosen one framed in teal. Closes on a pick.
+Future<void> showLiveSeatCountPicker(
+  BuildContext context, {
+  required List<int> counts,
+  required int selected,
+  required ValueChanged<int> onSelect,
 }) => showModalBottomSheet<void>(
   context: context,
-  backgroundColor: const Color(0x00000000),
-  builder: (sheet) => LiveSheetFrame(
-    title: sheet.l10n.liveSeatsTitle,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
-      child: GoLiveSeatCountPicker(
-        counts: counts,
-        selected: selected,
-        accent: accent,
-        onSelect: (c) {
-          Navigator.of(sheet).pop();
-          unawaited(runSeatAction(context, () => onSelect(c)));
-        },
-      ),
-    ),
+  backgroundColor: const Color(0xFFFFFFFF),
+  // The reference leaves the room undimmed behind the sheet.
+  barrierColor: const Color(0x00000000),
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
   ),
+  builder: (sheet) {
+    final l10n = sheet.l10n;
+    final text = sheet.textStyles;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 20.5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LiveWhiteSheetHeader(title: l10n.liveSeatsTitle, centred: true),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  for (final (i, c) in counts.indexed) ...[
+                    if (i > 0) const SizedBox(width: 13),
+                    Expanded(
+                      child: Semantics(
+                        button: true,
+                        selected: c == selected,
+                        label: l10n.goLiveSeatCount(c),
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          key: GoLiveKeys.seatCount(c),
+                          onTap: () {
+                            Navigator.of(sheet).pop();
+                            onSelect(c);
+                          },
+                          child: Container(
+                            height: 39.6,
+                            decoration: BoxDecoration(
+                              color: c == selected
+                                  ? const Color(0xFFFFFFFF)
+                                  : const Color(0xFFF4F6FA),
+                              borderRadius: BorderRadius.circular(19.8),
+                              border: Border.all(
+                                color: c == selected
+                                    ? const Color(0xFF34CAC0)
+                                    : const Color(0x00000000),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/live_room_icons/seat_outline.svg',
+                                  width: 17.7,
+                                  colorFilter: ColorFilter.mode(
+                                    c == selected
+                                        ? const Color(0xFF3B3B3B)
+                                        : const Color(0xFF9A9BA5),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Text(
+                                  '$c',
+                                  style: text.title.copyWith(
+                                    color: const Color(0xFF3B3B3B),
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  },
 );

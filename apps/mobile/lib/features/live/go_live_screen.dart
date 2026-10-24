@@ -55,6 +55,7 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
   static const closeKey = Key('goLive.close');
   static const Key titleKey = GoLiveKeys.title;
+  static const countdownKey = Key('goLive.countdown');
   static const Key startKey = GoLiveKeys.start;
   static final Key flipKey = GoLiveKeys.tool('flip');
   static final Key micKey = GoLiveKeys.tool('mic');
@@ -158,8 +159,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       return;
     }
     _titleFocus.unfocus();
+    // Audio: 3, 2, 1 before the room opens (the owner's recording).
+    if (ref.read(liveHostControllerProvider).mode == LiveRoomMode.audio) {
+      for (var n = 3; n >= 1; n--) {
+        if (!mounted) return;
+        setState(() => _countdown = n);
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
+      if (!mounted) return;
+      setState(() => _countdown = null);
+    }
     await _guard(() => _host.goLive(title: title, categorySlug: _category));
   }
+
+  /// 3, 2, 1 while an audio live is about to start; null otherwise.
+  int? _countdown;
 
   Future<void> _confirmEnd() async {
     final l10n = context.l10n;
@@ -182,62 +196,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
     if (ok ?? false) await _host.end();
-  }
-
-  /// The audio setup's mode pill: Multi-guest · LIVE · Audio.
-  Future<void> _chooseMode(LiveRoomMode current) {
-    final l10n = context.l10n;
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0x00000000),
-      builder: (sheet) => LiveSheetFrame(
-        title: l10n.goLiveLiveType,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (mode, icon, label) in [
-              (
-                LiveRoomMode.multi,
-                Icons.grid_view_rounded,
-                l10n.goLiveModeMulti,
-              ),
-              (LiveRoomMode.solo, Icons.videocam_rounded, l10n.goLiveModeSolo),
-              (
-                LiveRoomMode.audio,
-                Icons.graphic_eq_rounded,
-                l10n.goLiveModeAudio,
-              ),
-            ])
-              ListTile(
-                key: GoLiveKeys.mode(mode),
-                leading: Icon(
-                  icon,
-                  color: mode == current ? KLiveStyle.accent : KLiveStyle.text,
-                ),
-                title: Text(
-                  label,
-                  style: context.textStyles.body.copyWith(
-                    color: mode == current
-                        ? KLiveStyle.accent
-                        : KLiveStyle.text,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                trailing: mode == current
-                    ? const Icon(
-                        Icons.check_circle_rounded,
-                        color: KLiveStyle.accent,
-                      )
-                    : null,
-                onTap: () {
-                  Navigator.of(sheet).pop();
-                  if (mode != current) unawaited(_host.setMode(mode));
-                },
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Share: copies the live's invite (there is no public link to a live
@@ -617,51 +575,55 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     const pad = KSpacing.lg;
     final Widget body;
     if (audioSetup) {
-      body = SafeArea(
-        child: GoLiveAudioSetup(
-          controller: _title,
-          focusNode: _titleFocus,
-          enabled: previewing,
-          theme: state.theme,
-          onTheme: previewing
-              ? () => unawaited(
-                  showLiveThemeSheet(
-                    context,
-                    themes: cfg?.themes ?? const [LiveThemes.classic],
-                    selected: state.theme,
-                    onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
-                  ),
-                )
-              : null,
-          categories: ref.watch(liveCategoriesProvider).value ?? const [],
-          category: _category,
-          onCategory: (slug) => setState(() => _category = slug),
-          allowGuests: state.allowGuests,
-          onAllowGuests: previewing
-              ? (allow) => unawaited(_host.setAllowGuests(allow: allow))
-              : null,
-          micEnabled: state.micEnabled,
-          onMic: previewing ? () => unawaited(_host.toggleMic()) : null,
-          noiseReduction: state.noiseReduction,
-          enhance: state.voiceEnhance,
-          onVoice: previewing
-              ? ({noiseReduction, enhance}) => unawaited(
-                  _host.setVoice(
-                    noiseReduction: noiseReduction,
-                    enhance: enhance,
-                  ),
-                )
-              : null,
-          seatCounts: cfg?.seatCounts.audio ?? const [5, 9, 13],
-          seatCount: state.seatCount!,
-          onSeatCount: previewing
-              ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
-              : null,
-          busy: busy,
-          onStart: previewing ? () => unawaited(_start()) : null,
-          onClose: busy ? null : _close,
-          onModes: busy ? null : () => unawaited(_chooseMode(state.mode)),
-        ),
+      body = GoLiveAudioSetup(
+        controller: _title,
+        focusNode: _titleFocus,
+        enabled: previewing,
+        theme: state.theme,
+        onTheme: previewing
+            ? () => unawaited(
+                showLiveThemeSheet(
+                  context,
+                  themes: cfg?.themes ?? const [LiveThemes.classic],
+                  selected: state.theme,
+                  onSelect: (t) => unawaited(_guard(() => _host.setTheme(t))),
+                ),
+              )
+            : null,
+        categories: ref.watch(liveCategoriesProvider).value ?? const [],
+        category: _category,
+        onCategory: (slug) => setState(() => _category = slug),
+        allowGuests: state.allowGuests,
+        onAllowGuests: previewing
+            ? (allow) => unawaited(_host.setAllowGuests(allow: allow))
+            : null,
+        micEnabled: state.micEnabled,
+        onMic: previewing ? () => unawaited(_host.toggleMic()) : null,
+        noiseReduction: state.noiseReduction,
+        enhance: state.voiceEnhance,
+        onVoice: previewing
+            ? ({noiseReduction, enhance}) => unawaited(
+                _host.setVoice(
+                  noiseReduction: noiseReduction,
+                  enhance: enhance,
+                ),
+              )
+            : null,
+        seatCounts: cfg?.seatCounts.audio ?? const [5, 9, 13],
+        seatCount: state.seatCount!,
+        onSeatCount: previewing
+            ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
+            : null,
+        busy: busy,
+        onStart: previewing && _countdown == null
+            ? () => unawaited(_start())
+            : null,
+        onClose: busy || _countdown != null ? null : _close,
+        onMode: busy || _countdown != null
+            ? null
+            : (mode) => unawaited(_host.setMode(mode)),
+        hostName: hostName,
+        hostAvatarUrl: user?.avatarUrl,
       );
     } else if (audioOnAir) {
       // CP-012: the score from the media room's metadata, else the room's.
@@ -1007,7 +969,34 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           child: Scaffold(
             backgroundColor: KPalette.dark.background,
             resizeToAvoidBottomInset: false,
-            body: Stack(fit: StackFit.expand, children: [background, body]),
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                background,
+                body,
+                if (_countdown case final n?)
+                  // The countdown (sized from the owner's recording).
+                  IgnorePointer(
+                    child: Align(
+                      alignment: const Alignment(0, 0.5),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          '$n',
+                          key: GoLiveScreen.countdownKey,
+                          textDirection: TextDirection.ltr,
+                          style: context.textStyles.headline.copyWith(
+                            color: const Color(0xFFFFFFFF),
+                            fontSize: 214,
+                            height: 1,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
