@@ -267,6 +267,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 tool.label,
                 style: sheet.textStyles.body.copyWith(color: KLiveStyle.text),
               ),
+              // On/off switches show their state (guests, chat).
+              trailing: tool.toggled == null
+                  ? null
+                  : IgnorePointer(
+                      child: Switch(value: tool.toggled!, onChanged: (_) {}),
+                    ),
               onTap: () {
                 Navigator.of(sheet).pop();
                 tool.onTap?.call();

@@ -314,6 +314,23 @@ class LiveChatController extends Notifier<LiveChatState> {
   Future<void> setMuted(String username, {required bool muted}) =>
       _repo.setChatMuted(roomId, username, muted: muted);
 
+  /// Reads the room again for [LiveChatState.muted] and `enabled`: an
+  /// unmute reaches nobody live (§10.11), so a muted person asks when they
+  /// try to write. Failures keep the current state.
+  Future<void> refresh() async {
+    try {
+      final room = await _repo.getRoom(roomId);
+      if (ref.mounted) {
+        state = state.copyWith(
+          muted: room.chatMuted,
+          enabled: room.chatEnabled,
+        );
+      }
+    } on Object {
+      // Kept.
+    }
+  }
+
   /// Who is muted in this live's chat (host, moderator). Throws an
   /// AppFailure.
   Future<List<LiveChatMute>> mutes() => _repo.chatMutes(roomId);

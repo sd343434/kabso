@@ -1261,6 +1261,27 @@ void main() {
         }
       });
 
+      testWidgets('a muted viewer who was unmuted can write again: tapping '
+          'the pill asks the server', (tester) async {
+        var muted = true;
+        final repo = FakeLiveRepository(
+          room: (id) => apiRoom(
+            id: id,
+          ).copyWith(mode: LiveRoomMode.audio, seatCount: 9, chatMuted: muted),
+        )..seatState = seats(mode: LiveRoomMode.audio, count: 9);
+        await _pumpRoom(
+          tester,
+          repo: repo,
+          engine: FakeLiveMediaEngine(),
+          user: testUser(),
+        );
+        expect(find.text(l10n.liveChatMutedPill), findsOneWidget);
+        muted = false; // The host unmuted (no live notice).
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveChatComposer.fieldKey), findsOneWidget);
+      });
+
       testWidgets('the host turning the chat off reaches the room at once', (
         tester,
       ) async {
@@ -1268,8 +1289,14 @@ void main() {
         final repo = seatRoom(LiveRoomMode.audio, 9);
         await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
         expect(find.text(l10n.goLiveChatPill), findsOneWidget);
+        // Writing when it happens: the box closes so the pill can say why
+        // (real two-browser run).
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveChatComposer.fieldKey), findsOneWidget);
         engine.chat.add(const LiveChatStateChanged(enabled: false));
         await tester.pumpAndSettle();
+        expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
         expect(find.text(l10n.liveChatOff), findsOneWidget);
       });
 

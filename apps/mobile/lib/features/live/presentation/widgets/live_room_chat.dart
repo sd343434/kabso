@@ -453,10 +453,11 @@ Future<void> showLiveChatActions(
   if (role == LiveChatViewerRole.guest) {
     return (canWrite: false, hint: l10n.liveChatSignIn);
   }
-  if (chat.muted) return (canWrite: false, hint: l10n.liveChatMutedPill);
+  // Chat off says more than a mute (and outlives it).
   if (!chat.enabled && role != LiveChatViewerRole.host) {
     return (canWrite: false, hint: l10n.liveChatOff);
   }
+  if (chat.muted) return (canWrite: false, hint: l10n.liveChatMutedPill);
   return (canWrite: true, hint: l10n.goLiveChatPill);
 }
 

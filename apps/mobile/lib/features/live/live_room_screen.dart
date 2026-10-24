@@ -222,7 +222,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return LiveChatViewerRole.member;
   }
 
-  void _openChat(({bool canWrite, String hint}) composer) {
+  Future<void> _openChat(({bool canWrite, String hint}) composer) async {
+    final chat = ref.read(liveChatProvider(widget.room.id));
+    if (!composer.canWrite && chat.muted && chat.enabled) {
+      // The mute may have been lifted: nothing tells the room live.
+      await ref.read(liveChatProvider(widget.room.id).notifier).refresh();
+      if (!mounted) return;
+      if (!ref.read(liveChatProvider(widget.room.id)).muted) {
+        setState(() => _writing = true);
+        _chatFocus.requestFocus();
+        return;
+      }
+    }
+    if (!mounted) return;
     if (!composer.canWrite) {
       KSnack.info(context, composer.hint);
       return;
@@ -243,21 +255,34 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onProfile: (username) => unawaited(showHostSheet(context, username)),
       );
 
-  Widget? _chatComposer() => _writing
-      ? TapRegion(
-          onTapOutside: (_) => setState(() {
-            _writing = false;
-            _chatFocus.unfocus();
-          }),
-          child: LiveChatComposer(
-            controller: _chat,
-            focusNode: _chatFocus,
-            hint: context.l10n.goLiveChatHint,
-            sendLabel: context.l10n.goLiveChatSend,
-            onSend: _sendChat,
-          ),
-        )
-      : null;
+  /// The chat box while writing; it closes by itself when this person may
+  /// no longer write (muted, or the host turned the chat off), so the pill
+  /// says why.
+  Widget? _chatComposer(({bool canWrite, String hint}) composer) {
+    if (_writing && !composer.canWrite) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _chatFocus.unfocus();
+        setState(() => _writing = false);
+      });
+      return null;
+    }
+    return _writing
+        ? TapRegion(
+            onTapOutside: (_) => setState(() {
+              _writing = false;
+              _chatFocus.unfocus();
+            }),
+            child: LiveChatComposer(
+              controller: _chat,
+              focusNode: _chatFocus,
+              hint: context.l10n.goLiveChatHint,
+              sendLabel: context.l10n.goLiveChatSend,
+              onSend: _sendChat,
+            ),
+          )
+        : null;
+  }
 
   /// An invitation (CP-011): Join or Not now.
   Future<void> _showInvite(LiveSeatInvite invite) async {
@@ -461,11 +486,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
                   const SizedBox(height: KSpacing.sm),
                 ],
-                _chatComposer() ??
+                _chatComposer(composer) ??
                     LiveChatPill(
                       key: AudioRoomViewKeys.chat,
                       hint: composer.hint,
-                      onTap: () => _openChat(composer),
+                      onTap: () => unawaited(_openChat(composer)),
                     ),
                 const SizedBox(height: KSpacing.sm),
                 KRoomActionBar(onGift: () => unawaited(_openGifts(context))),
@@ -604,11 +629,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               ),
               stage: _stage(session, engine),
               chat: [_roomChat(session)],
-              composer: _chatComposer(),
+              composer: _chatComposer(composer),
               barLead: LiveChatPill(
                 key: AudioRoomViewKeys.chat,
                 hint: composer.hint,
-                onTap: () => _openChat(composer),
+                onTap: () => unawaited(_openChat(composer)),
               ),
               barStart: const [],
               barEnd: [
@@ -617,7 +642,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   asset: 'assets/live_room_icons/emoji.png',
                   tintAsset: true,
                   label: l10n.livePreviewEmoji,
-                  onTap: () => _openChat(composer),
+                  onTap: () => unawaited(_openChat(composer)),
                 ),
                 ?seatButton,
                 if (session.canModerate)
