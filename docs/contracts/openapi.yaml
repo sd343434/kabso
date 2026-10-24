@@ -23,6 +23,10 @@ info:
     **CP-011 (D94, DRAFT v1.7-live)** adds multi-guest video and audio rooms with seats: asking
     for a seat, invitations, the host's and moderators' controls (mute, take off, lock, seat
     count), room moderators and room themes (CONVENTIONS §10.9).
+    **CP-012 (D95, DRAFT v1.8-live)** adds taps and the room score (CONVENTIONS §10.10).
+    **CP-013 (D96, DRAFT v1.9-live)** adds the room chat: sending and reading messages, live
+    delivery as media data messages, the host's and moderators' delete and chat mute, turning
+    the chat off, and `LIVE_CHAT_MESSAGE` reports (CONVENTIONS §10.11).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -717,6 +721,8 @@ paths:
                     theme: classic
                     score: 1240
                     scoreParts: { total: 1240, tapPoints: 1240, supportPoints: 0 }
+                    chatEnabled: true
+                    chatMuted: false
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -728,7 +734,8 @@ paths:
       description: |
         Host only (else 404). `allowGuests: false` removes every connected guest at once and
         refuses new guest tokens (403 `LIVE_GUESTS_NOT_ALLOWED`); `true` lets them in again.
-        Ended room → 409 `LIVE_ROOM_ENDED`. Idempotent.
+        `chatEnabled` (CP-013) turns the room chat off or on and sends a `chat-state` data
+        message (§10.11). Ended room → 409 `LIVE_ROOM_ENDED`. Idempotent.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -834,6 +841,145 @@ paths:
               schema: { $ref: '#/components/schemas/LiveTapsResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/chat:
+    get:
+      tags: [live]
+      operationId: listLiveChatMessages
+      summary: "The last 50 chat messages of a live, oldest first (CP-013)"
+      description: |
+        CONVENTIONS §10.11. Anyone who may watch the room reads it; a guest without an account
+        needs the room's `allowGuests` (else 403 `LIVE_GUESTS_NOT_ALLOWED`). Server-bounded and
+        unpaginated (§5): the last 50 messages, without deleted ones. A signed-in reader never
+        gets messages from someone they blocked or who blocked them. Works on an ended room too.
+        A room the caller may not see → 404.
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The messages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveChatMessageList' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [live]
+      operationId: sendLiveChatMessage
+      summary: "Send a chat message in a live (CP-013)"
+      description: |
+        CONVENTIONS §10.11. Signed-in callers who are in the room now: the host, or someone in
+        the room's media session (seated guests and moderators included). Checks, in order:
+        401 without an account; 404 for a room the caller may not see; 409 `LIVE_ROOM_ENDED`;
+        400 for the text (NFC, trimmed, 1–200 code points, §6 hygiene, no line breaks);
+        403 `LIVE_CHAT_NOT_IN_ROOM`; 403 `LIVE_CHAT_MUTED`; 409 `LIVE_CHAT_CLOSED` (the host may
+        still send); 429. The stored message is sent to everyone in the room as a `chat` data
+        message. A retry with the same `clientId` by the same sender returns 200 with the first
+        message and sends nothing again.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveChatSendRequest' }
+      responses:
+        '201':
+          description: The stored message.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveChatMessage' }
+        '200':
+          description: A retry (same `clientId`); the first message.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveChatMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/chat/{messageId}:
+    delete:
+      tags: [live]
+      operationId: deleteLiveChatMessage
+      summary: "Delete a chat message: its author, the host or a moderator (CP-013)"
+      description: |
+        Soft delete; a `chat-delete` data message is sent. A moderator cannot delete the host's
+        or another moderator's message (403 `AUTH_FORBIDDEN`); anyone else who is not the author
+        → 403. Already deleted → 204. Unknown message or room the caller may not see → 404.
+        Works while the room is live only (else 409 `LIVE_ROOM_ENDED`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/chat/mutes:
+    get:
+      tags: [live]
+      operationId: listLiveChatMutes
+      summary: "Host or moderator: who is muted in this live's chat (CP-013)"
+      description: Newest first, every muted user of the room (at most the room's viewers). Not host or moderator → 403.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The muted users.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveChatMuteList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/chat/mutes/{username}:
+    put:
+      tags: [live]
+      operationId: muteLiveChatUser
+      summary: "Host or moderator: mute someone in this live's chat (CP-013, idempotent)"
+      description: |
+        The user can no longer send in this live (403 `LIVE_CHAT_MUTED`); their earlier
+        messages stay. Lasts for this live only; it is not a block. A moderator cannot mute the
+        host or another moderator, and nobody mutes the host (403 `AUTH_FORBIDDEN`). Unknown
+        user → 404. Ended room → 409 `LIVE_ROOM_ENDED`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Muted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [live]
+      operationId: unmuteLiveChatUser
+      summary: "Host or moderator: unmute someone in this live's chat (CP-013, idempotent)"
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Unmuted (or was not muted). }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -3273,9 +3419,11 @@ components:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason, allowGuests, scoreParts]
+          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted]
           properties:
             scoreParts: { $ref: '#/components/schemas/LiveScore' }
+            chatEnabled: { type: boolean, description: "CP-013: false when the host turned the chat off." }
+            chatMuted: { type: boolean, description: "CP-013: the caller is muted in this live's chat (false for guests)." }
             status: { type: string, enum: [LIVE, ENDED] }
             allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }
@@ -3312,9 +3460,10 @@ components:
       type: object
       minProperties: 1
       additionalProperties: false
-      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`).
+      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`); `chatEnabled` is CP-013.
       properties:
         allowGuests: { type: boolean }
+        chatEnabled: { type: boolean, description: "CP-013: turn the room chat off (false) or on (true)." }
         seatCount:
           description: An allowed count for the room's mode; below an occupied seat → 409 `LIVE_SEAT_UNAVAILABLE`.
           allOf:
@@ -3478,6 +3627,56 @@ components:
       properties:
         accepted: { type: integer, minimum: 0, maximum: 50, description: Taps counted from this batch. }
         score: { $ref: '#/components/schemas/LiveScore' }
+    # ---- v1.9-live (DRAFT, CP-013) — room chat ----------------------------------------------
+    LiveChatText:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: NFC, trimmed, 1–200 code points, §6 text hygiene, no line breaks (CONVENTIONS §10.11).
+    LiveChatSendRequest:
+      type: object
+      required: [text, clientId]
+      additionalProperties: false
+      properties:
+        text: { $ref: '#/components/schemas/LiveChatText' }
+        clientId:
+          type: string
+          format: uuid
+          description: Chosen by the app for each message; a retry with the same id returns the first message.
+    LiveChatMessage:
+      type: object
+      required: [id, roomId, author, authorRole, text, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        roomId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        authorRole:
+          type: string
+          enum: [HOST, MODERATOR, SPEAKER, VIEWER]
+          description: The author's role in the room when they sent it.
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+    LiveChatMessageList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/LiveChatMessage' }
+    LiveChatMute:
+      type: object
+      required: [user, mutedAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        mutedAt: { type: string, format: date-time }
+    LiveChatMuteList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LiveChatMute' }
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string
@@ -4326,7 +4525,7 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE] }
         targetId:
           type: string
           minLength: 1
@@ -4339,7 +4538,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }

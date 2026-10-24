@@ -1,7 +1,10 @@
-# CP-013 — Live room chat (DRAFT)
+# CP-013 — Live room chat (APPROVED)
 
-**Status:** draft for owner review, 2026-10-24. Not applied: `openapi.yaml`, `CONVENTIONS.md`.
-The open questions at the end need the owner's answers before the contract is written.
+**Status:** approved by the owner on 2026-10-24 (D96) with every recommendation: guests read
+but do not write (Q1); 200 characters (Q2); "joined" lines, at most one a second per room (Q3);
+the host can turn the chat off (Q4); removing someone from the room is a follow-up proposal
+(Q5); messages kept 30 days after the live, longer when reported (Q6); no word filter now (Q7).
+Applied as contract v1.9-live (`openapi.yaml`, CONVENTIONS §4, §7, §9, §10.11).
 
 ## Why
 

@@ -92,6 +92,9 @@ All non-2xx responses use one envelope:
 | 403 | `LIVE_HOSTING_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* Go-live refused: the caller does not hold the hosting permission (`Me.canHost`; admin-granted, later through an agency or an identity check). The app explains how to get it. |
 | 403 | `LIVE_GUESTS_NOT_ALLOWED` | *(v1.6-live, DRAFT, CP-010)* A guest (no account) asked to watch a room whose host switched guests off. The app offers to sign in. |
 | 409 | `LIVE_SEAT_UNAVAILABLE` | *(v1.7-live, DRAFT, CP-011)* The seat or seats asked for cannot be used: taken, locked, out of range, none free, a room without seats (SOLO), the user already seated, the host, or (invitation) not watching now; also shrinking `seatCount` below an occupied seat and locking an occupied seat. |
+| 403 | `LIVE_CHAT_NOT_IN_ROOM` | *(v1.9-live, DRAFT, CP-013)* A chat message from someone who is not in the room now (neither the host nor in the room's media session). The app shows the room again (it rejoins). |
+| 403 | `LIVE_CHAT_MUTED` | *(v1.9-live, DRAFT, CP-013)* The host or a moderator muted the caller in this live's chat. The app disables the composer and says so. |
+| 409 | `LIVE_CHAT_CLOSED` | *(v1.9-live, DRAFT, CP-013)* The host turned the chat off. The app shows "Chat is off". |
 | 409 | `LIVE_REQUEST_NOT_PENDING` | *(v1.7-live, DRAFT, CP-011)* The seat request or invitation was already accepted, declined, cancelled, replaced or expired. |
 | 410 | `TOKEN_EXPIRED` | Email-verification / password-reset token expired or already used. |
 | 422 | `TOKEN_INVALID` | Email-verification / password-reset token malformed or unknown. |
@@ -324,6 +327,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | Host and moderator seat actions (accept, decline, mute, remove, lock, moderators, `seatCount`/`theme` in `PATCH`) *(v1.7-live, CP-011)* | 300 / hour per user |
 | `GET /live/rooms/{roomId}/seats` *(v1.7-live, CP-011)* | 600 / 15 min per user; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/taps` *(v1.8-live, CP-012)* | 120 / min per user (one batch a second = 60 / min; 2× headroom). **Replaces** the per-user default (it would exhaust 600 / 15 min). The 10-a-second and 10 000-a-live limits are counting rules, not rate limits: past them taps are dropped with 200 (§10.10) |
+| `POST /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | 20 / min per user, plus a counting rule of 1 a second per user and room (429 with `Retry-After`). **Replaces** the per-user default |
+| Chat delete, chat mutes, `chatEnabled` in `PATCH` *(v1.9-live, CP-013)* | the CP-011 host and moderator bucket (300 / hour per user); deleting one's own message counts there too |
+| `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -417,6 +423,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
 | v1.6-live (draft) | 2026-10-23 | **CP-010 (D93, Live L1):** live video — `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`, `grantLiveHost`, `revokeLiveHost`; schemas `LiveMediaAccess`, `LiveMediaTokenRequest`, `UpdateLiveRoomRequest`, `LiveViewer`, `LiveViewerPage`; `LiveRoom.allowGuests`, `StartLiveRoomRequest.allowGuests`, `Me.canHost`; report `targetType: LIVE_ROOM`; codes `LIVE_HOSTING_NOT_ALLOWED`, `LIVE_GUESTS_NOT_ALLOWED`; guests read the live hub without a token; `viewerCount` counts people watching. §4, §7 rows and §10.8. | **Additive**, plus one **tightening** (go-live needs the hosting permission; hosting is switched off in production today, so nobody loses anything) and one **relaxing** (four live operations accept no token). |
 | v1.7-live (draft) | 2026-10-23 | **CP-011 (D94):** multi-guest video and audio rooms — `LiveRoomMode.AUDIO`; `StartLiveRoomRequest.mode`, `seatCount`, `theme`; `LiveRoomSummary.seatCount`, `occupiedSeats`, `theme`; `LiveConfig.themes`, `seatCounts`; `UpdateLiveRoomRequest.seatCount`, `theme` (now at least one field); media role `SPEAKER`; operations `getLiveRoomSeats`, `requestLiveSeat`, `listLiveSeatRequests`, `cancelLiveSeatRequest`, `acceptLiveSeatRequest`, `declineLiveSeatRequest`, `inviteToLiveSeat`, `acceptLiveSeatInvite`, `declineLiveSeatInvite`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, `addLiveModerator`, `removeLiveModerator`; codes `LIVE_SEAT_UNAVAILABLE`, `LIVE_REQUEST_NOT_PENDING`. §4, §7 rows and §10.9. | **Additive** (a new enum value older apps show as SOLO; new optional request fields; new response fields and operations). |
+| v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
 | v1.5-social (draft) | 2026-10-21 | **CP-008 (D91, CP-006 M3):** photo stories — `createStory`, `getStory`, `deleteStory`, `listStoryTray`, `listUserStories`, `markStorySeen`, `listStoryViewers`, `listStoryArchive`; schemas `Story`, `StoryList`, `StoryPage`, `StoryTrayItem`, `StoryTrayPage`, `CreateStoryRequest`; `MediaKind.STORY_IMAGE` (1 920 px variant); report `targetType: STORY`; mute also hides stories. §11.1, §11.7, §11.8 lines and §11.9. | Additive: new paths and schemas, new enum values (`STORY_IMAGE`, `STORY`). |
@@ -646,7 +653,7 @@ until a media provider is wired in.
 - Media and streaming (playback, publish tokens, LiveKit) — B1. *(CP-010: see §10.8.)*
 - Realtime presence and real viewer counts; the realtime events contract. *(CP-010: real viewer
   counts, §10.8; the realtime events contract is still out of scope.)*
-- Live chat, gifts, PK and multi-guest.
+- Live chat, gifts, PK and multi-guest. *(CP-011: multi-guest, §10.9; CP-013: chat, §10.11.)*
 - Blocking and muting; follower and following lists; follow requests for private accounts;
   follow notifications.
 - Moderation and reporting of rooms or titles; admin end-room (`ADMIN` is reserved). *(CP-010:
@@ -760,6 +767,54 @@ until a media provider is wired in.
 - **Levels:** the score does not count towards any level (owner D95, for now).
 - **Abuse watch:** each caller's counted taps per room are kept (`live_room_tappers`) for
   admins looking into a suspicious room. No public list.
+
+### 10.11 Live room chat *(v1.9-live, DRAFT — CP-013, D96)*
+
+- **Path of a message:** the app sends it to the API; the API checks it, stores it and sends
+  it to everyone in the media room as a data message. Apps never publish data themselves
+  (`canPublishData` stays false), so every line on screen passed the server's checks.
+- **Text:** NFC, trimmed, 1–200 code points (owner D96), §6 text hygiene, no line breaks
+  (`U+000A`, `U+000D`, `U+2028`, `U+2029` → 400 `invalid_format`). Over 200 → `too_long`; empty
+  after trimming → `required`. Mentions and links are plain text.
+- **Who may send:** signed-in callers who are in the room now: the host, or a caller with a
+  row in the room's media session (§10.8; seated guests and moderators included). Guests
+  without an account read only (owner D96). Order of checks: 401, 404 (cannot see the room,
+  e.g. a block with the host), 409 `LIVE_ROOM_ENDED`, 400 text, 403 `LIVE_CHAT_NOT_IN_ROOM`,
+  403 `LIVE_CHAT_MUTED`, 409 `LIVE_CHAT_CLOSED` (the host may still send), 429.
+- **Idempotent retry:** `clientId` is unique per sender. The same sender and `clientId` → 200
+  with the first message (even if the text differs), and no second data message.
+- **`authorRole`:** `HOST`, `MODERATOR`, `SPEAKER` (seated) or `VIEWER`, as when it was sent.
+- **Reading:** `GET /live/rooms/{roomId}/chat` returns the last 50 messages, oldest first,
+  without deleted ones; anyone who may watch the room (guests need `allowGuests`); also on an
+  ended room. A signed-in reader never gets messages from someone they blocked or who blocked
+  them.
+- **Live delivery** (topic `chat`, reliable, in send order, to everyone in the media room):
+
+  | `type` | Payload | When |
+  | ------ | ------- | ---- |
+  | `chat` | `{"type":"chat","message":LiveChatMessage}` | a message was stored |
+  | `chat-delete` | `{"type":"chat-delete","id":"…"}` | a message was deleted |
+  | `join` | `{"type":"join","user":UserSummary}` | a signed-in viewer joined the media session (webhook or reconciliation, §10.8); the host and guests without an account are not announced; at most one a second per room, extras dropped (owner D96) |
+  | `chat-state` | `{"type":"chat-state","enabled":true\|false}` | the host turned the chat on or off |
+
+  The app hides `chat` and `join` lines from people the reader blocked (from `GET /me/blocks`).
+  A broadcast cannot be filtered per reader: someone who blocked the reader may still appear
+  to them live (never in `GET`). Unknown `type` values are ignored.
+- **Delete:** the author, the host or a moderator; a moderator never deletes the host's or
+  another moderator's message (403 `AUTH_FORBIDDEN`). Soft delete, idempotent (204); only while
+  the room is live.
+- **Chat mute:** the host or a moderator mutes a user for this live only (not a block; their
+  earlier messages stay). Nobody mutes the host; a moderator never mutes another moderator
+  (403 `AUTH_FORBIDDEN`). `LiveRoom.chatMuted` tells the caller. Idempotent.
+- **Chat off:** `PATCH /live/rooms/{roomId}` `chatEnabled` (host only). `LiveRoom.chatEnabled`
+  shows it; a new live starts with the chat on.
+- **Reports:** `POST /reports` accepts `targetType: LIVE_CHAT_MESSAGE` (a message the reporter
+  could read); §11.7 rules apply; `REMOVE_TARGET` deletes the message.
+- **Retention (owner D96):** messages, mutes and deleted messages are removed 30 days after
+  their room ended, by the live sweeper, except a message with an OPEN report, which stays
+  until the report is closed.
+- **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal), a
+  word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
