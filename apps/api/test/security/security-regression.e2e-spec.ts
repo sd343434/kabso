@@ -69,6 +69,8 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'POST /api/v1/live/rooms/:roomId/media-token',
   // CP-011: who is on which seat (guests read it like the room).
   'GET /api/v1/live/rooms/:roomId/seats',
+  // CP-013: the last chat messages (guests read them when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/chat',
 ].sort();
 
 interface RouteInfo {

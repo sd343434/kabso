@@ -48,6 +48,10 @@ describe('ErrorCode', () => {
         // v1.7-live (DRAFT, CP-011)
         'LIVE_SEAT_UNAVAILABLE',
         'LIVE_REQUEST_NOT_PENDING',
+        // v1.9-live (DRAFT, CP-013)
+        'LIVE_CHAT_NOT_IN_ROOM',
+        'LIVE_CHAT_MUTED',
+        'LIVE_CHAT_CLOSED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -77,6 +81,9 @@ describe('ErrorCode', () => {
       REPORT_ALREADY_RESOLVED: 409,
       LIVE_SEAT_UNAVAILABLE: 409,
       LIVE_REQUEST_NOT_PENDING: 409,
+      LIVE_CHAT_NOT_IN_ROOM: 403,
+      LIVE_CHAT_MUTED: 403,
+      LIVE_CHAT_CLOSED: 409,
     });
   });
 

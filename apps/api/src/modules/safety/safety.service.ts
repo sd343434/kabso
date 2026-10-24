@@ -5,6 +5,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
@@ -32,7 +33,7 @@ type Tx = Prisma.TransactionClient;
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
-  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM';
+  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM' | 'LIVE_CHAT_MESSAGE';
   targetId: string;
   reason: string;
   note: string | null;
@@ -71,6 +72,7 @@ export class SafetyService {
     private readonly liveRooms: LiveRoomsService,
     private readonly liveMedia: LiveMediaService,
     private readonly liveSeats: LiveSeatsService,
+    private readonly liveChat: LiveChatService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -260,6 +262,7 @@ export class SafetyService {
     | { targetUserId: string }
     | { targetStoryId: string }
     | { targetLiveRoomId: string }
+    | { targetLiveChatMessageId: string }
   > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
@@ -275,6 +278,12 @@ export class SafetyService {
       const room = await this.liveRooms.visibleRow(id, reporterId);
       if (room.host_user_id === reporterId) throw invalid();
       return { targetLiveRoomId: room.id };
+    }
+    if (input.targetType === 'LIVE_CHAT_MESSAGE') {
+      // CP-013: a message the reporter could read (§10.11), not their own.
+      const message = await this.liveChat.readableMessage(id, reporterId);
+      if (message.userId === reporterId) throw invalid();
+      return { targetLiveChatMessageId: message.id };
     }
     if (input.targetType === 'STORY') {
       // CP-008: an active story the reporter may see (expired stories can no longer be seen).
@@ -353,6 +362,7 @@ export class SafetyService {
     const { action, note } = parsed.data;
     const id = reportId.toLowerCase();
     const endedRooms: string[] = [];
+    let removedChat: { roomId: string; messageId: string } | null = null;
     await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<
         { id: string }[]
@@ -408,6 +418,11 @@ export class SafetyService {
             });
           }
         }
+        if (report.targetLiveChatMessageId) {
+          // CP-013: the message is soft-deleted; the room's apps drop it after the commit.
+          const roomId = await this.liveChat.removeIn(tx, report.targetLiveChatMessageId, actor.userId);
+          if (roomId) removedChat = { roomId, messageId: report.targetLiveChatMessageId };
+        }
         if (report.targetLiveRoomId) {
           // CP-010: the room ends with ADMIN; its media session closes after the commit.
           endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
@@ -422,7 +437,9 @@ export class SafetyService {
             ? { targetStoryId: report.targetStoryId }
             : report.targetLiveRoomId
               ? { targetLiveRoomId: report.targetLiveRoomId }
-              : { targetUserId: report.targetUserId };
+              : report.targetLiveChatMessageId
+                ? { targetLiveChatMessageId: report.targetLiveChatMessageId }
+                : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -441,6 +458,7 @@ export class SafetyService {
           report.targetCommentId ??
           report.targetStoryId ??
           report.targetLiveRoomId ??
+          report.targetLiveChatMessageId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -449,6 +467,8 @@ export class SafetyService {
       });
     });
     for (const roomId of endedRooms) await this.liveMedia.closeMedia(roomId);
+    const chat = removedChat as { roomId: string; messageId: string } | null;
+    if (chat) await this.liveChat.afterRemoved(chat.roomId, chat.messageId);
     return this.toDto(
       await this.prisma.report.findUniqueOrThrow({ where: { id }, include: REPORT_INCLUDE }),
       true,
@@ -464,6 +484,7 @@ export class SafetyService {
         row.targetCommentId ??
         row.targetStoryId ??
         row.targetLiveRoomId ??
+        row.targetLiveChatMessageId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',

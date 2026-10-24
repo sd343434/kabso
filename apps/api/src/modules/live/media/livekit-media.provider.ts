@@ -152,6 +152,10 @@ export class LiveKitMediaProvider implements LiveMediaProvider {
     });
   }
 
+  async broadcastData(room: string, topic: string, payload: string): Promise<void> {
+    await this.rooms.sendData(room, new TextEncoder().encode(payload), DataPacket_Kind.RELIABLE, { topic });
+  }
+
   async closeRoom(room: string): Promise<void> {
     try {
       await this.rooms.deleteRoom(room);
@@ -237,6 +241,9 @@ export class UnconfiguredMediaProvider implements LiveMediaProvider {
     return Promise.resolve();
   }
   sendData(): Promise<void> {
+    return Promise.resolve();
+  }
+  broadcastData(): Promise<void> {
     return Promise.resolve();
   }
 }

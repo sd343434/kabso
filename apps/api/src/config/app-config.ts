@@ -63,6 +63,8 @@ export interface AppConfig {
     readonly liveSeatsReadUser: RateLimitRule;
     /** CP-012: tap batches (per user). */
     readonly liveTapsUser: RateLimitRule;
+    /** CP-013: chat messages (per user). */
+    readonly liveChatUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -211,6 +213,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveSeatActionUser: e.RATE_LIMIT_LIVE_SEAT_ACTION_USER,
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       liveTapsUser: e.RATE_LIMIT_LIVE_TAPS_USER,
+      liveChatUser: e.RATE_LIMIT_LIVE_CHAT_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,

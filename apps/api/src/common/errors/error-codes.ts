@@ -44,6 +44,12 @@ export enum ErrorCode {
   LIVE_SEAT_UNAVAILABLE = 'LIVE_SEAT_UNAVAILABLE',
   /** v1.7-live (DRAFT, CP-011): the seat request or invitation is no longer pending. */
   LIVE_REQUEST_NOT_PENDING = 'LIVE_REQUEST_NOT_PENDING',
+  /** v1.9-live (DRAFT, CP-013): a chat message from someone who is not in the room now. */
+  LIVE_CHAT_NOT_IN_ROOM = 'LIVE_CHAT_NOT_IN_ROOM',
+  /** v1.9-live (DRAFT, CP-013): the host or a moderator muted the caller in this live's chat. */
+  LIVE_CHAT_MUTED = 'LIVE_CHAT_MUTED',
+  /** v1.9-live (DRAFT, CP-013): the host turned the chat off. */
+  LIVE_CHAT_CLOSED = 'LIVE_CHAT_CLOSED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -76,6 +82,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.REPORT_ALREADY_RESOLVED]: 409,
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 409,
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 409,
+  [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 403,
+  [ErrorCode.LIVE_CHAT_MUTED]: 403,
+  [ErrorCode.LIVE_CHAT_CLOSED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -108,6 +117,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.REPORT_ALREADY_RESOLVED]: 'The report was already resolved.',
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 'That seat is not available.',
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 'The request or invitation is no longer pending.',
+  [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 'Join the live to chat.',
+  [ErrorCode.LIVE_CHAT_MUTED]: 'You are muted in this live.',
+  [ErrorCode.LIVE_CHAT_CLOSED]: 'The chat is off.',
 };
 
 export interface ErrorDetail {

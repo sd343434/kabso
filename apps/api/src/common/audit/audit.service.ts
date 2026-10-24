@@ -31,6 +31,8 @@ export enum AuditAction {
   LIVE_HOST_GRANT = 'live.host.grant',
   LIVE_HOST_REVOKE = 'live.host.revoke',
   LIVE_ROOM_GUESTS = 'live.room.guests',
+  // v1.9-live (DRAFT, CP-013): the host turned the room chat off or on.
+  LIVE_ROOM_CHAT = 'live.room.chat',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',

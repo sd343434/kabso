@@ -82,4 +82,13 @@ export interface LiveMediaProvider {
    * open with an error, which callers log and ignore).
    */
   sendData(room: string, identity: string, payload: string): Promise<void>;
+
+  // ---- CP-013 (chat) --------------------------------------------------------------------------
+
+  /**
+   * Sends a reliable data message on `topic` to everyone in the room (no destination). Best effort
+   * like {@link sendData}: a room that is not open answers with an error, which callers log and
+   * ignore.
+   */
+  broadcastData(room: string, topic: string, payload: string): Promise<void>;
 }

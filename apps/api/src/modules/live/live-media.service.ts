@@ -18,6 +18,7 @@ import {
   type RequestMeta,
   type UserSummaryDto,
 } from './live-rooms.service.js';
+import { LiveChatService } from './live-chat.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
   isSeatedMode,
@@ -85,6 +86,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     private readonly seats: LiveSeatsService,
+    private readonly chat: LiveChatService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -186,11 +188,14 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
   // ---- Host controls ---------------------------------------------------------------------------
 
   /** The host's LIVE room (else 404 for others, 409 when ended). */
-  private async hostLiveRoom(hostId: string, roomId: string): Promise<{ id: string; allowGuests: boolean }> {
+  private async hostLiveRoom(
+    hostId: string,
+    roomId: string,
+  ): Promise<{ id: string; allowGuests: boolean; chatEnabled: boolean }> {
     if (!isUuid(roomId)) throw new AppException(ErrorCode.NOT_FOUND);
     const room = await this.prisma.liveRoom.findFirst({
       where: { id: roomId.toLowerCase(), hostUserId: hostId },
-      select: { id: true, status: true, allowGuests: true },
+      select: { id: true, status: true, allowGuests: true, chatEnabled: true },
     });
     if (!room) throw new AppException(ErrorCode.NOT_FOUND);
     return room;
@@ -200,7 +205,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
    * `PATCH /live/rooms/{roomId}`: the guests switch (off removes connected guests at once) and,
    * CP-011, the seat count (an allowed count for the room's mode, else 400; below an occupied seat
    * → 409 LIVE_SEAT_UNAVAILABLE) and the theme. The seat change is applied first, so a refused
-   * change leaves everything as it was.
+   * change leaves everything as it was. CP-013: `chatEnabled` turns the room chat off or on
+   * (audited; a `chat-state` data message when it changed).
    */
   async updateRoom(hostId: string, roomId: string, body: unknown, meta: RequestMeta): Promise<string> {
     const parsed = updateLiveRoomSchema.safeParse(body ?? {}, { reportInput: true });
@@ -208,12 +214,32 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const room = await this.hostLiveRoom(hostId, roomId);
     const row = await this.rooms.visibleRow(room.id, hostId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const { allowGuests, seatCount, theme } = parsed.data;
+    const { allowGuests, seatCount, theme, chatEnabled } = parsed.data;
     if (seatCount !== undefined && !seatCountFits(row.mode, seatCount)) {
       throw AppException.validation([{ field: 'seatCount', issue: 'invalid_value' }]);
     }
     if (seatCount !== undefined || theme !== undefined) {
       await this.seats.updateSettings(room.id, { seatCount, theme });
+    }
+    if (chatEnabled !== undefined && chatEnabled !== room.chatEnabled) {
+      const changed = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.liveRoom.updateMany({
+          where: { id: room.id, chatEnabled: !chatEnabled },
+          data: { chatEnabled },
+        });
+        if (updated.count === 0) return false;
+        await this.audit.recordIn(tx, {
+          action: AuditAction.LIVE_ROOM_CHAT,
+          actorUserId: hostId,
+          targetType: 'live_room',
+          targetId: room.id,
+          metadata: { chatEnabled },
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        return true;
+      }, LIVE_TX_OPTIONS);
+      if (changed) await this.chat.stateChanged(room.id, chatEnabled);
     }
     if (allowGuests === undefined) return room.id;
     if (allowGuests !== room.allowGuests) {
@@ -393,13 +419,16 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         return;
       }
     }
-    await this.prisma.liveRoomViewer.createMany({
+    const recorded = await this.prisma.liveRoomViewer.createMany({
       data: [{ roomId, identity, userId, guestId, joinedAt: this.clock.now() }],
       skipDuplicates: true,
     });
     await this.recount(this.prisma, roomId);
     // CP-011: a seated user who (re)joins gets their seat's permission.
     if (userId !== null) await this.seats.onJoined(roomId, userId);
+    // CP-013: a "joined" line for a signed-in viewer who just came in (guests are not announced;
+    // a repeated webhook for someone already recorded is not a new join).
+    if (userId !== null && recorded.count > 0) await this.chat.announceJoin(roomId, userId);
   }
 
   private async kick(roomId: string, identity: string): Promise<void> {

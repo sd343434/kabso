@@ -30,6 +30,7 @@ import { AdminGuard, RequireAdminPermission } from '../levels/admin.guard.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
+import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
 import {
   LiveRoomsService,
@@ -101,6 +102,7 @@ export class LiveController {
     private readonly users: UsersService,
     private readonly seats: LiveSeatsService,
     private readonly taps: LiveTapsService,
+    private readonly chat: LiveChatService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
   ) {}
@@ -171,7 +173,12 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveRoomDto> {
     const host = requireCaller(req);
-    if (typeof body === 'object' && body !== null && ('seatCount' in body || 'theme' in body)) {
+    // CP-013: `chatEnabled` counts there too (CONVENTIONS §7).
+    if (
+      typeof body === 'object' &&
+      body !== null &&
+      ('seatCount' in body || 'theme' in body || 'chatEnabled' in body)
+    ) {
       await this.limiter.consume(SEAT_ACTION.bucket, host, this.appConfig.rateLimits.liveSeatActionUser);
     }
     const id = await this.media.updateRoom(host, roomId, body, meta(req));
@@ -387,6 +394,76 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveTapsResultDto> {
     return this.taps.tap(requireCaller(req), roomId, body);
+  }
+
+  // ---- CP-013: room chat (CONVENTIONS §10.11) -----------------------------------------------------
+
+  /** The last 50 messages; guests too (per IP) when the room allows guests. */
+  @Get('rooms/:roomId/chat')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  listChat(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<{ data: LiveChatMessageDto[] }> {
+    return this.chat.list(callerOf(req), roomId);
+  }
+
+  /**
+   * Signed-in callers in the room: 201 new, 200 a retry with the same `clientId`. 20 / min per
+   * user, replacing the default (§7); the 1-a-second counting rule is checked last (§10.11).
+   */
+  @Post('rooms/:roomId/chat')
+  @RateLimit({ bucket: 'live:chat', rule: 'liveChatUser', key: byUserId, replacesDefault: true })
+  async sendChat(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveChatMessageDto> {
+    const { created, message } = await this.chat.send(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return message;
+  }
+
+  /** Host and moderators: the muted users of this live, newest first. */
+  @Get('rooms/:roomId/chat/mutes')
+  listChatMutes(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<{ data: LiveChatMuteDto[] }> {
+    return this.chat.listMutes(requireCaller(req), roomId);
+  }
+
+  @Put('rooms/:roomId/chat/mutes/:username')
+  @HttpCode(204)
+  @RateLimit(SEAT_ACTION)
+  async muteChatUser(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('username') username: string,
+  ): Promise<void> {
+    await this.chat.setMuted(requireCaller(req), roomId, username, true);
+  }
+
+  @Delete('rooms/:roomId/chat/mutes/:username')
+  @HttpCode(204)
+  @RateLimit(SEAT_ACTION)
+  async unmuteChatUser(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('username') username: string,
+  ): Promise<void> {
+    await this.chat.setMuted(requireCaller(req), roomId, username, false);
+  }
+
+  /** The author, the host or a moderator; deleting one's own message counts there too (§7). */
+  @Delete('rooms/:roomId/chat/:messageId')
+  @HttpCode(204)
+  @RateLimit(SEAT_ACTION)
+  async deleteChatMessage(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('messageId') messageId: string,
+  ): Promise<void> {
+    await this.chat.remove(requireCaller(req), roomId, messageId);
   }
 
   @Post('rooms/:roomId/heartbeat')

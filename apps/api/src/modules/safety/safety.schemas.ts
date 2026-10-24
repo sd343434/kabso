@@ -31,7 +31,7 @@ export const REPORT_REASONS = [
 
 /** `CreateReportRequest`. */
 export const createReportSchema = z.strictObject({
-  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'USER', 'LIVE_ROOM']),
+  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'USER', 'LIVE_ROOM', 'LIVE_CHAT_MESSAGE']),
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
   note: noteSchema.optional(),

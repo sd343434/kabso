@@ -70,6 +70,10 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   allowGuests: boolean;
   /** CP-012: the score and its parts. */
   scoreParts: LiveScoreDto;
+  /** CP-013: false when the host turned the chat off. */
+  chatEnabled: boolean;
+  /** CP-013: the caller is muted in this live's chat (false for guests). */
+  chatMuted: boolean;
 }
 
 export interface LiveRoomPageDto {
@@ -115,6 +119,10 @@ export interface RoomRow {
   tap_points: bigint;
   support_points: bigint;
   occupied_seats: number;
+  /** CP-013: the host's chat switch. */
+  chat_enabled: boolean;
+  /** CP-013: the reader is muted in this live's chat (room detail only; false otherwise). */
+  chat_muted?: boolean;
   host_user_id: string;
   host_status: string;
   username: string;
@@ -131,8 +139,8 @@ export interface RoomRow {
  * read-only exceptions to module table ownership (DB_PHASE2_DISCOVERY §1): the list must filter
  * and paginate in the database.
  */
-const ROOM_SELECT = Prisma.sql`
-  SELECT r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
+const ROOM_COLUMNS = Prisma.sql`
+         r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
          r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score,
          COALESCE(sc.tap_points, 0)::bigint AS tap_points,
@@ -141,12 +149,28 @@ const ROOM_SELECT = Prisma.sql`
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en
+         c.name_en AS category_name_en, r.chat_enabled`;
+
+const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
     JOIN users u ON u.id = r.host_user_id
     JOIN user_profiles p ON p.user_id = r.host_user_id
     LEFT JOIN live_categories c ON c.id = r.category_id
     LEFT JOIN live_room_scores sc ON sc.room_id = r.id`;
+
+const ROOM_SELECT = Prisma.sql`SELECT ${ROOM_COLUMNS} ${ROOM_FROM}`;
+
+/** CP-013: whether `viewerId` is muted in the room's chat (a guest never is). */
+function chatMutedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`FALSE`;
+  return Prisma.sql`EXISTS (SELECT 1 FROM live_chat_mutes m
+                    WHERE m.room_id = r.id AND m.user_id = ${viewerId}::uuid)`;
+}
+
+/** CP-013 (owner D96): chat messages and mutes are kept 30 days after their room ended. */
+export const LIVE_CHAT_RETENTION_MS = 30 * 24 * 3600_000;
+const CHAT_RETENTION_BATCH = 1_000;
+const CHAT_RETENTION_MAX_BATCHES = 20;
 
 const ONE_LIVE_PER_HOST_INDEX = 'live_rooms_one_live_per_host';
 
@@ -258,6 +282,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   private readonly cursors: LiveCursorCodec;
   private sweepTimer: NodeJS.Timeout | undefined;
   private sweepInFlight: Promise<SweepResult> | null = null;
+  private retentionInFlight: Promise<unknown> | null = null;
   private stopped = false;
 
   constructor(
@@ -280,6 +305,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (this.sweepTimer) clearTimeout(this.sweepTimer);
     // Let a running batch commit before Prisma disconnects.
     await this.sweepInFlight?.catch(() => undefined);
+    await this.retentionInFlight?.catch(() => undefined);
   }
 
   /**
@@ -302,6 +328,19 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           this.logger.error(
             { ...errorClassAndCode(err), error: safeErrorLog(err) },
             'Stale live-room sweep failed',
+          ),
+        )
+        .then(() => {
+          if (this.stopped) return undefined;
+          this.retentionInFlight = this.sweepChatRetention().finally(() => {
+            this.retentionInFlight = null;
+          });
+          return this.retentionInFlight;
+        })
+        .catch((err: unknown) =>
+          this.logger.error(
+            { ...errorClassAndCode(err), error: safeErrorLog(err) },
+            'Live chat retention sweep failed',
           ),
         )
         .finally(() => this.scheduleSweep());
@@ -454,6 +493,41 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * CP-013 retention (owner D96, CONVENTIONS §10.11): chat messages (deleted ones included) and
+   * chat mutes of rooms that ended more than 30 days before `now` are removed, in bounded batches,
+   * except messages an OPEN report points at (they stay until the report is closed). Runs after
+   * each stale-room sweep. Returns the rows removed.
+   */
+  async sweepChatRetention(now: Date = this.clock.now()): Promise<{ messages: number; mutes: number }> {
+    const cutoff = ts(new Date(now.getTime() - LIVE_CHAT_RETENTION_MS));
+    let messages = 0;
+    let mutes = 0;
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_chat_messages
+         WHERE id IN (
+           SELECT m.id FROM live_chat_messages m JOIN live_rooms r ON r.id = m.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+              AND NOT EXISTS (SELECT 1 FROM reports p
+                               WHERE p.target_live_chat_message_id = m.id AND p.status = 'OPEN')
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      messages += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_chat_mutes
+         WHERE (room_id, user_id) IN (
+           SELECT x.room_id, x.user_id FROM live_chat_mutes x JOIN live_rooms r ON r.id = x.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      mutes += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    return { messages, mutes };
+  }
+
   /** One sweeper run with the default budget; returns the number of rooms it ended. */
   async sweepStale(): Promise<number> {
     return (await this.runSweep()).ended;
@@ -505,12 +579,15 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         tapPoints: Number(row.tap_points),
         supportPoints: Number(row.support_points),
       },
+      chatEnabled: row.chat_enabled,
+      chatMuted: row.chat_muted ?? false,
     };
   }
 
   private async selectRoom(roomId: string, viewerId: string | null = null): Promise<RoomRow | null> {
     const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      ${ROOM_SELECT} WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
+      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted ${ROOM_FROM}
+       WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
     return rows[0] ?? null;
   }
 

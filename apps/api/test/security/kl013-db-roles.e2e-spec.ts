@@ -457,6 +457,103 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
   });
 });
 
+describe('CP-013 chat tables (live_chat_messages, live_chat_mutes) under the KL-013 roles', () => {
+  const ids = {
+    user: '0192f1c2-0000-7000-8000-00000000c001',
+    other: '0192f1c2-0000-7000-8000-00000000c002',
+    room: '0192f1c2-0000-7000-8000-00000000c003',
+    message: '0192f1c2-0000-7000-8000-00000000c004',
+    client: '0192f1c2-0000-7000-8000-00000000c005',
+  };
+
+  afterAll(async () => {
+    await withMigrationClient(async (m) => {
+      await m.$executeRawUnsafe(`DELETE FROM live_rooms WHERE id = '${ids.room}'`);
+      await m.$executeRawUnsafe(`DELETE FROM users WHERE id IN ('${ids.user}', '${ids.other}')`);
+    });
+  });
+
+  it('are owned by the migration role and have their CHECK constraints', async () => {
+    const owners = await runtime.$queryRawUnsafe<{ t: string; owner: string }[]>(`
+      SELECT c.relname::text AS t, pg_get_userbyid(c.relowner)::text AS owner
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relname IN ('live_chat_messages', 'live_chat_mutes')
+       ORDER BY 1`);
+    expect(owners).toEqual([
+      { t: 'live_chat_messages', owner: migrationUser },
+      { t: 'live_chat_mutes', owner: migrationUser },
+    ]);
+    const checks = await runtime.$queryRawUnsafe<{ name: string }[]>(`
+      SELECT conname::text AS name FROM pg_constraint
+       WHERE contype = 'c' AND conrelid IN ('live_chat_messages'::regclass, 'live_chat_mutes'::regclass)
+       ORDER BY 1`);
+    expect(checks.map((c) => c.name)).toEqual([
+      'live_chat_messages_deleted_state',
+      'live_chat_messages_text_length',
+      'live_chat_mutes_not_self',
+    ]);
+  });
+
+  it('the runtime role has DML on both; the CHECKs and the clientId key hold; DDL and TRUNCATE are refused', async () => {
+    for (const id of [ids.user, ids.other]) {
+      await runtimeExec(
+        `INSERT INTO users (id, email, password_hash, updated_at) VALUES ('${id}', 'cp013-${id.slice(-4)}-${suffix}@example.com', 'x', now())`,
+      );
+    }
+    await runtimeExec(
+      `INSERT INTO live_rooms (id, host_user_id, title, status, mode, updated_at) VALUES ('${ids.room}', '${ids.user}', 'Probe', 'LIVE'::live_room_status, 'SOLO'::live_room_mode, now())`,
+    );
+    expect(
+      await scalar<boolean>(runtime, `SELECT chat_enabled AS v FROM live_rooms WHERE id = '${ids.room}'`),
+    ).toBe(true);
+    const insert = (id: string, text: string) =>
+      runtimeExec(
+        `INSERT INTO live_chat_messages (id, room_id, user_id, client_id, text, author_role) VALUES ('${id}', '${ids.room}', '${ids.other}', '${ids.client}', '${text}', 'VIEWER'::live_chat_author_role)`,
+      );
+    await insert(ids.message, 'hello');
+    await expect(insert('0192f1c2-0000-7000-8000-00000000c006', 'again')).rejects.toThrow(
+      /live_chat_messages_client_once/,
+    );
+    await expect(insert('0192f1c2-0000-7000-8000-00000000c007', '')).rejects.toThrow(
+      /live_chat_messages_text_length/,
+    );
+    await expect(
+      runtimeExec(`UPDATE live_chat_messages SET deleted_by_id = '${ids.user}' WHERE id = '${ids.message}'`),
+    ).rejects.toThrow(/live_chat_messages_deleted_state/);
+    expect(
+      await runtimeExec(
+        `UPDATE live_chat_messages SET deleted_at = now(), deleted_by_id = '${ids.user}' WHERE id = '${ids.message}'`,
+      ),
+    ).toBe(1);
+    await runtimeExec(
+      `INSERT INTO live_chat_mutes (room_id, user_id, muted_by_id) VALUES ('${ids.room}', '${ids.other}', '${ids.user}')`,
+    );
+    await expect(
+      runtimeExec(
+        `INSERT INTO live_chat_mutes (room_id, user_id, muted_by_id) VALUES ('${ids.room}', '${ids.user}', '${ids.user}')`,
+      ),
+    ).rejects.toThrow(/live_chat_mutes_not_self/);
+    for (const sql of [
+      'TRUNCATE TABLE live_chat_messages',
+      'TRUNCATE TABLE live_chat_mutes',
+      'ALTER TABLE live_chat_messages DROP CONSTRAINT live_chat_messages_text_length',
+      'DROP INDEX live_chat_messages_room_created_idx',
+    ]) {
+      await expect(runtimeExec(sql), sql).rejects.toThrow(PERMISSION_DENIED);
+    }
+    // The rows go with the room (ON DELETE CASCADE).
+    expect(await runtimeExec(`DELETE FROM live_rooms WHERE id = '${ids.room}'`)).toBe(1);
+    expect(
+      Number(
+        await scalar<bigint>(
+          runtime,
+          `SELECT (SELECT count(*) FROM live_chat_messages WHERE room_id = '${ids.room}') + (SELECT count(*) FROM live_chat_mutes WHERE room_id = '${ids.room}') AS v`,
+        ),
+      ),
+    ).toBe(0);
+  });
+});
+
 describe('KL-013 boot-time guard (PrismaService)', () => {
   function service(databaseUrl: string, isProduction: boolean): PrismaService {
     return new PrismaService({ ...buildTestConfig({ LOG_LEVEL: 'silent' }), databaseUrl, isProduction });

@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
+import { trimHygiene } from '../users/text-hygiene.js';
 import { LIVE_TABS } from './live-cursor.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml v1.3 (strict objects: unknown fields fail
@@ -118,6 +120,8 @@ export const updateLiveRoomSchema = z
     allowGuests: z.boolean().optional(),
     seatCount: seatCountSchema.optional(),
     theme: themeSchema.optional(),
+    /** CP-013: the room chat on or off (host only). */
+    chatEnabled: z.boolean().optional(),
   })
   .superRefine((input, ctx) => {
     if (Object.keys(input).length === 0) {
@@ -149,6 +153,52 @@ export function parseSeatIndexPath(raw: string): number | null {
 
 /** `LiveTapsRequest` (CP-012): the taps since the last batch, 1–50. */
 export const liveTapsRequestSchema = z.strictObject({ count: z.number().int().min(1).max(50) });
+
+// ---- CP-013 (D96): room chat ----------------------------------------------------------------
+
+/** 1–200 code points (owner D96). */
+export const LIVE_CHAT_MAX_CODE_POINTS = 200;
+/** Line breaks are refused (CONVENTIONS §10.11): LF, CR, LINE SEPARATOR, PARAGRAPH SEPARATOR. */
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
+
+export type LiveChatTextIssue = 'required' | 'too_long' | 'invalid_format';
+
+/**
+ * A chat message's text (CONVENTIONS §10.11): NFC, trimmed (spaces and U+FEFF, §6 rule 4); empty
+ * → `required`; a line break → `invalid_format`; over 200 code points → `too_long`; then the §6
+ * hygiene rules shared with comments (rejected code points, misplaced joiners, the zalgo cap) →
+ * `invalid_format`.
+ */
+export function normalizeLiveChatText(raw: string): { value: string } | { issue: LiveChatTextIssue } {
+  const value = trimHygiene(raw.normalize('NFC'));
+  if (value.length === 0) return { issue: 'required' };
+  if (LINE_BREAK.test(value)) return { issue: 'invalid_format' };
+  if ([...value].length > LIVE_CHAT_MAX_CODE_POINTS) return { issue: 'too_long' };
+  const result = normalizeContentText(value, {
+    maxCodePoints: LIVE_CHAT_MAX_CODE_POINTS,
+    maxLineBreaks: 0,
+    allowEmpty: false,
+  });
+  if ('issue' in result) return { issue: result.issue === 'too_short' ? 'required' : result.issue };
+  return { value: result.value };
+}
+
+/** `LiveChatSendRequest`; the raw text is bounded first (no unbounded work), then normalized. */
+export const liveChatSendSchema = z.strictObject({
+  text: z
+    .string()
+    .max(LIVE_CHAT_MAX_CODE_POINTS * 8)
+    .transform((raw, ctx) => {
+      const result = normalizeLiveChatText(raw);
+      if ('issue' in result) {
+        ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+        return z.NEVER;
+      }
+      return result.value;
+    }),
+  clientId: z.uuid(),
+});
+export type LiveChatSendInput = z.output<typeof liveChatSendSchema>;
 
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });

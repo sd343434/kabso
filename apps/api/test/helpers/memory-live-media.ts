@@ -27,6 +27,8 @@ export class MemoryLiveMedia implements LiveMediaProvider {
   readonly metadataWrites: { room: string; metadata: string }[] = [];
   /** CP-011: data messages sent. */
   readonly data: { room: string; identity: string; payload: string }[] = [];
+  /** CP-013: data messages sent to everyone in a room, in order. */
+  readonly broadcasts: { room: string; topic: string; payload: string }[] = [];
   /** CP-011: room → identity → current permission (unset: as the token granted, hidden viewer). */
   readonly current = new Map<string, Map<string, LiveMediaPermission>>();
   /** CP-011: when set, every seat-related call fails (best-effort paths must survive it). */
@@ -111,6 +113,20 @@ export class MemoryLiveMedia implements LiveMediaProvider {
     if (this.failing) return Promise.reject(new Error('media server down'));
     this.data.push({ room, identity, payload });
     return Promise.resolve();
+  }
+
+  broadcastData(room: string, topic: string, payload: string): Promise<void> {
+    if (this.failing) return Promise.reject(new Error('media server down'));
+    this.broadcasts.push({ room, topic, payload });
+    return Promise.resolve();
+  }
+
+  /** CP-013: the parsed payloads broadcast to `room` (optionally of one `type`). */
+  broadcastsOf(room: string, type?: string): Record<string, unknown>[] {
+    return this.broadcasts
+      .filter((b) => b.room === room)
+      .map((b) => JSON.parse(b.payload) as Record<string, unknown>)
+      .filter((p) => type === undefined || p.type === type);
   }
 
   /** The last permission set for `identity` in `room`, if any. */

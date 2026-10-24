@@ -206,6 +206,9 @@ export const envSchema = z
     RATE_LIMIT_LIVE_SEATS_READ_USER: rateLimit('600/900'),
     // CP-012 (CONVENTIONS §7): tap batches per user, replacing the default authenticated bucket.
     RATE_LIMIT_LIVE_TAPS_USER: rateLimit('120/60'),
+    // CP-013 (CONVENTIONS §7): chat messages per user, replacing the default authenticated bucket
+    // (the 1-a-second-per-room counting rule is separate, §10.11).
+    RATE_LIMIT_LIVE_CHAT_USER: rateLimit('20/60'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.

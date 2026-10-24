@@ -69,6 +69,10 @@ model User {
   liveSeatInvitesBy  LiveSeatInvite[]      @relation("LiveSeatInviter")
   liveModeratorOf    LiveRoomModerator[]
   liveTaps           LiveRoomTapper[]
+  liveChatMessages   LiveChatMessage[]     @relation("LiveChatAuthor")
+  liveChatDeletions  LiveChatMessage[]     @relation("LiveChatDeleter")
+  liveChatMutes      LiveChatMute[]        @relation("LiveChatMuted")
+  liveChatMutesBy    LiveChatMute[]        @relation("LiveChatMutedBy")
   following          Follow[]              @relation("FollowFollower")
   followers          Follow[]              @relation("FollowFollowee")
   levelStates        UserLevelState[]
@@ -355,6 +359,8 @@ model LiveRoom {
   /// CP-012: the room's total score (tap + support points), kept equal to the room's
   /// `live_room_scores` row in the same transaction; `popular` orders by it (CONVENTIONS §10.4).
   score           BigInt             @default(0)
+  /// CP-013: false when the host turned the room chat off (a new live starts with it on).
+  chatEnabled     Boolean            @default(true) @map("chat_enabled")
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -370,6 +376,8 @@ model LiveRoom {
   moderators   LiveRoomModerator[]
   scoreParts   LiveRoomScore?
   tappers      LiveRoomTapper[]
+  chatMessages LiveChatMessage[]
+  chatMutes    LiveChatMute[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -500,6 +508,61 @@ model LiveRoomTapper {
   @@id([roomId, userId], map: "live_room_tappers_pkey")
   @@index([userId], map: "live_room_tappers_user_idx")
   @@map("live_room_tappers")
+}
+
+/// CP-013 (D96): the author's role in the room when a chat message was sent.
+enum LiveChatAuthorRole {
+  HOST
+  MODERATOR
+  SPEAKER
+  VIEWER
+
+  @@map("live_chat_author_role")
+}
+
+/// CP-013 (D96): a live room chat message. `text` is 1–200 code points after the §10.11 rules
+/// (CHECK `live_chat_messages_text_length`); `client_id` is chosen by the app, unique per sender
+/// (an idempotent retry). Soft-deleted by its author, the host, a moderator or an admin report
+/// action. Removed by the live sweeper 30 days after the room ended unless an OPEN report points
+/// at it (migration 20261029090000_live_chat).
+model LiveChatMessage {
+  id          String             @id @default(uuid(7)) @db.Uuid
+  roomId      String             @map("room_id") @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  clientId    String             @map("client_id") @db.Uuid
+  text        String             @db.VarChar(200)
+  authorRole  LiveChatAuthorRole @map("author_role")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  deletedById String?            @map("deleted_by_id") @db.Uuid
+
+  room      LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  deletedBy User?    @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  reports   Report[]
+
+  @@unique([userId, clientId], map: "live_chat_messages_client_once")
+  @@index([roomId, createdAt], map: "live_chat_messages_room_created_idx")
+  @@index([deletedById], map: "live_chat_messages_deleted_by_idx")
+  @@map("live_chat_messages")
+}
+
+/// CP-013 (D96): a user muted in one live's chat by the host or a moderator (not a block).
+/// CHECK `live_chat_mutes_not_self` (migration 20261029090000_live_chat).
+model LiveChatMute {
+  roomId    String   @map("room_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  mutedById String?  @map("muted_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room    LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user    User     @relation("LiveChatMuted", fields: [userId], references: [id], onDelete: Cascade)
+  mutedBy User?    @relation("LiveChatMutedBy", fields: [mutedById], references: [id], onDelete: SetNull)
+
+  @@id([roomId, userId], map: "live_chat_mutes_pkey")
+  @@index([userId], map: "live_chat_mutes_user_idx")
+  @@index([mutedById], map: "live_chat_mutes_muted_by_idx")
+  @@map("live_chat_mutes")
 }
 
 /// Follow graph edge (social module). CHECK `follows_no_self_follow`.
@@ -884,6 +947,7 @@ enum ReportTargetType {
   USER
   STORY
   LIVE_ROOM
+  LIVE_CHAT_MESSAGE
 
   @@map("report_target_type")
 }
@@ -1238,41 +1302,46 @@ model PostHide {
 /// A report (§11.7). Exactly one target column is set (CHECK `reports_one_target`); one OPEN
 /// report per reporter and target (partial unique indexes in the migration).
 model Report {
-  id               String           @id @default(uuid(7)) @db.Uuid
-  reporterId       String           @map("reporter_id") @db.Uuid
-  targetType       ReportTargetType @map("target_type")
-  targetPostId     String?          @map("target_post_id") @db.Uuid
-  targetCommentId  String?          @map("target_comment_id") @db.Uuid
-  targetUserId     String?          @map("target_user_id") @db.Uuid
-  targetStoryId    String?          @map("target_story_id") @db.Uuid
-  targetLiveRoomId String?          @map("target_live_room_id") @db.Uuid
-  reason           ReportReason
-  note             String?          @db.VarChar(500)
-  status           ReportStatus     @default(OPEN)
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  resolvedAt       DateTime?        @map("resolved_at") @db.Timestamptz(3)
-  resolvedById     String?          @map("resolved_by_id") @db.Uuid
-  resolutionNote   String?          @map("resolution_note") @db.VarChar(500)
+  id                      String           @id @default(uuid(7)) @db.Uuid
+  reporterId              String           @map("reporter_id") @db.Uuid
+  targetType              ReportTargetType @map("target_type")
+  targetPostId            String?          @map("target_post_id") @db.Uuid
+  targetCommentId         String?          @map("target_comment_id") @db.Uuid
+  targetUserId            String?          @map("target_user_id") @db.Uuid
+  targetStoryId           String?          @map("target_story_id") @db.Uuid
+  targetLiveRoomId        String?          @map("target_live_room_id") @db.Uuid
+  /// CP-013: a live chat message.
+  targetLiveChatMessageId String?          @map("target_live_chat_message_id") @db.Uuid
+  reason                  ReportReason
+  note                    String?          @db.VarChar(500)
+  status                  ReportStatus     @default(OPEN)
+  createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt              DateTime?        @map("resolved_at") @db.Timestamptz(3)
+  resolvedById            String?          @map("resolved_by_id") @db.Uuid
+  resolutionNote          String?          @map("resolution_note") @db.VarChar(500)
 
-  reporter       User      @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetPost     Post?     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-  targetComment  Comment?  @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
-  targetUser     User?     @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  targetStory    Story?    @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
-  targetLiveRoom LiveRoom? @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
-  resolvedBy     User?     @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  reporter              User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost            Post?            @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetComment         Comment?         @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
+  targetUser            User?            @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetStory           Story?           @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
+  targetLiveRoom        LiveRoom?        @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
+  targetLiveChatMessage LiveChatMessage? @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
+  resolvedBy            User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
   @@unique([reporterId, targetCommentId], map: "reports_open_comment_once", where: raw("status = 'OPEN'::report_status AND target_comment_id IS NOT NULL"))
   @@unique([reporterId, targetUserId], map: "reports_open_user_once", where: raw("status = 'OPEN'::report_status AND target_user_id IS NOT NULL"))
   @@unique([reporterId, targetStoryId], map: "reports_open_story_once", where: raw("status = 'OPEN'::report_status AND target_story_id IS NOT NULL"))
   @@unique([reporterId, targetLiveRoomId], map: "reports_open_live_room_once", where: raw("status = 'OPEN'::report_status AND target_live_room_id IS NOT NULL"))
+  @@unique([reporterId, targetLiveChatMessageId], map: "reports_open_live_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_live_chat_message_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
   @@index([targetUserId], map: "reports_target_user_idx")
   @@index([targetStoryId], map: "reports_target_story_idx")
   @@index([targetLiveRoomId], map: "reports_target_live_room_idx")
+  @@index([targetLiveChatMessageId], map: "reports_target_live_chat_message_idx")
   @@map("reports")
 }
 
