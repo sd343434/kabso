@@ -24,6 +24,10 @@ abstract class User with _$User {
 
     /// CP-010: holds the hosting permission (may go live).
     @Default(false) bool canHost,
+
+    /// CP-015: the host's live cover, reused by every live; null → the
+    /// avatar is shown.
+    String? liveCoverUrl,
   }) = _User;
 }
 

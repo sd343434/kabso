@@ -5911,6 +5911,60 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المقعد {number}'**
   String liveSeatNumberLabel(int number);
+
+  /// Label on the live cover picture (go-live screen), opens the cover options
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل'**
+  String get liveCoverEdit;
+
+  /// Semantics label of the live cover picture
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل صورة غلاف البث'**
+  String get liveCoverEditLabel;
+
+  /// Title of the cover options sheet
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة غلاف البث'**
+  String get liveCoverSheetTitle;
+
+  /// Explains where the cover shows
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر في بطاقة بثك وفي الغرفة، في كل بث.'**
+  String get liveCoverSheetBody;
+
+  /// Cover sheet action: pick a photo from the gallery
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار صورة'**
+  String get liveCoverChoose;
+
+  /// Cover sheet action: remove the cover (the avatar is used)
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الغلاف واستخدام صورتي'**
+  String get liveCoverRemove;
+
+  /// Snack after the cover changed
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث غلاف البث.'**
+  String get liveCoverUpdated;
+
+  /// Snack after the cover was removed
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل الغلاف؛ ستظهر صورتك.'**
+  String get liveCoverRemoved;
+
+  /// Semantics while the cover uploads
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ رفع الغلاف…'**
+  String get liveCoverUploading;
 }
 
 class _AppLocalizationsDelegate

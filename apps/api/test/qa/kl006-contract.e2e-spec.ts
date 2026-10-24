@@ -34,6 +34,8 @@ const ME_REQUIRED = [
   'createdAt',
   // CP-010 (D93): the hosting permission.
   'canHost',
+  // CP-015 (D98): the host's live cover (nullable, always present).
+  'liveCoverUrl',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];

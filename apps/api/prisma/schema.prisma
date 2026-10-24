@@ -303,13 +303,18 @@ enum LiveHostSource {
 
 /// CP-010: users who may go live (`Me.canHost`).
 model LiveHost {
-  userId      String         @id @map("user_id") @db.Uuid
-  source      LiveHostSource
-  grantedById String?        @map("granted_by_id") @db.Uuid
-  grantedAt   DateTime       @default(now()) @map("granted_at") @db.Timestamptz(3)
+  userId       String         @id @map("user_id") @db.Uuid
+  source       LiveHostSource
+  grantedById  String?        @map("granted_by_id") @db.Uuid
+  grantedAt    DateTime       @default(now()) @map("granted_at") @db.Timestamptz(3)
+  /// CP-015 (D98): the host's live cover, reused by every live (a `LIVE_COVER` asset), and its
+  /// public URL (the 640 px square variant). Both set or both null (CHECK).
+  coverMediaId String?        @unique @map("cover_media_id") @db.Uuid
+  coverUrl     String?        @map("cover_url") @db.VarChar(2048)
 
-  user      User  @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
-  grantedBy User? @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  user       User        @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy  User?       @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  coverMedia MediaAsset? @relation(fields: [coverMediaId], references: [id], onDelete: NoAction)
 
   @@index([grantedById], map: "live_hosts_granted_by_idx")
   @@map("live_hosts")
@@ -1006,7 +1011,7 @@ model MediaUpload {
 model MediaAsset {
   id         String    @id @default(uuid(7)) @db.Uuid
   ownerId    String    @map("owner_id") @db.Uuid
-  /// `POST_IMAGE` or `STORY_IMAGE` (the upload's kind).
+  /// `POST_IMAGE`, `STORY_IMAGE` or `LIVE_COVER` (the upload's kind).
   kind       String    @default("POST_IMAGE") @db.VarChar(32)
   width      Int
   height     Int
@@ -1021,6 +1026,7 @@ model MediaAsset {
   upload    MediaUpload?
   postMedia PostMedia?
   story     Story?
+  liveCover LiveHost?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")

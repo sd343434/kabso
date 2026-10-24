@@ -62,6 +62,8 @@ describe('POST /auth/register', () => {
       createdAt: expect.stringMatching(ISO),
       // CP-010: a new account cannot go live until it is granted the hosting permission.
       canHost: false,
+      // CP-015: no live cover yet.
+      liveCoverUrl: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

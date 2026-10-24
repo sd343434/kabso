@@ -12,6 +12,8 @@ export const MAX_IMAGE_PIXELS = 50_000_000;
 export const LARGE_SIDE = 1080;
 /** The large variant of a story photo (CP-008): sharp at full screen. */
 export const STORY_LARGE_SIDE = 1920;
+/** The large variant of a live cover (CP-015): a 640 px square, centre-cropped. */
+export const COVER_SIDE = 640;
 export const THUMB_SIDE = 320;
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
@@ -60,11 +62,14 @@ const SHARP_FORMAT: Readonly<Record<ImageContentType, string>> = {
  * block (EXIF, GPS, XMP, IPTC) is dropped — sharp writes none unless asked — and colours are
  * converted to sRGB. Outputs WebP at `largeSide` (1 080 px; 1 920 px for stories) and 320 px on the
  * long side (never enlarged) and a 4×3 blurhash. Animated images keep their first frame only.
+ * [square] (a live cover, CP-015) centre-crops both variants to squares instead, never enlarged:
+ * the shorter side bounds them.
  */
 export async function processImage(
   bytes: Buffer,
   declared: ImageContentType,
   largeSide: number = LARGE_SIDE,
+  square = false,
 ): Promise<ProcessedImage> {
   const sniffed = sniffImageType(bytes);
   if (sniffed !== declared) throw new InvalidImageError(`signature ${sniffed ?? 'unknown'} ≠ ${declared}`);
@@ -82,13 +87,18 @@ export async function processImage(
   }
   const base = () =>
     sharp(bytes, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: 'error' }).rotate().toColorspace('srgb');
+  const resize = (side: number) => {
+    if (!square) return [side, side, { fit: 'inside', withoutEnlargement: true }] as const;
+    const s = Math.min(side, w, h);
+    return [s, s, { fit: 'cover', position: 'centre' }] as const;
+  };
   try {
     const large = await base()
-      .resize(largeSide, largeSide, { fit: 'inside', withoutEnlargement: true })
+      .resize(...resize(largeSide))
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await base()
-      .resize(THUMB_SIDE, THUMB_SIDE, { fit: 'inside', withoutEnlargement: true })
+      .resize(...resize(THUMB_SIDE))
       .webp({ quality: 75 })
       .toBuffer();
     const small = await base()

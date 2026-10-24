@@ -1112,5 +1112,14 @@
   "liveToolsViewers": "Viewers",
   "liveSeatGuestsTab": "Guests",
   "liveSeatGuestsEmpty": "Nobody is on a seat right now",
-  "liveSeatNumberLabel": "Seat {number}"
+  "liveSeatNumberLabel": "Seat {number}",
+  "liveCoverEdit": "Edit",
+  "liveCoverEditLabel": "Edit the live cover",
+  "liveCoverSheetTitle": "Live cover",
+  "liveCoverSheetBody": "Shown on your live's card and in the room, every time you go live.",
+  "liveCoverChoose": "Choose a photo",
+  "liveCoverRemove": "Remove cover, use my picture",
+  "liveCoverUpdated": "Live cover updated.",
+  "liveCoverRemoved": "Cover removed; your picture is shown.",
+  "liveCoverUploading": "Uploading the cover…"
 }

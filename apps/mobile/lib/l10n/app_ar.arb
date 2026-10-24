@@ -3865,5 +3865,41 @@
         "type": "int"
       }
     }
+  },
+  "liveCoverEdit": "تعديل",
+  "@liveCoverEdit": {
+    "description": "Label on the live cover picture (go-live screen), opens the cover options"
+  },
+  "liveCoverEditLabel": "تعديل صورة غلاف البث",
+  "@liveCoverEditLabel": {
+    "description": "Semantics label of the live cover picture"
+  },
+  "liveCoverSheetTitle": "صورة غلاف البث",
+  "@liveCoverSheetTitle": {
+    "description": "Title of the cover options sheet"
+  },
+  "liveCoverSheetBody": "تظهر في بطاقة بثك وفي الغرفة، في كل بث.",
+  "@liveCoverSheetBody": {
+    "description": "Explains where the cover shows"
+  },
+  "liveCoverChoose": "اختيار صورة",
+  "@liveCoverChoose": {
+    "description": "Cover sheet action: pick a photo from the gallery"
+  },
+  "liveCoverRemove": "إزالة الغلاف واستخدام صورتي",
+  "@liveCoverRemove": {
+    "description": "Cover sheet action: remove the cover (the avatar is used)"
+  },
+  "liveCoverUpdated": "تم تحديث غلاف البث.",
+  "@liveCoverUpdated": {
+    "description": "Snack after the cover changed"
+  },
+  "liveCoverRemoved": "أُزيل الغلاف؛ ستظهر صورتك.",
+  "@liveCoverRemoved": {
+    "description": "Snack after the cover was removed"
+  },
+  "liveCoverUploading": "جارٍ رفع الغلاف…",
+  "@liveCoverUploading": {
+    "description": "Semantics while the cover uploads"
   }
 }

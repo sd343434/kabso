@@ -3,6 +3,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -312,11 +313,6 @@ class _RoomCard extends StatelessWidget {
 
   static const _white = Color(0xFFFFFFFF);
 
-  Widget _initial(KTextStyles text) => Text(
-    hostName.characters.firstOrNull ?? '',
-    style: text.title.copyWith(color: _white, fontSize: 24),
-  );
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -335,25 +331,11 @@ class _RoomCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // The host's picture as a rounded square (a room photo needs
-              // a contract).
-              ClipRRect(
-                borderRadius: BorderRadius.circular(5),
-                child: Container(
-                  width: 55.9,
-                  height: 55.9,
-                  color: const Color(0xFF15131F),
-                  alignment: Alignment.center,
-                  child: hostAvatarUrl != null
-                      ? Image.network(
-                          hostAvatarUrl!,
-                          width: 55.9,
-                          height: 55.9,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _initial(text),
-                        )
-                      : _initial(text),
-                ),
+              // The live cover with Edit (CP-015), else the host's picture.
+              LiveCoverPicture(
+                hostName: hostName,
+                hostAvatarUrl: hostAvatarUrl,
+                enabled: enabled,
               ),
               const SizedBox(width: 13),
               Expanded(

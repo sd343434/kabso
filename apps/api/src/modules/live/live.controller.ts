@@ -31,6 +31,7 @@ import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
+import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
 import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
 import {
   LiveRoomsService,
@@ -500,6 +501,33 @@ export class LiveController {
 }
 
 /** CP-010: the hosting permission (admins with LIVE_HOSTS; audited). */
+/** CP-015: the host's live cover, reused by every live (CONVENTIONS §10.13); 30 / hour / user. */
+const LIVE_COVER = {
+  bucket: 'live:cover',
+  rule: 'liveCoverUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
+@Controller('me/live-cover')
+export class LiveCoverController {
+  constructor(private readonly covers: LiveCoverService) {}
+
+  @Put()
+  @HttpCode(200)
+  @RateLimit(LIVE_COVER)
+  async setCover(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveCoverDto> {
+    return this.covers.setCover(requireCaller(req), body, meta(req));
+  }
+
+  @Delete()
+  @HttpCode(204)
+  @RateLimit(LIVE_COVER)
+  async removeCover(@Req() req: AppRequest): Promise<void> {
+    await this.covers.removeCover(requireCaller(req), meta(req));
+  }
+}
+
 @Controller('admin/live')
 @UseGuards(AdminGuard)
 export class AdminLiveController {

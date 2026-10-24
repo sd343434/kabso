@@ -22,6 +22,7 @@ class MeDto {
     this.bio,
     this.avatarUrl,
     this.canHost = false,
+    this.liveCoverUrl,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -42,6 +43,9 @@ class MeDto {
   @JsonKey(defaultValue: false)
   final bool canHost;
 
+  /// CP-015: the host's live cover (640 px square), or null.
+  final String? liveCoverUrl;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -57,6 +61,7 @@ class MeDto {
     isPrivate: isPrivate,
     createdAt: createdAt,
     canHost: canHost,
+    liveCoverUrl: liveCoverUrl,
   );
 }
 

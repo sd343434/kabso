@@ -199,6 +199,7 @@ export const envSchema = z
     RATE_LIMIT_LIVE_MEDIA_TOKEN_USER: rateLimit('120/3600'),
     RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP: rateLimit('60/3600'),
     RATE_LIMIT_LIVE_UPDATE_USER: rateLimit('60/3600'),
+    RATE_LIMIT_LIVE_COVER_USER: rateLimit('30/3600'),
     RATE_LIMIT_LIVE_GUEST_READ_IP: rateLimit('300/900'),
     // CP-011 (CONVENTIONS §7): per user, each replacing the default authenticated bucket.
     RATE_LIMIT_LIVE_SEAT_ASK_USER: rateLimit('30/600'),

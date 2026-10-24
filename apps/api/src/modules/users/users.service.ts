@@ -20,6 +20,8 @@ export interface MeDto {
   createdAt: string;
   /** CP-010: holds the hosting permission (`live_hosts`). */
   canHost: boolean;
+  /** CP-015: the host's live cover (640 px square), or null (the avatar is shown). */
+  liveCoverUrl: string | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -39,8 +41,12 @@ export interface LockedUser {
 }
 
 // `liveHost`: a read of the live module's `live_hosts` (one row or none), the documented
-// read-only exception for `Me.canHost` (CP-010).
-export const ME_INCLUDE = { profile: true, settings: true, liveHost: { select: { userId: true } } } as const;
+// read-only exception for `Me.canHost` (CP-010) and `Me.liveCoverUrl` (CP-015).
+export const ME_INCLUDE = {
+  profile: true,
+  settings: true,
+  liveHost: { select: { userId: true, coverUrl: true } },
+} as const;
 
 export interface UserWithProfile {
   id: string;
@@ -57,7 +63,7 @@ export interface UserWithProfile {
   } | null;
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
-  liveHost?: { userId: string } | null;
+  liveHost?: { userId: string; coverUrl?: string | null } | null;
 }
 
 export function toMeDto(user: UserWithProfile): MeDto {
@@ -75,6 +81,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     isPrivate: user.settings?.isPrivate ?? false,
     createdAt: user.createdAt.toISOString(),
     canHost: Boolean(user.liveHost),
+    liveCoverUrl: user.liveHost?.coverUrl ?? null,
   };
 }
 

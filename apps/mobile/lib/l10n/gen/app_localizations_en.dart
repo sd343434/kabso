@@ -3382,4 +3382,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveSeatNumberLabel(int number) {
     return 'Seat $number';
   }
+
+  @override
+  String get liveCoverEdit => 'Edit';
+
+  @override
+  String get liveCoverEditLabel => 'Edit the live cover';
+
+  @override
+  String get liveCoverSheetTitle => 'Live cover';
+
+  @override
+  String get liveCoverSheetBody =>
+      'Shown on your live\'s card and in the room, every time you go live.';
+
+  @override
+  String get liveCoverChoose => 'Choose a photo';
+
+  @override
+  String get liveCoverRemove => 'Remove cover, use my picture';
+
+  @override
+  String get liveCoverUpdated => 'Live cover updated.';
+
+  @override
+  String get liveCoverRemoved => 'Cover removed; your picture is shown.';
+
+  @override
+  String get liveCoverUploading => 'Uploading the cover…';
 }

@@ -19,6 +19,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   bio: json['bio'] as String?,
   avatarUrl: json['avatarUrl'] as String?,
   canHost: json['canHost'] as bool? ?? false,
+  liveCoverUrl: json['liveCoverUrl'] as String?,
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -34,6 +35,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'isPrivate': instance.isPrivate,
   'createdAt': instance.createdAt.toIso8601String(),
   'canHost': instance.canHost,
+  'liveCoverUrl': instance.liveCoverUrl,
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

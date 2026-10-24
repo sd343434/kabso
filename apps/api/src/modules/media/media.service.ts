@@ -16,6 +16,7 @@ import {
   processImage,
   LARGE_SIDE,
   STORY_LARGE_SIDE,
+  COVER_SIDE,
   type ImageContentType,
 } from './media-image.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
@@ -41,8 +42,8 @@ export interface MediaUploadDto {
   expiresAt: string;
 }
 
-/** `MediaKind`: what an asset may be attached to (CP-008). */
-export const MEDIA_KINDS = ['POST_IMAGE', 'STORY_IMAGE'] as const;
+/** `MediaKind`: what an asset may be attached to (CP-008; `LIVE_COVER`, CP-015). */
+export const MEDIA_KINDS = ['POST_IMAGE', 'STORY_IMAGE', 'LIVE_COVER'] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
 /** `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). */
@@ -86,7 +87,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     await this.sweepInFlight?.catch(() => undefined);
   }
 
-  private assertEnabled(): void {
+  assertEnabled(): void {
     if (!this.config.media.uploadsEnabled) throw new AppException(ErrorCode.MEDIA_UPLOADS_UNAVAILABLE);
   }
 
@@ -107,6 +108,22 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       url: this.publicUrl(asset.largeKey),
       thumbUrl: this.publicUrl(asset.thumbKey),
     };
+  }
+
+  /** The public URL of an asset's large variant (a live cover's 640 px square, CP-015). */
+  largeUrl(asset: Pick<MediaAsset, 'largeKey'>): string {
+    return this.publicUrl(asset.largeKey);
+  }
+
+  /**
+   * Deletes the objects of assets whose rows the caller already deleted (a replaced or removed
+   * live cover, CP-015). Best effort: a failure is logged, the rows are gone either way.
+   */
+  async deleteObjects(keys: readonly string[]): Promise<void> {
+    if (keys.length === 0) return;
+    await this.storage.delete(keys).catch((err: unknown) => {
+      this.logger.warn({ count: keys.length, error: safeErrorLog(err) }, 'Media objects not deleted');
+    });
   }
 
   /** `POST /media/uploads` (the rate limit was counted by the guard, before this check). */
@@ -160,11 +177,12 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     const bytes = await this.storage.get(upload.objectKey, upload.byteSize);
     if (!bytes || bytes.length !== upload.byteSize) return fail('size mismatch');
 
-    const story = upload.kind === 'STORY_IMAGE';
-    const side = story ? STORY_LARGE_SIDE : LARGE_SIDE;
+    const kind = MEDIA_KINDS.find((k) => k === upload.kind) ?? 'POST_IMAGE';
+    const cover = kind === 'LIVE_COVER';
+    const side = kind === 'STORY_IMAGE' ? STORY_LARGE_SIDE : cover ? COVER_SIDE : LARGE_SIDE;
     let image;
     try {
-      image = await processImage(bytes, upload.contentType as ImageContentType, side);
+      image = await processImage(bytes, upload.contentType as ImageContentType, side, cover);
     } catch (err) {
       if (err instanceof InvalidImageError) return fail(err.message);
       throw err;
@@ -180,7 +198,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
           {
             id: upload.id,
             ownerId: userId,
-            kind: story ? 'STORY_IMAGE' : 'POST_IMAGE',
+            kind,
             width: image.width,
             height: image.height,
             blurhash: image.blurhash,

@@ -765,6 +765,11 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
           throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
         }
         await this.endStaleIn(tx, Prisma.sql`host_user_id = ${callerId}::uuid`, now);
+        // CP-015: the host's live cover at go-live, read under a share lock so a concurrent cover
+        // change waits and then also updates this room.
+        const [host] = await tx.$queryRaw<{ cover_url: string | null }[]>`
+          SELECT cover_url FROM live_hosts WHERE user_id = ${callerId}::uuid FOR SHARE`;
+        if (!host) throw new AppException(ErrorCode.LIVE_HOSTING_NOT_ALLOWED);
         const room = await tx.liveRoom.create({
           data: {
             hostUserId: callerId,
@@ -777,6 +782,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             mode: input.mode ?? 'SOLO',
             seatCount: input.seatCount ?? null,
             theme: input.theme ?? DEFAULT_LIVE_THEME,
+            coverUrl: host.cover_url,
           },
           select: { id: true },
         });

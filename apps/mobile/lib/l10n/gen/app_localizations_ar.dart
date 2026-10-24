@@ -3412,4 +3412,31 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveSeatNumberLabel(int number) {
     return 'المقعد $number';
   }
+
+  @override
+  String get liveCoverEdit => 'تعديل';
+
+  @override
+  String get liveCoverEditLabel => 'تعديل صورة غلاف البث';
+
+  @override
+  String get liveCoverSheetTitle => 'صورة غلاف البث';
+
+  @override
+  String get liveCoverSheetBody => 'تظهر في بطاقة بثك وفي الغرفة، في كل بث.';
+
+  @override
+  String get liveCoverChoose => 'اختيار صورة';
+
+  @override
+  String get liveCoverRemove => 'إزالة الغلاف واستخدام صورتي';
+
+  @override
+  String get liveCoverUpdated => 'تم تحديث غلاف البث.';
+
+  @override
+  String get liveCoverRemoved => 'أُزيل الغلاف؛ ستظهر صورتك.';
+
+  @override
+  String get liveCoverUploading => 'جارٍ رفع الغلاف…';
 }

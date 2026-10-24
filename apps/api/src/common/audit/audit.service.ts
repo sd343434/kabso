@@ -35,6 +35,8 @@ export enum AuditAction {
   LIVE_ROOM_CHAT = 'live.room.chat',
   // v1.10-live (DRAFT, CP-014): the host edited the live's title, category or topic.
   LIVE_ROOM_EDIT = 'live.room.edit',
+  // v1.11-live (DRAFT, CP-015): the host set or removed the live cover.
+  LIVE_COVER_UPDATE = 'live.cover.update',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',

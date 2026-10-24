@@ -13,6 +13,9 @@ class FakeMediaRepository implements MediaRepository {
 
   /// How many uploads were for stories.
   int storyUploads = 0;
+
+  /// How many uploads were live covers (CP-015).
+  int coverUploads = 0;
   Exception? failWith;
 
   /// Makes uploads wait until completed.
@@ -23,6 +26,7 @@ class FakeMediaRepository implements MediaRepository {
     Uint8List bytes,
     String contentType, {
     bool forStory = false,
+    bool forLiveCover = false,
     void Function(double progress)? onProgress,
   }) async {
     if (gate case final g?) await g.future;
@@ -32,6 +36,7 @@ class FakeMediaRepository implements MediaRepository {
     }
     uploads.add(contentType);
     if (forStory) storyUploads++;
+    if (forLiveCover) coverUploads++;
     final id = 'a${uploads.length}';
     return MediaAsset(
       id: id,
