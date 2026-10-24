@@ -226,6 +226,28 @@ class LiveHostController extends Notifier<GoLiveState> {
     state = state.copyWith(theme: theme);
   }
 
+  /// CP-014: while live, the title, the category (`null`: none) and the
+  /// topic (`null`: none); a field left out keeps its value. Throws an
+  /// `AppFailure`.
+  Future<void> editInfo({
+    String? title,
+    Object? categorySlug = _keep,
+    Object? topic = _keep,
+  }) async {
+    final room = state.room;
+    if (state.phase != GoLivePhase.live || room == null) return;
+    final updated = await _repo.editRoom(
+      room.id,
+      title: title ?? room.title,
+      categorySlug: identical(categorySlug, _keep)
+          ? room.category?.slug
+          : categorySlug as String?,
+      topic: identical(topic, _keep) ? room.topic : topic as String?,
+    );
+    if (!ref.mounted) return;
+    state = state.copyWith(room: updated);
+  }
+
   /// Voice processing (D94), before and while live.
   Future<void> setVoice({bool? noiseReduction, bool? enhance}) async {
     state = state.copyWith(
@@ -430,3 +452,6 @@ class LiveMinimized extends Notifier<bool> {
 
 final NotifierProvider<LiveMinimized, bool> liveMinimizedProvider =
     NotifierProvider<LiveMinimized, bool>(LiveMinimized.new);
+
+/// [LiveHostController.editInfo]: the field keeps its value.
+const Object _keep = Object();

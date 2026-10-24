@@ -366,6 +366,18 @@ class DemoLiveRepository implements LiveRepository {
   Future<LiveTapsResult> tap(String roomId, int count) async =>
       throw _serverOnly;
 
+  @override
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  }) async => throw _serverOnly;
+
+  // The demo hub has no taps, so nobody contributed.
+  @override
+  Future<List<LiveContributor>> contributors(String roomId) async => const [];
+
   // CP-013: the demo hub has no server, so no chat.
   @override
   Future<List<LiveChatEntry>> chatMessages(String roomId) async => const [];

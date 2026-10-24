@@ -3467,11 +3467,11 @@
   "@liveSeatRemove": {
     "description": "Seat action"
   },
-  "liveSeatLock": "قفل المقعد",
+  "liveSeatLock": "قفل المايك",
   "@liveSeatLock": {
     "description": "Seat action"
   },
-  "liveSeatUnlock": "فتح المقعد",
+  "liveSeatUnlock": "فتح المايك",
   "@liveSeatUnlock": {
     "description": "Seat action"
   },
@@ -3894,6 +3894,66 @@
       }
     }
   },
+  "liveEditRoom": "تعديل الغرفة",
+  "@liveEditRoom": {
+    "description": "Room tools: edit the room's name, category and topic (CP-014)."
+  },
+  "liveEditRoomName": "اسم الغرفة",
+  "@liveEditRoomName": {
+    "description": "Edit room sheet: name field label."
+  },
+  "liveEditRoomCategory": "الفئة",
+  "@liveEditRoomCategory": {
+    "description": "Edit room sheet: category chips label."
+  },
+  "liveEditRoomTopic": "الموضوع",
+  "@liveEditRoomTopic": {
+    "description": "Edit room sheet: topic field label."
+  },
+  "liveEditRoomTopicHint": "عمّ تتحدثون الآن؟",
+  "@liveEditRoomTopicHint": {
+    "description": "Edit room sheet: topic hint."
+  },
+  "liveEditRoomSave": "حفظ",
+  "@liveEditRoomSave": {
+    "description": "Edit room sheet: save button."
+  },
+  "liveEditRoomSaved": "حُفظت الغرفة",
+  "@liveEditRoomSaved": {
+    "description": "Snack after the room was edited."
+  },
+  "liveRoomTopic": "الموضوع: {topic}",
+  "@liveRoomTopic": {
+    "description": "Screen-reader label of the topic chip and card line.",
+    "placeholders": {
+      "topic": {
+        "type": "String"
+      }
+    }
+  },
+  "liveContributionTab": "قائمة المساهمة",
+  "@liveContributionTab": {
+    "description": "Viewers sheet tab and sheet title: who gave this live the most points (CP-014)."
+  },
+  "liveContributionEmpty": "لا مساهمات بعد. النقرات على البث تُحسب هنا.",
+  "@liveContributionEmpty": {
+    "description": "Contribution list empty."
+  },
+  "liveContributionRow": "المرتبة {rank}، {name}، {points}",
+  "@liveContributionRow": {
+    "description": "Contribution row for screen readers.",
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "points": {
+        "type": "String"
+      }
+    }
+  },
   "liveCoverEdit": "تعديل",
   "@liveCoverEdit": {
     "description": "Label on the live cover picture (go-live screen), opens the cover options"
@@ -3929,5 +3989,57 @@
   "liveCoverUploading": "جارٍ رفع الغلاف…",
   "@liveCoverUploading": {
     "description": "Semantics while the cover uploads"
+  },
+  "liveSettingsShare": "مشاركة",
+  "@liveSettingsShare": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveSettingsBlockedWords": "الكلمات المحظورة",
+  "@liveSettingsBlockedWords": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveSettingsSchedule": "جدول البث",
+  "@liveSettingsSchedule": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveSettingsEventCenter": "مركز الفعاليات",
+  "@liveSettingsEventCenter": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveSettingsCreatorCenter": "مركز صنّاع المحتوى",
+  "@liveSettingsCreatorCenter": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveSoon": "قريباً",
+  "@liveSoon": {
+    "description": "Live settings sheet (owner ref 71)"
+  },
+  "liveRoomInfoChange": "تغيير",
+  "@liveRoomInfoChange": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomLevel": "مستوى الغرفة",
+  "@liveRoomLevel": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomSettings": "إعدادات الغرفة",
+  "@liveRoomSettings": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomTag": "الوسم",
+  "@liveRoomTag": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomNoTag": "بلا وسم",
+  "@liveRoomNoTag": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomAnnouncement": "الإعلان",
+  "@liveRoomAnnouncement": {
+    "description": "Room info sheet (owner ref 73)"
+  },
+  "liveRoomBoost": "تعزيز غرفتي",
+  "@liveRoomBoost": {
+    "description": "Room info sheet (owner ref 73)"
   }
 }

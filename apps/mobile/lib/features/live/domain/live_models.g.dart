@@ -71,6 +71,7 @@ _LiveRoomSummary _$LiveRoomSummaryFromJson(Map<String, dynamic> json) =>
       occupiedSeats: (json['occupiedSeats'] as num?)?.toInt() ?? 0,
       theme: json['theme'] as String? ?? LiveThemes.classic,
       score: (json['score'] as num?)?.toInt() ?? 0,
+      topic: json['topic'] as String?,
     );
 
 Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
@@ -87,6 +88,7 @@ Map<String, dynamic> _$LiveRoomSummaryToJson(_LiveRoomSummary instance) =>
       'occupiedSeats': instance.occupiedSeats,
       'theme': instance.theme,
       'score': instance.score,
+      'topic': instance.topic,
     };
 
 const _$LiveRoomModeEnumMap = {
@@ -130,6 +132,7 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
       : LiveScore.fromJson(json['scoreParts'] as Map<String, dynamic>),
   chatEnabled: json['chatEnabled'] as bool? ?? true,
   chatMuted: json['chatMuted'] as bool? ?? false,
+  topic: json['topic'] as String?,
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -152,6 +155,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'scoreParts': instance.scoreParts,
   'chatEnabled': instance.chatEnabled,
   'chatMuted': instance.chatMuted,
+  'topic': instance.topic,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -188,6 +192,15 @@ _LiveTapsResult _$LiveTapsResultFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$LiveTapsResultToJson(_LiveTapsResult instance) =>
     <String, dynamic>{'accepted': instance.accepted, 'score': instance.score};
+
+_LiveContributor _$LiveContributorFromJson(Map<String, dynamic> json) =>
+    _LiveContributor(
+      user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+      points: (json['points'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$LiveContributorToJson(_LiveContributor instance) =>
+    <String, dynamic>{'user': instance.user, 'points': instance.points};
 
 _LiveRoomPage _$LiveRoomPageFromJson(Map<String, dynamic> json) =>
     _LiveRoomPage(

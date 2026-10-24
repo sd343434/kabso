@@ -3099,10 +3099,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveSeatRemove => 'Take off the seat';
 
   @override
-  String get liveSeatLock => 'Lock seat';
+  String get liveSeatLock => 'Lock the mic';
 
   @override
-  String get liveSeatUnlock => 'Unlock seat';
+  String get liveSeatUnlock => 'Unlock the mic';
 
   @override
   String get liveSeatInvite => 'Invite a viewer';
@@ -3405,6 +3405,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get liveEditRoom => 'Edit room';
+
+  @override
+  String get liveEditRoomName => 'Room name';
+
+  @override
+  String get liveEditRoomCategory => 'Category';
+
+  @override
+  String get liveEditRoomTopic => 'Topic';
+
+  @override
+  String get liveEditRoomTopicHint => 'What are you talking about?';
+
+  @override
+  String get liveEditRoomSave => 'Save';
+
+  @override
+  String get liveEditRoomSaved => 'Room saved';
+
+  @override
+  String liveRoomTopic(String topic) {
+    return 'Topic: $topic';
+  }
+
+  @override
+  String get liveContributionTab => 'Contribution list';
+
+  @override
+  String get liveContributionEmpty =>
+      'No contributions yet. Taps on the live count here.';
+
+  @override
+  String liveContributionRow(int rank, String name, String points) {
+    return 'Rank $rank, $name, $points';
+  }
+
+  @override
   String get liveCoverEdit => 'Edit';
 
   @override
@@ -3431,4 +3469,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveCoverUploading => 'Uploading the cover…';
+
+  @override
+  String get liveSettingsShare => 'Share';
+
+  @override
+  String get liveSettingsBlockedWords => 'Blocked words';
+
+  @override
+  String get liveSettingsSchedule => 'Live schedule';
+
+  @override
+  String get liveSettingsEventCenter => 'Event center';
+
+  @override
+  String get liveSettingsCreatorCenter => 'Creator center';
+
+  @override
+  String get liveSoon => 'Soon';
+
+  @override
+  String get liveRoomInfoChange => 'Change';
+
+  @override
+  String get liveRoomLevel => 'Room level';
+
+  @override
+  String get liveRoomSettings => 'Room settings';
+
+  @override
+  String get liveRoomTag => 'Tag';
+
+  @override
+  String get liveRoomNoTag => 'No tag';
+
+  @override
+  String get liveRoomAnnouncement => 'Announcement';
+
+  @override
+  String get liveRoomBoost => 'Boost my room';
 }

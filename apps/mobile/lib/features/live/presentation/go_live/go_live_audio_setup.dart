@@ -46,6 +46,7 @@ class GoLiveAudioSetup extends StatelessWidget {
     required this.hostName,
     required this.hostAvatarUrl,
     super.key,
+    this.onShare,
   });
 
   final TextEditingController controller;
@@ -59,6 +60,8 @@ class GoLiveAudioSetup extends StatelessWidget {
   final bool allowGuests;
   final ValueChanged<bool>? onAllowGuests;
 
+  /// Settings → Share (ref 71): copies the live's invitation.
+  final VoidCallback? onShare;
   final bool micEnabled;
   final VoidCallback? onMic;
   final bool noiseReduction;
@@ -237,6 +240,7 @@ class GoLiveAudioSetup extends StatelessWidget {
                             context,
                             allowGuests: allowGuests,
                             onAllowGuests: onAllowGuests!,
+                            onShare: onShare,
                             guestsKey: guestsKey,
                           ),
                   ),
@@ -805,14 +809,19 @@ class _ModeTabs extends StatelessWidget {
   }
 }
 
-/// Settings before going live (ref 70): who can watch.
+/// Settings before going live (owner ref 71): Share, then the room's tools
+/// that have no server yet (shown greyed with "Soon", never as working),
+/// and who can watch (guests, CP-010). Rows 56 pt, an 11.4 pt grey band
+/// between the two groups, labels 17 pt, chevrons #888A8F.
 Future<void> showLiveSetupSettings(
   BuildContext context, {
   required bool allowGuests,
   required ValueChanged<bool> onAllowGuests,
+  VoidCallback? onShare,
   Key? guestsKey,
 }) => showModalBottomSheet<void>(
   context: context,
+  isScrollControlled: true,
   backgroundColor: const Color(0xFFFFFFFF),
   barrierColor: const Color(0x00000000),
   shape: const RoundedRectangleBorder(
@@ -822,21 +831,42 @@ Future<void> showLiveSetupSettings(
     var allow = allowGuests;
     final l10n = sheet.l10n;
     final text = sheet.textStyles;
-    const ink = Color(0xFF000000);
     return StatefulBuilder(
       builder: (context, setState) => SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            LiveWhiteSheetHeader(title: l10n.settingsTitle, centred: true),
+            LiveWhiteSheetHeader(
+              title: l10n.settingsTitle,
+              centred: true,
+              titleTop: 15.6,
+            ),
+            const SizedBox(height: 7),
+            LiveSettingsRow(
+              key: LiveSettingsRow.shareKey,
+              label: l10n.liveSettingsShare,
+              onTap: onShare == null
+                  ? null
+                  : () {
+                      Navigator.of(sheet).pop();
+                      onShare();
+                    },
+            ),
+            LiveSettingsRow(label: l10n.liveSettingsBlockedWords),
+            LiveSettingsRow(label: l10n.liveSettingsSchedule),
             SwitchListTile(
               key: guestsKey,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16.5),
+              contentPadding: const EdgeInsetsDirectional.fromSTEB(
+                17.5,
+                0,
+                12,
+                0,
+              ),
               title: Text(
                 l10n.goLiveGuests,
                 style: text.title.copyWith(
-                  color: ink,
+                  color: LiveSettingsRow.ink,
                   fontSize: 17,
                   fontWeight: FontWeight.w500,
                 ),
@@ -853,10 +883,100 @@ Future<void> showLiveSetupSettings(
                 onAllowGuests(v);
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
+            const ColoredBox(
+              color: Color(0xFFF3F3F3),
+              child: SizedBox(height: 11.4, width: double.infinity),
+            ),
+            LiveSettingsRow(label: l10n.liveSettingsEventCenter),
+            LiveSettingsRow(label: l10n.liveSettingsCreatorCenter),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   },
 );
+
+/// A row of a white live settings sheet (ref 71): the label, then a chevron
+/// when it opens something ([onTap]); without [onTap] the feature has no
+/// server yet, so it is greyed with "Soon" and does nothing.
+class LiveSettingsRow extends StatelessWidget {
+  const new({required this.label, super.key, this.onTap, this.trailing});
+
+  static const shareKey = Key('liveSettings.share');
+  static const ink = Color(0xFF000000);
+
+  final String label;
+  final VoidCallback? onTap;
+
+  /// A value before the chevron (a count, the current choice).
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    final soon = onTap == null;
+    const grey = Color(0xFF888A8F);
+    return Semantics(
+      button: !soon,
+      enabled: !soon,
+      label: soon ? '$label, ${l10n.liveSoon}' : label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 56,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(17.5, 0, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.title.copyWith(
+                      color: soon ? const Color(0xFFB4B6BB) : ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (soon)
+                  Text(
+                    l10n.liveSoon,
+                    style: text.caption.copyWith(
+                      color: const Color(0xFFB4B6BB),
+                      fontSize: 13,
+                    ),
+                  )
+                else ...[
+                  if (trailing case final t?)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: Text(
+                        t,
+                        style: text.body.copyWith(
+                          color: const Color(0xFFA4A9AC),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  Icon(
+                    Directionality.of(context) == TextDirection.rtl
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    color: grey,
+                    size: 26,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

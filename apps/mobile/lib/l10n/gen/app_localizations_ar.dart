@@ -3126,10 +3126,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveSeatRemove => 'إنزال من المقعد';
 
   @override
-  String get liveSeatLock => 'قفل المقعد';
+  String get liveSeatLock => 'قفل المايك';
 
   @override
-  String get liveSeatUnlock => 'فتح المقعد';
+  String get liveSeatUnlock => 'فتح المايك';
 
   @override
   String get liveSeatInvite => 'دعوة مشاهد';
@@ -3435,6 +3435,44 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get liveEditRoom => 'تعديل الغرفة';
+
+  @override
+  String get liveEditRoomName => 'اسم الغرفة';
+
+  @override
+  String get liveEditRoomCategory => 'الفئة';
+
+  @override
+  String get liveEditRoomTopic => 'الموضوع';
+
+  @override
+  String get liveEditRoomTopicHint => 'عمّ تتحدثون الآن؟';
+
+  @override
+  String get liveEditRoomSave => 'حفظ';
+
+  @override
+  String get liveEditRoomSaved => 'حُفظت الغرفة';
+
+  @override
+  String liveRoomTopic(String topic) {
+    return 'الموضوع: $topic';
+  }
+
+  @override
+  String get liveContributionTab => 'قائمة المساهمة';
+
+  @override
+  String get liveContributionEmpty =>
+      'لا مساهمات بعد. النقرات على البث تُحسب هنا.';
+
+  @override
+  String liveContributionRow(int rank, String name, String points) {
+    return 'المرتبة $rank، $name، $points';
+  }
+
+  @override
   String get liveCoverEdit => 'تعديل';
 
   @override
@@ -3460,4 +3498,43 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveCoverUploading => 'جارٍ رفع الغلاف…';
+
+  @override
+  String get liveSettingsShare => 'مشاركة';
+
+  @override
+  String get liveSettingsBlockedWords => 'الكلمات المحظورة';
+
+  @override
+  String get liveSettingsSchedule => 'جدول البث';
+
+  @override
+  String get liveSettingsEventCenter => 'مركز الفعاليات';
+
+  @override
+  String get liveSettingsCreatorCenter => 'مركز صنّاع المحتوى';
+
+  @override
+  String get liveSoon => 'قريباً';
+
+  @override
+  String get liveRoomInfoChange => 'تغيير';
+
+  @override
+  String get liveRoomLevel => 'مستوى الغرفة';
+
+  @override
+  String get liveRoomSettings => 'إعدادات الغرفة';
+
+  @override
+  String get liveRoomTag => 'الوسم';
+
+  @override
+  String get liveRoomNoTag => 'بلا وسم';
+
+  @override
+  String get liveRoomAnnouncement => 'الإعلان';
+
+  @override
+  String get liveRoomBoost => 'تعزيز غرفتي';
 }

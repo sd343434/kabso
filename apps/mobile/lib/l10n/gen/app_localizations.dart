@@ -5405,13 +5405,13 @@ abstract class AppLocalizations {
   /// Seat action
   ///
   /// In ar, this message translates to:
-  /// **'قفل المقعد'**
+  /// **'قفل المايك'**
   String get liveSeatLock;
 
   /// Seat action
   ///
   /// In ar, this message translates to:
-  /// **'فتح المقعد'**
+  /// **'فتح المايك'**
   String get liveSeatUnlock;
 
   /// Seat action
@@ -5954,6 +5954,72 @@ abstract class AppLocalizations {
   /// **'المقعد {number}'**
   String liveSeatNumberLabel(int number);
 
+  /// Room tools: edit the room's name, category and topic (CP-014).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل الغرفة'**
+  String get liveEditRoom;
+
+  /// Edit room sheet: name field label.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم الغرفة'**
+  String get liveEditRoomName;
+
+  /// Edit room sheet: category chips label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفئة'**
+  String get liveEditRoomCategory;
+
+  /// Edit room sheet: topic field label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموضوع'**
+  String get liveEditRoomTopic;
+
+  /// Edit room sheet: topic hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمّ تتحدثون الآن؟'**
+  String get liveEditRoomTopicHint;
+
+  /// Edit room sheet: save button.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get liveEditRoomSave;
+
+  /// Snack after the room was edited.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُفظت الغرفة'**
+  String get liveEditRoomSaved;
+
+  /// Screen-reader label of the topic chip and card line.
+  ///
+  /// In ar, this message translates to:
+  /// **'الموضوع: {topic}'**
+  String liveRoomTopic(String topic);
+
+  /// Viewers sheet tab and sheet title: who gave this live the most points (CP-014).
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة المساهمة'**
+  String get liveContributionTab;
+
+  /// Contribution list empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مساهمات بعد. النقرات على البث تُحسب هنا.'**
+  String get liveContributionEmpty;
+
+  /// Contribution row for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'المرتبة {rank}، {name}، {points}'**
+  String liveContributionRow(int rank, String name, String points);
+
   /// Label on the live cover picture (go-live screen), opens the cover options
   ///
   /// In ar, this message translates to:
@@ -6007,6 +6073,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'جارٍ رفع الغلاف…'**
   String get liveCoverUploading;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة'**
+  String get liveSettingsShare;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'الكلمات المحظورة'**
+  String get liveSettingsBlockedWords;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'جدول البث'**
+  String get liveSettingsSchedule;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز الفعاليات'**
+  String get liveSettingsEventCenter;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز صنّاع المحتوى'**
+  String get liveSettingsCreatorCenter;
+
+  /// Live settings sheet (owner ref 71)
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get liveSoon;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير'**
+  String get liveRoomInfoChange;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الغرفة'**
+  String get liveRoomLevel;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'إعدادات الغرفة'**
+  String get liveRoomSettings;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'الوسم'**
+  String get liveRoomTag;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا وسم'**
+  String get liveRoomNoTag;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعلان'**
+  String get liveRoomAnnouncement;
+
+  /// Room info sheet (owner ref 73)
+  ///
+  /// In ar, this message translates to:
+  /// **'تعزيز غرفتي'**
+  String get liveRoomBoost;
 }
 
 class _AppLocalizationsDelegate

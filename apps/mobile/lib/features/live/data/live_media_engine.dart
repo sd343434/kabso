@@ -102,6 +102,10 @@ abstract interface class LiveMediaEngine {
   /// The room score from the media room's metadata (CP-012 §10.10).
   int? get score;
 
+  /// `roomInfoVersion` from the media room's metadata (CP-014 §10.12): the
+  /// title, category or topic changed.
+  int? get roomInfoVersion;
+
   /// Room ids of seat invitations addressed to this participant.
   Stream<String> get seatInvites;
 
@@ -137,6 +141,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   Set<String> _speaking = const {};
   int? _seatsVersion;
   int? _score;
+  int? _roomInfoVersion;
 
   @override
   bool get videoEnabled => _video != null;
@@ -324,6 +329,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       if (value is Map && value['score'] is int) {
         _score = value['score'] as int;
       }
+      if (value is Map && value['roomInfoVersion'] is int) {
+        _roomInfoVersion = value['roomInfoVersion'] as int;
+      }
     } on FormatException {
       // Not ours.
     }
@@ -391,6 +399,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   int? get score => _score;
+
+  @override
+  int? get roomInfoVersion => _roomInfoVersion;
 
   @override
   Stream<String> get seatInvites => _invites.stream;

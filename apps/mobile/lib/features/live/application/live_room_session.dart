@@ -20,7 +20,13 @@ class LiveRoomSessionState {
     this.captureFailed = false,
     this.score,
     this.disconnected = false,
+    this.room,
   });
+
+  /// CP-014: the room read again after its title, category or topic
+  /// changed (`roomInfoVersion`); the screen shows it over the one it
+  /// opened with.
+  final LiveRoom? room;
 
   /// The media session dropped after joining (the host ended the live,
   /// or the network): the screen re-reads the room to show why.
@@ -59,6 +65,7 @@ class LiveRoomSessionState {
     bool? captureFailed,
     int? score,
     bool? disconnected,
+    LiveRoom? room,
   }) => LiveRoomSessionState(
     joined: joined ?? this.joined,
     joinFailure: joinFailure ?? this.joinFailure,
@@ -67,6 +74,7 @@ class LiveRoomSessionState {
     captureFailed: captureFailed ?? this.captureFailed,
     score: score ?? this.score,
     disconnected: disconnected ?? this.disconnected,
+    room: room ?? this.room,
   );
 }
 
@@ -100,6 +108,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   StreamSubscription<String>? _invites;
   bool _refreshing = false;
   bool _syncing = false;
+  int? _infoSeen;
 
   LiveMediaEngine get engine => _engine;
 
@@ -175,6 +184,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       state = state.copyWith(disconnected: true);
       return;
     }
+    _watchRoomInfo();
     final version = _engine.seatsVersion;
     final seats = state.seats;
     if (_mode.hasSeats &&
@@ -183,6 +193,26 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       unawaited(refreshSeats());
     } else {
       unawaited(_syncPublishing());
+    }
+  }
+
+  /// Re-reads the room when the media room's `roomInfoVersion` moves (the
+  /// first one seen too: the room may have changed since it was opened).
+  void _watchRoomInfo() {
+    final v = _engine.roomInfoVersion;
+    final seen = _infoSeen;
+    if (v == null || (seen != null && v <= seen)) return;
+    _infoSeen = v;
+    unawaited(_refreshRoom());
+  }
+
+  /// Failures keep the room as it is; the next version tries again.
+  Future<void> _refreshRoom() async {
+    try {
+      final room = await _repo.getRoom(roomId);
+      if (ref.mounted) state = state.copyWith(room: room);
+    } on Object {
+      // Kept.
     }
   }
 

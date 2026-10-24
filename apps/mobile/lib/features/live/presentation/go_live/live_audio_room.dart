@@ -375,9 +375,14 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.scoreText,
     this.scoreLabel,
     this.onTap,
+    this.onScoreTap,
     this.action,
     this.showMinimize = true,
   });
+
+  /// Opens the score's breakdown from the points (when [onTap] opens
+  /// something else, e.g. the host's room info, ref 73).
+  final VoidCallback? onScoreTap;
 
   /// At the end of the room bar (a viewer's Follow).
   final Widget? action;
@@ -400,6 +405,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
   final Key? shareKey;
 
   static const scoreKey = Key('liveRoom.score');
+  static const barKey = Key('liveRoom.bar');
 
   final Widget cover;
   final String title;
@@ -424,6 +430,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 220),
               child: GestureDetector(
+                key: barKey,
                 onTap: onTap,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
@@ -460,27 +467,33 @@ class LiveAudioRoomHeader extends StatelessWidget {
                             if (scoreText case final points?)
                               Semantics(
                                 label: scoreLabel,
+                                button: onScoreTap != null,
+                                onTap: onScoreTap,
                                 excludeSemantics: true,
-                                child: Row(
-                                  key: LiveAudioRoomHeader.scoreKey,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.local_fire_department_rounded,
-                                      size: 12,
-                                      color: KScoreChip.flame,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      points,
-                                      style: text.caption.copyWith(
-                                        fontSize: 10.5,
-                                        height: 1.15,
-                                        color: KAudioRoom.text,
-                                        fontWeight: FontWeight.w700,
+                                child: GestureDetector(
+                                  onTap: onScoreTap,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Row(
+                                    key: LiveAudioRoomHeader.scoreKey,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.local_fire_department_rounded,
+                                        size: 12,
+                                        color: KScoreChip.flame,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        points,
+                                        style: text.caption.copyWith(
+                                          fontSize: 10.5,
+                                          height: 1.15,
+                                          color: KAudioRoom.text,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               )
                             else if (subtitle != null && subtitle.isNotEmpty)

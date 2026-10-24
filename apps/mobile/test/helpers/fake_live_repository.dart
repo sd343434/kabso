@@ -61,6 +61,13 @@ class FakeLiveRepository implements LiveRepository {
     'ice-palace',
     'desert-night',
     'rose-garden',
+    'sunset-sky',
+    'moon-palace',
+    'ocean-depths',
+    'golden-hall',
+    'game-arena',
+    'heart-garden',
+    'galaxy',
   ];
   RoomsHandler rooms;
 
@@ -283,6 +290,44 @@ class FakeLiveRepository implements LiveRepository {
     displayName: username,
     avatarUrl: null,
   );
+
+  /// Each `editRoom` call (CP-014); [editFailure] fails the next ones.
+  final List<({String title, String? categorySlug, String? topic})> edits = [];
+  AppFailure? editFailure;
+
+  @override
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  }) async {
+    edits.add((title: title, categorySlug: categorySlug, topic: topic));
+    if (editFailure case final failure?) throw failure;
+    final base = hostRoom ?? apiRoom(id: roomId);
+    final category = categorySlug == null
+        ? null
+        : categories.firstWhere((c) => c.slug == categorySlug);
+    final room = base.copyWith(
+      title: title,
+      category: category,
+      topic: (topic ?? '').trim().isEmpty ? null : topic!.trim(),
+    );
+    hostRoom = room;
+    return room;
+  }
+
+  /// `contributors` answers (CP-014); [contributorsFailure] fails them.
+  List<LiveContributor> contributorList = [];
+  AppFailure? contributorsFailure;
+  int contributorCalls = 0;
+
+  @override
+  Future<List<LiveContributor>> contributors(String roomId) async {
+    contributorCalls++;
+    if (contributorsFailure case final failure?) throw failure;
+    return contributorList;
+  }
 
   @override
   Future<LiveRoom> updateRoom(

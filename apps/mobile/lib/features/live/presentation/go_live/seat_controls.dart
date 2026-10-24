@@ -20,6 +20,7 @@ abstract final class SeatControlKeys {
   static const remove = Key('seat.action.remove');
   static const lock = Key('seat.action.lock');
   static const invite = Key('seat.action.invite');
+  static const cancel = Key('seat.action.cancel');
   static const moderator = Key('seat.action.moderator');
   static Key accept(String id) => Key('seat.request.$id.accept');
   static Key decline(String id) => Key('seat.request.$id.decline');
@@ -27,6 +28,8 @@ abstract final class SeatControlKeys {
   static const viewersTab = Key('seat.viewers.tab');
   static const moderatorAction = Key('seat.moderator.action');
   static const guestsTab = Key('seat.guests.tab');
+  static const contributionTab = Key('seat.contribution.tab');
+  static Key contributor(String username) => Key('seat.contributor.$username');
   static Key moderatorUser(String username) => Key('seat.moderator.$username');
   static Key count(int count) => Key('seat.count.$count');
 }
@@ -128,35 +131,63 @@ Future<void> showSeatActions(
       ),
   ];
   if (actions.isEmpty) return Future.value();
+  // Owner ref 72: a white action sheet, labels centred (17 pt, #29282B),
+  // 60 pt rows, a hairline, then Cancel in grey.
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: const Color(0x00000000),
-    builder: (sheet) => LiveSheetFrame(
-      title: user?.displayName ?? l10n.goLiveSeat(seat.index + 1),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final a in actions)
-            ListTile(
-              key: a.key,
-              leading: Icon(
-                a.icon,
-                color: a.danger ? KPalette.dark.error : _white,
-              ),
-              title: Text(
-                a.label,
-                style: sheet.textStyles.bodyStrong.copyWith(
-                  color: a.danger ? KPalette.dark.error : _white,
+    backgroundColor: const Color(0xFFFFFFFF),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheet) {
+      Widget row(Key? key, String label, Color color, VoidCallback onTap) =>
+          InkWell(
+            key: key,
+            onTap: onTap,
+            child: SizedBox(
+              height: 60,
+              child: Center(
+                child: Text(
+                  label,
+                  style: sheet.textStyles.title.copyWith(
+                    color: color,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              onTap: () {
-                Navigator.of(sheet).pop();
-                unawaited(runSeatAction(context, a.onTap));
-              },
             ),
-        ],
-      ),
-    ),
+          );
+      return SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 4.5),
+            for (final a in actions)
+              row(
+                a.key,
+                a.label,
+                a.danger ? KPalette.light.error : const Color(0xFF29282B),
+                () {
+                  Navigator.of(sheet).pop();
+                  unawaited(runSeatAction(context, a.onTap));
+                },
+              ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.3),
+              child: Divider(height: 1, thickness: 1, color: Color(0xFFC7C7C7)),
+            ),
+            row(
+              SeatControlKeys.cancel,
+              l10n.actionCancel,
+              const Color(0xFF868A8F),
+              () => Navigator.of(sheet).pop(),
+            ),
+          ],
+        ),
+      );
+    },
   );
 }
 
@@ -411,7 +442,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     final text = context.textStyles;
     final tabStyle = text.bodyStrong.copyWith(fontSize: 18, height: 1.2);
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Container(
         height: MediaQuery.sizeOf(context).height * 0.754,
         decoration: const BoxDecoration(
@@ -472,6 +503,12 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                               height: 29.2,
                               text: '${l10n.liveSeatGuestsTab} $guests',
                             ),
+                            // CP-014: the live's top 50 by points (ref 75).
+                            Tab(
+                              key: SeatControlKeys.contributionTab,
+                              height: 29.2,
+                              text: l10n.liveContributionTab,
+                            ),
                           ],
                         ),
                       ),
@@ -498,7 +535,11 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                 ),
                 Expanded(
                   child: TabBarView(
-                    children: [_viewers(context, snap), _guests(context)],
+                    children: [
+                      _viewers(context, snap),
+                      _guests(context),
+                      _contributors(context),
+                    ],
                   ),
                 ),
               ],
@@ -607,6 +648,89 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     );
   }
 
+  late final Future<List<LiveContributor>> _contribution = ref
+      .read(liveRepositoryProvider)
+      .contributors(widget.roomId);
+
+  /// CP-014 (§10.12): up to 50 people by points given to this live.
+  Widget _contributors(BuildContext context) {
+    final l10n = context.l10n;
+    return FutureBuilder<List<LiveContributor>>(
+      future: _contribution,
+      builder: (context, snap) {
+        final list = snap.data;
+        if (list == null) {
+          return snap.hasError
+              ? _empty(context, failureMessage(l10n, toAppFailure(snap.error!)))
+              : const Center(child: CircularProgressIndicator());
+        }
+        if (list.isEmpty) return _empty(context, l10n.liveContributionEmpty);
+        return ListView(
+          padding: const EdgeInsets.only(top: 6, bottom: 16),
+          children: [
+            for (final (i, c) in list.indexed)
+              Semantics(
+                label: l10n.liveContributionRow(
+                  i + 1,
+                  c.user.displayName,
+                  l10n.liveScore(c.points, KFormat.grouped(c.points)),
+                ),
+                excludeSemantics: true,
+                child: _row(
+                  context,
+                  key: SeatControlKeys.contributor(c.user.username),
+                  name: c.user.displayName,
+                  handle: '@${c.user.username}',
+                  avatar: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        child: Text(
+                          '${i + 1}',
+                          textAlign: TextAlign.center,
+                          style: context.textStyles.bodyStrong.copyWith(
+                            color: i < 3 ? KScoreChip.flame : _Panel.soft,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      KAvatar(
+                        name: c.user.displayName,
+                        imageUrl: c.user.avatarUrl,
+                        size: 40,
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 16,
+                          color: KScoreChip.flame,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          KFormat.compact(c.points, l10n),
+                          style: context.textStyles.bodyStrong.copyWith(
+                            color: _Panel.ink,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _moderatorMenu(BuildContext context, UserSummary u) async {
     final l10n = context.l10n;
     final isModerator = _moderators.contains(u.username);
@@ -684,7 +808,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
         ],
       ),
     );
-    if (onTap == null) return row;
+    if (onTap == null) return KeyedSubtree(key: key, child: row);
     return InkWell(key: key, onTap: onTap, child: row);
   }
 

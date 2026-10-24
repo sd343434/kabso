@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setu
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
@@ -624,6 +625,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : (mode) => unawaited(_host.setMode(mode)),
         hostName: hostName,
         hostAvatarUrl: user?.avatarUrl,
+        onShare: user == null
+            ? null
+            : () => unawaited(_shareLive(_title.text.trim(), user.username)),
       );
     } else if (audioOnAir) {
       // CP-012: the score from the media room's metadata, else the room's.
@@ -636,7 +640,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
         header: LiveAudioRoomHeader(
-          cover: KAvatar(name: hostName, imageUrl: user?.avatarUrl, size: 26),
+          // CP-015: the live's cover, else the host's picture.
+          cover: switch (room?.coverUrl ?? user?.liveCoverUrl) {
+            final url? => Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  KAvatar(name: hostName, imageUrl: user?.avatarUrl, size: 26),
+            ),
+            null => KAvatar(
+              name: hostName,
+              imageUrl: user?.avatarUrl,
+              size: 26,
+            ),
+          },
           title: room?.title ?? _title.text.trim(),
           subtitle: user == null ? null : '@${user.username}',
           minimizeKey: GoLiveScreen.minimizeKey,
@@ -644,7 +661,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           onMinimize: live ? _minimize : null,
           scoreText: score > 0 ? KFormat.compact(score, l10n) : null,
           scoreLabel: l10n.liveScore(score, KFormat.grouped(score)),
-          onTap: room == null
+          // Owner ref 73: the room bar opens the room's info; the points
+          // open their breakdown.
+          onTap: room == null || !live
+              ? null
+              : () => unawaited(
+                  showLiveRoomInfo(
+                    context,
+                    hostName: hostName,
+                    hostAvatarUrl: user?.avatarUrl,
+                    onSettings: () => unawaited(
+                      showLiveSetupSettings(
+                        context,
+                        allowGuests: state.allowGuests,
+                        onAllowGuests: (_) => unawaited(_toggleGuests(state)),
+                        onShare: user == null
+                            ? null
+                            : () => unawaited(
+                                _shareLive(room.title, user.username),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+          onScoreTap: room == null
               ? null
               : () => unawaited(showLiveScoreSheet(context, room.id)),
           shareKey: GoLiveScreen.shareKey,

@@ -128,6 +128,18 @@ abstract interface class LiveRepository {
   /// `POST /live/rooms/{roomId}/taps` (CP-012): a batch of 1–50 taps.
   Future<LiveTapsResult> tap(String roomId, int count);
 
+  /// `PATCH /live/rooms/{roomId}` (host, CP-014): the title, the category
+  /// (`null`: none) and the topic (`null`: none), all three sent.
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  });
+
+  /// `GET /live/rooms/{roomId}/contributors` (CP-014): the top 50.
+  Future<List<LiveContributor>> contributors(String roomId);
+
   // ---- CP-013 chat (CONVENTIONS §10.11) ---------------------------------
 
   /// `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first.
@@ -267,6 +279,32 @@ class LiveRepositoryImpl implements LiveRepository {
           data: {'guestId': ?guestId},
         );
         return LiveMediaAccess.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveRoom> editRoom(
+    String roomId, {
+    required String title,
+    required String? categorySlug,
+    required String? topic,
+  }) => guardApiCall(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      _room(roomId),
+      data: {'title': title, 'categorySlug': categorySlug, 'topic': topic},
+    );
+    return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<List<LiveContributor>> contributors(String roomId) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '${_room(roomId)}/contributors',
+        );
+        return [
+          for (final c in res.data!['data']! as List<dynamic>)
+            LiveContributor.fromJson(c as Map<String, dynamic>),
+        ];
       });
 
   @override

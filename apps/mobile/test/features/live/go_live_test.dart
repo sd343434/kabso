@@ -29,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setu
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -1030,6 +1031,170 @@ void main() {
       expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
       expect(find.byKey(LiveMiniWindow.windowKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  group('owner refs 71–75', () {
+    Future<void> audioLive(WidgetTester tester, FakeLiveRepository repo) async {
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+    }
+
+    testWidgets('setup Settings (ref 71): Share copies the invitation; the '
+        'features without a server are greyed "Soon"', (tester) async {
+      await _pump(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveAudioSetup.settingsKey));
+      await tester.pumpAndSettle();
+      for (final label in [
+        l10n.liveSettingsBlockedWords,
+        l10n.liveSettingsSchedule,
+        l10n.liveSettingsEventCenter,
+        l10n.liveSettingsCreatorCenter,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsOneWidget,
+        );
+      }
+      expect(find.text(l10n.liveSoon), findsNWidgets(4));
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.tap(find.byKey(LiveSettingsRow.shareKey));
+      await tester.pumpAndSettle();
+      expect(copied, isNotNull);
+      expect(find.text(l10n.goLiveShareCopied), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('room info (ref 73): title, tag and announcement go to '
+        'PATCH; level and boost wait ("Soon")', (tester) async {
+      final (repo, _) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await audioLive(tester, repo);
+      await tester.tap(find.byKey(LiveAudioRoomHeader.barKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomInfoKeys.sheet), findsOneWidget);
+      expect(find.text(l10n.liveRoomInfoChange), findsOneWidget);
+      expect(find.text(l10n.liveRoomNoTag), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('${l10n.liveRoomLevel}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('${l10n.liveRoomBoost}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(LiveRoomInfoKeys.editTitle));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveRoomInfoKeys.titleField),
+        'Night talk',
+      );
+      await tester.tap(find.byKey(LiveRoomInfoKeys.save));
+      await tester.pumpAndSettle();
+      expect(repo.edits.last, (
+        title: 'Night talk',
+        categorySlug: null,
+        topic: null,
+      ));
+      expect(find.text('Night talk'), findsWidgets);
+
+      await tester.tap(find.byKey(LiveRoomInfoKeys.tag));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveRoomInfoKeys.category('music')));
+      await tester.pumpAndSettle();
+      expect(repo.edits.last.categorySlug, 'music');
+      expect(find.text('Music'), findsOneWidget);
+
+      await tester.tap(find.byKey(LiveRoomInfoKeys.announcement));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveRoomInfoKeys.topicField),
+        'Be kind',
+      );
+      await tester.tap(find.byKey(LiveRoomInfoKeys.save));
+      await tester.pumpAndSettle();
+      expect(repo.edits.last, (
+        title: 'Night talk',
+        categorySlug: 'music',
+        topic: 'Be kind',
+      ));
+      expect(find.text('Be kind'), findsOneWidget);
+
+      // Room settings opens the settings sheet.
+      await tester.tap(find.byKey(LiveRoomInfoKeys.settings));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveSettingsRow.shareKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('seat sheet (ref 72) has Cancel; the viewers sheet has the '
+        'Contribution list (ref 75)', (tester) async {
+      final (repo, _) = await _pump(tester);
+      final l10n = _l10n(tester);
+      repo
+        ..contributorList = [
+          const LiveContributor(
+            user: UserSummary(
+              id: 'u-huda',
+              username: 'huda',
+              displayName: 'Huda',
+              avatarUrl: null,
+            ),
+            points: 12400,
+          ),
+        ]
+        ..viewerList = [
+          LiveViewer(
+            kind: LiveViewerKind.user,
+            user: const UserSummary(
+              id: 'u-huda',
+              username: 'huda',
+              displayName: 'Huda',
+              avatarUrl: null,
+            ),
+            guestNumber: null,
+            joinedAt: DateTime.utc(2026, 10, 24),
+          ),
+        ];
+      await audioLive(tester, repo);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatLock), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.cancel));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatLock), findsNothing);
+
+      await tester.tap(find.byKey(GoLiveScreen.viewersKey));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(SeatControlKeys.contributionTab));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(SeatControlKeys.contributionTab));
+      await tester.pumpAndSettle();
+      expect(repo.contributorCalls, 1);
+      expect(find.byKey(SeatControlKeys.contributor('huda')), findsOneWidget);
+      expect(find.text('12.4K'), findsOneWidget);
       await _leave(tester);
     });
   });

@@ -116,6 +116,9 @@ abstract class LiveRoomSummary with _$LiveRoomSummary {
 
     /// CP-012: the live's points (taps + support); `popular` orders by it.
     @Default(0) int score,
+
+    /// CP-014: the host's one-line topic, or null.
+    String? topic,
   }) = _LiveRoomSummary;
 
   factory fromJson(Map<String, dynamic> json) =>
@@ -157,6 +160,9 @@ abstract class LiveRoom with _$LiveRoom {
 
     /// CP-013: the caller is muted in this live's chat.
     @Default(false) bool chatMuted,
+
+    /// CP-014 (see [LiveRoomSummary]).
+    String? topic,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -182,6 +188,16 @@ abstract class LiveTapsResult with _$LiveTapsResult {
       _LiveTapsResult;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveTapsResultFromJson(json);
+}
+
+/// `LiveContributor` (CP-014): someone who gave this live points.
+@freezed
+abstract class LiveContributor with _$LiveContributor {
+  const factory({required UserSummary user, required int points}) =
+      _LiveContributor;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveContributorFromJson(json);
 }
 
 /// `LiveRoomPage`: one cursor page of `GET /live/rooms`.
