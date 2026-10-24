@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -19,7 +20,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
@@ -194,9 +195,69 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     if (_started || widget.room.status != LiveRoomStatus.live) return;
     _started = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_session.start(widget.room));
+      if (!mounted) return;
+      final room = widget.room;
+      unawaited(_session.start(room));
+      // CP-013: the room chat, on the same media session.
+      unawaited(
+        ref
+            .read(liveChatProvider(room.id).notifier)
+            .attach(
+              _session.engine,
+              enabled: room.chatEnabled,
+              muted: room.chatMuted,
+            ),
+      );
     });
   }
+
+  /// CP-013: what the chat offers this person.
+  LiveChatViewerRole _chatRole(LiveRoomSessionState session) {
+    final me = ref.read(currentUserProvider);
+    if (me == null) return LiveChatViewerRole.guest;
+    if (me.id == widget.room.host.id) return LiveChatViewerRole.host;
+    if (session.mine?.role == LiveSeatRole.moderator) {
+      return LiveChatViewerRole.moderator;
+    }
+    return LiveChatViewerRole.member;
+  }
+
+  void _openChat(({bool canWrite, String hint}) composer) {
+    if (!composer.canWrite) {
+      KSnack.info(context, composer.hint);
+      return;
+    }
+    setState(() => _writing = true);
+    _chatFocus.requestFocus();
+  }
+
+  void _sendChat() => unawaited(
+    sendLiveChatFrom(context, ref, roomId: widget.room.id, field: _chat),
+  );
+
+  Widget _roomChat(LiveRoomSessionState session, {Color? bubble}) =>
+      LiveRoomChatLines(
+        roomId: widget.room.id,
+        role: _chatRole(session),
+        bubble: bubble ?? KAudioRoom.bubble,
+        onProfile: (username) => unawaited(showHostSheet(context, username)),
+      );
+
+  Widget? _chatComposer() => _writing
+      ? TapRegion(
+          onTapOutside: (_) => setState(() {
+            _writing = false;
+            _chatFocus.unfocus();
+          }),
+          child: LiveChatComposer(
+            controller: _chat,
+            focusNode: _chatFocus,
+            hint: context.l10n.goLiveChatHint,
+            sendLabel: context.l10n.goLiveChatSend,
+            onSend: _sendChat,
+          ),
+        )
+      : null;
 
   /// An invitation (CP-011): Join or Not now.
   Future<void> _showInvite(LiveSeatInvite invite) async {
@@ -313,6 +374,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final me = ref.watch(currentUserProvider);
     final canTap = !ended && me != null && me.id != host.id;
     final score = engine.score ?? session.score ?? room.score;
+    final composer = liveChatComposerHint(
+      l10n,
+      chat: ref.watch(liveChatProvider(room.id)),
+      role: _chatRole(session),
+    );
     if (!ended && room.mode == LiveRoomMode.audio) {
       return _audioRoom(
         session: session,
@@ -321,6 +387,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         canTap: canTap,
         signedIn: me != null,
         canFollow: canFollow && !following,
+        composer: composer,
       );
     }
     return KLiveRoomScaffold(
@@ -366,9 +433,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       roomInfo: KRoomInfoRow(title: room.title, category: room.category?.name),
       chat: ended
           ? null
-          : KLiveChatOverlay(
-              key: const Key('room.chatUnavailable'),
-              lines: [LiveChatSystem(text: l10n.liveRoomChatUnavailable)],
+          : Align(
+              alignment: AlignmentDirectional.bottomStart,
+              child: _roomChat(session, bubble: KLiveColors.chatScrim),
             ),
       actionBar: ended
           ? null
@@ -394,6 +461,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
                   const SizedBox(height: KSpacing.sm),
                 ],
+                _chatComposer() ??
+                    LiveChatPill(
+                      key: AudioRoomViewKeys.chat,
+                      hint: composer.hint,
+                      onTap: () => _openChat(composer),
+                    ),
+                const SizedBox(height: KSpacing.sm),
                 KRoomActionBar(onGift: () => unawaited(_openGifts(context))),
               ],
             ),
@@ -427,21 +501,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     required bool canTap,
     required bool signedIn,
     required bool canFollow,
+    required ({bool canWrite, String hint}) composer,
   }) {
     final l10n = context.l10n;
     final room = widget.room;
     final host = room.host;
     final mine = session.mine;
     final pending = session.seats?.pendingRequests ?? 0;
-    void chatSoon() {
-      setState(() => _writing = true);
-      _chatFocus.requestFocus();
-    }
-
-    void send() {
-      if (_chat.text.trim().isEmpty) return;
-      KSnack.info(context, l10n.liveRoomChatUnavailable);
-    }
 
     // The seat button follows the viewer's state (CP-011).
     LiveRoundButton? seatButton;
@@ -537,26 +603,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 ],
               ),
               stage: _stage(session, engine),
-              chat: [LiveRoomBubble(l10n.liveRoomChatUnavailable)],
-              composer: _writing
-                  ? TapRegion(
-                      onTapOutside: (_) => setState(() {
-                        _writing = false;
-                        _chatFocus.unfocus();
-                      }),
-                      child: LiveChatComposer(
-                        controller: _chat,
-                        focusNode: _chatFocus,
-                        hint: l10n.goLiveChatHint,
-                        sendLabel: l10n.goLiveChatSend,
-                        onSend: send,
-                      ),
-                    )
-                  : null,
+              chat: [_roomChat(session)],
+              composer: _chatComposer(),
               barLead: LiveChatPill(
                 key: AudioRoomViewKeys.chat,
-                hint: l10n.goLiveChatPill,
-                onTap: chatSoon,
+                hint: composer.hint,
+                onTap: () => _openChat(composer),
               ),
               barStart: const [],
               barEnd: [
@@ -565,7 +617,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   asset: 'assets/live_room_icons/emoji.png',
                   tintAsset: true,
                   label: l10n.livePreviewEmoji,
-                  onTap: chatSoon,
+                  onTap: () => _openChat(composer),
                 ),
                 ?seatButton,
                 if (session.canModerate)

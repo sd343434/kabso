@@ -5707,6 +5707,156 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اضغط على البث لتشجيع المضيف'**
   String get liveTapHint;
+
+  /// LIVE_CHAT_NOT_IN_ROOM (403, CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت لست داخل هذا البث الآن. افتح البث من جديد.'**
+  String get errorLiveChatNotInRoom;
+
+  /// LIVE_CHAT_MUTED (403, CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتمك المضيف أو أحد المشرفين في دردشة هذا البث.'**
+  String get errorLiveChatMuted;
+
+  /// LIVE_CHAT_CLOSED (409, CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقف المضيف الدردشة.'**
+  String get errorLiveChatClosed;
+
+  /// Room chat with no messages (CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا رسائل بعد. قل مرحباً.'**
+  String get liveChatEmpty;
+
+  /// Chat pill when the host turned the chat off (CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة متوقفة'**
+  String get liveChatOff;
+
+  /// Chat pill when the viewer is muted (CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت مكتوم في دردشة هذا البث'**
+  String get liveChatMutedPill;
+
+  /// Chat pill for guests without an account (CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول للمشاركة في الدردشة'**
+  String get liveChatSignIn;
+
+  /// A chat line that failed to send (CP-013).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُرسل. اضغط لإعادة المحاولة'**
+  String get liveChatFailed;
+
+  /// Action on a failed chat line.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة الإرسال'**
+  String get liveChatRetry;
+
+  /// Action on a failed chat line: drop it.
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get liveChatDiscard;
+
+  /// Badge before the host's chat messages.
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف'**
+  String get liveChatHostBadge;
+
+  /// Badge before a moderator's chat messages.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشرف'**
+  String get liveChatModeratorBadge;
+
+  /// Chat line action.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف الشخصي'**
+  String get liveChatViewProfile;
+
+  /// Chat line action (author, host, moderator).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الرسالة'**
+  String get liveChatDelete;
+
+  /// Snack after deleting a chat message.
+  ///
+  /// In ar, this message translates to:
+  /// **'حُذفت الرسالة'**
+  String get liveChatDeleted;
+
+  /// Chat line action (host, moderator).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم {name} في الدردشة'**
+  String liveChatMuteUser(String name);
+
+  /// Chat line action (host, moderator).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء كتم {name}'**
+  String liveChatUnmuteUser(String name);
+
+  /// Snack after muting someone in chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'كُتم {name} في دردشة هذا البث'**
+  String liveChatUserMuted(String name);
+
+  /// Snack after unmuting someone in chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي كتم {name}'**
+  String liveChatUserUnmuted(String name);
+
+  /// Chat line action.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن الرسالة'**
+  String get liveChatReport;
+
+  /// Title of the reasons sheet for a chat message.
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلغ عن هذه الرسالة؟'**
+  String get liveChatReportTitle;
+
+  /// Snack for the host.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوقفت الدردشة. لا يستطيع المشاهدون الكتابة.'**
+  String get liveChatTurnedOff;
+
+  /// Snack for the host.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة تعمل'**
+  String get liveChatTurnedOn;
+
+  /// Screen reader label of a chat line.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: {text}'**
+  String liveChatLineLabel(String name, String text);
+
+  /// Host tool: the room chat on/off switch (CP-013); its state is shown by the button.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة'**
+  String get liveChatTool;
 }
 
 class _AppLocalizationsDelegate

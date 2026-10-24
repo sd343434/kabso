@@ -10,10 +10,13 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart'
+    show showHostSheet;
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -23,6 +26,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -60,6 +64,7 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
   static const shareKey = Key('goLive.share');
+  static const videoChatKey = Key('goLive.videoChat');
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
   static const audioPkKey = Key('goLive.audio.pk');
@@ -86,6 +91,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   final _chat = TextEditingController();
   final _chatFocus = FocusNode();
   bool _writing = false;
+  String? _chatRoom;
   String? _category;
   bool _previewRequested = false;
   Timer? _tick;
@@ -285,6 +291,36 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
   }
 
+  /// CP-013: the host turns the room chat off or on.
+  Future<void> _toggleChat(String roomId, {required bool enabled}) async {
+    final l10n = context.l10n;
+    await _guard(() async {
+      await ref
+          .read(liveChatProvider(roomId).notifier)
+          .setEnabled(enabled: !enabled);
+      if (mounted) {
+        KSnack.info(
+          context,
+          enabled ? l10n.liveChatTurnedOff : l10n.liveChatTurnedOn,
+        );
+      }
+    });
+  }
+
+  /// CP-013: starts the room chat once the room is on air.
+  void _attachChat(LiveRoom? room, LiveMediaEngine engine, bool onAir) {
+    if (room == null || !onAir || _chatRoom == room.id) return;
+    _chatRoom = room.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref
+            .read(liveChatProvider(room.id).notifier)
+            .attach(engine, enabled: room.chatEnabled, muted: false),
+      );
+    });
+  }
+
   void _syncTicker(GoLiveState state) {
     final live = state.phase == GoLivePhase.live;
     if (live && _tick == null) {
@@ -359,6 +395,43 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         liveSeats?.seatCount ?? room?.seatCount ?? state.seatCount;
     final engine = _host.engine;
     _watchSeatsVersion(room);
+    _attachChat(room, engine, onAir);
+    final chat = onAir && room != null
+        ? ref.watch(liveChatProvider(room.id))
+        : null;
+    void openChat() {
+      setState(() => _writing = true);
+      _chatFocus.requestFocus();
+    }
+
+    void send() {
+      if (room == null) return;
+      unawaited(sendLiveChatFrom(context, ref, roomId: room.id, field: _chat));
+    }
+
+    final roomChat = room == null || chat == null
+        ? null
+        : LiveRoomChatLines(
+            roomId: room.id,
+            role: LiveChatViewerRole.host,
+            onProfile: (username) =>
+                unawaited(showHostSheet(context, username)),
+          );
+    final chatComposer = _writing
+        ? TapRegion(
+            onTapOutside: (_) => setState(() {
+              _writing = false;
+              _chatFocus.unfocus();
+            }),
+            child: LiveChatComposer(
+              controller: _chat,
+              focusNode: _chatFocus,
+              hint: l10n.goLiveChatHint,
+              sendLabel: l10n.goLiveChatSend,
+              onSend: send,
+            ),
+          )
+        : null;
     // Seat index → user id, for who is speaking (the host is 0).
     final speaking = <int>{
       if (user != null && engine.speaking.contains(user.id)) 0,
@@ -512,6 +585,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(_toggleGuests(state))
               : null,
         ),
+      if (onAir && room != null)
+        GoLiveTool(
+          id: 'chat',
+          icon: chat?.enabled ?? true
+              ? Icons.chat_rounded
+              : Icons.speaker_notes_off_rounded,
+          // Short in the tools bar; on/off shows on the button.
+          label: l10n.liveChatTool,
+          toggled: chat?.enabled ?? true,
+          onTap: state.phase == GoLivePhase.live
+              ? () => unawaited(
+                  _toggleChat(room.id, enabled: chat?.enabled ?? true),
+                )
+              : null,
+        ),
     ];
 
     const pad = KSpacing.lg;
@@ -571,19 +659,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           : ref.watch(liveViewersPreviewProvider(room.id)).value;
       final live = state.phase == GoLivePhase.live;
       final byId = {for (final t in tools) t.id: t};
-      // Chat and emoji: the room chat is not in the contract yet.
-      // The chat box opens from 💬 and 🙂. The room chat is not in the
-      // contract yet: sending says so and keeps the text (nothing is sent).
-      void openChat() {
-        setState(() => _writing = true);
-        _chatFocus.requestFocus();
-      }
-
-      void send() {
-        if (_chat.text.trim().isEmpty) return;
-        KSnack.info(context, l10n.liveRoomChatUnavailable);
-      }
-
+      // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
         header: LiveAudioRoomHeader(
           cover: KAvatar(name: hostName, imageUrl: user?.avatarUrl, size: 26),
@@ -687,25 +763,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           speaking: speaking,
           onSeat: onSeat,
         ),
-        // The room chat is not in the contract yet: the room says so.
-        chat: [LiveRoomBubble(l10n.liveRoomChatUnavailable)],
+        chat: [?roomChat],
         // After the owner's recording: outline buttons on one side,
         // coloured ones on the other.
-        composer: _writing
-            ? TapRegion(
-                onTapOutside: (_) => setState(() {
-                  _writing = false;
-                  _chatFocus.unfocus();
-                }),
-                child: LiveChatComposer(
-                  controller: _chat,
-                  focusNode: _chatFocus,
-                  hint: l10n.goLiveChatHint,
-                  sendLabel: l10n.goLiveChatSend,
-                  onSend: send,
-                ),
-              )
-            : null,
+        composer: chatComposer,
         // The pill is always there; 🙂 and the room buttons beside it.
         barLead: LiveChatPill(
           key: GoLiveScreen.audioChatKey,
@@ -728,7 +789,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             tintAsset: true,
             label: l10n.livePreviewMore,
             onTap: () => unawaited(
-              _showMore([byId['seats']!, byId['guests']!, byId['theme']!]),
+              _showMore([
+                byId['seats']!,
+                byId['guests']!,
+                ?byId['chat'],
+                byId['theme']!,
+              ]),
             ),
           ),
           LiveRoundButton(
@@ -848,7 +914,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   pad,
                   KSpacing.md,
                 ),
-                child: middle ?? const SizedBox.expand(),
+                child: onAir && roomChat != null
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ?middle,
+                          Align(
+                            alignment: AlignmentDirectional.bottomStart,
+                            child: LiveRoomChatLines(
+                              roomId: room!.id,
+                              role: LiveChatViewerRole.host,
+                              bubble: KLiveColors.chatScrim,
+                              onProfile: (username) =>
+                                  unawaited(showHostSheet(context, username)),
+                            ),
+                          ),
+                        ],
+                      )
+                    : middle ?? const SizedBox.expand(),
               ),
             ),
             if (gate == null && !ended && !captureFailed) ...[
@@ -865,6 +948,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
                         : null,
                   ),
+                ),
+              if (onAir && room != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    pad - 4,
+                    0,
+                    pad - 4,
+                    KSpacing.sm,
+                  ),
+                  child:
+                      chatComposer ??
+                      LiveChatPill(
+                        key: GoLiveScreen.videoChatKey,
+                        hint: l10n.goLiveChatPill,
+                        onTap: openChat,
+                      ),
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: pad),

@@ -3696,5 +3696,133 @@
   "liveTapHint": "اضغط على البث لتشجيع المضيف",
   "@liveTapHint": {
     "description": "Viewer: tap the live to cheer"
+  },
+  "errorLiveChatNotInRoom": "أنت لست داخل هذا البث الآن. افتح البث من جديد.",
+  "@errorLiveChatNotInRoom": {
+    "description": "LIVE_CHAT_NOT_IN_ROOM (403, CP-013)."
+  },
+  "errorLiveChatMuted": "كتمك المضيف أو أحد المشرفين في دردشة هذا البث.",
+  "@errorLiveChatMuted": {
+    "description": "LIVE_CHAT_MUTED (403, CP-013)."
+  },
+  "errorLiveChatClosed": "أوقف المضيف الدردشة.",
+  "@errorLiveChatClosed": {
+    "description": "LIVE_CHAT_CLOSED (409, CP-013)."
+  },
+  "liveChatEmpty": "لا رسائل بعد. قل مرحباً.",
+  "@liveChatEmpty": {
+    "description": "Room chat with no messages (CP-013)."
+  },
+  "liveChatOff": "الدردشة متوقفة",
+  "@liveChatOff": {
+    "description": "Chat pill when the host turned the chat off (CP-013)."
+  },
+  "liveChatMutedPill": "أنت مكتوم في دردشة هذا البث",
+  "@liveChatMutedPill": {
+    "description": "Chat pill when the viewer is muted (CP-013)."
+  },
+  "liveChatSignIn": "سجّل الدخول للمشاركة في الدردشة",
+  "@liveChatSignIn": {
+    "description": "Chat pill for guests without an account (CP-013)."
+  },
+  "liveChatFailed": "لم تُرسل. اضغط لإعادة المحاولة",
+  "@liveChatFailed": {
+    "description": "A chat line that failed to send (CP-013)."
+  },
+  "liveChatRetry": "إعادة الإرسال",
+  "@liveChatRetry": {
+    "description": "Action on a failed chat line."
+  },
+  "liveChatDiscard": "حذف",
+  "@liveChatDiscard": {
+    "description": "Action on a failed chat line: drop it."
+  },
+  "liveChatHostBadge": "المضيف",
+  "@liveChatHostBadge": {
+    "description": "Badge before the host's chat messages."
+  },
+  "liveChatModeratorBadge": "مشرف",
+  "@liveChatModeratorBadge": {
+    "description": "Badge before a moderator's chat messages."
+  },
+  "liveChatViewProfile": "عرض الملف الشخصي",
+  "@liveChatViewProfile": {
+    "description": "Chat line action."
+  },
+  "liveChatDelete": "حذف الرسالة",
+  "@liveChatDelete": {
+    "description": "Chat line action (author, host, moderator)."
+  },
+  "liveChatDeleted": "حُذفت الرسالة",
+  "@liveChatDeleted": {
+    "description": "Snack after deleting a chat message."
+  },
+  "liveChatMuteUser": "كتم {name} في الدردشة",
+  "@liveChatMuteUser": {
+    "description": "Chat line action (host, moderator).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatUnmuteUser": "إلغاء كتم {name}",
+  "@liveChatUnmuteUser": {
+    "description": "Chat line action (host, moderator).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatUserMuted": "كُتم {name} في دردشة هذا البث",
+  "@liveChatUserMuted": {
+    "description": "Snack after muting someone in chat.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatUserUnmuted": "أُلغي كتم {name}",
+  "@liveChatUserUnmuted": {
+    "description": "Snack after unmuting someone in chat.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatReport": "الإبلاغ عن الرسالة",
+  "@liveChatReport": {
+    "description": "Chat line action."
+  },
+  "liveChatReportTitle": "لماذا تبلغ عن هذه الرسالة؟",
+  "@liveChatReportTitle": {
+    "description": "Title of the reasons sheet for a chat message."
+  },
+  "liveChatTurnedOff": "أوقفت الدردشة. لا يستطيع المشاهدون الكتابة.",
+  "@liveChatTurnedOff": {
+    "description": "Snack for the host."
+  },
+  "liveChatTurnedOn": "الدردشة تعمل",
+  "@liveChatTurnedOn": {
+    "description": "Snack for the host."
+  },
+  "liveChatLineLabel": "{name}: {text}",
+  "@liveChatLineLabel": {
+    "description": "Screen reader label of a chat line.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatTool": "الدردشة",
+  "@liveChatTool": {
+    "description": "Host tool: the room chat on/off switch (CP-013); its state is shown by the button."
   }
 }

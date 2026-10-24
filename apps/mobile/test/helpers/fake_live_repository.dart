@@ -6,7 +6,10 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart'
+    show ReportReason;
 
 import '../fixtures/live/live_api_fixtures.dart';
 
@@ -484,6 +487,82 @@ class FakeLiveRepository implements LiveRepository {
       ),
     );
   }
+
+  // ---- CP-013 chat -------------------------------------------------------
+
+  /// What `GET …/chat` answers.
+  List<LiveChatEntry> chat = [];
+
+  /// A failure for the next `sendChat` (then cleared).
+  AppFailure? chatFailure;
+
+  /// Every chat call, e.g. `send:hello`, `delete:m-1`, `mute:huda`.
+  final List<String> chatCalls = [];
+  List<LiveChatMute> chatMuteList = [];
+  int _chatSerial = 0;
+
+  /// The author of sent messages (the signed-in test user by default).
+  UserSummary chatAuthor = const UserSummary(
+    id: 'user-1',
+    username: 'layla.k',
+    displayName: 'Layla',
+    avatarUrl: null,
+  );
+
+  @override
+  Future<List<LiveChatEntry>> chatMessages(String roomId) async {
+    chatCalls.add('list');
+    return chat;
+  }
+
+  @override
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) async {
+    chatCalls.add('send:$text');
+    final failure = chatFailure;
+    if (failure != null) {
+      chatFailure = null;
+      throw failure;
+    }
+    return LiveChatEntry(
+      id: 'sent-${_chatSerial++}',
+      roomId: roomId,
+      author: chatAuthor,
+      authorRole: LiveChatRole.viewer,
+      text: text,
+      createdAt: DateTime.utc(2026, 10, 24, 20),
+    );
+  }
+
+  @override
+  Future<void> deleteChat(String roomId, String messageId) async =>
+      chatCalls.add('delete:$messageId');
+
+  @override
+  Future<List<LiveChatMute>> chatMutes(String roomId) async => chatMuteList;
+
+  @override
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  }) async => chatCalls.add('${muted ? 'mute' : 'unmute'}:$username');
+
+  @override
+  Future<LiveRoom> setChatEnabled(
+    String roomId, {
+    required bool enabled,
+  }) async {
+    chatCalls.add('enabled:$enabled');
+    return apiRoom(id: roomId).copyWith(chatEnabled: enabled);
+  }
+
+  @override
+  Future<void> reportChatMessage(String messageId, ReportReason reason) async =>
+      chatCalls.add('report:$messageId:${reason.wire}');
 }
 
 /// Overrides that point live discovery at [repo] with a fixed scope (no

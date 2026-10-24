@@ -3266,4 +3266,91 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTapHint => 'Tap the live to cheer the host';
+
+  @override
+  String get errorLiveChatNotInRoom =>
+      'You\'re not in this live right now. Open it again.';
+
+  @override
+  String get errorLiveChatMuted =>
+      'The host or a moderator muted you in this live\'s chat.';
+
+  @override
+  String get errorLiveChatClosed => 'The host turned the chat off.';
+
+  @override
+  String get liveChatEmpty => 'No messages yet. Say hi.';
+
+  @override
+  String get liveChatOff => 'Chat is off';
+
+  @override
+  String get liveChatMutedPill => 'You\'re muted in this live\'s chat';
+
+  @override
+  String get liveChatSignIn => 'Log in to chat';
+
+  @override
+  String get liveChatFailed => 'Not sent. Tap to retry';
+
+  @override
+  String get liveChatRetry => 'Send again';
+
+  @override
+  String get liveChatDiscard => 'Remove';
+
+  @override
+  String get liveChatHostBadge => 'Host';
+
+  @override
+  String get liveChatModeratorBadge => 'Mod';
+
+  @override
+  String get liveChatViewProfile => 'View profile';
+
+  @override
+  String get liveChatDelete => 'Delete message';
+
+  @override
+  String get liveChatDeleted => 'Message deleted';
+
+  @override
+  String liveChatMuteUser(String name) {
+    return 'Mute $name in chat';
+  }
+
+  @override
+  String liveChatUnmuteUser(String name) {
+    return 'Unmute $name';
+  }
+
+  @override
+  String liveChatUserMuted(String name) {
+    return '$name is muted in this live\'s chat';
+  }
+
+  @override
+  String liveChatUserUnmuted(String name) {
+    return '$name can chat again';
+  }
+
+  @override
+  String get liveChatReport => 'Report message';
+
+  @override
+  String get liveChatReportTitle => 'Why are you reporting this message?';
+
+  @override
+  String get liveChatTurnedOff => 'Chat is off. Viewers can\'t write.';
+
+  @override
+  String get liveChatTurnedOn => 'Chat is on';
+
+  @override
+  String liveChatLineLabel(String name, String text) {
+    return '$name: $text';
+  }
+
+  @override
+  String get liveChatTool => 'Chat';
 }

@@ -3296,4 +3296,91 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveTapHint => 'اضغط على البث لتشجيع المضيف';
+
+  @override
+  String get errorLiveChatNotInRoom =>
+      'أنت لست داخل هذا البث الآن. افتح البث من جديد.';
+
+  @override
+  String get errorLiveChatMuted =>
+      'كتمك المضيف أو أحد المشرفين في دردشة هذا البث.';
+
+  @override
+  String get errorLiveChatClosed => 'أوقف المضيف الدردشة.';
+
+  @override
+  String get liveChatEmpty => 'لا رسائل بعد. قل مرحباً.';
+
+  @override
+  String get liveChatOff => 'الدردشة متوقفة';
+
+  @override
+  String get liveChatMutedPill => 'أنت مكتوم في دردشة هذا البث';
+
+  @override
+  String get liveChatSignIn => 'سجّل الدخول للمشاركة في الدردشة';
+
+  @override
+  String get liveChatFailed => 'لم تُرسل. اضغط لإعادة المحاولة';
+
+  @override
+  String get liveChatRetry => 'إعادة الإرسال';
+
+  @override
+  String get liveChatDiscard => 'حذف';
+
+  @override
+  String get liveChatHostBadge => 'المضيف';
+
+  @override
+  String get liveChatModeratorBadge => 'مشرف';
+
+  @override
+  String get liveChatViewProfile => 'عرض الملف الشخصي';
+
+  @override
+  String get liveChatDelete => 'حذف الرسالة';
+
+  @override
+  String get liveChatDeleted => 'حُذفت الرسالة';
+
+  @override
+  String liveChatMuteUser(String name) {
+    return 'كتم $name في الدردشة';
+  }
+
+  @override
+  String liveChatUnmuteUser(String name) {
+    return 'إلغاء كتم $name';
+  }
+
+  @override
+  String liveChatUserMuted(String name) {
+    return 'كُتم $name في دردشة هذا البث';
+  }
+
+  @override
+  String liveChatUserUnmuted(String name) {
+    return 'أُلغي كتم $name';
+  }
+
+  @override
+  String get liveChatReport => 'الإبلاغ عن الرسالة';
+
+  @override
+  String get liveChatReportTitle => 'لماذا تبلغ عن هذه الرسالة؟';
+
+  @override
+  String get liveChatTurnedOff => 'أوقفت الدردشة. لا يستطيع المشاهدون الكتابة.';
+
+  @override
+  String get liveChatTurnedOn => 'الدردشة تعمل';
+
+  @override
+  String liveChatLineLabel(String name, String text) {
+    return '$name: $text';
+  }
+
+  @override
+  String get liveChatTool => 'الدردشة';
 }

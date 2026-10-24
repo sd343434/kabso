@@ -13,7 +13,10 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart'
+    show ReportReason;
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -361,5 +364,40 @@ class DemoLiveRepository implements LiveRepository {
 
   @override
   Future<LiveTapsResult> tap(String roomId, int count) async =>
+      throw _serverOnly;
+
+  // CP-013: the demo hub has no server, so no chat.
+  @override
+  Future<List<LiveChatEntry>> chatMessages(String roomId) async => const [];
+
+  @override
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<void> deleteChat(String roomId, String messageId) async =>
+      throw _serverOnly;
+
+  @override
+  Future<List<LiveChatMute>> chatMutes(String roomId) async => const [];
+
+  @override
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<LiveRoom> setChatEnabled(
+    String roomId, {
+    required bool enabled,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<void> reportChatMessage(String messageId, ReportReason reason) async =>
       throw _serverOnly;
 }

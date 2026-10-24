@@ -36,6 +36,15 @@ enum ErrorCode {
   /// CP-010: the host does not let people without an account watch (403).
   liveGuestsNotAllowed('LIVE_GUESTS_NOT_ALLOWED'),
 
+  /// CP-013: a chat message from someone not in the room now (403).
+  liveChatNotInRoom('LIVE_CHAT_NOT_IN_ROOM'),
+
+  /// CP-013: the caller is muted in this live's chat (403).
+  liveChatMuted('LIVE_CHAT_MUTED'),
+
+  /// CP-013: the host turned the chat off (409).
+  liveChatClosed('LIVE_CHAT_CLOSED'),
+
   /// v1.5-social: photo uploads are switched off by server config (503, not
   /// transient, no `Retry-After`).
   mediaUploadsUnavailable('MEDIA_UPLOADS_UNAVAILABLE'),

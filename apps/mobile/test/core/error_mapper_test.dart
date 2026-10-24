@@ -30,6 +30,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveRoomEnded: 409,
   ErrorCode.liveHostingNotAllowed: 403,
   ErrorCode.liveGuestsNotAllowed: 403,
+  ErrorCode.liveChatNotInRoom: 403,
+  ErrorCode.liveChatMuted: 403,
+  ErrorCode.liveChatClosed: 409,
   // v1.5-social
   ErrorCode.mediaUploadsUnavailable: 503,
   ErrorCode.mediaInvalid: 422,
@@ -82,6 +85,10 @@ void main() {
           'LIVE_HOSTING_UNAVAILABLE',
           'LIVE_ROOM_ALREADY_ACTIVE',
           'LIVE_ROOM_ENDED',
+          // v1.9-live (CP-013)
+          'LIVE_CHAT_NOT_IN_ROOM',
+          'LIVE_CHAT_MUTED',
+          'LIVE_CHAT_CLOSED',
           // v1.5-social
           'MEDIA_UPLOADS_UNAVAILABLE',
           'MEDIA_INVALID',

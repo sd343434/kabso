@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -161,6 +162,12 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
 
   @override
   Stream<String> get seatInvites => _invites.stream;
+
+  /// CP-013: what the media room delivers to [chatEvents]; tests add to it.
+  final chat = StreamController<LiveChatEvent>.broadcast();
+
+  @override
+  Stream<LiveChatEvent> get chatEvents => chat.stream;
 
   @override
   Listenable get changes => _changes;

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
@@ -104,6 +105,9 @@ abstract interface class LiveMediaEngine {
   /// Room ids of seat invitations addressed to this participant.
   Stream<String> get seatInvites;
 
+  /// CP-013: the server's chat data messages in the room (§10.11).
+  Stream<LiveChatEvent> get chatEvents;
+
   /// Notifies on any session change: participants, tracks, speakers,
   /// metadata, permissions, connection.
   Listenable get changes;
@@ -129,6 +133,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   lk.EventsListener<lk.RoomEvent>? _listener;
   final _changes = _Changes();
   final _invites = StreamController<String>.broadcast();
+  final _chat = StreamController<LiveChatEvent>.broadcast();
   Set<String> _speaking = const {};
   int? _seatsVersion;
   int? _score;
@@ -291,7 +296,10 @@ class LiveKitMediaEngine implements LiveMediaEngine {
           if (message is Map && message['type'] == 'seat-invite') {
             final roomId = message['roomId'];
             if (roomId is String) _invites.add(roomId);
+            return;
           }
+          final chat = LiveChatEvent.parse(message);
+          if (chat != null) _chat.add(chat);
         } on FormatException {
           // Not ours.
         }
@@ -386,6 +394,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   Stream<String> get seatInvites => _invites.stream;
+
+  @override
+  Stream<LiveChatEvent> get chatEvents => _chat.stream;
 
   @override
   Listenable get changes => _changes;

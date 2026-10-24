@@ -128,6 +128,8 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   scoreParts: json['scoreParts'] == null
       ? null
       : LiveScore.fromJson(json['scoreParts'] as Map<String, dynamic>),
+  chatEnabled: json['chatEnabled'] as bool? ?? true,
+  chatMuted: json['chatMuted'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -148,6 +150,8 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'theme': instance.theme,
   'score': instance.score,
   'scoreParts': instance.scoreParts,
+  'chatEnabled': instance.chatEnabled,
+  'chatMuted': instance.chatMuted,
 };
 
 const _$LiveRoomStatusEnumMap = {

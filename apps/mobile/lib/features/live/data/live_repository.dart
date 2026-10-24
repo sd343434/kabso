@@ -5,7 +5,10 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/api_call.dart';
 import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart'
+    show ReportReason;
 
 /// Live discovery (docs/contracts/openapi.yaml v1.3, tag `live`).
 ///
@@ -124,6 +127,39 @@ abstract interface class LiveRepository {
 
   /// `POST /live/rooms/{roomId}/taps` (CP-012): a batch of 1–50 taps.
   Future<LiveTapsResult> tap(String roomId, int count);
+
+  // ---- CP-013 chat (CONVENTIONS §10.11) ---------------------------------
+
+  /// `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first.
+  Future<List<LiveChatEntry>> chatMessages(String roomId);
+
+  /// `POST /live/rooms/{roomId}/chat`; a retry with the same [clientId]
+  /// returns the first message.
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  });
+
+  /// `DELETE /live/rooms/{roomId}/chat/{messageId}` (the author, the host or
+  /// a moderator; idempotent).
+  Future<void> deleteChat(String roomId, String messageId);
+
+  /// `GET /live/rooms/{roomId}/chat/mutes` (host, moderator).
+  Future<List<LiveChatMute>> chatMutes(String roomId);
+
+  /// `PUT` / `DELETE /live/rooms/{roomId}/chat/mutes/{username}`.
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  });
+
+  /// `PATCH /live/rooms/{roomId}` `chatEnabled` (host).
+  Future<LiveRoom> setChatEnabled(String roomId, {required bool enabled});
+
+  /// `POST /reports` with `targetType: LIVE_CHAT_MESSAGE`.
+  Future<void> reportChatMessage(String messageId, ReportReason reason);
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -401,6 +437,86 @@ class LiveRepositoryImpl implements LiveRepository {
         () =>
             _dio.delete('${_room(roomId)}/moderators/${pathSegment(username)}'),
       );
+
+  @override
+  Future<List<LiveChatEntry>> chatMessages(String roomId) => guardApiCall(
+    () async {
+      final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/chat');
+      return [
+        for (final m in res.data!['data']! as List<dynamic>)
+          LiveChatEntry.fromJson(m as Map<String, dynamic>),
+      ];
+    },
+  );
+
+  @override
+  Future<LiveChatEntry> sendChat(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/chat',
+      data: {'text': text, 'clientId': clientId},
+    );
+    return LiveChatEntry.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> deleteChat(String roomId, String messageId) =>
+      guardApiCall(() async {
+        await _dio.delete<void>(
+          '${_room(roomId)}/chat/${pathSegment(messageId)}',
+        );
+      });
+
+  @override
+  Future<List<LiveChatMute>> chatMutes(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '${_room(roomId)}/chat/mutes',
+    );
+    return [
+      for (final m in res.data!['data']! as List<dynamic>)
+        LiveChatMute.fromJson(m as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<void> setChatMuted(
+    String roomId,
+    String username, {
+    required bool muted,
+  }) => guardApiCall(() async {
+    final path = '${_room(roomId)}/chat/mutes/${pathSegment(username)}';
+    if (muted) {
+      await _dio.put<void>(path);
+    } else {
+      await _dio.delete<void>(path);
+    }
+  });
+
+  @override
+  Future<LiveRoom> setChatEnabled(String roomId, {required bool enabled}) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          _room(roomId),
+          data: {'chatEnabled': enabled},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<void> reportChatMessage(String messageId, ReportReason reason) =>
+      guardApiCall(() async {
+        await _dio.post<Map<String, dynamic>>(
+          '/reports',
+          data: {
+            'targetType': 'LIVE_CHAT_MESSAGE',
+            'targetId': messageId,
+            'reason': reason.wire,
+          },
+        );
+      });
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

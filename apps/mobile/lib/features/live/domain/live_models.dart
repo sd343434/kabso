@@ -151,6 +151,12 @@ abstract class LiveRoom with _$LiveRoom {
     /// CP-012 (see [LiveRoomSummary]) and its parts.
     @Default(0) int score,
     LiveScore? scoreParts,
+
+    /// CP-013: the host has not turned the chat off.
+    @Default(true) bool chatEnabled,
+
+    /// CP-013: the caller is muted in this live's chat.
+    @Default(false) bool chatMuted,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);

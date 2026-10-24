@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.da
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -599,16 +600,25 @@ void main() {
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
-      // The mixer holds seats, guests and theme; chat is not open yet.
+      // The mixer holds seats, guests, the chat switch (CP-013) and theme.
       await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
       expect(find.byKey(GoLiveScreen.liveGuestsKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.themeKey), findsOneWidget);
-      await tester.tapAt(const Offset(10, 10));
+      expect(find.text(l10n.liveChatTool), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.tool('chat')));
       await tester.pumpAndSettle();
-      // 💬 opens the chat box in place of the buttons. The room chat is
-      // not in the contract yet: send says so and keeps the text.
+      expect(repo.chatCalls, contains('enabled:false'));
+      expect(find.text(l10n.liveChatTurnedOff), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      // The sheet closed with the choice.
+      expect(find.byKey(GoLiveKeys.tool('chat')), findsNothing);
+      // 💬 opens the chat box in place of the buttons; the host's message
+      // goes to the room chat (CP-013) and shows in the room.
+      expect(find.textContaining(l10n.liveChatEmpty), findsOneWidget);
       await tester.tap(find.byKey(GoLiveScreen.audioChatKey));
       await tester.pumpAndSettle();
       expect(find.byKey(LiveChatComposer.fieldKey), findsOneWidget);
@@ -616,10 +626,22 @@ void main() {
       await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hello');
       await tester.tap(find.byKey(LiveChatComposer.sendKey));
       await tester.pump();
-      expect(find.text(l10n.liveRoomChatUnavailable), findsWidgets);
-      expect(find.text('Hello'), findsOneWidget);
-      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
-          .removeCurrentSnackBar();
+      expect(repo.chatCalls, contains('send:Hello'));
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomChatLines.listKey),
+          matching: find.textContaining('Hello', findRichText: true),
+        ),
+        findsOneWidget,
+      );
+      // The field empties at once.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(LiveChatComposer.fieldKey))
+            .controller!
+            .text,
+        isEmpty,
+      );
       // A tap outside closes it; the buttons are back.
       await tester.tapAt(const Offset(200, 300));
       await tester.pumpAndSettle();

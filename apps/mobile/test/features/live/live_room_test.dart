@@ -23,6 +23,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -30,6 +31,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
@@ -286,8 +288,9 @@ void main() {
       expect(find.text('Music'), findsOneWidget);
       expect(find.text('Sara'), findsOneWidget);
       expect(find.text('1,234 followers'), findsOneWidget);
-      // Chat: an honest notice, no composer.
-      expect(_chat(l10n.liveRoomChatUnavailable), findsOneWidget);
+      // Chat (CP-013): the room's chat, empty so far; the old comment
+      // field is gone.
+      expect(_chat(l10n.liveChatEmpty), findsOneWidget);
       expect(find.text(l10n.liveCommentHint), findsNothing);
       expect(_label(l10n.liveCommentHint), findsNothing);
       // Gifts only; no share (no room link domain yet).
@@ -312,7 +315,7 @@ void main() {
         expect(find.byKey(const Key('room.ended')), findsOneWidget);
         expect(find.text(l10n.liveRoomEndedTitle), findsOneWidget);
         expect(find.text(text), findsOneWidget);
-        expect(_chat(l10n.liveRoomChatUnavailable), findsNothing);
+        expect(_chat(l10n.liveChatEmpty), findsNothing);
         expect(find.byType(KRoomActionBar), findsNothing);
         expect(find.byKey(_hostAway), findsNothing);
         expect(find.byKey(const Key('room.back')), findsOneWidget);
@@ -680,7 +683,7 @@ void main() {
         final pill = tester.getCenter(find.byType(KHostPill)).dx;
         final close = tester.getCenter(_label(l.liveClose)).dx;
         final gift = tester.getCenter(_label(l.liveGifts)).dx;
-        final chat = tester.getCenter(_chat(l.liveRoomChatUnavailable)).dx;
+        final chat = tester.getCenter(_chat(l.liveChatEmpty)).dx;
         final info = tester.getCenter(find.byType(KRoomInfoRow)).dx;
         const mid = 393 / 2;
         expect(ar ? pill > close : pill < close, isTrue, reason: language.name);
@@ -1097,6 +1100,194 @@ void main() {
       expect(engine.micEnabled, isFalse);
       await tester.tap(find.byKey(AudioRoomViewKeys.close));
       await tester.pumpAndSettle();
+    });
+
+    group('room chat (CP-013)', () {
+      const huda = UserSummary(
+        id: 'u-huda',
+        username: 'huda',
+        displayName: 'Huda',
+        avatarUrl: null,
+      );
+      LiveChatEntry entry(
+        String id,
+        String text, {
+        UserSummary author = huda,
+        LiveChatRole role = LiveChatRole.viewer,
+      }) => LiveChatEntry(
+        id: id,
+        roomId: 'room-0',
+        author: author,
+        authorRole: role,
+        text: text,
+        createdAt: DateTime.utc(2026, 10, 24, 20),
+      );
+      Finder line(String text) => find.descendant(
+        of: find.byKey(LiveRoomChatLines.listKey),
+        matching: find.textContaining(text, findRichText: true),
+      );
+
+      testWidgets('a viewer reads the last messages and the live ones, '
+          'writes, and can only report others', (tester) async {
+        final engine = FakeLiveMediaEngine()..present.add('user-0');
+        final me = testUser();
+        final repo = seatRoom(LiveRoomMode.audio, 9)
+          ..chat = [entry('m1', 'Hello room')]
+          ..chatAuthor = UserSummary(
+            id: me.id,
+            username: me.username,
+            displayName: me.displayName,
+            avatarUrl: null,
+          );
+        await _pumpRoom(tester, repo: repo, engine: engine, user: me);
+        expect(line('Hello room'), findsOneWidget);
+        engine.chat
+          ..add(
+            LiveChatReceived(entry('m2', 'Welcome!', role: LiveChatRole.host)),
+          )
+          ..add(const LiveChatJoined(huda));
+        await tester.pumpAndSettle();
+        expect(line('Welcome!'), findsOneWidget);
+        expect(line(l10n.liveChatHostBadge), findsOneWidget);
+        // Names are direction-isolated inside the line.
+        expect(line('joined'), findsOneWidget);
+        // Write.
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
+        await tester.tap(find.byKey(LiveChatComposer.sendKey));
+        await tester.pumpAndSettle();
+        expect(repo.chatCalls, contains('send:Hi all'));
+        expect(line('Hi all'), findsOneWidget);
+        // Someone else's line: profile and report only.
+        await tester.tapAt(const Offset(1, 1));
+        await tester.pumpAndSettle();
+        await tester.tap(line('Hello room'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('liveChat.action.profile')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('liveChat.action.report')), findsOneWidget);
+        expect(find.byKey(const Key('liveChat.action.delete')), findsNothing);
+        expect(find.byKey(const Key('liveChat.action.mute')), findsNothing);
+        await tester.tap(find.byKey(const Key('liveChat.action.report')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('feed.post.report.spam')));
+        await tester.pumpAndSettle();
+        expect(repo.chatCalls, contains('report:m1:SPAM'));
+        ScaffoldMessenger.of(tester.element(find.byType(LiveRoomScreen)))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+        // Their own line: delete.
+        await tester.tap(line('Hi all'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('liveChat.action.delete')), findsOneWidget);
+        expect(find.byKey(const Key('liveChat.action.report')), findsNothing);
+        await tester.tap(find.byKey(const Key('liveChat.action.delete')));
+        await tester.pumpAndSettle();
+        expect(repo.chatCalls, contains('delete:sent-0'));
+        expect(line('Hi all'), findsNothing);
+      });
+
+      testWidgets('a moderator deletes and mutes viewers, not the host', (
+        tester,
+      ) async {
+        final engine = FakeLiveMediaEngine()..present.add('user-0');
+        final repo = seatRoom(LiveRoomMode.audio, 9)
+          ..seatState = seats(
+            mode: LiveRoomMode.audio,
+            count: 9,
+            mine: const LiveSeatsMine(
+              role: LiveSeatRole.moderator,
+              seatIndex: null,
+              request: null,
+              invite: null,
+            ),
+          )
+          ..chat = [
+            entry('m1', 'buy followers'),
+            entry('m2', 'Thanks all', role: LiveChatRole.host),
+          ];
+        await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+        await tester.tap(line('buy followers'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('liveChat.action.delete')), findsOneWidget);
+        await tester.tap(find.byKey(const Key('liveChat.action.mute')));
+        await tester.pumpAndSettle();
+        expect(repo.chatCalls, contains('mute:huda'));
+        expect(find.textContaining('is muted in this'), findsOneWidget);
+        ScaffoldMessenger.of(tester.element(find.byType(LiveRoomScreen)))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+        // The host's message: no delete, no mute.
+        await tester.tap(line('Thanks all'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('liveChat.action.delete')), findsNothing);
+        expect(find.byKey(const Key('liveChat.action.mute')), findsNothing);
+      });
+
+      testWidgets('guests read but are asked to sign in to write', (
+        tester,
+      ) async {
+        final repo = seatRoom(LiveRoomMode.audio, 9)
+          ..chat = [entry('m1', 'Hello room')];
+        await _pumpRoom(tester, repo: repo, engine: FakeLiveMediaEngine());
+        expect(line('Hello room'), findsOneWidget);
+        expect(find.text(l10n.liveChatSignIn), findsOneWidget);
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pump();
+        expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
+      });
+
+      testWidgets('muted, or the chat turned off: the pill says so and the '
+          'box does not open', (tester) async {
+        for (final (room, hint) in [
+          (apiRoom().copyWith(chatMuted: true), l10n.liveChatMutedPill),
+          (apiRoom().copyWith(chatEnabled: false), l10n.liveChatOff),
+        ]) {
+          final engine = FakeLiveMediaEngine();
+          final repo = FakeLiveRepository(
+            room: (_) => room.copyWith(mode: LiveRoomMode.audio, seatCount: 9),
+          )..seatState = seats(mode: LiveRoomMode.audio, count: 9);
+          await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+          expect(find.text(hint), findsOneWidget);
+          await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+          await tester.pump();
+          expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
+          ScaffoldMessenger.of(tester.element(find.byType(LiveRoomScreen)))
+              .removeCurrentSnackBar();
+          await tester.pumpAndSettle();
+        }
+      });
+
+      testWidgets('the host turning the chat off reaches the room at once', (
+        tester,
+      ) async {
+        final engine = FakeLiveMediaEngine();
+        final repo = seatRoom(LiveRoomMode.audio, 9);
+        await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+        expect(find.text(l10n.goLiveChatPill), findsOneWidget);
+        engine.chat.add(const LiveChatStateChanged(enabled: false));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveChatOff), findsOneWidget);
+      });
+
+      testWidgets('video rooms: the chat over the video and the pill above '
+          'the buttons', (tester) async {
+        final engine = FakeLiveMediaEngine()..present.add('user-0');
+        final repo = FakeLiveRepository(room: (id) => apiRoom(id: id))
+          ..chat = [entry('m1', 'Nice video')];
+        await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+        expect(line('Nice video'), findsOneWidget);
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Wow');
+        await tester.tap(find.byKey(LiveChatComposer.sendKey));
+        await tester.pumpAndSettle();
+        expect(repo.chatCalls, contains('send:Wow'));
+        expect(line('Wow'), findsOneWidget);
+      });
     });
 
     testWidgets('a pending request can be cancelled', (tester) async {
