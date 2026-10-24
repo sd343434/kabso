@@ -139,7 +139,10 @@ class LiveAudioRoomLayout extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
+              // The chat box is a panel across the whole width.
+              padding: composer == null
+                  ? const EdgeInsets.fromLTRB(4, 2, 4, 4)
+                  : EdgeInsets.zero,
               child:
                   composer ??
                   Row(
@@ -161,8 +164,10 @@ class LiveAudioRoomLayout extends StatelessWidget {
   }
 }
 
-/// The chat box: a rounded field and the send button.
-class LiveChatComposer extends StatelessWidget {
+/// The chat box (owner's reference): a white panel across the bottom with
+/// a light rounded field, the send arrow, and a row of quick emoji that go
+/// into the field. System emoji only (no third-party stickers).
+class LiveChatComposer extends StatefulWidget {
   const new({
     required this.controller,
     required this.focusNode,
@@ -180,54 +185,155 @@ class LiveChatComposer extends StatelessWidget {
 
   static const fieldKey = Key('liveChat.field');
   static const sendKey = Key('liveChat.send');
+  static Key emojiKey(String emoji) => Key('liveChat.emoji.$emoji');
+
+  /// The quick row.
+  static const emojis = ['😂', '😍', '🥰', '👏', '🔥', '🌹', '❤️'];
+
+  /// The panel's colours.
+  static const panel = Color(0xFFFFFFFF);
+  static const field = Color(0xFFF2F3F7);
+  static const ink = Color(0xFF1C1B2E);
+  static const hintInk = Color(0xFFA9AAB8);
+  static const sendOn = Color(0xFF6C4CF1);
+  static const sendOff = Color(0xFFC9CAD6);
+
+  @override
+  State<LiveChatComposer> createState() => _LiveChatComposerState();
+}
+
+class _LiveChatComposerState extends State<LiveChatComposer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() => setState(() {});
+
+  void _insert(String emoji) {
+    final c = widget.controller;
+    final sel = c.selection;
+    final text = c.text;
+    final at = sel.isValid ? sel.start : text.length;
+    final to = sel.isValid ? sel.end : text.length;
+    c.value = TextEditingValue(
+      text: text.replaceRange(at, to, emoji),
+      selection: TextSelection.collapsed(offset: at + emoji.length),
+    );
+    widget.focusNode.requestFocus();
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-      child: Row(
+    final hasText = widget.controller.text.trim().isNotEmpty;
+    return Container(
+      decoration: const BoxDecoration(
+        color: LiveChatComposer.panel,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 12, 8, 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Container(
-              height: 42,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: KAudioRoom.button,
-                borderRadius: BorderRadius.circular(21),
-                border: Border.all(color: const Color(0x2EFFFFFF), width: 1.4),
-              ),
-              alignment: Alignment.center,
-              child: TextField(
-                key: fieldKey,
-                controller: controller,
-                focusNode: focusNode,
-                maxLength: 200,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                cursorColor: KAudioRoom.text,
-                style: text.body.copyWith(color: KAudioRoom.text),
-                // No field chrome of the app theme: the pill is the field.
-                decoration: InputDecoration(
-                  isCollapsed: true,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  counterText: '',
-                  hintText: hint,
-                  hintStyle: text.body.copyWith(color: KAudioRoom.textSoft),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: LiveChatComposer.field,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  alignment: Alignment.center,
+                  child: TextField(
+                    key: LiveChatComposer.fieldKey,
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    maxLength: 200,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => widget.onSend(),
+                    cursorColor: LiveChatComposer.sendOn,
+                    style: text.body.copyWith(color: LiveChatComposer.ink),
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      counterText: '',
+                      hintText: widget.hint,
+                      hintStyle: text.body.copyWith(
+                        color: LiveChatComposer.hintInk,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              Semantics(
+                button: true,
+                label: widget.sendLabel,
+                onTap: widget.onSend,
+                excludeSemantics: true,
+                child: Tooltip(
+                  message: widget.sendLabel,
+                  child: GestureDetector(
+                    key: LiveChatComposer.sendKey,
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onSend,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.send_rounded,
+                        size: 28,
+                        // Points along the reading direction.
+                        textDirection: Directionality.of(context),
+                        color: hasText
+                            ? LiveChatComposer.sendOn
+                            : LiveChatComposer.sendOff,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 6),
-          LiveRoundButton(
-            key: sendKey,
-            icon: Icons.send_rounded,
-            label: sendLabel,
-            onTap: onSend,
-            gradient: const [Color(0xFF4FE3FF), Color(0xFF1E6BFF)],
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final emoji in LiveChatComposer.emojis)
+                Semantics(
+                  button: true,
+                  label: emoji,
+                  onTap: () => _insert(emoji),
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    key: LiveChatComposer.emojiKey(emoji),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _insert(emoji),
+                    child: SizedBox(
+                      width: 44,
+                      height: 40,
+                      child: Center(
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 26, height: 1.1),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

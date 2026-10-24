@@ -1155,9 +1155,12 @@ void main() {
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
         await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
+        // A quick emoji goes into the field at the cursor.
+        await tester.tap(find.byKey(LiveChatComposer.emojiKey('🔥')));
+        await tester.pump();
         await tester.tap(find.byKey(LiveChatComposer.sendKey));
         await tester.pumpAndSettle();
-        expect(repo.chatCalls, contains('send:Hi all'));
+        expect(repo.chatCalls, contains('send:Hi all🔥'));
         expect(line('Hi all'), findsOneWidget);
         // Someone else's line: profile and report only.
         await tester.tapAt(const Offset(1, 1));
