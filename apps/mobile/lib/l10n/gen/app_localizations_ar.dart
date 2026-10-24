@@ -3058,6 +3058,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveThemeRoseGarden => 'حديقة الورد';
 
   @override
+  String get liveThemeSunsetSky => 'سماء الغروب';
+
+  @override
+  String get liveThemeMoonPalace => 'قصر القمر';
+
+  @override
+  String get liveThemeOceanDepths => 'أعماق المحيط';
+
+  @override
+  String get liveThemeGoldenHall => 'القاعة الذهبية';
+
+  @override
+  String get liveThemeGameArena => 'ساحة الألعاب';
+
+  @override
+  String get liveThemeHeartGarden => 'حديقة القلوب';
+
+  @override
+  String get liveThemeGalaxy => 'المجرة';
+
+  @override
   String get goLiveGuestsAllowedChip => 'الزوار مسموح';
 
   @override

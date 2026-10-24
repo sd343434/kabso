@@ -3030,6 +3030,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveThemeRoseGarden => 'Rose garden';
 
   @override
+  String get liveThemeSunsetSky => 'Sunset sky';
+
+  @override
+  String get liveThemeMoonPalace => 'Moon palace';
+
+  @override
+  String get liveThemeOceanDepths => 'Ocean depths';
+
+  @override
+  String get liveThemeGoldenHall => 'Golden hall';
+
+  @override
+  String get liveThemeGameArena => 'Game arena';
+
+  @override
+  String get liveThemeHeartGarden => 'Heart garden';
+
+  @override
+  String get liveThemeGalaxy => 'Galaxy';
+
+  @override
   String get goLiveGuestsAllowedChip => 'Guests allowed';
 
   @override

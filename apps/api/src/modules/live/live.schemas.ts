@@ -43,7 +43,20 @@ export const liveTitleSchema = z
 // ---- CP-011 (D94): modes, seat counts and themes ---------------------------------------------
 
 /** Room themes the server accepts, in display order; the first is the default (§10.9). */
-export const LIVE_THEMES = ['classic', 'ice-palace', 'desert-night', 'rose-garden'] as const;
+export const LIVE_THEMES = [
+  'classic',
+  'ice-palace',
+  'desert-night',
+  'rose-garden',
+  // The owner's seven room themes (2026-10-24), after the CP-011 ones.
+  'sunset-sky',
+  'moon-palace',
+  'ocean-depths',
+  'golden-hall',
+  'game-arena',
+  'heart-garden',
+  'galaxy',
+] as const;
 export const DEFAULT_LIVE_THEME = LIVE_THEMES[0];
 
 /** Allowed `seatCount` per mode, host tile included (owner D94). */

@@ -26,6 +26,41 @@ class LiveThemeArt {
       asset: 'assets/live_themes/rose-garden.webp',
       accent: Color(0xFFFF4D6D),
     ),
+    'sunset-sky' => const LiveThemeArt._(
+      slug: 'sunset-sky',
+      asset: 'assets/live_themes/sunset-sky.webp',
+      accent: Color(0xFFFFB36B),
+    ),
+    'moon-palace' => const LiveThemeArt._(
+      slug: 'moon-palace',
+      asset: 'assets/live_themes/moon-palace.webp',
+      accent: Color(0xFFB9A4FF),
+    ),
+    'ocean-depths' => const LiveThemeArt._(
+      slug: 'ocean-depths',
+      asset: 'assets/live_themes/ocean-depths.webp',
+      accent: Color(0xFF3FC8FF),
+    ),
+    'golden-hall' => const LiveThemeArt._(
+      slug: 'golden-hall',
+      asset: 'assets/live_themes/golden-hall.webp',
+      accent: Color(0xFFFFC24D),
+    ),
+    'game-arena' => const LiveThemeArt._(
+      slug: 'game-arena',
+      asset: 'assets/live_themes/game-arena.webp',
+      accent: Color(0xFFB04DFF),
+    ),
+    'heart-garden' => const LiveThemeArt._(
+      slug: 'heart-garden',
+      asset: 'assets/live_themes/heart-garden.webp',
+      accent: Color(0xFFFF4D8D),
+    ),
+    'galaxy' => const LiveThemeArt._(
+      slug: 'galaxy',
+      asset: 'assets/live_themes/galaxy.webp',
+      accent: Color(0xFFA64DFF),
+    ),
     _ => const LiveThemeArt._(
       slug: LiveThemes.classic,
       accent: KLiveStyle.accent,
@@ -42,6 +77,13 @@ class LiveThemeArt {
     'ice-palace' => l10n.liveThemeIcePalace,
     'desert-night' => l10n.liveThemeDesertNight,
     'rose-garden' => l10n.liveThemeRoseGarden,
+    'sunset-sky' => l10n.liveThemeSunsetSky,
+    'moon-palace' => l10n.liveThemeMoonPalace,
+    'ocean-depths' => l10n.liveThemeOceanDepths,
+    'golden-hall' => l10n.liveThemeGoldenHall,
+    'game-arena' => l10n.liveThemeGameArena,
+    'heart-garden' => l10n.liveThemeHeartGarden,
+    'galaxy' => l10n.liveThemeGalaxy,
     _ => l10n.liveThemeClassic,
   };
 }

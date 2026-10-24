@@ -3374,6 +3374,34 @@
   "@liveThemeRoseGarden": {
     "description": "Theme name"
   },
+  "liveThemeSunsetSky": "سماء الغروب",
+  "@liveThemeSunsetSky": {
+    "description": "Theme name"
+  },
+  "liveThemeMoonPalace": "قصر القمر",
+  "@liveThemeMoonPalace": {
+    "description": "Theme name"
+  },
+  "liveThemeOceanDepths": "أعماق المحيط",
+  "@liveThemeOceanDepths": {
+    "description": "Theme name"
+  },
+  "liveThemeGoldenHall": "القاعة الذهبية",
+  "@liveThemeGoldenHall": {
+    "description": "Theme name"
+  },
+  "liveThemeGameArena": "ساحة الألعاب",
+  "@liveThemeGameArena": {
+    "description": "Theme name"
+  },
+  "liveThemeHeartGarden": "حديقة القلوب",
+  "@liveThemeHeartGarden": {
+    "description": "Theme name"
+  },
+  "liveThemeGalaxy": "المجرة",
+  "@liveThemeGalaxy": {
+    "description": "Theme name"
+  },
   "goLiveGuestsAllowedChip": "الزوار مسموح",
   "@goLiveGuestsAllowedChip": {
     "description": "Guests chip on"

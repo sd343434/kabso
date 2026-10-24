@@ -163,7 +163,19 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const config = await ctx.http.get('/api/v1/live/config');
       expectContract(config, 'getLiveConfig');
       expect(config.body).toMatchObject({
-        themes: ['classic', 'ice-palace', 'desert-night', 'rose-garden'],
+        themes: [
+          'classic',
+          'ice-palace',
+          'desert-night',
+          'rose-garden',
+          'sunset-sky',
+          'moon-palace',
+          'ocean-depths',
+          'golden-hall',
+          'game-arena',
+          'heart-garden',
+          'galaxy',
+        ],
         seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] },
       });
 

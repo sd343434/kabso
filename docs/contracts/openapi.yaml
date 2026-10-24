@@ -577,7 +577,7 @@ paths:
                 hostingEnabled: false
                 heartbeatIntervalSeconds: 15
                 heartbeatStaleAfterSeconds: 45
-                themes: [classic, ice-palace, desert-night, rose-garden]
+                themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy]
                 seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }

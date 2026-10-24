@@ -5270,6 +5270,48 @@ abstract class AppLocalizations {
   /// **'حديقة الورد'**
   String get liveThemeRoseGarden;
 
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'سماء الغروب'**
+  String get liveThemeSunsetSky;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'قصر القمر'**
+  String get liveThemeMoonPalace;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'أعماق المحيط'**
+  String get liveThemeOceanDepths;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'القاعة الذهبية'**
+  String get liveThemeGoldenHall;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'ساحة الألعاب'**
+  String get liveThemeGameArena;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'حديقة القلوب'**
+  String get liveThemeHeartGarden;
+
+  /// Theme name
+  ///
+  /// In ar, this message translates to:
+  /// **'المجرة'**
+  String get liveThemeGalaxy;
+
   /// Guests chip on
   ///
   /// In ar, this message translates to:

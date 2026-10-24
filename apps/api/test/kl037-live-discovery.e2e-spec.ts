@@ -214,7 +214,19 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         heartbeatIntervalSeconds: 15,
         heartbeatStaleAfterSeconds: 45,
         // CP-011 (v1.7-live): room themes and seat counts per mode.
-        themes: ['classic', 'ice-palace', 'desert-night', 'rose-garden'],
+        themes: [
+          'classic',
+          'ice-palace',
+          'desert-night',
+          'rose-garden',
+          'sunset-sky',
+          'moon-palace',
+          'ocean-depths',
+          'golden-hall',
+          'game-arena',
+          'heart-garden',
+          'galaxy',
+        ],
         seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] },
       });
     });
