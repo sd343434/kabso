@@ -3401,4 +3401,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolsViewers => 'المشاهدون';
+
+  @override
+  String get liveSeatGuestsTab => 'الضيوف';
+
+  @override
+  String get liveSeatGuestsEmpty => 'لا أحد على المقاعد الآن';
+
+  @override
+  String liveSeatNumberLabel(int number) {
+    return 'المقعد $number';
+  }
 }

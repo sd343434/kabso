@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
-import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -560,7 +559,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(_toggleGuests(state))
               : null,
         ),
-      if (onAir)
+      // In the audio room's tools sheet only: the video tools bar shows
+      // five tools and the chat switch must stay among them.
+      if (onAir && state.mode == LiveRoomMode.audio)
         GoLiveTool(
           id: 'voice',
           icon: Icons.tune_rounded,
@@ -582,9 +583,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           icon: Icons.people_alt_outlined,
           label: l10n.liveToolsViewers,
           onTap: state.phase == GoLivePhase.live
-              ? () => unawaited(
-                  _openViewers(room.id, liveSeats?.moderators ?? const []),
-                )
+              ? () => unawaited(_openViewers(room.id, liveSeats))
               : null,
         ),
       if (onAir && room != null)
@@ -731,9 +730,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   viewers.items.length,
                   KFormat.compact(viewers.items.length, l10n),
                 ),
-                onTap: () => unawaited(
-                  _openViewers(room.id, liveSeats?.moderators ?? const []),
-                ),
+                onTap: () => unawaited(_openViewers(room.id, liveSeats)),
               ),
           ],
         ),
@@ -1065,6 +1062,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         context,
         roomId: roomId,
         moderators: seats.moderators,
+        seated: seats.seats,
         onInvite: (username) async {
           await repo.inviteToSeat(roomId, username, seatIndex: index);
           await _afterSeatChange(roomId);
@@ -1082,11 +1080,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// Who is watching: invite to a seat, make or remove moderators.
-  Future<void> _openViewers(String roomId, List<UserSummary> moderators) =>
+  Future<void> _openViewers(String roomId, LiveSeats? seats) =>
       showInviteViewers(
         context,
         roomId: roomId,
-        moderators: moderators,
+        moderators: seats?.moderators ?? const [],
+        seated: seats?.seats ?? const [],
         onInvite: (username) async {
           await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
           await _afterSeatChange(roomId);

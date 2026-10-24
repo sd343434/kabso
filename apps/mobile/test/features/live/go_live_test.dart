@@ -519,6 +519,25 @@ void main() {
         ),
         findsOneWidget,
       );
+      // Tapping who is watching: the viewers sheet with Viewers / Guests
+      // tabs and an invite-to-seat button (owner's reference).
+      await tester.tap(find.byKey(GoLiveScreen.viewersKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(SeatControlKeys.viewersTab), findsOneWidget);
+      expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);
+      final invite = find.byKey(SeatControlKeys.inviteUser('huda'));
+      expect(invite, findsOneWidget);
+      await tester.tap(invite);
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatInvited), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.guestsTab));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatGuestsEmpty), findsOneWidget);
+      await tester.tap(find.byTooltip(l10n.liveClose).last);
+      await tester.pumpAndSettle();
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
       // The host's seat ("Host"), then numbered empty seats with +.
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);

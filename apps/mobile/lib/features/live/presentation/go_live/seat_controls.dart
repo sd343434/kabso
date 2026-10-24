@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -22,6 +23,8 @@ abstract final class SeatControlKeys {
   static Key accept(String id) => Key('seat.request.$id.accept');
   static Key decline(String id) => Key('seat.request.$id.decline');
   static Key inviteUser(String username) => Key('seat.invite.$username');
+  static const viewersTab = Key('seat.viewers.tab');
+  static const guestsTab = Key('seat.guests.tab');
   static Key moderatorUser(String username) => Key('seat.moderator.$username');
   static Key count(int count) => Key('seat.count.$count');
 }
@@ -298,8 +301,11 @@ class _RequestListState extends ConsumerState<_RequestList> {
   }
 }
 
-/// The host's viewers (signed-in only; guests cannot sit): invite one onto
-/// a seat, or make them a moderator.
+/// Who is in the room (owner's reference): a white sheet with two tabs.
+/// **Viewers**: everyone watching now (signed-in people and guests), with
+/// make/remove moderator and an invite-to-seat button for signed-in people
+/// not seated yet. **Guests**: who is on a seat. From
+/// `GET /live/rooms/{roomId}/viewers` and the room's seats.
 Future<void> showInviteViewers(
   BuildContext context, {
   required String roomId,
@@ -307,27 +313,37 @@ Future<void> showInviteViewers(
   required Future<void> Function(String username) onInvite,
   required Future<void> Function(String username, {required bool moderator})
   onModerator,
+  List<LiveSeat> seated = const [],
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   backgroundColor: const Color(0x00000000),
-  builder: (sheet) => LiveSheetFrame(
-    title: sheet.l10n.liveSeatInviteSheetTitle,
-    child: _ViewerList(
-      roomId: roomId,
-      moderators: moderators,
-      onInvite: onInvite,
-      onModerator: onModerator,
-    ),
+  builder: (sheet) => _ViewersPanel(
+    roomId: roomId,
+    moderators: moderators,
+    onInvite: onInvite,
+    onModerator: onModerator,
+    seated: [
+      for (final s in seated)
+        if (s.state == LiveSeatState.taken && s.user != null) s,
+    ],
   ),
 );
 
-class _ViewerList extends ConsumerStatefulWidget {
+abstract final class _Panel {
+  static const ink = Color(0xFF1C1B2E);
+  static const soft = Color(0xFF8E8FA0);
+  static const chip = Color(0xFFF2F3F7);
+  static const accent = Color(0xFF6C4CF1);
+}
+
+class _ViewersPanel extends ConsumerStatefulWidget {
   const new({
     required this.roomId,
     required this.moderators,
     required this.onInvite,
     required this.onModerator,
+    required this.seated,
   });
 
   final String roomId;
@@ -335,124 +351,291 @@ class _ViewerList extends ConsumerStatefulWidget {
   final Future<void> Function(String username) onInvite;
   final Future<void> Function(String username, {required bool moderator})
   onModerator;
+  final List<LiveSeat> seated;
 
   @override
-  ConsumerState<_ViewerList> createState() => _ViewerListState();
+  ConsumerState<_ViewersPanel> createState() => _ViewersPanelState();
 }
 
-class _ViewerListState extends ConsumerState<_ViewerList> {
-  late final Future<List<UserSummary>> _load = _fetch();
+class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
+  late final Future<({List<LiveViewer> items, bool more})> _load = _fetch();
   late final Set<String> _moderators = {
     for (final m in widget.moderators) m.username,
   };
 
-  Future<List<UserSummary>> _fetch() async {
-    final page = await ref.read(liveRepositoryProvider).viewers(widget.roomId);
-    return [
-      for (final v in page.items)
-        if (v.kind == LiveViewerKind.user && v.user != null) v.user!,
-    ];
+  /// Up to five pages of viewers.
+  Future<({List<LiveViewer> items, bool more})> _fetch() async {
+    final repo = ref.read(liveRepositoryProvider);
+    final items = <LiveViewer>[];
+    String? cursor;
+    for (var page = 0; page < 5; page++) {
+      final result = await repo.viewers(widget.roomId, cursor: cursor);
+      items.addAll(result.items);
+      cursor = result.next;
+      if (cursor == null) break;
+    }
+    return (items: items, more: cursor != null);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
-      ),
-      child: FutureBuilder<List<UserSummary>>(
-        future: _load,
-        builder: (context, snap) {
-          final users = snap.data;
-          if (users == null) {
-            return snap.hasError
-                ? Padding(
-                    padding: const EdgeInsets.all(KSpacing.lg),
-                    child: Text(
-                      failureMessage(l10n, toAppFailure(snap.error!)),
-                      style: text.body.copyWith(color: _white),
-                    ),
-                  )
-                : const Padding(
-                    padding: EdgeInsets.all(KSpacing.xl),
-                    child: CircularProgressIndicator(),
-                  );
-          }
-          if (users.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(KSpacing.xl),
-              child: Text(
-                l10n.liveSeatInviteEmpty,
-                style: text.body.copyWith(
-                  color: _white.withValues(alpha: 0.75),
-                ),
-              ),
-            );
-          }
-          return ListView(
-            shrinkWrap: true,
-            children: [
-              for (final u in users)
-                ListTile(
-                  leading: KAvatar(
-                    name: u.displayName,
-                    imageUrl: u.avatarUrl,
-                    size: 40,
-                  ),
-                  title: Text(
-                    u.displayName,
-                    style: text.bodyStrong.copyWith(color: _white),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+    final tabStyle = text.bodyStrong.copyWith(fontSize: 17);
+    return DefaultTabController(
+      length: 2,
+      child: Container(
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: FutureBuilder<({List<LiveViewer> items, bool more})>(
+          future: _load,
+          builder: (context, snap) {
+            final data = snap.data;
+            final more = data != null && data.more ? '+' : '';
+            final count = data == null
+                ? ''
+                : '${KFormat.grouped(data.items.length)}$more';
+            final guests = '${widget.seated.length}';
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(8, 10, 4, 0),
+                  child: Row(
                     children: [
-                      IconButton(
-                        key: SeatControlKeys.moderatorUser(u.username),
-                        tooltip: _moderators.contains(u.username)
-                            ? l10n.liveSeatRemoveModerator
-                            : l10n.liveSeatMakeModerator,
-                        icon: Icon(
-                          _moderators.contains(u.username)
-                              ? Icons.shield_rounded
-                              : Icons.add_moderator_outlined,
-                          color: _white,
+                      Expanded(
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: const Color(0x00000000),
+                          labelColor: _Panel.ink,
+                          unselectedLabelColor: _Panel.soft,
+                          labelStyle: tabStyle.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          unselectedLabelStyle: tabStyle,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicator: const UnderlineTabIndicator(
+                            borderSide: BorderSide(color: _Panel.ink, width: 3),
+                            insets: EdgeInsets.symmetric(horizontal: 18),
+                          ),
+                          tabs: [
+                            Tab(
+                              key: SeatControlKeys.viewersTab,
+                              text: l10n.liveViewersTab(count).trim(),
+                            ),
+                            Tab(
+                              key: SeatControlKeys.guestsTab,
+                              text: '${l10n.liveSeatGuestsTab} $guests',
+                            ),
+                          ],
                         ),
-                        onPressed: () async {
-                          final make = !_moderators.contains(u.username);
-                          await runSeatAction(
-                            context,
-                            () =>
-                                widget.onModerator(u.username, moderator: make),
-                          );
-                          if (mounted) {
-                            setState(
-                              () => make
-                                  ? _moderators.add(u.username)
-                                  : _moderators.remove(u.username),
-                            );
-                          }
-                        },
                       ),
-                      FilledButton(
-                        key: SeatControlKeys.inviteUser(u.username),
-                        onPressed: () => runSeatAction(
-                          context,
-                          () => widget.onInvite(u.username),
-                          success: l10n.liveSeatInvited,
+                      IconButton(
+                        tooltip: l10n.liveClose,
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _Panel.ink,
+                          size: 28,
                         ),
-                        child: Text(l10n.liveSeatInviteSend),
                       ),
                     ],
                   ),
                 ),
-            ],
-          );
-        },
+                Expanded(
+                  child: TabBarView(
+                    children: [_viewers(context, snap), _guests(context)],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
+
+  Widget _empty(BuildContext context, String message) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(KSpacing.xl),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: context.textStyles.body.copyWith(color: _Panel.soft),
+      ),
+    ),
+  );
+
+  Widget _viewers(
+    BuildContext context,
+    AsyncSnapshot<({List<LiveViewer> items, bool more})> snap,
+  ) {
+    final l10n = context.l10n;
+    final data = snap.data;
+    if (data == null) {
+      return snap.hasError
+          ? _empty(context, failureMessage(l10n, toAppFailure(snap.error!)))
+          : const Center(child: CircularProgressIndicator());
+    }
+    if (data.items.isEmpty) return _empty(context, l10n.liveSeatInviteEmpty);
+    final seatedIds = {for (final s in widget.seated) s.user!.id};
+    return ListView(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      children: [
+        for (final v in data.items)
+          if (v.user case final u?)
+            _row(
+              context,
+              name: u.displayName,
+              handle: '@${u.username}',
+              avatar: KAvatar(name: u.displayName, imageUrl: u.avatarUrl),
+              actions: [
+                _round(
+                  key: SeatControlKeys.moderatorUser(u.username),
+                  tooltip: _moderators.contains(u.username)
+                      ? l10n.liveSeatRemoveModerator
+                      : l10n.liveSeatMakeModerator,
+                  icon: _moderators.contains(u.username)
+                      ? Icons.shield_rounded
+                      : Icons.add_moderator_outlined,
+                  active: _moderators.contains(u.username),
+                  onTap: () async {
+                    final make = !_moderators.contains(u.username);
+                    await runSeatAction(
+                      context,
+                      () => widget.onModerator(u.username, moderator: make),
+                    );
+                    if (mounted) {
+                      setState(
+                        () => make
+                            ? _moderators.add(u.username)
+                            : _moderators.remove(u.username),
+                      );
+                    }
+                  },
+                ),
+                if (!seatedIds.contains(u.id))
+                  _round(
+                    key: SeatControlKeys.inviteUser(u.username),
+                    tooltip: l10n.liveSeatInviteSend,
+                    icon: Icons.chair_alt_outlined,
+                    onTap: () => runSeatAction(
+                      context,
+                      () => widget.onInvite(u.username),
+                      success: l10n.liveSeatInvited,
+                    ),
+                  ),
+              ],
+            )
+          else
+            _row(
+              context,
+              name: l10n.liveSeatGuestNumber(v.guestNumber ?? 0),
+              avatar: const CircleAvatar(
+                radius: 24,
+                backgroundColor: _Panel.chip,
+                child: Icon(Icons.person_outline_rounded, color: _Panel.soft),
+              ),
+            ),
+      ],
+    );
+  }
+
+  Widget _guests(BuildContext context) {
+    final l10n = context.l10n;
+    if (widget.seated.isEmpty) return _empty(context, l10n.liveSeatGuestsEmpty);
+    return ListView(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      children: [
+        for (final seat in widget.seated)
+          _row(
+            context,
+            name: seat.user!.displayName,
+            handle: l10n.liveSeatNumberLabel(seat.index),
+            avatar: KAvatar(
+              name: seat.user!.displayName,
+              imageUrl: seat.user!.avatarUrl,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _row(
+    BuildContext context, {
+    required String name,
+    required Widget avatar,
+    String? handle,
+    List<Widget> actions = const [],
+  }) {
+    final text = context.textStyles;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          avatar,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  KFormat.bidiIsolate(name),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.bodyStrong.copyWith(color: _Panel.ink),
+                ),
+                if (handle != null)
+                  Text(
+                    handle,
+                    maxLines: 1,
+                    style: text.caption.copyWith(color: _Panel.soft),
+                  ),
+              ],
+            ),
+          ),
+          for (final a in actions) ...[const SizedBox(width: 8), a],
+        ],
+      ),
+    );
+  }
+
+  Widget _round({
+    required Key key,
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool active = false,
+  }) => Semantics(
+    button: true,
+    label: tooltip,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            color: _Panel.chip,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: active ? _Panel.accent : _Panel.ink,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The seat count while live (host): smaller than an occupied seat is

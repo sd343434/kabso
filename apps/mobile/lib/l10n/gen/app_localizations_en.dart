@@ -3371,4 +3371,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolsViewers => 'Viewers';
+
+  @override
+  String get liveSeatGuestsTab => 'Guests';
+
+  @override
+  String get liveSeatGuestsEmpty => 'Nobody is on a seat right now';
+
+  @override
+  String liveSeatNumberLabel(int number) {
+    return 'Seat $number';
+  }
 }

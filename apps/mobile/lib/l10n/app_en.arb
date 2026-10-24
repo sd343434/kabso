@@ -1109,5 +1109,8 @@
   "liveToolOn": "On",
   "liveToolOff": "Off",
   "liveToolsVoice": "Voice",
-  "liveToolsViewers": "Viewers"
+  "liveToolsViewers": "Viewers",
+  "liveSeatGuestsTab": "Guests",
+  "liveSeatGuestsEmpty": "Nobody is on a seat right now",
+  "liveSeatNumberLabel": "Seat {number}"
 }

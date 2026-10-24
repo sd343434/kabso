@@ -5893,6 +5893,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المشاهدون'**
   String get liveToolsViewers;
+
+  /// Viewers sheet tab: people on a seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'الضيوف'**
+  String get liveSeatGuestsTab;
+
+  /// Viewers sheet, Guests tab empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد على المقاعد الآن'**
+  String get liveSeatGuestsEmpty;
+
+  /// Viewers sheet, Guests tab: the person's seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقعد {number}'**
+  String liveSeatNumberLabel(int number);
 }
 
 class _AppLocalizationsDelegate

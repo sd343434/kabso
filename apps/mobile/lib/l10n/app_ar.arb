@@ -3848,5 +3848,22 @@
   "liveToolsViewers": "المشاهدون",
   "@liveToolsViewers": {
     "description": "Host tool: who is watching."
+  },
+  "liveSeatGuestsTab": "الضيوف",
+  "@liveSeatGuestsTab": {
+    "description": "Viewers sheet tab: people on a seat."
+  },
+  "liveSeatGuestsEmpty": "لا أحد على المقاعد الآن",
+  "@liveSeatGuestsEmpty": {
+    "description": "Viewers sheet, Guests tab empty."
+  },
+  "liveSeatNumberLabel": "المقعد {number}",
+  "@liveSeatNumberLabel": {
+    "description": "Viewers sheet, Guests tab: the person's seat.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
   }
 }
