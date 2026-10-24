@@ -642,7 +642,12 @@ void main() {
       expect(find.text(l10n.liveToolsRoom), findsOneWidget);
       expect(find.text(l10n.liveToolsOther), findsOneWidget);
       expect(find.byKey(GoLiveKeys.tool('viewers')), findsOneWidget);
-      expect(find.text(l10n.liveToolOff), findsOneWidget); // chat is off
+      // Chat is off: the tool says so to screen readers (no extra text on
+      // screen, as in the reference).
+      expect(
+        find.bySemanticsLabel('${l10n.liveChatTool}, ${l10n.liveToolOff}'),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(GoLiveKeys.tool('voice')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('liveVoice.noise')));

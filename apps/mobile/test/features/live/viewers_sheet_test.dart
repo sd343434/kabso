@@ -51,6 +51,7 @@ void main() {
         ),
       ];
     final invited = <String>[];
+    final moderated = <String>[];
     await pumpScreen(
       tester,
       Scaffold(
@@ -66,7 +67,8 @@ void main() {
                   LiveSeat(index: 3, state: LiveSeatState.empty, user: null),
                 ],
                 onInvite: (username) async => invited.add(username),
-                onModerator: (_, {required moderator}) async {},
+                onModerator: (username, {required moderator}) async =>
+                    moderated.add('$username:$moderator'),
               ),
               child: const Text('open'),
             ),
@@ -90,6 +92,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(invited, ['huda']);
     expect(find.text(l10n.liveSeatInvited), findsOneWidget);
+
+    // Tapping a person: make them a moderator (the row shows it).
+    await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(SeatControlKeys.moderatorAction));
+    await tester.pumpAndSettle();
+    expect(moderated, ['huda:true']);
+    expect(find.textContaining(l10n.liveSeatModeratorTag), findsOneWidget);
 
     await tester.tap(find.byKey(SeatControlKeys.guestsTab));
     await tester.pumpAndSettle();

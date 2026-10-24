@@ -16,6 +16,8 @@ Future<void> showLiveRoomTools(
   context: context,
   isScrollControlled: true,
   backgroundColor: const Color(0x00000000),
+  // The reference leaves the room undimmed behind the sheet.
+  barrierColor: const Color(0x00000000),
   builder: (sheet) => _ToolsSheet(room: room, other: other),
 );
 
@@ -30,32 +32,42 @@ class _ToolsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    // Measured on the owner's reference (430 pt wide): titles at 16 pt from
+    // the edge, five 83-pt columns, 87-pt rows; a title's caps 24.7 pt above
+    // the circles, the next title's caps 3.7 pt below the last row.
     final title = context.textStyles.bodyStrong.copyWith(
-      color: ink,
-      fontSize: 17,
+      color: const Color(0xFF313131),
+      fontSize: 13,
+      height: 1.2,
       fontWeight: FontWeight.w800,
     );
-    Widget section(String name, List<GoLiveTool> tools) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-          child: Text(name, style: title),
-        ),
-        GridView.count(
-          crossAxisCount: 5,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 0.78,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          children: [for (final tool in tools) _ToolTile(tool: tool)],
-        ),
-      ],
-    );
+    Widget section(String name, List<GoLiveTool> tools, {bool first = true}) =>
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                16,
+                first ? 14 : 0.5,
+                16,
+                0,
+              ),
+              child: Text(name, style: title),
+            ),
+            GridView.count(
+              crossAxisCount: 5,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 82.9 / 87.1,
+              padding: const EdgeInsets.fromLTRB(7.75, 12, 7.75, 0),
+              children: [for (final tool in tools) _ToolTile(tool: tool)],
+            ),
+          ],
+        );
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
@@ -66,7 +78,8 @@ class _ToolsSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (room.isNotEmpty) section(l10n.liveToolsRoom, room),
-              if (other.isNotEmpty) section(l10n.liveToolsOther, other),
+              if (other.isNotEmpty)
+                section(l10n.liveToolsOther, other, first: room.isEmpty),
             ],
           ),
         ),
@@ -80,8 +93,8 @@ class _ToolTile extends StatelessWidget {
 
   final GoLiveTool tool;
 
-  static const circle = Color(0xFFF2F3F7);
-  static const on = Color(0xFF6C4CF1);
+  static const circle = Color(0xFFF5F7FB);
+  static const glyph = Color(0xFF2D2F33);
   static const off = Color(0xFF9A9BAA);
 
   @override
@@ -89,33 +102,29 @@ class _ToolTile extends StatelessWidget {
     final l10n = context.l10n;
     final enabled = tool.onTap != null;
     final toggled = tool.toggled;
-    final colour = toggled == false ? off : _ToolsSheet.ink;
-    final state = switch (toggled) {
-      true => l10n.liveToolOn,
-      false => l10n.liveToolOff,
-      null => null,
+    void tap() {
+      Navigator.of(context).pop();
+      tool.onTap!();
+    }
+
+    // On/off tools say their state to screen readers; on screen the icon
+    // changes (e.g. chat / chat off), as in the reference (no extra text).
+    final label = switch (toggled) {
+      true => '${tool.label}, ${l10n.liveToolOn}',
+      false => '${tool.label}, ${l10n.liveToolOff}',
+      null => tool.label,
     };
     return Semantics(
       button: true,
       enabled: enabled,
       toggled: toggled,
-      label: tool.label,
-      onTap: tool.onTap == null
-          ? null
-          : () {
-              Navigator.of(context).pop();
-              tool.onTap!();
-            },
+      label: label,
+      onTap: enabled ? tap : null,
       excludeSemantics: true,
       child: GestureDetector(
         key: GoLiveKeys.tool(tool.id),
         behavior: HitTestBehavior.opaque,
-        onTap: tool.onTap == null
-            ? null
-            : () {
-                Navigator.of(context).pop();
-                tool.onTap!();
-              },
+        onTap: enabled ? tap : null,
         child: Opacity(
           opacity: enabled ? 1 : 0.4,
           child: Column(
@@ -124,57 +133,47 @@ class _ToolTile extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 39,
+                    height: 39,
                     decoration: const BoxDecoration(
                       color: circle,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(tool.icon, size: 26, color: colour),
+                    child: Icon(
+                      tool.icon,
+                      size: 24,
+                      color: toggled == false ? off : glyph,
+                    ),
                   ),
-                  if (tool.badge || toggled != null)
-                    PositionedDirectional(
-                      top: 0,
-                      end: 0,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: toggled == false
-                              ? off
-                              : (toggled ?? false)
-                              ? const Color(0xFF2FD38A)
-                              : const Color(0xFFFF3B6B),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFFFFFFF),
-                            width: 2,
+                  if (tool.badge)
+                    const PositionedDirectional(
+                      top: -1,
+                      end: -3,
+                      child: SizedBox.square(
+                        dimension: 8,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF3B6B),
+                            shape: BoxShape.circle,
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 1.9),
               Text(
                 tool.label,
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: context.textStyles.caption.copyWith(
-                  color: _ToolsSheet.ink,
+                  color: const Color(0xFF000000),
+                  fontSize: 11,
+                  height: 1.2,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (state != null)
-                Text(
-                  state,
-                  style: context.textStyles.caption.copyWith(
-                    fontSize: 10.5,
-                    color: toggled! ? on : off,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
             ],
           ),
         ),

@@ -26,3 +26,9 @@ Top bar (same day, owner-supplied, same licence note):
 | `close.png` | End the live (✕ in a circle; replaced a square one the same day); drawn white |
 | `share.png` | Share (copies the live's invite); drawn white |
 | `minimize.png` | Minimize to the floating window; drawn white |
+
+Viewers sheet (2026-10-24, owner-supplied; the owner confirmed the icon is Kabso's):
+
+| File | Used for |
+| ---- | -------- |
+| `seat_invite.svg` | Invite a viewer to a seat (armchair with +). Redrawn as a vector from the owner's 1254×1254 image (the image itself was not available as a file); drawn in the panel ink (#2E3130, in the file) |

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -24,6 +25,7 @@ abstract final class SeatControlKeys {
   static Key decline(String id) => Key('seat.request.$id.decline');
   static Key inviteUser(String username) => Key('seat.invite.$username');
   static const viewersTab = Key('seat.viewers.tab');
+  static const moderatorAction = Key('seat.moderator.action');
   static const guestsTab = Key('seat.guests.tab');
   static Key moderatorUser(String username) => Key('seat.moderator.$username');
   static Key count(int count) => Key('seat.count.$count');
@@ -318,6 +320,8 @@ Future<void> showInviteViewers(
   context: context,
   isScrollControlled: true,
   backgroundColor: const Color(0x00000000),
+  // The reference leaves the room undimmed behind the sheet.
+  barrierColor: const Color(0x00000000),
   builder: (sheet) => _ViewersPanel(
     roomId: roomId,
     moderators: moderators,
@@ -330,11 +334,35 @@ Future<void> showInviteViewers(
   ),
 );
 
+// Measured on the owner's reference (430 pt wide).
 abstract final class _Panel {
-  static const ink = Color(0xFF1C1B2E);
-  static const soft = Color(0xFF8E8FA0);
-  static const chip = Color(0xFFF2F3F7);
-  static const accent = Color(0xFF6C4CF1);
+  static const ink = Color(0xFF2E3130);
+  static const soft = Color(0xFF9A9BA5);
+  static const chip = Color(0xFFF5F7FB);
+}
+
+/// The selected tab's mark: a short rounded bar under the label's centre.
+class _TabDot extends Decoration {
+  const new();
+
+  @override
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) => _TabDotPainter();
+}
+
+class _TabDotPainter extends BoxPainter {
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size!;
+    final rect = Rect.fromCenter(
+      center: offset + Offset(size.width / 2, size.height - 3),
+      width: 8,
+      height: 3.3,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(2)),
+      Paint()..color = _Panel.ink,
+    );
+  }
 }
 
 class _ViewersPanel extends ConsumerStatefulWidget {
@@ -381,14 +409,14 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    final tabStyle = text.bodyStrong.copyWith(fontSize: 17);
+    final tabStyle = text.bodyStrong.copyWith(fontSize: 18, height: 1.2);
     return DefaultTabController(
       length: 2,
       child: Container(
-        height: MediaQuery.sizeOf(context).height * 0.7,
+        height: MediaQuery.sizeOf(context).height * 0.754,
         decoration: const BoxDecoration(
           color: Color(0xFFFFFFFF),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: FutureBuilder<({List<LiveViewer> items, bool more})>(
           future: _load,
@@ -401,49 +429,72 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             final guests = '${widget.seated.length}';
             return Column(
               children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(8, 10, 4, 0),
-                  child: Row(
-                    children: [
-                      Expanded(
+                // Measured on the reference: tab caps 21 pt below the top,
+                // the mark 19.1 pt under them, ✕ centred 25.4 pt down and
+                // 29.6 pt from the end; the first row 63.8 pt down.
+                Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        21,
+                        13.6,
+                        60,
+                        0,
+                      ),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
                         child: TabBar(
                           isScrollable: true,
                           tabAlignment: TabAlignment.start,
+                          padding: EdgeInsets.zero,
+                          labelPadding: const EdgeInsetsDirectional.only(
+                            end: 28.9,
+                          ),
                           dividerColor: const Color(0x00000000),
                           labelColor: _Panel.ink,
                           unselectedLabelColor: _Panel.soft,
                           labelStyle: tabStyle.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
-                          unselectedLabelStyle: tabStyle,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          indicator: const UnderlineTabIndicator(
-                            borderSide: BorderSide(color: _Panel.ink, width: 3),
-                            insets: EdgeInsets.symmetric(horizontal: 18),
+                          unselectedLabelStyle: tabStyle.copyWith(
+                            fontWeight: FontWeight.w500,
                           ),
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicator: const _TabDot(),
                           tabs: [
                             Tab(
                               key: SeatControlKeys.viewersTab,
+                              height: 29.2,
                               text: l10n.liveViewersTab(count).trim(),
                             ),
                             Tab(
                               key: SeatControlKeys.guestsTab,
+                              height: 29.2,
                               text: '${l10n.liveSeatGuestsTab} $guests',
                             ),
                           ],
                         ),
                       ),
-                      IconButton(
+                    ),
+                    PositionedDirectional(
+                      top: 3.4,
+                      end: 7.6,
+                      child: IconButton(
                         tooltip: l10n.liveClose,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 44,
+                          height: 44,
+                        ),
+                        padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).maybePop(),
                         icon: const Icon(
                           Icons.close_rounded,
                           color: _Panel.ink,
-                          size: 28,
+                          size: 24,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 Expanded(
                   child: TabBarView(
@@ -489,39 +540,30 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
           if (v.user case final u?)
             _row(
               context,
+              key: SeatControlKeys.moderatorUser(u.username),
               name: u.displayName,
-              handle: '@${u.username}',
-              avatar: KAvatar(name: u.displayName, imageUrl: u.avatarUrl),
+              handle: _moderators.contains(u.username)
+                  ? '@${u.username} · ${l10n.liveSeatModeratorTag}'
+                  : '@${u.username}',
+              avatar: KAvatar(
+                name: u.displayName,
+                imageUrl: u.avatarUrl,
+                size: 40,
+              ),
+              // Tapping the person: make or remove a moderator.
+              onTap: () => unawaited(_moderatorMenu(context, u)),
               actions: [
-                _round(
-                  key: SeatControlKeys.moderatorUser(u.username),
-                  tooltip: _moderators.contains(u.username)
-                      ? l10n.liveSeatRemoveModerator
-                      : l10n.liveSeatMakeModerator,
-                  icon: _moderators.contains(u.username)
-                      ? Icons.shield_rounded
-                      : Icons.add_moderator_outlined,
-                  active: _moderators.contains(u.username),
-                  onTap: () async {
-                    final make = !_moderators.contains(u.username);
-                    await runSeatAction(
-                      context,
-                      () => widget.onModerator(u.username, moderator: make),
-                    );
-                    if (mounted) {
-                      setState(
-                        () => make
-                            ? _moderators.add(u.username)
-                            : _moderators.remove(u.username),
-                      );
-                    }
-                  },
-                ),
                 if (!seatedIds.contains(u.id))
                   _round(
                     key: SeatControlKeys.inviteUser(u.username),
                     tooltip: l10n.liveSeatInviteSend,
-                    icon: Icons.chair_alt_outlined,
+                    // The owner's invite-to-seat icon (PROVENANCE.md).
+                    // Drawn in the panel ink (#2E3130) in the file itself: a
+                    // colour filter leaves seams where the strokes meet.
+                    icon: SvgPicture.asset(
+                      'assets/live_room_icons/seat_invite.svg',
+                      width: 18.2,
+                    ),
                     onTap: () => runSeatAction(
                       context,
                       () => widget.onInvite(u.username),
@@ -535,7 +577,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               context,
               name: l10n.liveSeatGuestNumber(v.guestNumber ?? 0),
               avatar: const CircleAvatar(
-                radius: 24,
+                radius: 20,
                 backgroundColor: _Panel.chip,
                 child: Icon(Icons.person_outline_rounded, color: _Panel.soft),
               ),
@@ -558,26 +600,63 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             avatar: KAvatar(
               name: seat.user!.displayName,
               imageUrl: seat.user!.avatarUrl,
+              size: 40,
             ),
           ),
       ],
     );
   }
 
+  Future<void> _moderatorMenu(BuildContext context, UserSummary u) async {
+    final l10n = context.l10n;
+    final isModerator = _moderators.contains(u.username);
+    final go = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: ListTile(
+          key: SeatControlKeys.moderatorAction,
+          leading: Icon(
+            isModerator ? Icons.remove_moderator_outlined : Icons.add_moderator,
+          ),
+          title: Text(
+            isModerator
+                ? l10n.liveSeatRemoveModerator
+                : l10n.liveSeatMakeModerator,
+          ),
+          onTap: () => Navigator.of(sheet).pop(true),
+        ),
+      ),
+    );
+    if (go != true || !context.mounted) return;
+    await runSeatAction(
+      context,
+      () => widget.onModerator(u.username, moderator: !isModerator),
+    );
+    if (mounted) {
+      setState(
+        () => isModerator
+            ? _moderators.remove(u.username)
+            : _moderators.add(u.username),
+      );
+    }
+  }
+
   Widget _row(
     BuildContext context, {
     required String name,
     required Widget avatar,
+    Key? key,
     String? handle,
+    VoidCallback? onTap,
     List<Widget> actions = const [],
   }) {
     final text = context.textStyles;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    final row = Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 11.7, 16.2, 11.7),
       child: Row(
         children: [
           avatar,
-          const SizedBox(width: 12),
+          const SizedBox(width: 16.4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +665,11 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                   KFormat.bidiIsolate(name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: text.bodyStrong.copyWith(color: _Panel.ink),
+                  style: text.bodyStrong.copyWith(
+                    color: _Panel.ink,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (handle != null)
                   Text(
@@ -601,14 +684,15 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
         ],
       ),
     );
+    if (onTap == null) return row;
+    return InkWell(key: key, onTap: onTap, child: row);
   }
 
   Widget _round({
     required Key key,
     required String tooltip,
-    required IconData icon,
+    required Widget icon,
     required VoidCallback onTap,
-    bool active = false,
   }) => Semantics(
     button: true,
     label: tooltip,
@@ -620,17 +704,20 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
         key: key,
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: const BoxDecoration(
-            color: _Panel.chip,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: active ? _Panel.accent : _Panel.ink,
+        // 36 pt circle in a 44 pt target.
+        child: SizedBox.square(
+          dimension: 44,
+          child: Center(
+            child: Container(
+              width: 36.3,
+              height: 36.3,
+              decoration: const BoxDecoration(
+                color: _Panel.chip,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: icon,
+            ),
           ),
         ),
       ),
