@@ -39,6 +39,8 @@ export type LiveRoomEndReason = 'HOST_ENDED' | 'HEARTBEAT_TIMEOUT' | 'HOST_SUSPE
 export interface LiveRoomSummaryDto {
   id: string;
   title: string;
+  /** CP-014: the live's topic, or null. */
+  topic: string | null;
   mode: LiveRoomMode;
   viewerCount: number;
   startedAt: string;
@@ -91,6 +93,16 @@ export interface LiveConfigDto {
   seatCounts: { MULTI: number[]; AUDIO: number[] };
 }
 
+/**
+ * CP-014 (§10.12): what the host's `PATCH` asks to change. A field left out is unchanged;
+ * `category: null` and `topic: null` remove them. The category has been checked to be active.
+ */
+export interface RoomInfoEdit {
+  readonly title?: string;
+  readonly category?: { readonly id: string; readonly slug: string } | null;
+  readonly topic?: string | null;
+}
+
 /** Request facts recorded in the audit trail. */
 export interface RequestMeta {
   readonly ip: string | null;
@@ -102,6 +114,8 @@ export interface RequestMeta {
 export interface RoomRow {
   id: string;
   title: string;
+  /** CP-014: the live's topic (null = none). */
+  topic: string | null;
   mode: LiveRoomMode;
   status: 'LIVE' | 'ENDED';
   viewer_count: number;
@@ -140,7 +154,7 @@ export interface RoomRow {
  * and paginate in the database.
  */
 const ROOM_COLUMNS = Prisma.sql`
-         r.id::text AS id, r.title, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
+         r.id::text AS id, r.title, r.topic, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
          r.allow_guests, r.seat_count::int AS seat_count, r.theme, r.seats_version, r.score,
          COALESCE(sc.tap_points, 0)::bigint AS tap_points,
@@ -539,6 +553,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     return {
       id: row.id,
       title: row.title,
+      topic: row.topic,
       mode: row.mode,
       viewerCount: row.viewer_count,
       startedAt: row.started_at.toISOString(),
@@ -863,6 +878,71 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const row = await this.selectRoom(roomId);
     if (!row) throw notFound();
     return this.toRoom(row, lang);
+  }
+
+  /**
+   * CP-014 (§10.12): edits the title, category and topic of the host's LIVE room. A field equal to
+   * the stored value is not a change. When something changed, `info_version` increases in the same
+   * transaction (the room row is locked, so concurrent edits each get their own version) and
+   * `live.room.edit` is audited with the names of the changed fields (and the new category slug,
+   * never the text). Returns the new info version, or null when nothing changed. Not the host → 404;
+   * ended meanwhile → 409.
+   */
+  async editInfo(
+    hostId: string,
+    roomId: string,
+    edit: RoomInfoEdit,
+    meta: RequestMeta,
+  ): Promise<number | null> {
+    if (!isUuid(roomId)) throw notFound();
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      const [room] = await tx.$queryRaw<
+        { title: string; category_id: string | null; topic: string | null; status: string }[]
+      >`
+        SELECT title, category_id::text AS category_id, topic, status::text AS status
+          FROM live_rooms
+         WHERE id = ${roomId}::uuid AND host_user_id = ${hostId}::uuid
+           FOR NO KEY UPDATE`;
+      if (!room) throw notFound();
+      if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+
+      const fields: ('title' | 'categorySlug' | 'topic')[] = [];
+      const data: Prisma.LiveRoomUpdateInput = {};
+      if (edit.title !== undefined && edit.title !== room.title) {
+        fields.push('title');
+        data.title = edit.title;
+      }
+      if (edit.category !== undefined && (edit.category?.id ?? null) !== room.category_id) {
+        fields.push('categorySlug');
+        data.category = edit.category === null ? { disconnect: true } : { connect: { id: edit.category.id } };
+      }
+      if (edit.topic !== undefined && edit.topic !== room.topic) {
+        fields.push('topic');
+        data.topic = edit.topic;
+      }
+      if (fields.length === 0) return null;
+
+      const updated = await tx.liveRoom.update({
+        where: { id: roomId },
+        data: { ...data, infoVersion: { increment: 1 } },
+        select: { infoVersion: true },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_ROOM_EDIT,
+        actorUserId: hostId,
+        targetType: 'live_room',
+        targetId: roomId,
+        metadata: {
+          fields,
+          ...(fields.includes('categorySlug') ? { categorySlug: edit.category?.slug ?? null } : {}),
+          infoVersion: updated.infoVersion,
+        },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      return updated.infoVersion;
+    }, LIVE_TX_OPTIONS);
   }
 
   /**

@@ -128,6 +128,7 @@ PostgreSQL stores it, `status = 'LIVE'::live_room_status`): without the declarat
 | one LIVE room per host; host's LIVE room (`liveRoomId`) | `live_rooms_one_live_per_host` |
 | `tab=popular` / `new` / `following` keyset (± category) | `live_rooms_live_{popular,new,cat_popular,cat_new}_idx` |
 | stale-room sweep | `live_rooms_live_heartbeat_idx` |
+| Contribution list of a live (CP-014: top 50 by counted taps, then who reached it first) | `live_room_tappers_room_rank_idx` |
 | whom a user follows (Following tab, `followingCount`, `isFollowing`) | `follows_pkey` |
 | followers of a user (`followerCount`) | `follows_followee_id_created_at_idx` |
 

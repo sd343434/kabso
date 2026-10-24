@@ -7,9 +7,16 @@ import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.
 /** CP-012 (§10.10): the score reaches the media room at most once every 2 seconds per room. */
 export const SCORE_METADATA_INTERVAL_MS = 2_000;
 
-/** The media room metadata: the seat version (CP-011, §10.9) next to the score (CP-012, §10.10). */
-export function roomMetadataJson(seatsVersion: number, score: number): string {
-  return JSON.stringify({ seatsVersion, score });
+/**
+ * The media room metadata: the seat version (CP-011, §10.9) next to the score (CP-012, §10.10) and,
+ * once the host has edited the live's title, category or topic, the room info version (CP-014,
+ * §10.12). `roomInfoVersion` is left out while it is 0 (never edited): apps read a missing key as 0,
+ * and rooms that were never edited keep exactly the metadata they had before v1.10-live.
+ */
+export function roomMetadataJson(seatsVersion: number, score: number, roomInfoVersion = 0): string {
+  return JSON.stringify(
+    roomInfoVersion > 0 ? { seatsVersion, score, roomInfoVersion } : { seatsVersion, score },
+  );
 }
 
 /**
@@ -87,9 +94,9 @@ export class TrailingThrottle {
 }
 
 /**
- * The media room's metadata `{"seatsVersion": n, "score": total}` (CONVENTIONS §10.9, §10.10).
- * Every writer composes BOTH keys from the database at write time, so a seat change never drops
- * the score and a score update never drops the seat version. Writes are best effort: a failure is
+ * The media room's metadata `{"seatsVersion": n, "score": total, "roomInfoVersion": m}` (CONVENTIONS
+ * §10.9, §10.10, §10.12). Every writer composes ALL keys from the database at write time, so a seat
+ * change never drops the score or the info version, and a score update never drops the others. Writes are best effort: a failure is
  * logged and the sweeper's reconciliation repeats it.
  */
 @Injectable()
@@ -114,14 +121,18 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
   }
 
   /** The metadata the room should carry now, or null when the room does not exist. */
-  async expected(roomId: string): Promise<{ json: string; score: number } | null> {
+  async expected(roomId: string): Promise<{ json: string; score: number; roomInfoVersion: number } | null> {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { seatsVersion: true, score: true },
+      select: { seatsVersion: true, score: true, infoVersion: true },
     });
     if (!room) return null;
     const score = Number(room.score);
-    return { json: roomMetadataJson(room.seatsVersion, score), score };
+    return {
+      json: roomMetadataJson(room.seatsVersion, score, room.infoVersion),
+      score,
+      roomInfoVersion: room.infoVersion,
+    };
   }
 
   /** Writes the room's current metadata (best effort). */
@@ -135,6 +146,16 @@ export class LiveRoomMetadataService implements OnModuleDestroy {
         'Could not write the room metadata into the media room; reconciliation repeats it',
       );
     }
+  }
+
+  /**
+   * CP-014: the room info version moved (title, category or topic edited). Written at once, not
+   * throttled: an edit is rare (the `PATCH` bucket) and everyone in the room should see it promptly.
+   * A trailing score write still pending composes every key from the database again, so it never
+   * takes the new version back.
+   */
+  async infoChanged(roomId: string): Promise<void> {
+    await this.write(roomId);
   }
 
   /** The score changed: write it now, or at the end of the room's 2-second interval. */

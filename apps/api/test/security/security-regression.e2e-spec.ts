@@ -71,6 +71,8 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rooms/:roomId/seats',
   // CP-013: the last chat messages (guests read them when the room allows guests).
   'GET /api/v1/live/rooms/:roomId/chat',
+  // CP-014: the Contribution list (guests read it when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/contributors',
 ].sort();
 
 interface RouteInfo {

@@ -367,6 +367,8 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_categories_name_en_length',
       'live_categories_slug_format',
       'live_rooms_end_state',
+      // CP-014 (20261030090000_live_room_edit): the info version is never negative.
+      'live_rooms_info_version_nonneg',
       // CP-012 (20261028090000_live_taps): the score is never negative.
       'live_rooms_score_nonneg',
       // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.
@@ -375,8 +377,15 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_rooms_theme_format',
       'live_rooms_time_order',
       'live_rooms_title_length',
+      // CP-014: the topic is 1–100 code points or NULL.
+      'live_rooms_topic_length',
       'live_rooms_viewer_count_nonneg',
     ]);
+    // CP-014: the Contribution list of a room reads the tappers in rank order.
+    const rank = await runtime.$queryRawUnsafe<{ def: string }[]>(`
+      SELECT indexdef AS def FROM pg_indexes
+       WHERE schemaname = 'public' AND indexname = 'live_room_tappers_room_rank_idx'`);
+    expect(rank[0]?.def).toContain('(room_id, counted DESC, last_batch_at, user_id)');
   });
 });
 

@@ -4,20 +4,28 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
   setLiveStatementTimeout,
   type LiveScoreDto,
+  type UserSummaryDto,
 } from './live-rooms.service.js';
-import { acceptedTaps } from './live-taps.js';
+import { acceptedTaps, LIVE_CONTRIBUTORS_MAX, POINTS_PER_TAP } from './live-taps.js';
 import { liveTapsRequestSchema } from './live.schemas.js';
 
 /** `LiveTapsResult` (CP-012). */
 export interface LiveTapsResultDto {
   accepted: number;
   score: LiveScoreDto;
+}
+
+/** `LiveContributor` (CP-014). */
+export interface LiveContributorDto {
+  user: UserSummaryDto;
+  points: number;
 }
 
 /**
@@ -107,5 +115,42 @@ export class LiveTapsService {
 
     if (result.accepted > 0) await this.metadata.scoreChanged(id);
     return result;
+  }
+
+  /**
+   * `GET /live/rooms/{roomId}/contributors` (CP-014, §10.12): the top 50 people by points given to
+   * this live, highest first. Points are the caller's counted taps (`live_room_tappers.counted`,
+   * 1 each); support (L3) is not written yet. Ties: who reached their total first, i.e. the earlier
+   * `last_batch_at` (the time of the last batch that counted, which is when the current total was
+   * reached: a batch that counts nothing never moves it), then user id. The host (whose taps count
+   * 0 anyway), people with 0 points, inactive accounts and, for a signed-in reader, people blocked
+   * either way are left out. Anyone who may watch reads it (a guest needs `allowGuests`), also on an
+   * ended room; a room the caller may not see → 404.
+   */
+  async contributors(callerId: string | null, roomId: string): Promise<{ data: LiveContributorDto[] }> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
+    const rows = await this.prisma.liveRoomTapper.findMany({
+      where: {
+        roomId: row.id,
+        counted: { gt: 0 },
+        userId: { not: row.host_user_id },
+        user: {
+          status: 'ACTIVE',
+          ...(callerId === null
+            ? {}
+            : {
+                blocking: { none: { blockedId: callerId } },
+                blockedBy: { none: { blockerId: callerId } },
+              }),
+        },
+      },
+      orderBy: [{ counted: 'desc' }, { lastBatchAt: 'asc' }, { userId: 'asc' }],
+      take: LIVE_CONTRIBUTORS_MAX,
+      include: { user: { select: USER_SUMMARY_SELECT } },
+    });
+    return {
+      data: rows.map((r) => ({ user: userSummary(r.user), points: r.counted * POINTS_PER_TAP })),
+    };
   }
 }

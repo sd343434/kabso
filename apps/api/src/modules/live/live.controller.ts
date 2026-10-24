@@ -46,7 +46,7 @@ import {
   type LiveSeatsDto,
   type PageDto,
 } from './live-seats.service.js';
-import { LiveTapsService, type LiveTapsResultDto } from './live-taps.service.js';
+import { LiveTapsService, type LiveContributorDto, type LiveTapsResultDto } from './live-taps.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
 /** The caller's user id; a guest has none (CP-010 `@OptionalAuth()` routes). */
@@ -163,7 +163,8 @@ export class LiveController {
 
   /**
    * CP-010: the host's guests switch; CP-011: `seatCount` and `theme`, which also count against the
-   * seat-action bucket (CONVENTIONS §7).
+   * seat-action bucket (CONVENTIONS §7). CP-014: `title`, `categorySlug` and `topic` count only
+   * against this `PATCH` bucket.
    */
   @Patch('rooms/:roomId')
   @RateLimit({ bucket: 'live:update', rule: 'liveUpdateUser', key: byUserId, replacesDefault: true })
@@ -394,6 +395,20 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveTapsResultDto> {
     return this.taps.tap(requireCaller(req), roomId, body);
+  }
+
+  /**
+   * CP-014 (§10.12): the Contribution list, top 50; anyone who may watch (guests per IP when the
+   * room allows guests); the per-user default for signed-in readers (§7).
+   */
+  @Get('rooms/:roomId/contributors')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  listContributors(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<{ data: LiveContributorDto[] }> {
+    return this.taps.contributors(callerOf(req), roomId);
   }
 
   // ---- CP-013: room chat (CONVENTIONS §10.11) -----------------------------------------------------

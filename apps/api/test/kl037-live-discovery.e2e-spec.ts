@@ -114,7 +114,8 @@ describe('KL-037 contract coverage', () => {
       .filter(
         (o) =>
           // CP-013 (v1.9-live draft) adds the chat operations; kl067-live-chat covers them.
-          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat)(\/|$)/.test(
+          // CP-014 (v1.10-live draft) adds listLiveContributors; kl068-live-room-edit covers it.
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors)(\/|$)/.test(
             o.path,
           ),
       )
@@ -288,6 +289,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         // CP-013 (v1.9-live): a new live starts with the chat on; the host is never muted.
         chatEnabled: true,
         chatMuted: false,
+        // CP-014 (v1.10-live): a new live starts without a topic.
+        topic: null,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

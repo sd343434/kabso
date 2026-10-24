@@ -111,12 +111,64 @@ export const startLiveRoomSchema = z
     }
   });
 
+// ---- CP-014 (D97): the live's topic ---------------------------------------------------------
+
+/** Line breaks are refused (CONVENTIONS §10.11, §10.12): LF, CR, LINE SEPARATOR, PARAGRAPH SEPARATOR. */
+const LINE_BREAK = /[\n\r\u2028\u2029]/u;
+
+/** 0–100 code points (CONVENTIONS §10.12). */
+export const LIVE_TOPIC_MAX_CODE_POINTS = 100;
+
+export type LiveTopicIssue = 'too_long' | 'invalid_format';
+
 /**
- * `UpdateLiveRoomRequest` (CP-010; CP-011 adds `seatCount` and `theme`): at least one field. Whether
+ * A live's topic (CONVENTIONS §10.12): NFC, trimmed (spaces and U+FEFF, §6 rule 4); empty → null
+ * (no topic); a line break → `invalid_format`; over 100 code points → `too_long`; then the §6
+ * hygiene rules shared with comments and chat (rejected code points, misplaced joiners, the zalgo
+ * cap) → `invalid_format`.
+ */
+export function normalizeLiveTopic(raw: string): { value: string | null } | { issue: LiveTopicIssue } {
+  const value = trimHygiene(raw.normalize('NFC'));
+  if (value.length === 0) return { value: null };
+  if (LINE_BREAK.test(value)) return { issue: 'invalid_format' };
+  if ([...value].length > LIVE_TOPIC_MAX_CODE_POINTS) return { issue: 'too_long' };
+  const result = normalizeContentText(value, {
+    maxCodePoints: LIVE_TOPIC_MAX_CODE_POINTS,
+    maxLineBreaks: 0,
+    allowEmpty: true,
+  });
+  if ('issue' in result) return { issue: result.issue === 'too_short' ? 'invalid_format' : result.issue };
+  return { value: result.value.length === 0 ? null : result.value };
+}
+
+/** `topic` of `UpdateLiveRoomRequest`: the raw text is bounded first, then normalized (null = none). */
+export const liveTopicSchema = z
+  .string()
+  .max(LIVE_TOPIC_MAX_CODE_POINTS * 8)
+  .nullable()
+  .transform((raw, ctx): string | null => {
+    if (raw === null) return null;
+    const result = normalizeLiveTopic(raw);
+    if ('issue' in result) {
+      ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
+      return z.NEVER;
+    }
+    return result.value;
+  });
+
+/**
+ * `UpdateLiveRoomRequest` (CP-010; CP-011 adds `seatCount` and `theme`; CP-013 `chatEnabled`; CP-014
+ * `title`, `categorySlug` and `topic`): at least one field. Whether
  * `seatCount` fits the room's mode is checked against the room (400 `seatCount` / `invalid_value`).
  */
 export const updateLiveRoomSchema = z
   .strictObject({
+    /** CP-014: the go-live title rules (§10.3). */
+    title: liveTitleSchema.optional(),
+    /** CP-014: an active category (checked against `live_categories` by the service), or null for none. */
+    categorySlug: categorySlugSchema.nullable().optional(),
+    /** CP-014: the topic; null or "" (after trimming) removes it (normalized to null). */
+    topic: liveTopicSchema.optional(),
     allowGuests: z.boolean().optional(),
     seatCount: seatCountSchema.optional(),
     theme: themeSchema.optional(),
@@ -158,8 +210,6 @@ export const liveTapsRequestSchema = z.strictObject({ count: z.number().int().mi
 
 /** 1–200 code points (owner D96). */
 export const LIVE_CHAT_MAX_CODE_POINTS = 200;
-/** Line breaks are refused (CONVENTIONS §10.11): LF, CR, LINE SEPARATOR, PARAGRAPH SEPARATOR. */
-const LINE_BREAK = /[\n\r\u2028\u2029]/u;
 
 export type LiveChatTextIssue = 'required' | 'too_long' | 'invalid_format';
 

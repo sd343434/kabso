@@ -361,6 +361,11 @@ model LiveRoom {
   score           BigInt             @default(0)
   /// CP-013: false when the host turned the room chat off (a new live starts with it on).
   chatEnabled     Boolean            @default(true) @map("chat_enabled")
+  /// CP-014: the live's topic (1–100 code points, CHECK `live_rooms_topic_length`); null = none.
+  topic           String?            @db.VarChar(100)
+  /// CP-014: increases on every change of the title, category or topic (media metadata
+  /// `roomInfoVersion`, CONVENTIONS §10.12).
+  infoVersion     Int                @default(0) @map("info_version")
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -507,6 +512,8 @@ model LiveRoomTapper {
 
   @@id([roomId, userId], map: "live_room_tappers_pkey")
   @@index([userId], map: "live_room_tappers_user_idx")
+  /// CP-014: the Contribution list (counted desc, then who reached it first, then user id).
+  @@index([roomId, counted(sort: Desc), lastBatchAt, userId], map: "live_room_tappers_room_rank_idx")
   @@map("live_room_tappers")
 }
 

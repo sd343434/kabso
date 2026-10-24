@@ -990,15 +990,16 @@ export class LiveSeatsService {
   }
 
   /**
-   * The room metadata carries the current seat version and score (CP-011, CP-012). A room without
-   * seats that nobody has tapped yet needs no metadata. Returns 1 when it was repaired.
+   * The room metadata carries the current seat version, score and info version (CP-011, CP-012,
+   * CP-014). A room without seats that nobody has tapped and the host never edited needs none.
+   * Returns 1 when it was repaired.
    */
   private async reconcileMetadata(roomId: string, seated: boolean): Promise<number> {
     const expected = await this.metadata.expected(roomId);
     if (!expected) return 0;
     const current = await this.media.roomMetadata(roomId);
     if (current === null || current === expected.json) return 0;
-    if (!seated && current === '' && expected.score === 0) return 0;
+    if (!seated && current === '' && expected.score === 0 && expected.roomInfoVersion === 0) return 0;
     await this.media.setRoomMetadata(roomId, expected.json);
     return 1;
   }

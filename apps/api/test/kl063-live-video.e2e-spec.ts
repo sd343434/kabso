@@ -272,7 +272,8 @@ describe('CP-010 live video', () => {
         (await ctx.http.patch(`/api/v1/live/rooms/${roomId}`).set(auth(other)).send({ allowGuests: false }))
           .status,
       ).toBe(404);
-      for (const body of [{}, { allowGuests: 'no' }, { allowGuests: false, title: 'x' }]) {
+      // CP-014 (v1.10-live) made `title` a PATCH field; an unknown field is still refused.
+      for (const body of [{}, { allowGuests: 'no' }, { allowGuests: false, coverUrl: 'x' }]) {
         const bad = await ctx.http.patch(`/api/v1/live/rooms/${roomId}`).set(auth(h)).send(body);
         expect(bad.status).toBe(400);
       }

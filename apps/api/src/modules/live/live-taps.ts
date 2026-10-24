@@ -13,6 +13,8 @@ export const TAPS_PER_SECOND = 10;
 export const MAX_TAPS_PER_ROOM = 10_000;
 /** Points per counted tap. */
 export const POINTS_PER_TAP = 1;
+/** CP-014 (§10.12): the Contribution list shows at most this many people. */
+export const LIVE_CONTRIBUTORS_MAX = 50;
 /** Points per support coin (L3 writes them; nothing does yet). */
 export const POINTS_PER_SUPPORT_COIN = 100;
 

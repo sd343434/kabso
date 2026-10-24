@@ -16,9 +16,12 @@ import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
   type RequestMeta,
+  type RoomInfoEdit,
   type UserSummaryDto,
 } from './live-rooms.service.js';
+import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatService } from './live-chat.service.js';
+import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
 import {
   isSeatedMode,
@@ -87,6 +90,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     private readonly clock: Clock,
     private readonly seats: LiveSeatsService,
     private readonly chat: LiveChatService,
+    private readonly categories: LiveCategoriesService,
+    private readonly metadata: LiveRoomMetadataService,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {
@@ -206,7 +211,10 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
    * CP-011, the seat count (an allowed count for the room's mode, else 400; below an occupied seat
    * → 409 LIVE_SEAT_UNAVAILABLE) and the theme. The seat change is applied first, so a refused
    * change leaves everything as it was. CP-013: `chatEnabled` turns the room chat off or on
-   * (audited; a `chat-state` data message when it changed).
+   * (audited; a `chat-state` data message when it changed). CP-014: `title`, `categorySlug` and
+   * `topic` edit the live (an unknown or inactive category → 400 before anything is applied); a
+   * real change moves the room info version, which is written into the media room's metadata at
+   * once (§10.12).
    */
   async updateRoom(hostId: string, roomId: string, body: unknown, meta: RequestMeta): Promise<string> {
     const parsed = updateLiveRoomSchema.safeParse(body ?? {}, { reportInput: true });
@@ -214,12 +222,32 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const room = await this.hostLiveRoom(hostId, roomId);
     const row = await this.rooms.visibleRow(room.id, hostId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const { allowGuests, seatCount, theme, chatEnabled } = parsed.data;
+    const { allowGuests, seatCount, theme, chatEnabled, title, categorySlug, topic } = parsed.data;
     if (seatCount !== undefined && !seatCountFits(row.mode, seatCount)) {
       throw AppException.validation([{ field: 'seatCount', issue: 'invalid_value' }]);
     }
+    let category: RoomInfoEdit['category'];
+    if (categorySlug === null) category = null;
+    else if (categorySlug !== undefined) {
+      const id = await this.categories.findActiveId(categorySlug);
+      if (!id) throw AppException.validation([{ field: 'categorySlug', issue: 'invalid_value' }]);
+      category = { id, slug: categorySlug };
+    }
     if (seatCount !== undefined || theme !== undefined) {
       await this.seats.updateSettings(room.id, { seatCount, theme });
+    }
+    if (title !== undefined || category !== undefined || topic !== undefined) {
+      const version = await this.rooms.editInfo(
+        hostId,
+        room.id,
+        {
+          ...(title !== undefined ? { title } : {}),
+          ...(category !== undefined ? { category } : {}),
+          ...(topic !== undefined ? { topic } : {}),
+        },
+        meta,
+      );
+      if (version !== null) await this.metadata.infoChanged(room.id);
     }
     if (chatEnabled !== undefined && chatEnabled !== room.chatEnabled) {
       const changed = await this.prisma.$transaction(async (tx) => {
