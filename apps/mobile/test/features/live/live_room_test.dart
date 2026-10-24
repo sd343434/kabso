@@ -21,6 +21,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -1155,12 +1156,9 @@ void main() {
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
         await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
-        // A quick emoji goes into the field at the cursor.
-        await tester.tap(find.byKey(LiveChatComposer.emojiKey('🔥')));
-        await tester.pump();
         await tester.tap(find.byKey(LiveChatComposer.sendKey));
         await tester.pumpAndSettle();
-        expect(repo.chatCalls, contains('send:Hi all🔥'));
+        expect(repo.chatCalls, contains('send:Hi all'));
         expect(line('Hi all'), findsOneWidget);
         // Someone else's line: profile and report only.
         await tester.tapAt(const Offset(1, 1));
@@ -1191,6 +1189,22 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.chatCalls, contains('delete:sent-0'));
         expect(line('Hi all'), findsNothing);
+        // A Kabi emoji from the row goes at once as its own message (its
+        // token, D66) and shows in the line, animated (so last: it never
+        // settles).
+        ScaffoldMessenger.of(tester.element(find.byType(LiveRoomScreen)))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+        await tester.pumpAndSettle();
+        final kabis = find.byType(KabiEmoji).evaluate().length;
+        await tester.tap(
+          find.byKey(LiveChatComposer.emojiKey(KabiEmojis.love)),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(repo.chatCalls, contains('send::kabi_love:'));
+        expect(find.byType(KabiEmoji), findsNWidgets(kabis + 1));
       });
 
       testWidgets('a moderator deletes and mutes viewers, not the host', (

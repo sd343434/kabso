@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -96,6 +97,8 @@ class LiveAudioRoomLayout extends StatelessWidget {
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
+        // The chat box runs to the bottom edge, under the home indicator.
+        bottom: composer == null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -143,19 +146,27 @@ class LiveAudioRoomLayout extends StatelessWidget {
               padding: composer == null
                   ? const EdgeInsets.fromLTRB(4, 2, 4, 4)
                   : EdgeInsets.zero,
-              child:
-                  composer ??
-                  Row(
-                    children: [
-                      if (barLead case final lead?) ...[
-                        Expanded(child: lead),
-                        const SizedBox(width: 4),
+              child: composer != null
+                  ? ColoredBox(
+                      color: LiveChatComposer.panel,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.paddingOf(context).bottom,
+                        ),
+                        child: composer,
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        if (barLead case final lead?) ...[
+                          Expanded(child: lead),
+                          const SizedBox(width: 4),
+                        ],
+                        ...barStart,
+                        if (barLead == null) const Spacer(),
+                        ...barEnd,
                       ],
-                      ...barStart,
-                      if (barLead == null) const Spacer(),
-                      ...barEnd,
-                    ],
-                  ),
+                    ),
             ),
           ],
         ),
@@ -174,6 +185,7 @@ class LiveChatComposer extends StatefulWidget {
     required this.hint,
     required this.sendLabel,
     required this.onSend,
+    required this.onEmoji,
     super.key,
   });
 
@@ -183,20 +195,27 @@ class LiveChatComposer extends StatefulWidget {
   final String sendLabel;
   final VoidCallback onSend;
 
+  /// A Kabi emoji tapped in the row: sent at once as its own message (D66).
+  final ValueChanged<KabiEmojis> onEmoji;
+
   static const fieldKey = Key('liveChat.field');
   static const sendKey = Key('liveChat.send');
-  static Key emojiKey(String emoji) => Key('liveChat.emoji.$emoji');
+  static Key emojiKey(KabiEmojis emoji) => Key('liveChat.emoji.${emoji.id}');
 
-  /// The quick row.
-  static const emojis = ['😂', '😍', '🥰', '👏', '🔥', '🌹', '❤️'];
+  /// The Kabi row (owner's emojis, D66), measured on the owner's reference:
+  /// Kabi 27 pt tall (the Lottie canvas is 35 pt), one every 61.1 pt, the
+  /// first centred 32.1 pt from the edge; the rest scroll.
+  static const emojiSize = 35.0;
+  static const emojiPitch = 61.1;
 
   /// The panel's colours.
+  // Measured on the owner's reference (430 pt wide).
   static const panel = Color(0xFFFFFFFF);
-  static const field = Color(0xFFF2F3F7);
+  static const field = Color(0xFFF4F6FA);
   static const ink = Color(0xFF1C1B2E);
-  static const hintInk = Color(0xFFA9AAB8);
+  static const hintInk = Color(0xFFC6C7CB);
   static const sendOn = Color(0xFF6C4CF1);
-  static const sendOff = Color(0xFFC9CAD6);
+  static const sendOff = Color(0xFFE0E2E4);
 
   @override
   State<LiveChatComposer> createState() => _LiveChatComposerState();
@@ -217,19 +236,6 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
 
   void _changed() => setState(() {});
 
-  void _insert(String emoji) {
-    final c = widget.controller;
-    final sel = c.selection;
-    final text = c.text;
-    final at = sel.isValid ? sel.start : text.length;
-    final to = sel.isValid ? sel.end : text.length;
-    c.value = TextEditingValue(
-      text: text.replaceRange(at, to, emoji),
-      selection: TextSelection.collapsed(offset: at + emoji.length),
-    );
-    widget.focusNode.requestFocus();
-  }
-
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
@@ -237,21 +243,25 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
     return Container(
       decoration: const BoxDecoration(
         color: LiveChatComposer.panel,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 12, 8, 6),
+      padding: const EdgeInsets.only(top: 12, bottom: 1.4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
+              const SizedBox(width: 12.6),
               Expanded(
                 child: Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  height: 41,
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 21.9,
+                    end: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: LiveChatComposer.field,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(20.5),
                   ),
                   alignment: Alignment.center,
                   child: TextField(
@@ -265,6 +275,7 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
                     style: text.body.copyWith(color: LiveChatComposer.ink),
                     decoration: InputDecoration(
                       isCollapsed: true,
+                      contentPadding: EdgeInsets.zero,
                       filled: false,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -290,11 +301,11 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
                     behavior: HitTestBehavior.opaque,
                     onTap: widget.onSend,
                     child: SizedBox(
-                      width: 48,
-                      height: 48,
+                      width: 46.6,
+                      height: 44,
                       child: Icon(
                         Icons.send_rounded,
-                        size: 28,
+                        size: 24,
                         // Points along the reading direction.
                         textDirection: Directionality.of(context),
                         color: hasText
@@ -307,33 +318,36 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final emoji in LiveChatComposer.emojis)
-                Semantics(
-                  button: true,
-                  label: emoji,
-                  onTap: () => _insert(emoji),
-                  excludeSemantics: true,
-                  child: GestureDetector(
-                    key: LiveChatComposer.emojiKey(emoji),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _insert(emoji),
-                    child: SizedBox(
-                      width: 44,
-                      height: 40,
+          const SizedBox(height: 5.1),
+          SizedBox(
+            height: LiveChatComposer.emojiSize,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              itemExtent: LiveChatComposer.emojiPitch,
+              padding: const EdgeInsetsDirectional.symmetric(horizontal: 1.55),
+              children: [
+                for (final emoji in KabiEmojis.values)
+                  Semantics(
+                    button: true,
+                    label: emoji.label(context.l10n),
+                    onTap: () => widget.onEmoji(emoji),
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      key: LiveChatComposer.emojiKey(emoji),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => widget.onEmoji(emoji),
+                      // Still, like the picker (less motion, less work).
                       child: Center(
-                        child: Text(
+                        child: KabiEmoji(
                           emoji,
-                          style: const TextStyle(fontSize: 26, height: 1.1),
+                          size: LiveChatComposer.emojiSize,
+                          animate: false,
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

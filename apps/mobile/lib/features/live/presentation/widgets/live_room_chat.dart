@@ -7,6 +7,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -104,7 +105,10 @@ class LiveRoomChatLines extends ConsumerWidget {
     final l10n = context.l10n;
     return switch (item) {
       LiveChatPosted(:final entry) => _Tappable(
-        label: l10n.liveChatLineLabel(entry.author.displayName, entry.text),
+        label: l10n.liveChatLineLabel(
+          entry.author.displayName,
+          kabiSpokenText(entry.text, l10n),
+        ),
         onTap: () => unawaited(
           showLiveChatActions(
             context,
@@ -128,7 +132,7 @@ class LiveRoomChatLines extends ConsumerWidget {
       LiveChatPending(:final failed, :final text, :final authorName) =>
         _Tappable(
           label: [
-            l10n.liveChatLineLabel(authorName, text),
+            l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
             if (failed) l10n.liveChatFailed,
           ].join('. '),
           onTap: failed
@@ -225,13 +229,18 @@ class LiveRoomChatLines extends ConsumerWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          // Kabi emoji tokens (D66) show as the animated emoji, inline.
           TextSpan(
-            text: '  ${KFormat.bidiIsolate(text)}',
             style: styles.caption.copyWith(
               fontSize: 12.5,
               color: KAudioRoom.text,
               fontWeight: FontWeight.w600,
             ),
+            children: [
+              const TextSpan(text: '  \u2068'),
+              ...kabiInlineSpans(text, size: 12.5 * KKabiEmoji.inlineScale),
+              const TextSpan(text: '\u2069'),
+            ],
           ),
         ],
       ),
@@ -367,7 +376,7 @@ Future<void> showLiveChatActions(
         children: [
           ListTile(
             title: Text(
-              KFormat.bidiIsolate(entry.text),
+              KFormat.bidiIsolate(kabiSpokenText(entry.text, l10n)),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -472,6 +481,16 @@ Future<void> sendLiveChatFrom(
   final text = field.text;
   if (text.trim().isEmpty) return;
   field.clear();
+  await sendLiveChatText(context, ref, roomId: roomId, text: text);
+}
+
+/// Sends [text] (e.g. a Kabi emoji's token); a refusal shows as a snack.
+Future<void> sendLiveChatText(
+  BuildContext context,
+  WidgetRef ref, {
+  required String roomId,
+  required String text,
+}) async {
   final l10n = context.l10n;
   final failure = await ref.read(liveChatProvider(roomId).notifier).send(text);
   if (failure != null && context.mounted) {

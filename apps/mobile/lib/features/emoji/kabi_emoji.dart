@@ -129,6 +129,38 @@ class KabiEmoji extends StatelessWidget {
   }
 }
 
+/// [text] with each `:kabi_<id>:` token as an inline animated emoji of
+/// [size] (unknown ids stay text). The spans take the enclosing style.
+List<InlineSpan> kabiInlineSpans(String text, {required double size}) {
+  final spans = <InlineSpan>[];
+  var start = 0;
+  for (final m in KabiEmojis.tokenPattern.allMatches(text)) {
+    final emoji = KabiEmojis.byId(m.group(1)!);
+    if (emoji == null) continue;
+    if (m.start > start) {
+      spans.add(TextSpan(text: text.substring(start, m.start)));
+    }
+    spans.add(
+      WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: KabiEmoji(emoji, size: size),
+      ),
+    );
+    start = m.end;
+  }
+  if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+  return spans;
+}
+
+/// [text] as a screen reader says it: each token becomes the emoji's name.
+String kabiSpokenText(String text, AppLocalizations l10n) => text
+    .replaceAllMapped(KabiEmojis.tokenPattern, (m) {
+      final emoji = KabiEmojis.byId(m.group(1)!);
+      return emoji == null ? m.group(0)! : ' ${emoji.label(l10n)} ';
+    })
+    .replaceAll(RegExp(' {2,}'), ' ')
+    .trim();
+
 /// A text in which `:kabi_<id>:` tokens show as animated emojis (D66).
 /// A text made only of emojis (up to [KKabiEmoji.bigMaxCount]) shows them
 /// big, like a sticker. Screen readers hear the emoji names.

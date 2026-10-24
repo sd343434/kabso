@@ -403,6 +403,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               hint: l10n.goLiveChatHint,
               sendLabel: l10n.goLiveChatSend,
               onSend: send,
+              onEmoji: (emoji) {
+                if (room == null) return;
+                unawaited(
+                  sendLiveChatText(
+                    context,
+                    ref,
+                    roomId: room.id,
+                    text: emoji.token,
+                  ),
+                );
+              },
             ),
           )
         : null;

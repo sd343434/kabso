@@ -279,6 +279,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               hint: context.l10n.goLiveChatHint,
               sendLabel: context.l10n.goLiveChatSend,
               onSend: _sendChat,
+              onEmoji: (emoji) => unawaited(
+                sendLiveChatText(
+                  context,
+                  ref,
+                  roomId: widget.room.id,
+                  text: emoji.token,
+                ),
+              ),
             ),
           )
         : null;
