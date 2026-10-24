@@ -329,6 +329,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/taps` *(v1.8-live, CP-012)* | 120 / min per user (one batch a second = 60 / min; 2× headroom). **Replaces** the per-user default (it would exhaust 600 / 15 min). The 10-a-second and 10 000-a-live limits are counting rules, not rate limits: past them taps are dropped with 200 (§10.10) |
 | `POST /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | 20 / min per user, plus a counting rule of 1 a second per user and room (429 with `Retry-After`). **Replaces** the per-user default |
 | Chat delete, chat mutes, `chatEnabled` in `PATCH` *(v1.9-live, CP-013)* | the CP-011 host and moderator bucket (300 / hour per user); deleting one's own message counts there too |
+| `GET /live/rooms/{roomId}/contributors` *(v1.10-live, CP-014)* | the per-user default; guests share the CP-010 guest read limit per IP |
+| `title`, `categorySlug`, `topic` in `PATCH /live/rooms/{roomId}` *(v1.10-live, CP-014)* | the existing `PATCH` bucket (60 / hour per user) |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -423,6 +425,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.5-social (draft) | 2026-10-20 | **Draft, owner-approved scope (CP-006 M1, D87).** Media upload (presigned PUT, `MEDIA_UPLOADS_ENABLED`), posts with drafts / scheduling / pins / reposts / shares / views, Following and Trending feeds (frozen 10-minute snapshot), likes and likers, saves, comments with one reply level and pins, hashtags, mentions, prefix search, block / mute / hide, reports with an admin queue (`MODERATION` permission), privacy settings. New codes `MEDIA_UPLOADS_UNAVAILABLE` (503), `MEDIA_INVALID` (422), `PIN_LIMIT_REACHED` (409), `REPORT_ALREADY_RESOLVED` (409). Rules in §11. | Additive: no existing path, schema or code changes. |
 | v1.6-live (draft) | 2026-10-23 | **CP-010 (D93, Live L1):** live video — `createLiveMediaToken`, `updateLiveRoom`, `listLiveRoomViewers`, `grantLiveHost`, `revokeLiveHost`; schemas `LiveMediaAccess`, `LiveMediaTokenRequest`, `UpdateLiveRoomRequest`, `LiveViewer`, `LiveViewerPage`; `LiveRoom.allowGuests`, `StartLiveRoomRequest.allowGuests`, `Me.canHost`; report `targetType: LIVE_ROOM`; codes `LIVE_HOSTING_NOT_ALLOWED`, `LIVE_GUESTS_NOT_ALLOWED`; guests read the live hub without a token; `viewerCount` counts people watching. §4, §7 rows and §10.8. | **Additive**, plus one **tightening** (go-live needs the hosting permission; hosting is switched off in production today, so nobody loses anything) and one **relaxing** (four live operations accept no token). |
 | v1.7-live (draft) | 2026-10-23 | **CP-011 (D94):** multi-guest video and audio rooms — `LiveRoomMode.AUDIO`; `StartLiveRoomRequest.mode`, `seatCount`, `theme`; `LiveRoomSummary.seatCount`, `occupiedSeats`, `theme`; `LiveConfig.themes`, `seatCounts`; `UpdateLiveRoomRequest.seatCount`, `theme` (now at least one field); media role `SPEAKER`; operations `getLiveRoomSeats`, `requestLiveSeat`, `listLiveSeatRequests`, `cancelLiveSeatRequest`, `acceptLiveSeatRequest`, `declineLiveSeatRequest`, `inviteToLiveSeat`, `acceptLiveSeatInvite`, `declineLiveSeatInvite`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, `addLiveModerator`, `removeLiveModerator`; codes `LIVE_SEAT_UNAVAILABLE`, `LIVE_REQUEST_NOT_PENDING`. §4, §7 rows and §10.9. | **Additive** (a new enum value older apps show as SOLO; new optional request fields; new response fields and operations). |
+| v1.10-live (draft) | 2026-10-24 | **CP-014 parts A and B (D97):** `UpdateLiveRoomRequest.title`, `categorySlug` (null = none), `topic`; `LiveRoomTopic`; `LiveRoomSummary.topic` (so `LiveRoom.topic`); media metadata `roomInfoVersion`; `listLiveContributors` (`GET /live/rooms/{roomId}/contributors`, `LiveContributor`, `LiveContributorList`); §7 rows and §10.12. Room boost (part C) waits for L3. | **Additive** (new optional request fields, a new nullable response field, a new operation, a new metadata key). |
 | v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
@@ -766,7 +769,8 @@ until a media provider is wired in.
   compete to rise (owner D95).
 - **Levels:** the score does not count towards any level (owner D95, for now).
 - **Abuse watch:** each caller's counted taps per room are kept (`live_room_tappers`) for
-  admins looking into a suspicious room. No public list.
+  admins looking into a suspicious room. *(v1.10-live, owner D97: the top 50 are public as the
+  Contribution list, §10.12.)*
 
 ### 10.11 Live room chat *(v1.9-live, DRAFT — CP-013, D96)*
 
@@ -815,6 +819,27 @@ until a media provider is wired in.
   until the report is closed.
 - **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal), a
   word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images.
+
+### 10.12 Editing a live, the topic and the Contribution list *(v1.10-live, DRAFT — CP-014, D97)*
+
+- **Editing while live:** `PATCH /live/rooms/{roomId}` (host only) also takes `title` (the
+  go-live rules, §10.3), `categorySlug` (an **active** category, or `null` for none; else 400
+  `categorySlug` / `invalid_value`) and `topic`. One category per room (owner D97).
+- **Topic:** NFC, trimmed, 0–100 code points, one line (`U+000A`, `U+000D`, `U+2028`,
+  `U+2029` → `invalid_format`), §6 text hygiene; `null` or `""` (after trimming) removes it.
+  `LiveRoomSummary.topic` is the topic or `null`; the app shows it in the room and on hub cards
+  (owner D97). A new live starts without a topic.
+- **Reaching the room:** every change to `title`, `categorySlug` or `topic` increases the room's
+  info version in the same transaction and writes `{"roomInfoVersion": n}` into the media room's
+  metadata (next to `seatsVersion` and `score`); apps re-read `GET /live/rooms/{roomId}` when it
+  moves. A `PATCH` that changes nothing does not move it. Edits are audited (`live.room.edit`).
+- **Contribution list:** `GET /live/rooms/{roomId}/contributors` returns up to 50 people, by
+  points given to this live, highest first; ties by who reached their total first, then user
+  id. Points = counted taps (CP-012) plus, with L3, 100 a support coin. People with 0 points and
+  the host are never listed. Anyone who may watch reads it (guests need `allowGuests`); a
+  signed-in reader never gets people they blocked or who blocked them; inactive accounts are
+  left out. Also on an ended room. Public by owner decision (D97).
+- **Not in v1.10-live:** room boost (CP-014 part C, after L3), several tags per room.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
