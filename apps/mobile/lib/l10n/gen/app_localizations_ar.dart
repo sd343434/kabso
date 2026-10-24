@@ -3383,4 +3383,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveChatTool => 'الدردشة';
+
+  @override
+  String get liveToolsRoom => 'أدوات الغرفة';
+
+  @override
+  String get liveToolsOther => 'أدوات أخرى';
+
+  @override
+  String get liveToolOn => 'يعمل';
+
+  @override
+  String get liveToolOff => 'متوقف';
+
+  @override
+  String get liveToolsVoice => 'الصوت';
+
+  @override
+  String get liveToolsViewers => 'المشاهدون';
 }

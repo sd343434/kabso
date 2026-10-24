@@ -3824,5 +3824,29 @@
   "liveChatTool": "الدردشة",
   "@liveChatTool": {
     "description": "Host tool: the room chat on/off switch (CP-013); its state is shown by the button."
+  },
+  "liveToolsRoom": "أدوات الغرفة",
+  "@liveToolsRoom": {
+    "description": "Host tools sheet: section title."
+  },
+  "liveToolsOther": "أدوات أخرى",
+  "@liveToolsOther": {
+    "description": "Host tools sheet: section title."
+  },
+  "liveToolOn": "يعمل",
+  "@liveToolOn": {
+    "description": "Under an on/off tool that is on."
+  },
+  "liveToolOff": "متوقف",
+  "@liveToolOff": {
+    "description": "Under an on/off tool that is off."
+  },
+  "liveToolsVoice": "الصوت",
+  "@liveToolsVoice": {
+    "description": "Host tool: voice settings while live."
+  },
+  "liveToolsViewers": "المشاهدون",
+  "@liveToolsViewers": {
+    "description": "Host tool: who is watching."
   }
 }

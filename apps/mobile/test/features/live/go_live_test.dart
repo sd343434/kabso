@@ -616,6 +616,21 @@ void main() {
       await tester.pumpAndSettle();
       // The sheet closed with the choice.
       expect(find.byKey(GoLiveKeys.tool('chat')), findsNothing);
+      // The tools sheet (owner's reference): room tools and other tools;
+      // voice settings work while live.
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveToolsRoom), findsOneWidget);
+      expect(find.text(l10n.liveToolsOther), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('viewers')), findsOneWidget);
+      expect(find.text(l10n.liveToolOff), findsOneWidget); // chat is off
+      await tester.tap(find.byKey(GoLiveKeys.tool('voice')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('liveVoice.noise')));
+      await tester.pumpAndSettle();
+      expect(camera.voice.noiseReduction, isFalse);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
       // 💬 opens the chat box in place of the buttons; the host's message
       // goes to the room chat (CP-013) and shows in the room.
       expect(find.textContaining(l10n.liveChatEmpty), findsOneWidget);

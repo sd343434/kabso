@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -22,6 +23,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -250,39 +252,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// The audio room's ≡: the tools that are not on the bar.
-  Future<void> _showMore(List<GoLiveTool> tools) => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: const Color(0x00000000),
-    builder: (sheet) => LiveSheetFrame(
-      title: sheet.l10n.livePreviewMore,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final tool in tools)
-            ListTile(
-              key: GoLiveKeys.tool(tool.id),
-              enabled: tool.onTap != null,
-              leading: Icon(tool.icon, color: KLiveStyle.text),
-              title: Text(
-                tool.label,
-                style: sheet.textStyles.body.copyWith(color: KLiveStyle.text),
-              ),
-              // On/off switches show their state (guests, chat).
-              trailing: tool.toggled == null
-                  ? null
-                  : IgnorePointer(
-                      child: Switch(value: tool.toggled!, onChanged: (_) {}),
-                    ),
-              onTap: () {
-                Navigator.of(sheet).pop();
-                tool.onTap?.call();
-              },
-            ),
-        ],
-      ),
-    ),
-  );
-
   Future<void> _toggleGuests(GoLiveState state) async {
     final l10n = context.l10n;
     final allow = !state.allowGuests;
@@ -591,6 +560,33 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(_toggleGuests(state))
               : null,
         ),
+      if (onAir)
+        GoLiveTool(
+          id: 'voice',
+          icon: Icons.tune_rounded,
+          label: l10n.liveToolsVoice,
+          onTap: state.phase == GoLivePhase.live
+              ? () => unawaited(
+                  showLiveVoiceSheet(
+                    context,
+                    noiseReduction: state.noiseReduction,
+                    enhance: state.voiceEnhance,
+                    onChanged: _host.setVoice,
+                  ),
+                )
+              : null,
+        ),
+      if (onAir && seats && room != null)
+        GoLiveTool(
+          id: 'viewers',
+          icon: Icons.people_alt_outlined,
+          label: l10n.liveToolsViewers,
+          onTap: state.phase == GoLivePhase.live
+              ? () => unawaited(
+                  _openViewers(room.id, liveSeats?.moderators ?? const []),
+                )
+              : null,
+        ),
       if (onAir && room != null)
         GoLiveTool(
           id: 'chat',
@@ -736,26 +732,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   KFormat.compact(viewers.items.length, l10n),
                 ),
                 onTap: () => unawaited(
-                  showInviteViewers(
-                    context,
-                    roomId: room.id,
-                    moderators: liveSeats?.moderators ?? const [],
-                    onInvite: (username) async {
-                      await ref
-                          .read(liveRepositoryProvider)
-                          .inviteToSeat(room.id, username);
-                      await _afterSeatChange(room.id);
-                    },
-                    onModerator: (username, {required moderator}) async {
-                      final repo = ref.read(liveRepositoryProvider);
-                      if (moderator) {
-                        await repo.addModerator(room.id, username);
-                      } else {
-                        await repo.removeModerator(room.id, username);
-                      }
-                      await _afterSeatChange(room.id);
-                    },
-                  ),
+                  _openViewers(room.id, liveSeats?.moderators ?? const []),
                 ),
               ),
           ],
@@ -795,12 +772,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             tintAsset: true,
             label: l10n.livePreviewMore,
             onTap: () => unawaited(
-              _showMore([
-                byId['seats']!,
-                byId['guests']!,
-                ?byId['chat'],
-                byId['theme']!,
-              ]),
+              showLiveRoomTools(
+                context,
+                room: [?byId['voice'], byId['seats']!, byId['theme']!],
+                other: [?byId['viewers'], byId['guests']!, ?byId['chat']],
+              ),
             ),
           ),
           LiveRoundButton(
@@ -1104,6 +1080,27 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
   }
+
+  /// Who is watching: invite to a seat, make or remove moderators.
+  Future<void> _openViewers(String roomId, List<UserSummary> moderators) =>
+      showInviteViewers(
+        context,
+        roomId: roomId,
+        moderators: moderators,
+        onInvite: (username) async {
+          await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
+          await _afterSeatChange(roomId);
+        },
+        onModerator: (username, {required moderator}) async {
+          final repo = ref.read(liveRepositoryProvider);
+          if (moderator) {
+            await repo.addModerator(roomId, username);
+          } else {
+            await repo.removeModerator(roomId, username);
+          }
+          await _afterSeatChange(roomId);
+        },
+      );
 
   Future<void> _openRequests(String roomId) {
     final repo = ref.read(liveRepositoryProvider);

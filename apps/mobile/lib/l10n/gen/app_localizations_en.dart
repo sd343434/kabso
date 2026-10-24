@@ -3353,4 +3353,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveChatTool => 'Chat';
+
+  @override
+  String get liveToolsRoom => 'Room tools';
+
+  @override
+  String get liveToolsOther => 'Other tools';
+
+  @override
+  String get liveToolOn => 'On';
+
+  @override
+  String get liveToolOff => 'Off';
+
+  @override
+  String get liveToolsVoice => 'Voice';
+
+  @override
+  String get liveToolsViewers => 'Viewers';
 }

@@ -5857,6 +5857,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الدردشة'**
   String get liveChatTool;
+
+  /// Host tools sheet: section title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات الغرفة'**
+  String get liveToolsRoom;
+
+  /// Host tools sheet: section title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات أخرى'**
+  String get liveToolsOther;
+
+  /// Under an on/off tool that is on.
+  ///
+  /// In ar, this message translates to:
+  /// **'يعمل'**
+  String get liveToolOn;
+
+  /// Under an on/off tool that is off.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوقف'**
+  String get liveToolOff;
+
+  /// Host tool: voice settings while live.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصوت'**
+  String get liveToolsVoice;
+
+  /// Host tool: who is watching.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveToolsViewers;
 }
 
 class _AppLocalizationsDelegate

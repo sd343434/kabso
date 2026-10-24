@@ -1103,5 +1103,11 @@
   "liveChatTurnedOff": "Chat is off. Viewers can't write.",
   "liveChatTurnedOn": "Chat is on",
   "liveChatLineLabel": "{name}: {text}",
-  "liveChatTool": "Chat"
+  "liveChatTool": "Chat",
+  "liveToolsRoom": "Room tools",
+  "liveToolsOther": "Other tools",
+  "liveToolOn": "On",
+  "liveToolOff": "Off",
+  "liveToolsVoice": "Voice",
+  "liveToolsViewers": "Viewers"
 }
