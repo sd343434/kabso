@@ -45,6 +45,8 @@ info:
     (`LiveRoom.roomNumber`, CONVENTIONS §10.17).
     **v1.16-live (DRAFT, owner D100)** changes the `AUDIO` seat counts to 6, 9, 15, 20 or 25 (host
     included) and seat indexes to 1 … 24 (CONVENTIONS §10.9).
+    **CP-016 part D (D101, DRAFT v1.17-live)** adds the room level (`LiveRoom.roomLevel`, the
+    host's charm level); taps give the host charm points (`LIVE_TAPS`, CONVENTIONS §10.18).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3662,6 +3664,10 @@ components:
               minimum: 100000000
               maximum: 999999999
               description: "CP-016 G (v1.15-live): the host's public room number (9 digits, the same in every live of that host; the room bar shows \"ID: …\"). Null when the host no longer has the hosting permission."
+            roomLevel:
+              type: [integer, 'null']
+              minimum: 1
+              description: "CP-016 D (v1.17-live, CONVENTIONS §10.18): the host's charm (ATTRACTIVENESS) level, the same in every live of that host. Null while the charm category is unavailable."
             status: { type: string, enum: [LIVE, ENDED] }
             allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }
@@ -4106,9 +4112,9 @@ components:
       type: string
       enum: [EARN, REVERSAL, ADJUSTMENT]
     PointsSourceType:
-      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; ADMIN for manual adjustments; CONFIG for recalculations.
+      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; LIVE_TAPS for a viewer's taps in a live (v1.17-live, CONVENTIONS §10.18); ADMIN for manual adjustments; CONFIG for recalculations.
       type: string
-      enum: [GIFT_RECEIVED, GIFT_SENT, LUCKY_GIFT_SENT, GAME_SPEND, ADMIN, CONFIG]
+      enum: [GIFT_RECEIVED, GIFT_SENT, LUCKY_GIFT_SENT, GAME_SPEND, LIVE_TAPS, ADMIN, CONFIG]
     PointsEntry:
       type: object
       required: [id, category, entryType, sourceType, pointsDelta, createdAt]

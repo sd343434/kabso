@@ -31,6 +31,7 @@ Future<void> _pump(
   int? seats,
   GoldenViewport viewport = GoldenViewport.phone,
   List<LiveSeat>? onAir,
+  int? roomLevel,
 }) async {
   final ar = language == AppLanguage.ar;
   final repo = FakeLiveRepository(
@@ -40,7 +41,7 @@ Future<void> _pump(
       LiveCategory(slug: 'games', name: ar ? 'ألعاب' : 'Games'),
       LiveCategory(slug: 'friends', name: ar ? 'تعارف' : 'Friends'),
     ],
-  );
+  )..startRoomLevel = roomLevel;
   final prefs = await testPrefs(language: language.name);
   await pumpGolden(
     tester,
@@ -232,12 +233,14 @@ void main() {
       tester,
     ) async {
       final ar = language == AppLanguage.ar;
-      // Owner D100: above 11 tiles the seats sit in rows of 5 under the host.
+      // Owner D100: above 11 tiles the seats sit in rows of 5, the host the
+      // first tile. D101: the room level (25, the kitty tier) after the name.
       await _pump(
         tester,
         language: language,
         mode: LiveRoomMode.audio,
         seats: 25,
+        roomLevel: 25,
         onAir: [
           LiveSeat(
             index: 1,

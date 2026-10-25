@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -412,7 +413,12 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.onTap,
     this.action,
     this.showMinimize = true,
+    this.level,
   });
+
+  /// CP-016 D (D101): the room level (the host's charm level) after the
+  /// title; none while the charm levels are unavailable.
+  final int? level;
 
   /// At the end of the room bar (a viewer's Follow).
   final Widget? action;
@@ -478,16 +484,27 @@ class LiveAudioRoomHeader extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.caption.copyWith(
-                                fontSize: 13,
-                                height: 1.15,
-                                color: KAudioRoom.text,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.caption.copyWith(
+                                      fontSize: 13,
+                                      height: 1.15,
+                                      color: KAudioRoom.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (level case final level?) ...[
+                                  const SizedBox(width: 4),
+                                  CharmLevelBadge(level: level, height: 13),
+                                ],
+                              ],
                             ),
                             if (subtitle != null && subtitle.isNotEmpty)
                               Text(

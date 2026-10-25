@@ -1184,6 +1184,7 @@
   "liveScheduleRemove": "Cancel {title}",
   "liveScheduleWhen": "{date}, {time}",
   "liveRoomNumber": "ID: {number}",
+  "liveRoomLevelBadge": "Room level {level}",
   "liveToolMusic": "Music",
   "liveToolSounds": "Sounds",
   "liveToolFluent": "Fluent",

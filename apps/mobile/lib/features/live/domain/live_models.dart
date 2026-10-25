@@ -167,6 +167,10 @@ abstract class LiveRoom with _$LiveRoom {
     /// CP-016 G: the host's public room number ("ID: …"); null when the
     /// host no longer has the hosting permission.
     int? roomNumber,
+
+    /// CP-016 D (D101): the host's charm level, shown next to the room name;
+    /// null while the charm levels are unavailable.
+    int? roomLevel,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);

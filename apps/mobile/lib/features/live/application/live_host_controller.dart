@@ -145,13 +145,42 @@ class LiveHostController extends Notifier<GoLiveState> {
   GoLiveState build() {
     _engine = ref.read(liveMediaEngineProvider)();
     _repo = ref.read(liveRepositoryProvider);
+    _engine.changes.addListener(_watchRoomInfo);
     ref.onDispose(() {
+      _engine.changes.removeListener(_watchRoomInfo);
       _heartbeat?.cancel();
       final onAir = _onAir;
       if (onAir != null) _endQuietly(onAir);
       unawaited(_engine.stop().then((_) {}, onError: (_) {}));
     });
     return const GoLiveState();
+  }
+
+  int? _infoSeen;
+
+  /// CP-016 D (§10.18): a tap batch that changes the host's charm level
+  /// raises the media room's `roomInfoVersion`; the room is read again so
+  /// the room level shows the new level.
+  void _watchRoomInfo() {
+    final v = _engine.roomInfoVersion;
+    final seen = _infoSeen;
+    if (_onAir == null || v == null || (seen != null && v <= seen)) return;
+    _infoSeen = v;
+    unawaited(_refreshRoom());
+  }
+
+  /// Failures keep the room as it is; the next version tries again.
+  Future<void> _refreshRoom() async {
+    final id = _onAir;
+    if (id == null) return;
+    try {
+      final room = await _repo.getRoom(id);
+      if (ref.mounted && state.room?.id == id && _onAir == id) {
+        state = state.copyWith(room: room);
+      }
+    } on Object {
+      // Kept.
+    }
   }
 
   /// Starts (or retries) the camera and microphone.

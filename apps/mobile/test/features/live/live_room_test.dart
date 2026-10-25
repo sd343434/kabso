@@ -828,7 +828,7 @@ void main() {
     });
   });
   group('taps and the score (CP-012, D95)', () {
-    testWidgets('a signed-in viewer taps: hearts rise, one batch a second, '
+    testWidgets('a signed-in viewer taps: characters rise, one batch a second, '
         'the score shows', (tester) async {
       final engine = FakeLiveMediaEngine()..present.add('user-0');
       final (repo, _) = await _pumpRoom(
@@ -841,12 +841,12 @@ void main() {
         await tester.tap(find.byKey(LiveTapLayer.tapKey));
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.byIcon(Icons.favorite_rounded), findsNWidgets(3));
+      expect(find.byType(LiveTapCharacter), findsNWidgets(3));
       expect(repo.tapBatches, isEmpty);
       await tester.pump(const Duration(seconds: 1));
       expect(repo.tapBatches.single, (roomId: 'room-0', count: 3));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.favorite_rounded), findsNothing);
+      expect(find.byType(LiveTapCharacter), findsNothing);
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),

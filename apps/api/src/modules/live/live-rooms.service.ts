@@ -80,6 +80,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   chatMuted: boolean;
   /** CP-016 G: the host's public room number (null without the hosting permission). */
   roomNumber: number | null;
+  /** CP-016 D (§10.18): the host's charm level. */
+  roomLevel: number | null;
 }
 
 export interface LiveRoomPageDto {
@@ -151,6 +153,7 @@ export interface RoomRow {
   category_name_en: string | null;
   /** CP-016 G: the host's room number (null without the hosting permission). */
   room_number: number | null;
+  room_level: number | null;
 }
 
 /**
@@ -159,6 +162,23 @@ export interface RoomRow {
  * read-only exceptions to module table ownership (DB_PHASE2_DISCOVERY §1): the list must filter
  * and paginate in the database.
  */
+/**
+ * CP-016 D (§10.18): the host's charm (ATTRACTIVENESS) level, null while the category is
+ * unavailable. The same rule as the levels read side (`summaryDto`): the highest level of the
+ * published ladder the points reach, or the level kept from that same version if higher.
+ */
+const ROOM_LEVEL_SQL = Prisma.sql`(
+         SELECT CASE WHEN lc.is_enabled AND lc.published_version_id IS NOT NULL THEN
+                  GREATEST(
+                    (SELECT max(ld.level_number) FROM level_definitions ld
+                      WHERE ld.version_id = lc.published_version_id
+                        AND ld.required_points <= COALESCE(ls.total_points, 0)),
+                    CASE WHEN ls.version_id = lc.published_version_id THEN ls.current_level END)
+                END
+           FROM level_categories lc
+           LEFT JOIN user_level_states ls ON ls.category_id = lc.id AND ls.user_id = r.host_user_id
+          WHERE lc.code = 'ATTRACTIVENESS')`;
+
 const ROOM_COLUMNS = Prisma.sql`
          r.id::text AS id, r.title, r.topic, r.mode::text AS mode, r.status::text AS status, r.viewer_count,
          r.started_at, r.last_heartbeat_at, r.ended_at, r.end_reason::text AS end_reason, r.cover_url,
@@ -169,7 +189,7 @@ const ROOM_COLUMNS = Prisma.sql`
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en, r.chat_enabled, lh.room_number`;
+         c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
@@ -621,6 +641,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       chatEnabled: row.chat_enabled,
       chatMuted: row.chat_muted ?? false,
       roomNumber: row.room_number,
+      roomLevel: row.room_level,
     };
   }
 

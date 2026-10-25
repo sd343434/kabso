@@ -434,6 +434,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.17-live (draft) | 2026-10-25 | **CP-016 part D (D101, owner 2026-10-25):** `LiveRoom.roomLevel` (the host's charm level); every 10 counted taps of a viewer in a live give the host 1 charm point (`PointsSourceType` `LIVE_TAPS`), at most 10 000 taps (1 000 points) per viewer in each live; §10.18, §10.10. | **Additive** (a new field and a new enum value). |
 | v1.16-live (draft) | 2026-10-25 | **Owner D100:** `AUDIO` seat counts 6, 9, 15, 20, 25 (host included; was 5, 9, 13); seat indexes 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`, seat paths and bodies); §10.9. | **Breaking for `AUDIO` starts with 5 or 13** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. Existing rooms of 5 / 13 became 6 / 15. |
 | v1.15-live (draft) | 2026-10-25 | **CP-016 part G (D99, owner 2026-10-25):** `LiveRoom.roomNumber` (the host's 9-digit public room number); §10.17. | **Additive** (a new field). |
 | v1.14-live (draft) | 2026-10-25 | **CP-016 part C (D99):** `listMyLiveSchedule`, `createLiveScheduleSlot`, `deleteLiveScheduleSlot` (`GET` / `POST /me/live-schedule`, `DELETE /me/live-schedule/{slotId}`, `CreateLiveScheduleSlotRequest`, `LiveScheduleSlot`, `LiveScheduleList`); notification type `LIVE_SCHEDULED_SOON` (target `USER`: the host, with the title as `text` and the optional `NotificationTarget.startsAt`); `NotificationSettings.lives`; code `LIVE_SCHEDULE_FULL` (409); §7 row, §10.16, §11.10. | **Additive** for new operations and fields. A new `NotificationType` value: clients ignore types they do not know (the app already does); its target uses the existing `USER` type so older apps still read the inbox. |
@@ -779,7 +780,8 @@ until a media provider is wired in.
   without polling; `GET /live/rooms/{roomId}` returns `scoreParts`.
 - **Hub:** `LiveRoomSummary.score` is on every card; `popular` orders by it (§10.4) so rooms
   compete to rise (owner D95).
-- **Levels:** the score does not count towards any level (owner D95, for now).
+- **Levels:** the score itself counts towards no level. *(v1.17-live, owner D101: a viewer's
+  counted taps also give the host charm points, §10.18; the score is unchanged.)*
 - **Abuse watch:** each caller's counted taps per room are kept (`live_room_tappers`) for
   admins looking into a suspicious room. *(v1.10-live, owner D97: the top 50 are public as the
   Contribution list, §10.12.)*
@@ -930,6 +932,26 @@ until a media provider is wired in.
   Revoking the permission drops the number; a new grant gives a new one.
 - It is an identifier for people to quote (support, reports), not a secret, and never replaces
   the room or user ids in the API.
+### 10.18 Room level *(v1.17-live, DRAFT — CP-016 D, D101)*
+
+- **The room level is the host's charm level:** the host's `ATTRACTIVENESS` level (CP-005,
+  §9), the same in every live of that host, and it keeps growing from live to live (the live
+  score, §10.10, starts at 0 in every live). `LiveRoom.roomLevel` carries it; null while the
+  charm category is not available (disabled or no published version, CP-005 §4).
+- **Taps give charm points (owner D101):** every 10 taps of one viewer that count in one live
+  (§10.10) give the host 1 charm point, in the same transaction as the score. They go through
+  the CP-005 ledger as `EARN` entries with source `LIVE_TAPS` (no multiplier: the rate is fixed
+  here); the host's level follows the published ladder. Nothing is credited while the category
+  is unavailable, and taps lost that way are not credited later.
+- **Limit (owner D101):** **10 000 taps per viewer in each live** — the counting limit of §10.10.
+  One viewer therefore gives a host at most 1 000 charm points per live; there is no daily cap
+  across lives. The host's own taps give nothing (they count 0, §10.10).
+- **Gifts** (L3) add charm points by the CP-005 rules (`GIFT_RECEIVED`); not built yet.
+- **Live updates:** when a tap batch changes the host's level, the room's info version goes up
+  (§10.12), so apps read the room again and show the new level.
+- Apps draw the level with the owner's ten charm tiers (levels 1–10, 11–20 … 91–100); a level
+  above 100 uses the last tier.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

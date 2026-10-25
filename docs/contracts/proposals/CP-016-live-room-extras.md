@@ -5,7 +5,8 @@ room level **built**. Part B applied as openapi v1.12-live (draft), CONVENTIONS 
 hour / day / week; Rich and regional boards wait) as v1.13-live (draft), CONVENTIONS §10.15;
 part C (live schedule, followers reminded 15 minutes before) as v1.14-live (draft), CONVENTIONS
 §10.16; the room number of part G (owner, refs 83/84) as v1.15-live (draft), CONVENTIONS §10.17
-(the viewers sheet's gear still waits). (Owner
+(the viewers sheet's gear still waits); part D (room level = the host's charm level, taps give
+charm points, owner D101) as v1.17-live (draft), CONVENTIONS §10.18. (Owner
 request 2026-10-24, refs 71–75; the owner chose "what is backed first, one proposal for the
 rest".) Parts not yet built are shown greyed with "Soon" in
 the app and do nothing (owner choice for ref 71).

@@ -682,6 +682,8 @@ enum PointsSourceType {
   GIFT_SENT
   LUCKY_GIFT_SENT
   GAME_SPEND
+  /// CP-016 D (D101): a viewer's taps in a live, 10 counted taps = 1 point (CONVENTIONS §10.18).
+  LIVE_TAPS
   ADMIN
   CONFIG
 

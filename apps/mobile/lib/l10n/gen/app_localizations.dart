@@ -6338,6 +6338,12 @@ abstract class AppLocalizations {
   /// **'المعرّف: {number}'**
   String liveRoomNumber(String number);
 
+  /// Screen reader label of the room level badge next to the room name: the host's charm level (CP-016 D, D101)
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الغرفة {level}'**
+  String liveRoomLevelBadge(int level);
+
   /// Room tools sheet tile (owner ref 84)
   ///
   /// In ar, this message translates to:

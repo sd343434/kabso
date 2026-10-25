@@ -26,6 +26,7 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
@@ -79,7 +80,14 @@ void main() {
           // precache: decode them outside fake async, then repaint.
           await tester.runAsync(() async {
             final context = tester.element(find.byType(ProviderScope));
-            for (final image in [coverBlue, coverRed, coverGold, avatarImage]) {
+            for (final image in <ImageProvider>[
+              coverBlue,
+              coverRed,
+              coverGold,
+              avatarImage,
+              // D101: the room level badges.
+              for (final tier in CharmTier.values) AssetImage(tier.icon),
+            ]) {
               await precacheImage(image, context, onError: (_, _) {});
             }
           });
@@ -119,6 +127,25 @@ void main() {
                   name: ar ? 'موسيقى' : 'Music',
                 ),
               ),
+            ),
+          );
+        });
+
+        // CP-016 D (D101): the room level badge after the title.
+        testWidgets('room.level ($vp)', (tester) async {
+          await golden(
+            tester,
+            'room.level',
+            const LiveRoomScreen(roomId: 'room-0'),
+            overrides: api(
+              (id) => apiRoom(
+                id: id,
+                ar: ar,
+                category: LiveCategory(
+                  slug: 'music',
+                  name: ar ? 'موسيقى' : 'Music',
+                ),
+              ).copyWith(roomLevel: 25),
             ),
           );
         });
