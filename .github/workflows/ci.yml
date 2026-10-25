@@ -393,7 +393,11 @@ jobs:
   deploy-image:
     name: Publish the API image (staging)
     needs: [ci-ok]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    # A skipped job anywhere upstream (e.g. iOS when nothing mobile changed) would skip this job
+    # too without an explicit status check, so gate on ci-ok's own result.
+    if: >-
+      !cancelled() && needs.ci-ok.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
