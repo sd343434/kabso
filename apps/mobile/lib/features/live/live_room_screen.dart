@@ -572,8 +572,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         seatButton = LiveRoundButton(
           key: AudioRoomViewKeys.request,
           icon: Icons.weekend_rounded,
-          asset: 'assets/live_room_icons/seat.png',
-          tintAsset: true,
+          asset: 'assets/live_bar/seat.png',
           label: l10n.liveSeatRequest,
           onTap: () =>
               unawaited(runSeatAction(context, () => _session.requestSeat())),
@@ -674,13 +673,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   LiveRoundButton(
                     key: AudioRoomViewKeys.chat,
                     icon: Icons.chat_bubble_outline_rounded,
+                    asset: 'assets/live_bar/chat.png',
                     label: composer.hint,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
                   LiveRoundButton(
                     icon: Icons.emoji_emotions_rounded,
-                    asset: 'assets/live_room_icons/emoji.png',
-                    tintAsset: true,
+                    asset: 'assets/live_bar/emoji.png',
                     label: l10n.livePreviewEmoji,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
@@ -705,7 +704,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   LiveRoundButton(
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
-                    asset: 'assets/live_room_icons/gift.png',
+                    asset: 'assets/live_bar/gift.png',
                     label: l10n.liveGifts,
                     onTap: () => unawaited(_openGifts(context)),
                   ),

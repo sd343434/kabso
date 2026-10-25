@@ -68,6 +68,8 @@ flutter:
     # D94 live room themes (Kabso's own, AI-generated; PROVENANCE.md).
     - assets/live_themes/
     - assets/live_room_icons/
+    # Owner-supplied live bottom-bar icons (assets/live_bar/PROVENANCE.md).
+    - assets/live_bar/
     # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).
     - assets/category_icons/
     # Owner-supplied popularity board frames (assets/live_rank_frames/PROVENANCE.md).
