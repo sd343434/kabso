@@ -593,3 +593,70 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
   their effect is only visible in the next weekly Dependabot run.
 - The per-platform `TRUST_PROXY` values in §3.1 are based on each platform's documented
   `X-Forwarded-For` behaviour and must be verified on the real deployment.
+
+## 11. Single-server deployment with automatic updates (KL-069) — [IMPLEMENTED, UNVERIFIED on a server]
+
+The first real server (Hostinger VPS, Ubuntu 26.04 LTS, domain `kabsolive.com`) runs the whole
+stack with Docker Compose. It is the staging/beta server of §3, not the managed production
+platform. Files: `apps/api/Dockerfile`, `.dockerignore`, `infra/deploy/`,
+the `deploy-image` job of `.github/workflows/ci.yml`.
+
+| Host | Service |
+| ---- | ------- |
+| `kabsolive.com` | Caddy, a static "coming soon" page (`infra/deploy/site`) |
+| `api.kabsolive.com` | Caddy → API (`/internal/*` answers 404 from outside) |
+| `live.kabsolive.com` | Caddy → LiveKit signalling (`wss://`); media on 7881/tcp, 7882/udp |
+
+PostgreSQL, Redis and the API are not published; only 80, 443 (TCP+UDP), 7881/tcp and
+7882/udp are. Caddy gets and renews the Let's Encrypt certificates once the three DNS A
+records point at the server.
+
+**Release flow (no manual server step):**
+
+1. A commit reaches the `staging` branch (pushed only with the owner's approval).
+2. CI runs on it (`ci.yml`). Only when `ci-ok` is green does its `deploy-image` job build
+   `apps/api/Dockerfile` from that exact commit, smoke-test it, and push
+   `ghcr.io/sd343434/kabso-api:staging` and `:sha-<commit>` with the job's own `GITHUB_TOKEN`.
+   No secret is stored in GitHub.
+3. On the server, `kabso-update.timer` runs `infra/deploy/update.sh` every 5 minutes: it
+   fast-forwards `/opt/kabso` to `origin/staging`, pulls the image, and when either changed runs
+   `prisma migrate deploy` as the migration role (`migrate` service, the only one with
+   `MIGRATION_DATABASE_URL`), restarts what changed and waits for `/health/ready`. A failed
+   migration stops the update and the running API keeps serving.
+
+**One-time setup** (as root, from the provider's browser terminal; read the script first):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sd343434/kabso/staging/infra/deploy/install.sh -o install.sh
+bash install.sh
+```
+
+It installs Docker, opens the firewall, clones the repository, and generates every secret on
+the server into `/etc/kabso/*.env` (mode 600): JWT, rate-limit, registration-code and cursor
+keys (`openssl rand`, accepted by `secret-strength.ts`), the three database passwords (the
+bootstrap gets SCRAM verifiers only, §5.1), and the LiveKit key pair. It asks for the domain,
+the certificate e-mail and the SMTP settings (password without echo). Re-running keeps existing
+secrets. Before the first run the `kabso-api` package must exist (first green CI on
+`staging`) and be **public** (GitHub → Packages → kabso-api → Package settings → Change
+visibility), because the server pulls without a token.
+
+Settings the script writes: `NODE_ENV=production`, `TRUST_PROXY=1` (Caddy is the one appending
+proxy, §3.1), `MAIL_TRANSPORT=smtp`, `LIVE_HOSTING_ENABLED=true` with the server's own LiveKit
+(webhook over the internal network), `MEDIA_UPLOADS_ENABLED=false` (B12, uploads answer 503),
+`ARGON2_MAX_CONCURRENCY` = vCPUs and `UV_THREADPOOL_SIZE` = vCPUs + 4 (§3.2).
+
+**Rollback:** set `KABSO_API_IMAGE='ghcr.io/sd343434/kabso-api:sha-<good commit>'` in
+`/etc/kabso/kabso.env` and run `bash /opt/kabso/infra/deploy/update.sh --force` (migrations are
+expand/contract, §5, so the previous image keeps working); set it back to `:staging` afterwards.
+
+**Verified in the authoring environment (no Docker daemon, no server):** the frozen
+`pnpm install` and `pnpm --filter @kabso/api build` the Dockerfile runs; the env files the
+script generates pass the API's own `loadConfig` with `NODE_ENV=production` (and fail without
+the SMTP password); on an empty PostgreSQL 16 database the initdb step created the role layout
+with production verifiers, `prisma migrate deploy` as the migration role applied every migration,
+and the API started as the runtime role with `/health/ready` 200; LiveKit 1.9.1 started with the
+generated `livekit.yaml`; `caddy validate` (2.10.2) accepted the Caddyfile; `docker compose
+config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified:** the image build itself, the containers
+together, `install.sh` and the timer on Ubuntu 26.04, certificates, the workflow on GitHub, real
+mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
+some mobile networks).

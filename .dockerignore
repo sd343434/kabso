@@ -1,0 +1,13 @@
+# Docker build context of apps/api/Dockerfile (the repository root). Only the API and the
+# workspace files are needed; never send secrets or local builds to the daemon.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/src/generated
+.git
+apps/mobile
+docs
+tools

@@ -1,0 +1,10 @@
+# Kabso Live — automatic update (infra/deploy/update.sh), started by kabso-update.timer.
+[Unit]
+Description=Kabso Live automatic update
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/kabso/infra/deploy/update.sh
+TimeoutStartSec=20min

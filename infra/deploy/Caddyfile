@@ -1,0 +1,25 @@
+# Kabso Live — HTTPS front (KL-069). Caddy obtains and renews the Let's Encrypt certificates
+# itself once the DNS A records point at this server. KABSO_DOMAIN comes from kabso.env.
+{
+	email {$KABSO_ACME_EMAIL}
+}
+
+{$KABSO_DOMAIN} {
+	root * /srv/site
+	file_server
+	encode zstd gzip
+}
+
+api.{$KABSO_DOMAIN} {
+	encode zstd gzip
+	# The signed media-server webhook is posted by LiveKit over the internal network
+	# (livekit.yaml), never through the public host.
+	@internal path /internal/*
+	respond @internal 404
+	# Caddy is the one proxy that appends X-Forwarded-For: TRUST_PROXY=1 (docs/DEPLOYMENT.md §3.1).
+	reverse_proxy api:3000
+}
+
+live.{$KABSO_DOMAIN} {
+	reverse_proxy livekit:7880
+}

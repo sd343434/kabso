@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - main
+      - staging # the server deploys this branch once CI is green (deploy-image.yml)
       - "claude/**"
   workflow_dispatch:
 
@@ -384,3 +385,46 @@ jobs:
             exit 1
           fi
           echo "All ${total} jobs succeeded or were skipped."
+
+  # KL-069 (docs/DEPLOYMENT.md §11): after a green run on a push to `staging`, publish the API
+  # image the server's kabso-update timer deploys. Lives in this workflow (not a workflow_run
+  # trigger, which only fires from the default branch) and uses the job's own GITHUB_TOKEN; no
+  # secret is added. The `kabso-api` package must be public once so the server pulls without one.
+  deploy-image:
+    name: Publish the API image (staging)
+    needs: [ci-ok]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/kabso-api"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build -f apps/api/Dockerfile \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            -t "$image:sha-${GITHUB_SHA}" -t "$image:staging" .
+      - name: Smoke test (starts, refuses an empty configuration, ships the Prisma CLI)
+        run: |
+          set +e
+          out="$(docker run --rm -e NODE_ENV=production "$IMAGE:sha-${GITHUB_SHA}" 2>&1)"
+          code=$?
+          set -e
+          echo "$out" | head -20
+          [ "$code" -ne 0 ] && grep -q "DATABASE_URL" <<<"$out"
+          docker run --rm --entrypoint node_modules/.bin/prisma "$IMAGE:sha-${GITHUB_SHA}" --version
+      - name: Push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:sha-${GITHUB_SHA}"
+          docker push "$IMAGE:staging"
+          docker logout ghcr.io
