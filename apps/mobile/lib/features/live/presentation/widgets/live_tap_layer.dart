@@ -82,7 +82,7 @@ class _LiveTapLayerState extends State<LiveTapLayer>
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails details) {
+  void _onTapUp(TapUpDetails details) {
     widget.onTap?.call();
     final now = clock.now();
     _combo = now.difference(_last) > LiveTapLayer.comboTimeout ? 1 : _combo + 1;
@@ -128,37 +128,43 @@ class _LiveTapLayerState extends State<LiveTapLayer>
   Widget build(BuildContext context) {
     if (widget.onTap == null) return widget.child;
     final comboAt = _comboAt;
-    return Semantics(
-      button: true,
-      label: context.l10n.liveTapHint,
-      onTap: widget.onTap,
-      child: GestureDetector(
-        key: LiveTapLayer.tapKey,
-        behavior: HitTestBehavior.opaque,
-        onTapDown: _onTapDown,
-        child: Stack(
-          fit: StackFit.expand,
-          clipBehavior: Clip.none,
-          children: [
-            widget.child,
-            IgnorePointer(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (final p in _pops)
-                    LiveTapCharacter._(p, key: ObjectKey(p)),
-                  if (comboAt != null && _combo > 1 && _pops.isNotEmpty)
-                    _ComboLabel(
-                      key: ValueKey(_combo),
-                      at: comboAt,
-                      combo: _combo,
-                      color: CharmTier.values[(_combo ~/ 10) % _tiers].pillEnd,
-                    ),
-                ],
-              ),
+    // A tap counts when the finger lifts and nothing above took it (a seat,
+    // a button, the chat), so pressing those never cheers as well.
+    return GestureDetector(
+      key: LiveTapLayer.tapKey,
+      behavior: HitTestBehavior.opaque,
+      onTapUp: _onTapUp,
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
+        children: [
+          // Screen readers get one "tap to cheer" item, not the whole room
+          // as a single button.
+          Positioned.fill(
+            child: Semantics(
+              button: true,
+              label: context.l10n.liveTapHint,
+              onTap: widget.onTap,
+              child: const SizedBox.expand(),
             ),
-          ],
-        ),
+          ),
+          widget.child,
+          IgnorePointer(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (final p in _pops) LiveTapCharacter._(p, key: ObjectKey(p)),
+                if (comboAt != null && _combo > 1 && _pops.isNotEmpty)
+                  _ComboLabel(
+                    key: ValueKey(_combo),
+                    at: comboAt,
+                    combo: _combo,
+                    color: CharmTier.values[(_combo ~/ 10) % _tiers].pillEnd,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

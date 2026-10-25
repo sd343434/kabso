@@ -583,151 +583,153 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return KLiveSurface(
       child: Material(
         color: KPalette.dark.background,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            LiveTapLayer(
-              onTap: canTap ? _session.tap : null,
-              // D101: only the charm tiers the host has reached.
-              maxTier: CharmTier.of(room.roomLevel ?? 1).number,
-              child: _video(session, engine),
-            ),
-            LiveAudioRoomLayout(
-              header: LiveAudioRoomHeader(
-                cover: KAvatar(
-                  name: host.displayName,
-                  imageUrl: host.avatarUrl,
-                  size: 30,
+        // The whole room cheers (the stage scrolls, so a tap layer under it
+        // would never be hit); seats, buttons and the chat keep their taps.
+        child: LiveTapLayer(
+          onTap: canTap ? _session.tap : null,
+          // D101: only the charm tiers the host has reached.
+          maxTier: CharmTier.of(room.roomLevel ?? 1).number,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _video(session, engine),
+              LiveAudioRoomLayout(
+                header: LiveAudioRoomHeader(
+                  cover: KAvatar(
+                    name: host.displayName,
+                    imageUrl: host.avatarUrl,
+                    size: 30,
+                  ),
+                  title: room.title,
+                  level: room.roomLevel,
+                  // CP-016 G (ref 83): the room number, else the username.
+                  subtitle: switch (room.roomNumber) {
+                    final n? => l10n.liveRoomNumber('$n'),
+                    null => '@${host.username}',
+                  },
+                  onTap: () => unawaited(showHostSheet(context, _username)),
+                  action: canFollow
+                      ? LiveRoundButton(
+                          key: AudioRoomViewKeys.follow,
+                          icon: Icons.person_add_alt_1_rounded,
+                          label: l10n.liveFollow,
+                          size: 24,
+                          iconSize: 14,
+                          color: const Color(0xFFFF4D7A),
+                          onTap: () => unawaited(_setFollowing(follow: true)),
+                        )
+                      : null,
+                  showMinimize: false,
+                  minimizeTooltip: '',
+                  onMinimize: null,
+                  shareKey: AudioRoomViewKeys.share,
+                  shareTooltip: l10n.goLiveShare,
+                  onShare: () => unawaited(_share(room.title, host.username)),
+                  endKey: AudioRoomViewKeys.close,
+                  endTooltip: l10n.liveClose,
+                  onEnd: widget.onClose,
                 ),
-                title: room.title,
-                level: room.roomLevel,
-                // CP-016 G (ref 83): the room number, else the username.
-                subtitle: switch (room.roomNumber) {
-                  final n? => l10n.liveRoomNumber('$n'),
-                  null => '@${host.username}',
-                },
-                onTap: () => unawaited(showHostSheet(context, _username)),
-                action: canFollow
-                    ? LiveRoundButton(
-                        key: AudioRoomViewKeys.follow,
-                        icon: Icons.person_add_alt_1_rounded,
-                        label: l10n.liveFollow,
-                        size: 24,
-                        iconSize: 14,
-                        color: const Color(0xFFFF4D7A),
-                        onTap: () => unawaited(_setFollowing(follow: true)),
-                      )
-                    : null,
-                showMinimize: false,
-                minimizeTooltip: '',
-                onMinimize: null,
-                shareKey: AudioRoomViewKeys.share,
-                shareTooltip: l10n.goLiveShare,
-                onShare: () => unawaited(_share(room.title, host.username)),
-                endKey: AudioRoomViewKeys.close,
-                endTooltip: l10n.liveClose,
-                onEnd: widget.onClose,
-              ),
-              chips: Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        // Ref 83/84: the room rank, then the live's points.
-                        children: [
-                          const Flexible(child: LiveRankChip()),
-                          if (score > 0) ...[
-                            const SizedBox(width: 8),
-                            LiveScoreChip(
-                              text: KFormat.compact(score, l10n),
-                              label: l10n.liveScore(
-                                score,
-                                KFormat.grouped(score),
+                chips: Row(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          // Ref 83/84: the room rank, then the live's points.
+                          children: [
+                            const Flexible(child: LiveRankChip()),
+                            if (score > 0) ...[
+                              const SizedBox(width: 8),
+                              LiveScoreChip(
+                                text: KFormat.compact(score, l10n),
+                                label: l10n.liveScore(
+                                  score,
+                                  KFormat.grouped(score),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    if (room.viewerCount > 0)
+                      LiveViewersStack(
+                        avatars: const [],
+                        count: KFormat.compact(room.viewerCount, l10n),
+                        label: l10n.liveViewers(
+                          room.viewerCount,
+                          KFormat.grouped(room.viewerCount),
+                        ),
+                      ),
+                  ],
+                ),
+                stage: _stage(session, engine),
+                chat: [_roomChat(session)],
+                composer: _chatComposer(composer),
+                // Ref 83: chat and emoji on one side; the seat, requests,
+                // gifts and the mic on the other.
+                barStart: [
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.chat,
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: composer.hint,
+                    onTap: () => unawaited(_openChat(composer)),
                   ),
-                  const SizedBox(width: 8),
-                  if (room.viewerCount > 0)
-                    LiveViewersStack(
-                      avatars: const [],
-                      count: KFormat.compact(room.viewerCount, l10n),
-                      label: l10n.liveViewers(
-                        room.viewerCount,
-                        KFormat.grouped(room.viewerCount),
+                  LiveRoundButton(
+                    icon: Icons.emoji_emotions_rounded,
+                    asset: 'assets/live_room_icons/emoji.png',
+                    tintAsset: true,
+                    label: l10n.livePreviewEmoji,
+                    onTap: () => unawaited(_openChat(composer)),
+                  ),
+                ],
+                barEnd: [
+                  ?seatButton,
+                  if (session.canModerate)
+                    LiveRoundButton(
+                      key: AudioRoomViewKeys.requests,
+                      icon: Icons.front_hand_rounded,
+                      label: l10n.liveSeatRequests,
+                      badge: pending,
+                      onTap: () => unawaited(
+                        showSeatRequests(
+                          context,
+                          roomId: room.id,
+                          onAccept: _session.accept,
+                          onDecline: _session.decline,
+                        ),
+                      ),
+                    ),
+                  LiveRoundButton(
+                    key: AudioRoomViewKeys.gift,
+                    icon: Icons.card_giftcard_rounded,
+                    asset: 'assets/live_room_icons/gift.png',
+                    label: l10n.liveGifts,
+                    onTap: () => unawaited(_openGifts(context)),
+                  ),
+                  if (session.seated)
+                    LiveRoundButton(
+                      key: AudioRoomViewKeys.mic,
+                      icon: engine.micEnabled
+                          ? Icons.mic_rounded
+                          : Icons.mic_off_rounded,
+                      asset: engine.micEnabled
+                          ? 'assets/live_room_icons/mic.png'
+                          : 'assets/live_room_icons/mic_off.png',
+                      tintAsset: true,
+                      label: engine.micEnabled
+                          ? l10n.goLiveMuteMic
+                          : l10n.goLiveUnmuteMic,
+                      onTap: () => unawaited(
+                        engine.setMicEnabled(enabled: !engine.micEnabled),
                       ),
                     ),
                 ],
               ),
-              stage: _stage(session, engine),
-              chat: [_roomChat(session)],
-              composer: _chatComposer(composer),
-              // Ref 83: chat and emoji on one side; the seat, requests,
-              // gifts and the mic on the other.
-              barStart: [
-                LiveRoundButton(
-                  key: AudioRoomViewKeys.chat,
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: composer.hint,
-                  onTap: () => unawaited(_openChat(composer)),
-                ),
-                LiveRoundButton(
-                  icon: Icons.emoji_emotions_rounded,
-                  asset: 'assets/live_room_icons/emoji.png',
-                  tintAsset: true,
-                  label: l10n.livePreviewEmoji,
-                  onTap: () => unawaited(_openChat(composer)),
-                ),
-              ],
-              barEnd: [
-                ?seatButton,
-                if (session.canModerate)
-                  LiveRoundButton(
-                    key: AudioRoomViewKeys.requests,
-                    icon: Icons.front_hand_rounded,
-                    label: l10n.liveSeatRequests,
-                    badge: pending,
-                    onTap: () => unawaited(
-                      showSeatRequests(
-                        context,
-                        roomId: room.id,
-                        onAccept: _session.accept,
-                        onDecline: _session.decline,
-                      ),
-                    ),
-                  ),
-                LiveRoundButton(
-                  key: AudioRoomViewKeys.gift,
-                  icon: Icons.card_giftcard_rounded,
-                  asset: 'assets/live_room_icons/gift.png',
-                  label: l10n.liveGifts,
-                  onTap: () => unawaited(_openGifts(context)),
-                ),
-                if (session.seated)
-                  LiveRoundButton(
-                    key: AudioRoomViewKeys.mic,
-                    icon: engine.micEnabled
-                        ? Icons.mic_rounded
-                        : Icons.mic_off_rounded,
-                    asset: engine.micEnabled
-                        ? 'assets/live_room_icons/mic.png'
-                        : 'assets/live_room_icons/mic_off.png',
-                    tintAsset: true,
-                    label: engine.micEnabled
-                        ? l10n.goLiveMuteMic
-                        : l10n.goLiveUnmuteMic,
-                    onTap: () => unawaited(
-                      engine.setMicEnabled(enabled: !engine.micEnabled),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
