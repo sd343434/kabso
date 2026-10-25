@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -478,10 +479,14 @@ class KHostPillSkeleton extends StatelessWidget {
 /// chips under the host pill. Each text is laid out in its own script
 /// direction (an Arabic title in an English UI and the reverse).
 class KRoomInfoRow extends StatelessWidget {
-  const new({required this.title, super.key, this.category});
+  const new({required this.title, super.key, this.category, this.level});
 
   final String title;
   final String? category;
+
+  /// CP-016 D (D101): the room level (the host's charm level) after the
+  /// title; none while the charm levels are unavailable.
+  final int? level;
 
   @override
   Widget build(BuildContext context) {
@@ -492,6 +497,10 @@ class KRoomInfoRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Flexible(child: _InfoChip(text: title)),
+          if (level case final level?) ...[
+            const SizedBox(width: KSpacing.xs),
+            CharmLevelBadge(level: level, height: 16),
+          ],
           if (category != null && category.isNotEmpty) ...[
             const SizedBox(width: KSpacing.xs),
             Flexible(

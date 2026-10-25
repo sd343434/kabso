@@ -20,6 +20,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -430,6 +431,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
           : LiveTapLayer(
               onTap: canTap ? _session.tap : null,
+              // D101: only the charm tiers the host has reached.
+              maxTier: CharmTier.of(room.roomLevel ?? 1).number,
               child: _video(session, engine),
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
@@ -464,7 +467,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             )
           : null,
       onClose: widget.onClose,
-      roomInfo: KRoomInfoRow(title: room.title, category: room.category?.name),
+      roomInfo: KRoomInfoRow(
+        title: room.title,
+        category: room.category?.name,
+        level: room.roomLevel,
+      ),
       chat: ended
           ? null
           : Align(
@@ -581,6 +588,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           children: [
             LiveTapLayer(
               onTap: canTap ? _session.tap : null,
+              // D101: only the charm tiers the host has reached.
+              maxTier: CharmTier.of(room.roomLevel ?? 1).number,
               child: _video(session, engine),
             ),
             LiveAudioRoomLayout(
@@ -591,6 +600,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   size: 30,
                 ),
                 title: room.title,
+                level: room.roomLevel,
                 // CP-016 G (ref 83): the room number, else the username.
                 subtitle: switch (room.roomNumber) {
                   final n? => l10n.liveRoomNumber('$n'),

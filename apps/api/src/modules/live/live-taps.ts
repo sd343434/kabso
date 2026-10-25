@@ -52,3 +52,20 @@ export function acceptedTaps(batch: TapBatch): number {
   const left = Math.max(0, MAX_TAPS_PER_ROOM - counted);
   return Math.min(count, allowance, left);
 }
+
+/** CP-016 D (D101, §10.18): counted taps of one viewer in one live per charm point of the host. */
+export const TAPS_PER_CHARM_POINT = 10;
+
+/**
+ * The host's charm points from a batch: one for every multiple of {@link TAPS_PER_CHARM_POINT}
+ * the viewer's counted taps in the room cross (from `countedBefore` to `countedBefore +
+ * accepted`). The owner's limit (D101) is the 10 000 counted taps a live ({@link
+ * MAX_TAPS_PER_ROOM}), so a viewer gives a host at most 1 000 charm points per live.
+ */
+export function charmPointsFor(countedBefore: number, accepted: number): number {
+  if (accepted <= 0) return 0;
+  return (
+    Math.floor((countedBefore + accepted) / TAPS_PER_CHARM_POINT) -
+    Math.floor(countedBefore / TAPS_PER_CHARM_POINT)
+  );
+}

@@ -3,7 +3,10 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isAvailable, loadCategory } from '../levels/level-catalog.js';
+import { LevelProgressService } from '../levels/level-progress.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import {
@@ -13,7 +16,13 @@ import {
   type LiveScoreDto,
   type UserSummaryDto,
 } from './live-rooms.service.js';
-import { acceptedTaps, LIVE_CONTRIBUTORS_MAX, POINTS_PER_TAP } from './live-taps.js';
+import {
+  acceptedTaps,
+  charmPointsFor,
+  LIVE_CONTRIBUTORS_MAX,
+  POINTS_PER_TAP,
+  TAPS_PER_CHARM_POINT,
+} from './live-taps.js';
 import { liveTapsRequestSchema } from './live.schemas.js';
 
 /** `LiveTapsResult` (CP-012). */
@@ -38,6 +47,9 @@ export interface LiveContributorDto {
  * `popular` tab orders by) are updated together. Concurrent batches therefore never pass the
  * 10-a-second or 10 000-a-live limits. After the commit the score goes into the media room's
  * metadata, at most once every 2 seconds per room ({@link LiveRoomMetadataService}).
+ *
+ * CP-016 D (D101, §10.18): in the same transaction the batch gives the host charm points
+ * ({@link charmPointsFor}); a level change raises the room's info version so apps read it again.
  */
 @Injectable()
 export class LiveTapsService {
@@ -46,6 +58,7 @@ export class LiveTapsService {
     private readonly rooms: LiveRoomsService,
     private readonly clock: Clock,
     private readonly metadata: LiveRoomMetadataService,
+    private readonly levels: LevelProgressService,
   ) {}
 
   /** `POST /live/rooms/{roomId}/taps`: body (400) → visible room (404) → LIVE (409). */
@@ -81,6 +94,7 @@ export class LiveTapsService {
         now,
       });
 
+      let levelChanged = false;
       if (accepted > 0) {
         await tx.$executeRaw`
           INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at)
@@ -102,6 +116,18 @@ export class LiveTapsService {
           VALUES (${room.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${accepted * POINTS_PER_TAP})
           ON CONFLICT (host_user_id, hour_start) DO UPDATE
              SET points = live_host_points_hourly.points + EXCLUDED.points`;
+        levelChanged = await this.creditCharm(tx, {
+          roomId: id,
+          hostId: room.host_user_id,
+          viewerId: callerId,
+          countedBefore: tapper?.counted ?? 0,
+          accepted,
+        });
+        if (levelChanged) {
+          await tx.$executeRaw`
+            UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
+             WHERE id = ${id}::uuid`;
+        }
       }
 
       const [score] = await tx.$queryRaw<{ total: bigint; tap_points: bigint; support_points: bigint }[]>`
@@ -110,6 +136,7 @@ export class LiveTapsService {
           FROM live_rooms r LEFT JOIN live_room_scores sc ON sc.room_id = r.id
          WHERE r.id = ${id}::uuid`;
       return {
+        levelChanged,
         accepted,
         score: {
           total: Number(score?.total ?? 0),
@@ -119,8 +146,45 @@ export class LiveTapsService {
       };
     }, LIVE_TX_OPTIONS);
 
+    if (result.levelChanged) await this.metadata.infoChanged(id);
     if (result.accepted > 0) await this.metadata.scoreChanged(id);
-    return result;
+    return { accepted: result.accepted, score: result.score };
+  }
+
+  /**
+   * CP-016 D (§10.18): the host's charm points for this batch ({@link charmPointsFor}; the 10 000
+   * counted taps a live already bound them). Runs after the room row is locked; the levels engine
+   * then locks the host's level state (the same order as every other credit: category, then
+   * state). Nothing is credited while the charm category is unavailable. Returns whether the
+   * host's level changed.
+   */
+  private async creditCharm(
+    tx: Prisma.TransactionClient,
+    batch: { roomId: string; hostId: string; viewerId: string; countedBefore: number; accepted: number },
+  ): Promise<boolean> {
+    const points = charmPointsFor(batch.countedBefore, batch.accepted);
+    if (points === 0) return false;
+
+    // A database without the category (never seeded) is the same as an unavailable one.
+    const seeded = await tx.levelCategory.findUnique({
+      where: { code: 'ATTRACTIVENESS' },
+      select: { id: true },
+    });
+    if (!seeded) return false;
+    const category = await loadCategory(tx, 'ATTRACTIVENESS', 'share');
+    if (!isAvailable(category)) return false;
+    // One ledger row per batch that earns: the source id is the viewer's point count in this live
+    // after the batch, which only grows, so a row is never credited twice.
+    const reached = Math.floor((batch.countedBefore + batch.accepted) / TAPS_PER_CHARM_POINT);
+    const result = await this.levels.apply(tx, category, {
+      userId: batch.hostId,
+      entryType: 'EARN',
+      sourceType: 'LIVE_TAPS',
+      pointsDelta: BigInt(points),
+      sourceTransactionId: `taps:${batch.roomId}:${batch.viewerId}:${String(reached)}`,
+      sourceValue: BigInt(points * TAPS_PER_CHARM_POINT),
+    });
+    return result.kind === 'applied' && result.state.currentLevel !== result.state.previousLevel;
   }
 
   /**

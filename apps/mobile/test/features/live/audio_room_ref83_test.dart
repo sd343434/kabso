@@ -1,7 +1,7 @@
 // Owner refs 83/84: the audio room's seats on a circle around the host
 // (6 and 9 seats; seat 1 at the top, clockwise, mirrored in Arabic), owner
-// D100: 15, 20 and 25 seats in rows of 5 under the host, and the room tools
-// sheet with the tools that have no server greyed "Soon".
+// D100: 15, 20 and 25 seats in rows of 5 with the host as the first tile,
+// and the room tools sheet with the tools that have no server greyed "Soon".
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';

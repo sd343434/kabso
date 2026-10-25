@@ -4219,6 +4219,15 @@
       }
     }
   },
+  "liveRoomLevelBadge": "مستوى الغرفة {level}",
+  "@liveRoomLevelBadge": {
+    "description": "Screen reader label of the room level badge next to the room name: the host's charm level (CP-016 D, D101)",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
   "liveToolMusic": "موسيقى",
   "@liveToolMusic": {
     "description": "Room tools sheet tile (owner ref 84)"

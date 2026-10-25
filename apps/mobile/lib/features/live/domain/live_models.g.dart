@@ -134,6 +134,7 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   chatMuted: json['chatMuted'] as bool? ?? false,
   topic: json['topic'] as String?,
   roomNumber: (json['roomNumber'] as num?)?.toInt(),
+  roomLevel: (json['roomLevel'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -158,6 +159,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'chatMuted': instance.chatMuted,
   'topic': instance.topic,
   'roomNumber': instance.roomNumber,
+  'roomLevel': instance.roomLevel,
 };
 
 const _$LiveRoomStatusEnumMap = {

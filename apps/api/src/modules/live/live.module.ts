@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { AdminGuard, AdminPermissions } from '../levels/admin.guard.js';
+import { LevelProgressService } from '../levels/level-progress.service.js';
 import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { LiveCategoriesService } from './live-categories.service.js';
@@ -58,6 +59,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBlockedWordsService,
     LiveScheduleService,
     LiveRoomMetadataService,
+    // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).
+    LevelProgressService,
     AdminGuard,
     AdminPermissions,
     {

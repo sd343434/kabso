@@ -3620,6 +3620,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveRoomLevelBadge(int level) {
+    return 'Room level $level';
+  }
+
+  @override
   String get liveToolMusic => 'Music';
 
   @override

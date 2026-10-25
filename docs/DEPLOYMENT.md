@@ -469,6 +469,23 @@ a `CONNECTION LIMIT`.
   (`revoke`, `list` likewise); the runtime role can only read the table. Every grant is audited.
 - The owner's ladder (CP-005 §9.1): `pnpm levels:admin draft-preset <admin email>` writes one DRAFT
   per category (100 levels, ×0.1). Review, then publish with `PRESERVE_POINTS` and enable.
+- Room level (CP-016 D, D101, CONVENTIONS §10.18): live taps credit the host's `ATTRACTIVENESS`
+  points (10 counted taps = 1 point, `LIVE_TAPS`) inside the taps transaction, from the server's
+  own count, so they need no source verifier. They credit nothing, and `LiveRoom.roomLevel` stays
+  null, until `ATTRACTIVENESS` is published and enabled as above. Gifts still need the verifier.
+- `pnpm levels:admin publish-charm <admin email>` (owner D101) does that in one audited step: the
+  owner's ladder for `ATTRACTIVENESS` (the newest draft, or a new one from the preset) published
+  and enabled. It refuses once anyone holds charm points (then publish through the API, which
+  recalculates). The tool is built into the API image as `dist/cli/levels-admin.js`; on the
+  server (§11), from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  # once: the owner's account becomes an admin
+  docker exec kabso-postgres-1 psql -U kabso_admin -d kabso \
+    -c "UPDATE users SET role = 'ADMIN' WHERE email = lower('owner@example.com')"
+  # the migration role runs the tool
+  docker compose --profile jobs run --rm migrate node dist/cli/levels-admin.js publish-charm owner@example.com
+  ```
 - After an incident: `POST /admin/levels/reconciliation {mode: "DRY_RUN"}` reports states that
   differ from their ledger and failed or stuck events; `REPAIR` rebuilds the states from the
   ledger and retries the events. The ledger itself is never edited.

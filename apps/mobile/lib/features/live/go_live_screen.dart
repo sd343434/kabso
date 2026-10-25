@@ -29,6 +29,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.d
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -677,6 +678,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           },
           title: room?.title ?? _title.text.trim(),
+          level: room?.roomLevel,
           // CP-016 G (ref 83): the room number, else the username.
           subtitle: switch (room?.roomNumber) {
             final n? => l10n.liveRoomNumber('$n'),
@@ -917,6 +919,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                       child: _LiveClock(
                         since: state.liveSince,
                         title: room?.title ?? _title.text.trim(),
+                        level: room?.roomLevel,
                       ),
                     )
                   else
@@ -1346,10 +1349,13 @@ class _Notice extends StatelessWidget {
 
 /// LIVE · elapsed time and the title while on air.
 class _LiveClock extends StatelessWidget {
-  const new({required this.since, required this.title});
+  const new({required this.since, required this.title, this.level});
 
   final DateTime? since;
   final String title;
+
+  /// CP-016 D (D101): the room level after the title.
+  final int? level;
 
   @override
   Widget build(BuildContext context) {
@@ -1383,11 +1389,22 @@ class _LiveClock extends StatelessWidget {
         ),
         if (title.isNotEmpty) ...[
           const SizedBox(height: KSpacing.xs),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.caption.copyWith(color: p.textPrimary),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.caption.copyWith(color: p.textPrimary),
+                ),
+              ),
+              if (level case final level?) ...[
+                const SizedBox(width: KSpacing.xs),
+                CharmLevelBadge(level: level),
+              ],
+            ],
           ),
         ],
       ],

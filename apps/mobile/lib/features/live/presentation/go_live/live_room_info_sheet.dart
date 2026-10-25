@@ -10,6 +10,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -183,7 +184,15 @@ class _RoomInfoSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 14),
-            _InfoRow(label: l10n.liveRoomLevel),
+            // CP-016 D (D101): the host's charm level; "Soon" while the
+            // charm levels are unavailable.
+            _InfoRow(
+              label: l10n.liveRoomLevel,
+              trailing: switch (room?.roomLevel) {
+                final level? => CharmLevelBadge(level: level, height: 18),
+                null => null,
+              },
+            ),
             const SizedBox(height: 4),
             divider(),
             const SizedBox(height: 9),
@@ -457,11 +466,16 @@ class _InfoRow extends StatelessWidget {
     super.key,
     this.onTap,
     this.value,
+    this.trailing,
     this.height = 52,
   });
 
   final String label;
   final String? value;
+
+  /// Shown at the end instead of [value]; the row is then information, not
+  /// "Soon", even without [onTap].
+  final Widget? trailing;
   final VoidCallback? onTap;
   final double height;
 
@@ -469,7 +483,8 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
-    final soon = onTap == null;
+    final trailing = this.trailing;
+    final soon = onTap == null && trailing == null;
     final value = soon ? l10n.liveSoon : this.value;
     return Semantics(
       button: !soon,
@@ -493,21 +508,23 @@ class _InfoRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    value ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: text.body.copyWith(
-                      color: soon
-                          ? const Color(0xFFB4B6BB)
-                          : const Color(0xFF888A8D),
-                      fontSize: 16,
+                if (trailing != null) ...[const Spacer(), trailing],
+                if (trailing == null)
+                  Expanded(
+                    child: Text(
+                      value ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: text.body.copyWith(
+                        color: soon
+                            ? const Color(0xFFB4B6BB)
+                            : const Color(0xFF888A8D),
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                ),
-                if (!soon) ...[
+                if (onTap != null) ...[
                   const SizedBox(width: 4),
                   Icon(
                     Directionality.of(context) == TextDirection.rtl

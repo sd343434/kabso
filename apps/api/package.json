@@ -22,7 +22,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "levels:admin": "tsx prisma/levels-admin.ts"
+    "levels:admin": "tsx src/cli/levels-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

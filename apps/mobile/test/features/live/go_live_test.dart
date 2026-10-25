@@ -35,6 +35,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_room_info_she
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -266,6 +267,34 @@ void main() {
   });
 
   group('on air', () {
+    testWidgets('CP-016 D: the room level shows after the title and follows '
+        'a level change the media room announces', (tester) async {
+      final repo = FakeLiveRepository(categories: _categories)
+        ..startRoomLevel = 9;
+      final (_, camera) = await _pump(tester, repo: repo);
+      await _goLive(tester);
+      CharmLevelBadge badge() =>
+          tester.widget<CharmLevelBadge>(find.byType(CharmLevelBadge));
+      expect(badge().level, 9);
+
+      // A viewer's taps raised the host's charm level: the server raised
+      // the room's info version, the host reads the room again.
+      repo.hostRoom = repo.hostRoom!.copyWith(roomLevel: 11);
+      camera
+        ..infoVersion = 1
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(repo.roomRequests, ['room-host']);
+      expect(badge().level, 11);
+      expect(CharmTier.of(badge().level), CharmTier.bunny);
+
+      // The same version again reads nothing.
+      camera.ping();
+      await tester.pumpAndSettle();
+      expect(repo.roomRequests, ['room-host']);
+      await _leave(tester);
+    });
+
     testWidgets('start: room, token, publish, then heartbeats', (tester) async {
       final (repo, camera) = await _pump(tester);
       final l10n = _l10n(tester);

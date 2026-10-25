@@ -310,6 +310,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         topic: null,
         // CP-016 G (v1.15-live): the host's room number (kl073 covers it).
         roomNumber: expect.any(Number),
+        // CP-016 D (§10.18): no charm category in this database → no level.
+        roomLevel: null,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
