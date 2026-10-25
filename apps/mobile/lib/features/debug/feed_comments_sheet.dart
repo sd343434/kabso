@@ -468,7 +468,7 @@ class _CommentBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onPost;
-  final ValueChanged<KabiEmojis> onEmoji;
+  final ValueChanged<KabsoEmoji> onEmoji;
 
   @override
   Widget build(BuildContext context) {

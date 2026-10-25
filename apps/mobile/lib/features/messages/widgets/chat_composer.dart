@@ -38,7 +38,7 @@ class ChatComposer extends StatelessWidget {
 
   final TextEditingController? controller;
   final VoidCallback? onSend;
-  final ValueChanged<KabiEmojis>? onEmoji;
+  final ValueChanged<KabsoEmoji>? onEmoji;
   final ValueChanged<PickedMedia>? onMedia;
 
   /// Opens the gift box (D69); null disables the gift button.

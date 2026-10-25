@@ -79,9 +79,17 @@ flutter:
     - assets/taps/
     # D63 launch animation and voice (owner-supplied).
     - assets/splash/
-    # D66 Kabi emojis (owner-supplied, outline added by
-    # tool/kabi_emoji_outline.py).
-    - assets/emojis/
+    # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
+    # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
+    - assets/emojis/kabi/
+    - assets/emojis/kiki/
+    - assets/emojis/boo/
+    - assets/emojis/pipo/
+    - assets/emojis/dubi/
+    - assets/emojis/gogo/
+    - assets/emojis/lulu/
+    - assets/emojis/neno/
+    - assets/emojis/flags/
     # D71 PK battle animations (owner-supplied SVGA: start, win, lose,
     # draw).
     - assets/battle/

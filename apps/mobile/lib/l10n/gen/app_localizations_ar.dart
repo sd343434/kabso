@@ -1468,64 +1468,463 @@ class AppLocalizationsAr extends AppLocalizations {
   String get loginTitleAccent => 'البث؟';
 
   @override
-  String get kabiEmojiHi => 'هلا';
-
-  @override
-  String get kabiEmojiLove => 'حب';
-
-  @override
-  String get kabiEmojiLol => 'ضحك';
-
-  @override
-  String get kabiEmojiWow => 'واو';
-
-  @override
-  String get kabiEmojiSad => 'حزين';
-
-  @override
-  String get kabiEmojiAngry => 'معصّب';
-
-  @override
-  String get kabiEmojiWink => 'غمزة';
-
-  @override
-  String get kabiEmojiLive => 'لايف';
-
-  @override
-  String get kabiEmojiCool => 'كشخة';
-
-  @override
-  String get kabiEmojiDizzy => 'دايخ';
-
-  @override
-  String get kabiEmojiSleepy => 'نعسان';
-
-  @override
-  String get kabiEmojiSilly => 'مهبول';
-
-  @override
-  String get kabiEmojiShy => 'مستحي';
-
-  @override
-  String get kabiEmojiThink => 'يفكر';
-
-  @override
-  String get kabiEmojiParty => 'احتفال';
-
-  @override
-  String get kabiEmojiDead => 'مت ضحك';
-
-  @override
-  String get kabiEmojiMelt => 'ذايب';
-
-  @override
-  String get kabiEmojiKiss => 'بوسة';
-
-  @override
-  String get kabiEmojiPickerTitle => 'إيموجي كابي';
+  String get kabiEmojiPickerTitle => 'الإيموجي';
 
   @override
   String get kabiEmojiButton => 'إيموجي';
+
+  @override
+  String get emojiPackKabi => 'كابي';
+
+  @override
+  String get emojiPackKiki => 'كيكي';
+
+  @override
+  String get emojiPackBoo => 'بو';
+
+  @override
+  String get emojiPackPipo => 'بيبو';
+
+  @override
+  String get emojiPackDubi => 'دوبي';
+
+  @override
+  String get emojiPackGogo => 'جوجو';
+
+  @override
+  String get emojiPackLulu => 'لولو';
+
+  @override
+  String get emojiPackNeno => 'نينو';
+
+  @override
+  String get emojiPackFlags => 'أعلام';
+
+  @override
+  String get emojiKabiHi => 'هلا';
+
+  @override
+  String get emojiKabiLove => 'حب';
+
+  @override
+  String get emojiKabiLol => 'ضحك';
+
+  @override
+  String get emojiKabiWow => 'واو';
+
+  @override
+  String get emojiKabiSad => 'حزين';
+
+  @override
+  String get emojiKabiAngry => 'معصّب';
+
+  @override
+  String get emojiKabiWink => 'غمزة';
+
+  @override
+  String get emojiKabiLive => 'لايف';
+
+  @override
+  String get emojiKabiCool => 'كشخة';
+
+  @override
+  String get emojiKabiDizzy => 'دايخ';
+
+  @override
+  String get emojiKabiSleepy => 'نعسان';
+
+  @override
+  String get emojiKabiSilly => 'مهبول';
+
+  @override
+  String get emojiKabiShy => 'مستحي';
+
+  @override
+  String get emojiKabiThink => 'يفكر';
+
+  @override
+  String get emojiKabiParty => 'احتفال';
+
+  @override
+  String get emojiKabiDead => 'مت ضحك';
+
+  @override
+  String get emojiKabiMelt => 'ذايب';
+
+  @override
+  String get emojiKabiKiss => 'بوسة';
+
+  @override
+  String get emojiKabiGift => 'هدية';
+
+  @override
+  String get emojiKabiFire => 'نار';
+
+  @override
+  String get emojiKabiCrown => 'VIP';
+
+  @override
+  String get emojiKabiMoney => 'فلوس';
+
+  @override
+  String get emojiKabiSing => 'يغني';
+
+  @override
+  String get emojiKabiStar => 'منبهر';
+
+  @override
+  String get emojiKikiHi => 'هلا';
+
+  @override
+  String get emojiKikiLove => 'حب';
+
+  @override
+  String get emojiKikiLol => 'ضحك';
+
+  @override
+  String get emojiKikiWow => 'واو';
+
+  @override
+  String get emojiKikiSad => 'حزين';
+
+  @override
+  String get emojiKikiAngry => 'معصّب';
+
+  @override
+  String get emojiKikiCool => 'كشخة';
+
+  @override
+  String get emojiKikiSleepy => 'نعسان';
+
+  @override
+  String get emojiKikiWink => 'غمزة';
+
+  @override
+  String get emojiKikiKiss => 'بوسة';
+
+  @override
+  String get emojiKikiSing => 'يغني';
+
+  @override
+  String get emojiKikiShy => 'مستحية';
+
+  @override
+  String get emojiKikiThink => 'تفكر';
+
+  @override
+  String get emojiKikiParty => 'احتفال';
+
+  @override
+  String get emojiKikiClap => 'تصفيق';
+
+  @override
+  String get emojiKikiFire => 'نار';
+
+  @override
+  String get emojiKikiOk => 'تمام';
+
+  @override
+  String get emojiKikiDizzy => 'دايخة';
+
+  @override
+  String get emojiBooBoo => 'بخ';
+
+  @override
+  String get emojiBooScared => 'خايف';
+
+  @override
+  String get emojiBooFade => 'اختفى';
+
+  @override
+  String get emojiBooPeek => 'يطل';
+
+  @override
+  String get emojiBooSpin => 'يرقص';
+
+  @override
+  String get emojiBooLaugh => 'ضحك';
+
+  @override
+  String get emojiBooLove => 'حب';
+
+  @override
+  String get emojiBooCry => 'يبكي';
+
+  @override
+  String get emojiBooSneaky => 'خبيث';
+
+  @override
+  String get emojiBooSleep => 'نايم';
+
+  @override
+  String get emojiBooShock => 'مصدوم';
+
+  @override
+  String get emojiBooParty => 'احتفال';
+
+  @override
+  String get emojiPipoHi => 'هلا';
+
+  @override
+  String get emojiPipoChirp => 'يغرّد';
+
+  @override
+  String get emojiPipoHungry => 'جوعان';
+
+  @override
+  String get emojiPipoCold => 'بردان';
+
+  @override
+  String get emojiPipoFly => 'يطير';
+
+  @override
+  String get emojiPipoLove => 'حب';
+
+  @override
+  String get emojiPipoCry => 'يبكي';
+
+  @override
+  String get emojiPipoAngry => 'معصّب';
+
+  @override
+  String get emojiPipoSleepy => 'نعسان';
+
+  @override
+  String get emojiPipoYay => 'ياي';
+
+  @override
+  String get emojiPipoShy => 'مستحي';
+
+  @override
+  String get emojiPipoWow => 'واو';
+
+  @override
+  String get emojiDubiHug => 'حضن';
+
+  @override
+  String get emojiDubiThanks => 'شكرًا';
+
+  @override
+  String get emojiDubiStrong => 'قوي';
+
+  @override
+  String get emojiDubiHoney => 'عسل';
+
+  @override
+  String get emojiDubiSleep => 'نايم';
+
+  @override
+  String get emojiDubiGrr => 'غاضب';
+
+  @override
+  String get emojiDubiLol => 'ضحك';
+
+  @override
+  String get emojiDubiLove => 'حب';
+
+  @override
+  String get emojiDubiCool => 'كشخة';
+
+  @override
+  String get emojiDubiOk => 'تمام';
+
+  @override
+  String get emojiDubiSad => 'حزين';
+
+  @override
+  String get emojiDubiClap => 'تصفيق';
+
+  @override
+  String get emojiGogoHi => 'هلا';
+
+  @override
+  String get emojiGogoRoar => 'زئير';
+
+  @override
+  String get emojiGogoStomp => 'يدبدب';
+
+  @override
+  String get emojiGogoHatch => 'يفقس';
+
+  @override
+  String get emojiGogoMunch => 'ياكل';
+
+  @override
+  String get emojiGogoDance => 'يرقص';
+
+  @override
+  String get emojiGogoSneeze => 'عطسة';
+
+  @override
+  String get emojiGogoCool => 'كشخة';
+
+  @override
+  String get emojiGogoLove => 'حب';
+
+  @override
+  String get emojiGogoLol => 'ضحك';
+
+  @override
+  String get emojiGogoCry => 'يبكي';
+
+  @override
+  String get emojiGogoWow => 'واو';
+
+  @override
+  String get emojiLuluHi => 'هلا';
+
+  @override
+  String get emojiLuluSun => 'مشمس';
+
+  @override
+  String get emojiLuluRain => 'ممطر';
+
+  @override
+  String get emojiLuluThunder => 'رعد';
+
+  @override
+  String get emojiLuluRainbow => 'قوس قزح';
+
+  @override
+  String get emojiLuluSnow => 'ثلج';
+
+  @override
+  String get emojiLuluWind => 'هواء';
+
+  @override
+  String get emojiLuluSleep => 'نايمة';
+
+  @override
+  String get emojiLuluLove => 'حب';
+
+  @override
+  String get emojiLuluWow => 'واو';
+
+  @override
+  String get emojiLuluLol => 'ضحك';
+
+  @override
+  String get emojiLuluShy => 'مستحية';
+
+  @override
+  String get emojiNenoHi => 'هلا';
+
+  @override
+  String get emojiNenoLove => 'حب';
+
+  @override
+  String get emojiNenoLol => 'ضحك';
+
+  @override
+  String get emojiNenoWow => 'واو';
+
+  @override
+  String get emojiNenoCry => 'يبكي';
+
+  @override
+  String get emojiNenoAngry => 'معصّب';
+
+  @override
+  String get emojiNenoCool => 'كشخة';
+
+  @override
+  String get emojiNenoThink => 'يفكر';
+
+  @override
+  String get emojiNenoWink => 'غمزة';
+
+  @override
+  String get emojiNenoSleepy => 'نعسان';
+
+  @override
+  String get emojiNenoMoney => 'بزنس';
+
+  @override
+  String get emojiNenoOk => 'تمام';
+
+  @override
+  String get emojiNenoClap => 'تصفيق';
+
+  @override
+  String get emojiNenoParty => 'احتفال';
+
+  @override
+  String get emojiNenoKiss => 'بوسة';
+
+  @override
+  String get emojiNenoBlush => 'مستحي';
+
+  @override
+  String get emojiNenoRose => 'وردة';
+
+  @override
+  String get emojiNenoHeartbeat => 'قلبي يدق';
+
+  @override
+  String get emojiNenoFlirt => 'غزل';
+
+  @override
+  String get emojiNenoMelt => 'ذايب';
+
+  @override
+  String get emojiNenoIloveu => 'أحبك';
+
+  @override
+  String get emojiNenoSerenade => 'يغني لها';
+
+  @override
+  String get emojiFlagsJo => 'الأردن';
+
+  @override
+  String get emojiFlagsPs => 'فلسطين';
+
+  @override
+  String get emojiFlagsSa => 'السعودية';
+
+  @override
+  String get emojiFlagsEg => 'مصر';
+
+  @override
+  String get emojiFlagsIq => 'العراق';
+
+  @override
+  String get emojiFlagsSy => 'سوريا';
+
+  @override
+  String get emojiFlagsYe => 'اليمن';
+
+  @override
+  String get emojiFlagsAe => 'الإمارات';
+
+  @override
+  String get emojiFlagsKw => 'الكويت';
+
+  @override
+  String get emojiFlagsQa => 'قطر';
+
+  @override
+  String get emojiFlagsBh => 'البحرين';
+
+  @override
+  String get emojiFlagsOm => 'عُمان';
+
+  @override
+  String get emojiFlagsLb => 'لبنان';
+
+  @override
+  String get emojiFlagsMa => 'المغرب';
+
+  @override
+  String get emojiFlagsDz => 'الجزائر';
+
+  @override
+  String get emojiFlagsTn => 'تونس';
+
+  @override
+  String get emojiFlagsLy => 'ليبيا';
+
+  @override
+  String get emojiFlagsSd => 'السودان';
 
   @override
   String get attachButton => 'إرفاق صورة أو فيديو';

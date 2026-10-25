@@ -1225,7 +1225,7 @@ void main() {
         await tester.pumpAndSettle();
         final kabis = find.byType(KabiEmoji).evaluate().length;
         await tester.tap(
-          find.byKey(LiveChatComposer.emojiKey(KabiEmojis.love)),
+          find.byKey(LiveChatComposer.emojiKey(KabsoEmoji.kabi('love'))),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));

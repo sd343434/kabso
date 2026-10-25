@@ -886,7 +886,7 @@ class _CommentBar extends ConsumerWidget {
   final Comment? replyTo;
   final VoidCallback onCancelReply;
   final VoidCallback onPost;
-  final ValueChanged<KabiEmojis> onEmoji;
+  final ValueChanged<KabsoEmoji> onEmoji;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
