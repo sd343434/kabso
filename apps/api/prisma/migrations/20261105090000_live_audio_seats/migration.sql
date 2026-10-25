@@ -1,12 +1,14 @@
 -- CP-011 amendment (owner D100, 2026-10-25): an AUDIO room has 6, 9, 15, 20 or 25 tiles, the host
 -- included (was 5, 9, 13). Seats 1 … 24. No new table; no GRANT needed.
 
+-- The old CHECK (AUDIO 5, 9, 13) goes first: it would refuse the new sizes below.
+ALTER TABLE "live_rooms" DROP CONSTRAINT "live_rooms_seat_count_mode";
+
 -- Existing AUDIO rooms move to the next allowed size (more seats; every taken seat keeps its
--- index, which stays inside the new range).
+-- index, which stays inside the new range; empty seats have no row).
 UPDATE "live_rooms" SET "seat_count" = 6 WHERE mode::text = 'AUDIO' AND seat_count = 5;
 UPDATE "live_rooms" SET "seat_count" = 15 WHERE mode::text = 'AUDIO' AND seat_count = 13;
 
-ALTER TABLE "live_rooms" DROP CONSTRAINT "live_rooms_seat_count_mode";
 ALTER TABLE "live_rooms" ADD CONSTRAINT "live_rooms_seat_count_mode" CHECK (
   (mode::text IN ('SOLO', 'PK') AND seat_count IS NULL)
   OR (mode::text = 'MULTI' AND seat_count IN (4, 6, 9, 12))
