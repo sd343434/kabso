@@ -43,6 +43,8 @@ info:
     (CONVENTIONS §10.16).
     **CP-016 part G (D99, DRAFT v1.15-live)** adds the host's public room number
     (`LiveRoom.roomNumber`, CONVENTIONS §10.17).
+    **v1.16-live (DRAFT, owner D100)** changes the `AUDIO` seat counts to 6, 9, 15, 20 or 25 (host
+    included) and seat indexes to 1 … 24 (CONVENTIONS §10.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -694,7 +696,7 @@ paths:
                 heartbeatIntervalSeconds: 15
                 heartbeatStaleAfterSeconds: 45
                 themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy]
-                seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] }
+                seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -3260,7 +3262,7 @@ components:
       in: path
       required: true
       description: CP-011 — 1 … seatCount-1 (the host is 0). Out of range → 409 `LIVE_SEAT_UNAVAILABLE`.
-      schema: { type: integer, minimum: 1, maximum: 12 }
+      schema: { type: integer, minimum: 1, maximum: 24 }
     SeatRequestIdPath:
       name: requestId
       in: path
@@ -3758,10 +3760,11 @@ components:
     # ---- v1.7-live (DRAFT, CP-011) --------------------------------------------------------
     LiveSeatCount:
       type: integer
-      enum: [4, 5, 6, 9, 12, 13]
+      enum: [4, 6, 9, 12, 15, 20, 25]
       description: |
         CP-011: tiles in a MULTI or AUDIO room, the host's included. MULTI: 4, 6, 9 or 12;
-        AUDIO: 5, 9 or 13 (`LiveConfig.seatCounts`). Any other mode/count pair → 400.
+        AUDIO: 6, 9, 15, 20 or 25 (v1.16-live, owner D100; was 5, 9 or 13) (`LiveConfig.seatCounts`).
+        Any other mode/count pair → 400.
     LiveThemeSlug:
       type: string
       pattern: '^[a-z0-9-]{2,32}$'
@@ -3770,19 +3773,19 @@ components:
       type: object
       additionalProperties: false
       properties:
-        seatIndex: { type: integer, minimum: 1, maximum: 12 }
+        seatIndex: { type: integer, minimum: 1, maximum: 24 }
     LiveSeatInviteBody:
       type: object
       required: [username]
       additionalProperties: false
       properties:
         username: { type: string }
-        seatIndex: { type: integer, minimum: 1, maximum: 12 }
+        seatIndex: { type: integer, minimum: 1, maximum: 24 }
     LiveSeat:
       type: object
       required: [index, state, user, mutedByHost]
       properties:
-        index: { type: integer, minimum: 1, maximum: 12, description: "1 … seatCount-1; the host is tile 0 and not listed." }
+        index: { type: integer, minimum: 1, maximum: 24, description: "1 … seatCount-1; the host is tile 0 and not listed." }
         state: { type: string, enum: [EMPTY, LOCKED, TAKEN] }
         user:
           description: TAKEN only.
@@ -3796,7 +3799,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         user: { $ref: '#/components/schemas/UserSummary' }
-        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 12 }
+        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 24 }
         createdAt: { type: string, format: date-time }
     LiveSeatRequestPage:
       type: object
@@ -3812,7 +3815,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         user: { $ref: '#/components/schemas/UserSummary' }
-        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 12 }
+        seatIndex: { type: [integer, 'null'], minimum: 1, maximum: 24 }
         invitedBy: { $ref: '#/components/schemas/UserSummary' }
         expiresAt: { type: string, format: date-time }
     LiveSeatsMine:

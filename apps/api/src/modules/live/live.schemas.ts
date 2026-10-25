@@ -59,12 +59,12 @@ export const LIVE_THEMES = [
 ] as const;
 export const DEFAULT_LIVE_THEME = LIVE_THEMES[0];
 
-/** Allowed `seatCount` per mode, host tile included (owner D94). */
-export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] } as const;
+/** Allowed `seatCount` per mode, host tile included (owner D94; AUDIO owner D100). */
+export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] } as const;
 export type SeatedMode = keyof typeof LIVE_SEAT_COUNTS;
 
-/** Seat indexes 1 … 12 (the host is 0; the largest room has 13 tiles). */
-export const MAX_SEAT_INDEX = 12;
+/** Seat indexes 1 … 24 (the host is 0; the largest room has 25 tiles). */
+export const MAX_SEAT_INDEX = 24;
 
 export function isSeatedMode(mode: string): mode is SeatedMode {
   return mode === 'MULTI' || mode === 'AUDIO';
@@ -92,7 +92,7 @@ const themeSchema = z
     params: { issue: 'invalid_value' },
   });
 
-/** A seat index in a body: an integer 1 … 12 (a seat beyond the room's count is a 409, not a 400). */
+/** A seat index in a body: an integer 1 … 24 (a seat beyond the room's count is a 409, not a 400). */
 const seatIndexSchema = z.number().int().min(1).max(MAX_SEAT_INDEX);
 
 /**

@@ -258,7 +258,9 @@ class AudioSeatRing extends StatelessWidget {
     this.speaking = const {},
   });
 
-  /// Seats, the host's included (5, 9 or 13).
+  /// Seats, the host's included (owner D100: 6, 9, 15, 20 or 25). Up to
+  /// [circleMax] they sit on a circle around the host; above, every tile —
+  /// the host's first — sits in rows of [rowSize].
   final int count;
 
   /// The host's circle content (their avatar).
@@ -278,6 +280,15 @@ class AudioSeatRing extends StatelessWidget {
 
   static Key seatKey(int index) => Key('audioSeat.$index');
 
+  /// The largest room drawn as a circle (owner D100: "a circle of at most 11").
+  static const circleMax = 11;
+
+  /// Seats per row when the room is larger than [circleMax].
+  static const rowSize = 5;
+
+  /// Space between two rows of seats.
+  static const rowGap = 10.0;
+
   /// Ref 83 (points at 430 pt).
   static const radius = 152.0;
   static const chair = 58.0;
@@ -293,7 +304,85 @@ class AudioSeatRing extends StatelessWidget {
   static double heightFor(double r) => 2 * r + chair + 30;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context) => count > circleMax ? _rows() : _circle();
+
+  Widget _hostSeat({bool compact = false}) => _HostSeat(
+    circle: host,
+    name: hostName,
+    muted: hostMicOn == false,
+    speaking: speaking.contains(0),
+    points: hostPoints,
+    compact: compact,
+  );
+
+  /// Under a guest seat in the rows, the invisible space the host tile's
+  /// taller name gap and points pill take, so every row has the same height
+  /// and the rows the same spacing (owner request). It scales with the text.
+  Widget _hostExtra() {
+    final points = hostPoints;
+    return ExcludeSemantics(
+      child: Visibility(
+        visible: false,
+        maintainSize: true,
+        maintainAnimation: true,
+        maintainState: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 2),
+            if (points != null) ...[
+              const SizedBox(height: 2),
+              _PointsPill(points),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Owner D100: 15, 20 or 25 tiles in rows of [rowSize] — the host is the
+  /// first tile, then seats 1 … count-1, in reading order (start to end, so
+  /// mirrored in Arabic). A narrow screen scales the tiles down instead of
+  /// wrapping them.
+  Widget _rows() => LayoutBuilder(
+    builder: (context, box) {
+      final cell = box.maxWidth / rowSize;
+      Widget tile(int i) => SizedBox(
+        width: cell,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: _Seat.width,
+            child: i == 0
+                ? _hostSeat(compact: true)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [_guest(i), _hostExtra()],
+                  ),
+          ),
+        ),
+      );
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var first = 0; first < count; first += rowSize) ...[
+            if (first > 0) const SizedBox(height: rowGap),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = first; i < first + rowSize && i < count; i++)
+                  tile(i),
+              ],
+            ),
+          ],
+        ],
+      );
+    },
+  );
+
+  Widget _circle() => LayoutBuilder(
     builder: (context, box) {
       final width = box.maxWidth;
       // Keep the side seats and their labels on screen.
@@ -323,13 +412,7 @@ class AudioSeatRing extends StatelessWidget {
           left: cx - _HostSeat.width / 2,
           top: cy + hostDrop - hostSize / 2,
           width: _HostSeat.width,
-          child: _HostSeat(
-            circle: host,
-            name: hostName,
-            muted: hostMicOn == false,
-            speaking: speaking.contains(0),
-            points: hostPoints,
-          ),
+          child: _hostSeat(),
         ),
       );
       return SizedBox(
@@ -481,6 +564,7 @@ class _HostSeat extends StatelessWidget {
     required this.muted,
     required this.speaking,
     this.points,
+    this.compact = false,
   });
 
   final Widget circle;
@@ -488,6 +572,9 @@ class _HostSeat extends StatelessWidget {
   final bool muted;
   final bool speaking;
   final String? points;
+
+  /// D100 rows: the host as one of the tiles, a seat's size.
+  final bool compact;
 
   static const width = 140.0;
 
@@ -502,53 +589,61 @@ class _HostSeat extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              _Glow(
-                on: speaking,
-                child: ClipOval(
-                  child: SizedBox.square(
-                    dimension: AudioSeatRing.hostSize,
-                    child: circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 3,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xB3000000),
-                    borderRadius: BorderRadius.circular(KRadius.pill),
-                  ),
-                  child: Text(
-                    l10n.goLiveHostTag,
-                    style: text.caption.copyWith(
-                      fontSize: 8.5,
-                      height: 1.3,
-                      color: KAudioRoom.hostTag,
-                      fontWeight: FontWeight.w800,
+          SizedBox(
+            // Compact: the circle lines up with the chairs of its row.
+            height: compact ? AudioSeatRing.chair : null,
+            child: Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  _Glow(
+                    on: speaking,
+                    child: ClipOval(
+                      child: SizedBox.square(
+                        dimension: compact
+                            ? _Seat.avatar
+                            : AudioSeatRing.hostSize,
+                        child: circle,
+                      ),
                     ),
                   ),
-                ),
+                  Positioned(
+                    bottom: compact ? -2 : 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xB3000000),
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                      child: Text(
+                        l10n.goLiveHostTag,
+                        style: text.caption.copyWith(
+                          fontSize: compact ? 7.5 : 8.5,
+                          height: 1.3,
+                          color: KAudioRoom.hostTag,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (muted)
+                    const PositionedDirectional(
+                      bottom: -6,
+                      end: -12,
+                      child: _MicOffBadge(size: 20),
+                    ),
+                ],
               ),
-              if (muted)
-                const PositionedDirectional(
-                  bottom: -6,
-                  end: -12,
-                  child: _MicOffBadge(size: 20),
-                ),
-            ],
+            ),
           ),
-          const SizedBox(height: 5),
+          SizedBox(height: compact ? 4 : 5),
           Text(
             name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: text.caption.copyWith(
-              fontSize: 12.5,
+              fontSize: compact ? 11.5 : 12.5,
               height: 1.2,
               color: KAudioRoom.text,
               fontWeight: FontWeight.w600,
@@ -556,34 +651,44 @@ class _HostSeat extends StatelessWidget {
           ),
           if (points != null) ...[
             const SizedBox(height: 2),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: const Color(0x33000000),
-                borderRadius: BorderRadius.circular(KRadius.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const KPointsIcon(size: 11),
-                  const SizedBox(width: 3),
-                  Text(
-                    points,
-                    style: text.caption.copyWith(
-                      fontSize: 10.5,
-                      height: 1.2,
-                      color: KAudioRoom.text,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _PointsPill(points),
           ],
         ],
       ),
     );
   }
+}
+
+/// The live's points under the host's name.
+class _PointsPill extends StatelessWidget {
+  const new(this.points);
+
+  final String points;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    decoration: BoxDecoration(
+      color: const Color(0x33000000),
+      borderRadius: BorderRadius.circular(KRadius.pill),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const KPointsIcon(size: 11),
+        const SizedBox(width: 3),
+        Text(
+          points,
+          style: context.textStyles.caption.copyWith(
+            fontSize: 10.5,
+            height: 1.2,
+            color: KAudioRoom.text,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SeatLabel extends StatelessWidget {

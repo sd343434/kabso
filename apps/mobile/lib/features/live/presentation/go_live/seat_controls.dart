@@ -892,7 +892,8 @@ Future<void> showLiveSeatCountPicker(
               child: Row(
                 children: [
                   for (final (i, c) in counts.indexed) ...[
-                    if (i > 0) const SizedBox(width: 13),
+                    // D100: five audio sizes share the row with a tighter gap.
+                    if (i > 0) SizedBox(width: counts.length > 4 ? 8 : 13),
                     Expanded(
                       child: Semantics(
                         button: true,
@@ -919,29 +920,33 @@ Future<void> showLiveSeatCountPicker(
                                 width: 1.2,
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/live_room_icons/seat_outline.svg',
-                                  width: 17.7,
-                                  colorFilter: ColorFilter.mode(
-                                    c == selected
-                                        ? const Color(0xFF3B3B3B)
-                                        : const Color(0xFF9A9BA5),
-                                    BlendMode.srcIn,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SvgPicture.asset(
+                                    'assets/live_room_icons/seat_outline.svg',
+                                    width: 17.7,
+                                    colorFilter: ColorFilter.mode(
+                                      c == selected
+                                          ? const Color(0xFF3B3B3B)
+                                          : const Color(0xFF9A9BA5),
+                                      BlendMode.srcIn,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 9),
-                                Text(
-                                  '$c',
-                                  style: text.title.copyWith(
-                                    color: const Color(0xFF3B3B3B),
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w500,
+                                  const SizedBox(width: 9),
+                                  Text(
+                                    '$c',
+                                    style: text.title.copyWith(
+                                      color: const Color(0xFF3B3B3B),
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),

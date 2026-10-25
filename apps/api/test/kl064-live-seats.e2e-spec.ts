@@ -176,7 +176,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
           'heart-garden',
           'galaxy',
         ],
-        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 9, 13] },
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] },
       });
 
       const [h1, h2, h3] = [await host(), await host(), await host()];
@@ -256,15 +256,15 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('reading the seats', () => {
     it('everyone who may see the room reads them; mine and pendingRequests only for whom they concern', async () => {
       const [h, viewer] = [await host(), await signup()];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 6 });
       const asHost = await seats(roomId, h);
       expectContract(asHost, 'getLiveRoomSeats');
       expect(asHost.body).toEqual({
         roomId,
         mode: 'AUDIO',
         version: 0,
-        seatCount: 5,
-        seats: [1, 2, 3, 4].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
+        seatCount: 6,
+        seats: [1, 2, 3, 4, 5].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
         moderators: [],
         pendingRequests: 0,
         mine: { role: 'HOST', seatIndex: null, request: null, invite: null },
@@ -383,7 +383,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
         'acceptLiveSeatRequest',
       );
       expectError(
-        await accept(roomId, bReq.body.id, h, { seatIndex: 13 }),
+        await accept(roomId, bReq.body.id, h, { seatIndex: 25 }),
         400,
         'VALIDATION_FAILED',
         'acceptLiveSeatRequest',
@@ -489,7 +489,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
         await signup(),
         await signup(),
       ];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 6 });
       await watch(roomId, a, b, blocked);
 
       expectError(
@@ -599,7 +599,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       );
       expectError(await invite(roomId, h, {}), 400, 'VALIDATION_FAILED', 'inviteToLiveSeat');
       expectError(
-        await invite(roomId, h, { username: b.username, seatIndex: 4 + 1 }),
+        await invite(roomId, h, { username: b.username, seatIndex: 5 + 1 }),
         409,
         'LIVE_SEAT_UNAVAILABLE',
         'inviteToLiveSeat',
@@ -742,7 +742,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       await end(roomId, h);
 
       // AUDIO: muting withdraws the microphone, so nothing is published.
-      const audio = await goLive(ha, { mode: 'AUDIO', seatCount: 5 });
+      const audio = await goLive(ha, { mode: 'AUDIO', seatCount: 6 });
       await seat(audio, ha, a);
       await call('post', `${audio}/seats/1/mute`, ha, { muted: true }).expect(200);
       expect(media.lastPermission(audio, a.id)).toEqual({ visible: true, sources: [] });

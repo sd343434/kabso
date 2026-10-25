@@ -326,7 +326,7 @@ describe('CP-014 editing a live and the Contribution list', () => {
 
     it('the ended room keeps its last title and topic; seat and theme changes keep the info version', async () => {
       const owner = await host();
-      const roomId = await goLive(owner, { mode: 'AUDIO', seatCount: 5 });
+      const roomId = await goLive(owner, { mode: 'AUDIO', seatCount: 6 });
       await patch(roomId, owner, { topic: 'Before end', theme: 'ice-palace' });
       // A theme change alone does not move the seat version (CP-011).
       expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 0, roomInfoVersion: 1 });

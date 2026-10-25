@@ -228,6 +228,33 @@ void main() {
       await expectScreenGolden('go_live.audio_chat', language: language);
     });
 
+    testWidgets('go live: audio on air, 25 seats in rows ($language)', (
+      tester,
+    ) async {
+      final ar = language == AppLanguage.ar;
+      // Owner D100: above 11 tiles the seats sit in rows of 5 under the host.
+      await _pump(
+        tester,
+        language: language,
+        mode: LiveRoomMode.audio,
+        seats: 25,
+        onAir: [
+          LiveSeat(
+            index: 1,
+            state: LiveSeatState.taken,
+            user: UserSummary(
+              id: 'u1',
+              username: 'u1',
+              displayName: ar ? 'لينا' : 'Lina',
+              avatarUrl: null,
+            ),
+          ),
+          const LiveSeat(index: 7, state: LiveSeatState.locked, user: null),
+        ],
+      );
+      await expectScreenGolden('go_live.audio_rows25', language: language);
+    });
+
     testWidgets('go live: audio on air at 360 dp ($language)', (tester) async {
       await _pump(
         tester,
