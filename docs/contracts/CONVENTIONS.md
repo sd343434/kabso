@@ -108,6 +108,7 @@ All non-2xx responses use one envelope:
 | 422 | `MEDIA_INVALID` | *(v1.5-social, DRAFT)* The uploaded object is missing, does not match the declared type or size, or is not a decodable image within the limits (§11.1). |
 | 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
 | 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
+| 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -334,6 +335,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT` and `DELETE /me/live-cover` *(v1.11-live, CP-015)* | 30 / hour per user (one bucket). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `PUT /me/live-blocked-words` *(v1.12-live, CP-016 B)* | 30 / hour per user. **Replaces** the per-user default; `GET` uses the default |
 | `GET /live/rankings` *(v1.13-live, CP-016 A)* | the per-user default; guests share the CP-010 guest read limit per IP |
+| `POST` and `DELETE /me/live-schedule` *(v1.14-live, CP-016 C)* | 30 / hour per user (one bucket). **Replaces** the per-user default; `GET` uses the default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -432,6 +434,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.14-live (draft) | 2026-10-25 | **CP-016 part C (D99):** `listMyLiveSchedule`, `createLiveScheduleSlot`, `deleteLiveScheduleSlot` (`GET` / `POST /me/live-schedule`, `DELETE /me/live-schedule/{slotId}`, `CreateLiveScheduleSlotRequest`, `LiveScheduleSlot`, `LiveScheduleList`); notification type `LIVE_SCHEDULED_SOON` (target `USER`: the host, with the title as `text` and the optional `NotificationTarget.startsAt`); `NotificationSettings.lives`; code `LIVE_SCHEDULE_FULL` (409); §7 row, §10.16, §11.10. | **Additive** for new operations and fields. A new `NotificationType` value: clients ignore types they do not know (the app already does); its target uses the existing `USER` type so older apps still read the inbox. |
 | v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
@@ -899,6 +902,23 @@ until a media provider is wired in.
 - Storage: points per host per UTC hour, written in the same transaction as the taps; rows older
   than 15 days are removed by the live sweeper. Rich (spenders) and regional boards wait (L3, a
   host country).
+
+### 10.16 Live schedule *(v1.14-live, DRAFT — CP-016 C, D99)*
+
+- A host announces upcoming lives (`GET` / `POST /me/live-schedule`, `DELETE
+  /me/live-schedule/{slotId}`): a **title** (normalized like a live title: NFC, trimmed, one line,
+  §6 hygiene, 1–60 code points) and a **start time** at least **15 minutes** and at most **30
+  days** ahead (else 400 `startsAt` / `too_small` or `too_big`). At most **10 upcoming** slots (409
+  `LIVE_SCHEDULE_FULL`). No hosting permission → 403 `LIVE_HOSTING_NOT_ALLOWED`. `GET` lists the
+  upcoming slots (start still ahead), soonest first. `DELETE` of a slot that is not the caller's
+  → 404 `NOT_FOUND`. Create and delete are audited (`live.schedule.create` / `.delete`).
+- **Reminder:** **15 minutes** before the start the live sweeper sends `LIVE_SCHEDULED_SOON` to
+  the host's followers, once per slot: actor the host, target `USER` (the host's username, the slot's
+  title as `text`, and `startsAt`; tapping opens the host's profile). The usual rules apply (§11.10: ACTIVE, no block either way, not
+  muted by the follower) and the follower's `lives` setting. A slot deleted after its reminder
+  takes the reminder away. Going live is not tied to a slot: the host goes live as usual.
+- Retention: slots are deleted 30 days after their start (with their reminders).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1061,6 +1081,8 @@ count is eventually consistent (≤ 1 min).
   when `whoCanMention` allowed it), `FOLLOW` (the follower), `REPOST` (post), and the system types
   `POST_PUBLISHED` (your scheduled post went live) and `CONTENT_REMOVED` (moderation removed your
   post, comment or story). Notifications are written in the same transaction as their action.
+  *(v1.14-live, CP-016 C)* `LIVE_SCHEDULED_SOON`: a host you follow goes live in about 15
+  minutes (target the host as `USER` with the title and `startsAt`, §10.16; setting `lives`).
 - **Never yourself**; never between two users with a block in either direction (existing ones
   are hidden while it lasts); never from an account the recipient muted (owner, D92); actors no
   longer ACTIVE are left out of `actors` and `actorCount`, and a group left with no visible actor

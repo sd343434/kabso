@@ -36,6 +36,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.mediaUploadsUnavailable => l10n.errorMediaUploadsUnavailable,
     ErrorCode.mediaInvalid => l10n.errorMediaInvalid,
     ErrorCode.pinLimitReached => l10n.errorPinLimitReached,
+    ErrorCode.liveScheduleFull => l10n.errorLiveScheduleFull,
     ErrorCode.reportAlreadyResolved => l10n.errorReportAlreadyResolved,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,

@@ -26,5 +26,7 @@ export const updateNotificationSettingsSchema = z
     mentions: z.boolean().optional(),
     follows: z.boolean().optional(),
     reposts: z.boolean().optional(),
+    /** v1.14-live (CP-016 C): scheduled-live reminders. */
+    lives: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });

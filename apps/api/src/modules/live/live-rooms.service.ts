@@ -12,6 +12,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
+import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
@@ -308,6 +309,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly rankings: LiveRankingsService,
+    private readonly schedule: LiveScheduleService,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
   }
@@ -348,9 +350,20 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         )
         .then(() => {
           if (this.stopped) return undefined;
-          // CP-013 chat retention, then CP-016 A: hourly board points older than 15 days.
-          this.retentionInFlight = this.sweepChatRetention()
+          // CP-016 C: the schedule reminders first (they are due now; a failure is logged and
+          // does not hold back the retention sweeps). Then CP-013 chat retention, CP-016 A hourly
+          // board points older than 15 days and CP-016 C slots 30 days past their start.
+          this.retentionInFlight = this.schedule
+            .sendReminders()
+            .catch((err: unknown) =>
+              this.logger.error(
+                { ...errorClassAndCode(err), error: safeErrorLog(err) },
+                'Live schedule reminders failed',
+              ),
+            )
+            .then(() => this.sweepChatRetention())
             .then(() => this.rankings.sweepRetention())
+            .then(() => this.schedule.sweepRetention())
             .then(() => undefined)
             .finally(() => {
               this.retentionInFlight = null;

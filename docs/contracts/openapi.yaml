@@ -38,6 +38,9 @@ info:
     **CP-016 part A (D99, DRAFT v1.13-live)** adds the popularity board: hosts ranked by the
     points their lives received this hour, today or this week, one region for everyone
     (CONVENTIONS §10.15).
+    **CP-016 part C (D99, DRAFT v1.14-live)** adds the live schedule: a host announces upcoming
+    lives and their followers get a `LIVE_SCHEDULED_SOON` notification 15 minutes before
+    (CONVENTIONS §10.16).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -447,6 +450,71 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/live-schedule:
+    get:
+      tags: [live]
+      operationId: listMyLiveSchedule
+      summary: "Host: my upcoming scheduled lives (CP-016 C)"
+      description: |
+        CONVENTIONS §10.16. Slots whose start is still ahead, soonest first (at most 10). No
+        hosting permission → 403 `LIVE_HOSTING_NOT_ALLOWED`.
+      responses:
+        '200':
+          description: The upcoming slots (possibly none).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveScheduleList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [live]
+      operationId: createLiveScheduleSlot
+      summary: "Host: announce an upcoming live (CP-016 C)"
+      description: |
+        CONVENTIONS §10.16. Order after auth and the rate limit (30 / hour / user, shared with
+        `DELETE`): the hosting permission (403 `LIVE_HOSTING_NOT_ALLOWED`) → body (`title` 1–60
+        code points after normalization; `startsAt` 15 minutes to 30 days ahead, else 400
+        `startsAt` / `too_small` or `too_big`) → at most 10 upcoming slots (409 `LIVE_SCHEDULE_FULL`).
+        The host's followers get `LIVE_SCHEDULED_SOON` 15 minutes before `startsAt`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateLiveScheduleSlotRequest' }
+      responses:
+        '201':
+          description: The slot as saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveScheduleSlot' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/live-schedule/{slotId}:
+    delete:
+      tags: [live]
+      operationId: deleteLiveScheduleSlot
+      summary: "Host: cancel a scheduled live (CP-016 C)"
+      description: |
+        Removes the slot and the reminders already sent for it. A slot that is not the caller's
+        (or a malformed id) → 404 `NOT_FOUND`. Works without the hosting permission, so a host
+        whose permission was removed can still clean up. Shares the `POST` rate limit.
+      parameters:
+        - name: slotId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: A malformed id is treated as not found (404), never 400.
+      responses:
+        '204': { description: Removed. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/me/live-cover:
@@ -4426,6 +4494,29 @@ components:
           type: array
           maxItems: 100
           items: { type: string, minLength: 1, maxLength: 30 }
+    CreateLiveScheduleSlotRequest:
+      type: object
+      additionalProperties: false
+      required: [title, startsAt]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 240, description: "1–60 code points after normalization (CONVENTIONS §10.16)." }
+        startsAt: { type: string, format: date-time, description: 15 minutes to 30 days from now. }
+    LiveScheduleSlot:
+      type: object
+      required: [id, title, startsAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 60 }
+        startsAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    LiveScheduleList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/LiveScheduleSlot' }
     SetLiveCoverRequest:
       type: object
       additionalProperties: false
@@ -4715,7 +4806,8 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
@@ -4724,7 +4816,8 @@ components:
         id: { type: string, description: "A post, comment or story id, or a username for USER." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
-        text: { type: [string, 'null'], maxLength: 80, description: A short excerpt of the comment or caption. }
+        text: { type: [string, 'null'], maxLength: 80, description: "A short excerpt of the comment or caption, or the scheduled live's title (LIVE_SCHEDULED_SOON)." }
+        startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]
@@ -4771,13 +4864,14 @@ components:
         all: { type: boolean, const: true }
     NotificationSettings:
       type: object
-      required: [likes, comments, mentions, follows, reposts]
+      required: [likes, comments, mentions, follows, reposts, lives]
       properties:
         likes: { type: boolean }
         comments: { type: boolean, description: Comments on your posts and replies to your comments. }
         mentions: { type: boolean }
         follows: { type: boolean }
         reposts: { type: boolean }
+        lives: { type: boolean, description: "(v1.14-live) Reminders of lives scheduled by hosts you follow." }
     UpdateNotificationSettingsRequest:
       type: object
       additionalProperties: false
@@ -4788,6 +4882,7 @@ components:
         mentions: { type: boolean }
         follows: { type: boolean }
         reposts: { type: boolean }
+        lives: { type: boolean }
     CreateReportRequest:
       type: object
       additionalProperties: false

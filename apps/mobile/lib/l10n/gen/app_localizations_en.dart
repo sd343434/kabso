@@ -3563,4 +3563,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveRankRow(int rank, String name, String points) {
     return 'Rank $rank, $name, $points';
   }
+
+  @override
+  String notifLiveScheduled(String who, String time) {
+    return '$who goes live at $time';
+  }
+
+  @override
+  String get notifSettingLives => 'Scheduled lives';
+
+  @override
+  String get notifSettingLivesBody =>
+      'When a host you follow is about to go live';
+
+  @override
+  String get errorLiveScheduleFull => 'You can schedule up to 10 lives.';
+
+  @override
+  String get liveScheduleHint =>
+      'Your followers are reminded 15 minutes before. You start the live yourself.';
+
+  @override
+  String get liveScheduleEmpty => 'No lives scheduled.';
+
+  @override
+  String get liveScheduleAdd => 'Schedule a live';
+
+  @override
+  String get liveScheduleTitleHint => 'Live title';
+
+  @override
+  String get liveSchedulePickTime => 'Pick date and time';
+
+  @override
+  String get liveScheduleSave => 'Save';
+
+  @override
+  String get liveScheduleTooSoon => 'Pick a time at least 15 minutes from now.';
+
+  @override
+  String get liveScheduleTooFar => 'Pick a time within the next 30 days.';
+
+  @override
+  String liveScheduleRemove(String title) {
+    return 'Cancel $title';
+  }
+
+  @override
+  String liveScheduleWhen(String date, String time) {
+    return '$date, $time';
+  }
 }

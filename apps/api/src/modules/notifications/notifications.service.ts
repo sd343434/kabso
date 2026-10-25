@@ -20,6 +20,8 @@ export interface NotificationTargetDto {
   postId: string | null;
   thumbUrl: string | null;
   text: string | null;
+  /** LIVE_SCHEDULED_SOON only (v1.14-live): the planned start. */
+  startsAt?: string;
 }
 
 /** `Notification`. */
@@ -40,6 +42,8 @@ export interface NotificationSettingsDto {
   mentions: boolean;
   follows: boolean;
   reposts: boolean;
+  /** v1.14-live (CP-016 C): reminders of lives scheduled by hosts you follow. */
+  lives: boolean;
 }
 
 /** Retention (owner, D92): latest activity older than this is deleted. */
@@ -55,6 +59,7 @@ const DEFAULT_SETTINGS: NotificationSettingsDto = {
   mentions: true,
   follows: true,
   reposts: true,
+  lives: true,
 };
 const ACTOR_TYPES: NotificationType[] = [
   'LIKE_POST',
@@ -64,6 +69,8 @@ const ACTOR_TYPES: NotificationType[] = [
   'MENTION',
   'FOLLOW',
   'REPOST',
+  // CP-016 C: actor the host; target the scheduled live (no post, comment or story).
+  'LIVE_SCHEDULED_SOON',
 ];
 
 /** Actors the recipient may see: ACTIVE, no block either way, not muted by the recipient (§11.10). */
@@ -120,6 +127,7 @@ function include(me: string) {
     },
     comment: { select: { text: true } },
     story: { select: { text: true, mediaAsset: true } },
+    liveSchedule: { select: { title: true, startsAt: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -207,6 +215,18 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         postId: null,
         thumbUrl: !removed && asset ? this.media.toDto(asset).thumbUrl : null,
         text: removed ? null : excerpt(row.post?.text),
+      };
+    }
+    // CP-016 C: the host as a USER target (older apps know it), with the slot's title and start.
+    const host = actors[0];
+    if (row.liveSchedule && host) {
+      return {
+        type: 'USER',
+        id: host.username,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(row.liveSchedule.title),
+        startsAt: row.liveSchedule.startsAt.toISOString(),
       };
     }
     const follower = actors[0];
@@ -335,5 +355,6 @@ function pickSettings(row: NotificationSettingsDto): NotificationSettingsDto {
     mentions: row.mentions,
     follows: row.follows,
     reposts: row.reposts,
+    lives: row.lives,
   };
 }

@@ -52,6 +52,8 @@ describe('ErrorCode', () => {
         'LIVE_CHAT_NOT_IN_ROOM',
         'LIVE_CHAT_MUTED',
         'LIVE_CHAT_CLOSED',
+        // v1.14-live (DRAFT, CP-016 C)
+        'LIVE_SCHEDULE_FULL',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({

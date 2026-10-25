@@ -2,7 +2,9 @@
 
 **Status:** APPROVED in part (D99, 2026-10-24): order **B → A → C**, one region for rankings,
 room level **built**. Part B applied as openapi v1.12-live (draft), CONVENTIONS §10.14; part A (popularity board by
-hour / day / week; Rich and regional boards wait) as v1.13-live (draft), CONVENTIONS §10.15. (Owner
+hour / day / week; Rich and regional boards wait) as v1.13-live (draft), CONVENTIONS §10.15;
+part C (live schedule, followers reminded 15 minutes before) as v1.14-live (draft), CONVENTIONS
+§10.16. (Owner
 request 2026-10-24, refs 71–75; the owner chose "what is backed first, one proposal for the
 rest".) Parts not yet built are shown greyed with "Soon" in
 the app and do nothing (owner choice for ref 71).

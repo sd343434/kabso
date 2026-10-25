@@ -49,6 +49,7 @@ import {
   type PageDto,
 } from './live-seats.service.js';
 import { LiveRankingsService, type LiveRankingsDto } from './live-rankings.service.js';
+import { LiveScheduleService, type LiveScheduleSlotDto } from './live-schedule.service.js';
 import { LiveTapsService, type LiveContributorDto, type LiveTapsResultDto } from './live-taps.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
@@ -562,6 +563,38 @@ export class LiveBlockedWordsController {
   })
   async set(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveBlockedWordsDto> {
     return this.words.set(requireCaller(req), body, meta(req));
+  }
+}
+
+/** CP-016 C: the host's live schedule (CONVENTIONS §10.16); `POST` and `DELETE` 30 / hour / user. */
+const LIVE_SCHEDULE = {
+  bucket: 'live:schedule',
+  rule: 'liveScheduleUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
+@Controller('me/live-schedule')
+export class LiveScheduleController {
+  constructor(private readonly schedule: LiveScheduleService) {}
+
+  @Get()
+  async list(@Req() req: AppRequest): Promise<{ data: LiveScheduleSlotDto[] }> {
+    return this.schedule.list(requireCaller(req));
+  }
+
+  @Post()
+  @HttpCode(201)
+  @RateLimit(LIVE_SCHEDULE)
+  async create(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveScheduleSlotDto> {
+    return this.schedule.create(requireCaller(req), body, meta(req));
+  }
+
+  @Delete(':slotId')
+  @HttpCode(204)
+  @RateLimit(LIVE_SCHEDULE)
+  async remove(@Req() req: AppRequest, @Param('slotId') slotId: string): Promise<void> {
+    await this.schedule.remove(requireCaller(req), slotId, meta(req));
   }
 }
 

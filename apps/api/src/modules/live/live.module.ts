@@ -11,6 +11,7 @@ import { LiveMediaService } from './live-media.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveRoomsService } from './live-rooms.service.js';
+import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { LiveTapsService } from './live-taps.service.js';
 import {
@@ -19,6 +20,7 @@ import {
   LiveController,
   LiveCoverController,
   LiveMediaWebhookController,
+  LiveScheduleController,
 } from './live.controller.js';
 import { LIVE_MEDIA_PROVIDER } from './media/live-media.provider.js';
 import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit-media.provider.js';
@@ -29,7 +31,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
  * CP-011 seat tables `live_room_seats`, `live_seat_requests`, `live_seat_invites` and
  * `live_room_moderators`, the CP-012 score tables `live_room_scores` and `live_room_tappers`, and the
  * CP-013 chat tables `live_chat_messages` and `live_chat_mutes`, and the CP-015 live cover
- * (`live_hosts.cover_*`, through the media module's `LIVE_COVER` assets). Runs the in-process
+ * (`live_hosts.cover_*`, through the media module's `LIVE_COVER` assets), and the CP-016 tables
+ * `live_host_points_hourly` and `live_schedule_slots`. Runs the in-process
  * stale-room sweeper and the media reconciliation; talks to the media server through
  * {@link LIVE_MEDIA_PROVIDER} (LiveKit, D3).
  */
@@ -39,6 +42,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveController,
     LiveCoverController,
     LiveBlockedWordsController,
+    LiveScheduleController,
     AdminLiveController,
     LiveMediaWebhookController,
   ],
@@ -52,6 +56,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveCoverService,
     LiveRankingsService,
     LiveBlockedWordsService,
+    LiveScheduleService,
     LiveRoomMetadataService,
     AdminGuard,
     AdminPermissions,

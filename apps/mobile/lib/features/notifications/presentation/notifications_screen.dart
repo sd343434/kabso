@@ -280,7 +280,7 @@ class NotificationRow extends StatelessWidget {
 
   /// The sentence, the "who" phrase in it and the latest actor's name
   /// (which starts that phrase and is shown bold).
-  (String, String?, String) _sentence(AppLocalizations l10n) {
+  (String, String?, String) _sentence(AppLocalizations l10n, String localeTag) {
     final first = item.actors.firstOrNull;
     // Isolated, so a name in the other script never mixes with the
     // sentence around it (a Latin name in Arabic, or the reverse).
@@ -303,6 +303,14 @@ class NotificationRow extends StatelessWidget {
       NotificationType.follow => l10n.notifFollow(who),
       NotificationType.repost => l10n.notifRepost(who),
       NotificationType.postPublished => l10n.notifPostPublished,
+      NotificationType.liveScheduledSoon => switch (item.target?.startsAt) {
+        final at? => l10n.notifLiveScheduled(
+          who,
+          KFormat.bidiIsolate(KFormat.time(at, localeTag)),
+        ),
+        // No start (not expected): still say it, without the time.
+        null => l10n.notifLiveScheduled(who, ''),
+      },
       NotificationType.contentRemoved => switch (targetType) {
         NotificationTargetType.comment => l10n.notifRemovedComment,
         NotificationTargetType.story => l10n.notifRemovedStory,
@@ -318,7 +326,10 @@ class NotificationRow extends StatelessWidget {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
-    final (sentence, who, name) = _sentence(l10n);
+    final (sentence, who, name) = _sentence(
+      l10n,
+      Localizations.localeOf(context).toLanguageTag(),
+    );
     final when =
         KFormat.relative(
           item.createdAt,
@@ -491,6 +502,11 @@ class NotificationSettingsScreen extends ConsumerWidget {
               (NotificationSetting.mentions, l10n.notifSettingMentions, null),
               (NotificationSetting.follows, l10n.notifSettingFollows, null),
               (NotificationSetting.reposts, l10n.notifSettingReposts, null),
+              (
+                NotificationSetting.lives,
+                l10n.notifSettingLives,
+                l10n.notifSettingLivesBody,
+              ),
             ])
               SwitchListTile(
                 key: switchKey(s),

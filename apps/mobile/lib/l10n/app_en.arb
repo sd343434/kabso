@@ -1168,5 +1168,19 @@
   "liveRankLive": "LIVE",
   "liveRankChip": "Room rank",
   "liveRankCountdown": "Countdown: {days}d {hours}h {minutes}m",
-  "liveRankRow": "Rank {rank}, {name}, {points}"
+  "liveRankRow": "Rank {rank}, {name}, {points}",
+  "notifLiveScheduled": "{who} goes live at {time}",
+  "notifSettingLives": "Scheduled lives",
+  "notifSettingLivesBody": "When a host you follow is about to go live",
+  "errorLiveScheduleFull": "You can schedule up to 10 lives.",
+  "liveScheduleHint": "Your followers are reminded 15 minutes before. You start the live yourself.",
+  "liveScheduleEmpty": "No lives scheduled.",
+  "liveScheduleAdd": "Schedule a live",
+  "liveScheduleTitleHint": "Live title",
+  "liveSchedulePickTime": "Pick date and time",
+  "liveScheduleSave": "Save",
+  "liveScheduleTooSoon": "Pick a time at least 15 minutes from now.",
+  "liveScheduleTooFar": "Pick a time within the next 30 days.",
+  "liveScheduleRemove": "Cancel {title}",
+  "liveScheduleWhen": "{date}, {time}"
 }

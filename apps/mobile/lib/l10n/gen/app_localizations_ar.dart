@@ -3592,4 +3592,53 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveRankRow(int rank, String name, String points) {
     return 'المرتبة $rank، $name، $points';
   }
+
+  @override
+  String notifLiveScheduled(String who, String time) {
+    return 'يبدأ $who بثًا مباشرًا الساعة $time';
+  }
+
+  @override
+  String get notifSettingLives => 'البثوث المجدولة';
+
+  @override
+  String get notifSettingLivesBody => 'عندما يقترب موعد بث لمضيف تتابعه';
+
+  @override
+  String get errorLiveScheduleFull => 'يمكنك جدولة 10 بثوث كحد أقصى.';
+
+  @override
+  String get liveScheduleHint =>
+      'يصل لمتابعيك تذكير قبل الموعد بـ15 دقيقة. البث نفسه تبدؤه أنت.';
+
+  @override
+  String get liveScheduleEmpty => 'لا بثوث مجدولة.';
+
+  @override
+  String get liveScheduleAdd => 'جدولة بث';
+
+  @override
+  String get liveScheduleTitleHint => 'عنوان البث';
+
+  @override
+  String get liveSchedulePickTime => 'اختر التاريخ والوقت';
+
+  @override
+  String get liveScheduleSave => 'حفظ';
+
+  @override
+  String get liveScheduleTooSoon => 'اختر وقتًا بعد 15 دقيقة على الأقل.';
+
+  @override
+  String get liveScheduleTooFar => 'اختر وقتًا خلال 30 يومًا.';
+
+  @override
+  String liveScheduleRemove(String title) {
+    return 'إلغاء $title';
+  }
+
+  @override
+  String liveScheduleWhen(String date, String time) {
+    return '$date، $time';
+  }
 }
