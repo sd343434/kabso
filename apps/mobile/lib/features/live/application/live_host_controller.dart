@@ -187,7 +187,14 @@ class LiveHostController extends Notifier<GoLiveState> {
   Future<void> startPreview() async {
     state = state.copyWith(phase: GoLivePhase.preparing);
     try {
-      await _engine.startPreview(video: state.mode != LiveRoomMode.audio);
+      var video = state.mode != LiveRoomMode.audio;
+      await _engine.startPreview(video: video);
+      // The mode may change while the camera starts (Audio tapped while
+      // preparing): follow it, so an audio room never keeps a camera.
+      while (ref.mounted && (state.mode != LiveRoomMode.audio) != video) {
+        video = state.mode != LiveRoomMode.audio;
+        await _engine.startPreview(video: video);
+      }
       if (!ref.mounted) return;
       state = state.copyWith(
         phase: GoLivePhase.preview,
@@ -343,6 +350,11 @@ class LiveHostController extends Notifier<GoLiveState> {
       _onAir = room.id;
       if (ref.mounted) state = state.copyWith(room: room);
       final access = await _repo.mediaToken(room.id);
+      // An audio room's media token allows the microphone only (CP-011): a
+      // camera left running would be refused and the publish would fail.
+      if (state.mode == LiveRoomMode.audio && _engine.videoEnabled) {
+        await _engine.startPreview(video: false);
+      }
       await _engine.publish(access);
       if (!ref.mounted) return;
       state = state.copyWith(phase: GoLivePhase.live, liveSince: clock.now());

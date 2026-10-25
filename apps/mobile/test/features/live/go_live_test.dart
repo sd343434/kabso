@@ -471,6 +471,47 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('audio picked while the camera is still starting: the camera '
+        'stops and the room publishes the microphone only', (tester) async {
+      final gate = Completer<void>();
+      final camera = FakeLiveMediaEngine()..previewGate = gate;
+      final setup = FakeLiveRepository(categories: _categories);
+      setViewport(tester, GoldenViewport.phone);
+      await pumpScreen(
+        tester,
+        const GoLiveScreen(),
+        liveMediaEngine: camera,
+        overrides: [
+          liveRepositoryProvider.overrideWithValue(setup),
+          currentUserProvider.overrideWithValue(
+            testUser().copyWith(canHost: true),
+          ),
+          liveBlockedWordsRepositoryProvider.overrideWithValue(
+            FakeLiveBlockedWordsRepository(),
+          ),
+          liveScheduleRepositoryProvider.overrideWithValue(
+            FakeLiveScheduleRepository(),
+          ),
+        ],
+      );
+      await tester.pump();
+      // Still preparing (the camera has not started): pick Audio.
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pump();
+      gate.complete();
+      camera.previewGate = null;
+      await tester.pumpAndSettle();
+      expect(camera.videoEnabled, isFalse);
+      expect(camera.previewModes.first, isTrue);
+      expect(camera.previewModes.last, isFalse);
+
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      expect(setup.startRequests.single.mode, LiveRoomMode.audio);
+      expect(camera.publishedWithVideo, isFalse);
+      await _leave(tester);
+    });
+
     testWidgets('audio: microphone only, its own setup, sent with the room', (
       tester,
     ) async {
