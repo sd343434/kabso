@@ -14,6 +14,8 @@ ARG NODE_IMAGE=node:22.22.0-bookworm-slim@sha256:dd9d21971ec4395903fa6143c2b9267
 
 FROM ${NODE_IMAGE} AS build
 ENV CI=true PNPM_HOME=/pnpm
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -24,6 +26,9 @@ RUN pnpm --filter @kabso/api build
 
 FROM ${NODE_IMAGE}
 ENV NODE_ENV=production
+# Prisma's engines detect libssl through the openssl package (the slim image lacks it).
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build --chown=node:node /src/node_modules node_modules
 COPY --from=build --chown=node:node /src/apps/api/node_modules apps/api/node_modules

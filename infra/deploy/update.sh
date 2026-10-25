@@ -13,6 +13,10 @@ APP_DIR=/opt/kabso
 cd "$APP_DIR"
 set -a; . /etc/kabso/kabso.env; set +a
 
+# Lets `docker compose -f infra/deploy/docker-compose.yml ...` work by hand too (compose reads
+# .env from the project directory; git ignores it).
+ln -sfn /etc/kabso/kabso.env infra/deploy/.env
+
 exec 9>/run/kabso-update.lock
 flock -n 9 || { echo "another update is running"; exit 0; }
 

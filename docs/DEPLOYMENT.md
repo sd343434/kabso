@@ -594,7 +594,7 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
 - The per-platform `TRUST_PROXY` values in §3.1 are based on each platform's documented
   `X-Forwarded-For` behaviour and must be verified on the real deployment.
 
-## 11. Single-server deployment with automatic updates (KL-069) — [IMPLEMENTED, UNVERIFIED on a server]
+## 11. Single-server deployment with automatic updates (KL-069) — [IMPLEMENTED]
 
 The first real server (Hostinger VPS, Ubuntu 26.04 LTS, domain `kabsolive.com`) runs the whole
 stack with Docker Compose. It is the staging/beta server of §3, not the managed production
@@ -649,14 +649,21 @@ proxy, §3.1), `MAIL_TRANSPORT=smtp`, `LIVE_HOSTING_ENABLED=true` with the serve
 `/etc/kabso/kabso.env` and run `bash /opt/kabso/infra/deploy/update.sh --force` (migrations are
 expand/contract, §5, so the previous image keeps working); set it back to `:staging` afterwards.
 
-**Verified in the authoring environment (no Docker daemon, no server):** the frozen
+**Verified on the server (2026-10-25, Hostinger KVM 1, Ubuntu 26.04.1):** CI published the
+image from `staging`; `install.sh` installed the stack, applied all migrations as the migration
+role and started the API; Caddy obtained the certificates and
+`https://api.kabsolive.com/health/ready` answers `ok` (database and Redis). One fix came from
+it: text typed on an Arabic keyboard carried an invisible direction mark into the certificate
+e-mail, which Let's Encrypt refused; `install.sh` now keeps printable ASCII only and checks
+every env file. `update.sh` links `/etc/kabso/kabso.env` as the compose `.env`, so
+`docker compose -f /opt/kabso/infra/deploy/docker-compose.yml ps|logs <service>` works by hand.
+
+**Verified earlier in the authoring environment (no Docker daemon, no server):** the frozen
 `pnpm install` and `pnpm --filter @kabso/api build` the Dockerfile runs; the env files the
 script generates pass the API's own `loadConfig` with `NODE_ENV=production` (and fail without
 the SMTP password); on an empty PostgreSQL 16 database the initdb step created the role layout
 with production verifiers, `prisma migrate deploy` as the migration role applied every migration,
 and the API started as the runtime role with `/health/ready` 200; LiveKit 1.9.1 started with the
 generated `livekit.yaml`; `caddy validate` (2.10.2) accepted the Caddyfile; `docker compose
-config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified:** the image build itself, the containers
-together, `install.sh` and the timer on Ubuntu 26.04, certificates, the workflow on GitHub, real
-mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
+config` accepted the compose file; `ci.yml` parses as YAML (no actionlint available). **Not verified yet:** the timer's first automatic update, real mail delivery, and WebRTC media through the server's firewall (a TURN server may be needed for
 some mobile networks).

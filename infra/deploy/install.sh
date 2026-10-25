@@ -37,9 +37,13 @@ die() { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 secret() { openssl rand -base64 48 | tr '+/' '-_' | tr -d '=\n'; }
 # A database password: hex, safe inside a connection URL.
 dbpass() { openssl rand -hex 32; }
+# Printable ASCII only: an Arabic keyboard can slip invisible direction marks into typed text,
+# which broke the certificate e-mail (and would break any quoted value in the env files).
+clean() { printf '%s' "$1" | LC_ALL=C tr -cd '\40-\176'; }
 ask() { # ask VAR "prompt" [default]
   local value
   read -r -p "$2${3:+ [$3]}: " value
+  value=$(clean "$value")
   printf -v "$1" '%s' "${value:-${3:-}}"
 }
 
@@ -92,8 +96,13 @@ else
   ask SMTP_PORT "SMTP port (465 = TLS, 587 = STARTTLS)" "465"
   ask SMTP_USER "SMTP user (the mailbox address)" "no-reply@${DOMAIN}"
   read -r -s -p "SMTP password (not shown): " SMTP_PASSWORD; echo
+  SMTP_PASSWORD=$(clean "$SMTP_PASSWORD")
   [ -n "$SMTP_PASSWORD" ] || die "the SMTP password is required"
   ask MAIL_FROM "Sender shown to users" "Kabso Live <${SMTP_USER}>"
+  # The env files quote values with single quotes, which cannot be escaped inside them.
+  for v in "$DOMAIN" "$ACME_EMAIL" "$SMTP_HOST" "$SMTP_PORT" "$SMTP_USER" "$SMTP_PASSWORD" "$MAIL_FROM"; do
+    case "$v" in *"'"*) die "values cannot contain a single quote ('); change it and run again" ;; esac
+  done
   SMTP_SECURE=true; [ "$SMTP_PORT" = "465" ] || SMTP_SECURE=false
 
   log "Generating secrets on this server"
@@ -174,6 +183,9 @@ webhook:
 logging:
   level: info
 EOF
+  for f in kabso postgres migrate api; do
+    bash -n "$ETC/$f.env" || die "$ETC/$f.env is not valid; delete $ETC and run again"
+  done
   # The LiveKit container reads its config as a non-root user.
   chmod 644 "$ETC/livekit.yaml"
   unset SMTP_PASSWORD PG_ADMIN_PW MIGRATOR_PW APP_PW LIVEKIT_SECRET
