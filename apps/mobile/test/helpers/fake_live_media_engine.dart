@@ -30,10 +30,18 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   bool supportsBeauty = true;
   LiveBeauty beauty = const LiveBeauty();
 
+  /// While set, `startPreview` waits for it (a camera that is slow to
+  /// start), then applies its `video` flag.
+  Completer<void>? previewGate;
+
+  /// Whether a camera was running when [publish] was called.
+  bool? publishedWithVideo;
+
   @override
   Future<void> startPreview({bool video = true}) async {
     previewStarts++;
     previewModes.add(video);
+    if (previewGate case final gate?) await gate.future;
     if (previewProblem case final problem?) {
       throw LiveCaptureException(problem);
     }
@@ -88,6 +96,7 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   Future<void> publish(LiveMediaAccess access) async {
     if (publishFailure case final failure?) throw failure;
+    publishedWithVideo = videoEnabled;
     published = access;
   }
 
