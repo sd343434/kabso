@@ -6151,6 +6151,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعزيز غرفتي'**
   String get liveRoomBoost;
+
+  /// Blocked words sheet (CP-016 B)
+  ///
+  /// In ar, this message translates to:
+  /// **'تُخفى هذه الكلمات بنجوم (***) في دردشة كل بثوثك.'**
+  String get liveBlockedWordsHint;
+
+  /// Blocked words sheet (CP-016 B)
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف كلمة أو عبارة قصيرة'**
+  String get liveBlockedWordsAddHint;
+
+  /// Blocked words sheet (CP-016 B)
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة'**
+  String get liveBlockedWordsAdd;
+
+  /// Blocked words sheet (CP-016 B)
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت إلى 100 كلمة'**
+  String get liveBlockedWordsFull;
+
+  /// Blocked words sheet (CP-016 B)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا كلمات محظورة بعد.'**
+  String get liveBlockedWordsEmpty;
+
+  /// Tooltip of a blocked word chip delete button
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {word}'**
+  String liveBlockedWordsRemove(String word);
 }
 
 class _AppLocalizationsDelegate

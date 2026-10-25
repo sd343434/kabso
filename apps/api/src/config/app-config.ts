@@ -58,6 +58,8 @@ export interface AppConfig {
     readonly liveUpdateUser: RateLimitRule;
     /** CP-015: `PUT`/`DELETE /me/live-cover`, 30 / hour / user. */
     readonly liveCoverUser: RateLimitRule;
+    /** CP-016 B: `PUT /me/live-blocked-words`, 30 / hour / user. */
+    readonly liveBlockedWordsUser: RateLimitRule;
     readonly liveGuestReadIp: RateLimitRule;
     /** CP-011: seat requests and invitations; host/moderator seat actions; seat reads (per user). */
     readonly liveSeatAskUser: RateLimitRule;
@@ -211,6 +213,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveMediaTokenGuestIp: e.RATE_LIMIT_LIVE_MEDIA_TOKEN_GUEST_IP,
       liveUpdateUser: e.RATE_LIMIT_LIVE_UPDATE_USER,
       liveCoverUser: e.RATE_LIMIT_LIVE_COVER_USER,
+      liveBlockedWordsUser: e.RATE_LIMIT_LIVE_BLOCKED_WORDS_USER,
       liveGuestReadIp: e.RATE_LIMIT_LIVE_GUEST_READ_IP,
       liveSeatAskUser: e.RATE_LIMIT_LIVE_SEAT_ASK_USER,
       liveSeatActionUser: e.RATE_LIMIT_LIVE_SEAT_ACTION_USER,

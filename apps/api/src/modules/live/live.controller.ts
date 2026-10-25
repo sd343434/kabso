@@ -31,6 +31,7 @@ import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
+import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
 import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
 import {
@@ -525,6 +526,29 @@ export class LiveCoverController {
   @RateLimit(LIVE_COVER)
   async removeCover(@Req() req: AppRequest): Promise<void> {
     await this.covers.removeCover(requireCaller(req), meta(req));
+  }
+}
+
+/** CP-016 B: the host's blocked words (CONVENTIONS §10.14); `PUT` 30 / hour / user. */
+@Controller('me/live-blocked-words')
+export class LiveBlockedWordsController {
+  constructor(private readonly words: LiveBlockedWordsService) {}
+
+  @Get()
+  async get(@Req() req: AppRequest): Promise<LiveBlockedWordsDto> {
+    return this.words.get(requireCaller(req));
+  }
+
+  @Put()
+  @HttpCode(200)
+  @RateLimit({
+    bucket: 'live:blocked-words',
+    rule: 'liveBlockedWordsUser',
+    key: byUserId,
+    replacesDefault: true,
+  })
+  async set(@Req() req: AppRequest, @Body() body: unknown): Promise<LiveBlockedWordsDto> {
+    return this.words.set(requireCaller(req), body, meta(req));
   }
 }
 

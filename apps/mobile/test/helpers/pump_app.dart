@@ -7,6 +7,7 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
@@ -17,6 +18,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_repository.dart';
 import 'fake_notifications_repository.dart';
@@ -73,6 +75,10 @@ Future<void> pumpKabsoApp(
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),
+        ),
+        // CP-016 B: never the network.
+        liveBlockedWordsRepositoryProvider.overrideWithValue(
+          FakeLiveBlockedWordsRepository(),
         ),
         ...overrides,
       ],

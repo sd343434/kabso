@@ -332,6 +332,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/rooms/{roomId}/contributors` *(v1.10-live, CP-014)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `title`, `categorySlug`, `topic` in `PATCH /live/rooms/{roomId}` *(v1.10-live, CP-014)* | the existing `PATCH` bucket (60 / hour per user) |
 | `PUT` and `DELETE /me/live-cover` *(v1.11-live, CP-015)* | 30 / hour per user (one bucket). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
+| `PUT /me/live-blocked-words` *(v1.12-live, CP-016 B)* | 30 / hour per user. **Replaces** the per-user default; `GET` uses the default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -428,6 +429,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.7-live (draft) | 2026-10-23 | **CP-011 (D94):** multi-guest video and audio rooms — `LiveRoomMode.AUDIO`; `StartLiveRoomRequest.mode`, `seatCount`, `theme`; `LiveRoomSummary.seatCount`, `occupiedSeats`, `theme`; `LiveConfig.themes`, `seatCounts`; `UpdateLiveRoomRequest.seatCount`, `theme` (now at least one field); media role `SPEAKER`; operations `getLiveRoomSeats`, `requestLiveSeat`, `listLiveSeatRequests`, `cancelLiveSeatRequest`, `acceptLiveSeatRequest`, `declineLiveSeatRequest`, `inviteToLiveSeat`, `acceptLiveSeatInvite`, `declineLiveSeatInvite`, `leaveLiveSeat`, `muteLiveSeat`, `removeFromLiveSeat`, `lockLiveSeat`, `addLiveModerator`, `removeLiveModerator`; codes `LIVE_SEAT_UNAVAILABLE`, `LIVE_REQUEST_NOT_PENDING`. §4, §7 rows and §10.9. | **Additive** (a new enum value older apps show as SOLO; new optional request fields; new response fields and operations). |
 | v1.10-live (draft) | 2026-10-24 | **CP-014 parts A and B (D97):** `UpdateLiveRoomRequest.title`, `categorySlug` (null = none), `topic`; `LiveRoomTopic`; `LiveRoomSummary.topic` (so `LiveRoom.topic`); media metadata `roomInfoVersion`; `listLiveContributors` (`GET /live/rooms/{roomId}/contributors`, `LiveContributor`, `LiveContributorList`); §7 rows and §10.12. Room boost (part C) waits for L3. | **Additive** (new optional request fields, a new nullable response field, a new operation, a new metadata key). |
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
+| v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
@@ -862,6 +864,20 @@ until a media provider is wired in.
   Removing a cover by moderation (back to the avatar) arrives with the moderation provider
   (B13); until then uploads stay behind `MEDIA_UPLOADS_ENABLED` and PP-28.
 
+
+### 10.14 Blocked words *(v1.12-live, DRAFT — CP-016 B, D99)*
+
+- A host keeps up to **100 blocked words or phrases** (`GET` / `PUT /me/live-blocked-words`; `PUT`
+  replaces the list). Each is normalized like chat text: NFC, trimmed, one line, §6 hygiene, 1–30
+  code points. No hosting permission → 403 `LIVE_HOSTING_NOT_ALLOWED`.
+- **Matching form:** NFKC, lower case, Arabic diacritics and tatweel ignored, أ إ آ ٱ = ا,
+  ى = ي, ة = ه. Duplicates by matching form are dropped (the first spelling kept).
+- **Effect:** a chat message sent in any live of that host has each match masked — every
+  character of it becomes `*` — **before** it is stored and sent (the original text is never
+  kept). A word with Arabic letters matches inside a longer word (Arabic attaches ال، و، ب…);
+  any other word matches only as a whole word ("ass" never masks "class"). Messages already sent
+  are not changed. The host's own messages are masked too.
+- `PUT` is audited (`live.blocked_words.update`) with the number of words only.
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

@@ -5,6 +5,7 @@ import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatService } from './live-chat.service.js';
+import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
 import { LiveMediaService } from './live-media.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
@@ -13,6 +14,7 @@ import { LiveSeatsService } from './live-seats.service.js';
 import { LiveTapsService } from './live-taps.service.js';
 import {
   AdminLiveController,
+  LiveBlockedWordsController,
   LiveController,
   LiveCoverController,
   LiveMediaWebhookController,
@@ -32,7 +34,13 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
  */
 @Module({
   imports: [MediaModule, UsersModule],
-  controllers: [LiveController, LiveCoverController, AdminLiveController, LiveMediaWebhookController],
+  controllers: [
+    LiveController,
+    LiveCoverController,
+    LiveBlockedWordsController,
+    AdminLiveController,
+    LiveMediaWebhookController,
+  ],
   providers: [
     LiveCategoriesService,
     LiveRoomsService,
@@ -41,6 +49,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveTapsService,
     LiveChatService,
     LiveCoverService,
+    LiveBlockedWordsService,
     LiveRoomMetadataService,
     AdminGuard,
     AdminPermissions,

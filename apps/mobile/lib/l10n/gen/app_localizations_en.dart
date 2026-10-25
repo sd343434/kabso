@@ -3508,4 +3508,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveRoomBoost => 'Boost my room';
+
+  @override
+  String get liveBlockedWordsHint =>
+      'These words are hidden with *** in the chat of all your lives.';
+
+  @override
+  String get liveBlockedWordsAddHint => 'Add a word or short phrase';
+
+  @override
+  String get liveBlockedWordsAdd => 'Add';
+
+  @override
+  String get liveBlockedWordsFull => 'You\'ve reached 100 words';
+
+  @override
+  String get liveBlockedWordsEmpty => 'No blocked words yet.';
+
+  @override
+  String liveBlockedWordsRemove(String word) {
+    return 'Remove $word';
+  }
 }

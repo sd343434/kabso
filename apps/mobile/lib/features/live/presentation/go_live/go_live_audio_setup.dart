@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -853,7 +858,19 @@ Future<void> showLiveSetupSettings(
                       onShare();
                     },
             ),
-            LiveSettingsRow(label: l10n.liveSettingsBlockedWords),
+            // CP-016 B: the count, then the editor.
+            Consumer(
+              builder: (context, ref, _) => LiveSettingsRow(
+                key: LiveSettingsRow.blockedWordsKey,
+                label: l10n.liveSettingsBlockedWords,
+                trailing: ref
+                    .watch(liveBlockedWordsProvider)
+                    .value
+                    ?.length
+                    .toString(),
+                onTap: () => unawaited(showLiveBlockedWords(context)),
+              ),
+            ),
             LiveSettingsRow(label: l10n.liveSettingsSchedule),
             SwitchListTile(
               key: guestsKey,
@@ -905,6 +922,7 @@ class LiveSettingsRow extends StatelessWidget {
   const new({required this.label, super.key, this.onTap, this.trailing});
 
   static const shareKey = Key('liveSettings.share');
+  static const blockedWordsKey = Key('liveSettings.blockedWords');
   static const ink = Color(0xFF000000);
 
   final String label;

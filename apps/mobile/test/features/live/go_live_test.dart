@@ -1052,7 +1052,6 @@ void main() {
       await tester.tap(find.byKey(GoLiveAudioSetup.settingsKey));
       await tester.pumpAndSettle();
       for (final label in [
-        l10n.liveSettingsBlockedWords,
         l10n.liveSettingsSchedule,
         l10n.liveSettingsEventCenter,
         l10n.liveSettingsCreatorCenter,
@@ -1062,7 +1061,7 @@ void main() {
           findsOneWidget,
         );
       }
-      expect(find.text(l10n.liveSoon), findsNWidgets(4));
+      expect(find.text(l10n.liveSoon), findsNWidgets(3));
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,

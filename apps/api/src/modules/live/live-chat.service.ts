@@ -11,6 +11,8 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveRoomsService, type RoomRow, type UserSummaryDto } from './live-rooms.service.js';
 import { isUuid, liveChatSendSchema } from './live.schemas.js';
+import { maskBlockedWords } from './live-blocked-words.js';
+import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
@@ -95,6 +97,7 @@ export class LiveChatService {
     private readonly limiter: RateLimitService,
     private readonly clock: Clock,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
+    private readonly blockedWords: LiveBlockedWordsService,
   ) {}
 
   // ---- Delivery --------------------------------------------------------------------------------
@@ -192,6 +195,8 @@ export class LiveChatService {
       });
     }
 
+    // CP-016 B: the host's blocked words are masked before the message is stored or sent.
+    const shown = maskBlockedWords(text, await this.blockedWords.wordsOf(row.host_user_id));
     let created: MessageRow;
     try {
       created = await this.prisma.liveChatMessage.create({
@@ -199,7 +204,7 @@ export class LiveChatService {
           roomId: row.id,
           userId: callerId,
           clientId,
-          text,
+          text: shown,
           authorRole: await this.roleOf(row, callerId),
           createdAt: now,
         },

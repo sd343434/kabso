@@ -3537,4 +3537,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveRoomBoost => 'تعزيز غرفتي';
+
+  @override
+  String get liveBlockedWordsHint =>
+      'تُخفى هذه الكلمات بنجوم (***) في دردشة كل بثوثك.';
+
+  @override
+  String get liveBlockedWordsAddHint => 'أضف كلمة أو عبارة قصيرة';
+
+  @override
+  String get liveBlockedWordsAdd => 'إضافة';
+
+  @override
+  String get liveBlockedWordsFull => 'وصلت إلى 100 كلمة';
+
+  @override
+  String get liveBlockedWordsEmpty => 'لا كلمات محظورة بعد.';
+
+  @override
+  String liveBlockedWordsRemove(String word) {
+    return 'إزالة $word';
+  }
 }

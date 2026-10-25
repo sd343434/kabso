@@ -4041,5 +4041,34 @@
   "liveRoomBoost": "تعزيز غرفتي",
   "@liveRoomBoost": {
     "description": "Room info sheet (owner ref 73)"
+  },
+  "liveBlockedWordsHint": "تُخفى هذه الكلمات بنجوم (***) في دردشة كل بثوثك.",
+  "@liveBlockedWordsHint": {
+    "description": "Blocked words sheet (CP-016 B)"
+  },
+  "liveBlockedWordsAddHint": "أضف كلمة أو عبارة قصيرة",
+  "@liveBlockedWordsAddHint": {
+    "description": "Blocked words sheet (CP-016 B)"
+  },
+  "liveBlockedWordsAdd": "إضافة",
+  "@liveBlockedWordsAdd": {
+    "description": "Blocked words sheet (CP-016 B)"
+  },
+  "liveBlockedWordsFull": "وصلت إلى 100 كلمة",
+  "@liveBlockedWordsFull": {
+    "description": "Blocked words sheet (CP-016 B)"
+  },
+  "liveBlockedWordsEmpty": "لا كلمات محظورة بعد.",
+  "@liveBlockedWordsEmpty": {
+    "description": "Blocked words sheet (CP-016 B)"
+  },
+  "liveBlockedWordsRemove": "إزالة {word}",
+  "@liveBlockedWordsRemove": {
+    "description": "Tooltip of a blocked word chip delete button",
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -311,6 +311,8 @@ model LiveHost {
   /// public URL (the 640 px square variant). Both set or both null (CHECK).
   coverMediaId String?        @unique @map("cover_media_id") @db.Uuid
   coverUrl     String?        @map("cover_url") @db.VarChar(2048)
+  /// CP-016 B (D99): words masked in this host's live chats (at most 100, CHECK).
+  blockedWords String[]       @default([]) @map("blocked_words") @db.VarChar(30)
 
   user       User        @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
   grantedBy  User?       @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)

@@ -1152,5 +1152,11 @@
   "liveRoomTag": "Tag",
   "liveRoomNoTag": "No tag",
   "liveRoomAnnouncement": "Announcement",
-  "liveRoomBoost": "Boost my room"
+  "liveRoomBoost": "Boost my room",
+  "liveBlockedWordsHint": "These words are hidden with *** in the chat of all your lives.",
+  "liveBlockedWordsAddHint": "Add a word or short phrase",
+  "liveBlockedWordsAdd": "Add",
+  "liveBlockedWordsFull": "You've reached 100 words",
+  "liveBlockedWordsEmpty": "No blocked words yet.",
+  "liveBlockedWordsRemove": "Remove {word}"
 }

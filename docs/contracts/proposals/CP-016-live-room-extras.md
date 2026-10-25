@@ -1,9 +1,10 @@
 # CP-016 — Live room extras from owner refs 71–75
 
-**Status:** PROPOSED (owner request 2026-10-24, refs 71–75; the owner chose "what is backed
-first, one proposal for the rest"). Not applied: `openapi.yaml`, `CONVENTIONS.md`, `apps/api`
-and `apps/mobile` are unchanged by this document. Until a part is approved and built, the app
-shows its entry greyed with "Soon" and it does nothing (owner choice for ref 71).
+**Status:** APPROVED in part (D99, 2026-10-24): order **B → A → C**, one region for rankings,
+room level **built**. Part B applied as openapi v1.12-live (draft), CONVENTIONS §10.14. (Owner
+request 2026-10-24, refs 71–75; the owner chose "what is backed first, one proposal for the
+rest".) Parts not yet built are shown greyed with "Soon" in
+the app and do nothing (owner choice for ref 71).
 
 Already built from the same refs, on existing contracts: the seat action sheet (ref 72,
 CP-011), the room info sheet's Change cover, title, Tag and Announcement (ref 73, CP-014 and
