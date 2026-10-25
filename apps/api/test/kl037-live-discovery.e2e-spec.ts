@@ -308,6 +308,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         chatMuted: false,
         // CP-014 (v1.10-live): a new live starts without a topic.
         topic: null,
+        // CP-016 G (v1.15-live): the host's room number (kl073 covers it).
+        roomNumber: expect.any(Number),
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

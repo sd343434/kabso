@@ -3641,4 +3641,51 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveScheduleWhen(String date, String time) {
     return '$date، $time';
   }
+
+  @override
+  String liveRoomNumber(String number) {
+    return 'المعرّف: $number';
+  }
+
+  @override
+  String get liveToolMusic => 'موسيقى';
+
+  @override
+  String get liveToolSounds => 'المؤثرات';
+
+  @override
+  String get liveToolFluent => 'السلاسة';
+
+  @override
+  String get liveToolProgramList => 'قائمة البرامج';
+
+  @override
+  String get liveToolShareScreen => 'مشاركة الشاشة';
+
+  @override
+  String get liveToolYoutube => 'يوتيوب';
+
+  @override
+  String get liveToolSinging => 'غناء';
+
+  @override
+  String get liveToolTopic => 'الموضوع';
+
+  @override
+  String get liveToolManagement => 'الإدارة';
+
+  @override
+  String get liveToolAssistance => 'مساعد البث';
+
+  @override
+  String get liveToolRecorder => 'التسجيل';
+
+  @override
+  String get liveToolNewcomers => 'الجدد';
+
+  @override
+  String get liveToolDataCenter => 'مركز البيانات';
+
+  @override
+  String get liveToolLiveTime => 'وقت البث';
 }

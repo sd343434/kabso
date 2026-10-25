@@ -6331,6 +6331,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{date}، {time}'**
   String liveScheduleWhen(String date, String time);
+
+  /// The room bar's second line: the host's public room number (CP-016 G)
+  ///
+  /// In ar, this message translates to:
+  /// **'المعرّف: {number}'**
+  String liveRoomNumber(String number);
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقى'**
+  String get liveToolMusic;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات'**
+  String get liveToolSounds;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'السلاسة'**
+  String get liveToolFluent;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة البرامج'**
+  String get liveToolProgramList;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة الشاشة'**
+  String get liveToolShareScreen;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get liveToolYoutube;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'غناء'**
+  String get liveToolSinging;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الموضوع'**
+  String get liveToolTopic;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الإدارة'**
+  String get liveToolManagement;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مساعد البث'**
+  String get liveToolAssistance;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'التسجيل'**
+  String get liveToolRecorder;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الجدد'**
+  String get liveToolNewcomers;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز البيانات'**
+  String get liveToolDataCenter;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت البث'**
+  String get liveToolLiveTime;
 }
 
 class _AppLocalizationsDelegate

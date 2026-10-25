@@ -591,9 +591,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   size: 30,
                 ),
                 title: room.title,
-                subtitle: '@${host.username}',
-                scoreText: score > 0 ? KFormat.compact(score, l10n) : null,
-                scoreLabel: l10n.liveScore(score, KFormat.grouped(score)),
+                // CP-016 G (ref 83): the room number, else the username.
+                subtitle: switch (room.roomNumber) {
+                  final n? => l10n.liveRoomNumber('$n'),
+                  null => '@${host.username}',
+                },
                 onTap: () => unawaited(showHostSheet(context, _username)),
                 action: canFollow
                     ? LiveRoundButton(
@@ -623,10 +625,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       alignment: AlignmentDirectional.centerStart,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
+                        // Ref 83/84: the room rank, then the live's points.
                         children: [
-                          LiveClockChip(since: room.startedAt),
-                          const SizedBox(width: 6),
                           const Flexible(child: LiveRankChip()),
+                          if (score > 0) ...[
+                            const SizedBox(width: 8),
+                            LiveScoreChip(
+                              text: KFormat.compact(score, l10n),
+                              label: l10n.liveScore(
+                                score,
+                                KFormat.grouped(score),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -646,13 +657,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               stage: _stage(session, engine),
               chat: [_roomChat(session)],
               composer: _chatComposer(composer),
-              barLead: LiveChatPill(
-                key: AudioRoomViewKeys.chat,
-                hint: composer.hint,
-                onTap: () => unawaited(_openChat(composer)),
-              ),
-              barStart: const [],
-              barEnd: [
+              // Ref 83: chat and emoji on one side; the seat, requests,
+              // gifts and the mic on the other.
+              barStart: [
+                LiveRoundButton(
+                  key: AudioRoomViewKeys.chat,
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: composer.hint,
+                  onTap: () => unawaited(_openChat(composer)),
+                ),
                 LiveRoundButton(
                   icon: Icons.emoji_emotions_rounded,
                   asset: 'assets/live_room_icons/emoji.png',
@@ -660,6 +673,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   label: l10n.livePreviewEmoji,
                   onTap: () => unawaited(_openChat(composer)),
                 ),
+              ],
+              barEnd: [
                 ?seatButton,
                 if (session.canModerate)
                   LiveRoundButton(
@@ -757,6 +772,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final seats = session.seats;
     final art = LiveThemeArt.of(room.theme);
     final count = seats?.seatCount ?? room.seatCount ?? 0;
+    // CP-012: the live's points under the host (ref 83).
+    final score = engine.score ?? session.score ?? room.score;
     final me = ref.watch(currentUserProvider)?.id;
     final host = room.host;
     final hostPicture = KAvatar(
@@ -804,9 +821,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           host: KAvatar(
             name: host.displayName,
             imageUrl: host.avatarUrl,
-            size: 50,
+            size: AudioSeatRing.hostSize,
           ),
           hostName: host.displayName,
+          hostPoints: KFormat.compact(score, context.l10n),
           speaking: speaking,
           onSeat: onSeat,
         ),

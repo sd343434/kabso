@@ -315,6 +315,9 @@ model LiveHost {
   coverUrl     String?        @map("cover_url") @db.VarChar(2048)
   /// CP-016 B (D99): words masked in this host's live chats (at most 100, CHECK).
   blockedWords String[]       @default([]) @map("blocked_words") @db.VarChar(30)
+  /// CP-016 G (D99): the host's public room number, 9 digits, random and unique (CHECK range);
+  /// given with the permission and shown in every live of this host ("ID: …").
+  roomNumber   Int            @unique(map: "live_hosts_room_number_key") @default(dbgenerated("(((100000000)::double precision + floor((random() * (900000000)::double precision))))::integer")) @map("room_number")
 
   user       User        @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
   grantedBy  User?       @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)

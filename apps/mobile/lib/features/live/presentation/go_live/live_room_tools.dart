@@ -110,6 +110,7 @@ class _ToolTile extends StatelessWidget {
     // On/off tools say their state to screen readers; on screen the icon
     // changes (e.g. chat / chat off), as in the reference (no extra text).
     final label = switch (toggled) {
+      _ when tool.soon => '${tool.label}, ${l10n.liveSoon}',
       true => '${tool.label}, ${l10n.liveToolOn}',
       false => '${tool.label}, ${l10n.liveToolOff}',
       null => tool.label,
@@ -145,6 +146,27 @@ class _ToolTile extends StatelessWidget {
                       color: toggled == false ? off : glyph,
                     ),
                   ),
+                  if (tool.soon)
+                    PositionedDirectional(
+                      top: -6,
+                      end: -16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE9EAF0),
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                        ),
+                        child: Text(
+                          l10n.liveSoon,
+                          style: context.textStyles.caption.copyWith(
+                            color: const Color(0xFF5A5B6A),
+                            fontSize: 8,
+                            height: 1.4,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (tool.badge)
                     const PositionedDirectional(
                       top: -1,
@@ -162,24 +184,33 @@ class _ToolTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 1.9),
-              Text(
-                tool.label,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: context.textStyles.caption.copyWith(
-                  color: const Color(0xFF000000),
-                  fontSize: 11,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              // One word never breaks inside: it shrinks to fit (narrow
+              // screens); longer labels take two lines.
+              if (!tool.label.contains(' '))
+                FittedBox(fit: BoxFit.scaleDown, child: _label(context))
+              else
+                _label(context),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+extension on _ToolTile {
+  Widget _label(BuildContext context) => Text(
+    tool.label,
+    maxLines: 2,
+    textAlign: TextAlign.center,
+    overflow: TextOverflow.ellipsis,
+    style: context.textStyles.caption.copyWith(
+      color: const Color(0xFF000000),
+      fontSize: 11,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 }
 
 /// Voice settings while live (D94): noise reduction and enhancement.

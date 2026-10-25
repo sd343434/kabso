@@ -41,6 +41,8 @@ info:
     **CP-016 part C (D99, DRAFT v1.14-live)** adds the live schedule: a host announces upcoming
     lives and their followers get a `LIVE_SCHEDULED_SOON` notification 15 minutes before
     (CONVENTIONS §10.16).
+    **CP-016 part G (D99, DRAFT v1.15-live)** adds the host's public room number
+    (`LiveRoom.roomNumber`, CONVENTIONS §10.17).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3653,6 +3655,11 @@ components:
             scoreParts: { $ref: '#/components/schemas/LiveScore' }
             chatEnabled: { type: boolean, description: "CP-013: false when the host turned the chat off." }
             chatMuted: { type: boolean, description: "CP-013: the caller is muted in this live's chat (false for guests)." }
+            roomNumber:
+              type: [integer, 'null']
+              minimum: 100000000
+              maximum: 999999999
+              description: "CP-016 G (v1.15-live): the host's public room number (9 digits, the same in every live of that host; the room bar shows \"ID: …\"). Null when the host no longer has the hosting permission."
             status: { type: string, enum: [LIVE, ENDED] }
             allowGuests: { type: boolean, description: "CP-010: people without an account may watch." }
             endedAt: { type: [string, 'null'], format: date-time }

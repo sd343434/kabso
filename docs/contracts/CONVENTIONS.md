@@ -434,6 +434,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.15-live (draft) | 2026-10-25 | **CP-016 part G (D99, owner 2026-10-25):** `LiveRoom.roomNumber` (the host's 9-digit public room number); §10.17. | **Additive** (a new field). |
 | v1.14-live (draft) | 2026-10-25 | **CP-016 part C (D99):** `listMyLiveSchedule`, `createLiveScheduleSlot`, `deleteLiveScheduleSlot` (`GET` / `POST /me/live-schedule`, `DELETE /me/live-schedule/{slotId}`, `CreateLiveScheduleSlotRequest`, `LiveScheduleSlot`, `LiveScheduleList`); notification type `LIVE_SCHEDULED_SOON` (target `USER`: the host, with the title as `text` and the optional `NotificationTarget.startsAt`); `NotificationSettings.lives`; code `LIVE_SCHEDULE_FULL` (409); §7 row, §10.16, §11.10. | **Additive** for new operations and fields. A new `NotificationType` value: clients ignore types they do not know (the app already does); its target uses the existing `USER` type so older apps still read the inbox. |
 | v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
@@ -919,6 +920,14 @@ until a media provider is wired in.
   takes the reminder away. Going live is not tied to a slot: the host goes live as usual.
 - Retention: slots are deleted 30 days after their start (with their reminders).
 
+### 10.17 Room number *(v1.15-live, DRAFT — CP-016 G, D99)*
+
+- Every host has a **public room number**: 9 digits (100000000–999999999), random, unique, given
+  when the hosting permission is granted and kept for every live of that host (the room bar shows
+  "ID: …"). `LiveRoom.roomNumber` carries it; null when the host no longer has the permission.
+  Revoking the permission drops the number; a new grant gives a new one.
+- It is an identifier for people to quote (support, reports), not a secret, and never replaces
+  the room or user ids in the API.
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

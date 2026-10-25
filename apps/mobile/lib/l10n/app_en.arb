@@ -1182,5 +1182,20 @@
   "liveScheduleTooSoon": "Pick a time at least 15 minutes from now.",
   "liveScheduleTooFar": "Pick a time within the next 30 days.",
   "liveScheduleRemove": "Cancel {title}",
-  "liveScheduleWhen": "{date}, {time}"
+  "liveScheduleWhen": "{date}, {time}",
+  "liveRoomNumber": "ID: {number}",
+  "liveToolMusic": "Music",
+  "liveToolSounds": "Sounds",
+  "liveToolFluent": "Fluent",
+  "liveToolProgramList": "Program list",
+  "liveToolShareScreen": "Share screen",
+  "liveToolYoutube": "YouTube",
+  "liveToolSinging": "Singing",
+  "liveToolTopic": "Topic",
+  "liveToolManagement": "Management",
+  "liveToolAssistance": "Live assistance",
+  "liveToolRecorder": "Recorder",
+  "liveToolNewcomers": "Newcomers",
+  "liveToolDataCenter": "Data center",
+  "liveToolLiveTime": "Live time"
 }

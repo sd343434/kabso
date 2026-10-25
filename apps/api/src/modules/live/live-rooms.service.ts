@@ -78,6 +78,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   chatEnabled: boolean;
   /** CP-013: the caller is muted in this live's chat (false for guests). */
   chatMuted: boolean;
+  /** CP-016 G: the host's public room number (null without the hosting permission). */
+  roomNumber: number | null;
 }
 
 export interface LiveRoomPageDto {
@@ -147,6 +149,8 @@ export interface RoomRow {
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
+  /** CP-016 G: the host's room number (null without the hosting permission). */
+  room_number: number | null;
 }
 
 /**
@@ -165,14 +169,15 @@ const ROOM_COLUMNS = Prisma.sql`
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en, r.chat_enabled`;
+         c.name_en AS category_name_en, r.chat_enabled, lh.room_number`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
     JOIN users u ON u.id = r.host_user_id
     JOIN user_profiles p ON p.user_id = r.host_user_id
     LEFT JOIN live_categories c ON c.id = r.category_id
-    LEFT JOIN live_room_scores sc ON sc.room_id = r.id`;
+    LEFT JOIN live_room_scores sc ON sc.room_id = r.id
+    LEFT JOIN live_hosts lh ON lh.user_id = r.host_user_id`;
 
 const ROOM_SELECT = Prisma.sql`SELECT ${ROOM_COLUMNS} ${ROOM_FROM}`;
 
@@ -615,6 +620,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       },
       chatEnabled: row.chat_enabled,
       chatMuted: row.chat_muted ?? false,
+      roomNumber: row.room_number,
     };
   }
 

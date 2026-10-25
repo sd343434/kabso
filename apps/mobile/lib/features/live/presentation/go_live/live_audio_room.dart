@@ -26,14 +26,27 @@ abstract final class KAudioRoom {
   /// The room bar, the chips and the top buttons.
   static const glass = Color(0x732A1450);
 
+  /// Owner ref 83 (430 pt, black over the room): the room bar 33 %, the
+  /// round top buttons 35 %, the chips 45 %.
+  static const bar = Color(0x54000000);
+  static const topButton = Color(0x59000000);
+  static const chip = Color(0x73000000);
+
   /// Chat bubbles.
   static const bubble = Color(0xB3222260);
 
-  /// The bottom buttons.
+  /// The chat pill (and the bottom buttons before ref 83).
   static const button = Color(0xFF26226A);
+
+  /// The audio room's round bottom buttons: white 15 % over the room
+  /// (owner ref 83).
+  static const roundButton = Color(0x26FFFFFF);
 
   /// Empty seats: white over the purple (#8C6CCF measured).
   static const emptySeat = Color(0x38FFFFFF);
+
+  /// Ref 83's empty seat: a chair in white 18 % over the room.
+  static const chair = Color(0x2EFFFFFF);
   static const hostTag = Color(0xFF2FE0C5);
   static const text = Color(0xFFFFFFFF);
   static const textSoft = Color(0xD9FFFFFF);
@@ -57,6 +70,14 @@ class LiveAudioRoomBackground extends StatelessWidget {
     child: SizedBox.expand(),
   );
 }
+
+/// [buttons] with 2 pt between them (44 pt targets 46 pt apart).
+List<Widget> _spaced(List<Widget> buttons) => [
+  for (final (i, b) in buttons.indexed) ...[
+    if (i > 0) const SizedBox(width: 2),
+    b,
+  ],
+];
 
 class LiveAudioRoomLayout extends StatelessWidget {
   const new({
@@ -102,49 +123,62 @@ class LiveAudioRoomLayout extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Ref 83 (430 pt): the room bar 10 pt from the edge right under
+            // the status bar; the chips 7 pt under it.
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(10, 0, 6, 0),
               child: header,
             ),
             if (chips != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+                padding: const EdgeInsetsDirectional.fromSTEB(10, 7, 8, 0),
                 child: chips,
               ),
+            // The seats (scrolling when they do not fit), then the chat low on
+            // the start side, at most 40 % of the height (ref 83).
             Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(4, 30, 4, 16),
-                    sliver: SliverToBoxAdapter(child: stage),
-                  ),
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Align(
-                      alignment: AlignmentDirectional.bottomStart,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (final line in chat)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: line,
-                              ),
-                          ],
-                        ),
+              child: LayoutBuilder(
+                builder: (context, box) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        // The seat circle's centre 373 pt from the top.
+                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                        child: stage,
                       ),
                     ),
-                  ),
-                ],
+                    if (chat.isNotEmpty)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: box.maxHeight * 0.4,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                          child: SingleChildScrollView(
+                            reverse: true,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final line in chat)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: line,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(
               // The chat box is a panel across the whole width.
               padding: composer == null
-                  ? const EdgeInsets.fromLTRB(4, 2, 4, 4)
+                  ? const EdgeInsets.fromLTRB(4, 2, 4, 1)
                   : EdgeInsets.zero,
               child: composer != null
                   ? ColoredBox(
@@ -156,15 +190,16 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: composer,
                       ),
                     )
+                  // Ref 83: 37 pt buttons, 46 pt apart.
                   : Row(
                       children: [
                         if (barLead case final lead?) ...[
                           Expanded(child: lead),
                           const SizedBox(width: 4),
                         ],
-                        ...barStart,
+                        ..._spaced(barStart),
                         if (barLead == null) const Spacer(),
-                        ...barEnd,
+                        ..._spaced(barEnd),
                       ],
                     ),
             ),
@@ -355,8 +390,10 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
   }
 }
 
-/// The room bar: the cover, the title and a second line; then the round
-/// minimize and ✕ (end) buttons.
+/// The room bar (owner ref 83): a rounded bar with the cover, the title and
+/// a second line (the room number, "ID: …"); then share, minimize and ✕ in
+/// round dark buttons. The live's points are a chip under the bar
+/// ([LiveScoreChip]).
 class LiveAudioRoomHeader extends StatelessWidget {
   const new({
     required this.cover,
@@ -372,17 +409,10 @@ class LiveAudioRoomHeader extends StatelessWidget {
     this.onShare,
     this.shareTooltip,
     this.shareKey,
-    this.scoreText,
-    this.scoreLabel,
     this.onTap,
-    this.onScoreTap,
     this.action,
     this.showMinimize = true,
   });
-
-  /// Opens the score's breakdown from the points (when [onTap] opens
-  /// something else, e.g. the host's room info, ref 73).
-  final VoidCallback? onScoreTap;
 
   /// At the end of the room bar (a viewer's Follow).
   final Widget? action;
@@ -390,20 +420,14 @@ class LiveAudioRoomHeader extends StatelessWidget {
   /// Viewers have no floating window.
   final bool showMinimize;
 
-  /// CP-012: the live's points, shortened (12.4K); shown with a flame in
-  /// place of [subtitle] once there are points.
-  final String? scoreText;
-
-  /// [scoreText] for screen readers.
-  final String? scoreLabel;
-
-  /// Opens the score's breakdown.
+  /// Opens the room's info (host) or the host's sheet (viewer).
   final VoidCallback? onTap;
 
   final VoidCallback? onShare;
   final String? shareTooltip;
   final Key? shareKey;
 
+  /// The points chip ([LiveScoreChip]) keeps this key.
   static const scoreKey = Key('liveRoom.score');
   static const barKey = Key('liveRoom.bar');
 
@@ -423,31 +447,32 @@ class LiveAudioRoomHeader extends StatelessWidget {
     final subtitle = this.subtitle;
     return Row(
       children: [
-        // The room bar hugs its title, at most 220 pt (owner D94).
+        // Ref 83: the bar hugs its title, from 10 pt to at most 275 pt;
+        // 39.6 pt tall, fully rounded.
         Expanded(
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
+              constraints: const BoxConstraints(maxWidth: 265),
               child: GestureDetector(
                 key: barKey,
                 onTap: onTap,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  height: 38,
-                  padding: const EdgeInsetsDirectional.fromSTEB(4, 4, 12, 4),
+                  height: 39.6,
+                  padding: const EdgeInsetsDirectional.fromSTEB(5, 5, 14, 5),
                   decoration: BoxDecoration(
-                    color: KAudioRoom.glass,
-                    borderRadius: BorderRadius.circular(10),
+                    color: KAudioRoom.bar,
+                    borderRadius: BorderRadius.circular(19.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(5),
-                        child: SizedBox.square(dimension: 30, child: cover),
+                        child: SizedBox.square(dimension: 29, child: cover),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 7),
                       Flexible(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -461,61 +486,20 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                 fontSize: 13,
                                 height: 1.15,
                                 color: KAudioRoom.text,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (scoreText case final points?)
-                              Semantics(
-                                label: scoreLabel,
-                                button: onScoreTap != null,
-                                onTap: onScoreTap,
-                                excludeSemantics: true,
-                                child: GestureDetector(
-                                  onTap: onScoreTap,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Row(
-                                    key: LiveAudioRoomHeader.scoreKey,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const KPointsIcon(),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        points,
-                                        style: text.caption.copyWith(
-                                          fontSize: 10.5,
-                                          height: 1.15,
-                                          color: KAudioRoom.text,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            if (subtitle != null && subtitle.isNotEmpty)
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.caption.copyWith(
+                                  fontSize: 11,
+                                  height: 1.2,
+                                  color: KAudioRoom.textSoft,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                              )
-                            else if (subtitle != null && subtitle.isNotEmpty)
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.verified_user_rounded,
-                                    size: 10,
-                                    color: KAudioRoom.hostTag,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      subtitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textDirection: TextDirection.ltr,
-                                      style: text.caption.copyWith(
-                                        fontSize: 10,
-                                        height: 1.15,
-                                        color: KAudioRoom.textSoft,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                           ],
                         ),
@@ -531,8 +515,8 @@ class LiveAudioRoomHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        // The owner's outline icons, close together (D94).
+        const SizedBox(width: 8),
+        // Ref 83: 30 pt round buttons, 39 pt apart.
         if (onShare != null)
           _TopIcon(
             key: shareKey,
@@ -568,12 +552,13 @@ class LiveChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = this.icon;
+    // Ref 83: 21 pt tall, fully rounded, black 45 % over the room.
     return Container(
-      constraints: const BoxConstraints(minHeight: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      constraints: const BoxConstraints(minHeight: 21),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: KAudioRoom.glass,
-        borderRadius: BorderRadius.circular(6),
+        color: KAudioRoom.chip,
+        borderRadius: BorderRadius.circular(10.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -585,7 +570,7 @@ class LiveChip extends StatelessWidget {
           Flexible(
             child: DefaultTextStyle.merge(
               style: context.textStyles.caption.copyWith(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 height: 1,
                 color: KAudioRoom.text,
                 fontWeight: FontWeight.w600,
@@ -597,6 +582,46 @@ class LiveChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// CP-012: the live's points as a chip under the room bar (owner ref 84:
+/// the points coin and the count); tapping opens the breakdown.
+class LiveScoreChip extends StatelessWidget {
+  const new({
+    required this.text,
+    required this.label,
+    super.key = LiveAudioRoomHeader.scoreKey,
+    this.onTap,
+  });
+
+  /// Shortened points (12.4K).
+  final String text;
+
+  /// The points for screen readers.
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: label,
+    button: onTap != null,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: LiveChip(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const KPointsIcon(size: 13),
+            const SizedBox(width: 4),
+            Text(text),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// A chat bubble (system notes until the room chat exists).
@@ -634,9 +659,9 @@ class LiveRoundButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     super.key,
-    this.size = 42,
-    this.iconSize = 25,
-    this.color = KAudioRoom.button,
+    this.size = 37,
+    this.iconSize = 22,
+    this.color = KAudioRoom.roundButton,
     this.iconColor = KAudioRoom.text,
     this.badge = 0,
     this.gradient,
@@ -886,8 +911,8 @@ class LiveViewersStack extends StatelessWidget {
   }
 }
 
-/// A top-bar icon drawn white: the picture alone (it has its own frame),
-/// 20 pt in a 30 × 44 pt target so the three sit close together.
+/// A top-bar button (owner ref 83): a 30 pt dark round button with the
+/// icon drawn white, 39 pt apart (in a 39 × 44 pt target).
 class _TopIcon extends StatelessWidget {
   const new({
     required this.asset,
@@ -913,16 +938,25 @@ class _TopIcon extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          width: 30,
+          width: 39,
           height: 44,
           child: Center(
             child: Opacity(
               opacity: onTap == null ? 0.45 : 1,
-              child: Image.asset(
-                asset,
-                width: 20,
-                height: 20,
-                color: KAudioRoom.text,
+              child: Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: KAudioRoom.topButton,
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  asset,
+                  width: 17,
+                  height: 17,
+                  color: KAudioRoom.text,
+                ),
               ),
             ),
           ),

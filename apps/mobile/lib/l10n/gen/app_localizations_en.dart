@@ -3613,4 +3613,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveScheduleWhen(String date, String time) {
     return '$date, $time';
   }
+
+  @override
+  String liveRoomNumber(String number) {
+    return 'ID: $number';
+  }
+
+  @override
+  String get liveToolMusic => 'Music';
+
+  @override
+  String get liveToolSounds => 'Sounds';
+
+  @override
+  String get liveToolFluent => 'Fluent';
+
+  @override
+  String get liveToolProgramList => 'Program list';
+
+  @override
+  String get liveToolShareScreen => 'Share screen';
+
+  @override
+  String get liveToolYoutube => 'YouTube';
+
+  @override
+  String get liveToolSinging => 'Singing';
+
+  @override
+  String get liveToolTopic => 'Topic';
+
+  @override
+  String get liveToolManagement => 'Management';
+
+  @override
+  String get liveToolAssistance => 'Live assistance';
+
+  @override
+  String get liveToolRecorder => 'Recorder';
+
+  @override
+  String get liveToolNewcomers => 'Newcomers';
+
+  @override
+  String get liveToolDataCenter => 'Data center';
+
+  @override
+  String get liveToolLiveTime => 'Live time';
 }

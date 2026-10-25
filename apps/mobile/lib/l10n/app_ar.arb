@@ -4209,5 +4209,70 @@
         "type": "String"
       }
     }
+  },
+  "liveRoomNumber": "المعرّف: {number}",
+  "@liveRoomNumber": {
+    "description": "The room bar's second line: the host's public room number (CP-016 G)",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "liveToolMusic": "موسيقى",
+  "@liveToolMusic": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolSounds": "المؤثرات",
+  "@liveToolSounds": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolFluent": "السلاسة",
+  "@liveToolFluent": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolProgramList": "قائمة البرامج",
+  "@liveToolProgramList": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolShareScreen": "مشاركة الشاشة",
+  "@liveToolShareScreen": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolYoutube": "يوتيوب",
+  "@liveToolYoutube": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolSinging": "غناء",
+  "@liveToolSinging": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolTopic": "الموضوع",
+  "@liveToolTopic": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolManagement": "الإدارة",
+  "@liveToolManagement": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolAssistance": "مساعد البث",
+  "@liveToolAssistance": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolRecorder": "التسجيل",
+  "@liveToolRecorder": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolNewcomers": "الجدد",
+  "@liveToolNewcomers": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolDataCenter": "مركز البيانات",
+  "@liveToolDataCenter": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolLiveTime": "وقت البث",
+  "@liveToolLiveTime": {
+    "description": "Room tools sheet tile (owner ref 84)"
   }
 }
