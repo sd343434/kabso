@@ -39,7 +39,7 @@ _LiveSeatCounts _$LiveSeatCountsFromJson(Map<String, dynamic> json) =>
           (json['AUDIO'] as List<dynamic>?)
               ?.map((e) => (e as num).toInt())
               .toList() ??
-          const <int>[5, 9, 13],
+          const <int>[6, 9, 15, 20, 25],
     );
 
 Map<String, dynamic> _$LiveSeatCountsToJson(_LiveSeatCounts instance) =>

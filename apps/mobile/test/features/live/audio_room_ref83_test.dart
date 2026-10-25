@@ -1,6 +1,7 @@
 // Owner refs 83/84: the audio room's seats on a circle around the host
-// (5, 9 and 13 seats; seat 1 at the top, clockwise, mirrored in Arabic) and
-// the room tools sheet with the tools that have no server greyed "Soon".
+// (6 and 9 seats; seat 1 at the top, clockwise, mirrored in Arabic), owner
+// D100: 15, 20 and 25 seats in rows of 5 under the host, and the room tools
+// sheet with the tools that have no server greyed "Soon".
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -38,7 +39,7 @@ Future<void> _ring(
 }
 
 void main() {
-  for (final count in [5, 9, 13]) {
+  for (final count in [6, 9]) {
     testWidgets('$count seats: ${count - 1} chairs on a circle around the '
         'host', (tester) async {
       await _ring(tester, count);
@@ -52,6 +53,50 @@ void main() {
       expect(first.dy, lessThan(host.dy));
     });
   }
+
+  for (final count in [15, 20, 25]) {
+    testWidgets('$count seats (D100): rows of 5, the host the first tile, '
+        'in reading order', (tester) async {
+      await _ring(tester, count);
+      final host = tester.getCenter(find.text('Layla'));
+      final guests = count - 1;
+      for (var i = 1; i <= guests; i++) {
+        expect(find.byKey(AudioSeatRing.seatKey(i)), findsOneWidget);
+      }
+      Offset at(int i) =>
+          tester.getCenter(find.byKey(AudioSeatRing.seatKey(i)));
+      // The first row: the host, then seats 1-4, start to end.
+      expect(host.dx, lessThan(at(1).dx));
+      for (var i = 2; i <= 4; i++) {
+        expect(at(i).dy, closeTo(at(1).dy, 0.5));
+        expect(at(i).dx, greaterThan(at(i - 1).dx));
+      }
+      // Seat 5 starts the second row, under the host.
+      expect(at(5).dy, greaterThan(at(1).dy));
+      expect(at(5).dx, lessThan(at(1).dx));
+      // Owner request: the same spacing between every pair of rows, the
+      // first row (with the host's name and points) included.
+      final pitch = at(6).dy - at(1).dy;
+      for (var row = 2; row * 5 + 1 <= guests; row++) {
+        expect(at(row * 5 + 1).dy - at(row * 5 - 4).dy, closeTo(pitch, 0.5));
+      }
+      // Every seat stays on the phone's width.
+      for (var i = 1; i <= guests; i++) {
+        expect(at(i).dx, inInclusiveRange(0, 430));
+      }
+    });
+  }
+
+  testWidgets('Arabic mirrors the rows: the host at the right, then seat 1', (
+    tester,
+  ) async {
+    await _ring(tester, 15, language: AppLanguage.ar);
+    final host = tester.getCenter(find.text('Layla'));
+    final one = tester.getCenter(find.byKey(AudioSeatRing.seatKey(1)));
+    final two = tester.getCenter(find.byKey(AudioSeatRing.seatKey(2)));
+    expect(host.dx, greaterThan(one.dx));
+    expect(one.dx, greaterThan(two.dx));
+  });
 
   testWidgets('Arabic mirrors the circle: seat 1 to the left of the top', (
     tester,
