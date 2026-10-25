@@ -21,8 +21,10 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_mode_bar.dart';
+import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
@@ -30,14 +32,17 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_live_blocked_words_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_live_schedule_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -94,6 +99,13 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
       liveRepositoryProvider.overrideWithValue(live),
       currentUserProvider.overrideWithValue(
         testUser().copyWith(canHost: canHost),
+      ),
+      // CP-016 B and C: the settings rows read these; never the network.
+      liveBlockedWordsRepositoryProvider.overrideWithValue(
+        FakeLiveBlockedWordsRepository(),
+      ),
+      liveScheduleRepositoryProvider.overrideWithValue(
+        FakeLiveScheduleRepository(),
       ),
     ],
   );
@@ -1052,7 +1064,6 @@ void main() {
       await tester.tap(find.byKey(GoLiveAudioSetup.settingsKey));
       await tester.pumpAndSettle();
       for (final label in [
-        l10n.liveSettingsSchedule,
         l10n.liveSettingsEventCenter,
         l10n.liveSettingsCreatorCenter,
       ]) {
@@ -1061,7 +1072,19 @@ void main() {
           findsOneWidget,
         );
       }
-      expect(find.text(l10n.liveSoon), findsNWidgets(3));
+      // CP-016 C: the live schedule has its server now (not "Soon").
+      expect(find.text(l10n.liveSoon), findsNWidgets(2));
+      expect(
+        find.bySemanticsLabel('${l10n.liveSettingsSchedule}, ${l10n.liveSoon}'),
+        findsNothing,
+      );
+      await tester.ensureVisible(find.byKey(LiveSettingsRow.scheduleKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveSettingsRow.scheduleKey));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveScheduleEmpty), findsOneWidget);
+      Navigator.of(tester.element(find.byKey(LiveScheduleKeys.count))).pop();
+      await tester.pumpAndSettle();
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,

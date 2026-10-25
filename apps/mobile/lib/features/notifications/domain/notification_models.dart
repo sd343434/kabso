@@ -18,6 +18,10 @@ enum NotificationType {
   repost('REPOST'),
   postPublished('POST_PUBLISHED'),
   contentRemoved('CONTENT_REMOVED'),
+
+  /// v1.14-live (CP-016 C): a host you follow goes live in about 15
+  /// minutes (target: the host as a user, with the title and the start).
+  liveScheduledSoon('LIVE_SCHEDULED_SOON'),
   unknown('');
 
   new(this.wire);
@@ -44,6 +48,10 @@ enum NotificationTargetType {
 
   factory fromWire(Object? value) => values.firstWhere((t) => t.wire == value);
 
+  /// Whether [value] is a target type this app knows (a newer server may
+  /// add one; such a target is read as none rather than failing the page).
+  static bool isKnown(Object? value) => values.any((t) => t.wire == value);
+
   final String wire;
 }
 
@@ -56,6 +64,7 @@ class NotificationTarget {
     this.postId,
     this.thumbUrl,
     this.text,
+    this.startsAt,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -64,6 +73,10 @@ class NotificationTarget {
     postId: json['postId'] as String?,
     thumbUrl: json['thumbUrl'] as String?,
     text: json['text'] as String?,
+    startsAt: switch (json['startsAt']) {
+      final String at => DateTime.parse(at),
+      _ => null,
+    },
   );
 
   final NotificationTargetType type;
@@ -78,8 +91,12 @@ class NotificationTarget {
   /// The post or story photo (320 px), when it has one.
   final String? thumbUrl;
 
-  /// A short excerpt (≤ 80 characters) of the comment or caption.
+  /// A short excerpt (≤ 80 characters) of the comment or caption, or the
+  /// scheduled live's title.
   final String? text;
+
+  /// [NotificationType.liveScheduledSoon]: when the live is planned.
+  final DateTime? startsAt;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread
@@ -105,7 +122,9 @@ class AppNotification {
     ],
     actorCount: json['actorCount']! as int,
     target: switch (json['target']) {
-      final Map<String, dynamic> t => NotificationTarget.fromJson(t),
+      final Map<String, dynamic> t
+          when NotificationTargetType.isKnown(t['type']) =>
+        NotificationTarget.fromJson(t),
       _ => null,
     },
     createdAt: DateTime.parse(json['createdAt']! as String),
@@ -142,6 +161,7 @@ class NotificationSettings {
     this.mentions = true,
     this.follows = true,
     this.reposts = true,
+    this.lives = true,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationSettings(
@@ -150,6 +170,8 @@ class NotificationSettings {
     mentions: json['mentions']! as bool,
     follows: json['follows']! as bool,
     reposts: json['reposts']! as bool,
+    // v1.14-live; an older server does not send it (on).
+    lives: json['lives'] as bool? ?? true,
   );
 
   final bool likes;
@@ -160,6 +182,9 @@ class NotificationSettings {
   final bool follows;
   final bool reposts;
 
+  /// Reminders of lives scheduled by hosts you follow (CP-016 C).
+  final bool lives;
+
   @override
   bool operator ==(Object other) =>
       other is NotificationSettings &&
@@ -167,10 +192,12 @@ class NotificationSettings {
       other.comments == comments &&
       other.mentions == mentions &&
       other.follows == follows &&
-      other.reposts == reposts;
+      other.reposts == reposts &&
+      other.lives == lives;
 
   @override
-  int get hashCode => Object.hash(likes, comments, mentions, follows, reposts);
+  int get hashCode =>
+      Object.hash(likes, comments, mentions, follows, reposts, lives);
 }
 
 /// One switch of [NotificationSettings] (the wire field name).
@@ -179,7 +206,8 @@ enum NotificationSetting {
   comments,
   mentions,
   follows,
-  reposts;
+  reposts,
+  lives;
 
   bool of(NotificationSettings s) => switch (this) {
     likes => s.likes,
@@ -187,6 +215,7 @@ enum NotificationSetting {
     mentions => s.mentions,
     follows => s.follows,
     reposts => s.reposts,
+    lives => s.lives,
   };
 
   NotificationSettings set(NotificationSettings s, {required bool on}) =>
@@ -196,5 +225,6 @@ enum NotificationSetting {
         mentions: this == mentions ? on : s.mentions,
         follows: this == follows ? on : s.follows,
         reposts: this == reposts ? on : s.reposts,
+        lives: this == lives ? on : s.lives,
       );
 }

@@ -38,6 +38,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.mediaInvalid: 422,
   ErrorCode.pinLimitReached: 409,
   ErrorCode.reportAlreadyResolved: 409,
+  // v1.14-live (CP-016 C)
+  ErrorCode.liveScheduleFull: 409,
 };
 
 DioException _badResponse(
@@ -94,6 +96,8 @@ void main() {
           'MEDIA_INVALID',
           'PIN_LIMIT_REACHED',
           'REPORT_ALREADY_RESOLVED',
+          // v1.14-live (CP-016 C)
+          'LIVE_SCHEDULE_FULL',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

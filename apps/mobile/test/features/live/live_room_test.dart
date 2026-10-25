@@ -1251,7 +1251,9 @@ void main() {
           ..chat = [entry('m1', 'Hello room')];
         await _pumpRoom(tester, repo: repo, engine: FakeLiveMediaEngine());
         expect(line('Hello room'), findsOneWidget);
-        expect(find.text(l10n.liveChatSignIn), findsOneWidget);
+        // Ref 83: a round chat button; its label says why (tooltip and
+        // screen readers).
+        expect(find.byTooltip(l10n.liveChatSignIn), findsOneWidget);
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pump();
         expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
@@ -1268,7 +1270,7 @@ void main() {
             room: (_) => room.copyWith(mode: LiveRoomMode.audio, seatCount: 9),
           )..seatState = seats(mode: LiveRoomMode.audio, count: 9);
           await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
-          expect(find.text(hint), findsOneWidget);
+          expect(find.byTooltip(hint), findsOneWidget);
           await tester.tap(find.byKey(AudioRoomViewKeys.chat));
           await tester.pump();
           expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
@@ -1292,7 +1294,7 @@ void main() {
           engine: FakeLiveMediaEngine(),
           user: testUser(),
         );
-        expect(find.text(l10n.liveChatMutedPill), findsOneWidget);
+        expect(find.byTooltip(l10n.liveChatMutedPill), findsOneWidget);
         muted = false; // The host unmuted (no live notice).
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
@@ -1305,7 +1307,7 @@ void main() {
         final engine = FakeLiveMediaEngine();
         final repo = seatRoom(LiveRoomMode.audio, 9);
         await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
-        expect(find.text(l10n.goLiveChatPill), findsOneWidget);
+        expect(find.byTooltip(l10n.goLiveChatPill), findsOneWidget);
         // Writing when it happens: the box closes so the pill can say why
         // (real two-browser run).
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
@@ -1314,7 +1316,7 @@ void main() {
         engine.chat.add(const LiveChatStateChanged(enabled: false));
         await tester.pumpAndSettle();
         expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
-        expect(find.text(l10n.liveChatOff), findsOneWidget);
+        expect(find.byTooltip(l10n.liveChatOff), findsOneWidget);
       });
 
       testWidgets('video rooms: the chat over the video and the pill above '

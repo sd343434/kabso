@@ -108,6 +108,7 @@ model User {
   notificationActs   NotificationActor[]
   notificationPrefs  NotificationSettings?
   livePointsHourly   LiveHostPointsHourly[] @relation("LiveHostPointsHourly")
+  liveScheduleSlots  LiveScheduleSlot[]     @relation("LiveScheduleSlots")
 
   @@map("users")
 }
@@ -314,6 +315,9 @@ model LiveHost {
   coverUrl     String?        @map("cover_url") @db.VarChar(2048)
   /// CP-016 B (D99): words masked in this host's live chats (at most 100, CHECK).
   blockedWords String[]       @default([]) @map("blocked_words") @db.VarChar(30)
+  /// CP-016 G (D99): the host's public room number, 9 digits, random and unique (CHECK range);
+  /// given with the permission and shown in every live of this host ("ID: …").
+  roomNumber   Int            @unique(map: "live_hosts_room_number_key") @default(dbgenerated("(((100000000)::double precision + floor((random() * (900000000)::double precision))))::integer")) @map("room_number")
 
   user       User        @relation("LiveHostUser", fields: [userId], references: [id], onDelete: Cascade)
   grantedBy  User?       @relation("LiveHostGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
@@ -519,6 +523,25 @@ model LiveHostPointsHourly {
   @@id([hostUserId, hourStart], map: "live_host_points_hourly_pkey")
   @@index([hourStart], map: "live_host_points_hourly_hour_idx")
   @@map("live_host_points_hourly")
+}
+
+/// CP-016 C (D99): a live the host announced (CONVENTIONS §10.16). Followers get
+/// `LIVE_SCHEDULED_SOON` 15 minutes before `startsAt`; `remindedAt` marks that the sweeper sent it
+/// (once). Deleted 30 days after the start. CHECKs in migration 20261103090000_live_schedule.
+model LiveScheduleSlot {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  hostUserId String    @map("host_user_id") @db.Uuid
+  title      String    @db.VarChar(60)
+  startsAt   DateTime  @map("starts_at") @db.Timestamptz(3)
+  remindedAt DateTime? @map("reminded_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  host          User           @relation("LiveScheduleSlots", fields: [hostUserId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([hostUserId, startsAt], map: "live_schedule_slots_host_starts_idx")
+  @@index([startsAt], map: "live_schedule_slots_due_idx", where: raw("reminded_at IS NULL"))
+  @@map("live_schedule_slots")
 }
 
 /// CP-012 (D95): a caller's counted taps in one room and the time of their last counted batch; the
@@ -1454,6 +1477,7 @@ enum NotificationType {
   REPOST
   POST_PUBLISHED
   CONTENT_REMOVED
+  LIVE_SCHEDULED_SOON
 
   @@map("notification_type")
 }
@@ -1463,22 +1487,25 @@ enum NotificationType {
 /// set on unread likes and reposts so new actors join the same row; `updated_at` is the latest
 /// activity (the list order and the 30-day retention).
 model Notification {
-  id          String           @id @default(uuid(7)) @db.Uuid
-  recipientId String           @map("recipient_id") @db.Uuid
-  type        NotificationType
-  postId      String?          @map("post_id") @db.Uuid
-  commentId   String?          @map("comment_id") @db.Uuid
-  storyId     String?          @map("story_id") @db.Uuid
-  groupKey    String?          @map("group_key") @db.VarChar(80)
-  readAt      DateTime?        @map("read_at") @db.Timestamptz(3)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+  id             String           @id @default(uuid(7)) @db.Uuid
+  recipientId    String           @map("recipient_id") @db.Uuid
+  type           NotificationType
+  postId         String?          @map("post_id") @db.Uuid
+  commentId      String?          @map("comment_id") @db.Uuid
+  storyId        String?          @map("story_id") @db.Uuid
+  /// CP-016 C: the scheduled live a `LIVE_SCHEDULED_SOON` reminds of (deleted with it).
+  liveScheduleId String?          @map("live_schedule_id") @db.Uuid
+  groupKey       String?          @map("group_key") @db.VarChar(80)
+  readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  recipient User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  post      Post?               @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment   Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  story     Story?              @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  actors    NotificationActor[]
+  recipient    User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post         Post?               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment      Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  story        Story?              @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  liveSchedule LiveScheduleSlot?   @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
+  actors       NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
@@ -1487,6 +1514,7 @@ model Notification {
   @@index([postId], map: "notifications_post_id_idx")
   @@index([commentId], map: "notifications_comment_id_idx")
   @@index([storyId], map: "notifications_story_id_idx")
+  @@index([liveScheduleId], map: "notifications_live_schedule_id_idx")
   @@map("notifications")
 }
 
@@ -1512,6 +1540,8 @@ model NotificationSettings {
   mentions  Boolean  @default(true)
   follows   Boolean  @default(true)
   reposts   Boolean  @default(true)
+  /// CP-016 C: reminders of lives scheduled by hosts you follow.
+  lives     Boolean  @default(true)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

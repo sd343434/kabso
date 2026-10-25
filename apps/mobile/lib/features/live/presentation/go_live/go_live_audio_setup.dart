@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
+import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_blocked_words_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cover_picture.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -871,7 +873,19 @@ Future<void> showLiveSetupSettings(
                 onTap: () => unawaited(showLiveBlockedWords(context)),
               ),
             ),
-            LiveSettingsRow(label: l10n.liveSettingsSchedule),
+            // CP-016 C: the number of upcoming lives, then the schedule.
+            Consumer(
+              builder: (context, ref, _) => LiveSettingsRow(
+                key: LiveSettingsRow.scheduleKey,
+                label: l10n.liveSettingsSchedule,
+                trailing: ref
+                    .watch(liveScheduleProvider)
+                    .value
+                    ?.length
+                    .toString(),
+                onTap: () => unawaited(showLiveSchedule(context)),
+              ),
+            ),
             SwitchListTile(
               key: guestsKey,
               contentPadding: const EdgeInsetsDirectional.fromSTEB(
@@ -923,6 +937,7 @@ class LiveSettingsRow extends StatelessWidget {
 
   static const shareKey = Key('liveSettings.share');
   static const blockedWordsKey = Key('liveSettings.blockedWords');
+  static const scheduleKey = Key('liveSettings.schedule');
   static const ink = Color(0xFF000000);
 
   final String label;

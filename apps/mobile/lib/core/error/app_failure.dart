@@ -59,6 +59,9 @@ enum ErrorCode {
   /// v1.5-social: an admin acted on a report that is no longer open (409).
   reportAlreadyResolved('REPORT_ALREADY_RESOLVED'),
 
+  /// v1.14-live (CP-016 C): already 10 upcoming scheduled lives (409).
+  liveScheduleFull('LIVE_SCHEDULE_FULL'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

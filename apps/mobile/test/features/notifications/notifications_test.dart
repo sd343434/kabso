@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
@@ -157,6 +158,64 @@ void main() {
       await repo.updateSetting(NotificationSetting.likes, on: false);
       expect(http.requests.last.data, {'likes': false});
     });
+  });
+
+  test('v1.14-live: a schedule reminder reads its start; a target type '
+      'this app does not know is read as none (the page still loads)', () {
+    final n = AppNotification.fromJson(const {
+      'id': 'n1',
+      'type': 'LIVE_SCHEDULED_SOON',
+      'actors': [
+        {
+          'id': 'u1',
+          'username': 'layla',
+          'displayName': 'Layla',
+          'avatarUrl': null,
+        },
+      ],
+      'actorCount': 1,
+      'target': {
+        'type': 'USER',
+        'id': 'layla',
+        'postId': null,
+        'thumbUrl': null,
+        'text': 'Evening songs',
+        'startsAt': '2026-10-21T18:00:00.000Z',
+      },
+      'createdAt': '2026-10-21T17:45:00.000Z',
+      'read': false,
+    });
+    expect(n.type, NotificationType.liveScheduledSoon);
+    expect(n.target!.type, NotificationTargetType.user);
+    expect(n.target!.text, 'Evening songs');
+    expect(n.target!.startsAt, DateTime.utc(2026, 10, 21, 18));
+    final future = AppNotification.fromJson(const {
+      'id': 'n2',
+      'type': 'SOMETHING_NEW',
+      'actors': <Object?>[],
+      'actorCount': 0,
+      'target': {
+        'type': 'SOMETHING_ELSE',
+        'id': 'x',
+        'postId': null,
+        'thumbUrl': null,
+        'text': null,
+      },
+      'createdAt': '2026-10-21T17:45:00.000Z',
+      'read': false,
+    });
+    expect(future.target, isNull);
+    // An older server sends no `lives`: on.
+    expect(
+      NotificationSettings.fromJson(const {
+        'likes': true,
+        'comments': true,
+        'mentions': true,
+        'follows': true,
+        'reposts': true,
+      }).lives,
+      isTrue,
+    );
   });
 
   group('screens', () {
@@ -396,6 +455,42 @@ void main() {
       expect(await open('f'), '/users/lina');
       expect(await open('s'), '/stories/omar');
       expect(await open('r'), AppRoutes.notifications);
+    });
+
+    testWidgets('v1.14-live: a schedule reminder says who goes live and '
+        'when, shows the title and opens the host', (tester) async {
+      final at = DateTime(2026, 10, 21, 21);
+      final repo = FakeNotificationsRepository()
+        ..items = [
+          _note(
+            'l',
+            NotificationType.liveScheduledSoon,
+            actors: [_user('layla', 'Layla')],
+            target: NotificationTarget(
+              type: NotificationTargetType.user,
+              id: 'layla',
+              text: 'Evening songs',
+              startsAt: at,
+            ),
+          ),
+        ];
+      final (_, router) = await pump(
+        tester,
+        repo: repo,
+        initial: AppRoutes.notifications,
+      );
+      final sentence = _en.notifLiveScheduled(
+        '\u2068Layla\u2069',
+        KFormat.bidiIsolate(KFormat.time(at, 'en')),
+      );
+      expect(find.textContaining(sentence, findRichText: true), findsOneWidget);
+      expect(
+        find.textContaining('Evening songs', findRichText: true),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(NotificationsScreen.rowKey('l')));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.toString(), '/users/layla');
     });
 
     testWidgets('empty inbox; settings switch at once and go back when the '

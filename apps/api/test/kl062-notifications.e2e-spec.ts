@@ -428,7 +428,15 @@ describe('CP-009 notifications', () => {
       const get = await ctx.http.get('/api/v1/me/notification-settings').set(auth(me));
       expect(get.status).toBe(200);
       expectContract(get, 'getNotificationSettings');
-      expect(get.body).toEqual({ likes: true, comments: true, mentions: true, follows: true, reposts: true });
+      // v1.14-live (CP-016 C) added `lives`.
+      expect(get.body).toEqual({
+        likes: true,
+        comments: true,
+        mentions: true,
+        follows: true,
+        reposts: true,
+        lives: true,
+      });
       const patch = await ctx.http
         .patch('/api/v1/me/notification-settings')
         .set(auth(me))
@@ -441,6 +449,7 @@ describe('CP-009 notifications', () => {
         mentions: true,
         follows: true,
         reposts: true,
+        lives: true,
       });
       const p = await post(me);
       await like(b, p);

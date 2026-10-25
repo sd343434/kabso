@@ -440,7 +440,16 @@ class GoLiveTool {
     required this.onTap,
     this.toggled,
     this.badge = false,
+    this.soon = false,
   });
+
+  /// A tool with no server yet (owner D99, ref 84): greyed with "Soon" and
+  /// does nothing.
+  const new soon({required this.id, required this.icon, required this.label})
+    : onTap = null,
+      toggled = null,
+      badge = false,
+      soon = true;
 
   final String id;
   final IconData icon;
@@ -450,6 +459,9 @@ class GoLiveTool {
 
   /// A small dot (e.g. beauty on).
   final bool badge;
+
+  /// See [GoLiveTool.soon].
+  final bool soon;
 }
 
 /// The frosted tools bar above the button.

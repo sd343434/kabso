@@ -546,10 +546,16 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const user = await this.users.findActivePublicUser(username);
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     await this.prisma.$transaction(async (tx) => {
-      const created = await tx.liveHost.createMany({
-        data: [{ userId: user.id, source: 'ADMIN', grantedById: adminId }],
-        skipDuplicates: true,
-      });
+      // CP-016 G: the room number is drawn by the column default; `skipDuplicates` would also
+      // skip a (rare) clash on it, so draw again while the host is still missing.
+      let created = { count: 0 };
+      for (let attempt = 0; attempt < 5 && created.count === 0; attempt += 1) {
+        created = await tx.liveHost.createMany({
+          data: [{ userId: user.id, source: 'ADMIN', grantedById: adminId }],
+          skipDuplicates: true,
+        });
+        if (created.count === 0 && (await tx.liveHost.count({ where: { userId: user.id } })) > 0) break;
+      }
       if (created.count > 0) {
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_HOST_GRANT,

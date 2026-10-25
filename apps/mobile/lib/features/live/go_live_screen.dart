@@ -638,6 +638,27 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           : ref.watch(liveViewersPreviewProvider(room.id)).value;
       final live = state.phase == GoLivePhase.live;
       final byId = {for (final t in tools) t.id: t};
+      // Owner ref 73: the room bar (and ref 84's Topic) opens the room's info.
+      final openRoomInfo = room == null || !live
+          ? null
+          : () => unawaited(
+              showLiveRoomInfo(
+                context,
+                hostName: hostName,
+                hostAvatarUrl: user?.avatarUrl,
+                onSettings: () => unawaited(
+                  showLiveSetupSettings(
+                    context,
+                    allowGuests: state.allowGuests,
+                    onAllowGuests: (_) => unawaited(_toggleGuests(state)),
+                    onShare: user == null
+                        ? null
+                        : () =>
+                              unawaited(_shareLive(room.title, user.username)),
+                  ),
+                ),
+              ),
+            );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
         header: LiveAudioRoomHeader(
@@ -656,38 +677,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             ),
           },
           title: room?.title ?? _title.text.trim(),
-          subtitle: user == null ? null : '@${user.username}',
+          // CP-016 G (ref 83): the room number, else the username.
+          subtitle: switch (room?.roomNumber) {
+            final n? => l10n.liveRoomNumber('$n'),
+            null => user == null ? null : '@${user.username}',
+          },
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
-          scoreText: score > 0 ? KFormat.compact(score, l10n) : null,
-          scoreLabel: l10n.liveScore(score, KFormat.grouped(score)),
-          // Owner ref 73: the room bar opens the room's info; the points
-          // open their breakdown.
-          onTap: room == null || !live
-              ? null
-              : () => unawaited(
-                  showLiveRoomInfo(
-                    context,
-                    hostName: hostName,
-                    hostAvatarUrl: user?.avatarUrl,
-                    onSettings: () => unawaited(
-                      showLiveSetupSettings(
-                        context,
-                        allowGuests: state.allowGuests,
-                        onAllowGuests: (_) => unawaited(_toggleGuests(state)),
-                        onShare: user == null
-                            ? null
-                            : () => unawaited(
-                                _shareLive(room.title, user.username),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-          onScoreTap: room == null
-              ? null
-              : () => unawaited(showLiveScoreSheet(context, room.id)),
+          // Owner ref 73: the room bar opens the room's info.
+          onTap: openRoomInfo,
           shareKey: GoLiveScreen.shareKey,
           shareTooltip: l10n.goLiveShare,
           onShare: user == null || room == null
@@ -697,32 +696,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           endTooltip: l10n.goLiveEndConfirm,
           onEnd: live ? () => unawaited(_confirmEnd()) : null,
         ),
+        // Ref 83/84: the room rank, then the live's points.
         chips: Row(
           children: [
             Expanded(
               child: Row(
                 children: [
-                  LiveClockChip(
-                    since: state.liveSince,
-                    semanticsKey: GoLiveScreen.elapsedKey,
-                  ),
-                  const SizedBox(width: 6),
-                  const LiveRankChip(),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: LiveChip(
-                      icon: state.allowGuests
-                          ? Icons.groups_rounded
-                          : Icons.no_accounts_rounded,
-                      child: Text(
-                        state.allowGuests
-                            ? l10n.goLiveGuestsAllowedChip
-                            : l10n.goLiveGuestsOffChip,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  const Flexible(child: LiveRankChip()),
+                  if (score > 0) ...[
+                    const SizedBox(width: 8),
+                    LiveScoreChip(
+                      text: KFormat.compact(score, l10n),
+                      label: l10n.liveScore(score, KFormat.grouped(score)),
+                      onTap: room == null
+                          ? null
+                          : () =>
+                                unawaited(showLiveScoreSheet(context, room.id)),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -753,24 +744,28 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         stage: AudioSeatRing(
           count: seatCount!,
           seats: liveSeats?.seats ?? const [],
-          host: KAvatar(name: hostName, imageUrl: user?.avatarUrl, size: 50),
+          host: KAvatar(
+            name: hostName,
+            imageUrl: user?.avatarUrl,
+            size: AudioSeatRing.hostSize,
+          ),
           hostName: hostName,
           hostMicOn: state.micEnabled,
+          hostPoints: KFormat.compact(score, l10n),
           speaking: speaking,
           onSeat: onSeat,
         ),
         chat: [?roomChat],
-        // After the owner's recording: outline buttons on one side,
-        // coloured ones on the other.
         composer: chatComposer,
-        // The pill is always there; 🙂 and the room buttons beside it.
-        barLead: LiveChatPill(
-          key: GoLiveScreen.audioChatKey,
-          hint: l10n.goLiveChatPill,
-          onTap: openChat,
-        ),
-        barStart: const [],
-        barEnd: [
+        // Ref 83: chat, emoji and the tools menu on one side; seats, PK and
+        // the mic on the other.
+        barStart: [
+          LiveRoundButton(
+            key: GoLiveScreen.audioChatKey,
+            icon: Icons.chat_bubble_outline_rounded,
+            label: l10n.goLiveChatPill,
+            onTap: openChat,
+          ),
           LiveRoundButton(
             icon: Icons.emoji_emotions_rounded,
             asset: 'assets/live_room_icons/emoji.png',
@@ -780,18 +775,100 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioMoreKey,
-            icon: Icons.tune_rounded,
-            asset: 'assets/live_room_icons/mixer.png',
-            tintAsset: true,
+            icon: Icons.menu_rounded,
             label: l10n.livePreviewMore,
             onTap: () => unawaited(
               showLiveRoomTools(
                 context,
-                room: [?byId['voice'], byId['seats']!, byId['theme']!],
-                other: [?byId['viewers'], byId['guests']!, ?byId['chat']],
+                // Ref 84's tools in its order: ours where they exist (the
+                // voice in the mixer's place, viewers as users, chat as
+                // comments), the rest greyed with "Soon" (owner D99).
+                room: [
+                  ?byId['voice'],
+                  GoLiveTool.soon(
+                    id: 'music',
+                    icon: Icons.music_note_rounded,
+                    label: l10n.liveToolMusic,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'sounds',
+                    icon: Icons.graphic_eq_rounded,
+                    label: l10n.liveToolSounds,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'fluent',
+                    icon: Icons.speed_rounded,
+                    label: l10n.liveToolFluent,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'program',
+                    icon: Icons.movie_creation_outlined,
+                    label: l10n.liveToolProgramList,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'screen',
+                    icon: Icons.screen_share_outlined,
+                    label: l10n.liveToolShareScreen,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'youtube',
+                    icon: Icons.smart_display_outlined,
+                    label: l10n.liveToolYoutube,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'singing',
+                    icon: Icons.mic_external_on_outlined,
+                    label: l10n.liveToolSinging,
+                  ),
+                  GoLiveTool(
+                    id: 'topic',
+                    icon: Icons.forum_outlined,
+                    label: l10n.liveToolTopic,
+                    onTap: openRoomInfo,
+                  ),
+                  byId['seats']!,
+                  byId['theme']!,
+                ],
+                other: [
+                  ?byId['viewers'],
+                  ?byId['chat'],
+                  GoLiveTool.soon(
+                    id: 'management',
+                    icon: Icons.manage_accounts_outlined,
+                    label: l10n.liveToolManagement,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'assistance',
+                    icon: Icons.support_agent_rounded,
+                    label: l10n.liveToolAssistance,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'recorder',
+                    icon: Icons.videocam_outlined,
+                    label: l10n.liveToolRecorder,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'newcomers',
+                    icon: Icons.fiber_new_outlined,
+                    label: l10n.liveToolNewcomers,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'data',
+                    icon: Icons.insights_outlined,
+                    label: l10n.liveToolDataCenter,
+                  ),
+                  GoLiveTool.soon(
+                    id: 'time',
+                    icon: Icons.alarm_rounded,
+                    label: l10n.liveToolLiveTime,
+                  ),
+                  byId['guests']!,
+                ],
               ),
             ),
           ),
+        ],
+        barEnd: [
           LiveRoundButton(
             key: GoLiveKeys.tool('requests'),
             icon: Icons.weekend_rounded,

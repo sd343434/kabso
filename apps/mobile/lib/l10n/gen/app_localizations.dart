@@ -6247,6 +6247,180 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المرتبة {rank}، {name}، {points}'**
   String liveRankRow(int rank, String name, String points);
+
+  /// Notification: a host you follow goes live soon (CP-016 C)
+  ///
+  /// In ar, this message translates to:
+  /// **'يبدأ {who} بثًا مباشرًا الساعة {time}'**
+  String notifLiveScheduled(String who, String time);
+
+  /// Notification setting (CP-016 C)
+  ///
+  /// In ar, this message translates to:
+  /// **'البثوث المجدولة'**
+  String get notifSettingLives;
+
+  /// Notification setting subtitle (CP-016 C)
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يقترب موعد بث لمضيف تتابعه'**
+  String get notifSettingLivesBody;
+
+  /// Error LIVE_SCHEDULE_FULL
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك جدولة 10 بثوث كحد أقصى.'**
+  String get errorLiveScheduleFull;
+
+  /// Live schedule sheet hint (CP-016 C)
+  ///
+  /// In ar, this message translates to:
+  /// **'يصل لمتابعيك تذكير قبل الموعد بـ15 دقيقة. البث نفسه تبدؤه أنت.'**
+  String get liveScheduleHint;
+
+  /// Live schedule sheet: empty
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث مجدولة.'**
+  String get liveScheduleEmpty;
+
+  /// Live schedule sheet: add button
+  ///
+  /// In ar, this message translates to:
+  /// **'جدولة بث'**
+  String get liveScheduleAdd;
+
+  /// Live schedule form: title field
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان البث'**
+  String get liveScheduleTitleHint;
+
+  /// Live schedule form: date and time button
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر التاريخ والوقت'**
+  String get liveSchedulePickTime;
+
+  /// Live schedule form: save
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get liveScheduleSave;
+
+  /// Live schedule form: too soon
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر وقتًا بعد 15 دقيقة على الأقل.'**
+  String get liveScheduleTooSoon;
+
+  /// Live schedule form: too far
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر وقتًا خلال 30 يومًا.'**
+  String get liveScheduleTooFar;
+
+  /// Live schedule: remove button tooltip
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء {title}'**
+  String liveScheduleRemove(String title);
+
+  /// Live schedule: a slot's date and time
+  ///
+  /// In ar, this message translates to:
+  /// **'{date}، {time}'**
+  String liveScheduleWhen(String date, String time);
+
+  /// The room bar's second line: the host's public room number (CP-016 G)
+  ///
+  /// In ar, this message translates to:
+  /// **'المعرّف: {number}'**
+  String liveRoomNumber(String number);
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'موسيقى'**
+  String get liveToolMusic;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات'**
+  String get liveToolSounds;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'السلاسة'**
+  String get liveToolFluent;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة البرامج'**
+  String get liveToolProgramList;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة الشاشة'**
+  String get liveToolShareScreen;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get liveToolYoutube;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'غناء'**
+  String get liveToolSinging;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الموضوع'**
+  String get liveToolTopic;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الإدارة'**
+  String get liveToolManagement;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مساعد البث'**
+  String get liveToolAssistance;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'التسجيل'**
+  String get liveToolRecorder;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'الجدد'**
+  String get liveToolNewcomers;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز البيانات'**
+  String get liveToolDataCenter;
+
+  /// Room tools sheet tile (owner ref 84)
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت البث'**
+  String get liveToolLiveTime;
 }
 
 class _AppLocalizationsDelegate

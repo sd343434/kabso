@@ -4132,5 +4132,147 @@
         "type": "String"
       }
     }
+  },
+  "notifLiveScheduled": "يبدأ {who} بثًا مباشرًا الساعة {time}",
+  "@notifLiveScheduled": {
+    "description": "Notification: a host you follow goes live soon (CP-016 C)",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSettingLives": "البثوث المجدولة",
+  "@notifSettingLives": {
+    "description": "Notification setting (CP-016 C)"
+  },
+  "notifSettingLivesBody": "عندما يقترب موعد بث لمضيف تتابعه",
+  "@notifSettingLivesBody": {
+    "description": "Notification setting subtitle (CP-016 C)"
+  },
+  "errorLiveScheduleFull": "يمكنك جدولة 10 بثوث كحد أقصى.",
+  "@errorLiveScheduleFull": {
+    "description": "Error LIVE_SCHEDULE_FULL"
+  },
+  "liveScheduleHint": "يصل لمتابعيك تذكير قبل الموعد بـ15 دقيقة. البث نفسه تبدؤه أنت.",
+  "@liveScheduleHint": {
+    "description": "Live schedule sheet hint (CP-016 C)"
+  },
+  "liveScheduleEmpty": "لا بثوث مجدولة.",
+  "@liveScheduleEmpty": {
+    "description": "Live schedule sheet: empty"
+  },
+  "liveScheduleAdd": "جدولة بث",
+  "@liveScheduleAdd": {
+    "description": "Live schedule sheet: add button"
+  },
+  "liveScheduleTitleHint": "عنوان البث",
+  "@liveScheduleTitleHint": {
+    "description": "Live schedule form: title field"
+  },
+  "liveSchedulePickTime": "اختر التاريخ والوقت",
+  "@liveSchedulePickTime": {
+    "description": "Live schedule form: date and time button"
+  },
+  "liveScheduleSave": "حفظ",
+  "@liveScheduleSave": {
+    "description": "Live schedule form: save"
+  },
+  "liveScheduleTooSoon": "اختر وقتًا بعد 15 دقيقة على الأقل.",
+  "@liveScheduleTooSoon": {
+    "description": "Live schedule form: too soon"
+  },
+  "liveScheduleTooFar": "اختر وقتًا خلال 30 يومًا.",
+  "@liveScheduleTooFar": {
+    "description": "Live schedule form: too far"
+  },
+  "liveScheduleRemove": "إلغاء {title}",
+  "@liveScheduleRemove": {
+    "description": "Live schedule: remove button tooltip",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "liveScheduleWhen": "{date}، {time}",
+  "@liveScheduleWhen": {
+    "description": "Live schedule: a slot's date and time",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRoomNumber": "المعرّف: {number}",
+  "@liveRoomNumber": {
+    "description": "The room bar's second line: the host's public room number (CP-016 G)",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "liveToolMusic": "موسيقى",
+  "@liveToolMusic": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolSounds": "المؤثرات",
+  "@liveToolSounds": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolFluent": "السلاسة",
+  "@liveToolFluent": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolProgramList": "قائمة البرامج",
+  "@liveToolProgramList": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolShareScreen": "مشاركة الشاشة",
+  "@liveToolShareScreen": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolYoutube": "يوتيوب",
+  "@liveToolYoutube": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolSinging": "غناء",
+  "@liveToolSinging": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolTopic": "الموضوع",
+  "@liveToolTopic": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolManagement": "الإدارة",
+  "@liveToolManagement": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolAssistance": "مساعد البث",
+  "@liveToolAssistance": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolRecorder": "التسجيل",
+  "@liveToolRecorder": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolNewcomers": "الجدد",
+  "@liveToolNewcomers": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolDataCenter": "مركز البيانات",
+  "@liveToolDataCenter": {
+    "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "liveToolLiveTime": "وقت البث",
+  "@liveToolLiveTime": {
+    "description": "Room tools sheet tile (owner ref 84)"
   }
 }

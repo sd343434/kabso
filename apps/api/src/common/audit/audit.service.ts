@@ -39,6 +39,9 @@ export enum AuditAction {
   LIVE_COVER_UPDATE = 'live.cover.update',
   // v1.12-live (DRAFT, CP-016 B): the host replaced their blocked words (the count is logged).
   LIVE_BLOCKED_WORDS_UPDATE = 'live.blocked_words.update',
+  // v1.14-live (DRAFT, CP-016 C): the host announced or cancelled a scheduled live.
+  LIVE_SCHEDULE_CREATE = 'live.schedule.create',
+  LIVE_SCHEDULE_DELETE = 'live.schedule.delete',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',

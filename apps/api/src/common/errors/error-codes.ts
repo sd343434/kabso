@@ -40,6 +40,8 @@ export enum ErrorCode {
   PIN_LIMIT_REACHED = 'PIN_LIMIT_REACHED',
   /** v1.5-social (DRAFT): an admin acted on a report that is no longer OPEN. */
   REPORT_ALREADY_RESOLVED = 'REPORT_ALREADY_RESOLVED',
+  /** v1.14-live (CP-016 C): the host already has 10 upcoming scheduled lives. */
+  LIVE_SCHEDULE_FULL = 'LIVE_SCHEDULE_FULL',
   /** v1.7-live (DRAFT, CP-011): the seat or seats asked for cannot be used. */
   LIVE_SEAT_UNAVAILABLE = 'LIVE_SEAT_UNAVAILABLE',
   /** v1.7-live (DRAFT, CP-011): the seat request or invitation is no longer pending. */
@@ -80,6 +82,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.MEDIA_INVALID]: 422,
   [ErrorCode.PIN_LIMIT_REACHED]: 409,
   [ErrorCode.REPORT_ALREADY_RESOLVED]: 409,
+  [ErrorCode.LIVE_SCHEDULE_FULL]: 409,
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 409,
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 409,
   [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 403,
@@ -115,6 +118,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.MEDIA_INVALID]: 'The uploaded file is not a valid image.',
   [ErrorCode.PIN_LIMIT_REACHED]: 'You can pin up to 3 posts.',
   [ErrorCode.REPORT_ALREADY_RESOLVED]: 'The report was already resolved.',
+  [ErrorCode.LIVE_SCHEDULE_FULL]: 'You can schedule up to 10 lives.',
   [ErrorCode.LIVE_SEAT_UNAVAILABLE]: 'That seat is not available.',
   [ErrorCode.LIVE_REQUEST_NOT_PENDING]: 'The request or invitation is no longer pending.',
   [ErrorCode.LIVE_CHAT_NOT_IN_ROOM]: 'Join the live to chat.',

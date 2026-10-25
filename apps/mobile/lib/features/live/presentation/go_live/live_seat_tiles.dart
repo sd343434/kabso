@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -235,10 +237,14 @@ class _VideoSeatTile extends StatelessWidget {
   }
 }
 
-/// Audio seats (CP-011), after the owner's screen recording (D94): rows of
-/// five round seats, 50 pt on a 76 pt pitch — the host first (their avatar
-/// with the "Host" tag), then seats 1 … count-1: the guest's avatar (a mic
-/// badge when muted), a locked seat, or an empty one with + and its number.
+/// Audio seats (CP-011), laid out after the owner's ref 83 (430 pt wide):
+/// the host in the middle (an 81 pt circle with the "Host" tag, their name
+/// and the live's points under it) and the guests' seats on a circle around
+/// them — seat 1 at the top, then clockwise (mirrored in RTL). Each seat is
+/// a chair with + and its number, a locked chair, or the guest's picture and
+/// name. Measured on the reference's eight seats: radius 152 pt, the first
+/// at 22.5° past the top; 4 and 12 guests use the same circle (owner's
+/// choice), and the circle shrinks on narrow screens.
 class AudioSeatRing extends StatelessWidget {
   const new({
     required this.count,
@@ -246,6 +252,7 @@ class AudioSeatRing extends StatelessWidget {
     required this.hostName,
     super.key,
     this.hostMicOn,
+    this.hostPoints,
     this.seats = const [],
     this.onSeat,
     this.speaking = const {},
@@ -260,6 +267,9 @@ class AudioSeatRing extends StatelessWidget {
 
   /// The host's mic badge when muted; null hides it (unknown to viewers).
   final bool? hostMicOn;
+
+  /// CP-012: the live's points under the host's name (shortened), or null.
+  final String? hostPoints;
   final List<LiveSeat> seats;
   final ValueChanged<int>? onSeat;
 
@@ -268,33 +278,66 @@ class AudioSeatRing extends StatelessWidget {
 
   static Key seatKey(int index) => Key('audioSeat.$index');
 
-  static const columns = 5;
+  /// Ref 83 (points at 430 pt).
+  static const radius = 152.0;
+  static const chair = 58.0;
+  static const hostSize = 81.0;
+
+  /// The host's circle sits this far below the ring's centre (measured: 0).
+  static const hostDrop = 0.0;
+
+  /// From a seat's centre to its label's centre.
+  static const labelDrop = 39.0;
+
+  /// The stage's height for [radius] r.
+  static double heightFor(double r) => 2 * r + chair + 30;
 
   @override
-  Widget build(BuildContext context) {
-    final cells = <Widget>[
-      _SeatCircle(
-        speaking: speaking.contains(0),
-        circle: host,
-        name: hostName,
-        host: true,
-        muted: hostMicOn == false,
-      ),
-      for (var i = 1; i < count; i++) _guest(i),
-    ];
-    return LayoutBuilder(
-      builder: (context, box) {
-        final width = box.maxWidth / columns;
-        return Wrap(
-          // 100 pt between rows in the recording.
-          runSpacing: 30,
-          children: [
-            for (final cell in cells) SizedBox(width: width, child: cell),
-          ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final width = box.maxWidth;
+      // Keep the side seats and their labels on screen.
+      final r = math.min(radius, width / 2 - chair / 2 - 8);
+      final height = heightFor(r);
+      final cx = width / 2;
+      final cy = r + chair / 2;
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final guests = count - 1;
+      final children = <Widget>[];
+      for (var i = 1; i <= guests; i++) {
+        final angle =
+            -math.pi / 2 + math.pi / guests + (i - 1) * 2 * math.pi / guests;
+        final dx = r * math.cos(angle) * (rtl ? -1 : 1);
+        final dy = r * math.sin(angle);
+        children.add(
+          Positioned(
+            left: cx + dx - _Seat.width / 2,
+            top: cy + dy - chair / 2,
+            width: _Seat.width,
+            child: _guest(i),
+          ),
         );
-      },
-    );
-  }
+      }
+      children.add(
+        Positioned(
+          left: cx - _HostSeat.width / 2,
+          top: cy + hostDrop - hostSize / 2,
+          width: _HostSeat.width,
+          child: _HostSeat(
+            circle: host,
+            name: hostName,
+            muted: hostMicOn == false,
+            speaking: speaking.contains(0),
+            points: hostPoints,
+          ),
+        ),
+      );
+      return SizedBox(
+        height: height,
+        child: Stack(clipBehavior: Clip.none, children: children),
+      );
+    },
+  );
 
   Widget _guest(int i) {
     final seat = seats.firstWhere(
@@ -304,147 +347,311 @@ class AudioSeatRing extends StatelessWidget {
     final user = seat.user;
     final onTap = onSeat == null ? null : () => onSeat!(i);
     if (seat.state == LiveSeatState.taken && user != null) {
-      return _SeatCircle(
+      return _Seat(
         key: seatKey(i),
+        label: user.displayName,
+        semantics: user.displayName,
+        muted: seat.mutedByHost,
         speaking: speaking.contains(i),
-        circle: KAvatar(
+        onTap: onTap,
+        child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
-          size: _SeatCircle.size,
+          size: _Seat.avatar,
         ),
-        name: user.displayName,
-        muted: seat.mutedByHost,
-        onTap: onTap,
       );
     }
     final locked = seat.state == LiveSeatState.locked;
-    return _SeatCircle(
+    return _Seat(
       key: seatKey(i),
-      speaking: false,
-      circle: ColoredBox(
-        color: KAudioRoom.emptySeat,
-        child: Icon(
-          locked ? Icons.lock_rounded : Icons.add_rounded,
-          size: locked ? 18 : 22,
-          color: KAudioRoom.textSoft,
-        ),
-      ),
-      name: KFormat.grouped(i),
+      label: KFormat.grouped(i),
+      semantics: KFormat.grouped(i),
       onTap: onTap,
+      child: _Chair(locked: locked),
     );
   }
 }
 
-class _SeatCircle extends StatelessWidget {
+/// An empty or locked seat: a chair in white 18 % with + (or a lock) on it.
+class _Chair extends StatelessWidget {
+  const new({required this.locked});
+
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: AudioSeatRing.chair,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        const Icon(
+          Icons.chair_rounded,
+          size: AudioSeatRing.chair,
+          color: KAudioRoom.chair,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Icon(
+            locked ? Icons.lock_rounded : Icons.add_rounded,
+            size: locked ? 18 : 24,
+            color: KAudioRoom.textSoft,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// A guest seat: the chair or the guest's picture, then the number or the
+/// name under it.
+class _Seat extends StatelessWidget {
   const new({
-    required this.speaking,
-    required this.circle,
-    required this.name,
+    required this.child,
+    required this.label,
+    required this.semantics,
     super.key,
-    this.host = false,
     this.muted = false,
+    this.speaking = false,
     this.onTap,
   });
 
-  final bool speaking;
-  final Widget circle;
-  final String name;
-  final bool host;
+  final Widget child;
+  final String label;
+  final String semantics;
   final bool muted;
+  final bool speaking;
   final VoidCallback? onTap;
 
-  static const size = 50.0;
+  /// The seat's box (labels may be wider than the chair).
+  static const width = 72.0;
+  static const avatar = 50.0;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: onTap != null,
+    label: semantics,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: AudioSeatRing.chair,
+            child: Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  if (child is _Chair)
+                    child
+                  else
+                    _Glow(
+                      on: speaking,
+                      child: ClipOval(
+                        child: SizedBox.square(dimension: avatar, child: child),
+                      ),
+                    ),
+                  if (muted)
+                    const PositionedDirectional(
+                      bottom: -1,
+                      end: -1,
+                      child: _MicOffBadge(),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // The label's centre 39 pt below the seat's (ref 83).
+          const SizedBox(height: 2),
+          _SeatLabel(label),
+        ],
+      ),
+    ),
+  );
+}
+
+/// The host in the middle: the circle with the "Host" tag and the mic badge,
+/// the name, and the live's points.
+class _HostSeat extends StatelessWidget {
+  const new({
+    required this.circle,
+    required this.name,
+    required this.muted,
+    required this.speaking,
+    this.points,
+  });
+
+  final Widget circle;
+  final String name;
+  final bool muted;
+  final bool speaking;
+  final String? points;
+
+  static const width = 140.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
+    final points = this.points;
     return Semantics(
-      button: onTap != null,
-      label: host ? '$name · ${l10n.goLiveHostTag}' : name,
-      onTap: onTap,
+      label: '$name · ${l10n.goLiveHostTag}',
       excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: size,
-                  height: size,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              _Glow(
+                on: speaking,
+                child: ClipOval(
+                  child: SizedBox.square(
+                    dimension: AudioSeatRing.hostSize,
+                    child: circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 3,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: speaking
-                        ? const [
-                            BoxShadow(
-                              color: Color(0xCCFFFFFF),
-                              blurRadius: 10,
-                              spreadRadius: 2,
-                            ),
-                          ]
-                        : null,
+                    color: const Color(0xB3000000),
+                    borderRadius: BorderRadius.circular(KRadius.pill),
                   ),
-                  child: ClipOval(child: SizedBox.expand(child: circle)),
+                  child: Text(
+                    l10n.goLiveHostTag,
+                    style: text.caption.copyWith(
+                      fontSize: 8.5,
+                      height: 1.3,
+                      color: KAudioRoom.hostTag,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
-                if (host)
-                  Positioned(
-                    bottom: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xB3000000),
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                      ),
-                      child: Text(
-                        l10n.goLiveHostTag,
-                        style: text.caption.copyWith(
-                          fontSize: 7.5,
-                          height: 1.3,
-                          color: KAudioRoom.hostTag,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (muted)
-                  const PositionedDirectional(
-                    bottom: -1,
-                    end: -1,
-                    child: CircleAvatar(
-                      radius: 8,
-                      backgroundColor: KAudioRoom.badge,
-                      child: Icon(
-                        Icons.mic_off_rounded,
-                        size: 10,
-                        color: KAudioRoom.text,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
+              if (muted)
+                const PositionedDirectional(
+                  bottom: -6,
+                  end: -12,
+                  child: _MicOffBadge(size: 20),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.caption.copyWith(
+              fontSize: 12.5,
+              height: 1.2,
+              color: KAudioRoom.text,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.caption.copyWith(
-                  fontSize: 11,
-                  height: 1.1,
-                  color: KAudioRoom.textSoft,
-                  fontWeight: FontWeight.w500,
-                ),
+          ),
+          if (points != null) ...[
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0x33000000),
+                borderRadius: BorderRadius.circular(KRadius.pill),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const KPointsIcon(size: 11),
+                  const SizedBox(width: 3),
+                  Text(
+                    points,
+                    style: text.caption.copyWith(
+                      fontSize: 10.5,
+                      height: 1.2,
+                      color: KAudioRoom.text,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
+
+class _SeatLabel extends StatelessWidget {
+  const new(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: context.textStyles.caption.copyWith(
+        fontSize: 11.5,
+        height: 1.2,
+        color: KAudioRoom.textSoft,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  );
+}
+
+/// A speaker's glowing ring.
+class _Glow extends StatelessWidget {
+  const new({required this.on, required this.child});
+
+  final bool on;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      boxShadow: on
+          ? const [
+              BoxShadow(
+                color: Color(0xCCFFFFFF),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ]
+          : null,
+    ),
+    child: child,
+  );
+}
+
+/// A muted mic, in a dark circle.
+class _MicOffBadge extends StatelessWidget {
+  const new({this.size = 16});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: const BoxDecoration(
+      color: Color(0x99000000),
+      shape: BoxShape.circle,
+    ),
+    child: Icon(
+      Icons.mic_off_rounded,
+      size: size * 0.62,
+      color: KAudioRoom.text,
+    ),
+  );
 }
