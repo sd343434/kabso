@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setu
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_style.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -705,6 +706,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     since: state.liveSince,
                     semanticsKey: GoLiveScreen.elapsedKey,
                   ),
+                  const SizedBox(width: 6),
+                  const LiveRankChip(),
                   const SizedBox(width: 6),
                   Flexible(
                     child: LiveChip(

@@ -6187,6 +6187,66 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إزالة {word}'**
   String liveBlockedWordsRemove(String word);
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الشعبية'**
+  String get liveRankTitle;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'الأغنى'**
+  String get liveRankRich;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الساعة'**
+  String get liveRankHour;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get liveRankDay;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الأسبوع'**
+  String get liveRankWeek;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نقاط بعد في هذه الفترة.'**
+  String get liveRankEmpty;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'مباشر'**
+  String get liveRankLive;
+
+  /// Popularity board (CP-016 A, ref 74)
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الغرف'**
+  String get liveRankChip;
+
+  /// Time left in the board window
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي خلال: {days}ي {hours}س {minutes}د'**
+  String liveRankCountdown(String days, String hours, String minutes);
+
+  /// Screen reader label of a board row
+  ///
+  /// In ar, this message translates to:
+  /// **'المرتبة {rank}، {name}، {points}'**
+  String liveRankRow(int rank, String name, String points);
 }
 
 class _AppLocalizationsDelegate

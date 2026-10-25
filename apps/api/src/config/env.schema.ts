@@ -246,6 +246,25 @@ export const envSchema = z
     /** Period of the in-process stale-room sweeper; 0 disables it (refused in production). */
     LIVE_SWEEP_INTERVAL_SECONDS: intSetting(15, 0, 3600),
     /**
+     * CP-016 A (D99): the one region's time zone (IANA name). The popularity boards' day starts at
+     * midnight and the week on Monday there; the hour is the same everywhere.
+     */
+    LIVE_RANKINGS_TIME_ZONE: z
+      .string()
+      .trim()
+      .default('UTC')
+      .refine(
+        (tz) => {
+          try {
+            new Intl.DateTimeFormat('en', { timeZone: tz });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: 'must be an IANA time zone' },
+      ),
+    /**
      * SEC-035 (CONVENTIONS §10.2, D43): the sweeper ends at most this many stale rooms per batch,
      * each batch in its own short transaction. Bounded so one batch always fits its timeout.
      */

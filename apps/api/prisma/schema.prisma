@@ -60,21 +60,21 @@ model User {
   verificationTokens VerificationToken[]
   auditLogs          AuditLog[]
   liveRooms          LiveRoom[]
-  liveHost           LiveHost?             @relation("LiveHostUser")
-  liveHostsGranted   LiveHost[]            @relation("LiveHostGrantedBy")
+  liveHost           LiveHost?              @relation("LiveHostUser")
+  liveHostsGranted   LiveHost[]             @relation("LiveHostGrantedBy")
   liveViews          LiveRoomViewer[]
   liveSeats          LiveRoomSeat[]
   liveSeatRequests   LiveSeatRequest[]
-  liveSeatInvites    LiveSeatInvite[]      @relation("LiveSeatInvitee")
-  liveSeatInvitesBy  LiveSeatInvite[]      @relation("LiveSeatInviter")
+  liveSeatInvites    LiveSeatInvite[]       @relation("LiveSeatInvitee")
+  liveSeatInvitesBy  LiveSeatInvite[]       @relation("LiveSeatInviter")
   liveModeratorOf    LiveRoomModerator[]
   liveTaps           LiveRoomTapper[]
-  liveChatMessages   LiveChatMessage[]     @relation("LiveChatAuthor")
-  liveChatDeletions  LiveChatMessage[]     @relation("LiveChatDeleter")
-  liveChatMutes      LiveChatMute[]        @relation("LiveChatMuted")
-  liveChatMutesBy    LiveChatMute[]        @relation("LiveChatMutedBy")
-  following          Follow[]              @relation("FollowFollower")
-  followers          Follow[]              @relation("FollowFollowee")
+  liveChatMessages   LiveChatMessage[]      @relation("LiveChatAuthor")
+  liveChatDeletions  LiveChatMessage[]      @relation("LiveChatDeleter")
+  liveChatMutes      LiveChatMute[]         @relation("LiveChatMuted")
+  liveChatMutesBy    LiveChatMute[]         @relation("LiveChatMutedBy")
+  following          Follow[]               @relation("FollowFollower")
+  followers          Follow[]               @relation("FollowFollowee")
   levelStates        UserLevelState[]
   pointsEntries      PointsLedgerEntry[]
   levelHistory       LevelHistory[]
@@ -92,14 +92,14 @@ model User {
   comments           Comment[]
   commentLikes       CommentLike[]
   commentMentions    CommentMention[]
-  blocking           UserBlock[]           @relation("BlockBlocker")
-  blockedBy          UserBlock[]           @relation("BlockBlocked")
-  muting             UserMute[]            @relation("MuteMuter")
-  mutedBy            UserMute[]            @relation("MuteMuted")
+  blocking           UserBlock[]            @relation("BlockBlocker")
+  blockedBy          UserBlock[]            @relation("BlockBlocked")
+  muting             UserMute[]             @relation("MuteMuter")
+  mutedBy            UserMute[]             @relation("MuteMuted")
   postHides          PostHide[]
-  reportsMade        Report[]              @relation("ReportReporter")
-  reportsAgainst     Report[]              @relation("ReportTargetUser")
-  reportsResolved    Report[]              @relation("ReportResolver")
+  reportsMade        Report[]               @relation("ReportReporter")
+  reportsAgainst     Report[]               @relation("ReportTargetUser")
+  reportsResolved    Report[]               @relation("ReportResolver")
   privacySettings    PrivacySettings?
   stories            Story[]
   storyViews         StoryView[]
@@ -107,6 +107,7 @@ model User {
   notifications      Notification[]
   notificationActs   NotificationActor[]
   notificationPrefs  NotificationSettings?
+  livePointsHourly   LiveHostPointsHourly[] @relation("LiveHostPointsHourly")
 
   @@map("users")
 }
@@ -503,6 +504,21 @@ model LiveRoomScore {
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@map("live_room_scores")
+}
+
+/// CP-016 A (D99): points a host's lives received in one UTC hour (counted taps; support coins
+/// with L3). The popularity boards sum these over the current hour, day and week; rows older than
+/// 15 days are removed by the live sweeper. CHECK `live_host_points_hourly_points` (>= 0).
+model LiveHostPointsHourly {
+  hostUserId String   @map("host_user_id") @db.Uuid
+  hourStart  DateTime @map("hour_start") @db.Timestamptz(3)
+  points     BigInt   @default(0)
+
+  host User @relation("LiveHostPointsHourly", fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  @@id([hostUserId, hourStart], map: "live_host_points_hourly_pkey")
+  @@index([hourStart], map: "live_host_points_hourly_hour_idx")
+  @@map("live_host_points_hourly")
 }
 
 /// CP-012 (D95): a caller's counted taps in one room and the time of their last counted batch; the

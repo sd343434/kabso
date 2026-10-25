@@ -707,11 +707,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.local_fire_department_rounded,
-                          size: 16,
-                          color: KScoreChip.flame,
-                        ),
+                        const KPointsIcon(size: 16),
                         const SizedBox(width: 3),
                         Text(
                           KFormat.compact(c.points, l10n),

@@ -9,6 +9,7 @@ import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -20,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_media_engine.dart';
+import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
@@ -79,6 +81,9 @@ Future<void> pumpKabsoApp(
         // CP-016 B: never the network.
         liveBlockedWordsRepositoryProvider.overrideWithValue(
           FakeLiveBlockedWordsRepository(),
+        ),
+        liveRankingsRepositoryProvider.overrideWithValue(
+          FakeLiveRankingsRepository(),
         ),
         ...overrides,
       ],

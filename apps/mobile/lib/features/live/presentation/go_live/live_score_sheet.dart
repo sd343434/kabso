@@ -98,11 +98,7 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.local_fire_department_rounded,
-                    size: 32,
-                    color: KScoreChip.flame,
-                  ),
+                  const KPointsIcon(size: 32),
                   const SizedBox(width: KSpacing.sm),
                   Text(
                     KFormat.grouped(parts.total),

@@ -9,6 +9,7 @@ import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
 import { LiveMediaService } from './live-media.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
+import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveRoomsService } from './live-rooms.service.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { LiveTapsService } from './live-taps.service.js';
@@ -49,6 +50,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveTapsService,
     LiveChatService,
     LiveCoverService,
+    LiveRankingsService,
     LiveBlockedWordsService,
     LiveRoomMetadataService,
     AdminGuard,

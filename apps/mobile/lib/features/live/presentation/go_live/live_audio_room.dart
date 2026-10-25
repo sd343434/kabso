@@ -477,11 +477,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                     key: LiveAudioRoomHeader.scoreKey,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
-                                        Icons.local_fire_department_rounded,
-                                        size: 12,
-                                        color: KScoreChip.flame,
-                                      ),
+                                      const KPointsIcon(),
                                       const SizedBox(width: 2),
                                       Text(
                                         points,

@@ -35,6 +35,9 @@ info:
     (CONVENTIONS §10.13). It stays behind `MEDIA_UPLOADS_ENABLED` like every upload.
     **CP-016 part B (D99, DRAFT v1.12-live)** adds the host's blocked words, masked in the chat of
     every live of that host (CONVENTIONS §10.14).
+    **CP-016 part A (D99, DRAFT v1.13-live)** adds the popularity board: hosts ranked by the
+    points their lives received this hour, today or this week, one region for everyone
+    (CONVENTIONS §10.15).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1079,6 +1082,31 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rankings:
+    get:
+      tags: [live]
+      operationId: listLiveRankings
+      summary: "The popularity board: hosts by points this hour, today or this week (CP-016 A)"
+      description: |
+        CONVENTIONS §10.15. Up to 50 hosts with points in the current window, highest first (ties
+        by user id), ACTIVE only; a signed-in reader never sees people they blocked or who blocked
+        them. Guests may read it (rate limited per IP). `me` is present for a signed-in host: the
+        caller's exact rank (null with 0 points) and points.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/LiveRankingPeriod' }
+      responses:
+        '200':
+          description: The board.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRankings' }
+        '400': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/rooms/{roomId}/contributors:
@@ -3792,6 +3820,47 @@ components:
           type: array
           maxItems: 50
           items: { $ref: '#/components/schemas/LiveContributor' }
+    # ---- v1.13-live (DRAFT, CP-016 A) — popularity board --------------------------------------
+    LiveRankingPeriod:
+      type: string
+      enum: [HOUR, DAY, WEEK]
+      default: HOUR
+      description: The current hour, day (from midnight) or week (from Monday) in the server's ranking time zone.
+    LiveRankingEntry:
+      type: object
+      required: [rank, host, points, liveRoom]
+      properties:
+        rank: { type: integer, minimum: 1 }
+        host: { $ref: '#/components/schemas/UserSummary' }
+        points: { type: integer, minimum: 1 }
+        liveRoom:
+          description: The host's live now, or null.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, title, coverUrl]
+              properties:
+                id: { type: string, format: uuid }
+                title: { type: string }
+                coverUrl: { type: [string, 'null'], format: uri }
+    LiveRankings:
+      type: object
+      required: [period, startsAt, endsAt, data]
+      properties:
+        period: { $ref: '#/components/schemas/LiveRankingPeriod' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time, description: The countdown ends here; a new board starts. }
+        data:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/LiveRankingEntry' }
+        me:
+          type: object
+          description: Only for a signed-in host.
+          required: [rank, points]
+          properties:
+            rank: { type: [integer, 'null'], minimum: 1 }
+            points: { type: integer, minimum: 0 }
     # ---- v1.9-live (DRAFT, CP-013) — room chat ----------------------------------------------
     LiveChatText:
       type: string

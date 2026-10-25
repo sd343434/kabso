@@ -4070,5 +4070,67 @@
         "type": "String"
       }
     }
+  },
+  "liveRankTitle": "ترتيب الشعبية",
+  "@liveRankTitle": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankRich": "الأغنى",
+  "@liveRankRich": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankHour": "هذه الساعة",
+  "@liveRankHour": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankDay": "اليوم",
+  "@liveRankDay": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankWeek": "هذا الأسبوع",
+  "@liveRankWeek": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankEmpty": "لا نقاط بعد في هذه الفترة.",
+  "@liveRankEmpty": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankLive": "مباشر",
+  "@liveRankLive": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankChip": "ترتيب الغرف",
+  "@liveRankChip": {
+    "description": "Popularity board (CP-016 A, ref 74)"
+  },
+  "liveRankCountdown": "ينتهي خلال: {days}ي {hours}س {minutes}د",
+  "@liveRankCountdown": {
+    "description": "Time left in the board window",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRankRow": "المرتبة {rank}، {name}، {points}",
+  "@liveRankRow": {
+    "description": "Screen reader label of a board row",
+    "placeholders": {
+      "rank": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      },
+      "points": {
+        "type": "String"
+      }
+    }
   }
 }

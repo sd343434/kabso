@@ -48,6 +48,7 @@ import {
   type LiveSeatsDto,
   type PageDto,
 } from './live-seats.service.js';
+import { LiveRankingsService, type LiveRankingsDto } from './live-rankings.service.js';
 import { LiveTapsService, type LiveContributorDto, type LiveTapsResultDto } from './live-taps.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
@@ -105,6 +106,7 @@ export class LiveController {
     private readonly seats: LiveSeatsService,
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
+    private readonly rankings: LiveRankingsService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
   ) {}
@@ -411,6 +413,17 @@ export class LiveController {
     @Param('roomId') roomId: string,
   ): Promise<{ data: LiveContributorDto[] }> {
     return this.taps.contributors(callerOf(req), roomId);
+  }
+
+  /**
+   * CP-016 A (§10.15): the popularity board of the current hour, day or week; guests too (per IP),
+   * the per-user default for signed-in readers (§7).
+   */
+  @Get('rankings')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  listRankings(@Req() req: AppRequest, @Query() query: unknown): Promise<LiveRankingsDto> {
+    return this.rankings.list(callerOf(req), query);
   }
 
   // ---- CP-013: room chat (CONVENTIONS §10.11) -----------------------------------------------------

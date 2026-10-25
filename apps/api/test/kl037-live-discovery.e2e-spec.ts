@@ -107,9 +107,14 @@ describe('KL-037 contract coverage', () => {
       // kl064-live-seats covers them with its own exact list.
       .filter(
         (o) =>
-          !['createLiveMediaToken', 'updateLiveRoom', 'listLiveRoomViewers', 'tapLiveRoom'].includes(
-            o.operationId,
-          ),
+          ![
+            'createLiveMediaToken',
+            'updateLiveRoom',
+            'listLiveRoomViewers',
+            'tapLiveRoom',
+            // CP-016 A (v1.13-live draft): the popularity board; kl071-live-rankings covers it.
+            'listLiveRankings',
+          ].includes(o.operationId),
       )
       .filter(
         (o) =>

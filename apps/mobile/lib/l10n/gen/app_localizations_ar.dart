@@ -3558,4 +3558,38 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveBlockedWordsRemove(String word) {
     return 'إزالة $word';
   }
+
+  @override
+  String get liveRankTitle => 'ترتيب الشعبية';
+
+  @override
+  String get liveRankRich => 'الأغنى';
+
+  @override
+  String get liveRankHour => 'هذه الساعة';
+
+  @override
+  String get liveRankDay => 'اليوم';
+
+  @override
+  String get liveRankWeek => 'هذا الأسبوع';
+
+  @override
+  String get liveRankEmpty => 'لا نقاط بعد في هذه الفترة.';
+
+  @override
+  String get liveRankLive => 'مباشر';
+
+  @override
+  String get liveRankChip => 'ترتيب الغرف';
+
+  @override
+  String liveRankCountdown(String days, String hours, String minutes) {
+    return 'ينتهي خلال: $daysي $hoursس $minutesد';
+  }
+
+  @override
+  String liveRankRow(int rank, String name, String points) {
+    return 'المرتبة $rank، $name، $points';
+  }
 }

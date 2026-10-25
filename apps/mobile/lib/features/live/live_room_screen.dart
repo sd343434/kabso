@@ -16,6 +16,7 @@ import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -620,7 +621,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   Expanded(
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
-                      child: LiveClockChip(since: room.startedAt),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LiveClockChip(since: room.startedAt),
+                          const SizedBox(width: 6),
+                          const Flexible(child: LiveRankChip()),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),

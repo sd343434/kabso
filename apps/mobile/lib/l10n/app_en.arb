@@ -1158,5 +1158,15 @@
   "liveBlockedWordsAdd": "Add",
   "liveBlockedWordsFull": "You've reached 100 words",
   "liveBlockedWordsEmpty": "No blocked words yet.",
-  "liveBlockedWordsRemove": "Remove {word}"
+  "liveBlockedWordsRemove": "Remove {word}",
+  "liveRankTitle": "Popularity rank",
+  "liveRankRich": "Rich",
+  "liveRankHour": "This hour",
+  "liveRankDay": "Today",
+  "liveRankWeek": "This week",
+  "liveRankEmpty": "No points yet in this period.",
+  "liveRankLive": "LIVE",
+  "liveRankChip": "Room rank",
+  "liveRankCountdown": "Countdown: {days}d {hours}h {minutes}m",
+  "liveRankRow": "Rank {rank}, {name}, {points}"
 }

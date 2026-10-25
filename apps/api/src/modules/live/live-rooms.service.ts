@@ -11,6 +11,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
+import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
@@ -306,6 +307,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly rankings: LiveRankingsService,
   ) {
     this.cursors = new LiveCursorCodec(config.live.cursorKey);
   }
@@ -346,9 +348,13 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         )
         .then(() => {
           if (this.stopped) return undefined;
-          this.retentionInFlight = this.sweepChatRetention().finally(() => {
-            this.retentionInFlight = null;
-          });
+          // CP-013 chat retention, then CP-016 A: hourly board points older than 15 days.
+          this.retentionInFlight = this.sweepChatRetention()
+            .then(() => this.rankings.sweepRetention())
+            .then(() => undefined)
+            .finally(() => {
+              this.retentionInFlight = null;
+            });
           return this.retentionInFlight;
         })
         .catch((err: unknown) =>

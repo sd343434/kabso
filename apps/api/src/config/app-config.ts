@@ -127,6 +127,8 @@ export interface AppConfig {
     readonly livekit: { readonly url: string; readonly apiKey: string; readonly apiSecret: string } | null;
     /** Source of the guest-number HMAC key (HKDF `live-guest/v1`): rateLimitKeySecret. */
     readonly guestKey: string;
+    /** CP-016 A: the popularity boards' time zone (day and week boundaries). */
+    readonly rankingsTimeZone: string;
   };
   readonly registration: {
     readonly ttlSeconds: number;
@@ -270,6 +272,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
           ? { url: e.LIVEKIT_URL, apiKey: e.LIVEKIT_API_KEY, apiSecret: e.LIVEKIT_API_SECRET }
           : null,
       guestKey: rateLimitKeySecret,
+      rankingsTimeZone: e.LIVE_RANKINGS_TIME_ZONE,
     },
     registration: {
       ttlSeconds: e.REGISTRATION_TTL_SECONDS,

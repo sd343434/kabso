@@ -333,6 +333,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `title`, `categorySlug`, `topic` in `PATCH /live/rooms/{roomId}` *(v1.10-live, CP-014)* | the existing `PATCH` bucket (60 / hour per user) |
 | `PUT` and `DELETE /me/live-cover` *(v1.11-live, CP-015)* | 30 / hour per user (one bucket). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `PUT /me/live-blocked-words` *(v1.12-live, CP-016 B)* | 30 / hour per user. **Replaces** the per-user default; `GET` uses the default |
+| `GET /live/rankings` *(v1.13-live, CP-016 A)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -430,6 +431,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.10-live (draft) | 2026-10-24 | **CP-014 parts A and B (D97):** `UpdateLiveRoomRequest.title`, `categorySlug` (null = none), `topic`; `LiveRoomTopic`; `LiveRoomSummary.topic` (so `LiveRoom.topic`); media metadata `roomInfoVersion`; `listLiveContributors` (`GET /live/rooms/{roomId}/contributors`, `LiveContributor`, `LiveContributorList`); §7 rows and §10.12. Room boost (part C) waits for L3. | **Additive** (new optional request fields, a new nullable response field, a new operation, a new metadata key). |
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
+| v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.9-live (draft) | 2026-10-24 | **CP-013 (D96):** live room chat — `sendLiveChatMessage`, `listLiveChatMessages`, `deleteLiveChatMessage`, `listLiveChatMutes`, `muteLiveChatUser`, `unmuteLiveChatUser`; schemas `LiveChatText`, `LiveChatSendRequest`, `LiveChatMessage`, `LiveChatMessageList`, `LiveChatMute`, `LiveChatMuteList`; `LiveRoom.chatEnabled`, `chatMuted`; `UpdateLiveRoomRequest.chatEnabled`; report `targetType: LIVE_CHAT_MESSAGE`; codes `LIVE_CHAT_NOT_IN_ROOM`, `LIVE_CHAT_MUTED`, `LIVE_CHAT_CLOSED`; media data messages `chat`, `chat-delete`, `join`, `chat-state`. §4, §7 rows and §10.11. | **Additive** (new operations, fields, codes, enum value and data message types; apps ignore unknown data message types). |
 | v1.8-live (draft) | 2026-10-23 | **CP-012 (D95):** live taps and the room score — `tapLiveRoom` (`POST /live/rooms/{roomId}/taps`, `LiveTapsRequest`, `LiveTapsResult`); `LiveScore`; `LiveRoomSummary.score`; `LiveRoom.scoreParts`; `popular` ordered by `score` (was `viewerCount`), its cursor carries the score; §7 row and §10.10. | **Additive** in shape (new fields and operation). **Behaviour:** `popular` order changes, and list cursors issued before v1.8-live (every tab: the cursor format version moved) become invalid (400 `invalid_value`); clients already restart from the first page on that error and dedupe by id. |
 | v1.5-social (draft) | 2026-10-21 | **CP-009 (D92, CP-006 M4):** in-app notifications — `listNotifications`, `getUnreadNotificationCount`, `markNotificationsRead`, `getNotificationSettings`, `updateNotificationSettings`; schemas `Notification`, `NotificationType`, `NotificationTarget`, `NotificationPage`, `UnreadCount`, `MarkNotificationsReadRequest`, `NotificationSettings`, `UpdateNotificationSettingsRequest`. §11.7 (mute), §11.8 and §11.10. | Additive: new tag, paths and schemas. |
@@ -878,6 +880,25 @@ until a media provider is wired in.
   any other word matches only as a whole word ("ass" never masks "class"). Messages already sent
   are not changed. The host's own messages are masked too.
 - `PUT` is audited (`live.blocked_words.update`) with the number of words only.
+
+### 10.15 The popularity board *(v1.13-live, DRAFT — CP-016 A, D99)*
+
+- `GET /live/rankings?period=HOUR|DAY|WEEK` (default `HOUR`): up to **50 hosts** ranked by the
+  points their lives received in the **current** hour, day or week, highest first; ties by user
+  id. One region for everyone (owner D99). Points are the same as the live score (CP-012: one
+  counted tap = 1 point; support coins with L3), counted when they are given, whichever live
+  they went to.
+- **Windows:** the hour is the clock hour; the day starts at midnight and the week on Monday in
+  the server's `LIVE_RANKINGS_TIME_ZONE` (an IANA zone, default UTC). `startsAt` / `endsAt` give
+  the window (the app's countdown runs to `endsAt`); a new window starts empty.
+- Only ACTIVE hosts with points; a signed-in reader never gets people they blocked or who blocked
+  them. `liveRoom` is the host's live now (cards show LIVE and open it), else null. Guests may
+  read the board.
+- `me` (signed-in hosts only): the caller's exact rank among all hosts (null with 0 points) and
+  points, for the row pinned at the bottom.
+- Storage: points per host per UTC hour, written in the same transaction as the taps; rows older
+  than 15 days are removed by the live sweeper. Rich (spenders) and regional boards wait (L3, a
+  host country).
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),

@@ -155,14 +155,31 @@ class KViewerCountChip extends StatelessWidget {
   }
 }
 
-/// A live's points (CP-012): a flame and the short count on `scrim`, the
-/// same size as [KViewerCountChip].
+/// The points icon (CP-012): the owner's gold "K" coin
+/// (`assets/points/`), drawn next to every points count. Decorative: the
+/// count beside it carries the meaning.
+class KPointsIcon extends StatelessWidget {
+  const new({this.size = KMetrics.iconXs, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+    'assets/points/coin.png',
+    width: size,
+    height: size,
+    excludeFromSemantics: true,
+  );
+}
+
+/// A live's points (CP-012): the points coin and the short count on
+/// `scrim`, the same size as [KViewerCountChip].
 class KScoreChip extends StatelessWidget {
   const new({required this.score, super.key});
 
   final int score;
 
-  /// The flame's colour (warm orange, legible on `scrim`).
+  /// The points accent (warm orange, legible on `scrim`).
   static const flame = Color(0xFFFFA43A);
 
   @override
@@ -185,11 +202,7 @@ class KScoreChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.local_fire_department_rounded,
-                size: KMetrics.iconXs,
-                color: flame,
-              ),
+              const KPointsIcon(),
               const SizedBox(width: KSpacing.xxs),
               Text(
                 formatted,

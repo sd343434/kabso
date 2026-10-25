@@ -3529,4 +3529,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveBlockedWordsRemove(String word) {
     return 'Remove $word';
   }
+
+  @override
+  String get liveRankTitle => 'Popularity rank';
+
+  @override
+  String get liveRankRich => 'Rich';
+
+  @override
+  String get liveRankHour => 'This hour';
+
+  @override
+  String get liveRankDay => 'Today';
+
+  @override
+  String get liveRankWeek => 'This week';
+
+  @override
+  String get liveRankEmpty => 'No points yet in this period.';
+
+  @override
+  String get liveRankLive => 'LIVE';
+
+  @override
+  String get liveRankChip => 'Room rank';
+
+  @override
+  String liveRankCountdown(String days, String hours, String minutes) {
+    return 'Countdown: ${days}d ${hours}h ${minutes}m';
+  }
+
+  @override
+  String liveRankRow(int rank, String name, String points) {
+    return 'Rank $rank, $name, $points';
+  }
 }

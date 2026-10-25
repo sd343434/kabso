@@ -96,6 +96,12 @@ export class LiveTapsService {
                  updated_at = EXCLUDED.updated_at`;
         await tx.$executeRaw`
           UPDATE live_rooms SET score = score + ${accepted} WHERE id = ${id}::uuid`;
+        // CP-016 A: the host's points in this UTC hour (the popularity boards).
+        await tx.$executeRaw`
+          INSERT INTO live_host_points_hourly (host_user_id, hour_start, points)
+          VALUES (${room.host_user_id}::uuid, date_trunc('hour', ${at}::timestamptz), ${accepted * POINTS_PER_TAP})
+          ON CONFLICT (host_user_id, hour_start) DO UPDATE
+             SET points = live_host_points_hourly.points + EXCLUDED.points`;
       }
 
       const [score] = await tx.$queryRaw<{ total: bigint; tap_points: bigint; support_points: bigint }[]>`

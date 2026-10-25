@@ -5,6 +5,7 @@ import { loadConfig } from '../../config/app-config.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { UsersService } from '../users/users.service.js';
 import type { LiveCategoriesService } from './live-categories.service.js';
+import type { LiveRankingsService } from './live-rankings.service.js';
 import { errorClassAndCode, LIVE_TX_OPTIONS, LiveRoomsService } from './live-rooms.service.js';
 
 class FixedClock extends Clock {
@@ -64,6 +65,7 @@ function service(prisma: unknown, batchSize = 10) {
     audit as unknown as AuditService,
     new FixedClock(),
     config,
+    {} as LiveRankingsService,
   );
   return { rooms, audit };
 }
