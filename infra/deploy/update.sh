@@ -4,9 +4,10 @@
 #
 # 1. fast-forwards /opt/kabso to origin/$KABSO_BRANCH (compose file, Caddyfile, initdb);
 # 2. pulls the API image CI published for that branch ($KABSO_API_IMAGE, only after CI is green);
-# 3. when either changed: runs `prisma migrate deploy` as the migration role, then restarts the
-#    services whose image or configuration changed. A failed migration stops here and the running
-#    API keeps serving (docs/DEPLOYMENT.md §5).
+# 3. when either changed, or the running API is not on the pulled image yet: runs `prisma migrate
+#    deploy` as the migration role, then restarts the services whose image or configuration
+#    changed. A failed migration stops here and the running API keeps serving
+#    (docs/DEPLOYMENT.md §5); the next run tries again, because the API is still on the old image.
 set -euo pipefail
 
 APP_DIR=/opt/kabso
@@ -31,8 +32,12 @@ old_image=$(docker image inspect -f '{{.Id}}' "$KABSO_API_IMAGE" 2>/dev/null || 
 docker pull -q "$KABSO_API_IMAGE" >/dev/null
 new_image=$(docker image inspect -f '{{.Id}}' "$KABSO_API_IMAGE")
 
+# The image the running API container was started from (empty when it is not running).
+api_container=$("${C[@]}" ps -q api)
+running_image=$( [ -n "$api_container" ] && docker inspect -f '{{.Image}}' "$api_container" 2>/dev/null || true)
+
 if [ "${1:-}" != "--force" ] && [ "$before" = "$after" ] && [ "$old_image" = "$new_image" ] &&
-  [ -n "$("${C[@]}" ps -q api)" ]; then
+  [ "$running_image" = "$new_image" ]; then
   exit 0
 fi
 
