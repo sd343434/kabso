@@ -232,11 +232,11 @@ class LiveChatComposer extends StatefulWidget {
   final VoidCallback onSend;
 
   /// A Kabi emoji tapped in the row: sent at once as its own message (D66).
-  final ValueChanged<KabiEmojis> onEmoji;
+  final ValueChanged<KabsoEmoji> onEmoji;
 
   static const fieldKey = Key('liveChat.field');
   static const sendKey = Key('liveChat.send');
-  static Key emojiKey(KabiEmojis emoji) => Key('liveChat.emoji.${emoji.id}');
+  static Key emojiKey(KabsoEmoji emoji) => Key('liveChat.emoji.${emoji.id}');
 
   /// The Kabi row (owner's emojis, D66), measured on the owner's reference:
   /// Kabi 27 pt tall (the Lottie canvas is 35 pt), one every 61.1 pt, the
@@ -362,7 +362,7 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
               itemExtent: LiveChatComposer.emojiPitch,
               padding: const EdgeInsetsDirectional.symmetric(horizontal: 1.55),
               children: [
-                for (final emoji in KabiEmojis.values)
+                for (final emoji in EmojiPack.kabi.emojis)
                   Semantics(
                     button: true,
                     label: emoji.label(context.l10n),

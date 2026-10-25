@@ -68,6 +68,8 @@ flutter:
     # D94 live room themes (Kabso's own, AI-generated; PROVENANCE.md).
     - assets/live_themes/
     - assets/live_room_icons/
+    # Owner-supplied live bottom-bar icons (assets/live_bar/PROVENANCE.md).
+    - assets/live_bar/
     # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).
     - assets/category_icons/
     # Owner-supplied popularity board frames (assets/live_rank_frames/PROVENANCE.md).
@@ -79,9 +81,17 @@ flutter:
     - assets/taps/
     # D63 launch animation and voice (owner-supplied).
     - assets/splash/
-    # D66 Kabi emojis (owner-supplied, outline added by
-    # tool/kabi_emoji_outline.py).
-    - assets/emojis/
+    # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
+    # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
+    - assets/emojis/kabi/
+    - assets/emojis/kiki/
+    - assets/emojis/boo/
+    - assets/emojis/pipo/
+    - assets/emojis/dubi/
+    - assets/emojis/gogo/
+    - assets/emojis/lulu/
+    - assets/emojis/neno/
+    - assets/emojis/flags/
     # D71 PK battle animations (owner-supplied SVGA: start, win, lose,
     # draw).
     - assets/battle/

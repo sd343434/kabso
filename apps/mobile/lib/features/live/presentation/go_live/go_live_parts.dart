@@ -185,10 +185,10 @@ class GoLiveTitleCard extends StatelessWidget {
         ),
         // Kabi waves from the card's corner (the owner's mascot; the
         // reference's own mascot is not used).
-        const PositionedDirectional(
+        PositionedDirectional(
           top: -KSpacing.lg,
           end: -KSpacing.xs,
-          child: KabiEmoji(KabiEmojis.live, size: 64, repeat: false),
+          child: KabiEmoji(KabsoEmoji.kabi('live'), size: 64, repeat: false),
         ),
       ],
     );

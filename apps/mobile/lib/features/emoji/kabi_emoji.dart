@@ -1,73 +1,241 @@
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/emoji/emoji_names.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The owner's animated Kabi emojis (D66): Lottie, 512×512, 60 fps, a
-/// seamless 2 s loop, with a sticker outline added so Kabi reads on light
-/// and dark backgrounds (`tool/kabi_emoji_outline.py`).
+/// The owner's animated emojis (D66; more packs D102): Lottie, 512×512,
+/// 60 fps, a seamless 2 s loop. Each pack is one character with its own
+/// style; the picker shows one tab per pack. Kabi has a sticker outline so
+/// it reads on light and dark backgrounds (`tool/kabi_emoji_outline.py`).
 ///
-/// In text an emoji is the token `:kabi_<id>:` (proposal CP-003), so a
-/// message or comment stays plain text that any client can show.
-enum KabiEmojis {
-  hi('hi'),
-  love('love'),
-  lol('lol'),
-  wow('wow'),
-  sad('sad'),
-  angry('angry'),
-  wink('wink'),
-  live('live'),
-  cool('cool'),
-  dizzy('dizzy'),
-  sleepy('sleepy'),
-  silly('silly'),
-  shy('shy'),
-  think('think'),
-  party('party'),
-  dead('dead'),
-  melt('melt'),
-  kiss('kiss');
+/// In text an emoji is the token `:<pack>_<id>:` (proposal CP-003, e.g.
+/// `:kabi_love:`, `:kiki_clap:`), so a message or comment stays plain text
+/// that any client can show; an unknown token stays text.
+enum EmojiPack {
+  kabi('hi', [
+    'hi',
+    'love',
+    'lol',
+    'wow',
+    'sad',
+    'angry',
+    'wink',
+    'live',
+    'cool',
+    'dizzy',
+    'sleepy',
+    'silly',
+    'shy',
+    'think',
+    'party',
+    'dead',
+    'melt',
+    'kiss',
+    'gift',
+    'fire',
+    'crown',
+    'money',
+    'sing',
+    'star',
+  ]),
+  kiki('love', [
+    'hi',
+    'love',
+    'lol',
+    'wow',
+    'sad',
+    'angry',
+    'cool',
+    'sleepy',
+    'wink',
+    'kiss',
+    'sing',
+    'shy',
+    'think',
+    'party',
+    'clap',
+    'fire',
+    'ok',
+    'dizzy',
+  ]),
+  boo('boo', [
+    'boo',
+    'scared',
+    'fade',
+    'peek',
+    'spin',
+    'laugh',
+    'love',
+    'cry',
+    'sneaky',
+    'sleep',
+    'shock',
+    'party',
+  ]),
+  pipo('hi', [
+    'hi',
+    'chirp',
+    'hungry',
+    'cold',
+    'fly',
+    'love',
+    'cry',
+    'angry',
+    'sleepy',
+    'yay',
+    'shy',
+    'wow',
+  ]),
+  dubi('hug', [
+    'hug',
+    'thanks',
+    'strong',
+    'honey',
+    'sleep',
+    'grr',
+    'lol',
+    'love',
+    'cool',
+    'ok',
+    'sad',
+    'clap',
+  ]),
+  gogo('roar', [
+    'hi',
+    'roar',
+    'stomp',
+    'hatch',
+    'munch',
+    'dance',
+    'sneeze',
+    'cool',
+    'love',
+    'lol',
+    'cry',
+    'wow',
+  ]),
+  lulu('sun', [
+    'hi',
+    'sun',
+    'rain',
+    'thunder',
+    'rainbow',
+    'snow',
+    'wind',
+    'sleep',
+    'love',
+    'wow',
+    'lol',
+    'shy',
+  ]),
+  neno('hi', [
+    'hi',
+    'love',
+    'lol',
+    'wow',
+    'cry',
+    'angry',
+    'cool',
+    'think',
+    'wink',
+    'sleepy',
+    'money',
+    'ok',
+    'clap',
+    'party',
+    'kiss',
+    'blush',
+    'rose',
+    'heartbeat',
+    'flirt',
+    'melt',
+    'iloveu',
+    'serenade',
+  ]),
+  flags('jo', [
+    'jo',
+    'ps',
+    'sa',
+    'eg',
+    'iq',
+    'sy',
+    'ye',
+    'ae',
+    'kw',
+    'qa',
+    'bh',
+    'om',
+    'lb',
+    'ma',
+    'dz',
+    'tn',
+    'ly',
+    'sd',
+  ]);
 
-  new(this.id);
+  new(this.iconId, this.ids);
 
+  /// The emoji that stands for the pack on its tab.
+  final String iconId;
+  final List<String> ids;
+
+  List<KabsoEmoji> get emojis => [for (final id in ids) KabsoEmoji._(this, id)];
+
+  KabsoEmoji get icon => KabsoEmoji._(this, iconId);
+
+  /// The tab name, in the app language.
+  String label(AppLocalizations l10n) => emojiPackName(l10n, name);
+}
+
+/// One animated emoji of a pack.
+@immutable
+final class KabsoEmoji {
+  const new _(this.pack, this.id);
+
+  final EmojiPack pack;
   final String id;
 
-  String get asset => 'assets/emojis/kabi_$id.json';
+  /// Every emoji, pack by pack.
+  static final List<KabsoEmoji> values = [
+    for (final p in EmojiPack.values) ...p.emojis,
+  ];
+
+  static final Map<String, KabsoEmoji> _byKey = {
+    for (final e in values) e.key: e,
+  };
+
+  /// A Kabi emoji by id (`love`, `live` …); throws for an unknown id.
+  static KabsoEmoji kabi(String id) => _byKey['kabi_$id']!;
+
+  /// `<pack>_<id>`, as in the token and the asset file.
+  String get key => '${pack.name}_$id';
+
+  String get asset => 'assets/emojis/${pack.name}/$key.json';
 
   /// The text form of this emoji.
-  String get token => ':kabi_$id:';
+  String get token => ':$key:';
 
-  static final Map<String, KabiEmojis> _byId = {
-    for (final e in values) e.id: e,
-  };
+  /// `:<pack>_<id>:` anywhere in a text. Unknown ids stay plain text.
+  static final RegExp tokenPattern = RegExp(
+    ':((?:${EmojiPack.values.map((p) => p.name).join('|')})_[a-z]+):',
+  );
 
-  /// `:kabi_<id>:` anywhere in a text. Unknown ids stay plain text.
-  static final RegExp tokenPattern = RegExp(':kabi_([a-z]+):');
-
-  static KabiEmojis? byId(String id) => _byId[id];
+  /// The emoji of a token's `<pack>_<id>` ([tokenPattern] group 1).
+  static KabsoEmoji? byKey(String key) => _byKey[key];
 
   /// The name a screen reader says, in the app language.
-  String label(AppLocalizations l10n) => switch (this) {
-    hi => l10n.kabiEmojiHi,
-    love => l10n.kabiEmojiLove,
-    lol => l10n.kabiEmojiLol,
-    wow => l10n.kabiEmojiWow,
-    sad => l10n.kabiEmojiSad,
-    angry => l10n.kabiEmojiAngry,
-    wink => l10n.kabiEmojiWink,
-    live => l10n.kabiEmojiLive,
-    cool => l10n.kabiEmojiCool,
-    dizzy => l10n.kabiEmojiDizzy,
-    sleepy => l10n.kabiEmojiSleepy,
-    silly => l10n.kabiEmojiSilly,
-    shy => l10n.kabiEmojiShy,
-    think => l10n.kabiEmojiThink,
-    party => l10n.kabiEmojiParty,
-    dead => l10n.kabiEmojiDead,
-    melt => l10n.kabiEmojiMelt,
-    kiss => l10n.kabiEmojiKiss,
-  };
+  String label(AppLocalizations l10n) => emojiName(l10n, key);
+
+  @override
+  bool operator ==(Object other) =>
+      other is KabsoEmoji && other.pack == pack && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(pack, id);
+
+  @override
+  String toString() => token;
 }
 
 /// Sizes of the Kabi emojis (D66).
@@ -95,7 +263,7 @@ class KabiEmoji extends StatelessWidget {
     this.semanticLabel,
   });
 
-  final KabiEmojis emoji;
+  final KabsoEmoji emoji;
   final double size;
   final bool animate;
 
@@ -134,8 +302,8 @@ class KabiEmoji extends StatelessWidget {
 List<InlineSpan> kabiInlineSpans(String text, {required double size}) {
   final spans = <InlineSpan>[];
   var start = 0;
-  for (final m in KabiEmojis.tokenPattern.allMatches(text)) {
-    final emoji = KabiEmojis.byId(m.group(1)!);
+  for (final m in KabsoEmoji.tokenPattern.allMatches(text)) {
+    final emoji = KabsoEmoji.byKey(m.group(1)!);
     if (emoji == null) continue;
     if (m.start > start) {
       spans.add(TextSpan(text: text.substring(start, m.start)));
@@ -154,8 +322,8 @@ List<InlineSpan> kabiInlineSpans(String text, {required double size}) {
 
 /// [text] as a screen reader says it: each token becomes the emoji's name.
 String kabiSpokenText(String text, AppLocalizations l10n) => text
-    .replaceAllMapped(KabiEmojis.tokenPattern, (m) {
-      final emoji = KabiEmojis.byId(m.group(1)!);
+    .replaceAllMapped(KabsoEmoji.tokenPattern, (m) {
+      final emoji = KabsoEmoji.byKey(m.group(1)!);
       return emoji == null ? m.group(0)! : ' ${emoji.label(l10n)} ';
     })
     .replaceAll(RegExp(' {2,}'), ' ')
@@ -172,12 +340,12 @@ class KabiEmojiText extends StatelessWidget {
   final TextAlign? textAlign;
 
   /// The emojis of [text] when it holds nothing else, else null.
-  static List<KabiEmojis>? onlyEmojis(String text) {
-    final rest = text.replaceAll(KabiEmojis.tokenPattern, '').trim();
+  static List<KabsoEmoji>? onlyEmojis(String text) {
+    final rest = text.replaceAll(KabsoEmoji.tokenPattern, '').trim();
     if (rest.isNotEmpty) return null;
     final found = [
-      for (final m in KabiEmojis.tokenPattern.allMatches(text))
-        ?KabiEmojis.byId(m.group(1)!),
+      for (final m in KabsoEmoji.tokenPattern.allMatches(text))
+        ?KabsoEmoji.byKey(m.group(1)!),
     ];
     if (found.isEmpty || found.length > KKabiEmoji.bigMaxCount) return null;
     return found;
@@ -201,8 +369,8 @@ class KabiEmojiText extends StatelessWidget {
     final spans = <InlineSpan>[];
     final spoken = StringBuffer();
     var start = 0;
-    for (final m in KabiEmojis.tokenPattern.allMatches(text)) {
-      final emoji = KabiEmojis.byId(m.group(1)!);
+    for (final m in KabsoEmoji.tokenPattern.allMatches(text)) {
+      final emoji = KabsoEmoji.byKey(m.group(1)!);
       if (emoji == null) continue;
       if (m.start > start) {
         final part = text.substring(start, m.start);
@@ -238,41 +406,42 @@ class KabiEmojiText extends StatelessWidget {
   }
 }
 
-/// Opens the Kabi emoji picker; resolves to the chosen emoji, or null.
-Future<KabiEmojis?> showKabiEmojiPicker(BuildContext context) =>
-    showModalBottomSheet<KabiEmojis>(
+/// Opens the emoji picker; resolves to the chosen emoji, or null.
+Future<KabsoEmoji?> showKabiEmojiPicker(BuildContext context) =>
+    showModalBottomSheet<KabsoEmoji>(
       context: context,
       showDragHandle: true,
       builder: (_) => const KabiEmojiPicker(),
     );
 
-/// A grid of all Kabi emojis. They stay still (less motion, less work)
-/// and play while pressed; tapping one returns it.
+/// The emojis in one tab per pack (D102): each tab shows the pack's
+/// character and name. The emojis stay still (less motion, less work) and
+/// play while pressed; tapping one returns it.
 class KabiEmojiPicker extends StatefulWidget {
   const new({super.key});
 
   static const gridKey = Key('kabiEmoji.picker');
-  static Key itemKey(KabiEmojis e) => Key('kabiEmoji.${e.id}');
+  static Key itemKey(KabsoEmoji e) => Key('kabiEmoji.${e.key}');
+  static Key tabKey(EmojiPack p) => Key('kabiEmoji.tab.${p.name}');
+
+  /// The grid area under the tabs (less when the sheet is shorter).
+  static const double gridHeight = 300;
 
   @override
   State<KabiEmojiPicker> createState() => _KabiEmojiPickerState();
 }
 
 class _KabiEmojiPickerState extends State<KabiEmojiPicker> {
-  KabiEmojis? _pressed;
+  KabsoEmoji? _pressed;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
+    final p = context.palette;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          KSpacing.md,
-          0,
-          KSpacing.md,
-          KSpacing.md,
-        ),
+      child: DefaultTabController(
+        length: EmojiPack.values.length,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -285,39 +454,68 @@ class _KabiEmojiPickerState extends State<KabiEmojiPicker> {
                 style: t.title,
               ),
             ),
-            const SizedBox(height: KSpacing.md),
+            const SizedBox(height: KSpacing.xs),
+            TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: p.textPrimary,
+              unselectedLabelColor: p.textSecondary,
+              labelStyle: t.caption.copyWith(fontWeight: FontWeight.w600),
+              unselectedLabelStyle: t.caption,
+              tabs: [
+                for (final pack in EmojiPack.values)
+                  Tab(
+                    key: KabiEmojiPicker.tabKey(pack),
+                    height: 58,
+                    iconMargin: const EdgeInsets.only(bottom: 2),
+                    icon: KabiEmoji(pack.icon, size: 30, animate: false),
+                    text: pack.label(l10n),
+                  ),
+              ],
+            ),
+            // At most this tall; less on a short screen (the sheet's limit).
             Flexible(
-              child: GridView.extent(
-                key: KabiEmojiPicker.gridKey,
-                shrinkWrap: true,
-                maxCrossAxisExtent: KKabiEmoji.picker + KSpacing.md,
-                children: [
-                  for (final e in KabiEmojis.values)
-                    Semantics(
-                      button: true,
-                      label: e.label(l10n),
-                      excludeSemantics: true,
-                      child: InkResponse(
-                        key: KabiEmojiPicker.itemKey(e),
-                        radius: KKabiEmoji.picker / 2 + KSpacing.xs,
-                        onHighlightChanged: (down) =>
-                            setState(() => _pressed = down ? e : null),
-                        onTap: () => Navigator.pop(context, e),
-                        child: Center(
-                          child: AnimatedScale(
-                            scale: _pressed == e ? 1.25 : 1,
-                            duration: const Duration(milliseconds: 160),
-                            curve: Curves.easeOutBack,
-                            child: KabiEmoji(
-                              e,
-                              size: KKabiEmoji.picker,
-                              animate: _pressed == e,
+              child: SizedBox(
+                height: KabiEmojiPicker.gridHeight,
+                child: TabBarView(
+                  children: [
+                    for (final pack in EmojiPack.values)
+                      GridView.extent(
+                        key: pack == EmojiPack.kabi
+                            ? KabiEmojiPicker.gridKey
+                            : null,
+                        padding: const EdgeInsets.all(KSpacing.md),
+                        maxCrossAxisExtent: KKabiEmoji.picker + KSpacing.md,
+                        children: [
+                          for (final e in pack.emojis)
+                            Semantics(
+                              button: true,
+                              label: e.label(l10n),
+                              excludeSemantics: true,
+                              child: InkResponse(
+                                key: KabiEmojiPicker.itemKey(e),
+                                radius: KKabiEmoji.picker / 2 + KSpacing.xs,
+                                onHighlightChanged: (down) =>
+                                    setState(() => _pressed = down ? e : null),
+                                onTap: () => Navigator.pop(context, e),
+                                child: Center(
+                                  child: AnimatedScale(
+                                    scale: _pressed == e ? 1.25 : 1,
+                                    duration: const Duration(milliseconds: 160),
+                                    curve: Curves.easeOutBack,
+                                    child: KabiEmoji(
+                                      e,
+                                      size: KKabiEmoji.picker,
+                                      animate: _pressed == e,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

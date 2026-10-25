@@ -765,19 +765,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveRoundButton(
             key: GoLiveScreen.audioChatKey,
             icon: Icons.chat_bubble_outline_rounded,
+            asset: 'assets/live_bar/chat.png',
             label: l10n.goLiveChatPill,
             onTap: openChat,
           ),
           LiveRoundButton(
             icon: Icons.emoji_emotions_rounded,
-            asset: 'assets/live_room_icons/emoji.png',
-            tintAsset: true,
+            asset: 'assets/live_bar/emoji.png',
             label: l10n.livePreviewEmoji,
             onTap: openChat,
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioMoreKey,
             icon: Icons.menu_rounded,
+            asset: 'assets/live_bar/menu.png',
             label: l10n.livePreviewMore,
             onTap: () => unawaited(
               showLiveRoomTools(
@@ -874,8 +875,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveRoundButton(
             key: GoLiveKeys.tool('requests'),
             icon: Icons.weekend_rounded,
-            asset: 'assets/live_room_icons/seat.png',
-            tintAsset: true,
+            asset: 'assets/live_bar/seat.png',
             label: byId['requests']!.label,
             onTap: byId['requests']!.onTap,
             badge: liveSeats?.pendingRequests ?? 0,
@@ -884,8 +884,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveRoundButton(
             key: GoLiveScreen.audioPkKey,
             icon: Icons.sports_mma_rounded,
-            asset: 'assets/live_room_icons/versus.png',
-            tintAsset: true,
+            asset: 'assets/live_bar/pk.png',
             label: l10n.goLivePk,
             onTap: () => KSnack.info(context, l10n.goLivePkSoon),
           ),

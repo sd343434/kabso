@@ -1242,83 +1242,615 @@
   "@loginTitleAccent": {
     "description": "D65 login: red end of the title."
   },
-  "kabiEmojiHi": "هلا",
-  "@kabiEmojiHi": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiLove": "حب",
-  "@kabiEmojiLove": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiLol": "ضحك",
-  "@kabiEmojiLol": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiWow": "واو",
-  "@kabiEmojiWow": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiSad": "حزين",
-  "@kabiEmojiSad": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiAngry": "معصّب",
-  "@kabiEmojiAngry": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiWink": "غمزة",
-  "@kabiEmojiWink": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiLive": "لايف",
-  "@kabiEmojiLive": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiCool": "كشخة",
-  "@kabiEmojiCool": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiDizzy": "دايخ",
-  "@kabiEmojiDizzy": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiSleepy": "نعسان",
-  "@kabiEmojiSleepy": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiSilly": "مهبول",
-  "@kabiEmojiSilly": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiShy": "مستحي",
-  "@kabiEmojiShy": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiThink": "يفكر",
-  "@kabiEmojiThink": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiParty": "احتفال",
-  "@kabiEmojiParty": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiDead": "مت ضحك",
-  "@kabiEmojiDead": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiMelt": "ذايب",
-  "@kabiEmojiMelt": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiKiss": "بوسة",
-  "@kabiEmojiKiss": {
-    "description": "D66: name of the Kabi emoji (screen readers, picker)."
-  },
-  "kabiEmojiPickerTitle": "إيموجي كابي",
+  "kabiEmojiPickerTitle": "الإيموجي",
   "@kabiEmojiPickerTitle": {
     "description": "D66: title of the emoji picker sheet."
   },
   "kabiEmojiButton": "إيموجي",
+  "emojiPackKabi": "كابي",
+  "@emojiPackKabi": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackKiki": "كيكي",
+  "@emojiPackKiki": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackBoo": "بو",
+  "@emojiPackBoo": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackPipo": "بيبو",
+  "@emojiPackPipo": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackDubi": "دوبي",
+  "@emojiPackDubi": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackGogo": "جوجو",
+  "@emojiPackGogo": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackLulu": "لولو",
+  "@emojiPackLulu": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackNeno": "نينو",
+  "@emojiPackNeno": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiPackFlags": "أعلام",
+  "@emojiPackFlags": {
+    "description": "An emoji category (pack) tab in the picker (D102)."
+  },
+  "emojiKabiHi": "هلا",
+  "@emojiKabiHi": {
+    "description": "Name of the Kabi emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiLove": "حب",
+  "@emojiKabiLove": {
+    "description": "Name of the Kabi emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiLol": "ضحك",
+  "@emojiKabiLol": {
+    "description": "Name of the Kabi emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiWow": "واو",
+  "@emojiKabiWow": {
+    "description": "Name of the Kabi emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiSad": "حزين",
+  "@emojiKabiSad": {
+    "description": "Name of the Kabi emoji \"sad\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiAngry": "معصّب",
+  "@emojiKabiAngry": {
+    "description": "Name of the Kabi emoji \"angry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiWink": "غمزة",
+  "@emojiKabiWink": {
+    "description": "Name of the Kabi emoji \"wink\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiLive": "لايف",
+  "@emojiKabiLive": {
+    "description": "Name of the Kabi emoji \"live\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiCool": "كشخة",
+  "@emojiKabiCool": {
+    "description": "Name of the Kabi emoji \"cool\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiDizzy": "دايخ",
+  "@emojiKabiDizzy": {
+    "description": "Name of the Kabi emoji \"dizzy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiSleepy": "نعسان",
+  "@emojiKabiSleepy": {
+    "description": "Name of the Kabi emoji \"sleepy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiSilly": "مهبول",
+  "@emojiKabiSilly": {
+    "description": "Name of the Kabi emoji \"silly\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiShy": "مستحي",
+  "@emojiKabiShy": {
+    "description": "Name of the Kabi emoji \"shy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiThink": "يفكر",
+  "@emojiKabiThink": {
+    "description": "Name of the Kabi emoji \"think\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiParty": "احتفال",
+  "@emojiKabiParty": {
+    "description": "Name of the Kabi emoji \"party\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiDead": "مت ضحك",
+  "@emojiKabiDead": {
+    "description": "Name of the Kabi emoji \"dead\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiMelt": "ذايب",
+  "@emojiKabiMelt": {
+    "description": "Name of the Kabi emoji \"melt\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiKiss": "بوسة",
+  "@emojiKabiKiss": {
+    "description": "Name of the Kabi emoji \"kiss\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiGift": "هدية",
+  "@emojiKabiGift": {
+    "description": "Name of the Kabi emoji \"gift\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiFire": "نار",
+  "@emojiKabiFire": {
+    "description": "Name of the Kabi emoji \"fire\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiCrown": "VIP",
+  "@emojiKabiCrown": {
+    "description": "Name of the Kabi emoji \"crown\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiMoney": "فلوس",
+  "@emojiKabiMoney": {
+    "description": "Name of the Kabi emoji \"money\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiSing": "يغني",
+  "@emojiKabiSing": {
+    "description": "Name of the Kabi emoji \"sing\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKabiStar": "منبهر",
+  "@emojiKabiStar": {
+    "description": "Name of the Kabi emoji \"star\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiHi": "هلا",
+  "@emojiKikiHi": {
+    "description": "Name of the Kiki emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiLove": "حب",
+  "@emojiKikiLove": {
+    "description": "Name of the Kiki emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiLol": "ضحك",
+  "@emojiKikiLol": {
+    "description": "Name of the Kiki emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiWow": "واو",
+  "@emojiKikiWow": {
+    "description": "Name of the Kiki emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiSad": "حزين",
+  "@emojiKikiSad": {
+    "description": "Name of the Kiki emoji \"sad\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiAngry": "معصّب",
+  "@emojiKikiAngry": {
+    "description": "Name of the Kiki emoji \"angry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiCool": "كشخة",
+  "@emojiKikiCool": {
+    "description": "Name of the Kiki emoji \"cool\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiSleepy": "نعسان",
+  "@emojiKikiSleepy": {
+    "description": "Name of the Kiki emoji \"sleepy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiWink": "غمزة",
+  "@emojiKikiWink": {
+    "description": "Name of the Kiki emoji \"wink\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiKiss": "بوسة",
+  "@emojiKikiKiss": {
+    "description": "Name of the Kiki emoji \"kiss\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiSing": "يغني",
+  "@emojiKikiSing": {
+    "description": "Name of the Kiki emoji \"sing\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiShy": "مستحية",
+  "@emojiKikiShy": {
+    "description": "Name of the Kiki emoji \"shy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiThink": "تفكر",
+  "@emojiKikiThink": {
+    "description": "Name of the Kiki emoji \"think\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiParty": "احتفال",
+  "@emojiKikiParty": {
+    "description": "Name of the Kiki emoji \"party\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiClap": "تصفيق",
+  "@emojiKikiClap": {
+    "description": "Name of the Kiki emoji \"clap\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiFire": "نار",
+  "@emojiKikiFire": {
+    "description": "Name of the Kiki emoji \"fire\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiOk": "تمام",
+  "@emojiKikiOk": {
+    "description": "Name of the Kiki emoji \"ok\" (screen readers, picker; D66/D102)."
+  },
+  "emojiKikiDizzy": "دايخة",
+  "@emojiKikiDizzy": {
+    "description": "Name of the Kiki emoji \"dizzy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooBoo": "بخ",
+  "@emojiBooBoo": {
+    "description": "Name of the Boo emoji \"boo\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooScared": "خايف",
+  "@emojiBooScared": {
+    "description": "Name of the Boo emoji \"scared\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooFade": "اختفى",
+  "@emojiBooFade": {
+    "description": "Name of the Boo emoji \"fade\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooPeek": "يطل",
+  "@emojiBooPeek": {
+    "description": "Name of the Boo emoji \"peek\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooSpin": "يرقص",
+  "@emojiBooSpin": {
+    "description": "Name of the Boo emoji \"spin\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooLaugh": "ضحك",
+  "@emojiBooLaugh": {
+    "description": "Name of the Boo emoji \"laugh\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooLove": "حب",
+  "@emojiBooLove": {
+    "description": "Name of the Boo emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooCry": "يبكي",
+  "@emojiBooCry": {
+    "description": "Name of the Boo emoji \"cry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooSneaky": "خبيث",
+  "@emojiBooSneaky": {
+    "description": "Name of the Boo emoji \"sneaky\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooSleep": "نايم",
+  "@emojiBooSleep": {
+    "description": "Name of the Boo emoji \"sleep\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooShock": "مصدوم",
+  "@emojiBooShock": {
+    "description": "Name of the Boo emoji \"shock\" (screen readers, picker; D66/D102)."
+  },
+  "emojiBooParty": "احتفال",
+  "@emojiBooParty": {
+    "description": "Name of the Boo emoji \"party\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoHi": "هلا",
+  "@emojiPipoHi": {
+    "description": "Name of the Pipo emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoChirp": "يغرّد",
+  "@emojiPipoChirp": {
+    "description": "Name of the Pipo emoji \"chirp\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoHungry": "جوعان",
+  "@emojiPipoHungry": {
+    "description": "Name of the Pipo emoji \"hungry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoCold": "بردان",
+  "@emojiPipoCold": {
+    "description": "Name of the Pipo emoji \"cold\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoFly": "يطير",
+  "@emojiPipoFly": {
+    "description": "Name of the Pipo emoji \"fly\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoLove": "حب",
+  "@emojiPipoLove": {
+    "description": "Name of the Pipo emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoCry": "يبكي",
+  "@emojiPipoCry": {
+    "description": "Name of the Pipo emoji \"cry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoAngry": "معصّب",
+  "@emojiPipoAngry": {
+    "description": "Name of the Pipo emoji \"angry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoSleepy": "نعسان",
+  "@emojiPipoSleepy": {
+    "description": "Name of the Pipo emoji \"sleepy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoYay": "ياي",
+  "@emojiPipoYay": {
+    "description": "Name of the Pipo emoji \"yay\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoShy": "مستحي",
+  "@emojiPipoShy": {
+    "description": "Name of the Pipo emoji \"shy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiPipoWow": "واو",
+  "@emojiPipoWow": {
+    "description": "Name of the Pipo emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiHug": "حضن",
+  "@emojiDubiHug": {
+    "description": "Name of the Dubi emoji \"hug\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiThanks": "شكرًا",
+  "@emojiDubiThanks": {
+    "description": "Name of the Dubi emoji \"thanks\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiStrong": "قوي",
+  "@emojiDubiStrong": {
+    "description": "Name of the Dubi emoji \"strong\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiHoney": "عسل",
+  "@emojiDubiHoney": {
+    "description": "Name of the Dubi emoji \"honey\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiSleep": "نايم",
+  "@emojiDubiSleep": {
+    "description": "Name of the Dubi emoji \"sleep\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiGrr": "غاضب",
+  "@emojiDubiGrr": {
+    "description": "Name of the Dubi emoji \"grr\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiLol": "ضحك",
+  "@emojiDubiLol": {
+    "description": "Name of the Dubi emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiLove": "حب",
+  "@emojiDubiLove": {
+    "description": "Name of the Dubi emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiCool": "كشخة",
+  "@emojiDubiCool": {
+    "description": "Name of the Dubi emoji \"cool\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiOk": "تمام",
+  "@emojiDubiOk": {
+    "description": "Name of the Dubi emoji \"ok\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiSad": "حزين",
+  "@emojiDubiSad": {
+    "description": "Name of the Dubi emoji \"sad\" (screen readers, picker; D66/D102)."
+  },
+  "emojiDubiClap": "تصفيق",
+  "@emojiDubiClap": {
+    "description": "Name of the Dubi emoji \"clap\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoHi": "هلا",
+  "@emojiGogoHi": {
+    "description": "Name of the Gogo emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoRoar": "زئير",
+  "@emojiGogoRoar": {
+    "description": "Name of the Gogo emoji \"roar\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoStomp": "يدبدب",
+  "@emojiGogoStomp": {
+    "description": "Name of the Gogo emoji \"stomp\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoHatch": "يفقس",
+  "@emojiGogoHatch": {
+    "description": "Name of the Gogo emoji \"hatch\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoMunch": "ياكل",
+  "@emojiGogoMunch": {
+    "description": "Name of the Gogo emoji \"munch\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoDance": "يرقص",
+  "@emojiGogoDance": {
+    "description": "Name of the Gogo emoji \"dance\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoSneeze": "عطسة",
+  "@emojiGogoSneeze": {
+    "description": "Name of the Gogo emoji \"sneeze\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoCool": "كشخة",
+  "@emojiGogoCool": {
+    "description": "Name of the Gogo emoji \"cool\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoLove": "حب",
+  "@emojiGogoLove": {
+    "description": "Name of the Gogo emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoLol": "ضحك",
+  "@emojiGogoLol": {
+    "description": "Name of the Gogo emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoCry": "يبكي",
+  "@emojiGogoCry": {
+    "description": "Name of the Gogo emoji \"cry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiGogoWow": "واو",
+  "@emojiGogoWow": {
+    "description": "Name of the Gogo emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluHi": "هلا",
+  "@emojiLuluHi": {
+    "description": "Name of the Lulu emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluSun": "مشمس",
+  "@emojiLuluSun": {
+    "description": "Name of the Lulu emoji \"sun\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluRain": "ممطر",
+  "@emojiLuluRain": {
+    "description": "Name of the Lulu emoji \"rain\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluThunder": "رعد",
+  "@emojiLuluThunder": {
+    "description": "Name of the Lulu emoji \"thunder\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluRainbow": "قوس قزح",
+  "@emojiLuluRainbow": {
+    "description": "Name of the Lulu emoji \"rainbow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluSnow": "ثلج",
+  "@emojiLuluSnow": {
+    "description": "Name of the Lulu emoji \"snow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluWind": "هواء",
+  "@emojiLuluWind": {
+    "description": "Name of the Lulu emoji \"wind\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluSleep": "نايمة",
+  "@emojiLuluSleep": {
+    "description": "Name of the Lulu emoji \"sleep\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluLove": "حب",
+  "@emojiLuluLove": {
+    "description": "Name of the Lulu emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluWow": "واو",
+  "@emojiLuluWow": {
+    "description": "Name of the Lulu emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluLol": "ضحك",
+  "@emojiLuluLol": {
+    "description": "Name of the Lulu emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiLuluShy": "مستحية",
+  "@emojiLuluShy": {
+    "description": "Name of the Lulu emoji \"shy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoHi": "هلا",
+  "@emojiNenoHi": {
+    "description": "Name of the Neno emoji \"hi\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoLove": "حب",
+  "@emojiNenoLove": {
+    "description": "Name of the Neno emoji \"love\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoLol": "ضحك",
+  "@emojiNenoLol": {
+    "description": "Name of the Neno emoji \"lol\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoWow": "واو",
+  "@emojiNenoWow": {
+    "description": "Name of the Neno emoji \"wow\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoCry": "يبكي",
+  "@emojiNenoCry": {
+    "description": "Name of the Neno emoji \"cry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoAngry": "معصّب",
+  "@emojiNenoAngry": {
+    "description": "Name of the Neno emoji \"angry\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoCool": "كشخة",
+  "@emojiNenoCool": {
+    "description": "Name of the Neno emoji \"cool\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoThink": "يفكر",
+  "@emojiNenoThink": {
+    "description": "Name of the Neno emoji \"think\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoWink": "غمزة",
+  "@emojiNenoWink": {
+    "description": "Name of the Neno emoji \"wink\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoSleepy": "نعسان",
+  "@emojiNenoSleepy": {
+    "description": "Name of the Neno emoji \"sleepy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoMoney": "بزنس",
+  "@emojiNenoMoney": {
+    "description": "Name of the Neno emoji \"money\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoOk": "تمام",
+  "@emojiNenoOk": {
+    "description": "Name of the Neno emoji \"ok\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoClap": "تصفيق",
+  "@emojiNenoClap": {
+    "description": "Name of the Neno emoji \"clap\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoParty": "احتفال",
+  "@emojiNenoParty": {
+    "description": "Name of the Neno emoji \"party\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoKiss": "بوسة",
+  "@emojiNenoKiss": {
+    "description": "Name of the Neno emoji \"kiss\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoBlush": "مستحي",
+  "@emojiNenoBlush": {
+    "description": "Name of the Neno emoji \"blush\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoRose": "وردة",
+  "@emojiNenoRose": {
+    "description": "Name of the Neno emoji \"rose\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoHeartbeat": "قلبي يدق",
+  "@emojiNenoHeartbeat": {
+    "description": "Name of the Neno emoji \"heartbeat\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoFlirt": "غزل",
+  "@emojiNenoFlirt": {
+    "description": "Name of the Neno emoji \"flirt\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoMelt": "ذايب",
+  "@emojiNenoMelt": {
+    "description": "Name of the Neno emoji \"melt\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoIloveu": "أحبك",
+  "@emojiNenoIloveu": {
+    "description": "Name of the Neno emoji \"iloveu\" (screen readers, picker; D66/D102)."
+  },
+  "emojiNenoSerenade": "يغني لها",
+  "@emojiNenoSerenade": {
+    "description": "Name of the Neno emoji \"serenade\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsJo": "الأردن",
+  "@emojiFlagsJo": {
+    "description": "Name of the Flags emoji \"jo\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsPs": "فلسطين",
+  "@emojiFlagsPs": {
+    "description": "Name of the Flags emoji \"ps\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsSa": "السعودية",
+  "@emojiFlagsSa": {
+    "description": "Name of the Flags emoji \"sa\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsEg": "مصر",
+  "@emojiFlagsEg": {
+    "description": "Name of the Flags emoji \"eg\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsIq": "العراق",
+  "@emojiFlagsIq": {
+    "description": "Name of the Flags emoji \"iq\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsSy": "سوريا",
+  "@emojiFlagsSy": {
+    "description": "Name of the Flags emoji \"sy\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsYe": "اليمن",
+  "@emojiFlagsYe": {
+    "description": "Name of the Flags emoji \"ye\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsAe": "الإمارات",
+  "@emojiFlagsAe": {
+    "description": "Name of the Flags emoji \"ae\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsKw": "الكويت",
+  "@emojiFlagsKw": {
+    "description": "Name of the Flags emoji \"kw\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsQa": "قطر",
+  "@emojiFlagsQa": {
+    "description": "Name of the Flags emoji \"qa\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsBh": "البحرين",
+  "@emojiFlagsBh": {
+    "description": "Name of the Flags emoji \"bh\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsOm": "عُمان",
+  "@emojiFlagsOm": {
+    "description": "Name of the Flags emoji \"om\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsLb": "لبنان",
+  "@emojiFlagsLb": {
+    "description": "Name of the Flags emoji \"lb\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsMa": "المغرب",
+  "@emojiFlagsMa": {
+    "description": "Name of the Flags emoji \"ma\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsDz": "الجزائر",
+  "@emojiFlagsDz": {
+    "description": "Name of the Flags emoji \"dz\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsTn": "تونس",
+  "@emojiFlagsTn": {
+    "description": "Name of the Flags emoji \"tn\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsLy": "ليبيا",
+  "@emojiFlagsLy": {
+    "description": "Name of the Flags emoji \"ly\" (screen readers, picker; D66/D102)."
+  },
+  "emojiFlagsSd": "السودان",
+  "@emojiFlagsSd": {
+    "description": "Name of the Flags emoji \"sd\" (screen readers, picker; D66/D102)."
+  },
   "@kabiEmojiButton": {
     "description": "D66: tooltip of the emoji button in a composer."
   },

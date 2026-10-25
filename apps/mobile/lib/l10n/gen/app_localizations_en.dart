@@ -1440,64 +1440,463 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginTitleAccent => 'live?';
 
   @override
-  String get kabiEmojiHi => 'Hi';
-
-  @override
-  String get kabiEmojiLove => 'Love';
-
-  @override
-  String get kabiEmojiLol => 'Laughing';
-
-  @override
-  String get kabiEmojiWow => 'Wow';
-
-  @override
-  String get kabiEmojiSad => 'Sad';
-
-  @override
-  String get kabiEmojiAngry => 'Angry';
-
-  @override
-  String get kabiEmojiWink => 'Wink';
-
-  @override
-  String get kabiEmojiLive => 'Live';
-
-  @override
-  String get kabiEmojiCool => 'Cool';
-
-  @override
-  String get kabiEmojiDizzy => 'Dizzy';
-
-  @override
-  String get kabiEmojiSleepy => 'Sleepy';
-
-  @override
-  String get kabiEmojiSilly => 'Silly';
-
-  @override
-  String get kabiEmojiShy => 'Shy';
-
-  @override
-  String get kabiEmojiThink => 'Thinking';
-
-  @override
-  String get kabiEmojiParty => 'Party';
-
-  @override
-  String get kabiEmojiDead => 'Dying of laughter';
-
-  @override
-  String get kabiEmojiMelt => 'Melting';
-
-  @override
-  String get kabiEmojiKiss => 'Kiss';
-
-  @override
-  String get kabiEmojiPickerTitle => 'Kabi emojis';
+  String get kabiEmojiPickerTitle => 'Emojis';
 
   @override
   String get kabiEmojiButton => 'Emojis';
+
+  @override
+  String get emojiPackKabi => 'Kabi';
+
+  @override
+  String get emojiPackKiki => 'Kiki';
+
+  @override
+  String get emojiPackBoo => 'Boo';
+
+  @override
+  String get emojiPackPipo => 'Pipo';
+
+  @override
+  String get emojiPackDubi => 'Dubi';
+
+  @override
+  String get emojiPackGogo => 'Gogo';
+
+  @override
+  String get emojiPackLulu => 'Lulu';
+
+  @override
+  String get emojiPackNeno => 'Neno';
+
+  @override
+  String get emojiPackFlags => 'Flags';
+
+  @override
+  String get emojiKabiHi => 'Hi';
+
+  @override
+  String get emojiKabiLove => 'Love';
+
+  @override
+  String get emojiKabiLol => 'Laughing';
+
+  @override
+  String get emojiKabiWow => 'Wow';
+
+  @override
+  String get emojiKabiSad => 'Sad';
+
+  @override
+  String get emojiKabiAngry => 'Angry';
+
+  @override
+  String get emojiKabiWink => 'Wink';
+
+  @override
+  String get emojiKabiLive => 'Live';
+
+  @override
+  String get emojiKabiCool => 'Cool';
+
+  @override
+  String get emojiKabiDizzy => 'Dizzy';
+
+  @override
+  String get emojiKabiSleepy => 'Sleepy';
+
+  @override
+  String get emojiKabiSilly => 'Silly';
+
+  @override
+  String get emojiKabiShy => 'Shy';
+
+  @override
+  String get emojiKabiThink => 'Thinking';
+
+  @override
+  String get emojiKabiParty => 'Party';
+
+  @override
+  String get emojiKabiDead => 'Dying of laughter';
+
+  @override
+  String get emojiKabiMelt => 'Melting';
+
+  @override
+  String get emojiKabiKiss => 'Kiss';
+
+  @override
+  String get emojiKabiGift => 'Gift';
+
+  @override
+  String get emojiKabiFire => 'Fire';
+
+  @override
+  String get emojiKabiCrown => 'VIP';
+
+  @override
+  String get emojiKabiMoney => 'Money';
+
+  @override
+  String get emojiKabiSing => 'Singing';
+
+  @override
+  String get emojiKabiStar => 'Starstruck';
+
+  @override
+  String get emojiKikiHi => 'Hi';
+
+  @override
+  String get emojiKikiLove => 'Love';
+
+  @override
+  String get emojiKikiLol => 'Laughing';
+
+  @override
+  String get emojiKikiWow => 'Wow';
+
+  @override
+  String get emojiKikiSad => 'Sad';
+
+  @override
+  String get emojiKikiAngry => 'Angry';
+
+  @override
+  String get emojiKikiCool => 'Cool';
+
+  @override
+  String get emojiKikiSleepy => 'Sleepy';
+
+  @override
+  String get emojiKikiWink => 'Wink';
+
+  @override
+  String get emojiKikiKiss => 'Kiss';
+
+  @override
+  String get emojiKikiSing => 'Singing';
+
+  @override
+  String get emojiKikiShy => 'Shy';
+
+  @override
+  String get emojiKikiThink => 'Thinking';
+
+  @override
+  String get emojiKikiParty => 'Party';
+
+  @override
+  String get emojiKikiClap => 'Clapping';
+
+  @override
+  String get emojiKikiFire => 'Fire';
+
+  @override
+  String get emojiKikiOk => 'OK';
+
+  @override
+  String get emojiKikiDizzy => 'Dizzy';
+
+  @override
+  String get emojiBooBoo => 'Boo';
+
+  @override
+  String get emojiBooScared => 'Scared';
+
+  @override
+  String get emojiBooFade => 'Fading away';
+
+  @override
+  String get emojiBooPeek => 'Peeking';
+
+  @override
+  String get emojiBooSpin => 'Dancing';
+
+  @override
+  String get emojiBooLaugh => 'Laughing';
+
+  @override
+  String get emojiBooLove => 'Love';
+
+  @override
+  String get emojiBooCry => 'Crying';
+
+  @override
+  String get emojiBooSneaky => 'Sneaky';
+
+  @override
+  String get emojiBooSleep => 'Asleep';
+
+  @override
+  String get emojiBooShock => 'Shocked';
+
+  @override
+  String get emojiBooParty => 'Party';
+
+  @override
+  String get emojiPipoHi => 'Hi';
+
+  @override
+  String get emojiPipoChirp => 'Chirping';
+
+  @override
+  String get emojiPipoHungry => 'Hungry';
+
+  @override
+  String get emojiPipoCold => 'Cold';
+
+  @override
+  String get emojiPipoFly => 'Flying';
+
+  @override
+  String get emojiPipoLove => 'Love';
+
+  @override
+  String get emojiPipoCry => 'Crying';
+
+  @override
+  String get emojiPipoAngry => 'Angry';
+
+  @override
+  String get emojiPipoSleepy => 'Sleepy';
+
+  @override
+  String get emojiPipoYay => 'Yay';
+
+  @override
+  String get emojiPipoShy => 'Shy';
+
+  @override
+  String get emojiPipoWow => 'Wow';
+
+  @override
+  String get emojiDubiHug => 'Hug';
+
+  @override
+  String get emojiDubiThanks => 'Thanks';
+
+  @override
+  String get emojiDubiStrong => 'Strong';
+
+  @override
+  String get emojiDubiHoney => 'Honey';
+
+  @override
+  String get emojiDubiSleep => 'Asleep';
+
+  @override
+  String get emojiDubiGrr => 'Grumpy';
+
+  @override
+  String get emojiDubiLol => 'Laughing';
+
+  @override
+  String get emojiDubiLove => 'Love';
+
+  @override
+  String get emojiDubiCool => 'Cool';
+
+  @override
+  String get emojiDubiOk => 'OK';
+
+  @override
+  String get emojiDubiSad => 'Sad';
+
+  @override
+  String get emojiDubiClap => 'Clapping';
+
+  @override
+  String get emojiGogoHi => 'Hi';
+
+  @override
+  String get emojiGogoRoar => 'Roar';
+
+  @override
+  String get emojiGogoStomp => 'Stomping';
+
+  @override
+  String get emojiGogoHatch => 'Hatching';
+
+  @override
+  String get emojiGogoMunch => 'Munching';
+
+  @override
+  String get emojiGogoDance => 'Dancing';
+
+  @override
+  String get emojiGogoSneeze => 'Sneezing';
+
+  @override
+  String get emojiGogoCool => 'Cool';
+
+  @override
+  String get emojiGogoLove => 'Love';
+
+  @override
+  String get emojiGogoLol => 'Laughing';
+
+  @override
+  String get emojiGogoCry => 'Crying';
+
+  @override
+  String get emojiGogoWow => 'Wow';
+
+  @override
+  String get emojiLuluHi => 'Hi';
+
+  @override
+  String get emojiLuluSun => 'Sunny';
+
+  @override
+  String get emojiLuluRain => 'Rainy';
+
+  @override
+  String get emojiLuluThunder => 'Thunder';
+
+  @override
+  String get emojiLuluRainbow => 'Rainbow';
+
+  @override
+  String get emojiLuluSnow => 'Snow';
+
+  @override
+  String get emojiLuluWind => 'Windy';
+
+  @override
+  String get emojiLuluSleep => 'Asleep';
+
+  @override
+  String get emojiLuluLove => 'Love';
+
+  @override
+  String get emojiLuluWow => 'Wow';
+
+  @override
+  String get emojiLuluLol => 'Laughing';
+
+  @override
+  String get emojiLuluShy => 'Shy';
+
+  @override
+  String get emojiNenoHi => 'Hi';
+
+  @override
+  String get emojiNenoLove => 'Love';
+
+  @override
+  String get emojiNenoLol => 'Laughing';
+
+  @override
+  String get emojiNenoWow => 'Wow';
+
+  @override
+  String get emojiNenoCry => 'Crying';
+
+  @override
+  String get emojiNenoAngry => 'Angry';
+
+  @override
+  String get emojiNenoCool => 'Cool';
+
+  @override
+  String get emojiNenoThink => 'Thinking';
+
+  @override
+  String get emojiNenoWink => 'Wink';
+
+  @override
+  String get emojiNenoSleepy => 'Sleepy';
+
+  @override
+  String get emojiNenoMoney => 'Business';
+
+  @override
+  String get emojiNenoOk => 'OK';
+
+  @override
+  String get emojiNenoClap => 'Clapping';
+
+  @override
+  String get emojiNenoParty => 'Party';
+
+  @override
+  String get emojiNenoKiss => 'Kiss';
+
+  @override
+  String get emojiNenoBlush => 'Blushing';
+
+  @override
+  String get emojiNenoRose => 'Rose';
+
+  @override
+  String get emojiNenoHeartbeat => 'Heartbeat';
+
+  @override
+  String get emojiNenoFlirt => 'Flirting';
+
+  @override
+  String get emojiNenoMelt => 'Melting';
+
+  @override
+  String get emojiNenoIloveu => 'I love you';
+
+  @override
+  String get emojiNenoSerenade => 'Serenade';
+
+  @override
+  String get emojiFlagsJo => 'Jordan';
+
+  @override
+  String get emojiFlagsPs => 'Palestine';
+
+  @override
+  String get emojiFlagsSa => 'Saudi Arabia';
+
+  @override
+  String get emojiFlagsEg => 'Egypt';
+
+  @override
+  String get emojiFlagsIq => 'Iraq';
+
+  @override
+  String get emojiFlagsSy => 'Syria';
+
+  @override
+  String get emojiFlagsYe => 'Yemen';
+
+  @override
+  String get emojiFlagsAe => 'UAE';
+
+  @override
+  String get emojiFlagsKw => 'Kuwait';
+
+  @override
+  String get emojiFlagsQa => 'Qatar';
+
+  @override
+  String get emojiFlagsBh => 'Bahrain';
+
+  @override
+  String get emojiFlagsOm => 'Oman';
+
+  @override
+  String get emojiFlagsLb => 'Lebanon';
+
+  @override
+  String get emojiFlagsMa => 'Morocco';
+
+  @override
+  String get emojiFlagsDz => 'Algeria';
+
+  @override
+  String get emojiFlagsTn => 'Tunisia';
+
+  @override
+  String get emojiFlagsLy => 'Libya';
+
+  @override
+  String get emojiFlagsSd => 'Sudan';
 
   @override
   String get attachButton => 'Attach a photo or video';

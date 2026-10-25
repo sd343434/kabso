@@ -2516,118 +2516,10 @@ abstract class AppLocalizations {
   /// **'البث؟'**
   String get loginTitleAccent;
 
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'هلا'**
-  String get kabiEmojiHi;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'حب'**
-  String get kabiEmojiLove;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'ضحك'**
-  String get kabiEmojiLol;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'واو'**
-  String get kabiEmojiWow;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'حزين'**
-  String get kabiEmojiSad;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'معصّب'**
-  String get kabiEmojiAngry;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'غمزة'**
-  String get kabiEmojiWink;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'لايف'**
-  String get kabiEmojiLive;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'كشخة'**
-  String get kabiEmojiCool;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'دايخ'**
-  String get kabiEmojiDizzy;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'نعسان'**
-  String get kabiEmojiSleepy;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'مهبول'**
-  String get kabiEmojiSilly;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'مستحي'**
-  String get kabiEmojiShy;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'يفكر'**
-  String get kabiEmojiThink;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'احتفال'**
-  String get kabiEmojiParty;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'مت ضحك'**
-  String get kabiEmojiDead;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'ذايب'**
-  String get kabiEmojiMelt;
-
-  /// D66: name of the Kabi emoji (screen readers, picker).
-  ///
-  /// In ar, this message translates to:
-  /// **'بوسة'**
-  String get kabiEmojiKiss;
-
   /// D66: title of the emoji picker sheet.
   ///
   /// In ar, this message translates to:
-  /// **'إيموجي كابي'**
+  /// **'الإيموجي'**
   String get kabiEmojiPickerTitle;
 
   /// D66: tooltip of the emoji button in a composer.
@@ -2635,6 +2527,912 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إيموجي'**
   String get kabiEmojiButton;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كابي'**
+  String get emojiPackKabi;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كيكي'**
+  String get emojiPackKiki;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بو'**
+  String get emojiPackBoo;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بيبو'**
+  String get emojiPackPipo;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'دوبي'**
+  String get emojiPackDubi;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'جوجو'**
+  String get emojiPackGogo;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'لولو'**
+  String get emojiPackLulu;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نينو'**
+  String get emojiPackNeno;
+
+  /// An emoji category (pack) tab in the picker (D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'أعلام'**
+  String get emojiPackFlags;
+
+  /// Name of the Kabi emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiKabiHi;
+
+  /// Name of the Kabi emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiKabiLove;
+
+  /// Name of the Kabi emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiKabiLol;
+
+  /// Name of the Kabi emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiKabiWow;
+
+  /// Name of the Kabi emoji "sad" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حزين'**
+  String get emojiKabiSad;
+
+  /// Name of the Kabi emoji "angry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'معصّب'**
+  String get emojiKabiAngry;
+
+  /// Name of the Kabi emoji "wink" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'غمزة'**
+  String get emojiKabiWink;
+
+  /// Name of the Kabi emoji "live" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'لايف'**
+  String get emojiKabiLive;
+
+  /// Name of the Kabi emoji "cool" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get emojiKabiCool;
+
+  /// Name of the Kabi emoji "dizzy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'دايخ'**
+  String get emojiKabiDizzy;
+
+  /// Name of the Kabi emoji "sleepy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get emojiKabiSleepy;
+
+  /// Name of the Kabi emoji "silly" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مهبول'**
+  String get emojiKabiSilly;
+
+  /// Name of the Kabi emoji "shy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحي'**
+  String get emojiKabiShy;
+
+  /// Name of the Kabi emoji "think" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يفكر'**
+  String get emojiKabiThink;
+
+  /// Name of the Kabi emoji "party" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get emojiKabiParty;
+
+  /// Name of the Kabi emoji "dead" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مت ضحك'**
+  String get emojiKabiDead;
+
+  /// Name of the Kabi emoji "melt" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذايب'**
+  String get emojiKabiMelt;
+
+  /// Name of the Kabi emoji "kiss" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بوسة'**
+  String get emojiKabiKiss;
+
+  /// Name of the Kabi emoji "gift" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية'**
+  String get emojiKabiGift;
+
+  /// Name of the Kabi emoji "fire" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نار'**
+  String get emojiKabiFire;
+
+  /// Name of the Kabi emoji "crown" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'VIP'**
+  String get emojiKabiCrown;
+
+  /// Name of the Kabi emoji "money" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'فلوس'**
+  String get emojiKabiMoney;
+
+  /// Name of the Kabi emoji "sing" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يغني'**
+  String get emojiKabiSing;
+
+  /// Name of the Kabi emoji "star" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'منبهر'**
+  String get emojiKabiStar;
+
+  /// Name of the Kiki emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiKikiHi;
+
+  /// Name of the Kiki emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiKikiLove;
+
+  /// Name of the Kiki emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiKikiLol;
+
+  /// Name of the Kiki emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiKikiWow;
+
+  /// Name of the Kiki emoji "sad" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حزين'**
+  String get emojiKikiSad;
+
+  /// Name of the Kiki emoji "angry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'معصّب'**
+  String get emojiKikiAngry;
+
+  /// Name of the Kiki emoji "cool" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get emojiKikiCool;
+
+  /// Name of the Kiki emoji "sleepy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get emojiKikiSleepy;
+
+  /// Name of the Kiki emoji "wink" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'غمزة'**
+  String get emojiKikiWink;
+
+  /// Name of the Kiki emoji "kiss" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بوسة'**
+  String get emojiKikiKiss;
+
+  /// Name of the Kiki emoji "sing" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يغني'**
+  String get emojiKikiSing;
+
+  /// Name of the Kiki emoji "shy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحية'**
+  String get emojiKikiShy;
+
+  /// Name of the Kiki emoji "think" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تفكر'**
+  String get emojiKikiThink;
+
+  /// Name of the Kiki emoji "party" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get emojiKikiParty;
+
+  /// Name of the Kiki emoji "clap" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تصفيق'**
+  String get emojiKikiClap;
+
+  /// Name of the Kiki emoji "fire" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نار'**
+  String get emojiKikiFire;
+
+  /// Name of the Kiki emoji "ok" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمام'**
+  String get emojiKikiOk;
+
+  /// Name of the Kiki emoji "dizzy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'دايخة'**
+  String get emojiKikiDizzy;
+
+  /// Name of the Boo emoji "boo" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بخ'**
+  String get emojiBooBoo;
+
+  /// Name of the Boo emoji "scared" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'خايف'**
+  String get emojiBooScared;
+
+  /// Name of the Boo emoji "fade" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختفى'**
+  String get emojiBooFade;
+
+  /// Name of the Boo emoji "peek" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يطل'**
+  String get emojiBooPeek;
+
+  /// Name of the Boo emoji "spin" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يرقص'**
+  String get emojiBooSpin;
+
+  /// Name of the Boo emoji "laugh" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiBooLaugh;
+
+  /// Name of the Boo emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiBooLove;
+
+  /// Name of the Boo emoji "cry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبكي'**
+  String get emojiBooCry;
+
+  /// Name of the Boo emoji "sneaky" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'خبيث'**
+  String get emojiBooSneaky;
+
+  /// Name of the Boo emoji "sleep" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نايم'**
+  String get emojiBooSleep;
+
+  /// Name of the Boo emoji "shock" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصدوم'**
+  String get emojiBooShock;
+
+  /// Name of the Boo emoji "party" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get emojiBooParty;
+
+  /// Name of the Pipo emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiPipoHi;
+
+  /// Name of the Pipo emoji "chirp" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يغرّد'**
+  String get emojiPipoChirp;
+
+  /// Name of the Pipo emoji "hungry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'جوعان'**
+  String get emojiPipoHungry;
+
+  /// Name of the Pipo emoji "cold" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بردان'**
+  String get emojiPipoCold;
+
+  /// Name of the Pipo emoji "fly" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يطير'**
+  String get emojiPipoFly;
+
+  /// Name of the Pipo emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiPipoLove;
+
+  /// Name of the Pipo emoji "cry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبكي'**
+  String get emojiPipoCry;
+
+  /// Name of the Pipo emoji "angry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'معصّب'**
+  String get emojiPipoAngry;
+
+  /// Name of the Pipo emoji "sleepy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get emojiPipoSleepy;
+
+  /// Name of the Pipo emoji "yay" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ياي'**
+  String get emojiPipoYay;
+
+  /// Name of the Pipo emoji "shy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحي'**
+  String get emojiPipoShy;
+
+  /// Name of the Pipo emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiPipoWow;
+
+  /// Name of the Dubi emoji "hug" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حضن'**
+  String get emojiDubiHug;
+
+  /// Name of the Dubi emoji "thanks" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'شكرًا'**
+  String get emojiDubiThanks;
+
+  /// Name of the Dubi emoji "strong" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'قوي'**
+  String get emojiDubiStrong;
+
+  /// Name of the Dubi emoji "honey" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'عسل'**
+  String get emojiDubiHoney;
+
+  /// Name of the Dubi emoji "sleep" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نايم'**
+  String get emojiDubiSleep;
+
+  /// Name of the Dubi emoji "grr" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'غاضب'**
+  String get emojiDubiGrr;
+
+  /// Name of the Dubi emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiDubiLol;
+
+  /// Name of the Dubi emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiDubiLove;
+
+  /// Name of the Dubi emoji "cool" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get emojiDubiCool;
+
+  /// Name of the Dubi emoji "ok" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمام'**
+  String get emojiDubiOk;
+
+  /// Name of the Dubi emoji "sad" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حزين'**
+  String get emojiDubiSad;
+
+  /// Name of the Dubi emoji "clap" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تصفيق'**
+  String get emojiDubiClap;
+
+  /// Name of the Gogo emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiGogoHi;
+
+  /// Name of the Gogo emoji "roar" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'زئير'**
+  String get emojiGogoRoar;
+
+  /// Name of the Gogo emoji "stomp" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يدبدب'**
+  String get emojiGogoStomp;
+
+  /// Name of the Gogo emoji "hatch" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يفقس'**
+  String get emojiGogoHatch;
+
+  /// Name of the Gogo emoji "munch" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ياكل'**
+  String get emojiGogoMunch;
+
+  /// Name of the Gogo emoji "dance" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يرقص'**
+  String get emojiGogoDance;
+
+  /// Name of the Gogo emoji "sneeze" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'عطسة'**
+  String get emojiGogoSneeze;
+
+  /// Name of the Gogo emoji "cool" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get emojiGogoCool;
+
+  /// Name of the Gogo emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiGogoLove;
+
+  /// Name of the Gogo emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiGogoLol;
+
+  /// Name of the Gogo emoji "cry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبكي'**
+  String get emojiGogoCry;
+
+  /// Name of the Gogo emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiGogoWow;
+
+  /// Name of the Lulu emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiLuluHi;
+
+  /// Name of the Lulu emoji "sun" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مشمس'**
+  String get emojiLuluSun;
+
+  /// Name of the Lulu emoji "rain" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ممطر'**
+  String get emojiLuluRain;
+
+  /// Name of the Lulu emoji "thunder" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'رعد'**
+  String get emojiLuluThunder;
+
+  /// Name of the Lulu emoji "rainbow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'قوس قزح'**
+  String get emojiLuluRainbow;
+
+  /// Name of the Lulu emoji "snow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ثلج'**
+  String get emojiLuluSnow;
+
+  /// Name of the Lulu emoji "wind" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هواء'**
+  String get emojiLuluWind;
+
+  /// Name of the Lulu emoji "sleep" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نايمة'**
+  String get emojiLuluSleep;
+
+  /// Name of the Lulu emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiLuluLove;
+
+  /// Name of the Lulu emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiLuluWow;
+
+  /// Name of the Lulu emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiLuluLol;
+
+  /// Name of the Lulu emoji "shy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحية'**
+  String get emojiLuluShy;
+
+  /// Name of the Neno emoji "hi" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'هلا'**
+  String get emojiNenoHi;
+
+  /// Name of the Neno emoji "love" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'حب'**
+  String get emojiNenoLove;
+
+  /// Name of the Neno emoji "lol" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضحك'**
+  String get emojiNenoLol;
+
+  /// Name of the Neno emoji "wow" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'واو'**
+  String get emojiNenoWow;
+
+  /// Name of the Neno emoji "cry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يبكي'**
+  String get emojiNenoCry;
+
+  /// Name of the Neno emoji "angry" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'معصّب'**
+  String get emojiNenoAngry;
+
+  /// Name of the Neno emoji "cool" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'كشخة'**
+  String get emojiNenoCool;
+
+  /// Name of the Neno emoji "think" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يفكر'**
+  String get emojiNenoThink;
+
+  /// Name of the Neno emoji "wink" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'غمزة'**
+  String get emojiNenoWink;
+
+  /// Name of the Neno emoji "sleepy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'نعسان'**
+  String get emojiNenoSleepy;
+
+  /// Name of the Neno emoji "money" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بزنس'**
+  String get emojiNenoMoney;
+
+  /// Name of the Neno emoji "ok" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمام'**
+  String get emojiNenoOk;
+
+  /// Name of the Neno emoji "clap" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تصفيق'**
+  String get emojiNenoClap;
+
+  /// Name of the Neno emoji "party" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'احتفال'**
+  String get emojiNenoParty;
+
+  /// Name of the Neno emoji "kiss" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'بوسة'**
+  String get emojiNenoKiss;
+
+  /// Name of the Neno emoji "blush" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مستحي'**
+  String get emojiNenoBlush;
+
+  /// Name of the Neno emoji "rose" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'وردة'**
+  String get emojiNenoRose;
+
+  /// Name of the Neno emoji "heartbeat" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'قلبي يدق'**
+  String get emojiNenoHeartbeat;
+
+  /// Name of the Neno emoji "flirt" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'غزل'**
+  String get emojiNenoFlirt;
+
+  /// Name of the Neno emoji "melt" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذايب'**
+  String get emojiNenoMelt;
+
+  /// Name of the Neno emoji "iloveu" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'أحبك'**
+  String get emojiNenoIloveu;
+
+  /// Name of the Neno emoji "serenade" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'يغني لها'**
+  String get emojiNenoSerenade;
+
+  /// Name of the Flags emoji "jo" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأردن'**
+  String get emojiFlagsJo;
+
+  /// Name of the Flags emoji "ps" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'فلسطين'**
+  String get emojiFlagsPs;
+
+  /// Name of the Flags emoji "sa" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'السعودية'**
+  String get emojiFlagsSa;
+
+  /// Name of the Flags emoji "eg" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'مصر'**
+  String get emojiFlagsEg;
+
+  /// Name of the Flags emoji "iq" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'العراق'**
+  String get emojiFlagsIq;
+
+  /// Name of the Flags emoji "sy" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'سوريا'**
+  String get emojiFlagsSy;
+
+  /// Name of the Flags emoji "ye" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'اليمن'**
+  String get emojiFlagsYe;
+
+  /// Name of the Flags emoji "ae" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإمارات'**
+  String get emojiFlagsAe;
+
+  /// Name of the Flags emoji "kw" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الكويت'**
+  String get emojiFlagsKw;
+
+  /// Name of the Flags emoji "qa" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'قطر'**
+  String get emojiFlagsQa;
+
+  /// Name of the Flags emoji "bh" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'البحرين'**
+  String get emojiFlagsBh;
+
+  /// Name of the Flags emoji "om" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'عُمان'**
+  String get emojiFlagsOm;
+
+  /// Name of the Flags emoji "lb" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'لبنان'**
+  String get emojiFlagsLb;
+
+  /// Name of the Flags emoji "ma" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'المغرب'**
+  String get emojiFlagsMa;
+
+  /// Name of the Flags emoji "dz" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجزائر'**
+  String get emojiFlagsDz;
+
+  /// Name of the Flags emoji "tn" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'تونس'**
+  String get emojiFlagsTn;
+
+  /// Name of the Flags emoji "ly" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'ليبيا'**
+  String get emojiFlagsLy;
+
+  /// Name of the Flags emoji "sd" (screen readers, picker; D66/D102).
+  ///
+  /// In ar, this message translates to:
+  /// **'السودان'**
+  String get emojiFlagsSd;
 
   /// D67: attaching a photo or video in a conversation.
   ///

@@ -958,6 +958,32 @@ void main() {
                   .copyWith(mode: mode, seatCount: count, theme: 'ice-palace'),
         )..seatState = seats(mode: mode, count: count);
 
+    testWidgets('audio room: tapping the empty stage cheers (the seats area '
+        'scrolls, it must not swallow the tap); a seat tap does not', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo = FakeLiveRepository(
+        room: (id) =>
+            apiRoom(id: id).copyWith(mode: LiveRoomMode.audio, seatCount: 25),
+      )..seatState = seats(mode: LiveRoomMode.audio, count: 25);
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      // Under the rows of seats, above the chat: empty stage.
+      final last = tester.getBottomLeft(find.byKey(AudioSeatRing.seatKey(24)));
+      for (var i = 0; i < 3; i++) {
+        await tester.tapAt(Offset(200, last.dy + 40));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byType(LiveTapCharacter), findsNWidgets(3));
+      await tester.pump(const Duration(seconds: 1));
+      expect(repo.tapBatches.single, (roomId: 'room-0', count: 3));
+      // A seat opens its own action, not a cheer.
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(3)));
+      await tester.pump(const Duration(seconds: 1));
+      expect(repo.tapBatches, hasLength(1));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets("the host's video while they are in the session", (
       tester,
     ) async {
@@ -1199,7 +1225,7 @@ void main() {
         await tester.pumpAndSettle();
         final kabis = find.byType(KabiEmoji).evaluate().length;
         await tester.tap(
-          find.byKey(LiveChatComposer.emojiKey(KabiEmojis.love)),
+          find.byKey(LiveChatComposer.emojiKey(KabsoEmoji.kabi('love'))),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
