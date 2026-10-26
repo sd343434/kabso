@@ -7163,6 +7163,100 @@
   "@followListsPrivateBody": {
     "description": "D121: a private account's lists for someone who does not follow it (403); under profilePrivateTitle."
   },
+  "followListsTabFollowers": "{count} المتابِعون",
+  "@followListsTabFollowers": {
+    "description": "D125: Followers tab with the profile's count (compact, Latin digits).",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "followListsTabFollowing": "{count} يتابع",
+  "@followListsTabFollowing": {
+    "description": "D125: Following tab with the profile's count (compact, Latin digits).",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "followListsAddPeople": "اكتشف أشخاصاً",
+  "@followListsAddPeople": {
+    "description": "D125: header add-person button (opens Discover / search)."
+  },
+  "followListsSearchHint": "بحث",
+  "@followListsSearchHint": {
+    "description": "D125: search field hint (searches within the list by name or @username)."
+  },
+  "followListsSortBy": "الترتيب:",
+  "@followListsSortBy": {
+    "description": "D125: sort row label, followed by the current order in bold."
+  },
+  "followListsSortDefault": "الافتراضي",
+  "@followListsSortDefault": {
+    "description": "D125: sort order: newest follow first (the default)."
+  },
+  "followListsSortOldest": "الأقدم أولاً",
+  "@followListsSortOldest": {
+    "description": "D125: sort order: oldest follow first."
+  },
+  "followListsSortToggle": "تغيير الترتيب",
+  "@followListsSortToggle": {
+    "description": "D125: tooltip of the sort toggle (default / oldest first)."
+  },
+  "followListsRowMore": "خيارات {name}",
+  "@followListsRowMore": {
+    "description": "D125: tooltip / screen-reader label of a row's ⋯ menu.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "followListsRemoveFollower": "إزالة المتابِع",
+  "@followListsRemoveFollower": {
+    "description": "D125: ⋯ menu item on your own Followers tab."
+  },
+  "followListsRemoveFollowerTitle": "إزالة {name} من متابِعيك؟",
+  "@followListsRemoveFollowerTitle": {
+    "description": "D125: confirm title before removing a follower.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "followListsRemoveFollowerBody": "لن يُبلَّغ بذلك، ويستطيع متابعتك مجدداً ما لم يكن حسابك خاصاً.",
+  "@followListsRemoveFollowerBody": {
+    "description": "D125: confirm body before removing a follower."
+  },
+  "followListsRemoveFollowerConfirm": "إزالة",
+  "@followListsRemoveFollowerConfirm": {
+    "description": "D125: confirm button of removing a follower."
+  },
+  "followListsFollowerRemoved": "أُزيل {name} من متابِعيك",
+  "@followListsFollowerRemoved": {
+    "description": "D125: snack after removing a follower.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "followListsNoMatch": "لا نتائج",
+  "@followListsNoMatch": {
+    "description": "D125: the list has no one matching the search."
+  },
+  "followListsNoMatchBody": "لا أحد في هذه القائمة يبدأ اسمه بـ «{query}».",
+  "@followListsNoMatchBody": {
+    "description": "D125: under followListsNoMatch.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "profileOpenFollowers": "عرض المتابِعين",
   "@profileOpenFollowers": {
     "description": "D121: screen-reader hint of the Followers count on a profile (opens the list)."

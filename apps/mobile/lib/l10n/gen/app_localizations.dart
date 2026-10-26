@@ -9800,6 +9800,102 @@ abstract class AppLocalizations {
   /// **'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.'**
   String get followListsPrivateBody;
 
+  /// D125: Followers tab with the profile's count (compact, Latin digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} المتابِعون'**
+  String followListsTabFollowers(String count);
+
+  /// D125: Following tab with the profile's count (compact, Latin digits).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} يتابع'**
+  String followListsTabFollowing(String count);
+
+  /// D125: header add-person button (opens Discover / search).
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتشف أشخاصاً'**
+  String get followListsAddPeople;
+
+  /// D125: search field hint (searches within the list by name or @username).
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث'**
+  String get followListsSearchHint;
+
+  /// D125: sort row label, followed by the current order in bold.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب:'**
+  String get followListsSortBy;
+
+  /// D125: sort order: newest follow first (the default).
+  ///
+  /// In ar, this message translates to:
+  /// **'الافتراضي'**
+  String get followListsSortDefault;
+
+  /// D125: sort order: oldest follow first.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأقدم أولاً'**
+  String get followListsSortOldest;
+
+  /// D125: tooltip of the sort toggle (default / oldest first).
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الترتيب'**
+  String get followListsSortToggle;
+
+  /// D125: tooltip / screen-reader label of a row's ⋯ menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات {name}'**
+  String followListsRowMore(String name);
+
+  /// D125: ⋯ menu item on your own Followers tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة المتابِع'**
+  String get followListsRemoveFollower;
+
+  /// D125: confirm title before removing a follower.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {name} من متابِعيك؟'**
+  String followListsRemoveFollowerTitle(String name);
+
+  /// D125: confirm body before removing a follower.
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يُبلَّغ بذلك، ويستطيع متابعتك مجدداً ما لم يكن حسابك خاصاً.'**
+  String get followListsRemoveFollowerBody;
+
+  /// D125: confirm button of removing a follower.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get followListsRemoveFollowerConfirm;
+
+  /// D125: snack after removing a follower.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُزيل {name} من متابِعيك'**
+  String followListsFollowerRemoved(String name);
+
+  /// D125: the list has no one matching the search.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نتائج'**
+  String get followListsNoMatch;
+
+  /// D125: under followListsNoMatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد في هذه القائمة يبدأ اسمه بـ «{query}».'**
+  String followListsNoMatchBody(String query);
+
   /// D121: screen-reader hint of the Followers count on a profile (opens the list).
   ///
   /// In ar, this message translates to:

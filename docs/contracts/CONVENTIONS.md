@@ -370,6 +370,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
+| `DELETE /me/followers/{username}` *(v1.26.1-live, D125)* | the follow / unfollow buckets (`follow:h` 60 / hour, `follow:d` 300 / day per user; idempotent no-ops count). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
@@ -481,6 +482,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26.1-live (draft) | 2026-10-26 | **D125 (owner: follow lists like the reference):** `listUserFollowers` / `listUserFollowing` take `q` (a case-insensitive prefix of the username or display name, trimmed, 1–30 characters) and `order` (`newest`, the default, or `oldest`); the cursor is bound to both. `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval` `{followsMe: false, followerCount}`): the caller removes a follower, idempotent, withdraws that follow's notification. §7 row, §10.6. | **Additive** (optional parameters, a new operation). Cursors of the default list stay valid. |
 | v1.26-live (draft) | 2026-10-26 | **D124 (owner: a 2-column live grid and promo banners):** `listHomeBanners` (`GET /home/banners`, tag `home`, `HomeBannerList` of `HomeBanner` `{id, imageUrl, width, height, blurhash, title, titleSide, link}`): the enabled banners inside their window now, ordered, at most 10, signed-in, `Cache-Control: private, max-age=60`; `MediaKind.HOME_BANNER` (cover-cropped to 3:1: 1 500 × 500 and 320 × 107 WebP). Banners are written only by the `banner-admin` CLI (migration role, audited). Migration `20261118090000_home_banners`. §10.26, §11.1. | **Additive** (a new operation, schemas and enum value). |
 | v1.25.4-live (draft) | 2026-10-26 | **D123 (owner: one seat size in every audio room; 25 seats removed):** `AUDIO` seat counts 5, 10, 15, 20 (`LiveConfig.seatCounts.AUDIO`); `startLiveRoom` / `updateLiveRoom` with `seatCount` 25 → 400 `invalid_value`. A room already LIVE with 25 keeps working (seats 1 … 24, `seatCount` 25 in responses) until it ends; no data migration (the database CHECK still admits 25 for those rows). App: every seat the same size whatever the count; a live keeps running in the background (Android foreground service, no API change). §10.9. | **Breaking for `AUDIO` starts / changes with 25** (400); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.25.2-live (draft) | 2026-10-26 | **D121 (owner: "I can't see who follows me and whom I follow"):** `listUserFollowers` / `listUserFollowing` (`GET /users/{username}/followers`, `GET /users/{username}/following`, `FollowListPage` of `FollowListItem` = `UserSummary` + `isSelf`, `isPrivate`, `followedByMe`, `followsMe`): newest follow first, signed social cursor (§5) bound to the list, the user and the caller; rows only ACTIVE accounts with no block either way with the caller; 404 across a block with the user (like `listUserPosts`); a private user's lists → 403 unless the caller is the user or follows them. `PublicProfile.followerCount` / `followingCount` and `FollowState.followerCount` count ACTIVE accounts only (were all rows, suspended included). Migration `20261117090000_follows_following_list_idx`. §7 row, §10.5, §10.6. | **Additive** (new operations and schemas). **Behaviour:** counts no longer include suspended accounts (the documented v1.3 inaccuracy is gone); no shape change. |
@@ -761,6 +763,18 @@ until a media provider is wired in.
     itself and its followers; anyone else → 403 `AUTH_FORBIDDEN` (the profile already says the
     account is private).
   - Rate limit: the `GET /users/{username}` bucket (§7).
+  - *(v1.26.1-live, D125)* **Search and order:** `q` keeps the rows whose username or display
+    name starts with it (case-insensitive; trimmed, 1–30 characters, else 400 `q`); `order=oldest`
+    lists the oldest follow first (the follow's time, then the other user's id, ascending;
+    `newest` is the default). The cursor is bound to `q` and `order` as well (another one → 400
+    `cursor` / `invalid_value`); a default-list cursor keeps the D121 binding.
+- *(v1.26.1-live, D125)* **Remove a follower:** `DELETE /me/followers/{username}` deletes the edge
+  `username` → caller and answers `{followsMe: false, followerCount}` (the caller's count after,
+  ACTIVE followers only). Idempotent (not a follower → 200). Errors as for `DELETE
+  /users/{username}/follow` (404 for a malformed, unknown, suspended or deleted user; 400 for the
+  caller's own username). The FOLLOW notification is withdrawn as on an unfollow; the removed
+  account is not told and may follow again unless the caller is private (no follow requests).
+  Shares the follow / unfollow buckets (§7).
 
 ### 10.7 Out of scope for v1.3 (recorded so nobody assumes otherwise)
 

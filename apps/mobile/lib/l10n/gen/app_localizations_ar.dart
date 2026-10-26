@@ -5671,6 +5671,67 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.';
 
   @override
+  String followListsTabFollowers(String count) {
+    return '$count المتابِعون';
+  }
+
+  @override
+  String followListsTabFollowing(String count) {
+    return '$count يتابع';
+  }
+
+  @override
+  String get followListsAddPeople => 'اكتشف أشخاصاً';
+
+  @override
+  String get followListsSearchHint => 'بحث';
+
+  @override
+  String get followListsSortBy => 'الترتيب:';
+
+  @override
+  String get followListsSortDefault => 'الافتراضي';
+
+  @override
+  String get followListsSortOldest => 'الأقدم أولاً';
+
+  @override
+  String get followListsSortToggle => 'تغيير الترتيب';
+
+  @override
+  String followListsRowMore(String name) {
+    return 'خيارات $name';
+  }
+
+  @override
+  String get followListsRemoveFollower => 'إزالة المتابِع';
+
+  @override
+  String followListsRemoveFollowerTitle(String name) {
+    return 'إزالة $name من متابِعيك؟';
+  }
+
+  @override
+  String get followListsRemoveFollowerBody =>
+      'لن يُبلَّغ بذلك، ويستطيع متابعتك مجدداً ما لم يكن حسابك خاصاً.';
+
+  @override
+  String get followListsRemoveFollowerConfirm => 'إزالة';
+
+  @override
+  String followListsFollowerRemoved(String name) {
+    return 'أُزيل $name من متابِعيك';
+  }
+
+  @override
+  String get followListsNoMatch => 'لا نتائج';
+
+  @override
+  String followListsNoMatchBody(String query) {
+    return 'لا أحد في هذه القائمة يبدأ اسمه بـ «$query».';
+  }
+
+  @override
   String get profileOpenFollowers => 'عرض المتابِعين';
 
   @override

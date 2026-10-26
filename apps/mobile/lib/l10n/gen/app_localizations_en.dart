@@ -5647,6 +5647,67 @@ class AppLocalizationsEn extends AppLocalizations {
       'Only approved followers can see this account\'s followers and who it follows.';
 
   @override
+  String followListsTabFollowers(String count) {
+    return '$count followers';
+  }
+
+  @override
+  String followListsTabFollowing(String count) {
+    return '$count following';
+  }
+
+  @override
+  String get followListsAddPeople => 'Find people';
+
+  @override
+  String get followListsSearchHint => 'Search';
+
+  @override
+  String get followListsSortBy => 'Sort by';
+
+  @override
+  String get followListsSortDefault => 'Default';
+
+  @override
+  String get followListsSortOldest => 'Oldest first';
+
+  @override
+  String get followListsSortToggle => 'Change order';
+
+  @override
+  String followListsRowMore(String name) {
+    return 'Options for $name';
+  }
+
+  @override
+  String get followListsRemoveFollower => 'Remove follower';
+
+  @override
+  String followListsRemoveFollowerTitle(String name) {
+    return 'Remove $name from your followers?';
+  }
+
+  @override
+  String get followListsRemoveFollowerBody =>
+      'They won\'t be told. They can follow you again unless your account is private.';
+
+  @override
+  String get followListsRemoveFollowerConfirm => 'Remove';
+
+  @override
+  String followListsFollowerRemoved(String name) {
+    return '$name was removed from your followers';
+  }
+
+  @override
+  String get followListsNoMatch => 'No matches';
+
+  @override
+  String followListsNoMatchBody(String query) {
+    return 'No one in this list has a name starting with “$query”.';
+  }
+
+  @override
   String get profileOpenFollowers => 'Show followers';
 
   @override

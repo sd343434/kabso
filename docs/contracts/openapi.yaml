@@ -117,6 +117,10 @@ info:
     `GET /home/banners`; `HomeBanner`, `HomeBannerList`) and the media kind `HOME_BANNER`
     (1 500 × 500 WebP, cover-cropped to 3:1); banners are managed only by the `banner-admin` CLI
     (CONVENTIONS §10.26, §11.1).
+    **D125 (DRAFT v1.26.1-live)** adds a search (`q`, a case-insensitive prefix of the username or
+    display name) and an order (`order=newest|oldest`) to both follow lists, and
+    `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval`): the caller removes
+    one of their followers (CONVENTIONS §10.6, §7).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -797,9 +801,15 @@ paths:
         either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
         caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
         rate limit (§7).
+        *(v1.26.1-live, D125)* `q` keeps the accounts whose username or display name starts with
+        it (case-insensitive); `order=oldest` lists the oldest follow first (the follow's time, then
+        the user id, ascending). The cursor is bound to `q` and `order` too (another `q` or
+        `order` → 400 `cursor` / `invalid_value`).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
         - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/FollowListSearch'
+        - $ref: '#/components/parameters/FollowListOrder'
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
@@ -831,9 +841,15 @@ paths:
         either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
         caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
         rate limit (§7).
+        *(v1.26.1-live, D125)* `q` keeps the accounts whose username or display name starts with
+        it (case-insensitive); `order=oldest` lists the oldest follow first (the follow's time, then
+        the user id, ascending). The cursor is bound to `q` and `order` too (another `q` or
+        `order` → 400 `cursor` / `invalid_value`).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
         - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/FollowListSearch'
+        - $ref: '#/components/parameters/FollowListOrder'
         - $ref: '#/components/parameters/Limit'
       responses:
         '200':
@@ -848,6 +864,33 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/followers/{username}:
+    delete:
+      tags: [me]
+      operationId: removeMyFollower
+      summary: "Remove one of the caller's followers (D125)"
+      description: |
+        CONVENTIONS §10.6 (v1.26.1-live, D125). Removes the follow `username` → caller. Idempotent:
+        when `username` does not follow the caller → 200 with nothing changed. The follow
+        notification it sent the caller is withdrawn (as on an unfollow). They are not told and
+        may follow again, unless the caller's account is private (no follow requests, §10.6).
+        `username` malformed, unknown, suspended or deleted → 404 `NOT_FOUND`; the caller's own
+        username → 400 `VALIDATION_FAILED` (`username` / `invalid_value`). Shares the follow /
+        unfollow rate-limit buckets (§7).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The user no longer follows the caller.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowerRemoval' }
+              example: { followsMe: false, followerCount: 41 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -5092,6 +5135,18 @@ components:
       in: query
       required: false
       schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    FollowListSearch:
+      name: q
+      in: query
+      required: false
+      description: "(v1.26.1-live, D125) Only the accounts whose username or display name starts with this text (case-insensitive; trimmed, then 1–30 characters)."
+      schema: { type: string, minLength: 1, maxLength: 30 }
+    FollowListOrder:
+      name: order
+      in: query
+      required: false
+      description: "(v1.26.1-live, D125) `newest` (default): the newest follow first; `oldest`: the oldest first."
+      schema: { type: string, enum: [newest, oldest], default: newest }
     BagCategoryQuery:
       name: category
       in: query
@@ -5462,6 +5517,19 @@ components:
             followsMe:
               type: boolean
               description: This account follows the caller (false when `isSelf`); the client shows "Follow back".
+    FollowerRemoval:
+      description: "(v1.26.1-live, D125) The answer of `removeMyFollower`."
+      type: object
+      required: [followsMe, followerCount]
+      properties:
+        followsMe:
+          type: boolean
+          enum: [false]
+          description: Always false after the operation.
+        followerCount:
+          type: integer
+          minimum: 0
+          description: The caller's follower count after the operation (ACTIVE followers only, like `PublicProfile.followerCount`).
     FollowListPage:
       type: object
       required: [data, page]

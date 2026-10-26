@@ -64,6 +64,8 @@ flutter:
     - assets/art/
     # D84 leaderboard art (Kabso's own, AI-generated; see the board).
     - assets/leaderboard/
+    # D125 the owner's family art (assets/families/PROVENANCE.md).
+    - assets/families/
     # D84 flags from Noto Color Emoji (OFL, assets/flags/NOTICE.txt).
     - assets/flags/
     # KL-056 debug-preview imagery (AI-generated, development only).

@@ -1,6 +1,6 @@
 // Follower and following lists (docs/contracts/openapi.yaml v1.25.2-live,
 // D121: `listUserFollowers`, `listUserFollowing`, `FollowListItem`;
-// CONVENTIONS §10.6).
+// v1.26.1-live, D125: `q`, `order`, `removeMyFollower`; CONVENTIONS §10.6).
 
 import 'package:material_ui/material_ui.dart';
 
@@ -17,6 +17,19 @@ enum FollowListKind {
   /// The kind named [value] (a route's `tab`), else [followers].
   static FollowListKind parse(String? value) =>
       value == following.path ? following : followers;
+}
+
+/// D125: the order of a list (`order`), by the follow's time.
+enum FollowListOrder {
+  /// The newest follow first (the server's default).
+  newest('newest'),
+
+  /// The oldest follow first.
+  oldest('oldest');
+
+  new(this.wire);
+
+  final String wire;
 }
 
 /// `FollowListItem`: a `UserSummary` plus the reader's relation to it.

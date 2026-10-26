@@ -4,9 +4,9 @@ import { byUserId, RateLimit, type RateLimitSpec } from '../../common/rate-limit
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
-import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { FollowListsService, type FollowListItemDto } from './follow-lists.service.js';
-import { FollowsService, type FollowStateDto } from './follows.service.js';
+import { followListQuerySchema, type FollowListQuery } from './follows.schemas.js';
+import { FollowsService, type FollowerRemovalDto, type FollowStateDto } from './follows.service.js';
 
 /**
  * CONVENTIONS §7/§10.6: follow and unfollow share one bucket pair per user (60 / hour,
@@ -32,24 +32,24 @@ export class FollowsController {
     private readonly lists: FollowListsService,
   ) {}
 
-  /** D121: who follows the user, newest first. Shares the `GET /users/{username}` bucket (§7). */
+  /** D121: who follows the user, newest first (D125: or oldest first; `q` a name prefix). Shares the `GET /users/{username}` bucket (§7). */
   @Get(':username/followers')
   @RateLimit(PROFILE_READ_LIMIT)
   followers(
     @CurrentAuth() auth: AuthContext,
     @Param('username') username: string,
-    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+    @Query(new ZodValidationPipe(followListQuerySchema)) query: FollowListQuery,
   ): Promise<PageDto<FollowListItemDto>> {
     return this.lists.list(auth.userId, username, 'followers', query);
   }
 
-  /** D121: whom the user follows, newest first. Shares the `GET /users/{username}` bucket (§7). */
+  /** D121: whom the user follows, newest first (D125: or oldest first; `q` a name prefix). Shares the `GET /users/{username}` bucket (§7). */
   @Get(':username/following')
   @RateLimit(PROFILE_READ_LIMIT)
   following(
     @CurrentAuth() auth: AuthContext,
     @Param('username') username: string,
-    @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
+    @Query(new ZodValidationPipe(followListQuerySchema)) query: FollowListQuery,
   ): Promise<PageDto<FollowListItemDto>> {
     return this.lists.list(auth.userId, username, 'following', query);
   }
@@ -66,5 +66,22 @@ export class FollowsController {
   @RateLimit(...FOLLOW_LIMITS)
   unfollow(@CurrentAuth() auth: AuthContext, @Param('username') username: string): Promise<FollowStateDto> {
     return this.follows.unfollow(auth.userId, username);
+  }
+}
+
+/** D125: the caller's own follow graph (`/me/followers/…`). */
+@Controller('me/followers')
+export class MyFollowersController {
+  constructor(private readonly follows: FollowsService) {}
+
+  /**
+   * D125: removes `username` from the caller's followers (idempotent). Shares the follow /
+   * unfollow buckets (§7).
+   */
+  @Delete(':username')
+  @HttpCode(200)
+  @RateLimit(...FOLLOW_LIMITS)
+  remove(@CurrentAuth() auth: AuthContext, @Param('username') username: string): Promise<FollowerRemovalDto> {
+    return this.follows.removeFollower(auth.userId, username);
   }
 }
