@@ -131,10 +131,11 @@ void main() {
         fakes: fakes,
       );
       expect(find.text('عائلة النجوم'), findsWidgets);
-      expect(find.text(en.familyNumber('48213907')), findsOneWidget);
-      expect(find.text(en.familyProgress('500', '1,000', 2)), findsOneWidget);
-      // Not a leader or deputy: no requests section.
-      expect(find.byKey(FamilyScreen.requestsKey), findsNothing);
+      expect(find.text('48213907'), findsOneWidget);
+      expect(find.text('500 / 1,000'), findsOneWidget);
+      expect(find.text(en.familyToReach(2)), findsOneWidget);
+      // Not a leader or deputy: no join requests tool.
+      expect(find.byKey(FamilyScreen.requestsToolKey), findsNothing);
       await tester.tap(find.byKey(FamilyScreen.joinKey));
       await tester.pumpAndSettle();
       expect(fakes.families.calls, contains('join:$_familyId'));
@@ -174,6 +175,11 @@ void main() {
     testWidgets('the leader accepts a join request; members show roles', (
       tester,
     ) async {
+      // A tall phone: the members list sits below the header.
+      tester.view
+        ..physicalSize = const Size(1179, 2556)
+        ..devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
       final fakes = BondFakes();
       fakes.families
         ..byId[_familyId] = _family(role: FamilyRole.leader)
@@ -189,19 +195,39 @@ void main() {
         const FamilyScreen(familyId: _familyId),
         fakes: fakes,
       );
-      expect(find.byKey(FamilyScreen.requestsKey), findsOneWidget);
       expect(find.text(en.familyRoleLeader), findsOneWidget);
       expect(find.text(en.familyRoleDeputy), findsOneWidget);
       // The leader manages others, never themselves.
-      expect(find.byKey(FamilyScreen.memberMenuKey('huda')), findsOneWidget);
-      expect(find.byKey(FamilyScreen.memberMenuKey('sara')), findsNothing);
+      await tester.tap(find.byKey(FamilyScreen.memberMenuKey('huda')));
+      await tester.pumpAndSettle();
+      expect(find.text(en.familyTransfer), findsOneWidget);
+      expect(find.text(en.familyChatMute), findsOneWidget);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(FamilyScreen.memberMenuKey('sara')));
+      await tester.pumpAndSettle();
+      expect(find.text(en.familyTransfer), findsNothing);
+      expect(find.text(en.familyViewProfile), findsOneWidget);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
       // The leader does not leave.
+      await tester.tap(find.byKey(FamilyScreen.manageKey));
+      await tester.pumpAndSettle();
       expect(find.byKey(FamilyScreen.leaveKey), findsNothing);
+      expect(find.byKey(FamilyScreen.disbandKey), findsOneWidget);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+      // Join requests open from the tool tile.
+      await tester.tap(find.byKey(FamilyScreen.requestsToolKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(FamilyScreen.requestsKey), findsOneWidget);
       await tester.tap(find.byKey(FamilyScreen.acceptKey('r1')));
       await tester.pumpAndSettle();
       expect(fakes.families.calls, contains('accept:r1'));
       expect(find.text(en.familyAccepted('Omar')), findsOneWidget);
       expect(find.text(en.familyRequestsEmpty), findsOneWidget);
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
       expect(find.byKey(FamilyScreen.memberKey('omar')), findsOneWidget);
     });
 
@@ -213,6 +239,8 @@ void main() {
         const FamilyScreen(familyId: _familyId),
         fakes: fakes,
       );
+      await tester.tap(find.byKey(FamilyScreen.manageKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(FamilyScreen.leaveKey));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(bondConfirmKey));
@@ -231,7 +259,15 @@ void main() {
   ) async {
     final fakes = await pumpBonds(tester, const FamiliesScreen());
     expect(find.byKey(FamiliesScreen.createKey), findsOneWidget);
+    // No family on the board yet: says so.
+    expect(find.byKey(FamiliesScreen.emptyKey), findsOneWidget);
+    expect(find.text(en.familiesBoardEmpty), findsOneWidget);
+    // Searching lists the matches with Join.
+    await tester.enterText(find.byKey(FamiliesScreen.searchKey), 'النجوم');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
     expect(find.byKey(FamiliesScreen.tileKey(_familyId)), findsOneWidget);
+    expect(find.byKey(FamiliesScreen.joinKey(_familyId)), findsOneWidget);
     await tester.enterText(find.byKey(FamiliesScreen.searchKey), 'zzz');
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();

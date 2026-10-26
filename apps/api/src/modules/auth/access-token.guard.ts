@@ -4,6 +4,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import type { AppRequest } from '../../common/http/request-context.js';
 import { AccessTokenService } from './access-token.service.js';
+import { PresenceTracker } from '../users/presence.js';
 import { IS_OPTIONAL_AUTH_KEY, IS_PUBLIC_KEY } from './public.decorator.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -15,6 +16,7 @@ const BEARER = /^Bearer +([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
  * `Authorization` header at all, `@OptionalAuth()`: a guest, CP-010).
  * Besides the JWT itself it checks the session (not revoked, not expired) and that the user
  * is ACTIVE, so logout, revocation and suspension take effect immediately (CONVENTIONS §6).
+ * v1.25-live (CP-022): an authenticated request also records the user's presence (§10.25).
  */
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
@@ -22,6 +24,7 @@ export class AccessTokenGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly accessTokens: AccessTokenService,
     private readonly sessions: SessionsService,
+    private readonly presence: PresenceTracker,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -52,6 +55,7 @@ export class AccessTokenGuard implements CanActivate {
       throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     }
     req.auth = { userId: claims.userId, sessionId: claims.sessionId };
+    this.presence.touch(claims.userId);
     return true;
   }
 }

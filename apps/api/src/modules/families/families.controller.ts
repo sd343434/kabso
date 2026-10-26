@@ -20,22 +20,50 @@ import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.j
 import { CurrentAuth } from '../auth/current-auth.decorator.js';
 import type { PageDto } from '../posts/post-views.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
-import { familySearchQuerySchema, type FamilySearchQuery } from './families.schemas.js';
+import {
+  familyChatQuerySchema,
+  familyMembersQuerySchema,
+  familyRankingsQuerySchema,
+  familySearchQuerySchema,
+  type FamilyChatQuery,
+  type FamilyMembersQuery,
+  type FamilyRankingsQuery,
+  type FamilySearchQuery,
+} from './families.schemas.js';
 import {
   FamiliesService,
   type CreateFamilyResultDto,
   type FamilyCardDto,
   type FamilyConfigDto,
+  type FamilyContributionsDto,
   type FamilyDto,
   type FamilyJoinRequestDto,
   type FamilyMemberDto,
   type RequestMeta,
 } from './families.service.js';
+import {
+  FamilyChatService,
+  type FamilyChatMessageDto,
+  type FamilyChatPageDto,
+} from './family-chat.service.js';
+import {
+  FamilyRankingsService,
+  type FamilyRankingsDto,
+  type FamilyStandingDto,
+} from './family-rankings.service.js';
 
 /** CP-018 (§7): family writes, 60 / hour per user, replacing the default. */
 const FAMILY_WRITE = {
   bucket: 'families:write',
   rule: 'familyWriteUser',
+  key: byUserId,
+  replacesDefault: true,
+} as const;
+
+/** v1.25-live (CP-022, §7): family chat messages, 30 / minute per user, replacing the default. */
+const FAMILY_CHAT = {
+  bucket: 'families:chat',
+  rule: 'familyChatUser',
   key: byUserId,
   replacesDefault: true,
 } as const;
@@ -50,7 +78,11 @@ function meta(req: AppRequest): RequestMeta {
  */
 @Controller('families')
 export class FamiliesController {
-  constructor(private readonly families: FamiliesService) {}
+  constructor(
+    private readonly families: FamiliesService,
+    private readonly rankings: FamilyRankingsService,
+    private readonly chat: FamilyChatService,
+  ) {}
 
   @Get('config')
   config(): FamilyConfigDto {
@@ -76,6 +108,15 @@ export class FamiliesController {
     const { created, result } = await this.families.create(auth.userId, body, meta(req));
     res.status(created ? 201 : 200);
     return result;
+  }
+
+  /** v1.25-live (CP-022): the family boards (before `:familyId`). */
+  @Get('rankings')
+  board(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodValidationPipe(familyRankingsQuerySchema)) query: FamilyRankingsQuery,
+  ): Promise<FamilyRankingsDto> {
+    return this.rankings.list(auth.userId, query);
   }
 
   @Get('me')
@@ -111,10 +152,83 @@ export class FamiliesController {
 
   @Get(':familyId/members')
   members(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Query(new ZodValidationPipe(familyMembersQuerySchema)) query: FamilyMembersQuery,
+  ): Promise<PageDto<FamilyMemberDto>> {
+    return this.families.members(auth.userId, familyId, query);
+  }
+
+  /** v1.25-live: who gave the most this month. */
+  @Get(':familyId/contributions')
+  contributions(
     @Param('familyId') familyId: string,
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
-  ): Promise<PageDto<FamilyMemberDto>> {
-    return this.families.members(familyId, query);
+  ): Promise<FamilyContributionsDto> {
+    return this.families.contributions(familyId, query);
+  }
+
+  /** v1.25-live: the family's place on both boards. */
+  @Get(':familyId/rankings')
+  standing(@Param('familyId') familyId: string): Promise<FamilyStandingDto> {
+    return this.rankings.standing(familyId);
+  }
+
+  /** v1.25-live: the family chat, newest first (members only). */
+  @Get(':familyId/chat')
+  chatPage(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Query(new ZodValidationPipe(familyChatQuerySchema)) query: FamilyChatQuery,
+  ): Promise<FamilyChatPageDto> {
+    return this.chat.list(auth.userId, familyId, query);
+  }
+
+  /** 201 new, 200 a retry with the same `clientId`. */
+  @Post(':familyId/chat')
+  @RateLimit(FAMILY_CHAT)
+  async chatSend(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<FamilyChatMessageDto> {
+    const { created, message } = await this.chat.send(auth.userId, familyId, body);
+    res.status(created ? 201 : 200);
+    return message;
+  }
+
+  @Delete(':familyId/chat/:messageId')
+  @HttpCode(204)
+  @RateLimit(FAMILY_WRITE)
+  chatDelete(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Param('messageId') messageId: string,
+  ): Promise<void> {
+    return this.chat.remove(auth.userId, familyId, messageId);
+  }
+
+  @Put(':familyId/chat/mutes/:username')
+  @HttpCode(204)
+  @RateLimit(FAMILY_WRITE)
+  chatMute(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Param('username') username: string,
+  ): Promise<void> {
+    return this.chat.setMuted(auth.userId, familyId, username, true);
+  }
+
+  @Delete(':familyId/chat/mutes/:username')
+  @HttpCode(204)
+  @RateLimit(FAMILY_WRITE)
+  chatUnmute(
+    @CurrentAuth() auth: AuthContext,
+    @Param('familyId') familyId: string,
+    @Param('username') username: string,
+  ): Promise<void> {
+    return this.chat.setMuted(auth.userId, familyId, username, false);
   }
 
   @Delete(':familyId/members/:username')

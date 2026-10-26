@@ -80,6 +80,8 @@ export interface AppConfig {
     /** CP-021: CP space writes; new confessions (per user). */
     readonly cpSpaceWriteUser: RateLimitRule;
     readonly cpConfessionUser: RateLimitRule;
+    /** CP-022: family chat messages (per user). */
+    readonly familyChatUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -247,6 +249,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveGiftUser: e.RATE_LIMIT_LIVE_GIFT_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
       cpConfessionUser: e.RATE_LIMIT_CP_CONFESSION_USER,
+      familyChatUser: e.RATE_LIMIT_FAMILY_CHAT_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,

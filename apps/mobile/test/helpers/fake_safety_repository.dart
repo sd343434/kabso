@@ -89,15 +89,19 @@ class FakeSafetyRepository implements SafetyRepository {
   Future<PrivacySettings> updatePrivacy({
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
+    bool? showActivityStatus,
   }) async {
     _step(
       'updatePrivacy:${whoCanMention?.wire ?? ''}:'
-      '${defaultWhoCanComment?.wire ?? ''}',
+      '${defaultWhoCanComment?.wire ?? ''}'
+      '${showActivityStatus == null ? '' : ':activity=$showActivityStatus'}',
     );
     return privacySettings = PrivacySettings(
       whoCanMention: whoCanMention ?? privacySettings.whoCanMention,
       defaultWhoCanComment:
           defaultWhoCanComment ?? privacySettings.defaultWhoCanComment,
+      showActivityStatus:
+          showActivityStatus ?? privacySettings.showActivityStatus,
     );
   }
 }

@@ -31,12 +31,14 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
   Future<void> change({
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
+    bool? showActivityStatus,
   }) async {
     final next = await ref
         .read(safetyRepositoryProvider)
         .updatePrivacy(
           whoCanMention: whoCanMention,
           defaultWhoCanComment: defaultWhoCanComment,
+          showActivityStatus: showActivityStatus,
         );
     if (ref.mounted) state = AsyncData(next);
   }
@@ -55,6 +57,7 @@ class PrivacyScreen extends ConsumerWidget {
 
   static Key mentionKey(MentionPolicy p) => Key('privacy.mention.${p.name}');
   static Key commentKey(WhoCanComment w) => Key('privacy.comment.${w.name}');
+  static const activityKey = Key('privacy.activityStatus');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -151,6 +154,21 @@ class PrivacyScreen extends ConsumerWidget {
                 l10n.privacyCommentHint,
                 style: context.textStyles.caption.copyWith(
                   color: p.textSecondary,
+                ),
+              ),
+            ),
+            // v1.25-live (CP-022, §10.25): presence in the family.
+            header(l10n.privacyActivityTitle),
+            SwitchListTile(
+              key: activityKey,
+              value: value.showActivityStatus,
+              title: Text(l10n.privacyActivityLabel),
+              subtitle: Text(l10n.privacyActivityHint),
+              onChanged: (v) => unawaited(
+                save(
+                  () => ref
+                      .read(privacyProvider.notifier)
+                      .change(showActivityStatus: v),
                 ),
               ),
             ),

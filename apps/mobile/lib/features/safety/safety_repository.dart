@@ -25,11 +25,16 @@ enum MentionPolicy {
 /// `PrivacySettings` (CONVENTIONS §11.7).
 @immutable
 class PrivacySettings {
-  const new({required this.whoCanMention, required this.defaultWhoCanComment});
+  const new({
+    required this.whoCanMention,
+    required this.defaultWhoCanComment,
+    this.showActivityStatus = true,
+  });
 
   factory fromJson(Map<String, dynamic> json) => PrivacySettings(
     whoCanMention: MentionPolicy.fromWire(json['whoCanMention']),
     defaultWhoCanComment: WhoCanComment.fromWire(json['defaultWhoCanComment']),
+    showActivityStatus: json['showActivityStatus'] as bool? ?? true,
   );
 
   final MentionPolicy whoCanMention;
@@ -37,6 +42,10 @@ class PrivacySettings {
   /// Who may comment on the caller's new posts unless the post says
   /// otherwise.
   final WhoCanComment defaultWhoCanComment;
+
+  /// v1.25-live (CP-022, §10.25): family members may see when the caller was
+  /// last active.
+  final bool showActivityStatus;
 }
 
 /// Block, mute, reports of users and privacy (docs/contracts/openapi.yaml
@@ -65,6 +74,7 @@ abstract interface class SafetyRepository {
   Future<PrivacySettings> updatePrivacy({
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
+    bool? showActivityStatus,
   });
 }
 
@@ -134,12 +144,14 @@ class SafetyRepositoryImpl implements SafetyRepository {
   Future<PrivacySettings> updatePrivacy({
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
+    bool? showActivityStatus,
   }) => guardApiCall(() async {
     final res = await _dio.patch<Map<String, dynamic>>(
       '/me/privacy',
       data: {
         'whoCanMention': ?whoCanMention?.wire,
         'defaultWhoCanComment': ?defaultWhoCanComment?.wire,
+        'showActivityStatus': ?showActivityStatus,
       },
     );
     return PrivacySettings.fromJson(res.data!);

@@ -658,6 +658,26 @@ a `CONNECTION LIMIT`.
 - Reported confessions appear in the existing admin reports queue (`targetType: CP_CONFESSION`);
   `REMOVE_TARGET` hides the confession.
 
+### 5.9 Families v2 (migrations `20261115090000_families_v2_enums`, `20261115100000_families_v2`; CP-022, D116) — [IMPLEMENTED, draft contract]
+
+- Apply in order with `prisma migrate deploy` (the enum value `FAMILY_CHAT_MESSAGE` must be committed
+  before the second migration uses it). No GRANT: the runtime group gets DML on the new tables
+  (`family_chat_messages`, `family_chat_mutes`) through the default privileges.
+- New columns: `users.last_active_at` (presence, empty until users make requests after the deploy),
+  `privacy_settings.show_activity_status` (default true), `families.cover_media_id` / `cover_url` /
+  `tagline`; a new index `family_points_ledger_created_idx` (built in the migration; on a large
+  ledger consider building it `CONCURRENTLY` by hand first, the migration's `CREATE INDEX` then
+  needs `IF NOT EXISTS`); the `media_assets_kind_known` check gains `FAMILY_COVER`; the
+  `reports_one_target` check gains `FAMILY_CHAT_MESSAGE`. No backfill.
+- Each authenticated request now schedules at most one `UPDATE users SET last_active_at` per user
+  per minute and API process (after the response).
+- The family boards follow the existing `LIVE_RANKINGS_TIME_ZONE` (month for prestige, Monday week
+  for the most active board).
+- **New optional server config:** `RATE_LIMIT_FAMILY_CHAT_USER` (default `30/60`). No sweeper and
+  no CLI; family chat messages have no retention limit yet.
+- Reported family chat messages appear in the existing admin reports queue
+  (`targetType: FAMILY_CHAT_MESSAGE`); `REMOVE_TARGET` hides the message.
+
 ## 6. Observability baseline
 
 | Item | Status |

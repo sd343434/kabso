@@ -389,19 +389,32 @@ describe('KL-060 safety', () => {
       const initial = await ctx.http.get('/api/v1/me/privacy').set(auth(me));
       expect(initial.status).toBe(200);
       expectContract(initial, 'getPrivacy');
-      expect(initial.body).toEqual({ whoCanMention: 'EVERYONE', defaultWhoCanComment: 'EVERYONE' });
+      expect(initial.body).toEqual({
+        whoCanMention: 'EVERYONE',
+        defaultWhoCanComment: 'EVERYONE',
+        // v1.25-live (CP-022): presence is visible by default.
+        showActivityStatus: true,
+      });
       const updated = await ctx.http
         .patch('/api/v1/me/privacy')
         .set(auth(me))
         .send({ defaultWhoCanComment: 'FOLLOWERS', whoCanMention: 'FOLLOWING' });
       expect(updated.status).toBe(200);
       expectContract(updated, 'updatePrivacy');
-      expect(updated.body).toEqual({ whoCanMention: 'FOLLOWING', defaultWhoCanComment: 'FOLLOWERS' });
+      expect(updated.body).toEqual({
+        whoCanMention: 'FOLLOWING',
+        defaultWhoCanComment: 'FOLLOWERS',
+        showActivityStatus: true,
+      });
       const partial = await ctx.http
         .patch('/api/v1/me/privacy')
         .set(auth(me))
         .send({ whoCanMention: 'NOBODY' });
-      expect(partial.body).toEqual({ whoCanMention: 'NOBODY', defaultWhoCanComment: 'FOLLOWERS' });
+      expect(partial.body).toEqual({
+        whoCanMention: 'NOBODY',
+        defaultWhoCanComment: 'FOLLOWERS',
+        showActivityStatus: true,
+      });
       const created = await ctx.http.get(`/api/v1/posts/${await post(me)}`).set(auth(me));
       expect(created.body.settings.whoCanComment).toBe('FOLLOWERS');
       const mention = await ctx.http

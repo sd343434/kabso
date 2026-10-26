@@ -63,6 +63,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveGiftRecipientUnavailable: 409,
   ErrorCode.cpTaskNotCompleted: 409,
   ErrorCode.cpPrivilegeLocked: 403,
+  ErrorCode.familyChatMuted: 403,
 };
 
 DioException _badResponse(
@@ -147,6 +148,7 @@ void main() {
           // v1.24-live (CP-021)
           'CP_TASK_NOT_COMPLETED',
           'CP_PRIVILEGE_LOCKED',
+          'FAMILY_CHAT_MUTED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

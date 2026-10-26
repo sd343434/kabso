@@ -5,7 +5,7 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Clock } from '../../common/time/clock.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
-import type { FamilyRole, Prisma } from '../../generated/prisma/client.js';
+import { Prisma, type FamilyRole } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
@@ -32,9 +32,13 @@ import {
   setFamilyRoleSchema,
   transferFamilySchema,
   updateFamilySchema,
+  type FamilyMembersQuery,
   type FamilySearchQuery,
 } from './families.schemas.js';
 import { familyNameIssue, familyNameKey, normalizeFamilyName } from './family-name.js';
+import { familyWindow, memberViews, type FamilyMemberDto, type MemberRow } from './family-views.js';
+
+export type { FamilyMemberDto } from './family-views.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -61,15 +65,26 @@ export interface FamilyDto extends FamilyCardDto {
   myRole: FamilyRole | null;
   /** The caller's pending join request to this family, or null. */
   myRequestId: string | null;
+  /** v1.25-live (CP-022): the cover picture (1 080 px) or null. */
+  coverUrl: string | null;
+  /** v1.25-live: the short line under the name, or null. */
+  tagline: string | null;
+  /** v1.25-live: pending join requests, for the leader and deputies; null for anyone else. */
+  pendingRequestCount: number | null;
 }
 
-/** `FamilyMember`. */
-export interface FamilyMemberDto {
+/** `FamilyContribution` (v1.25-live): what a member gave in the current month. */
+export interface FamilyContributionDto {
+  rank: number;
   user: UserSummaryDto;
   role: FamilyRole;
-  joinedAt: string;
-  /** Family points this member gave while in the family. */
   points: number;
+}
+
+/** `FamilyContributions` (v1.25-live). */
+export interface FamilyContributionsDto extends PageDto<FamilyContributionDto> {
+  startsAt: string;
+  endsAt: string;
 }
 
 /** `FamilyJoinRequest`. */
@@ -111,7 +126,7 @@ export interface RequestMeta {
   readonly requestId?: string | null;
 }
 
-const FAMILY_SELECT = {
+export const FAMILY_SELECT = {
   id: true,
   number: true,
   name: true,
@@ -120,8 +135,10 @@ const FAMILY_SELECT = {
   points: true,
   memberCount: true,
   createdAt: true,
+  coverUrl: true,
+  tagline: true,
 } as const satisfies Prisma.FamilySelect;
-type FamilyRow = Prisma.FamilyGetPayload<{ select: typeof FAMILY_SELECT }>;
+export type FamilyRow = Prisma.FamilyGetPayload<{ select: typeof FAMILY_SELECT }>;
 
 const REQUEST_INCLUDE = {
   family: { select: FAMILY_SELECT },
@@ -130,12 +147,14 @@ const REQUEST_INCLUDE = {
 type RequestRow = Prisma.FamilyJoinRequestGetPayload<{ include: typeof REQUEST_INCLUDE }>;
 
 const ROLE_ORDER: readonly FamilyRole[] = ['LEADER', 'DEPUTY', 'MEMBER'];
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 const DAY_MS = 24 * 3600_000;
 const SWEEP_BATCH = 1000;
 /** Attempts at drawing a free family number (a clash is about 1 in 90 million per family). */
 const NUMBER_ATTEMPTS = 3;
 
-function card(row: FamilyRow): FamilyCardDto {
+/** A family row as `FamilyCard`. */
+export function card(row: FamilyRow): FamilyCardDto {
   return {
     id: row.id,
     number: row.number,
@@ -230,14 +249,34 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
         select: { id: true },
       }),
     ]);
+    const myRole = mine?.familyId === row.id ? mine.role : null;
+    const pendingRequestCount =
+      myRole === 'LEADER' || myRole === 'DEPUTY'
+        ? await this.prisma.familyJoinRequest.count({
+            where: {
+              familyId: row.id,
+              status: 'PENDING',
+              expiresAt: { gt: this.clock.now() },
+              user: { status: 'ACTIVE' },
+            },
+          })
+        : null;
     return {
       ...card(row),
       nextLevelPoints: familyNextLevelPoints(row.level),
       leader: leader ? userSummary(leader.user) : null,
       createdAt: row.createdAt.toISOString(),
-      myRole: mine?.familyId === row.id ? mine.role : null,
+      myRole,
       myRequestId: request?.id ?? null,
+      coverUrl: row.coverUrl,
+      tagline: row.tagline,
+      pendingRequestCount,
     };
+  }
+
+  /** The current month window of the family boards and contributions (§10.25). */
+  private month(): Promise<{ start: Date; end: Date }> {
+    return familyWindow(this.prisma, 'month', this.config.live.rankingsTimeZone, this.clock.now());
   }
 
   private async visibleRow(familyId: string): Promise<FamilyRow> {
@@ -333,55 +372,149 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * `GET /families/{familyId}/members`: the leader, then deputies, then members, each by join
-   * time (ACTIVE accounts only).
+   * `GET /families/{familyId}/members`. `sort=ROLE` (default): the leader, then deputies, then
+   * members, each by join time; `sort=POINTS` (v1.25-live): by the points each gave, highest first
+   * (ties by join time, then user id), each with `rank` in the whole family. `q` keeps members whose
+   * username or display name contains it. ACTIVE accounts only. Presence per §10.25.
    */
-  async members(familyId: string, query: PageQuery): Promise<PageDto<FamilyMemberDto>> {
+  async members(
+    callerId: string,
+    familyId: string,
+    query: FamilyMembersQuery,
+  ): Promise<PageDto<FamilyMemberDto>> {
     const family = await this.visibleRow(familyId);
-    const scope = `family-members:${family.id}`;
+    const q = query.q?.toLowerCase() ?? null;
+    const scope =
+      query.sort === 'ROLE' && q === null
+        ? `family-members:${family.id}`
+        : `family-members:${family.id}:${query.sort}:${q ?? ''}`;
     let after = null;
     if (query.cursor !== undefined) {
       after = this.cursors.decode(query.cursor, scope);
-      if (!after || after.n === undefined || ROLE_ORDER[after.n] === undefined) {
-        throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
-      }
+      const bad =
+        !after ||
+        after.n === undefined ||
+        (query.sort === 'ROLE' ? ROLE_ORDER[after.n] === undefined : after.n < 1);
+      if (bad) throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
     }
-    let position: Prisma.FamilyMemberWhereInput = {};
-    if (after) {
-      const role = ROLE_ORDER[after.n ?? 0]!;
-      position = {
-        OR: [
-          { role: { in: ROLE_ORDER.slice((after.n ?? 0) + 1) } },
-          { role, joinedAt: { gt: after.at } },
-          { role, joinedAt: after.at, userId: { gt: after.id } },
-        ],
-      };
+    const filter =
+      q === null
+        ? Prisma.sql`TRUE`
+        : Prisma.sql`(strpos(lower(p.username), ${q}) > 0 OR strpos(lower(p.display_name), ${q}) > 0)`;
+    let position = Prisma.sql`TRUE`;
+    if (after && query.sort === 'ROLE') {
+      position = Prisma.sql`(m.role_index > ${after.n}
+        OR (m.role_index = ${after.n} AND (m.joined_at > ${after.at}::timestamptz
+          OR (m.joined_at = ${after.at}::timestamptz AND m.user_id > ${after.id}::uuid))))`;
+    } else if (after) {
+      position = Prisma.sql`m.rank > ${after.n}`;
     }
-    const rows = await this.prisma.familyMember.findMany({
-      where: { AND: [{ familyId: family.id, user: { status: 'ACTIVE' } }, position] },
-      orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }, { userId: 'asc' }],
-      take: query.limit + 1,
-      include: { user: { select: USER_SUMMARY_SELECT } },
-    });
+    const order =
+      query.sort === 'ROLE' ? Prisma.sql`m.role_index, m.joined_at, m.user_id` : Prisma.sql`m.rank`;
+    const rows = await this.prisma.$queryRaw<
+      {
+        user_id: string;
+        role: FamilyRole;
+        role_index: number;
+        joined_at: Date;
+        points: bigint;
+        rank: bigint;
+      }[]
+    >`
+      WITH m AS (
+        SELECT fm.user_id, fm.role, fm.joined_at, fm.points,
+               (array_position(ARRAY['LEADER','DEPUTY','MEMBER'], fm.role::text) - 1) AS role_index,
+               ROW_NUMBER() OVER (ORDER BY fm.points DESC, fm.joined_at, fm.user_id) AS rank
+          FROM family_members fm
+          JOIN users u ON u.id = fm.user_id AND u.status = 'ACTIVE'
+         WHERE fm.family_id = ${family.id}::uuid)
+      SELECT m.user_id::text AS user_id, m.role, m.role_index, m.joined_at, m.points, m.rank
+        FROM m JOIN user_profiles p ON p.user_id = m.user_id
+       WHERE ${filter} AND ${position}
+       ORDER BY ${order}
+       LIMIT ${query.limit + 1}`;
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
     const last = page[page.length - 1];
-    return {
-      data: page.map((m) => ({
-        user: userSummary(m.user),
-        role: m.role,
-        joinedAt: m.joinedAt.toISOString(),
-        points: Number(m.points),
+    const data = await memberViews(this.prisma, {
+      familyId: family.id,
+      callerId,
+      now: this.clock.now(),
+      month: await this.month(),
+      rows: page.map((r): MemberRow => ({
+        userId: r.user_id,
+        role: r.role,
+        joinedAt: r.joined_at,
+        points: r.points,
+        ...(query.sort === 'POINTS' ? { rank: Number(r.rank) } : {}),
       })),
+    });
+    return {
+      data,
       page: {
         hasMore,
         nextCursor:
           hasMore && last
-            ? this.cursors.encode(scope, {
-                at: last.joinedAt,
-                id: last.userId,
-                n: ROLE_ORDER.indexOf(last.role),
-              })
+            ? this.cursors.encode(
+                scope,
+                query.sort === 'ROLE'
+                  ? { at: last.joined_at, id: last.user_id, n: last.role_index }
+                  : { at: new Date(0), id: NIL_UUID, n: Number(last.rank) },
+              )
+            : null,
+      },
+    };
+  }
+
+  /**
+   * `GET /families/{familyId}/contributions` (v1.25-live): the members who gave points in the
+   * current month (LIVE_RANKINGS_TIME_ZONE), most first (ties by who joined first, then user id),
+   * during their current membership; ACTIVE accounts; paged with `rank`.
+   */
+  async contributions(familyId: string, query: PageQuery): Promise<FamilyContributionsDto> {
+    const family = await this.visibleRow(familyId);
+    const month = await this.month();
+    const scope = `family-contributions:${family.id}:${month.start.getTime()}`;
+    let offset = 0;
+    if (query.cursor !== undefined) {
+      const after = this.cursors.decode(query.cursor, scope);
+      if (!after || after.n === undefined) {
+        throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+      }
+      offset = after.n;
+    }
+    const rows = await this.prisma.$queryRaw<{ user_id: string; role: FamilyRole; points: bigint }[]>`
+      SELECT m.user_id::text AS user_id, m.role, SUM(l.points)::bigint AS points
+        FROM family_members m
+        JOIN users u ON u.id = m.user_id AND u.status = 'ACTIVE'
+        JOIN family_points_ledger l ON l.family_id = m.family_id AND l.user_id = m.user_id
+       WHERE m.family_id = ${family.id}::uuid
+         AND l.created_at >= GREATEST(${month.start}::timestamptz, m.joined_at)
+         AND l.created_at < ${month.end}::timestamptz
+       GROUP BY m.user_id, m.role, m.joined_at
+      HAVING SUM(l.points) > 0
+       ORDER BY SUM(l.points) DESC, m.joined_at, m.user_id
+       LIMIT ${query.limit + 1} OFFSET ${offset}`;
+    const hasMore = rows.length > query.limit;
+    const page = rows.slice(0, query.limit);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: page.map((r) => r.user_id) } },
+      select: USER_SUMMARY_SELECT,
+    });
+    const byId = new Map(users.map((u) => [u.id, userSummary(u)]));
+    const last = page[page.length - 1];
+    return {
+      startsAt: month.start.toISOString(),
+      endsAt: month.end.toISOString(),
+      data: page.flatMap((r, i) => {
+        const user = byId.get(r.user_id);
+        return user ? [{ rank: offset + i + 1, user, role: r.role, points: Number(r.points) }] : [];
+      }),
+      page: {
+        hasMore,
+        nextCursor:
+          hasMore && last
+            ? this.cursors.encode(scope, { at: month.start, id: last.user_id, n: offset + page.length })
             : null,
       },
     };
@@ -557,32 +690,56 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
     return row?.familyId === familyId ? row.role : null;
   }
 
-  /** `PATCH /families/{familyId}`: the leader sets (or with null removes) the emblem. */
+  /**
+   * `PATCH /families/{familyId}`: the leader sets (or with null removes) the emblem and, since
+   * v1.25-live, the cover (`FAMILY_COVER`) and the tagline. Order: 400 body → 503 uploads off (a
+   * new picture) → 404 → 403 → 400 `emblemMediaId` / `coverMediaId` (`invalid_value`).
+   */
   async update(callerId: string, familyId: string, body: unknown): Promise<FamilyDto> {
     const parsed = updateFamilySchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    const emblemId = parsed.data.emblemMediaId?.toLowerCase() ?? null;
-    if (emblemId !== null) this.media.assertEnabled();
+    const input = parsed.data;
+    const emblemId =
+      input.emblemMediaId === undefined ? undefined : (input.emblemMediaId?.toLowerCase() ?? null);
+    const coverId =
+      input.coverMediaId === undefined ? undefined : (input.coverMediaId?.toLowerCase() ?? null);
+    if (emblemId || coverId) this.media.assertEnabled();
     const oldKeys = await this.prisma.$transaction(async (tx) => {
       const family = await this.lockFamily(tx, familyId);
       if ((await this.roleIn(tx, family.id, callerId)) !== 'LEADER')
         throw new AppException(ErrorCode.AUTH_FORBIDDEN);
       const current = await tx.family.findUniqueOrThrow({
         where: { id: family.id },
-        select: { emblemMediaId: true },
+        select: { emblemMediaId: true, coverMediaId: true, tagline: true },
       });
-      if (current.emblemMediaId === emblemId) return [];
-      let emblemUrl: string | null = null;
-      if (emblemId !== null) {
-        const claimed = await this.media.claimAssetsIn(tx, callerId, [emblemId], 'FAMILY_EMBLEM');
-        if (!claimed) throw AppException.validation([{ field: 'emblemMediaId', issue: 'invalid_value' }]);
-        emblemUrl = this.media.largeUrl(claimed[0]!);
+      const data: Prisma.FamilyUncheckedUpdateInput = {};
+      const gone: (string | null)[] = [];
+      if (emblemId !== undefined && current.emblemMediaId !== emblemId) {
+        let emblemUrl: string | null = null;
+        if (emblemId !== null) {
+          const claimed = await this.media.claimAssetsIn(tx, callerId, [emblemId], 'FAMILY_EMBLEM');
+          if (!claimed) throw AppException.validation([{ field: 'emblemMediaId', issue: 'invalid_value' }]);
+          emblemUrl = this.media.largeUrl(claimed[0]!);
+        }
+        Object.assign(data, { emblemMediaId: emblemId, emblemUrl });
+        gone.push(current.emblemMediaId);
       }
-      await tx.family.update({
-        where: { id: family.id },
-        data: { emblemMediaId: emblemId, emblemUrl, updatedAt: this.clock.now() },
-      });
-      return this.deleteAssetIn(tx, current.emblemMediaId);
+      if (coverId !== undefined && current.coverMediaId !== coverId) {
+        let coverUrl: string | null = null;
+        if (coverId !== null) {
+          const claimed = await this.media.claimAssetsIn(tx, callerId, [coverId], 'FAMILY_COVER');
+          if (!claimed) throw AppException.validation([{ field: 'coverMediaId', issue: 'invalid_value' }]);
+          coverUrl = this.media.largeUrl(claimed[0]!);
+        }
+        Object.assign(data, { coverMediaId: coverId, coverUrl });
+        gone.push(current.coverMediaId);
+      }
+      if (input.tagline !== undefined && input.tagline !== current.tagline) data.tagline = input.tagline;
+      if (Object.keys(data).length === 0) return [];
+      await tx.family.update({ where: { id: family.id }, data: { ...data, updatedAt: this.clock.now() } });
+      const keys: string[] = [];
+      for (const id of gone) keys.push(...(await this.deleteAssetIn(tx, id)));
+      return keys;
     });
     await this.media.deleteObjects(oldKeys);
     return this.get(callerId, familyId);
@@ -616,12 +773,21 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       });
       const before = await tx.family.findUniqueOrThrow({
         where: { id: family.id },
-        select: { emblemMediaId: true },
+        select: { emblemMediaId: true, coverMediaId: true },
       });
       await tx.family.update({
         where: { id: family.id },
-        data: { disbandedAt: now, memberCount: 0, emblemMediaId: null, emblemUrl: null, updatedAt: now },
+        data: {
+          disbandedAt: now,
+          memberCount: 0,
+          emblemMediaId: null,
+          emblemUrl: null,
+          coverMediaId: null,
+          coverUrl: null,
+          updatedAt: now,
+        },
       });
+      await tx.familyChatMute.deleteMany({ where: { familyId: family.id } });
       await this.audit.recordIn(tx, {
         action: AuditAction.FAMILY_DISBAND,
         actorUserId: callerId,
@@ -630,7 +796,10 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
         ip: meta.ip ?? null,
         requestId: meta.requestId ?? null,
       });
-      return this.deleteAssetIn(tx, before.emblemMediaId);
+      return [
+        ...(await this.deleteAssetIn(tx, before.emblemMediaId)),
+        ...(await this.deleteAssetIn(tx, before.coverMediaId)),
+      ];
     });
     await this.media.deleteObjects(oldKeys);
   }
@@ -708,20 +877,20 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       await tx.familyMember.update({ where: { userId: target.id }, data: { role: parsed.data.role } });
       return target.id;
     });
-    return this.memberDto(userId);
+    return this.memberDto(callerId, userId);
   }
 
-  private async memberDto(userId: string): Promise<FamilyMemberDto> {
-    const m = await this.prisma.familyMember.findUniqueOrThrow({
-      where: { userId },
-      include: { user: { select: USER_SUMMARY_SELECT } },
+  /** One `FamilyMember` as `callerId` sees it. */
+  private async memberDto(callerId: string, userId: string): Promise<FamilyMemberDto> {
+    const m = await this.prisma.familyMember.findUniqueOrThrow({ where: { userId } });
+    const [dto] = await memberViews(this.prisma, {
+      familyId: m.familyId,
+      callerId,
+      now: this.clock.now(),
+      month: await this.month(),
+      rows: [{ userId: m.userId, role: m.role, joinedAt: m.joinedAt, points: m.points }],
     });
-    return {
-      user: userSummary(m.user),
-      role: m.role,
-      joinedAt: m.joinedAt.toISOString(),
-      points: Number(m.points),
-    };
+    return dto!;
   }
 
   /**
@@ -943,7 +1112,7 @@ export class FamiliesService implements OnModuleInit, OnModuleDestroy {
       return { userId: request.user_id, error: null };
     });
     if (outcome.error !== null) throw new AppException(outcome.error);
-    return this.memberDto(outcome.userId);
+    return this.memberDto(callerId, outcome.userId);
   }
 
   /** `POST /families/{familyId}/join-requests/{requestId}/decline` (leader or deputy) → 204. */

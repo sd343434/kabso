@@ -35,6 +35,7 @@ import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/discover/hashtag_screen.dart';
 import 'package:kabso_live/features/families/presentation/create_family_screen.dart';
 import 'package:kabso_live/features/families/presentation/families_screen.dart';
+import 'package:kabso_live/features/families/presentation/family_chat_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
@@ -243,6 +244,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.familyPattern,
         builder: (_, state) =>
             FamilyScreen(familyId: state.pathParameters['familyId']!),
+      ),
+      GoRoute(
+        path: AppRoutes.familyChatPattern,
+        builder: (_, state) =>
+            FamilyChatScreen(familyId: state.pathParameters['familyId']!),
       ),
       GoRoute(
         path: AppRoutes.cp,

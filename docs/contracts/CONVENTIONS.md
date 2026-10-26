@@ -129,6 +129,7 @@ All non-2xx responses use one envelope:
 | 409 | `LIVE_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A recipient of a gift send is not the host or seated in that live now, has no ACTIVE account with that username, or blocked the sender (or was blocked by them). Nothing was charged or sent; the app reloads the seats (§10.23). |
 | 409 | `CP_TASK_NOT_COMPLETED` | *(v1.24-live, DRAFT, CP-021)* A claim for a daily CP task that is not completed yet today (§10.24). Nothing was added. |
 | 403 | `CP_PRIVILEGE_LOCKED` | *(v1.24-live, DRAFT, CP-021)* A read that needs a CP privilege the couple has not unlocked (today: another couple's gift wall before `GIFT_WALL`, §10.24). |
+| 403 | `FAMILY_CHAT_MUTED` | *(v1.25-live, DRAFT, CP-022)* The family's leader or a deputy muted the caller in the family chat. The app disables the composer and says so (§10.25). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -365,6 +366,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/gifts` *(v1.21-live, CP-018)* | 30 / min per user (bucket `cp:gift`). **Replaces** the per-user default |
 | `POST /cp/me/check-in`, `POST /cp/me/tasks/{code}/claim`, `DELETE /cp/me/confessions/{confessionId}` *(v1.24-live, CP-021)* | 60 / min per user (bucket `cp:space`, `RATE_LIMIT_CP_SPACE_WRITE_USER`). **Replaces** the per-user default; the CP space reads (`GET /cp/me/tasks`, `/cp/me/privileges`, `/cp/me/confessions`, `/cp/rankings`, `/cp/couples/…`) use the default |
 | `POST /cp/me/confessions` *(v1.24-live, CP-021)* | 10 / hour per user (bucket `cp:confession`, `RATE_LIMIT_CP_CONFESSION_USER`). **Replaces** the per-user default |
+| `POST /families/{familyId}/chat` *(v1.25-live, CP-022)* | 30 / min per user (bucket `families:chat`, `RATE_LIMIT_FAMILY_CHAT_USER`). **Replaces** the per-user default. Deleting a chat message and muting / unmuting a member use the family writes bucket (`families:write`); the family boards, standing, contributions and chat reads use the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
@@ -432,6 +434,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.19-live)* Table `live_bullets` | Backend — `live` module | CTO |
 | *(v1.20-live)* Table `live_room_kicks` | Backend — `live` module | CTO |
 | *(v1.21-live)* Tables `families`, `family_members`, `family_join_requests`, `family_points_ledger` | Backend — `families` module (`family_points_ledger` is written with the wallet's debits) | CTO; Security (the points ledger follows wallet debits) |
+| *(v1.25-live)* Tables `family_chat_messages`, `family_chat_mutes`; columns `families.cover_media_id`, `cover_url`, `tagline` | Backend — `families` module | CTO |
+| *(v1.25-live)* Column `users.last_active_at` (presence) | Backend — `users` module (`PresenceTracker`, written by the access-token guard); read by `families` | CTO; Security reviews who may see it (§10.25) |
 | *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
 | *(v1.24-live)* Tables `cp_points_ledger`, `cp_check_ins`, `cp_task_claims`, `cp_confessions` | Backend — `cp-space` module (`cp_points_ledger` is also written by the `couples` module's CP gift path through `couples/cp-points.ts`, in the gift's transaction) | CTO |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
@@ -476,6 +480,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.25-live (draft) | 2026-10-26 | **CP-022 (D116, owner 2026-10-26: "the look + the missing basics"):** families v2. Tag `families`: `listFamilyRankings` (`GET /families/rankings?board=PRESTIGE\|ACTIVE`, `FamilyRankings`, `FamilyRankingEntry`, `FamilyRankingBoard`), `getFamilyStanding` (`GET /families/{familyId}/rankings`, `FamilyStanding`, `FamilyBoardStanding`), `listFamilyContributions` (`GET /families/{familyId}/contributions`, `FamilyContributions`, `FamilyContribution`), `listFamilyChat` / `sendFamilyChatMessage` (`GET` / `POST /families/{familyId}/chat`, `FamilyChatPage`, `FamilyChatMessage`, `FamilyChatSendRequest`), `deleteFamilyChatMessage`, `muteFamilyChatMember` / `unmuteFamilyChatMember` (`PUT` / `DELETE …/chat/mutes/{username}`); `listFamilyMembers` gains `sort=ROLE\|POINTS` and `q`; `FamilyMember.monthPoints`, `presence` (`FamilyPresence`), `chatMuted` (required) and `rank` (with `sort=POINTS`); `Family.coverUrl`, `tagline`, `pendingRequestCount` (required); `UpdateFamilyRequest` fields all optional (at least one) with `coverMediaId`, `tagline`; `PrivacySettings.showActivityStatus` (required) / `UpdatePrivacyRequest.showActivityStatus`; `MediaKind.FAMILY_COVER`; report `targetType: FAMILY_CHAT_MESSAGE`; code `FAMILY_CHAT_MUTED` (403). Server config `RATE_LIMIT_FAMILY_CHAT_USER`. §4, §7, §8, §10.21, §10.25, §11.1, §11.7. | **Additive** (new operations, schemas, fields, codes and enum values; `UpdateFamilyRequest` relaxes `emblemMediaId` from required to optional; new required response fields: strict clients update their models in the same change set). |
 | v1.24.4-live (draft) | 2026-10-26 | **D119 (owner: "make the chat text like this"):** `LiveChatMessage.authorBadges` (`LiveChatAuthorBadges` `{charmLevel, supportLevel, family}`, `LiveChatAuthorFamily` `{name, level}`; required in responses and in the `chat` data message) on `sendLiveChatMessage`, `listLiveChatMessages` and topic `chat`: the author's charm (`ATTRACTIVENESS`) and `SUPPORT` level numbers (null while a category is unavailable) and family (null when none), as they are now, cached up to 30 s per API instance. §10.11. | **Additive** (a new response field; older apps ignore it, the app reads a missing one as no badges). |
 | v1.24.3-live (draft) | 2026-10-26 | **D117 (owner: the gift panel exactly like the reference):** `Gift.tag` (`GiftTag` `{code, name}` or null, required in responses) on `getGiftCatalogue` and `getMyGiftBag`: a gift's optional sub-category, Arabic and English names, shown as chips under the panel's tabs; `gift-admin add|update … --tag <code> --tag-ar <text> --tag-en <text>`, `--tag none`; `GiftCatalogue.version` moves with a tag. Migration `20261116090000_gift_tags` (nullable columns, CHECKs `gifts_tag_complete`, `gifts_tag_code_format`, `gifts_tag_names_present`). §10.23. | **Additive** (a new response field older apps ignore; existing gifts have no tag). |
 | v1.24.2-live (draft) | 2026-10-26 | **D115 (owner):** `LiveSeatCouple.privileges` (`CpPrivilegeCode[]`, required in responses) on every operation that answers `LiveSeats`; the app plays the Couple Mic Effect (`MIC_EFFECT`) on a speaking partner's seat. §10.9. | **Additive** (a new response field older apps ignore; apps read a missing list as none). |
@@ -1292,8 +1297,9 @@ in place of the `Idempotency-Key` header, the ledger append-only.
   null); `GET /users/{username}/medals` → `{data, owned, total}` (newest first, `awardedAt`; 404
   like the profile).
 
-**Not in v1.21-live:** buying coins (B5), family chat or family live rooms, family tasks or
-rankings beyond `GET /families`, CP gifts that give the partner coins or charm points, streak
+**Not in v1.21-live:** buying coins (B5), family chat or family live rooms *(v1.25-live: a family
+chat arrived, §10.25)*, family tasks or rankings beyond `GET /families` *(v1.25-live: the family
+boards, §10.25)*, CP gifts that give the partner coins or charm points, streak
 medals, removing a deleted or suspended account from its family or couple (they are left out of
 member lists and `cp` on profiles; a suspended leader's family keeps its leader until an admin
 tool exists).
@@ -1543,6 +1549,74 @@ couple's **CP points** (§10.21): one number, one tier ladder.
   entrance effect are drawn by the app), a ranking by region or by day, confessions from people
   other than the partners, likes or replies on confessions.
 
+### 10.25 Families v2: boards, contributions, presence, cover and chat *(v1.25-live, DRAFT — CP-022, D116)*
+
+Owner decisions (D116, 2026-10-26, "the look + the missing basics") are marked *(owner)*; the
+rest are CTO defaults the owner may change (named constants in `families.constants.ts` and
+`users/presence.ts`). Every route needs a token. Additive to §10.21.
+
+- **Boards** *(owner)*: `GET /families/rankings?board=PRESTIGE|ACTIVE` (default `PRESTIGE`).
+  `PRESTIGE` (هيبة العائلة) = family points gained in the **current calendar month** (the
+  `family_points_ledger` rows of the month, §10.21) *(owner)*. `ACTIVE` (الأكثر نشاطاً, CTO
+  definition, cheaply derived): how many members (ACTIVE accounts) were **active in the app this
+  week** (an authenticated request since Monday 00:00, from presence below); members who turned
+  off `showActivityStatus` are not counted, so a count never reveals them. Windows in
+  `LIVE_RANKINGS_TIME_ZONE` (one region for everyone, like §10.15; `startsAt` / `endsAt`).
+  Families with a score of 0 are not listed; highest first, ties by the family's total points, then
+  id; at most **100** families *(owner)*, paged (signed offset cursor, like §10.24). `me`:
+  `{family, rank, score}` for the caller's family (`rank` null with 0), null without one.
+  `GET /families/{familyId}/rankings` → `FamilyStanding` `{familyId, prestige, active}`, each
+  `{rank, score, startsAt, endsAt}`: the exact place among all families (not only the top 100).
+  *Not now (owner):* the battle board (ترتيب القتال) — no family battles exist; the app shows it
+  as "Soon", not as a board.
+- **Contributions** *(owner)*: `FamilyMember.monthPoints` = points the member gave in the
+  current month during their current membership (like `points`, what they gave before leaving and
+  joining again is not counted). `GET /families/{familyId}/contributions` → `FamilyContributions`
+  `{startsAt, endsAt, data: [{rank, user, role, points}], page}`: members with points this month,
+  most first (ties by who joined first, then user id). `GET …/members` gains `sort=POINTS` (by
+  `points`, highest first, each with `rank` in the whole family) and `q` (username or display
+  name contains it, case-insensitive); `sort=ROLE` stays the default order.
+- **Presence** *(owner: "online status"; the minimal honest version, no activity-status option
+  existed)*: every authenticated request records `users.last_active_at` (after the response, at
+  most once a minute per user and API process). **Online** = a request in the last **5 minutes**.
+  `FamilyMember.presence` `{online, lastActiveAt}` is shown only to **members of the same family**,
+  only when the person's `PrivacySettings.showActivityStatus` is true (new, default true;
+  `GET` / `PATCH /me/privacy`) and with **no block either way**; otherwise null (the caller always
+  sees their own). Nothing else exposes it. There is no reciprocity rule (hiding yours does not
+  hide others' from you).
+- **Cover and tagline** *(owner)*: `PATCH /families/{familyId}` takes `coverMediaId` (a
+  `FAMILY_COVER` upload, §11.1, or null) and `tagline` (one line of 1–60 code points, the live
+  chat text rules; null or `""` removes it) besides `emblemMediaId`; every field optional, at least
+  one. `Family.coverUrl`, `Family.tagline`. The replaced cover is deleted; disbanding deletes it.
+- **Join requests count:** `Family.pendingRequestCount` (pending, unexpired, ACTIVE requesters)
+  for the leader and deputies; null for anyone else.
+- **Family chat** (مراسلة العائلة) *(owner; no conversations API existed to reuse)*: one text
+  conversation per family, **members only** (404 family → 403 `AUTH_FORBIDDEN`). `GET
+  /families/{familyId}/chat` → `FamilyChatPage` `{data, page, muted, canModerate}`, newest first
+  (`limit` default 30), deleted messages and authors who are not ACTIVE or are blocked either way
+  with the reader left out. **No push:** the app reads the first page again every few seconds while
+  the chat is open (polling) and pages back with the cursor. `POST …/chat {text, clientId}` → 201
+  `FamilyChatMessage` `{id, familyId, author, authorRole, text, createdAt}`; a retry with the same
+  `clientId` → 200 (409 `IDEMPOTENCY_CONFLICT` when used in another family). Order: 404 → 400 →
+  retry → 403 `AUTH_FORBIDDEN` → 403 `FAMILY_CHAT_MUTED`. **Text:** the live chat rules (§10.11,
+  1–200 code points, one line); the **leader's live blocked words** (§10.14) are masked before it
+  is stored. **Delete:** the author, the leader or a deputy (`DELETE …/chat/{messageId}` → 204,
+  soft, idempotent); a deputy never deletes the leader's or another deputy's message (403).
+  **Mute:** the leader or a deputy (`PUT` / `DELETE …/chat/mutes/{username}` → 204, idempotent);
+  the target must be a member (404), not the caller (400), never the leader, and for a deputy
+  never another deputy (403); `FamilyMember.chatMuted` tells the leader and deputies. **Report:**
+  `POST /reports {targetType: FAMILY_CHAT_MESSAGE}` by a member who can read it, not its author
+  (§11.7); `REMOVE_TARGET` removes it. **Rate limit:** 30 messages a minute per user (§7).
+  Leaving a family keeps one's messages (`authorRole` null); disbanding keeps the rows (no read
+  returns them) and clears the mutes. No retention limit yet.
+- **Invite:** no public link exists (B7: no production web domain); the app copies an invite text
+  with the family's name and number (`GET /family-numbers/{number}` finds it), as the live's share
+  does.
+- **Not in v1.25-live:** family battles (ترتيب القتال), family competitions, a family shop, family
+  tasks, family events (الفعاليات) and the activity banners (the app shows these as "Soon" or not at
+  all, never as working features); chat pictures, voice, replies, reactions, read receipts,
+  typing, push notifications for chat, realtime delivery; a family-level blocked-words list.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1569,6 +1643,8 @@ these rules.
   attach only as the host's live cover (§10.13).
 - *(v1.21-live, CP-018)* `FAMILY_EMBLEM` uploads are processed like `LIVE_COVER` (centre-cropped
   squares, 640 and 320 px) and attach only as a family's emblem (§10.21).
+- *(v1.25-live, CP-022)* `FAMILY_COVER` uploads are processed like `POST_IMAGE` (at most 1 080 px
+  on the long side, and 320 px) and attach only as a family's cover (§10.25).
 - *(v1.19-live, CP-017)* `LIVE_CHAT_IMAGE` uploads follow the same checks and sizes as
   `POST_IMAGE` and attach only to a live chat message. `LIVE_CHAT_VOICE` uploads are voice clips:
   `audio/mp4` (AAC in an MPEG-4 container, `.m4a`), at most 1 MiB (else 400 `byteSize` /
@@ -1666,11 +1742,14 @@ count is eventually consistent (≤ 1 min).
 - **Reports**: one OPEN report per reporter and target; a repeat → 200 with the existing
   report. Admins with permission `MODERATION` list and act; `REMOVE_TARGET` removes the post or
   comment (soft, audited) — *v1.24-live:* or a CP confession (`targetType: CP_CONFESSION`, one the
-  reporter can read and did not write, §10.24) — or, for a user, records the decision only (suspension stays a separate
+  reporter can read and did not write, §10.24) — *v1.25-live:* or a family chat message
+  (`targetType: FAMILY_CHAT_MESSAGE`, in the reporter's family, not their own, §10.25) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
   report → 409 `REPORT_ALREADY_RESOLVED`.
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
-  follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts.
+  follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts;
+  *(v1.25-live, CP-022)* `showActivityStatus` (default true): whether family members may see when
+  the user was last active (§10.25).
 
 ### 11.8 Rate limits (all per user; replace the per-user default)
 

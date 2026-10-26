@@ -53,6 +53,9 @@ model User {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz(3)
+  /// v1.25-live (CP-022, D116): the last authenticated request (written at most once a minute);
+  /// online = within the last 5 minutes. Shown only as CONVENTIONS §10.25 allows.
+  lastActiveAt    DateTime?  @map("last_active_at") @db.Timestamptz(3)
 
   profile            UserProfile?
   settings           UserSettings?
@@ -141,6 +144,11 @@ model User {
   giftStock          UserGiftStock[]
   giftsSent          LiveGift[]
   giftsReceived      LiveGiftRecipient[]
+  // v1.25-live (CP-022, D116): family chat.
+  familyChatMessages FamilyChatMessage[]    @relation("FamilyChatAuthor")
+  familyChatDeleted  FamilyChatMessage[]    @relation("FamilyChatDeleter")
+  familyChatMutes    FamilyChatMute[]       @relation("FamilyChatMuted")
+  familyChatMutesBy  FamilyChatMute[]       @relation("FamilyChatMutedBy")
 
   @@map("users")
 }
@@ -1158,6 +1166,8 @@ enum ReportTargetType {
   LIVE_CHAT_MESSAGE
   /// CP-021 (D112): a confession on a CP couple's page.
   CP_CONFESSION
+  /// CP-022 (D116): a message in a family's chat.
+  FAMILY_CHAT_MESSAGE
 
   @@map("report_target_type")
 }
@@ -1232,6 +1242,8 @@ model MediaAsset {
   chatMessage  LiveChatMessage?
   /// CP-018: a family's emblem.
   familyEmblem Family?
+  /// CP-022: a family's cover.
+  familyCover  Family? @relation("FamilyCover")
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -1532,6 +1544,8 @@ model Report {
   targetLiveChatMessageId String?          @map("target_live_chat_message_id") @db.Uuid
   /// CP-021: a CP confession.
   targetCpConfessionId    String?          @map("target_cp_confession_id") @db.Uuid
+  /// CP-022: a family chat message.
+  targetFamilyChatMessageId String?        @map("target_family_chat_message_id") @db.Uuid
   reason                  ReportReason
   note                    String?          @db.VarChar(500)
   status                  ReportStatus     @default(OPEN)
@@ -1548,6 +1562,7 @@ model Report {
   targetLiveRoom        LiveRoom?        @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
   targetLiveChatMessage LiveChatMessage? @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
   targetCpConfession    CpConfession?    @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
+  targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
   resolvedBy            User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
@@ -1557,6 +1572,7 @@ model Report {
   @@unique([reporterId, targetLiveRoomId], map: "reports_open_live_room_once", where: raw("status = 'OPEN'::report_status AND target_live_room_id IS NOT NULL"))
   @@unique([reporterId, targetLiveChatMessageId], map: "reports_open_live_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_live_chat_message_id IS NOT NULL"))
   @@unique([reporterId, targetCpConfessionId], map: "reports_open_cp_confession_once", where: raw("status = 'OPEN'::report_status AND target_cp_confession_id IS NOT NULL"))
+  @@unique([reporterId, targetFamilyChatMessageId], map: "reports_open_family_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_family_chat_message_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
@@ -1565,6 +1581,7 @@ model Report {
   @@index([targetLiveRoomId], map: "reports_target_live_room_idx")
   @@index([targetLiveChatMessageId], map: "reports_target_live_chat_message_idx")
   @@index([targetCpConfessionId], map: "reports_target_cp_confession_idx")
+  @@index([targetFamilyChatMessageId], map: "reports_target_family_chat_message_idx")
   @@map("reports")
 }
 
@@ -1572,6 +1589,8 @@ model PrivacySettings {
   userId               String        @id @map("user_id") @db.Uuid
   whoCanMention        WhoCanMention @default(EVERYONE) @map("who_can_mention")
   defaultWhoCanComment WhoCanComment @default(EVERYONE) @map("default_who_can_comment")
+  /// v1.25-live (CP-022, D116): others may see when this user was last active (§10.25).
+  showActivityStatus   Boolean       @default(true) @map("show_activity_status")
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1765,6 +1784,10 @@ model Family {
   nameKey        String    @map("name_key") @db.VarChar(80)
   emblemMediaId  String?   @unique @map("emblem_media_id") @db.Uuid
   emblemUrl      String?   @map("emblem_url") @db.VarChar(512)
+  /// v1.25-live (CP-022, D116): the cover picture (a `FAMILY_COVER` upload) and a short tagline.
+  coverMediaId   String?   @unique @map("cover_media_id") @db.Uuid
+  coverUrl       String?   @map("cover_url") @db.VarChar(512)
+  tagline        String?   @db.VarChar(60)
   points         BigInt    @default(0)
   level          Int       @default(1)
   memberCount    Int       @default(0) @map("member_count")
@@ -1776,10 +1799,13 @@ model Family {
 
   createdBy     User?               @relation("FamilyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   emblem        MediaAsset?         @relation(fields: [emblemMediaId], references: [id], onDelete: SetNull)
+  cover         MediaAsset?         @relation("FamilyCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
   members       FamilyMember[]
   joinRequests  FamilyJoinRequest[]
   pointsEntries FamilyPointsEntry[]
   notifications Notification[]
+  chatMessages  FamilyChatMessage[]
+  chatMutes     FamilyChatMute[]
 
   @@unique([number], map: "families_number_key")
   @@unique([createdById, createClientId], map: "families_create_once")
@@ -1844,7 +1870,49 @@ model FamilyPointsEntry {
 
   @@index([familyId, createdAt], map: "family_points_ledger_family_idx")
   @@index([userId], map: "family_points_ledger_user_idx")
+  /// v1.25-live: the monthly family ranking sums a window across families.
+  @@index([createdAt, familyId], map: "family_points_ledger_created_idx")
   @@map("family_points_ledger")
+}
+
+/// v1.25-live (CP-022, D116): a message in a family's chat (members only). `client_id` is unique
+/// per author (an idempotent retry). Soft-deleted by its author, the leader, a deputy or moderation.
+model FamilyChatMessage {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  familyId    String    @map("family_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  clientId    String    @map("client_id") @db.Uuid
+  text        String    @db.VarChar(200)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById String?   @map("deleted_by_id") @db.Uuid
+
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author    User     @relation("FamilyChatAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  deletedBy User?    @relation("FamilyChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  reports   Report[]
+
+  @@unique([authorId, clientId], map: "family_chat_messages_client_once")
+  @@index([familyId, createdAt, id], map: "family_chat_messages_family_idx")
+  @@index([deletedById], map: "family_chat_messages_deleted_by_idx")
+  @@map("family_chat_messages")
+}
+
+/// v1.25-live (CP-022, D116): a member the leader or a deputy muted in the family chat.
+model FamilyChatMute {
+  familyId  String   @map("family_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  mutedById String?  @map("muted_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  family  Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user    User   @relation("FamilyChatMuted", fields: [userId], references: [id], onDelete: Cascade)
+  mutedBy User?  @relation("FamilyChatMutedBy", fields: [mutedById], references: [id], onDelete: SetNull)
+
+  @@id([familyId, userId])
+  @@index([userId], map: "family_chat_mutes_user_idx")
+  @@index([mutedById], map: "family_chat_mutes_muted_by_idx")
+  @@map("family_chat_mutes")
 }
 
 /// A CP request (العلاقة): `cost` coins taken at send (ledger CP_REQUEST, reference = id) and

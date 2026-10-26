@@ -70,6 +70,29 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// CP-022: how many family covers were uploaded.
+  int familyCoverUploads = 0;
+
+  @override
+  Future<MediaAsset> uploadFamilyCover(
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    familyCoverUploads++;
+    final id = 'c$familyCoverUploads';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/1080.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 1080,
+      height: 608,
+    );
+  }
+
   /// CP-017: every live chat upload, e.g. `voice:audio/mp4:1234`.
   final List<String> liveChatUploads = [];
 

@@ -45,6 +45,15 @@ class FakeFamiliesRepository with _Recorder implements FamiliesRepository {
   List<FamilyJoinRequest> requests = [];
   int coinsAfterCreate = 0;
 
+  /// v1.25-live (CP-022): the boards, standing, contributions and chat.
+  Map<FamilyRankingBoard, FamilyRankings> boards = {};
+  FamilyStanding? standingValue;
+  List<FamilyContribution> contributionList = [];
+  List<FamilyChatMessage> chatMessages = [];
+  bool chatMuted = false;
+  bool chatCanModerate = false;
+  int chatSends = 0;
+
   @override
   Future<FamilyConfig> config() async {
     record('config');
@@ -108,10 +117,143 @@ class FakeFamiliesRepository with _Recorder implements FamiliesRepository {
   Future<void> disband(String familyId) async => record('disband:$familyId');
 
   @override
-  Future<FamilyMemberPage> members(String familyId, {String? cursor}) async {
-    record('members:$familyId');
-    return FamilyMemberPage(data: memberList, page: _page);
+  Future<FamilyMemberPage> members(
+    String familyId, {
+    String? cursor,
+    bool byPoints = false,
+    String? query,
+  }) async {
+    record(
+      'members:$familyId${byPoints ? ':points' : ''}'
+      '${query == null ? '' : ':q=$query'}',
+    );
+    return FamilyMemberPage(
+      data: [
+        for (final m in memberList)
+          if (query == null ||
+              m.user.username.contains(query) ||
+              m.user.displayName.contains(query))
+            m,
+      ],
+      page: _page,
+    );
   }
+
+  @override
+  Future<Family> updateLook(
+    String familyId, {
+    String? coverMediaId,
+    bool removeCover = false,
+    String? tagline,
+  }) async {
+    record(
+      'updateLook:$familyId:${removeCover ? 'null' : coverMediaId ?? ''}'
+      ':${tagline ?? ''}',
+    );
+    final f = byId[familyId]!.copyWith(
+      coverUrl: removeCover
+          ? null
+          : coverMediaId == null
+          ? byId[familyId]!.coverUrl
+          : 'https://media.example.test/media/$coverMediaId/1080.webp',
+      tagline: tagline == null
+          ? byId[familyId]!.tagline
+          : tagline.isEmpty
+          ? null
+          : tagline,
+    );
+    byId[familyId] = f;
+    return f;
+  }
+
+  @override
+  Future<FamilyRankings> rankings(
+    FamilyRankingBoard board, {
+    String? cursor,
+  }) async {
+    record('rankings:${board.wire}');
+    return boards[board] ??
+        FamilyRankings(
+          board: board,
+          startsAt: DateTime.utc(2026, 10),
+          endsAt: DateTime.utc(2026, 11),
+          data: const [],
+          page: _page,
+          me: null,
+        );
+  }
+
+  @override
+  Future<FamilyStanding> standing(String familyId) async {
+    record('standing:$familyId');
+    return standingValue ??
+        FamilyStanding.fromJson(familyStandingJson(familyId: familyId));
+  }
+
+  @override
+  Future<FamilyContributions> contributions(
+    String familyId, {
+    String? cursor,
+  }) async {
+    record('contributions:$familyId');
+    return FamilyContributions(
+      startsAt: DateTime.utc(2026, 10),
+      endsAt: DateTime.utc(2026, 11),
+      data: contributionList,
+      page: _page,
+    );
+  }
+
+  @override
+  Future<FamilyChatPage> chat(String familyId, {String? cursor}) async {
+    record('chat:$familyId');
+    return FamilyChatPage(
+      data: chatMessages,
+      page: _page,
+      muted: chatMuted,
+      canModerate: chatCanModerate,
+    );
+  }
+
+  @override
+  Future<FamilyChatMessage> sendChat(
+    String familyId, {
+    required String text,
+    required String clientId,
+  }) async {
+    record('sendChat:$text');
+    chatSends++;
+    final m = FamilyChatMessage.fromJson(
+      familyChatMessageJson(
+        id: 'sent-$chatSends',
+        text: text,
+        author: bondUserJson(
+          id: '0192f1c2-7c3a-7b2e-9a51-1d2c3b4a5e6f',
+          username: 'layla.k',
+          displayName: 'Layla',
+        ),
+      ),
+    );
+    chatMessages = [m, ...chatMessages];
+    return m;
+  }
+
+  @override
+  Future<void> deleteChat(String familyId, String messageId) async {
+    record('deleteChat:$messageId');
+    chatMessages = [...chatMessages]..removeWhere((m) => m.id == messageId);
+  }
+
+  @override
+  Future<void> setChatMuted(
+    String familyId,
+    String username, {
+    required bool muted,
+  }) async => record('chatMute:$username:$muted');
+
+  @override
+  Future<void> reportChat(String messageId, ReportReason reason) async =>
+      record('reportChat:$messageId:${reason.wire}');
 
   @override
   Future<void> removeMember(String familyId, String username) async =>

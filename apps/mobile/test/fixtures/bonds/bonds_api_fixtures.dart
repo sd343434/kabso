@@ -58,17 +58,105 @@ Map<String, Object?> familyJson({
   'createdAt': '2026-10-26T18:30:00.000Z',
   'myRole': myRole,
   'myRequestId': myRequestId,
+  // v1.25-live (CP-022).
+  'coverUrl': null,
+  'tagline': null,
+  'pendingRequestCount': myRole == 'LEADER' || myRole == 'DEPUTY' ? 0 : null,
 };
 
 Map<String, Object?> familyMemberJson({
   Map<String, Object?>? user,
   String role = 'MEMBER',
   int points = 0,
+  int monthPoints = 0,
+  Map<String, Object?>? presence,
+  bool? chatMuted,
+  int? rank,
 }) => {
   'user': user ?? bondUserJson(),
   'role': role,
   'joinedAt': '2026-10-26T18:30:00.000Z',
   'points': points,
+  // v1.25-live (CP-022).
+  'monthPoints': monthPoints,
+  'presence': presence,
+  'chatMuted': chatMuted,
+  'rank': ?rank,
+};
+
+/// v1.25-live `FamilyPresence`.
+Map<String, Object?> familyPresenceJson({
+  bool online = true,
+  String? lastActiveAt = '2026-10-26T18:29:00.000Z',
+}) => {'online': online, 'lastActiveAt': lastActiveAt};
+
+/// v1.25-live `FamilyRankings` with [entries] (family card, score).
+Map<String, Object?> familyRankingsJson({
+  String board = 'PRESTIGE',
+  List<(Map<String, Object?>, int)> entries = const [],
+  Map<String, Object?>? me,
+}) => {
+  'board': board,
+  'startsAt': '2026-10-01T00:00:00.000Z',
+  'endsAt': '2026-11-01T00:00:00.000Z',
+  'data': [
+    for (final (i, (family, score)) in entries.indexed)
+      {'rank': i + 1, 'family': family, 'score': score},
+  ],
+  'page': {'nextCursor': null, 'hasMore': false},
+  'me': me,
+};
+
+/// v1.25-live `FamilyStanding`.
+Map<String, Object?> familyStandingJson({
+  String familyId = '0192f1d0-8888-7000-8000-000000000002',
+  int? prestigeRank = 4,
+  int prestigeScore = 31360000,
+  int? activeRank = 12,
+  int activeScore = 230,
+}) => {
+  'familyId': familyId,
+  'prestige': {
+    'rank': prestigeRank,
+    'score': prestigeScore,
+    'startsAt': '2026-10-01T00:00:00.000Z',
+    'endsAt': '2026-11-01T00:00:00.000Z',
+  },
+  'active': {
+    'rank': activeRank,
+    'score': activeScore,
+    'startsAt': '2026-10-26T00:00:00.000Z',
+    'endsAt': '2026-11-02T00:00:00.000Z',
+  },
+};
+
+/// v1.25-live `FamilyContribution`.
+Map<String, Object?> familyContributionJson({
+  int rank = 1,
+  Map<String, Object?>? user,
+  String role = 'MEMBER',
+  int points = 100,
+}) => {
+  'rank': rank,
+  'user': user ?? bondUserJson(),
+  'role': role,
+  'points': points,
+};
+
+/// v1.25-live `FamilyChatMessage`.
+Map<String, Object?> familyChatMessageJson({
+  String id = '0192f1d0-9999-7000-8000-000000000021',
+  String text = 'مساء الخير يا عائلة',
+  Map<String, Object?>? author,
+  String? authorRole = 'MEMBER',
+  String createdAt = '2026-10-26T18:31:00.000Z',
+}) => {
+  'id': id,
+  'familyId': '0192f1d0-8888-7000-8000-000000000002',
+  'author': author ?? bondUserJson(),
+  'authorRole': authorRole,
+  'text': text,
+  'createdAt': createdAt,
 };
 
 Map<String, Object?> familyJoinRequestJson({

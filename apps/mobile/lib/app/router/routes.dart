@@ -129,6 +129,11 @@ abstract final class AppRoutes {
   static String family(String familyId) =>
       '/families/${Uri.encodeComponent(familyId)}';
 
+  /// CP-022: the family chat of a family (members only).
+  static const familyChatPattern = '/families/:familyId/chat';
+  static String familyChat(String familyId) =>
+      '/families/${Uri.encodeComponent(familyId)}/chat';
+
   /// CP-018: your relationship (CP) and its requests.
   static const cp = '/cp';
 

@@ -6,6 +6,7 @@ import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.j
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { readableCpConfession, removeCpConfessionIn } from '../cp-space/cp-confessions.js';
+import { readableFamilyChatMessage, removeFamilyChatMessageIn } from '../families/family-chat.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
@@ -35,7 +36,15 @@ type Tx = Prisma.TransactionClient;
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
-  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM' | 'LIVE_CHAT_MESSAGE' | 'CP_CONFESSION';
+  targetType:
+    | 'POST'
+    | 'COMMENT'
+    | 'STORY'
+    | 'USER'
+    | 'LIVE_ROOM'
+    | 'LIVE_CHAT_MESSAGE'
+    | 'CP_CONFESSION'
+    | 'FAMILY_CHAT_MESSAGE';
   targetId: string;
   reason: string;
   note: string | null;
@@ -48,6 +57,8 @@ export interface ReportDto {
 export interface PrivacyDto {
   whoCanMention: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
   defaultWhoCanComment: 'EVERYONE' | 'FOLLOWERS' | 'NOBODY';
+  /** v1.25-live (CP-022): others may see when the user was last active (§10.25). */
+  showActivityStatus: boolean;
 }
 
 const REPORT_INCLUDE = {
@@ -269,6 +280,7 @@ export class SafetyService {
     | { targetLiveRoomId: string }
     | { targetLiveChatMessageId: string }
     | { targetCpConfessionId: string }
+    | { targetFamilyChatMessageId: string }
   > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
@@ -296,6 +308,12 @@ export class SafetyService {
       const confession = await readableCpConfession(this.prisma, id, reporterId);
       if (confession.authorId === reporterId) throw invalid();
       return { targetCpConfessionId: confession.id };
+    }
+    if (input.targetType === 'FAMILY_CHAT_MESSAGE') {
+      // CP-022: a message in the reporter's family chat (§10.25), not their own.
+      const message = await readableFamilyChatMessage(this.prisma, id, reporterId);
+      if (message.authorId === reporterId) throw invalid();
+      return { targetFamilyChatMessageId: message.id };
     }
     if (input.targetType === 'STORY') {
       // CP-008: an active story the reporter may see (expired stories can no longer be seen).
@@ -439,6 +457,10 @@ export class SafetyService {
           // CP-021: the confession leaves the couple's page (soft).
           await removeCpConfessionIn(tx, report.targetCpConfessionId, actor.userId, new Date());
         }
+        if (report.targetFamilyChatMessageId) {
+          // CP-022: the message leaves the family chat (soft).
+          await removeFamilyChatMessageIn(tx, report.targetFamilyChatMessageId, actor.userId, new Date());
+        }
         if (report.targetLiveRoomId) {
           // CP-010: the room ends with ADMIN; its media session closes after the commit.
           endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
@@ -457,7 +479,9 @@ export class SafetyService {
                 ? { targetLiveChatMessageId: report.targetLiveChatMessageId }
                 : report.targetCpConfessionId
                   ? { targetCpConfessionId: report.targetCpConfessionId }
-                  : { targetUserId: report.targetUserId };
+                  : report.targetFamilyChatMessageId
+                    ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
+                    : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -478,6 +502,7 @@ export class SafetyService {
           report.targetLiveRoomId ??
           report.targetLiveChatMessageId ??
           report.targetCpConfessionId ??
+          report.targetFamilyChatMessageId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -505,6 +530,7 @@ export class SafetyService {
         row.targetLiveRoomId ??
         row.targetLiveChatMessageId ??
         row.targetCpConfessionId ??
+        row.targetFamilyChatMessageId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',
@@ -525,6 +551,7 @@ export class SafetyService {
     return {
       whoCanMention: row?.whoCanMention ?? 'EVERYONE',
       defaultWhoCanComment: row?.defaultWhoCanComment ?? 'EVERYONE',
+      showActivityStatus: row?.showActivityStatus ?? true,
     };
   }
 
