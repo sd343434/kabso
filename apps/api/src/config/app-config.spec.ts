@@ -528,6 +528,14 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     ).toBe(0);
   });
 
+  it('reads the CP-021 CP space buckets (defaults and overrides)', () => {
+    expect(loadConfig(base).rateLimits.cpSpaceWriteUser).toEqual({ max: 60, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.cpConfessionUser).toEqual({ max: 10, windowSeconds: 3600 });
+    expect(
+      loadConfig({ ...base, RATE_LIMIT_CP_CONFESSION_USER: '3/60' }).rateLimits.cpConfessionUser,
+    ).toEqual({ max: 3, windowSeconds: 60 });
+  });
+
   it('reads the CP-020 gift quantities and the gift-send bucket', () => {
     expect(loadConfig(base).gifts.quantities).toEqual([1, 10, 66, 99, 188, 520, 1314]);
     expect(loadConfig(base).rateLimits.liveGiftUser).toEqual({ max: 120, windowSeconds: 60 });

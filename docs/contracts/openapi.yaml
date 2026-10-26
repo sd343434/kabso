@@ -82,6 +82,12 @@ info:
     **D111 (DRAFT v1.23.3-live)** adds `LiveSeats.couples`: the CP couples (CP-018) whose
     partners both sit in the room now, the host included, so apps can show the pair joined
     (CONVENTIONS §10.9).
+    **CP-021 (D112, DRAFT v1.24-live)** adds the CP space (tag `cp`): daily CP tasks with a
+    check-in and once-a-day claims that add CP points, five CP privileges unlocked by CP level
+    (`PublicProfile.cp.privileges`, `LiveChatMessage.cpBubble`, the `cp` field of the live `join`
+    data message), a couple's public page, its CP gift wall and confession wall, the couples
+    ranking (this CP week or all time), named CP gift cards in `CpConfig.gifts`, report target
+    `CP_CONFESSION`, codes `CP_TASK_NOT_COMPLETED` and `CP_PRIVILEGE_LOCKED` (CONVENTIONS §10.24).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -109,7 +115,7 @@ tags:
   - name: families
     description: "Families: create, join requests, members and roles, level (v1.21-live DRAFT, CP-018)."
   - name: cp
-    description: "CP couples: requests, the couple, CP gifts and tiers (v1.21-live DRAFT, CP-018)."
+    description: "CP couples: requests, the couple, CP gifts and tiers (v1.21-live DRAFT, CP-018); the CP space: daily tasks, privileges, the couple page, gift wall, confessions and the couples ranking (v1.24-live DRAFT, CP-021)."
   - name: medals
     description: "Medals: the catalogue and a user's medals (v1.21-live DRAFT, CP-018)."
   - name: bag
@@ -678,11 +684,13 @@ paths:
                     liveRoomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
                     family: { id: 0192f1d0-8888-7000-8000-000000000002, number: 48213907, name: عائلة النجوم, level: 3, emblemUrl: null, role: DEPUTY }
                     cp:
+                      id: 0192f1d0-9999-7000-8000-000000000003
                       partner: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
                       since: '2026-10-20T18:30:00.000Z'
                       level: 2
                       levelName: ثنائي فضّي
                       points: 620
+                      privileges: [SPECIAL_FRAME, CHAT_BUBBLE]
                     medals:
                       owned: 2
                       total: 9
@@ -3008,6 +3016,12 @@ paths:
                 requestCost: 99
                 requestTtlDays: 7
                 giftAmounts: [10, 52, 99, 520, 1314]
+                gifts:
+                  - { code: rose_love, amount: 10, name: وردة الحب, assetKey: cp_gift_rose_love }
+                  - { code: angel_heart, amount: 52, name: قلب الملاك, assetKey: cp_gift_angel_heart }
+                  - { code: love_carriage, amount: 99, name: عربة الحب, assetKey: cp_gift_love_carriage }
+                  - { code: swan_love, amount: 520, name: بجعتا الحب, assetKey: cp_gift_swan_love }
+                  - { code: eternal_heart, amount: 1314, name: القلب الأبدي, assetKey: cp_gift_eternal_heart }
                 tiers:
                   - { level: 1, minPoints: 0, name: ثنائي متحمّس }
                   - { level: 2, minPoints: 520, name: ثنائي فضّي }
@@ -3193,6 +3207,268 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/tasks:
+    get:
+      tags: [cp]
+      operationId: getMyCpTasks
+      summary: "Today's daily CP tasks of the caller's couple (CP-021)"
+      description: |
+        CONVENTIONS §10.24. The CP day starts at 00:00 in `timeZone` (the server's
+        `LIVE_RANKINGS_TIME_ZONE`, default UTC); `resetsAt` is the next 00:00. Each task's reward is
+        claimed once per couple and CP day (`POST /cp/me/tasks/{code}/claim`). Names follow
+        `Accept-Language`, else the caller's locale. Not paired → 409 `CP_NOT_PAIRED`.
+      responses:
+        '200':
+          description: Today's tasks.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpTasks' }
+              example:
+                day: '2026-10-26'
+                timeZone: UTC
+                startsAt: '2026-10-26T00:00:00.000Z'
+                resetsAt: '2026-10-27T00:00:00.000Z'
+                checkedIn: { me: true, partner: false }
+                tasks:
+                  - { code: CHECK_IN, name: Check in together, description: Both of you open the CP space today., reward: 10, progress: 1, target: 2, completed: false, claimed: false }
+                  - { code: SEND_GIFT, name: Send a CP gift, description: Either of you sends a CP gift today., reward: 20, progress: 1, target: 1, completed: true, claimed: true }
+                  - { code: CHAT_TOGETHER, name: Chat in the same live, description: Both of you write in the chat of the same live today., reward: 30, progress: 0, target: 1, completed: false, claimed: false }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/check-in:
+    post:
+      tags: [cp]
+      operationId: checkInCp
+      summary: "Check in on the CP space today (CP-021)"
+      description: |
+        Counts for the `CHECK_IN` task (both partners → completed). Once per partner and CP day:
+        201 when this call checked in, 200 when the caller already did today (nothing changes).
+        Not paired → 409 `CP_NOT_PAIRED`. Answers today's tasks.
+      responses:
+        '201':
+          description: Checked in now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpTasks' }
+        '200':
+          description: Already checked in today.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpTasks' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/tasks/{code}/claim:
+    post:
+      tags: [cp]
+      operationId: claimCpTask
+      summary: "Claim a completed daily CP task's reward (CP-021)"
+      description: |
+        Checks, in order: 404 (unknown `code`); 409 `CP_NOT_PAIRED`; already claimed today by either
+        partner → 200 (nothing added again); 409 `CP_TASK_NOT_COMPLETED`; 201. The reward is added to
+        the couple's CP points (and tier) in the same transaction as the claim, once per couple, task
+        and CP day; it counts for the couples ranking.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/CpTaskCode' }
+      responses:
+        '201':
+          description: Claimed now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpTaskClaimResult' }
+        '200':
+          description: Already claimed today.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpTaskClaimResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/privileges:
+    get:
+      tags: [cp]
+      operationId: getMyCpPrivileges
+      summary: "The five CP privileges and which the caller's couple unlocked (CP-021)"
+      description: Not paired → `level` null and nothing unlocked. Names follow `Accept-Language`.
+      responses:
+        '200':
+          description: The privileges.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpPrivileges' }
+              example:
+                level: 2
+                privileges:
+                  - { code: SPECIAL_FRAME, name: Special Frame, unlockLevel: 1, unlocked: true, iconKey: cp_priv_frame }
+                  - { code: CHAT_BUBBLE, name: Exclusive Chat Bubble, unlockLevel: 2, unlocked: true, iconKey: cp_priv_bubble }
+                  - { code: MIC_EFFECT, name: Couple Mic Effect, unlockLevel: 3, unlocked: false, iconKey: cp_priv_mic }
+                  - { code: ENTRANCE_EFFECT, name: Entrance Effect, unlockLevel: 4, unlocked: false, iconKey: cp_priv_entrance }
+                  - { code: GIFT_WALL, name: CP Gift Wall, unlockLevel: 5, unlocked: false, iconKey: cp_priv_gift_wall }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/confessions:
+    get:
+      tags: [cp]
+      operationId: listMyCpConfessions
+      summary: "The confessions on the caller's couple page (CP-021)"
+      description: Newest first, deleted ones left out. Not paired → 409 `CP_NOT_PAIRED`.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of confessions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpConfessionPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [cp]
+      operationId: createCpConfession
+      summary: "Leave a confession for one's CP partner (CP-021)"
+      description: |
+        Only a partner writes, to the other partner. Checks, in order: 400 body (`text`: the live
+        chat text rules, 1–200 code points; `clientId`); a retry with the same `clientId` → 200 (the
+        first confession); 409 `CP_NOT_PAIRED`; 403 `AUTH_FORBIDDEN` (the partner is not ACTIVE, or a
+        block either way between the partners). Both partners' live blocked words are masked
+        (§10.14) before it is stored. 10 an hour per user (§7).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CpConfessionCreateRequest' }
+            example: { text: أحبك أكثر كل يوم, clientId: 0192f1d0-9999-7000-8000-000000000011 }
+      responses:
+        '201':
+          description: Written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpConfession' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpConfession' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/confessions/{confessionId}:
+    delete:
+      tags: [cp]
+      operationId: deleteCpConfession
+      summary: "Remove a confession from the caller's couple page (CP-021)"
+      description: Either partner (the author or the one it was written to). Not on the caller's current couple page → 404; already removed → 204.
+      parameters:
+        - name: confessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Removed. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/rankings:
+    get:
+      tags: [cp]
+      operationId: listCpRankings
+      summary: "The couples ranking by CP points gained this CP week or in all (CP-021)"
+      description: |
+        `WEEK` (default): CP points gained since Monday 00:00 in the CP time zone (`startsAt` /
+        `endsAt`); `ALL`: the couple's CP points. Ongoing couples with points, both partners ACTIVE;
+        couples with a partner the reader blocked, or who blocked the reader, are left out. Highest
+        first, ties by couple id; at most 100 couples, paged. `me`: the caller's couple (`rank` null
+        with no points), null when not paired. Level names follow `Accept-Language`.
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CpRankingPeriod' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of the ranking.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpRankings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/couples/{coupleId}:
+    get:
+      tags: [cp]
+      operationId: getCpCouple
+      summary: "A couple's CP space, read-only (CP-021)"
+      description: |
+        Anyone signed in opens a couple from `PublicProfile.cp.id` or the ranking. 404 when the couple
+        ended, a partner is not ACTIVE, or (for a reader who is not a partner) a block either way
+        between the reader and a partner.
+      parameters:
+        - $ref: '#/components/parameters/CpCoupleIdPath'
+      responses:
+        '200':
+          description: The couple.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpCouplePublic' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/couples/{coupleId}/gift-wall:
+    get:
+      tags: [cp]
+      operationId: getCpGiftWall
+      summary: "A couple's CP gift wall (CP-021)"
+      description: |
+        The CP gifts the partners sent each other, newest first, with totals. 404 like
+        `getCpCouple`; then 403 `CP_PRIVILEGE_LOCKED` for a reader who is not a partner while the
+        couple has not unlocked `GIFT_WALL` (the partners always read their own).
+      parameters:
+        - $ref: '#/components/parameters/CpCoupleIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of the gift wall.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpGiftWall' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/couples/{coupleId}/confessions:
+    get:
+      tags: [cp]
+      operationId: listCpCoupleConfessions
+      summary: "A couple's confession wall, read-only (CP-021)"
+      description: Newest first, deleted ones left out. 404 like `getCpCouple`.
+      parameters:
+        - $ref: '#/components/parameters/CpCoupleIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of confessions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpConfessionPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/medals:
     get:
@@ -4593,6 +4869,12 @@ components:
       required: true
       description: CP-018 — a family join request or CP request id; malformed or unknown → 404.
       schema: { type: string, format: uuid }
+    CpCoupleIdPath:
+      name: coupleId
+      in: path
+      required: true
+      description: CP-021 — a CP couple id (`CpCouple.id`, `PublicProfile.cp.id`); malformed or unknown → 404.
+      schema: { type: string, format: uuid }
   responses:
     Error:
       description: Error envelope (see CONVENTIONS.md §4).
@@ -5267,10 +5549,16 @@ components:
           description: Chosen by the app for each message; a retry with the same id returns the first message.
     LiveChatMessage:
       type: object
-      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt]
+      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt, cpBubble]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
+        cpBubble:
+          type: boolean
+          description: |
+            (v1.24-live, CP-021) The author's CP couple had the Exclusive Chat Bubble (`CHAT_BUBBLE`,
+            CP level 2+) when it was sent — the app draws the line in the CP bubble. False for
+            messages sent before v1.24-live.
         author: { $ref: '#/components/schemas/UserSummary' }
         authorRole:
           type: string
@@ -5312,6 +5600,7 @@ components:
           durationMs: 12500
         expiresAt: '2026-10-26T18:31:00.000Z'
         createdAt: '2026-10-26T18:30:00.000Z'
+        cpBubble: false
     LiveChatMessageList:
       type: object
       required: [data]
@@ -6333,12 +6622,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story or live room id, or a username for USER.
+          description: A post, comment, story, live room, live chat message or CP confession id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -6346,7 +6635,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }
@@ -6546,13 +6835,17 @@ components:
         role: { $ref: '#/components/schemas/FamilyRole' }
     CpConfig:
       type: object
-      required: [requestCost, requestTtlDays, giftAmounts, tiers]
+      required: [requestCost, requestTtlDays, giftAmounts, gifts, tiers]
       properties:
         requestCost: { type: integer, minimum: 1, description: "Coins a CP request costs (99), refunded unless accepted." }
         requestTtlDays: { type: integer, minimum: 1 }
         giftAmounts:
           type: array
           items: { type: integer, minimum: 1 }
+        gifts:
+          type: array
+          description: "(v1.24-live, CP-021) The named CP gift card of each amount, ascending (same order as `giftAmounts`); `name` follows Accept-Language. Sending still takes `amount`."
+          items: { $ref: '#/components/schemas/CpGiftPreset' }
         tiers:
           type: array
           description: The CP tiers, lowest first; `name` follows Accept-Language.
@@ -6638,14 +6931,203 @@ components:
         coins: { type: integer, minimum: 0, maximum: 9007199254740991 }
     ProfileCp:
       type: object
-      description: "(v1.21-live, CP-018) A user's CP couple on their public profile."
-      required: [partner, since, level, levelName, points]
+      description: "(v1.21-live, CP-018) A user's CP couple on their public profile. (v1.24-live, CP-021) `id` opens the couple's CP space (`getCpCouple`); `privileges` are the ones its CP level unlocked (the app draws the Special Frame and the Couple Mic Effect from them)."
+      required: [id, partner, since, level, levelName, points, privileges]
       properties:
+        id: { type: string, format: uuid }
         partner: { $ref: '#/components/schemas/UserSummary' }
         since: { type: string, format: date-time }
         level: { type: integer, minimum: 1, maximum: 5 }
         levelName: { type: string }
         points: { type: integer, minimum: 0 }
+        privileges:
+          type: array
+          description: (v1.24-live, CP-021) The CP privileges the couple unlocked, in catalogue order.
+          items: { $ref: '#/components/schemas/CpPrivilegeCode' }
+    CpGiftPreset:
+      type: object
+      description: (v1.24-live, CP-021) A named CP gift card.
+      required: [code, amount, name, assetKey]
+      properties:
+        code: { type: string, enum: [rose_love, angel_heart, love_carriage, swan_love, eternal_heart] }
+        amount: { type: integer, minimum: 1, description: Coins (and CP points) of the gift. }
+        name: { type: string }
+        assetKey: { type: string, description: "The app's art for the card." }
+    CpPrivilegeCode:
+      type: string
+      description: |
+        (v1.24-live, CP-021) A CP privilege, unlocked at a CP level: `SPECIAL_FRAME` (1),
+        `CHAT_BUBBLE` (2), `MIC_EFFECT` (3), `ENTRANCE_EFFECT` (4), `GIFT_WALL` (5).
+      enum: [SPECIAL_FRAME, CHAT_BUBBLE, MIC_EFFECT, ENTRANCE_EFFECT, GIFT_WALL]
+    CpPrivilege:
+      type: object
+      required: [code, name, unlockLevel, unlocked, iconKey]
+      properties:
+        code: { $ref: '#/components/schemas/CpPrivilegeCode' }
+        name: { type: string }
+        unlockLevel: { type: integer, minimum: 1, maximum: 5, description: "The CP level that unlocks it (1–5; nothing new unlocks at 6, D113)." }
+        unlocked: { type: boolean }
+        iconKey: { type: string }
+    CpPrivileges:
+      type: object
+      required: [level, privileges]
+      properties:
+        level: { type: [integer, 'null'], minimum: 1, maximum: 6, description: The caller's CP level; null when not paired. }
+        privileges:
+          type: array
+          items: { $ref: '#/components/schemas/CpPrivilege' }
+    CpTaskCode:
+      type: string
+      description: |
+        (v1.24-live, CP-021) `CHECK_IN` (both partners checked in today, reward 10), `SEND_GIFT`
+        (either partner sent a CP gift today, 20), `CHAT_TOGETHER` (both partners wrote in the chat
+        of the same live today, 30).
+      enum: [CHECK_IN, SEND_GIFT, CHAT_TOGETHER]
+    CpTask:
+      type: object
+      required: [code, name, description, reward, progress, target, completed, claimed]
+      properties:
+        code: { $ref: '#/components/schemas/CpTaskCode' }
+        name: { type: string }
+        description: { type: string }
+        reward: { type: integer, minimum: 1, description: CP points the claim adds. }
+        progress: { type: integer, minimum: 0 }
+        target: { type: integer, minimum: 1 }
+        completed: { type: boolean }
+        claimed: { type: boolean, description: Claimed today by either partner. }
+    CpTasks:
+      type: object
+      required: [day, timeZone, startsAt, resetsAt, checkedIn, tasks]
+      properties:
+        day: { type: string, format: date, description: "The CP day in `timeZone`." }
+        timeZone: { type: string, description: IANA time zone of the CP day. }
+        startsAt: { type: string, format: date-time }
+        resetsAt: { type: string, format: date-time, description: The next 00:00 in `timeZone`. }
+        checkedIn:
+          type: object
+          required: [me, partner]
+          properties:
+            me: { type: boolean }
+            partner: { type: boolean }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/CpTask' }
+    CpTaskClaimResult:
+      type: object
+      required: [task, cp]
+      properties:
+        task: { $ref: '#/components/schemas/CpTask' }
+        cp: { $ref: '#/components/schemas/CpCouple' }
+    CpCouplePublic:
+      type: object
+      description: (v1.24-live, CP-021) A couple's CP space as anyone signed in may read it.
+      required: [id, partners, since, days, points, level, levelName, nextLevelName, pointsToNext, privileges, mine]
+      properties:
+        id: { type: string, format: uuid }
+        partners:
+          type: array
+          description: Both partners, ordered by user id.
+          minItems: 2
+          maxItems: 2
+          items: { $ref: '#/components/schemas/UserSummary' }
+        since: { type: string, format: date-time }
+        days: { type: integer, minimum: 1 }
+        points: { type: integer, minimum: 0, description: CP points (intimacy). }
+        level: { type: integer, minimum: 1, maximum: 6 }
+        levelName: { type: string }
+        nextLevelName: { type: [string, 'null'] }
+        pointsToNext: { type: [integer, 'null'], minimum: 0 }
+        privileges:
+          type: array
+          items: { $ref: '#/components/schemas/CpPrivilegeCode' }
+        mine: { type: boolean, description: The reader is one of the partners. }
+    CpGiftWallEntry:
+      type: object
+      required: [id, amount, giftCode, sender, receiver, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        amount: { type: integer, minimum: 1 }
+        giftCode: { type: [string, 'null'], description: "The `CpConfig.gifts` code of the amount; null for an amount no longer offered." }
+        sender: { $ref: '#/components/schemas/UserSummary' }
+        receiver: { $ref: '#/components/schemas/UserSummary' }
+        createdAt: { type: string, format: date-time }
+    CpGiftWall:
+      type: object
+      required: [data, page, totals]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CpGiftWallEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        totals:
+          type: object
+          required: [gifts, coins]
+          properties:
+            gifts: { type: integer, minimum: 0 }
+            coins: { type: integer, minimum: 0 }
+    CpRankingPeriod:
+      type: string
+      enum: [WEEK, ALL]
+      default: WEEK
+    CpRankingEntry:
+      type: object
+      required: [rank, coupleId, partners, level, levelName, points]
+      properties:
+        rank: { type: integer, minimum: 1 }
+        coupleId: { type: string, format: uuid }
+        partners:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items: { $ref: '#/components/schemas/UserSummary' }
+        level: { type: integer, minimum: 1, maximum: 6 }
+        levelName: { type: string }
+        points: { type: integer, minimum: 1, description: CP points gained in the period. }
+    CpRankings:
+      type: object
+      required: [period, startsAt, endsAt, data, page, me]
+      properties:
+        period: { $ref: '#/components/schemas/CpRankingPeriod' }
+        startsAt: { type: [string, 'null'], format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CpRankingEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        me:
+          oneOf:
+            - type: object
+              required: [coupleId, rank, points]
+              properties:
+                coupleId: { type: string, format: uuid }
+                rank: { type: [integer, 'null'], minimum: 1 }
+                points: { type: integer, minimum: 0 }
+            - type: 'null'
+    CpConfessionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [text, clientId]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1600, description: "1–200 code points after the live chat text rules (§10.11)." }
+        clientId: { type: string, format: uuid, description: Unique per author; a retry with the same id answers the first confession. }
+    CpConfession:
+      type: object
+      required: [id, coupleId, author, recipient, text, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        coupleId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        recipient: { $ref: '#/components/schemas/UserSummary' }
+        text: { type: string, description: "Both partners' live blocked words are masked (each character → `*`)." }
+        createdAt: { type: string, format: date-time }
+    CpConfessionPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CpConfession' }
+        page: { $ref: '#/components/schemas/PageInfo' }
     Medal:
       type: object
       required: [code, name, description, iconKey, sortOrder, awardedAt]

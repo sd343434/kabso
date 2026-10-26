@@ -127,6 +127,8 @@ All non-2xx responses use one envelope:
 | 409 | `GIFT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A gift send named a code that is not in the gift catalogue or was disabled. Nothing was charged or sent; the app reloads `GET /gifts/catalogue` (§10.23). |
 | 409 | `GIFT_BAG_INSUFFICIENT` | *(v1.23-live, DRAFT, CP-020)* A send with `source: BAG` needs more of that gift (quantity × recipients) than the caller's gift bag holds. Nothing was taken or sent; the app reloads `GET /me/gifts/bag` (§10.23). |
 | 409 | `LIVE_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A recipient of a gift send is not the host or seated in that live now, has no ACTIVE account with that username, or blocked the sender (or was blocked by them). Nothing was charged or sent; the app reloads the seats (§10.23). |
+| 409 | `CP_TASK_NOT_COMPLETED` | *(v1.24-live, DRAFT, CP-021)* A claim for a daily CP task that is not completed yet today (§10.24). Nothing was added. |
+| 403 | `CP_PRIVILEGE_LOCKED` | *(v1.24-live, DRAFT, CP-021)* A read that needs a CP privilege the couple has not unlocked (today: another couple's gift wall before `GIFT_WALL`, §10.24). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -361,6 +363,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | Family writes: `POST /families`, `PATCH` and `DELETE /families/{familyId}`, join requests (ask, accept, decline, `DELETE /me/family-join-request`), leave, remove, role, transfer *(v1.21-live, CP-018)* | 60 / hour per user (bucket `families:write`). **Replaces** the per-user default; family reads use the default |
 | CP requests (send, cancel, accept, decline) and `DELETE /cp/me` *(v1.21-live, CP-018)* | 30 / hour per user (bucket `cp:write`). **Replaces** the per-user default; CP reads use the default |
 | `POST /cp/me/gifts` *(v1.21-live, CP-018)* | 30 / min per user (bucket `cp:gift`). **Replaces** the per-user default |
+| `POST /cp/me/check-in`, `POST /cp/me/tasks/{code}/claim`, `DELETE /cp/me/confessions/{confessionId}` *(v1.24-live, CP-021)* | 60 / min per user (bucket `cp:space`, `RATE_LIMIT_CP_SPACE_WRITE_USER`). **Replaces** the per-user default; the CP space reads (`GET /cp/me/tasks`, `/cp/me/privileges`, `/cp/me/confessions`, `/cp/rankings`, `/cp/couples/…`) use the default |
+| `POST /cp/me/confessions` *(v1.24-live, CP-021)* | 10 / hour per user (bucket `cp:confession`, `RATE_LIMIT_CP_CONFESSION_USER`). **Replaces** the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
@@ -429,6 +433,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.20-live)* Table `live_room_kicks` | Backend — `live` module | CTO |
 | *(v1.21-live)* Tables `families`, `family_members`, `family_join_requests`, `family_points_ledger` | Backend — `families` module (`family_points_ledger` is written with the wallet's debits) | CTO; Security (the points ledger follows wallet debits) |
 | *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
+| *(v1.24-live)* Tables `cp_points_ledger`, `cp_check_ins`, `cp_task_claims`, `cp_confessions` | Backend — `cp-space` module (`cp_points_ledger` is also written by the `couples` module's CP gift path through `couples/cp-points.ts`, in the gift's transaction) | CTO |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
@@ -471,6 +476,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.24-live (draft) | 2026-10-26 | **CP-021 (D112, owner 2026-10-26):** the CP space. Tag `cp`: `getMyCpTasks` (`GET /cp/me/tasks`, `CpTasks`, `CpTask`, `CpTaskCode` `CHECK_IN`/`SEND_GIFT`/`CHAT_TOGETHER`), `checkInCp` (`POST /cp/me/check-in`), `claimCpTask` (`POST /cp/me/tasks/{code}/claim`, `CpTaskClaimResult`), `getMyCpPrivileges` (`GET /cp/me/privileges`, `CpPrivileges`, `CpPrivilege`, `CpPrivilegeCode`), `listMyCpConfessions` / `createCpConfession` (`GET` / `POST /cp/me/confessions`, `CpConfessionCreateRequest`, `CpConfession`, `CpConfessionPage`), `deleteCpConfession` (`DELETE /cp/me/confessions/{confessionId}`), `listCpRankings` (`GET /cp/rankings?period=WEEK\|ALL`, `CpRankings`, `CpRankingEntry`, `CpRankingPeriod`), `getCpCouple` (`GET /cp/couples/{coupleId}`, `CpCouplePublic`), `getCpGiftWall` (`GET /cp/couples/{coupleId}/gift-wall`, `CpGiftWall`, `CpGiftWallEntry`), `listCpCoupleConfessions` (`GET /cp/couples/{coupleId}/confessions`); `CpConfig.gifts` (`CpGiftPreset`); `ProfileCp.id`, `ProfileCp.privileges`; `LiveChatMessage.cpBubble`; the live `join` data message gains `cp`; report `targetType: CP_CONFESSION`; codes `CP_TASK_NOT_COMPLETED` (409), `CP_PRIVILEGE_LOCKED` (403). CP gifts now also write `cp_points_ledger`. Server config `RATE_LIMIT_CP_SPACE_WRITE_USER`, `RATE_LIMIT_CP_CONFESSION_USER`. §4, §7, §8, §10.5, §10.11, §10.21, §10.24, §11.7. | **Additive** (new operations, schemas, fields, codes and an enum value; `POST /cp/me/gifts` unchanged; apps ignore unknown fields). |
 | v1.23.3-live (draft) | 2026-10-26 | **D111 (owner: "CP pair on seats"):** `LiveSeats.couples` (`LiveSeatCouple` `{userIds, level, levelName}`) on `getLiveRoomSeats` and every operation that answers `LiveSeats`: the CP couples whose partners both sit in the room now (host included), ACTIVE accounts, no block between them; a couple formed, ended, levelled up or a block between the partners raises the seat `version` of the rooms where both sit. The seat responses now read `Accept-Language` (for `levelName`). §10.9. | **Additive** (a new response field older apps ignore). |
 | v1.23.2-live (draft) | 2026-10-26 | **D109 (owner: "viewers don't show for the other viewer"):** `listLiveRoomViewers` (`GET /live/rooms/{roomId}/viewers`) is no longer host only: anyone who may watch the room lists who is watching now, newest first, same `LiveViewerPage` (guests too when the room allows guests, `security: [{}, bearerAuth]`); a non-host signed-in caller never sees users with a block either way; 403 `LIVE_GUESTS_NOT_ALLOWED` / `LIVE_KICKED`. The host's answer is unchanged. §7 row and §10.8. | **Relaxing** (an operation that answered 404 to non-hosts now answers 200; it also accepts no token). No shape change. |
 | v1.23-live (draft) | 2026-10-26 | **CP-020 (D108, owner 2026-10-26):** live gifts. Tag `gifts`: `getGiftCatalogue` (`GET /gifts/catalogue`, `GiftCatalogue` with `version`, `categories`, `quantities`, `maxRecipients`, `comboWindowSeconds`; `Gift`, `GiftCategory` `POPULAR`/`EVENT`/`FUN`, `GiftBadge` `NONE`/`NEW`/`EVENT`), `getMyGiftBag` (`GET /me/gifts/bag`, `GiftBag`, `GiftBagItem`); tag `live`: `sendLiveGift` (`POST /live/rooms/{roomId}/gifts`, `LiveGiftSendRequest`, `LiveGiftResult`, `LiveGift`, `LiveGiftCombo`, `LiveGiftSource` `COINS`/`BAG`), data message `gift` on topic `gift`; wallet ledger reason `LIVE_GIFT` (counts for the family); codes `GIFT_UNAVAILABLE`, `GIFT_BAG_INSUFFICIENT`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (409). Gifts now write `LiveScore.supportPoints` (100 a coin), the Contribution list and the popularity board (100 a coin), charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) levels. Server config `LIVE_GIFT_QUANTITIES`, `RATE_LIMIT_LIVE_GIFT_USER`; CLI `gift-admin add|update|disable|enable|list|grant|bag`; audit `gift.add`, `gift.update`, `gift.disable`, `gift.enable`, `gift.grant`. The catalogue starts empty. §4, §7, §8, §10.10, §10.11, §10.12, §10.15, §10.18, §10.19, §10.23. | **Additive** (new operations, schemas, codes, a data message topic and a ledger reason). `LiveContributor.points` and the board's points now include gifts (same fields). |
@@ -668,7 +674,8 @@ until a media provider is wired in.
   - `liveRoomId`: a fresh LIVE room (§10.2), else null;
   - *(v1.21-live, CP-018)* `family` (`{id, number, name, level, emblemUrl, role}` or null), `cp`
     (`{partner, since, level, levelName, points}` or null; null too while the partner is not
-    ACTIVE) and `medals` (`{owned, total, latest, showcase}`: at most the 3 newest, and the up to
+    ACTIVE; *v1.24-live, CP-021:* also `id`, the couple for `GET /cp/couples/{id}`, and
+    `privileges`, the CP privileges it unlocked, §10.24) and `medals` (`{owned, total, latest, showcase}`: at most the 3 newest, and the up to
     6 medals the user chose to show, in their order), §10.21. Tier and medal
     names follow `Accept-Language`, else the caller's locale.
   - *(v1.22-live, CP-019)* `profileCard`: `{code, assetKey}` of the profile card the user wears
@@ -892,7 +899,7 @@ until a media provider is wired in.
   | ------ | ------- | ---- |
   | `chat` | `{"type":"chat","message":LiveChatMessage}` | a message was stored |
   | `chat-delete` | `{"type":"chat-delete","id":"…"}` | a message was deleted |
-  | `join` | `{"type":"join","user":UserSummary}` | a signed-in viewer joined the media session (webhook or reconciliation, §10.8); the host and guests without an account are not announced; at most one a second per room, extras dropped (owner D96) |
+  | `join` | `{"type":"join","user":UserSummary,"cp":…}` | a signed-in viewer joined the media session (webhook or reconciliation, §10.8); the host and guests without an account are not announced; at most one a second per room, extras dropped (owner D96); *v1.24-live:* `cp` is `{coupleId, partner: UserSummary, level}` when the joiner's couple unlocked the Entrance Effect (§10.24), else null |
   | `chat-state` | `{"type":"chat-state","enabled":true\|false}` | the host turned the chat on or off |
 
   The app hides `chat` and `join` lines from people the reader blocked (from `GET /me/blocks`).
@@ -1227,7 +1234,8 @@ in place of the `Idempotency-Key` header, the ledger append-only.
   **Ending** *(owner)*: either partner, `DELETE /cp/me` → 204 (no refund; no partner → 204 too).
 - **CP gifts** *(owner)*: `POST /cp/me/gifts {amount, clientId}` → 201 `{gift, cp, coins}` (retry →
   200). `amount` one of **10, 52, 99, 520, 1314** coins (CTO default); ledger `CP_GIFT` (counts for
-  the sender's family); the couple gains `amount` CP points. Order: 400 → retry → 409
+  the sender's family); the couple gains `amount` CP points *(v1.24-live: claimed daily CP tasks
+  add CP points too, and every gain is a `cp_points_ledger` row, §10.24)*. Order: 400 → retry → 409
   `CP_NOT_PAIRED` → 409 `INSUFFICIENT_COINS`. The partner receives no coins.
 - **Tiers** (CTO default; names localized by `Accept-Language`, else the caller's locale):
   1 ثنائي متحمّس / Eager couple (0), 2 ثنائي فضّي / Silver couple (520), 3 ثنائي ذهبي / Gold
@@ -1405,6 +1413,98 @@ locale (§10.1).
 `WIZARD`), refunds and reversals, a received-gifts wall or history, gifts as chat lines, a
 spenders (rich) board, gifts outside a live, an admin UI, bag gifts that expire.
 
+### 10.24 The CP space *(v1.24-live, DRAFT — CP-021, D112)*
+
+Owner decisions (D112, 2026-10-26: "build everything now, real") are marked *(owner)*; every other
+number is a CTO default the owner may change (named constants in `cp-space.constants.ts`,
+`cp-privileges.ts`, `couples.constants.ts`). Every route needs a token. "Intimacy" is the
+couple's **CP points** (§10.21): one number, one tier ladder.
+
+- **The CP day and week.** One region for everyone (as §10.15): the CP day starts at 00:00 and
+  the CP week on Monday 00:00 (ISO week) in the server's `LIVE_RANKINGS_TIME_ZONE` (default UTC).
+  Responses carry the zone and the instants (`timeZone`, `startsAt`, `resetsAt`, `endsAt`).
+- **Header and level** *(owner)*: `GET /cp/me` (§10.21) already gives both partners (the caller
+  and `partner`), `days`, `points`, `level`, `levelName`, `nextLevelName`, `pointsToNext`.
+- **Daily tasks** *(owner: per couple, reset daily, measurable, not farmable)*:
+  `GET /cp/me/tasks` → `CpTasks` (409 `CP_NOT_PAIRED`). Three tasks, each measured from data the
+  server already keeps:
+
+  | `code` | Done when (this CP day) | `target` | Reward (CP points) |
+  | ------ | ----------------------- | -------- | ------------------ |
+  | `CHECK_IN` | both partners called `POST /cp/me/check-in` (the app calls it when the CP space opens; once per partner and day: 201 now, 200 already) | 2 | 10 |
+  | `SEND_GIFT` | either partner sent a CP gift (`POST /cp/me/gifts`) | 1 | 20 |
+  | `CHAT_TOGETHER` | both partners wrote at least one (not deleted) message in the chat of the **same** live, after the couple formed | 1 | 30 |
+
+  "Both in the same live for ≥ 10 minutes" is **not** offered: the server keeps only who is
+  connected now (`live_room_viewers`), not a history of presence, so it is not cheaply measurable.
+  **Claim:** `POST /cp/me/tasks/{code}/claim` → 201 `{task, cp}` (the reward is added to the
+  couple's CP points and tier through the CP points path, in one transaction with the couple
+  locked); claimed already today by **either** partner → 200 (nothing added again); not done → 409
+  `CP_TASK_NOT_COMPLETED`; unknown code → 404; not paired → 409. One claim per couple, task and
+  CP day (unique key), so two partners claiming at once add the reward once. A new couple formed
+  the same day starts with nothing done (re-forming costs a 99-coin request and restarts at 0
+  points, so it gains nothing).
+- **CP points ledger.** Every gain — a CP gift (`GIFT`, reference the gift) or a claimed task
+  (`TASK`, reference the claim) — is a `cp_points_ledger` row written with the gain (append-only;
+  the gifts before v1.24-live were back-filled). `cp_couples.points` stays the running total.
+- **Privileges** *(owner: five, unlocked by CP level)*, one per tier from 1 to 5 (*D113:* nothing
+  new unlocks at level 6; a level-6 couple has all five):
+
+  | `code` | Unlocked at | What the server provides |
+  | ------ | ----------- | ------------------------ |
+  | `SPECIAL_FRAME` | level 1 | the code in `PublicProfile.cp.privileges` and `CpCouplePublic.privileges` (the app draws the couple frame on avatars) |
+  | `CHAT_BUBBLE` | level 2 | `LiveChatMessage.cpBubble: true` on messages whose author's couple had it when sent (stored with the message) |
+  | `MIC_EFFECT` | level 3 | the code in the couple's `privileges` (the app plays the couple's mic effect on the seats) |
+  | `ENTRANCE_EFFECT` | level 4 | the live `join` data message carries `cp: {coupleId, partner, level}` (§10.11) so the room shows "X ❤ Y entered" |
+  | `GIFT_WALL` | level 5 | other people may read the couple's gift wall (the partners always read their own) |
+
+  `GET /cp/me/privileges` → `{level, privileges: [{code, name, unlockLevel, unlocked, iconKey}]}`
+  (`level` null and nothing unlocked when not paired). In a live (`cpBubble`, the `join` `cp`) a
+  couple counts only while the partner is ACTIVE and **neither partner blocked the other** (the
+  D111 seat rule); on profiles and the couple page the rule of `PublicProfile.cp` applies. Seats:
+  the seats module may add `privileges` to `LiveSeats.couples` from the same helper
+  (`cpPrivilegesFor(level)`).
+- **Couple gifts** *(owner)*: `POST /cp/me/gifts {amount, clientId}` is unchanged; `GET /cp/config`
+  adds `gifts`: `[{code, amount, name, assetKey}]`, the owner's names mapped to the amounts
+  ascending — `rose_love` 10 وردة الحب / Rose Love, `angel_heart` 52 قلب الملاك / Angel Heart,
+  `love_carriage` 99 عربة الحب / Love Carriage, `swan_love` 520 بجعتا الحب / Swan Love,
+  `eternal_heart` 1314 القلب الأبدي / Eternal Heart; `assetKey` = `cp_gift_<code>`.
+- **The couple page** *(owner: tapping someone's CP opens their CP space read-only)*:
+  `GET /cp/couples/{coupleId}` → `CpCouplePublic` `{id, partners (by user id), since, days,
+  points, level, levelName, nextLevelName, pointsToNext, privileges, mine}`. **404** when the
+  couple ended, either partner is not ACTIVE, or — for a reader who is not a partner — a block
+  either way between the reader and either partner. `coupleId` comes from `CpCouple.id`,
+  `PublicProfile.cp.id` or the ranking.
+- **Gift wall:** `GET /cp/couples/{coupleId}/gift-wall` → `{data: [{id, amount, giftCode, sender,
+  receiver, createdAt}], page, totals: {gifts, coins}}`, the couple's CP gifts newest first
+  (paged, §5). 404 like the couple page; a reader who is not a partner → 403 `CP_PRIVILEGE_LOCKED`
+  until the couple unlocks `GIFT_WALL`.
+- **Couples ranking:** `GET /cp/rankings?period=WEEK|ALL` (default `WEEK`) → `{period, startsAt,
+  endsAt, data: [{rank, coupleId, partners, level, levelName, points}], page, me}`. `WEEK`: CP
+  points gained this CP week (from the ledger); `ALL`: the couple's CP points. Ongoing couples
+  with points > 0, both partners ACTIVE, none with a block either way between the reader and a
+  partner; highest first, ties by couple id; at most **100** couples, paged with a signed offset
+  cursor. `me`: the caller's couple `{coupleId, rank, points}` (`rank` null with no points this
+  period), null when not paired.
+- **Confession wall** *(owner: "leave a confession for your CP")*: only the partners write, each
+  to the other; both partners read it and anyone who may see the couple page reads it publicly.
+  `POST /cp/me/confessions {text, clientId}` → 201 `CpConfession` `{id, coupleId, author,
+  recipient, text, createdAt}`; a retry with the same `clientId` → 200 (the first one). Order: 400
+  body → retry → 409 `CP_NOT_PAIRED` → 403 `AUTH_FORBIDDEN` (the partner is not ACTIVE, or a
+  block either way between the partners). **Text:** the live chat rules (§10.11: NFC, trimmed,
+  one line, §6 hygiene, 1–200 code points); **both partners' blocked words** (§10.14) are masked
+  before it is stored. Reads: `GET /cp/me/confessions` (409 when not paired) and
+  `GET /cp/couples/{coupleId}/confessions` (404 like the couple page), newest first, paged,
+  deleted ones left out. **Delete:** either partner, `DELETE /cp/me/confessions/{confessionId}`
+  → 204 (soft; idempotent; not on the caller's current couple page → 404). **Report:**
+  `POST /reports {targetType: CP_CONFESSION}` by anyone who can read it, not its author (§11.7);
+  `REMOVE_TARGET` removes it. **Rate limit:** 10 new confessions an hour per user (§7). A couple
+  that ends keeps its confessions in the database but no read returns them.
+- **Not in v1.24-live:** presence-based tasks, task streaks, rewards other than CP points,
+  privileges that change the server's behaviour beyond the fields above (the frame, mic effect and
+  entrance effect are drawn by the app), a ranking by region or by day, confessions from people
+  other than the partners, likes or replies on confessions.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1527,7 +1627,8 @@ count is eventually consistent (≤ 1 min).
 - **Hide**: the post leaves the caller's feeds and hashtag pages.
 - **Reports**: one OPEN report per reporter and target; a repeat → 200 with the existing
   report. Admins with permission `MODERATION` list and act; `REMOVE_TARGET` removes the post or
-  comment (soft, audited) or, for a user, records the decision only (suspension stays a separate
+  comment (soft, audited) — *v1.24-live:* or a CP confession (`targetType: CP_CONFESSION`, one the
+  reporter can read and did not write, §10.24) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
   report → 409 `REPORT_ALREADY_RESOLVED`.
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user

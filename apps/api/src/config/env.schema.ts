@@ -253,6 +253,10 @@ export const envSchema = z
     // v1.23-live (CP-020, CONVENTIONS §7): gift sends in a live, per user, replacing the default
     // authenticated bucket (combos are quick taps on "send": one a second on average, 2× headroom).
     RATE_LIMIT_LIVE_GIFT_USER: rateLimit('120/60'),
+    // v1.24-live (CP-021, CONVENTIONS §7): CP space writes (check-in, task claims, confession
+    // deletes) and new confessions, per user, each replacing the default authenticated bucket.
+    RATE_LIMIT_CP_SPACE_WRITE_USER: rateLimit('60/60'),
+    RATE_LIMIT_CP_CONFESSION_USER: rateLimit('10/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.

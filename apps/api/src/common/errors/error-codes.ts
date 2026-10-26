@@ -88,6 +88,10 @@ export enum ErrorCode {
   GIFT_BAG_INSUFFICIENT = 'GIFT_BAG_INSUFFICIENT',
   /** v1.23-live (DRAFT, CP-020): a recipient is not the host or seated in the live now (or cannot get gifts from the caller). */
   LIVE_GIFT_RECIPIENT_UNAVAILABLE = 'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+  /** v1.24-live (DRAFT, CP-021): the daily CP task is not completed yet today (nothing claimed). */
+  CP_TASK_NOT_COMPLETED = 'CP_TASK_NOT_COMPLETED',
+  /** v1.24-live (DRAFT, CP-021): the couple has not unlocked the CP privilege this needs. */
+  CP_PRIVILEGE_LOCKED = 'CP_PRIVILEGE_LOCKED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -142,6 +146,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.GIFT_UNAVAILABLE]: 409,
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 409,
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
+  [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
+  [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -196,6 +202,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.GIFT_UNAVAILABLE]: 'That gift is not available.',
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 'Not enough of that gift in your bag.',
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 'A recipient cannot receive gifts in this live now.',
+  [ErrorCode.CP_TASK_NOT_COMPLETED]: 'That CP task is not completed yet today.',
+  [ErrorCode.CP_PRIVILEGE_LOCKED]: 'This couple has not unlocked that CP privilege.',
 };
 
 export interface ErrorDetail {

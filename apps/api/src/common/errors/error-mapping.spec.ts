@@ -77,6 +77,9 @@ describe('ErrorCode', () => {
         'GIFT_UNAVAILABLE',
         'GIFT_BAG_INSUFFICIENT',
         'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+        // v1.24-live (DRAFT, CP-021)
+        'CP_TASK_NOT_COMPLETED',
+        'CP_PRIVILEGE_LOCKED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -127,6 +130,8 @@ describe('ErrorCode', () => {
       GIFT_UNAVAILABLE: 409,
       GIFT_BAG_INSUFFICIENT: 409,
       LIVE_GIFT_RECIPIENT_UNAVAILABLE: 409,
+      CP_TASK_NOT_COMPLETED: 409,
+      CP_PRIVILEGE_LOCKED: 403,
     });
   });
 

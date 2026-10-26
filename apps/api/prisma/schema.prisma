@@ -129,6 +129,11 @@ model User {
   cpPartnerOf        CpPartner[]            @relation("CpPartnerOther")
   cpGiftsSent        CpGift[]               @relation("CpGiftSender")
   cpGiftsReceived    CpGift[]               @relation("CpGiftReceiver")
+  cpCheckIns         CpCheckIn[]
+  cpTaskClaims       CpTaskClaim[]
+  cpConfessionsSent  CpConfession[]         @relation("CpConfessionAuthor")
+  cpConfessionsGot   CpConfession[]         @relation("CpConfessionRecipient")
+  cpConfessionsDel   CpConfession[]         @relation("CpConfessionDeleter")
   medals             UserMedal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
   bagItems           UserBagItem[]
@@ -641,6 +646,8 @@ model LiveChatMessage {
   createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   deletedAt   DateTime?           @map("deleted_at") @db.Timestamptz(3)
   deletedById String?             @map("deleted_by_id") @db.Uuid
+  /// CP-021 (D112): the author's couple had the Exclusive Chat Bubble (CP level 2+) when it was sent.
+  cpBubble    Boolean             @default(false) @map("cp_bubble")
 
   room      LiveRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user      User        @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
@@ -1149,6 +1156,8 @@ enum ReportTargetType {
   STORY
   LIVE_ROOM
   LIVE_CHAT_MESSAGE
+  /// CP-021 (D112): a confession on a CP couple's page.
+  CP_CONFESSION
 
   @@map("report_target_type")
 }
@@ -1521,6 +1530,8 @@ model Report {
   targetLiveRoomId        String?          @map("target_live_room_id") @db.Uuid
   /// CP-013: a live chat message.
   targetLiveChatMessageId String?          @map("target_live_chat_message_id") @db.Uuid
+  /// CP-021: a CP confession.
+  targetCpConfessionId    String?          @map("target_cp_confession_id") @db.Uuid
   reason                  ReportReason
   note                    String?          @db.VarChar(500)
   status                  ReportStatus     @default(OPEN)
@@ -1536,6 +1547,7 @@ model Report {
   targetStory           Story?           @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
   targetLiveRoom        LiveRoom?        @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
   targetLiveChatMessage LiveChatMessage? @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
+  targetCpConfession    CpConfession?    @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
   resolvedBy            User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
@@ -1544,6 +1556,7 @@ model Report {
   @@unique([reporterId, targetStoryId], map: "reports_open_story_once", where: raw("status = 'OPEN'::report_status AND target_story_id IS NOT NULL"))
   @@unique([reporterId, targetLiveRoomId], map: "reports_open_live_room_once", where: raw("status = 'OPEN'::report_status AND target_live_room_id IS NOT NULL"))
   @@unique([reporterId, targetLiveChatMessageId], map: "reports_open_live_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_live_chat_message_id IS NOT NULL"))
+  @@unique([reporterId, targetCpConfessionId], map: "reports_open_cp_confession_once", where: raw("status = 'OPEN'::report_status AND target_cp_confession_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
@@ -1551,6 +1564,7 @@ model Report {
   @@index([targetStoryId], map: "reports_target_story_idx")
   @@index([targetLiveRoomId], map: "reports_target_live_room_idx")
   @@index([targetLiveChatMessageId], map: "reports_target_live_chat_message_idx")
+  @@index([targetCpConfessionId], map: "reports_target_cp_confession_idx")
   @@map("reports")
 }
 
@@ -1871,12 +1885,16 @@ model CpCouple {
   endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
   endedById String?   @map("ended_by_id") @db.Uuid
 
-  userA    User        @relation("CpCoupleA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB    User        @relation("CpCoupleB", fields: [userBId], references: [id], onDelete: Cascade)
-  endedBy  User?       @relation("CpCoupleEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
-  request  CpRequest?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
-  partners CpPartner[]
-  gifts    CpGift[]
+  userA        User            @relation("CpCoupleA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB        User            @relation("CpCoupleB", fields: [userBId], references: [id], onDelete: Cascade)
+  endedBy      User?           @relation("CpCoupleEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  request      CpRequest?      @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  partners     CpPartner[]
+  gifts        CpGift[]
+  pointsLedger CpPointsEntry[]
+  checkIns     CpCheckIn[]
+  taskClaims   CpTaskClaim[]
+  confessions  CpConfession[]
 
   @@index([userAId], map: "cp_couples_user_a_idx")
   @@index([userBId], map: "cp_couples_user_b_idx")
@@ -1919,6 +1937,96 @@ model CpGift {
   @@index([coupleId, createdAt], map: "cp_gifts_couple_idx")
   @@index([receiverId], map: "cp_gifts_receiver_idx")
   @@map("cp_gifts")
+}
+
+/// CP-021 (D112): why a couple's CP points grew.
+enum CpPointsSource {
+  /// A CP gift (reference = `cp_gifts.id`).
+  GIFT
+  /// A claimed daily CP task (reference = `cp_task_claims.id`).
+  TASK
+
+  @@map("cp_points_source")
+}
+
+/// CP-021 (D112): every CP points gain of a couple, written in the same transaction as the gain
+/// (append-only for the runtime role). The couples ranking sums it per window; `cp_couples.points`
+/// stays the running total. One row per source and reference.
+model CpPointsEntry {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  coupleId    String         @map("couple_id") @db.Uuid
+  source      CpPointsSource
+  referenceId String         @map("reference_id") @db.Uuid
+  points      Int
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  couple CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@unique([source, referenceId], map: "cp_points_ledger_reference_once")
+  @@index([createdAt, coupleId], map: "cp_points_ledger_created_idx")
+  @@index([coupleId, createdAt], map: "cp_points_ledger_couple_idx")
+  @@map("cp_points_ledger")
+}
+
+/// CP-021 (D112): a partner checked in on the CP space that day (the CP day, §10.24).
+model CpCheckIn {
+  coupleId  String   @map("couple_id") @db.Uuid
+  day       DateTime @db.Date
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  couple CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([coupleId, day, userId], map: "cp_check_ins_pkey")
+  @@index([userId], map: "cp_check_ins_user_idx")
+  @@map("cp_check_ins")
+}
+
+/// CP-021 (D112): a daily CP task's reward, claimed once per couple, day and task.
+model CpTaskClaim {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  coupleId    String   @map("couple_id") @db.Uuid
+  day         DateTime @db.Date
+  taskCode    String   @map("task_code") @db.VarChar(40)
+  points      Int
+  claimedById String   @map("claimed_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  couple    CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  claimedBy User     @relation(fields: [claimedById], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, day, taskCode], map: "cp_task_claims_once")
+  @@index([claimedById], map: "cp_task_claims_claimed_by_idx")
+  @@map("cp_task_claims")
+}
+
+/// CP-021 (D112): a confession one partner leaves for the other on the couple's page. `text` is
+/// 1–200 code points after the chat text rules (both partners' blocked words masked);
+/// `client_id` is unique per author (an idempotent retry). Soft-deleted by either partner or an
+/// admin report action.
+model CpConfession {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  coupleId    String    @map("couple_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  recipientId String    @map("recipient_id") @db.Uuid
+  text        String    @db.VarChar(200)
+  clientId    String    @map("client_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById String?   @map("deleted_by_id") @db.Uuid
+
+  couple    CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  author    User     @relation("CpConfessionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  recipient User     @relation("CpConfessionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  deletedBy User?    @relation("CpConfessionDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  reports   Report[]
+
+  @@unique([authorId, clientId], map: "cp_confessions_client_once")
+  @@index([coupleId, createdAt], map: "cp_confessions_couple_idx")
+  @@index([recipientId], map: "cp_confessions_recipient_idx")
+  @@index([deletedById], map: "cp_confessions_deleted_by_idx")
+  @@map("cp_confessions")
 }
 
 /// The medal catalogue (الميداليات), seeded by migration 20261110100000_families_cp_medals.

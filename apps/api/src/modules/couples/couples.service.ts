@@ -19,8 +19,10 @@ import { bumpRoomsSeatingBothIn } from '../live/live-seats.store.js';
 import { blockedEitherWayIn, lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
+import { cpPrivilegesFor, type CpPrivilegeCode } from '../cp-space/cp-privileges.js';
 import {
   CP_GIFT_AMOUNTS,
+  CP_GIFT_PRESETS,
   CP_REQUEST_COST_COINS,
   CP_REQUEST_TTL_MS,
   CP_TIERS,
@@ -29,6 +31,7 @@ import {
   cpTierName,
 } from './couples.constants.js';
 import { cpGiftSendSchema, cpRequestSendSchema, type CpRequestListQuery } from './couples.schemas.js';
+import { recordCpPointsIn } from './cp-points.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -75,11 +78,15 @@ export interface CpGiftResultDto {
 
 /** `ProfileCp`: a user's couple on their public profile (§10.5, §10.21). */
 export interface ProfileCpDto {
+  /** v1.24-live (CP-021): the couple, for `GET /cp/couples/{coupleId}`. */
+  id: string;
   partner: UserSummaryDto;
   since: string;
   level: number;
   levelName: string;
   points: number;
+  /** v1.24-live (CP-021): the CP privileges the couple has unlocked (§10.24). */
+  privileges: CpPrivilegeCode[];
 }
 
 /** `CpConfig`. */
@@ -87,6 +94,8 @@ export interface CpConfigDto {
   requestCost: number;
   requestTtlDays: number;
   giftAmounts: number[];
+  /** v1.24-live (CP-021): the named gift card of each amount, ascending. */
+  gifts: { code: string; amount: number; name: string; assetKey: string }[];
   tiers: { level: number; minPoints: number; name: string }[];
 }
 
@@ -152,6 +161,12 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
       requestCost: CP_REQUEST_COST_COINS,
       requestTtlDays: CP_REQUEST_TTL_MS / DAY_MS,
       giftAmounts: [...CP_GIFT_AMOUNTS],
+      gifts: CP_GIFT_PRESETS.map((g) => ({
+        code: g.code,
+        amount: g.amount,
+        name: lang === 'ar' ? g.nameAr : g.nameEn,
+        assetKey: g.assetKey,
+      })),
       tiers: CP_TIERS.map((t) => ({
         level: t.level,
         minPoints: t.minPoints,
@@ -511,11 +526,13 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
     });
     if (!row) return null;
     return {
+      id: row.coupleId,
       partner: userSummary(row.partner),
       since: row.couple.since.toISOString(),
       level: row.couple.level,
       levelName: cpTierName(row.couple.level, lang),
       points: Number(row.couple.points),
+      privileges: cpPrivilegesFor(row.couple.level),
     };
   }
 
@@ -587,6 +604,14 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         await tx.cpCouple.update({
           where: { id: partner.couple_id },
           data: { points, level },
+        });
+        // v1.24-live (CP-021): the gain feeds the couples ranking (§10.24).
+        await recordCpPointsIn(tx, {
+          coupleId: partner.couple_id,
+          points: amount,
+          source: 'GIFT',
+          referenceId: gift.id,
+          at: now,
         });
         // v1.23.3-live (D111): `LiveSeats.couples` carries the level (§10.9).
         if (level !== couple.level) await bumpRoomsSeatingBothIn(tx, callerId, partner.partner_id);

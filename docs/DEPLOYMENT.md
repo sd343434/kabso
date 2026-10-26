@@ -634,6 +634,26 @@ a `CONNECTION LIMIT`.
   categories are enabled with a published version (`levels:admin`); nothing is credited later for
   gifts sent while a category was unavailable.
 
+### 5.8 The CP space (migrations `20261113090000_cp_space_enums`, `20261113100000_cp_space`; CP-021, D112) — [IMPLEMENTED, draft contract]
+
+- Apply both with the usual `migrate` job (§5), in order (the first only adds the report target
+  `CP_CONFESSION`; PostgreSQL needs it committed before use). The second creates
+  `cp_points_ledger` (append-only for the runtime group), `cp_check_ins`, `cp_task_claims`,
+  `cp_confessions` and the enum `cp_points_source`; adds `live_chat_messages.cp_bubble` (boolean,
+  default false: a constant default, no table rewrite) and `reports.target_cp_confession_id`;
+  replaces the `reports_one_target` CHECK.
+- **Backfill inside the migration (no separate step):** one `cp_points_ledger` row per existing
+  CP gift (source `GIFT`, at the gift's time), so every couple's ledger adds up to its
+  `cp_couples.points` and gifts sent this week count for the weekly couples ranking. One
+  `INSERT … SELECT` over `cp_gifts`; idempotent (`ON CONFLICT DO NOTHING`).
+- The CP day (tasks reset at 00:00) and the CP week (Monday 00:00, the weekly ranking) follow the
+  existing `LIVE_RANKINGS_TIME_ZONE` (default UTC); changing it moves both for everyone.
+- **New optional server config:** `RATE_LIMIT_CP_SPACE_WRITE_USER` (default `60/60`: check-in, task
+  claims, confession deletes) and `RATE_LIMIT_CP_CONFESSION_USER` (default `10/3600`: new
+  confessions). No sweeper and no CLI.
+- Reported confessions appear in the existing admin reports queue (`targetType: CP_CONFESSION`);
+  `REMOVE_TARGET` hides the confession.
+
 ## 6. Observability baseline
 
 | Item | Status |

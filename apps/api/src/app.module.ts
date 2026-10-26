@@ -29,6 +29,7 @@ import { FamiliesModule } from './modules/families/families.module.js';
 import { MedalsModule } from './modules/medals/medals.module.js';
 import { BagModule } from './modules/bag/bag.module.js';
 import { GiftsModule } from './modules/gifts/gifts.module.js';
+import { CpSpaceModule } from './modules/cp-space/cp-space.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -72,6 +73,8 @@ export class AppModule {
         // v1.22-live (DRAFT, CP-019).
         BagModule,
         GiftsModule,
+        // v1.24-live (DRAFT, CP-021).
+        CpSpaceModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -13,6 +13,55 @@ export const CP_REQUEST_TTL_MS = 7 * 24 * 3600_000;
 /** The CP gift amounts (coins) a partner may send; each adds the same number of CP points. */
 export const CP_GIFT_AMOUNTS: readonly number[] = [10, 52, 99, 520, 1314];
 
+/** v1.24-live (CP-021, owner D112): a named CP gift card — one per amount, same order. */
+export interface CpGiftPreset {
+  /** Stable code (never renamed; the app keys its art on it). */
+  readonly code: string;
+  readonly amount: number;
+  readonly nameAr: string;
+  readonly nameEn: string;
+  /** The app's image for the card (`assets/cp/gifts/<assetKey>`). */
+  readonly assetKey: string;
+}
+
+/** The owner's CP gift names (D112), mapped to {@link CP_GIFT_AMOUNTS} ascending. */
+export const CP_GIFT_PRESETS: readonly CpGiftPreset[] = [
+  { code: 'rose_love', amount: 10, nameAr: 'وردة الحب', nameEn: 'Rose Love', assetKey: 'cp_gift_rose_love' },
+  {
+    code: 'angel_heart',
+    amount: 52,
+    nameAr: 'قلب الملاك',
+    nameEn: 'Angel Heart',
+    assetKey: 'cp_gift_angel_heart',
+  },
+  {
+    code: 'love_carriage',
+    amount: 99,
+    nameAr: 'عربة الحب',
+    nameEn: 'Love Carriage',
+    assetKey: 'cp_gift_love_carriage',
+  },
+  {
+    code: 'swan_love',
+    amount: 520,
+    nameAr: 'بجعتا الحب',
+    nameEn: 'Swan Love',
+    assetKey: 'cp_gift_swan_love',
+  },
+  {
+    code: 'eternal_heart',
+    amount: 1314,
+    nameAr: 'القلب الأبدي',
+    nameEn: 'Eternal Heart',
+    assetKey: 'cp_gift_eternal_heart',
+  },
+];
+
+/** The preset of a gift `amount`, or null (an amount no longer offered). */
+export function cpGiftPresetFor(amount: number): CpGiftPreset | null {
+  return CP_GIFT_PRESETS.find((p) => p.amount === amount) ?? null;
+}
+
 /** One CP tier: the level reached at `minPoints` CP points, with its Arabic and English names. */
 export interface CpTier {
   readonly level: number;
