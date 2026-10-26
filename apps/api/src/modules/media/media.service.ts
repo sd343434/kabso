@@ -17,7 +17,9 @@ import {
   LARGE_SIDE,
   STORY_LARGE_SIDE,
   COVER_SIDE,
+  BANNER_WIDTH,
   type ImageContentType,
+  type ImageShape,
 } from './media-image.js';
 import { AUDIO_CONTENT_TYPES, InvalidAudioError, MAX_VOICE_BYTES, verifyVoiceClip } from './media-audio.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
@@ -61,6 +63,9 @@ export const MEDIA_KINDS = [
   'FAMILY_EMBLEM',
   // v1.25-live (CP-022): a family's cover (processed like a post image).
   'FAMILY_COVER',
+  // v1.26-live (D124): a home banner (1 500 × 500, cover-cropped to 3:1); attached only by the
+  // banner-admin CLI.
+  'HOME_BANNER',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -239,11 +244,23 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       }
       return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs));
     }
-    const cover = kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM';
-    const side = kind === 'STORY_IMAGE' ? STORY_LARGE_SIDE : cover ? COVER_SIDE : LARGE_SIDE;
+    const shape: ImageShape =
+      kind === 'HOME_BANNER'
+        ? 'banner'
+        : kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM'
+          ? 'square'
+          : 'inside';
+    const side =
+      kind === 'STORY_IMAGE'
+        ? STORY_LARGE_SIDE
+        : shape === 'banner'
+          ? BANNER_WIDTH
+          : shape === 'square'
+            ? COVER_SIDE
+            : LARGE_SIDE;
     let image;
     try {
-      image = await processImage(bytes, upload.contentType as ImageContentType, side, cover);
+      image = await processImage(bytes, upload.contentType as ImageContentType, side, shape);
     } catch (err) {
       if (err instanceof InvalidImageError) return fail(err.message);
       throw err;

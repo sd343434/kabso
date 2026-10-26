@@ -14,7 +14,8 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
@@ -54,28 +55,22 @@ List<String?> _cursors(FakeLiveRepository live) => [
   for (final r in live.requests) r.cursor,
 ];
 
-/// The Popular tab's full-screen pager (D50).
-PageController _pager(WidgetTester tester) => tester
-    .widget<PageView>(
-      find.byKey(const PageStorageKey<String>('live.pager.popular')),
-    )
-    .controller!;
-
-Future<void> _goToPage(
+/// Scrolls the Popular grid (D124) by [dy] logical pixels.
+Future<void> _scrollBy(
   WidgetTester tester,
-  int page, {
+  double dy, {
   bool settle = true,
 }) async {
-  _pager(tester).jumpToPage(page);
+  await tester.drag(find.byType(CustomScrollView).first, Offset(0, -dy));
   settle
       ? await tester.pumpAndSettle()
       : await tester.pump(const Duration(milliseconds: 100));
 }
 
-Future<void> _scrollToEnd(WidgetTester tester) async {
-  final pager = _pager(tester);
-  await _goToPage(tester, 1000);
-  expect(pager.page, isNotNull);
+Future<void> _scrollToEnd(WidgetTester tester, {bool settle = true}) async {
+  for (var i = 0; i < 12; i++) {
+    await _scrollBy(tester, 2000, settle: settle);
+  }
 }
 
 Future<void> _lifecycle(WidgetTester tester, List<AppLifecycleState> states) {
@@ -107,18 +102,19 @@ void main() {
       expect(_cursors(live), [null, 'c1']);
     });
 
-    testWidgets('a long page prefetches only when 2 streams or fewer '
-        'remain', (tester) async {
-      final live = FakeLiveRepository(rooms: _paged(3));
+    testWidgets('a long page prefetches only when 2 screens or less of '
+        'cards remain', (tester) async {
+      // 40 cards: 20 rows of about 243 dp.
+      final live = FakeLiveRepository(rooms: _paged(3, size: 40));
       await _pump(tester, live);
       expect(_cursors(live), [null]);
-      await _goToPage(tester, 16);
+      await _scrollBy(tester, 1000);
       expect(_cursors(live), [null]);
-      await _goToPage(tester, 17);
+      await _scrollBy(tester, 2600);
       expect(_cursors(live), [null, 'c1']);
     });
 
-    testWidgets('the last stream shows a progress line while the next page '
+    testWidgets('a progress footer under the grid while the next page '
         'loads', (tester) async {
       final live = FakeLiveRepository(
         rooms: (r) => r.cursor == null
@@ -127,14 +123,14 @@ void main() {
       );
       await _pump(tester, live, settle: false);
       await tester.pump();
-      await _goToPage(tester, 5, settle: false);
+      await _scrollToEnd(tester, settle: false);
       expect(_cursors(live), [null, 'c1']);
-      expect(find.byKey(LiveHubPager.loadingMoreKey), findsOneWidget);
-      expect(find.byKey(LiveHubPager.loadMoreErrorKey), findsNothing);
+      expect(find.byKey(LiveHubGrid.loadingMoreKey), findsOneWidget);
+      expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
     });
 
-    testWidgets('load-more error: inline message + Retry on the last stream; '
-        'the streams stay', (tester) async {
+    testWidgets('load-more error: inline message + Retry under the grid; '
+        'the cards stay', (tester) async {
       var fail = true;
       final live = FakeLiveRepository(
         rooms: (r) {
@@ -146,7 +142,7 @@ void main() {
       );
       await _pump(tester, live);
       await _scrollToEnd(tester);
-      final error = find.byKey(LiveHubPager.loadMoreErrorKey);
+      final error = find.byKey(FeedRegion.loadMoreErrorKey);
       expect(error, findsOneWidget);
       expect(
         find.descendant(
@@ -155,10 +151,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(_pager(tester).page, 5);
+      expect(find.byKey(LiveHubGrid.cardKey(5)), findsOneWidget);
       // No automatic retry loop.
       final calls = live.requests.length;
-      await _goToPage(tester, 4);
+      await _scrollBy(tester, -400);
       await _scrollToEnd(tester);
       expect(live.requests, hasLength(calls));
 
@@ -167,19 +163,19 @@ void main() {
         find.descendant(of: error, matching: find.text(l10n.actionRetry)),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(LiveHubPager.loadMoreErrorKey), findsNothing);
+      expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
       await _scrollToEnd(tester);
-      expect(_pager(tester).page, 11);
+      expect(find.byKey(LiveHubGrid.cardKey(11)), findsOneWidget);
     });
 
-    testWidgets('end of list: no progress line or error on the last stream', (
+    testWidgets('end of list: no progress footer or error under the grid', (
       tester,
     ) async {
       final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(6)));
       await _pump(tester, live);
       await _scrollToEnd(tester);
-      expect(find.byKey(LiveHubPager.loadingMoreKey), findsNothing);
-      expect(find.byKey(LiveHubPager.loadMoreErrorKey), findsNothing);
+      expect(find.byKey(LiveHubGrid.loadingMoreKey), findsNothing);
+      expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
     });
 
     testWidgets('empty list: no end caption', (tester) async {
@@ -292,7 +288,7 @@ void main() {
         now = now.add(const Duration(minutes: 2));
         await _lifecycle(tester, _toForeground);
         expect(live.configCalls, calls + 1);
-        expect(find.byType(KLiveFullPage), findsWidgets);
+        expect(find.byType(KLiveGridCard), findsWidgets);
       });
     });
 
@@ -313,54 +309,7 @@ void main() {
     });
   });
 
-  group('full-screen streams (D50)', () {
-    testWidgets('one stream fills the screen under the floating tabs; it '
-        'and "Join live" open its room', (tester) async {
-      await _pump(
-        tester,
-        FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2))),
-      );
-      final page = find.byType(KLiveFullPage).first;
-      expect(tester.getRect(page), const Rect.fromLTWH(0, 0, 393, 852));
-      final tabs = tester.getRect(find.byType(KPrimaryTabs));
-      expect(tabs.top, greaterThanOrEqualTo(0));
-      expect(tabs.overlaps(tester.getRect(page)), isTrue);
-      // Badges sit below the tabs and the category row.
-      expect(
-        tester.getRect(find.byKey(KLiveFullPage.badgesKey).first).top,
-        greaterThanOrEqualTo(tester.getRect(find.byType(KChipRow)).bottom),
-      );
-      expect(
-        find.descendant(
-          of: page,
-          matching: find.byWidgetPredicate(
-            (w) => w is Semantics && (w.properties.button ?? false),
-          ),
-        ),
-        findsWidgets,
-      );
-      expect(find.byKey(KLiveFullPage.joinKey), findsOneWidget);
-      // The page carries the API room id (the route is tested in
-      // live_room_test.dart).
-      expect(tester.widget<KLiveFullPage>(page).room.roomId, 'room-0');
-    });
-
-    testWidgets('swiping up shows the next stream', (tester) async {
-      await _pump(
-        tester,
-        FakeLiveRepository(rooms: (_) => apiPage(apiRooms(3))),
-      );
-      expect(find.text('Sara'), findsOneWidget);
-      await tester.fling(
-        find.byType(KLiveFullPage).first,
-        const Offset(0, -500),
-        2000,
-      );
-      await tester.pumpAndSettle();
-      expect(_pager(tester).page, 1);
-      expect(find.text('Sara'), findsNothing);
-    });
-
+  group('grid (D124)', () {
     testWidgets('creator identity and "New" from the API room (D39)', (
       tester,
     ) async {
@@ -368,19 +317,17 @@ void main() {
         tester,
         FakeLiveRepository(rooms: (_) => apiPage(apiRooms(1))),
       );
+      final card = find.byType(KLiveGridCard);
+      expect(card, findsOneWidget);
       expect(find.text('Sara'), findsOneWidget); // host displayName
       expect(find.text('Arabic music night'), findsOneWidget);
-      final page = find.byType(KLiveFullPage);
-      // No cover in v1.3: the host's large avatar (and the small one).
       expect(
-        find.descendant(of: page, matching: find.byType(KAvatar)),
-        findsNWidgets(2),
-      );
-      expect(
-        find.descendant(of: page, matching: find.text(l10n.liveCardNew)),
+        find.descendant(of: card, matching: find.text(l10n.liveCardNew)),
         findsOneWidget,
       );
-      expect(find.byType(KViewerCountChip), findsNothing);
+      // No cover and no avatar in the fixture: the host's initial.
+      expect(find.byKey(KLiveGridCard.initialKey), findsOneWidget);
+      expect(tester.widget<KLiveGridCard>(card).room.roomId, 'room-0');
     });
   });
 

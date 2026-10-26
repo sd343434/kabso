@@ -7170,5 +7170,12 @@
   "profileOpenFollowing": "عرض من يتابعهم",
   "@profileOpenFollowing": {
     "description": "D121: screen-reader hint of the Following count on a profile (opens the list)."
-  }
+  },
+  "liveHubBrand": "Kabso",
+  "liveGridAudio": "صوتي",
+  "liveGridVideo": "فيديو",
+  "homeBannerSemantics": "إعلان {index} من {count}",
+  "@homeBannerSemantics": {"placeholders": {"index": {"type": "int"}, "count": {"type": "int"}}},
+  "homeBannerTitledSemantics": "{title}، إعلان {index} من {count}",
+  "@homeBannerTitledSemantics": {"placeholders": {"title": {"type": "String"}, "index": {"type": "int"}, "count": {"type": "int"}}}
 }

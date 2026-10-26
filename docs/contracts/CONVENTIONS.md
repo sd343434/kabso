@@ -481,6 +481,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26-live (draft) | 2026-10-26 | **D124 (owner: a 2-column live grid and promo banners):** `listHomeBanners` (`GET /home/banners`, tag `home`, `HomeBannerList` of `HomeBanner` `{id, imageUrl, width, height, blurhash, title, titleSide, link}`): the enabled banners inside their window now, ordered, at most 10, signed-in, `Cache-Control: private, max-age=60`; `MediaKind.HOME_BANNER` (cover-cropped to 3:1: 1 500 × 500 and 320 × 107 WebP). Banners are written only by the `banner-admin` CLI (migration role, audited). Migration `20261118090000_home_banners`. §10.26, §11.1. | **Additive** (a new operation, schemas and enum value). |
 | v1.25.4-live (draft) | 2026-10-26 | **D123 (owner: one seat size in every audio room; 25 seats removed):** `AUDIO` seat counts 5, 10, 15, 20 (`LiveConfig.seatCounts.AUDIO`); `startLiveRoom` / `updateLiveRoom` with `seatCount` 25 → 400 `invalid_value`. A room already LIVE with 25 keeps working (seats 1 … 24, `seatCount` 25 in responses) until it ends; no data migration (the database CHECK still admits 25 for those rows). App: every seat the same size whatever the count; a live keeps running in the background (Android foreground service, no API change). §10.9. | **Breaking for `AUDIO` starts / changes with 25** (400); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.25.2-live (draft) | 2026-10-26 | **D121 (owner: "I can't see who follows me and whom I follow"):** `listUserFollowers` / `listUserFollowing` (`GET /users/{username}/followers`, `GET /users/{username}/following`, `FollowListPage` of `FollowListItem` = `UserSummary` + `isSelf`, `isPrivate`, `followedByMe`, `followsMe`): newest follow first, signed social cursor (§5) bound to the list, the user and the caller; rows only ACTIVE accounts with no block either way with the caller; 404 across a block with the user (like `listUserPosts`); a private user's lists → 403 unless the caller is the user or follows them. `PublicProfile.followerCount` / `followingCount` and `FollowState.followerCount` count ACTIVE accounts only (were all rows, suspended included). Migration `20261117090000_follows_following_list_idx`. §7 row, §10.5, §10.6. | **Additive** (new operations and schemas). **Behaviour:** counts no longer include suspended accounts (the documented v1.3 inaccuracy is gone); no shape change. |
 | v1.25.1-live (draft) | 2026-10-26 | **D120 (owner):** `tapLiveRoom` counts the host's own taps like a viewer's (before: 0): the room score, the popularity board, and 1 charm point (`LIVE_TAPS`) for every 10 counted taps, under the same per-person limits (10 a second, 10 000 a live); the host is still not in their own Contribution list. App: every tap pops one of all ten tap characters at random (D101's reached-tiers rule withdrawn), and the host's screen has the tap layer. §10.10, §10.18. | **Behaviour only** (no shape change): a host's batch now answers `accepted` > 0, and a host's score and charm level can move from their own taps. |
@@ -1673,6 +1674,35 @@ rest are CTO defaults the owner may change (named constants in `families.constan
   all, never as working features); chat pictures, voice, replies, reactions, read receipts,
   typing, push notifications for chat, realtime delivery; a family-level blocked-words list.
 
+### 10.26 Promo banners on the live hub *(v1.26-live, DRAFT — D124)*
+
+Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaults.
+
+- **Read:** `GET /home/banners` (signed-in; the per-user default rate limit) → `{data: HomeBanner[]}`:
+  the banners that are `enabled` and inside their window now (`startsAt <= now < endsAt`; no end =
+  open), ordered by `sortOrder` ascending, then the latest `startsAt`, then `id`; at most **10**.
+  Empty when none is active: the app then shows no banner *(owner: hidden when none)*. The
+  response carries `Cache-Control: private, max-age=60` and `Vary: Authorization,
+  Accept-Language`.
+- **Picture** *(owner)*: a `HOME_BANNER` media asset (§11.1), cover-cropped around the centre to
+  **3:1** — `media/{mediaId}/1500.webp` (1 500 × 500) and `320.webp` (320 × 107). The owner's
+  banners carry their text inside the picture; the app shows it whole at 3:1 (never cropped
+  further). `width` / `height` are the stored size.
+- **Text:** optional `titleAr` / `titleEn` (1–40 code points each); `title` is the one in the
+  language of `Accept-Language`, else the caller's locale (§10.1), or null — never the other
+  language. `titleSide` (`LEFT` / `RIGHT`, physical) is the side of the picture left empty for it.
+- **Link allowlist** *(owner)*: `/cp/space`, `/families`, `/live?tab=trending|new|following` (the
+  live hub's Popular, New or Following tab), `/home/room/{roomId}`, `/users/{username}`, or an
+  `https://` URL (no user name or password). Checked by the CLI and again on every read (a stored
+  link that no longer passes is left out). Apps ignore a link they cannot open.
+- **Writes:** only the `banner-admin` CLI (migration role; `add` from an image file or a fresh
+  `HOME_BANNER` upload, `list`, `enable`, `disable`, `remove`), each with an `audit_logs` row
+  (`banner.add`, `banner.enable`, `banner.disable`, `banner.remove`). There is no admin API.
+  `remove` deletes the banner, its asset row and its objects.
+- **App** *(owner)*: the carousel sits full width after the 4th live card (after the last card when
+  fewer), radius 12, auto-advances every 4 s (not with reduce motion), pauses while touched, shows
+  page dots when there is more than one, and opens the link on tap.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1701,6 +1731,9 @@ these rules.
   squares, 640 and 320 px) and attach only as a family's emblem (§10.21).
 - *(v1.25-live, CP-022)* `FAMILY_COVER` uploads are processed like `POST_IMAGE` (at most 1 080 px
   on the long side, and 320 px) and attach only as a family's cover (§10.25).
+- *(v1.26-live, D124)* `HOME_BANNER` uploads are cover-cropped around the centre to exactly 3:1,
+  enlarged when smaller: `media/{mediaId}/1500.webp` (1 500 × 500) and `320.webp` (320 × 107).
+  Only the `banner-admin` CLI attaches them, as a home banner's picture (§10.26).
 - *(v1.19-live, CP-017)* `LIVE_CHAT_IMAGE` uploads follow the same checks and sizes as
   `POST_IMAGE` and attach only to a live chat message. `LIVE_CHAT_VOICE` uploads are voice clips:
   `audio/mp4` (AAC in an MPEG-4 container, `.m4a`), at most 1 MiB (else 400 `byteSize` /

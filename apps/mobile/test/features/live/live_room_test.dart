@@ -32,8 +32,9 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
@@ -168,8 +169,8 @@ void main() {
     testWidgets('a hub card opens its room full screen (no bottom nav); '
         'Close returns to the hub', (tester) async {
       final live = await pumpApp(tester);
-      // D50: the hub shows one stream per screen; "Join live" opens it.
-      await tester.tap(find.byKey(KLiveFullPage.joinKey).first);
+      // D124: the hub's grid; a card opens its room.
+      await tester.tap(find.byKey(LiveHubGrid.cardKey(0)));
       await tester.pumpAndSettle();
 
       expect(find.byType(LiveRoomScreen), findsOneWidget);
@@ -181,12 +182,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
-      expect(find.byType(KLiveFullPage), findsWidgets);
+      expect(find.byType(KLiveGridCard), findsWidgets);
     });
 
     testWidgets('system back leaves the room for the hub', (tester) async {
       await pumpApp(tester);
-      await tester.tap(find.byType(KLiveFullPage).first);
+      await tester.tap(find.byKey(LiveHubGrid.cardKey(0)));
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsOneWidget);
 
@@ -207,7 +208,7 @@ void main() {
         status: LiveRoomStatus.ended,
         endReason: LiveRoomEndReason.heartbeatTimeout,
       );
-      await tester.tap(find.byType(KLiveFullPage).first);
+      await tester.tap(find.byKey(LiveHubGrid.cardKey(0)));
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveRoomEndedTitle), findsOneWidget);
       await tester.tap(find.text(l10n.liveRoomBackToLive));

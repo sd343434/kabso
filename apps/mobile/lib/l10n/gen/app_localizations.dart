@@ -9811,6 +9811,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عرض من يتابعهم'**
   String get profileOpenFollowing;
+
+  /// No description provided for @liveHubBrand.
+  ///
+  /// In ar, this message translates to:
+  /// **'Kabso'**
+  String get liveHubBrand;
+
+  /// No description provided for @liveGridAudio.
+  ///
+  /// In ar, this message translates to:
+  /// **'صوتي'**
+  String get liveGridAudio;
+
+  /// No description provided for @liveGridVideo.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيديو'**
+  String get liveGridVideo;
+
+  /// No description provided for @homeBannerSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعلان {index} من {count}'**
+  String homeBannerSemantics(int index, int count);
+
+  /// No description provided for @homeBannerTitledSemantics.
+  ///
+  /// In ar, this message translates to:
+  /// **'{title}، إعلان {index} من {count}'**
+  String homeBannerTitledSemantics(String title, int index, int count);
 }
 
 class _AppLocalizationsDelegate

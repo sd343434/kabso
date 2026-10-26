@@ -113,6 +113,10 @@ info:
     **D123 (DRAFT v1.25.4-live)** changes the `AUDIO` seat counts to 5, 10, 15 or 20 (25 removed:
     a start or change to 25 → 400; a room already LIVE with 25 keeps it until it ends, CONVENTIONS
     §10.9).
+    **D124 (DRAFT v1.26-live)** adds the live hub's promo banners (`listHomeBanners`,
+    `GET /home/banners`; `HomeBanner`, `HomeBannerList`) and the media kind `HOME_BANNER`
+    (1 500 × 500 WebP, cover-cropped to 3:1); banners are managed only by the `banner-admin` CLI
+    (CONVENTIONS §10.26, §11.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -147,6 +151,8 @@ tags:
     description: "The bag: owned items by category and the one worn per category, starting with profile cards (v1.22-live DRAFT, CP-019)."
   - name: gifts
     description: "Live gifts: the catalogue and the caller's gift bag (v1.23-live DRAFT, CP-020). Sending is `sendLiveGift` (tag `live`)."
+  - name: home
+    description: "The live hub's promo banners (v1.26-live DRAFT, D124). Managed by the banner-admin CLI; read-only here."
   - name: posts
     description: "Posts, drafts, scheduling, pins, likes, saves, reposts, shares and views (v1.5-social DRAFT)."
   - name: feed
@@ -3299,6 +3305,50 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/home/banners:
+    get:
+      tags: [home]
+      operationId: listHomeBanners
+      summary: "The promo banners shown on the live hub now (bounded, not paginated; v1.26-live, D124)"
+      description: |
+        CONVENTIONS §10.26. The banners that are enabled and inside their window now
+        (`startsAt <= now < endsAt`, no end = open), ordered by `sortOrder` ascending, then the
+        latest `startsAt`, then `id`; at most 10. **Empty** when none is active (the app then shows
+        no banner). `title` is the overlay text in the language of `Accept-Language`, else the
+        caller's locale (§10.1), or null when the banner has none in that language (no fallback to
+        the other language). `link` is one of the in-app routes `/cp/space`, `/families`,
+        `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an
+        `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
+        callers only; the default per-user rate limit. The response carries
+        `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
+      responses:
+        '200':
+          description: The active banners (possibly empty).
+          headers:
+            Cache-Control:
+              description: "`private, max-age=60`."
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HomeBannerList' }
+              examples:
+                none:
+                  summary: No active banner
+                  value: { data: [] }
+                one:
+                  summary: The CP space banner with Arabic text on its right half
+                  value:
+                    data:
+                      - id: 0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8091
+                        imageUrl: https://media.kabso.app/media/0193a4b2-7c1d-7e2f-8a3b-4c5d6e7f8092/1500.webp
+                        width: 1500
+                        height: 500
+                        blurhash: LEHV6nWB2yk8pyo0adR*.7kCMdnj
+                        title: فضاء الثنائيات
+                        titleSide: RIGHT
+                        link: /cp/space
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/cp/config:
     get:
       tags: [cp]
@@ -5425,6 +5475,43 @@ components:
       minLength: 2
       maxLength: 32
       pattern: '^[a-z0-9-]{2,32}$'
+    HomeBanner:
+      type: object
+      additionalProperties: false
+      required: [id, imageUrl, width, height, blurhash, title, titleSide, link]
+      description: A promo banner of the live hub (v1.26-live, D124, CONVENTIONS §10.26).
+      properties:
+        id: { type: string, format: uuid }
+        imageUrl:
+          type: string
+          format: uri
+          description: The 1 500 × 500 WebP (3:1); show it cover-fitted at the full content width.
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        blurhash: { type: [string, 'null'] }
+        title:
+          type: [string, 'null']
+          maxLength: 80
+          description: Overlay text (1–40 code points) in the requested language, or null.
+        titleSide:
+          type: string
+          enum: [LEFT, RIGHT]
+          description: The physical side of the picture left empty for the text (same in both languages).
+        link:
+          type: string
+          maxLength: 512
+          description: |
+            `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/{roomId}`,
+            `/users/{username}` or an `https://` URL. Apps ignore a link they cannot open.
+    HomeBannerList:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/HomeBanner' }
     LiveCategory:
       type: object
       required: [slug, name]
@@ -6507,12 +6594,14 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
         (CP-018) a family's emblem (a centre-cropped square like the live cover); (CP-022) a
-        family's cover (processed like a post image, at most 1 080 px on the long side); video
+        family's cover (processed like a post image, at most 1 080 px on the long side);
+        (D124) a home banner (cover-cropped to 3:1 around the centre: 1 500 × 500 and 320 × 107,
+        attached only by the banner-admin CLI); video
         kinds arrive with M2 (CP-006 §2). An asset is attachable only to its kind's target (a
         post, a story, the live cover, a live chat message or a family).
     CreateMediaUploadRequest:

@@ -683,6 +683,47 @@ a `CONNECTION LIMIT`.
 - Reported family chat messages appear in the existing admin reports queue
   (`targetType: FAMILY_CHAT_MESSAGE`); `REMOVE_TARGET` hides the message.
 
+### 5.10 Promo banners on the live hub (migration `20261118090000_home_banners`; D124) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5). It creates `home_banners` and lets `media_assets.kind`
+  take `HOME_BANNER`; no GRANT (default privileges), no backfill. No new server config.
+- **No banner exists after the deploy**, so the hub shows none. Banners are managed only with the
+  `banner-admin` CLI, built into the API image as `dist/cli/banner-admin.js` (locally:
+  `pnpm banner:admin …`). It runs as the migration role; every change writes an audit row
+  (`banner.add`, `banner.enable`, `banner.disable`, `banner.remove`).
+- `add --image <file>` reads a JPEG, PNG or WebP **inside the container**, cover-crops it to 3:1
+  (1 500 × 500 and 320 × 107 WebP; send 3:1 pictures, e.g. 1 500 × 500 or 2 000 × 667, and nothing
+  is cut) and stores it in the media bucket, so the job needs the API's `S3_*` settings and
+  `MEDIA_PUBLIC_BASE_URL` besides `MIGRATION_DATABASE_URL`, and media storage must be configured
+  (§5.3, B12). `--owner` is an existing account (the picture's owner, e.g. the owner's admin
+  account). Instead of `--image`, `--media <id>` takes a `HOME_BANNER` upload made through the API
+  in the last 24 hours.
+- `--link` is `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/<roomId>`,
+  `/users/<username>` or an `https://` URL. Optional: `--title-ar`, `--title-en` (overlay text,
+  1–40 characters; leave them out when the text is in the picture), `--text-side left|right`,
+  `--starts` / `--ends` (ISO times; default now / open), `--sort <n>` (lowest first), `--disabled`.
+- On the server: copy the pictures to the host first (they are not in the image), mount that folder
+  into the job, and pass the storage settings from the environment the API uses. From the
+  operator's machine and then from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  scp banner_families.webp banner_cp.webp banner_talents.webp server:/opt/kabso/banners/
+  # on the server, in /opt/kabso/infra/deploy, with the API's S3_* / MEDIA_PUBLIC_BASE_URL exported
+  # (skip the -e flags if the migrate service already receives them)
+  BANNER="docker compose --profile jobs run --rm -v /opt/kabso/banners:/banners:ro \
+    -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID -e S3_SECRET_ACCESS_KEY \
+    -e S3_FORCE_PATH_STYLE -e MEDIA_PUBLIC_BASE_URL migrate node dist/cli/banner-admin.js"
+  $BANNER add --image /banners/banner_families.webp --owner owner@example.com --link /families --sort 10
+  $BANNER add --image /banners/banner_cp.webp --owner owner@example.com --link /cp/space --sort 20
+  $BANNER add --image /banners/banner_talents.webp --owner owner@example.com --link '/live?tab=trending' --sort 30
+  $BANNER list                 # + shown now, ~ outside its window, - disabled
+  $BANNER disable <bannerId>   # hide; enable <bannerId> shows it again
+  $BANNER remove <bannerId>    # deletes the banner, its asset row and its two objects
+  ```
+
+- Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
+  reload it on pull to refresh, so a change shows within about a minute.
+
 ## 6. Observability baseline
 
 | Item | Status |

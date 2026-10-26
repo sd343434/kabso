@@ -47,6 +47,7 @@ import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_room_swipe.dart';
 import 'package:kabso_live/features/medals/presentation/medals_screen.dart';
 import 'package:kabso_live/features/medals/presentation/showcase_picker_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
@@ -384,8 +385,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final id = state.pathParameters['roomId']!;
                       // D86: a demo room opens the designed live room.
                       final demo = demoRoom(id);
+                      // D124: swipe to the next / previous live of
+                      // the hub tab it was opened from.
                       return demo == null
-                          ? LiveRoomScreen(roomId: id)
+                          ? LiveRoomSwipe(
+                              roomId: id,
+                              child: LiveRoomScreen(roomId: id),
+                            )
                           : LivePreviewScreen(mode: demo);
                     },
                   ),

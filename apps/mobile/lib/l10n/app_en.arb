@@ -1762,5 +1762,10 @@
   "followListsFollowingEmptyBody": "Accounts this person follows will appear here.",
   "followListsPrivateBody": "Only approved followers can see this account's followers and who it follows.",
   "profileOpenFollowers": "Show followers",
-  "profileOpenFollowing": "Show following"
+  "profileOpenFollowing": "Show following",
+  "liveHubBrand": "Kabso",
+  "liveGridAudio": "Audio",
+  "liveGridVideo": "Video",
+  "homeBannerSemantics": "Promotion {index} of {count}",
+  "homeBannerTitledSemantics": "{title}, promotion {index} of {count}"
 }

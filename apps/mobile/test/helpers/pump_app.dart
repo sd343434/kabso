@@ -7,6 +7,7 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -21,6 +22,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_home_banners_repository.dart';
 import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
@@ -83,6 +85,10 @@ Future<void> pumpKabsoApp(
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),
         ),
+        // D124: no promo banners unless a test adds them.
+        homeBannersRepositoryProvider.overrideWithValue(
+          FakeHomeBannersRepository(),
+        ),
         // CP-016 B: never the network.
         liveBlockedWordsRepositoryProvider.overrideWithValue(
           FakeLiveBlockedWordsRepository(),
@@ -138,6 +144,7 @@ Future<void> pumpScreen(
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
+  HomeBannersRepository? homeBannersRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -159,6 +166,10 @@ Future<void> pumpScreen(
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),
+        ),
+        // D124: no promo banners unless a test adds them.
+        homeBannersRepositoryProvider.overrideWithValue(
+          homeBannersRepository ?? FakeHomeBannersRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(

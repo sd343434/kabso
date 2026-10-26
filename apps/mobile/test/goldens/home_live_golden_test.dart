@@ -1,5 +1,6 @@
 // KL-033 screen goldens: the Home feed and the Live hub with the shell's
-// bottom nav, in ar and en at 393×852 and 360×800 @3x, dark theme.
+// bottom nav, in ar and en at 393×852 and 360×800 @3x, dark theme (D124:
+// the live hub also in the light theme).
 //
 // KL-047: no search control in the header; states are composed blocks
 // (88 dp disc, title, body, primary action) placed in the space under the
@@ -28,12 +29,12 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_stories_tray.dart';
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -59,6 +60,7 @@ Future<void> _pumpShellTab(
   required AppLanguage language,
   required GoldenViewport viewport,
   List<Override> overrides = const [],
+  Brightness brightness = Brightness.dark,
 }) async {
   if (viewport == GoldenViewport.phone) {
     tester.view.padding = const FakeViewPadding(
@@ -92,6 +94,7 @@ Future<void> _pumpShellTab(
     language: language,
     viewport: viewport,
     bare: true,
+    brightness: brightness,
   );
 }
 
@@ -109,6 +112,7 @@ void main() {
           List<Override> overrides = const [],
           Duration extraPump = Duration.zero,
           bool scrollToEnd = false,
+          Brightness brightness = Brightness.dark,
         }) => withClock(Clock.fixed(fixtureNow), () async {
           await _pumpShellTab(
             tester,
@@ -117,23 +121,22 @@ void main() {
             language: language,
             viewport: viewport,
             overrides: overrides,
+            brightness: brightness,
           );
           if (extraPump > Duration.zero) {
             await tester.pump(extraPump);
             await precacheImages(tester);
           }
           if (scrollToEnd) {
-            // D50: the last stream of the full-screen pager.
-            tester
-                .widget<PageView>(
-                  find.byKey(
-                    const PageStorageKey<String>('live.pager.popular'),
-                  ),
-                )
-                .controller!
-                .jumpToPage(1000);
-            // The load-more progress line animates: pump, never settle.
-            await tester.pump(const Duration(milliseconds: 500));
+            // D124: the bottom of the grid (the footer under it).
+            for (var i = 0; i < 4; i++) {
+              await tester.drag(
+                find.byType(CustomScrollView).first,
+                const Offset(0, -1500),
+              );
+              // The load-more progress animates: pump, never settle.
+              await tester.pump(const Duration(milliseconds: 500));
+            }
           }
           await expectScreenGolden(
             name,
@@ -222,61 +225,74 @@ void main() {
         });
 
         // Layout review with designed fixture covers (D35): the pure hub
-        // body, as in the debug gallery.
-        testWidgets('live_hub.populated ($vp)', (tester) async {
-          await golden(
-            tester,
-            'live_hub.populated',
-            screen: Theme(
-              data: buildAppTheme(
-                brightness: Brightness.dark,
-                locale: language.locale,
-              ),
-              child: FeedTabsScaffold(
-                overlayHeader: true,
+        // body, as in the debug gallery. D124: the 2-column grid with the
+        // banner carousel after the 4th card (its pictures are network
+        // images: the placeholder surface here), in the dark and the light
+        // app theme (the hub follows the app theme).
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.populated$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.populated$suffix',
+              brightness: brightness,
+              screen: FeedTabsScaffold(
                 centerTabs: true,
+                topBar: const LiveHubTopBar(showNotifications: false),
                 pageBuilder: (context, tab, selectTab) => LiveHubBody(
                   tab: tab,
                   content: AsyncData(FeedItems(hubRooms(language))),
+                  banners: [
+                    for (var i = 0; i < 3; i++)
+                      HomeBanner(
+                        id: 'banner-$i',
+                        imageUrl: 'https://media.example.test/$i.webp',
+                        link: '/families',
+                      ),
+                  ],
                   onRefresh: () async {},
                   onRetry: () {},
                   onSelectTab: (_) {},
                 ),
               ),
-            ),
-            navIndex: _liveIndex,
-          );
-        });
+              navIndex: _liveIndex,
+            );
+          });
+        }
 
         // KL-038: what the v1.3 API returns today when hosting is on —
         // server categories, viewerCount 0 ("New"), no covers (host avatar
         // fallback), more pages to come.
-        testWidgets('live_hub.categories ($vp)', (tester) async {
-          await golden(
-            tester,
-            'live_hub.categories',
-            screen: const LiveScreen(),
-            navIndex: _liveIndex,
-            overrides: liveOverrides(
-              FakeLiveRepository(
-                categories: apiCategories(ar: language == AppLanguage.ar),
-                rooms: (request) => request.cursor == null
-                    ? apiPage(
-                        apiRooms(
-                          6,
-                          ar: language == AppLanguage.ar,
-                          categories: apiCategories(
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.categories$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.categories$suffix',
+              brightness: brightness,
+              screen: const LiveScreen(),
+              navIndex: _liveIndex,
+              overrides: liveOverrides(
+                FakeLiveRepository(
+                  categories: apiCategories(ar: language == AppLanguage.ar),
+                  rooms: (request) => request.cursor == null
+                      ? apiPage(
+                          apiRooms(
+                            6,
                             ar: language == AppLanguage.ar,
+                            categories: apiCategories(
+                              ar: language == AppLanguage.ar,
+                            ),
                           ),
-                        ),
-                        nextCursor: 'c1',
-                      )
-                    : Completer<LiveRoomPage>().future,
+                          nextCursor: 'c1',
+                        )
+                      : Completer<LiveRoomPage>().future,
+                ),
+                language: language,
               ),
-              language: language,
-            ),
-          );
-        });
+            );
+          });
+        }
 
         testWidgets('live_hub.loading ($vp)', (tester) async {
           await golden(
@@ -318,9 +334,9 @@ void main() {
           );
         });
 
-        // Load-more states (HL-H5) on the last full-screen stream (D50).
+        // Load-more states (HL-H5) under the grid (D124).
         for (final (name, next) in <(String, RoomsHandler)>[
-          // The next page is still loading: a progress line (D50).
+          // The next page is still loading: a progress footer.
           ('live_hub.footer_loading', (_) => Completer<LiveRoomPage>().future),
           // The next page failed: inline "Couldn't load more · Retry".
           (

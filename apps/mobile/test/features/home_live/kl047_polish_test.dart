@@ -34,8 +34,9 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -79,21 +80,20 @@ Future<void> _showHomeMode(WidgetTester tester, HomeTab tab) async {
   }
 }
 
-/// D50: the Popular tab's full-screen skeleton (loading).
+/// D124: the Popular tab's skeleton grid (loading).
 final Finder _liveSkeleton = find.descendant(
   of: find.byKey(const PageStorageKey<String>('live.popular')),
-  matching: find.byType(KSkeleton),
+  matching: find.byKey(LiveHubGrid.skeletonKey),
 );
 
-/// D50: how many streams the Popular tab's full-screen pager holds.
-int _streams(WidgetTester tester) =>
-    tester
-        .widget<PageView>(
-          find.byKey(const PageStorageKey<String>('live.pager.popular')),
-        )
-        .childrenDelegate
-        .estimatedChildCount ??
-    0;
+/// D124: how many cards the Popular tab's grid shows.
+int _streams(WidgetTester tester) => find
+    .descendant(
+      of: find.byKey(const PageStorageKey<String>('live.popular')),
+      matching: find.byType(KLiveGridCard),
+    )
+    .evaluate()
+    .length;
 
 /// A button inside the region's state with [label].
 Finder _action(String label) =>
@@ -347,7 +347,7 @@ void main() {
       await _pumpApp(tester);
       await tester.tap(find.byKey(const Key('nav.reels')));
       await tester.pumpAndSettle();
-      expect(find.byType(KLiveFullPage), findsNothing);
+      expect(find.byType(KLiveGridCard), findsNothing);
       expect(find.byType(KLiveCoverCard), findsNothing);
     });
   });
@@ -620,21 +620,10 @@ void main() {
     Finder badge(KBadgeVariant variant) =>
         find.byWidgetPredicate((w) => w is KBadge && w.variant == variant);
 
-    // D50: one stream per screen; check each by moving the pager.
-    Future<void> show(WidgetTester tester, int page) async {
-      tester
-          .widget<PageView>(
-            find.byKey(const PageStorageKey<String>('live.pager.popular')),
-          )
-          .controller!
-          .jumpToPage(page);
-      await tester.pumpAndSettle();
-    }
+    Finder inCard(int i, Finder f) =>
+        find.descendant(of: find.byKey(LiveHubGrid.cardKey(i)), matching: f);
 
-    Finder inStream(Finder f) =>
-        find.descendant(of: find.byType(KLiveFullPage), matching: f);
-
-    testWidgets('LIVE badge on every stream; viewer count only when > 0, '
+    testWidgets('the live mark on every card; viewer count only when > 0, '
         'otherwise "New" (never invented)', (tester) async {
       final rooms = apiRooms(2);
       final live = FakeLiveRepository(
@@ -642,14 +631,16 @@ void main() {
       );
       await _pumpLive(tester, live);
       expect(_streams(tester), 2);
-      expect(inStream(badge(KBadgeVariant.live)), findsOneWidget);
-      expect(inStream(badge(KBadgeVariant.newRoom)), findsOneWidget);
-      expect(inStream(find.byType(KViewerCountChip)), findsNothing);
-      await show(tester, 1);
-      expect(inStream(badge(KBadgeVariant.live)), findsOneWidget);
-      expect(inStream(badge(KBadgeVariant.newRoom)), findsNothing);
-      expect(inStream(find.byType(KViewerCountChip)), findsOneWidget);
-      expect(inStream(find.text('7')), findsOneWidget);
+      for (final i in [0, 1]) {
+        expect(inCard(i, find.byType(KLiveEqualizer)), findsOneWidget);
+      }
+      expect(inCard(0, find.text(_en.liveCardNew)), findsOneWidget);
+      expect(
+        inCard(0, find.byIcon(Icons.person_outline_rounded)),
+        findsNothing,
+      );
+      expect(inCard(1, find.text(_en.liveCardNew)), findsNothing);
+      expect(inCard(1, find.text('7')), findsOneWidget);
     });
 
     testWidgets('category name when present, nothing when absent; '
@@ -658,15 +649,16 @@ void main() {
         rooms: (_) => apiPage(apiRooms(2, categories: apiCategories())),
       );
       await _pumpLive(tester, live);
-      expect(inStream(find.text('Music')), findsOneWidget);
+      expect(inCard(0, find.text('Music')), findsOneWidget);
       expect(
-        find.bySemanticsLabel('Sara, live, New, Arabic music night, Music'),
+        find.bySemanticsLabel(
+          'Sara, live, New, Arabic music night, Video, Music',
+        ),
         findsOneWidget,
       );
-      await show(tester, 1);
-      expect(inStream(find.byIcon(Icons.tag_rounded)), findsNothing);
+      expect(inCard(1, find.byKey(KLiveGridCard.categoryKey)), findsNothing);
       expect(
-        find.bySemanticsLabel('Omar, live, New, Evening chat'),
+        find.bySemanticsLabel('Omar, live, New, Evening chat, Video'),
         findsOneWidget,
       );
     });
@@ -876,7 +868,7 @@ void main() {
           ),
         );
         expect(tester.takeException(), isNull);
-        expect(find.byType(KLiveFullPage), findsWidgets);
+        expect(find.byType(KLiveGridCard), findsWidgets);
       });
     }
   });

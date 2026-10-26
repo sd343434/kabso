@@ -21,7 +21,9 @@ import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -90,9 +92,8 @@ Future<void> _pump(
 void main() {
   for (final (:name, :screen) in _screens) {
     group(name, () {
-      testWidgets('defaults to Popular; no title, wordmark or app bar', (
-        tester,
-      ) async {
+      testWidgets('defaults to Popular; D124: a top bar with the Kabso '
+          'title, search and the bell, no app bar', (tester) async {
         final l10n = l10nFor(AppLanguage.en);
         await _pump(tester, screen);
         expect(_selected(tester, l10n.feedTabPopular), isTrue);
@@ -103,15 +104,21 @@ void main() {
         );
         expect(find.byType(AppBar), findsNothing);
         expect(find.byType(KLogo), findsNothing);
-        // VG-05: header is 48 dp with the tabs only. KL-047: no search
-        // control while there is no search capability.
+        // VG-05: the tab bar is 48 dp; the hub's search lives in the top
+        // bar (D124), not in the tab header.
         expect(
           tester.getSize(find.byType(KPrimaryTabs)).height,
           KMetrics.topBarHeight,
         );
-        expect(FeedTabsScaffold.searchAvailable, isFalse);
         expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
-        expect(find.byType(IconButton), findsNothing);
+        expect(find.byKey(LiveHubTopBar.titleKey), findsOneWidget);
+        expect(find.text(l10n.liveHubBrand), findsOneWidget);
+        expect(find.byKey(LiveHubTopBar.searchKey), findsOneWidget);
+        expect(find.byKey(NotificationsBell.bellKey), findsOneWidget);
+        expect(
+          tester.getRect(find.byKey(LiveHubTopBar.titleKey)).bottom,
+          lessThanOrEqualTo(tester.getRect(find.byType(KPrimaryTabs)).top),
+        );
       });
 
       testWidgets('tapping a tab switches the page and its copy', (
@@ -255,7 +262,9 @@ void main() {
     // The Reels tab shows Search by owner decision (D55,
     // test/features/home/home_tabs_test.dart); the live hub keeps KL-047.
     for (final (nav, key) in const [('home', Key('nav.home'))]) {
-      testWidgets('hidden on $nav in the full app', (tester) async {
+      testWidgets('not in the tab header on $nav in the full app', (
+        tester,
+      ) async {
         await pumpKabsoApp(
           tester,
           overrides: [
@@ -268,8 +277,9 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
+        // The tab header has none; D124: the hub's top bar has one.
         expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
-        expect(find.byTooltip('Search'), findsNothing);
+        expect(find.byKey(LiveHubTopBar.searchKey), findsOneWidget);
       });
     }
 
@@ -355,8 +365,8 @@ void main() {
     });
 
     for (final width in const [393.0, 360.0]) {
-      testWidgets('D50: one stream fills the screen at $width dp, with the '
-          'LIVE badge', (tester) async {
+      testWidgets('D124: a 2-column grid at $width dp with the live mark '
+          'on every card', (tester) async {
         tester.view
           ..physicalSize = Size(width, 852)
           ..devicePixelRatio = 1;
@@ -366,14 +376,22 @@ void main() {
           const LiveScreen(),
           live: FakeLiveRepository(rooms: (_) => apiPage(apiRooms(8))),
         );
-        final page = find.byType(KLiveFullPage).first;
-        expect(tester.getSize(page), Size(width, 852));
+        final cardWidth = (width - 2 * 16 - 8) / 2;
+        final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
+        final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
+        expect(first.width, moreOrLessEquals(cardWidth));
+        expect(first.height, moreOrLessEquals(cardWidth / 0.75));
+        expect(first.top, second.top);
+        // EN: the first card at the left, the second 8 dp to its right.
+        expect(second.left - first.right, moreOrLessEquals(8));
+        for (final card in [first, second]) {
+          expect(card.left, greaterThanOrEqualTo(16));
+          expect(card.right, lessThanOrEqualTo(width - 16));
+        }
         expect(
           find.descendant(
-            of: page,
-            matching: find.byWidgetPredicate(
-              (w) => w is KBadge && w.variant == KBadgeVariant.live,
-            ),
+            of: find.byKey(LiveHubGrid.cardKey(0)),
+            matching: find.byType(KLiveEqualizer),
           ),
           findsOneWidget,
         );
@@ -381,9 +399,7 @@ void main() {
       });
     }
 
-    testWidgets('loading: a full-screen skeleton only after 300 ms', (
-      tester,
-    ) async {
+    testWidgets('loading: a skeleton grid only after 300 ms', (tester) async {
       setViewport(tester, GoldenViewport.phone);
       await pumpScreen(
         tester,
@@ -395,16 +411,19 @@ void main() {
       final page = find.byKey(const PageStorageKey('live.popular'));
       await tester.pump(const Duration(milliseconds: 250));
       expect(
-        find.descendant(of: page, matching: find.byType(KSkeleton)),
+        find.descendant(of: page, matching: find.byType(KLiveGridCardSkeleton)),
         findsNothing,
       );
       await tester.pump(const Duration(milliseconds: 100));
       final skeleton = find.descendant(
         of: page,
-        matching: find.byType(KSkeleton),
+        matching: find.byType(KLiveGridCardSkeleton),
       );
-      expect(skeleton, findsOneWidget);
-      expect(tester.getSize(skeleton).width, 393);
+      expect(skeleton, findsWidgets);
+      expect(
+        tester.getSize(skeleton.first).width,
+        moreOrLessEquals((393 - 40) / 2),
+      );
     });
 
     testWidgets('empty Following offers "See popular", which switches tab', (
@@ -450,9 +469,9 @@ void main() {
           live.requests.where((r) => r.tab == LiveRoomsTab.popular).length;
       final before = popularCalls();
       final configBefore = live.configCalls;
-      // Pull down on the first stream.
+      // Pull down on the first card.
       await tester.fling(
-        find.byType(KLiveFullPage).first,
+        find.byType(KLiveGridCard).first,
         const Offset(0, 400),
         1000,
       );

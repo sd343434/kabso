@@ -5675,4 +5675,23 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileOpenFollowing => 'عرض من يتابعهم';
+
+  @override
+  String get liveHubBrand => 'Kabso';
+
+  @override
+  String get liveGridAudio => 'صوتي';
+
+  @override
+  String get liveGridVideo => 'فيديو';
+
+  @override
+  String homeBannerSemantics(int index, int count) {
+    return 'إعلان $index من $count';
+  }
+
+  @override
+  String homeBannerTitledSemantics(String title, int index, int count) {
+    return '$title، إعلان $index من $count';
+  }
 }

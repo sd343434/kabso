@@ -1246,6 +1246,8 @@ model MediaAsset {
   familyEmblem Family?
   /// CP-022: a family's cover.
   familyCover  Family? @relation("FamilyCover")
+  /// D124: a home banner's picture.
+  homeBanner   HomeBanner?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2316,4 +2318,31 @@ model LiveGiftRecipient {
   @@id([giftId, userId], map: "live_gift_recipients_pkey")
   @@index([userId], map: "live_gift_recipients_user_idx")
   @@map("live_gift_recipients")
+}
+
+/// D124 (v1.26-live, CONVENTIONS §10.26): a promo banner shown on the live hub between the live
+/// cards. Managed only with the `banner-admin` CLI (migration role); read by `GET /home/banners`
+/// while `enabled` and `starts_at <= now < ends_at` (no end = open). `link` is an in-app route of
+/// the allowlist or an https URL (`home-banners.ts`), checked by the CLI and again on read.
+model HomeBanner {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  /// A `HOME_BANNER` media asset (1 500 × 500 WebP), owned by the banner from now on.
+  mediaId   String    @unique @map("media_id") @db.Uuid
+  /// Optional overlay text, 1–40 code points each.
+  titleAr   String?   @map("title_ar") @db.VarChar(80)
+  titleEn   String?   @map("title_en") @db.VarChar(80)
+  /// The empty side of the picture where the overlay text goes (physical: `LEFT` or `RIGHT`).
+  titleSide String    @default("RIGHT") @map("title_side") @db.VarChar(8)
+  link      String    @db.VarChar(512)
+  startsAt  DateTime  @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(3)
+  sortOrder Int       @default(0) @map("sort_order")
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
+  @@map("home_banners")
 }

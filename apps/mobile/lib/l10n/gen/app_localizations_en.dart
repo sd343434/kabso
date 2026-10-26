@@ -5651,4 +5651,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileOpenFollowing => 'Show following';
+
+  @override
+  String get liveHubBrand => 'Kabso';
+
+  @override
+  String get liveGridAudio => 'Audio';
+
+  @override
+  String get liveGridVideo => 'Video';
+
+  @override
+  String homeBannerSemantics(int index, int count) {
+    return 'Promotion $index of $count';
+  }
+
+  @override
+  String homeBannerTitledSemantics(String title, int index, int count) {
+    return '$title, promotion $index of $count';
+  }
 }
