@@ -120,6 +120,9 @@ describe('KL-037 contract coverage', () => {
             'sendLiveGift',
             // CP-018 (v1.21-live draft): a user's medals; kl079-families-cp-medals covers it.
             'listUserMedals',
+            // D121 (v1.25.2-live draft): the follow lists; kl086-follow-lists covers them.
+            'listUserFollowers',
+            'listUserFollowing',
           ].includes(o.operationId),
       )
       .filter(

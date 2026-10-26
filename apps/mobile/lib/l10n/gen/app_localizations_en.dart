@@ -5603,4 +5603,31 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyActivityHint =>
       'Your family members see if you are online now or when you were last active.';
+
+  @override
+  String get followListsFollowBack => 'Follow back';
+
+  @override
+  String get followListsFollowersEmpty => 'No followers yet';
+
+  @override
+  String get followListsFollowersEmptyBody =>
+      'When someone follows this account, they\'ll appear here.';
+
+  @override
+  String get followListsFollowingEmpty => 'Not following anyone yet';
+
+  @override
+  String get followListsFollowingEmptyBody =>
+      'Accounts this person follows will appear here.';
+
+  @override
+  String get followListsPrivateBody =>
+      'Only approved followers can see this account\'s followers and who it follows.';
+
+  @override
+  String get profileOpenFollowers => 'Show followers';
+
+  @override
+  String get profileOpenFollowing => 'Show following';
 }

@@ -179,6 +179,9 @@ class _OwnHeader extends ConsumerWidget {
         profile: stats,
       ),
       cpFrame: cpWearsSpecialFrame(stats?.cp),
+      onOpenFollowers: () => context.push(AppRoutes.userFollows(user.username)),
+      onOpenFollowing: () =>
+          context.push(AppRoutes.userFollows(user.username, following: true)),
       actions: SizedBox(
         height: KProfile.buttonHeight,
         child: OutlinedButton(
@@ -225,6 +228,8 @@ class ProfileHeaderView extends StatelessWidget {
     this.onOpenLive,
     this.levels,
     this.cpFrame = false,
+    this.onOpenFollowers,
+    this.onOpenFollowing,
   });
 
   final String displayName;
@@ -245,7 +250,13 @@ class ProfileHeaderView extends StatelessWidget {
   /// heart frame. While [live], the live ring (which opens the live) wins.
   final bool cpFrame;
 
+  /// D121: tapping the Followers / Following count opens the follow lists.
+  final VoidCallback? onOpenFollowers;
+  final VoidCallback? onOpenFollowing;
+
   static const avatarKey = Key('profile.avatar');
+  static const followersKey = Key('profile.stat.followers');
+  static const followingKey = Key('profile.stat.following');
   static const cpFrameKey = Key('profile.avatar.cpFrame');
 
   @override
@@ -254,24 +265,39 @@ class ProfileHeaderView extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final bio = this.bio;
-    Widget stat(String label, int? value) => Expanded(
-      child: Column(
-        children: [
-          if (value == null && !statsFailed)
-            const KSkeleton(width: KSpacing.xl)
-          else
-            Text(
-              value == null ? '\u2013' : KFormat.compact(value, l10n),
-              maxLines: 1,
-              style: t.title.copyWith(color: p.textPrimary),
-            ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: t.body.copyWith(color: p.textPrimary),
+    Widget stat(
+      String label,
+      int? value, {
+      Key? key,
+      VoidCallback? onTap,
+      String? hint,
+    }) => Expanded(
+      child: Semantics(
+        key: key,
+        button: onTap != null,
+        hint: onTap == null ? null : hint,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KRadius.sm),
+          child: Column(
+            children: [
+              if (value == null && !statsFailed)
+                const KSkeleton(width: KSpacing.xl)
+              else
+                Text(
+                  value == null ? '\u2013' : KFormat.compact(value, l10n),
+                  maxLines: 1,
+                  style: t.title.copyWith(color: p.textPrimary),
+                ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.body.copyWith(color: p.textPrimary),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     final avatar = cpFrame && !live
@@ -314,8 +340,20 @@ class ProfileHeaderView extends StatelessWidget {
                 child: Row(
                   key: ProfileScreen.statsKey,
                   children: [
-                    stat(l10n.profileFollowers, followers),
-                    stat(l10n.profileFollowingCount, following),
+                    stat(
+                      l10n.profileFollowers,
+                      followers,
+                      key: followersKey,
+                      onTap: onOpenFollowers,
+                      hint: l10n.profileOpenFollowers,
+                    ),
+                    stat(
+                      l10n.profileFollowingCount,
+                      following,
+                      key: followingKey,
+                      onTap: onOpenFollowing,
+                      hint: l10n.profileOpenFollowing,
+                    ),
                   ],
                 ),
               ),

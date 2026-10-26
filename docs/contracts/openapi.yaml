@@ -107,6 +107,9 @@ info:
     **D120 (DRAFT v1.25.1-live)** counts the host's own taps on their live like a viewer's (the
     score, the popularity board and the host's charm points, under the same per-person limits);
     no shape changes (CONVENTIONS §10.10, §10.18).
+    **D121 (DRAFT v1.25.2-live)** adds the follower and following lists of a user
+    (`listUserFollowers`, `listUserFollowing`; `FollowListItem`, `FollowListPage`) and counts
+    only ACTIVE accounts in `PublicProfile` / `FollowState` counts (CONVENTIONS §10.5, §10.6).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -768,6 +771,74 @@ paths:
               example: { isFollowing: false, followerCount: 12 }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/followers:
+    get:
+      tags: [users]
+      operationId: listUserFollowers
+      summary: "Who follows a user, newest first (D121)"
+      description: |
+        The accounts that follow `username`.
+        CONVENTIONS §10.6 (v1.25.2-live, D121). Newest follow first (the follow's time, then the
+        user id), paged with the signed cursor of §5 bound to the list, the user and the caller
+        (a cursor of another list, user or caller → 400 `cursor` / `invalid_value`). Rows: only
+        ACTIVE accounts, never one with a block either way with the caller; the caller's own row
+        has `isSelf: true`. The user unknown / malformed / suspended / deleted, or with a block
+        either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
+        caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
+        rate limit (§7).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowListPage' }
+              example:
+                data:
+                  - { id: 2b5c7d3e-8f41-4c2a-9e6b-1d0f3a7c5e92, username: sara_k, displayName: سارة, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: false, followsMe: true }
+                page: { nextCursor: null, hasMore: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/following:
+    get:
+      tags: [users]
+      operationId: listUserFollowing
+      summary: "Whom a user follows, newest first (D121)"
+      description: |
+        The accounts `username` follows.
+        CONVENTIONS §10.6 (v1.25.2-live, D121). Newest follow first (the follow's time, then the
+        user id), paged with the signed cursor of §5 bound to the list, the user and the caller
+        (a cursor of another list, user or caller → 400 `cursor` / `invalid_value`). Rows: only
+        ACTIVE accounts, never one with a block either way with the caller; the caller's own row
+        has `isSelf: true`. The user unknown / malformed / suspended / deleted, or with a block
+        either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
+        caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
+        rate limit (§7).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowListPage' }
+              example:
+                data:
+                  - { id: 7e1a9c4b-3d2f-4b8e-a5c6-0f9d8e7b6a51, username: omar.live, displayName: Omar, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: true, followsMe: false }
+                page: { nextCursor: null, hasMore: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -5275,8 +5346,14 @@ components:
         isPrivate:
           type: boolean
           description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
-        followerCount: { type: integer, minimum: 0 }
-        followingCount: { type: integer, minimum: 0 }
+        followerCount:
+          type: integer
+          minimum: 0
+          description: "Accounts following this user (v1.25.2-live, D121: ACTIVE accounts only, the rows of `listUserFollowers`)."
+        followingCount:
+          type: integer
+          minimum: 0
+          description: "Accounts this user follows (v1.25.2-live, D121: ACTIVE accounts only, the rows of `listUserFollowing`)."
         isFollowing:
           type: boolean
           description: Whether the caller follows this user (always false when isSelf).
@@ -5312,7 +5389,34 @@ components:
         followerCount:
           type: integer
           minimum: 0
-          description: The target's follower count after the operation.
+          description: The target's follower count after the operation (v1.25.2-live, D121, ACTIVE followers only, like `PublicProfile.followerCount`).
+    FollowListItem:
+      description: "(v1.25.2-live, D121) A row of `listUserFollowers` / `listUserFollowing`: the account and the caller's relation to it."
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          required: [isSelf, isPrivate, followedByMe, followsMe]
+          properties:
+            isSelf:
+              type: boolean
+              description: The row is the caller (no Follow control).
+            isPrivate:
+              type: boolean
+              description: The account is private; a new follow → 403 (§10.5), so the client offers Follow only when `followedByMe`.
+            followedByMe:
+              type: boolean
+              description: The caller follows this account (false when `isSelf`).
+            followsMe:
+              type: boolean
+              description: This account follows the caller (false when `isSelf`); the client shows "Follow back".
+    FollowListPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FollowListItem' }
+        page: { $ref: '#/components/schemas/PageInfo' }
     CategorySlug:
       type: string
       minLength: 2

@@ -9721,6 +9721,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.'**
   String get privacyActivityHint;
+
+  /// D121: follow-list row button when that person follows you and you do not follow them.
+  ///
+  /// In ar, this message translates to:
+  /// **'رد المتابعة'**
+  String get followListsFollowBack;
+
+  /// D121: empty Followers tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد متابِعون بعد'**
+  String get followListsFollowersEmpty;
+
+  /// D121: under followListsFollowersEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يتابع أحدٌ هذا الحساب سيظهر هنا.'**
+  String get followListsFollowersEmptyBody;
+
+  /// D121: empty Following tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يتابع أحدًا بعد'**
+  String get followListsFollowingEmpty;
+
+  /// D121: under followListsFollowingEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا الحسابات التي يتابعها هذا الحساب.'**
+  String get followListsFollowingEmptyBody;
+
+  /// D121: a private account's lists for someone who does not follow it (403); under profilePrivateTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.'**
+  String get followListsPrivateBody;
+
+  /// D121: screen-reader hint of the Followers count on a profile (opens the list).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المتابِعين'**
+  String get profileOpenFollowers;
+
+  /// D121: screen-reader hint of the Following count on a profile (opens the list).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض من يتابعهم'**
+  String get profileOpenFollowing;
 }
 
 class _AppLocalizationsDelegate

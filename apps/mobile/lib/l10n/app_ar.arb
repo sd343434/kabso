@@ -7110,5 +7110,37 @@
   "privacyActivityHint": "يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.",
   "@privacyActivityHint": {
     "description": "Privacy switch subtitle. (CP-022 (D116))"
+  },
+  "followListsFollowBack": "رد المتابعة",
+  "@followListsFollowBack": {
+    "description": "D121: follow-list row button when that person follows you and you do not follow them."
+  },
+  "followListsFollowersEmpty": "لا يوجد متابِعون بعد",
+  "@followListsFollowersEmpty": {
+    "description": "D121: empty Followers tab."
+  },
+  "followListsFollowersEmptyBody": "عندما يتابع أحدٌ هذا الحساب سيظهر هنا.",
+  "@followListsFollowersEmptyBody": {
+    "description": "D121: under followListsFollowersEmpty."
+  },
+  "followListsFollowingEmpty": "لا يتابع أحدًا بعد",
+  "@followListsFollowingEmpty": {
+    "description": "D121: empty Following tab."
+  },
+  "followListsFollowingEmptyBody": "ستظهر هنا الحسابات التي يتابعها هذا الحساب.",
+  "@followListsFollowingEmptyBody": {
+    "description": "D121: under followListsFollowingEmpty."
+  },
+  "followListsPrivateBody": "لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.",
+  "@followListsPrivateBody": {
+    "description": "D121: a private account's lists for someone who does not follow it (403); under profilePrivateTitle."
+  },
+  "profileOpenFollowers": "عرض المتابِعين",
+  "@profileOpenFollowers": {
+    "description": "D121: screen-reader hint of the Followers count on a profile (opens the list)."
+  },
+  "profileOpenFollowing": "عرض من يتابعهم",
+  "@profileOpenFollowing": {
+    "description": "D121: screen-reader hint of the Following count on a profile (opens the list)."
   }
 }

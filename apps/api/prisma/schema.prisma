@@ -790,6 +790,8 @@ model Follow {
 
   @@id([followerId, followeeId], map: "follows_pkey")
   @@index([followeeId, createdAt(sort: Desc)], map: "follows_followee_id_created_at_idx")
+  /// D121: the following list (`GET /users/{username}/following`), newest follow first.
+  @@index([followerId, createdAt(sort: Desc)], map: "follows_follower_id_created_at_idx")
   @@map("follows")
 }
 

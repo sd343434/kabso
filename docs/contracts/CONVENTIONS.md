@@ -369,6 +369,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /families/{familyId}/chat` *(v1.25-live, CP-022)* | 30 / min per user (bucket `families:chat`, `RATE_LIMIT_FAMILY_CHAT_USER`). **Replaces** the per-user default. Deleting a chat message and muting / unmuting a member use the family writes bucket (`families:write`); the family boards, standing, contributions and chat reads use the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
+| `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
@@ -480,6 +481,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.25.2-live (draft) | 2026-10-26 | **D121 (owner: "I can't see who follows me and whom I follow"):** `listUserFollowers` / `listUserFollowing` (`GET /users/{username}/followers`, `GET /users/{username}/following`, `FollowListPage` of `FollowListItem` = `UserSummary` + `isSelf`, `isPrivate`, `followedByMe`, `followsMe`): newest follow first, signed social cursor (§5) bound to the list, the user and the caller; rows only ACTIVE accounts with no block either way with the caller; 404 across a block with the user (like `listUserPosts`); a private user's lists → 403 unless the caller is the user or follows them. `PublicProfile.followerCount` / `followingCount` and `FollowState.followerCount` count ACTIVE accounts only (were all rows, suspended included). Migration `20261117090000_follows_following_list_idx`. §7 row, §10.5, §10.6. | **Additive** (new operations and schemas). **Behaviour:** counts no longer include suspended accounts (the documented v1.3 inaccuracy is gone); no shape change. |
 | v1.25.1-live (draft) | 2026-10-26 | **D120 (owner):** `tapLiveRoom` counts the host's own taps like a viewer's (before: 0): the room score, the popularity board, and 1 charm point (`LIVE_TAPS`) for every 10 counted taps, under the same per-person limits (10 a second, 10 000 a live); the host is still not in their own Contribution list. App: every tap pops one of all ten tap characters at random (D101's reached-tiers rule withdrawn), and the host's screen has the tap layer. §10.10, §10.18. | **Behaviour only** (no shape change): a host's batch now answers `accepted` > 0, and a host's score and charm level can move from their own taps. |
 | v1.25-live (draft) | 2026-10-26 | **CP-022 (D116, owner 2026-10-26: "the look + the missing basics"):** families v2. Tag `families`: `listFamilyRankings` (`GET /families/rankings?board=PRESTIGE\|ACTIVE`, `FamilyRankings`, `FamilyRankingEntry`, `FamilyRankingBoard`), `getFamilyStanding` (`GET /families/{familyId}/rankings`, `FamilyStanding`, `FamilyBoardStanding`), `listFamilyContributions` (`GET /families/{familyId}/contributions`, `FamilyContributions`, `FamilyContribution`), `listFamilyChat` / `sendFamilyChatMessage` (`GET` / `POST /families/{familyId}/chat`, `FamilyChatPage`, `FamilyChatMessage`, `FamilyChatSendRequest`), `deleteFamilyChatMessage`, `muteFamilyChatMember` / `unmuteFamilyChatMember` (`PUT` / `DELETE …/chat/mutes/{username}`); `listFamilyMembers` gains `sort=ROLE\|POINTS` and `q`; `FamilyMember.monthPoints`, `presence` (`FamilyPresence`), `chatMuted` (required) and `rank` (with `sort=POINTS`); `Family.coverUrl`, `tagline`, `pendingRequestCount` (required); `UpdateFamilyRequest` fields all optional (at least one) with `coverMediaId`, `tagline`; `PrivacySettings.showActivityStatus` (required) / `UpdatePrivacyRequest.showActivityStatus`; `MediaKind.FAMILY_COVER`; report `targetType: FAMILY_CHAT_MESSAGE`; code `FAMILY_CHAT_MUTED` (403). Server config `RATE_LIMIT_FAMILY_CHAT_USER`. §4, §7, §8, §10.21, §10.25, §11.1, §11.7. | **Additive** (new operations, schemas, fields, codes and enum values; `UpdateFamilyRequest` relaxes `emblemMediaId` from required to optional; new required response fields: strict clients update their models in the same change set). |
 | v1.24.4-live (draft) | 2026-10-26 | **D119 (owner: "make the chat text like this"):** `LiveChatMessage.authorBadges` (`LiveChatAuthorBadges` `{charmLevel, supportLevel, family}`, `LiveChatAuthorFamily` `{name, level}`; required in responses and in the `chat` data message) on `sendLiveChatMessage`, `listLiveChatMessages` and topic `chat`: the author's charm (`ATTRACTIVENESS`) and `SUPPORT` level numbers (null while a category is unavailable) and family (null when none), as they are now, cached up to 30 s per API instance. §10.11. | **Additive** (a new response field; older apps ignore it, the app reads a missing one as no badges). |
@@ -704,6 +706,13 @@ until a media provider is wired in.
 - **Counts** are the number of follow rows, computed on read in v1.3; denormalized counters can
   come later. They can include accounts that are currently suspended; this is an accepted
   inaccuracy. When an account is deleted, its follow rows are deleted in both directions.
+  *(v1.25.2-live, D121)* Counts now include only rows whose other account is `ACTIVE` (a
+  suspended account is neither counted nor listed; its rows are kept and count again if it is
+  reinstated), so they equal the rows of the follower / following lists (§10.6). The one
+  documented difference: the lists also leave out accounts that have a block either way with the
+  **reader**, while a count is the same for every reader (making counts reader-specific would
+  reveal blocks to nobody new and cost a query per profile; a block deletes the follows between
+  the two blockers themselves, so it only affects third-party rows).
 - **Private accounts:** `user_settings.is_private` exists, but no endpoint sets it in v1.3, so it
   is `false` for everyone. Defined behaviour for when it becomes settable:
   - the profile stays visible;
@@ -731,6 +740,25 @@ until a media provider is wired in.
   notification is sent in v1.3, so follow spam has no amplification yet. A cap on total
   followees is an open owner question.
 - Audit: none per edge (high volume, low risk). Rate-limit rejections are logged.
+- *(v1.25.2-live, D121)* **Lists:** `GET /users/{username}/followers` (who follows the user) and
+  `GET /users/{username}/following` (whom the user follows).
+  - Order: newest follow first (`follows.created_at` desc, then the other user's id desc),
+    keyset-paged with the signed social cursor (§5, §11.3) bound to the list, the user and the
+    caller; `limit` 1–50, default 20. A cursor of another list, user or caller → 400 `cursor` /
+    `invalid_value`.
+  - Rows: `FollowListItem` = `UserSummary` + `isSelf` (the caller's own row; no Follow control),
+    `isPrivate` (a new follow would be 403, so the app offers Follow only to undo one),
+    `followedByMe` (the caller follows the row) and `followsMe` (the row follows the caller: the
+    app shows "Follow back"). Only `ACTIVE` accounts; never one with a block either way with the
+    caller.
+  - The user unknown, malformed, pending-only, suspended or deleted, or with a block either way
+    with the caller → the profile's identical 404 (the same answer as `GET /users/{username}/posts`
+    across a block).
+  - **Privacy:** there is no "hide my lists" setting; lists are as public as the counts on the
+    profile. A **private** account's lists (`is_private`, §10.5) are readable only by the account
+    itself and its followers; anyone else → 403 `AUTH_FORBIDDEN` (the profile already says the
+    account is private).
+  - Rate limit: the `GET /users/{username}` bucket (§7).
 
 ### 10.7 Out of scope for v1.3 (recorded so nobody assumes otherwise)
 
@@ -739,7 +767,7 @@ until a media provider is wired in.
   counts, §10.8; the realtime events contract is still out of scope.)*
 - Live chat, gifts, PK and multi-guest. *(CP-011: multi-guest, §10.9; CP-013: chat, §10.11.)*
 - Blocking and muting; follower and following lists; follow requests for private accounts;
-  follow notifications.
+  follow notifications. *(v1.25.2-live, D121: follower and following lists, §10.6.)*
 - Moderation and reporting of rooms or titles; admin end-room (`ADMIN` is reserved). *(CP-010:
   room reports and admin ending, §10.8.)*
 - Admin category management.

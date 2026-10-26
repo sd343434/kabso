@@ -1747,5 +1747,13 @@
   "familyChatUnmutedName": "{name} can chat again",
   "privacyActivityTitle": "Activity status",
   "privacyActivityLabel": "Show activity status",
-  "privacyActivityHint": "Your family members see if you are online now or when you were last active."
+  "privacyActivityHint": "Your family members see if you are online now or when you were last active.",
+  "followListsFollowBack": "Follow back",
+  "followListsFollowersEmpty": "No followers yet",
+  "followListsFollowersEmptyBody": "When someone follows this account, they'll appear here.",
+  "followListsFollowingEmpty": "Not following anyone yet",
+  "followListsFollowingEmptyBody": "Accounts this person follows will appear here.",
+  "followListsPrivateBody": "Only approved followers can see this account's followers and who it follows.",
+  "profileOpenFollowers": "Show followers",
+  "profileOpenFollowing": "Show following"
 }

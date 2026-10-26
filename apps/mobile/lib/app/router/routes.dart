@@ -159,6 +159,14 @@ abstract final class AppRoutes {
   static String userMedals(String username) =>
       '${userProfile(username)}/medals';
 
+  /// D121: a user's followers and following (two tabs; `?tab=following`
+  /// opens the second).
+  static const userFollowsPattern = '/users/:username/follows';
+
+  /// The follow lists of [username], on Following when [following].
+  static String userFollows(String username, {bool following = false}) =>
+      '${userProfile(username)}/follows${following ? '?tab=following' : ''}';
+
   /// Prefix of every debug-only route (`!kReleaseMode`).
   static const debugPrefix = '/debug/';
 

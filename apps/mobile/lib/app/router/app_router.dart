@@ -37,6 +37,8 @@ import 'package:kabso_live/features/families/presentation/create_family_screen.d
 import 'package:kabso_live/features/families/presentation/families_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_chat_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_screen.dart';
+import 'package:kabso_live/features/follows/domain/follow_list_models.dart';
+import 'package:kabso_live/features/follows/presentation/follow_lists_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -227,6 +229,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             PublicProfileScreen(username: state.pathParameters['username']!),
       ),
       // CP-018: families, the relationship (CP) and medals.
+      // D121: followers and following.
+      GoRoute(
+        path: AppRoutes.userFollowsPattern,
+        builder: (_, state) => FollowListsScreen(
+          username: state.pathParameters['username']!,
+          initial: FollowListKind.parse(state.uri.queryParameters['tab']),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.userMedalsPattern,
         builder: (_, state) =>

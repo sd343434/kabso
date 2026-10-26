@@ -5627,4 +5627,31 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get privacyActivityHint =>
       'يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.';
+
+  @override
+  String get followListsFollowBack => 'رد المتابعة';
+
+  @override
+  String get followListsFollowersEmpty => 'لا يوجد متابِعون بعد';
+
+  @override
+  String get followListsFollowersEmptyBody =>
+      'عندما يتابع أحدٌ هذا الحساب سيظهر هنا.';
+
+  @override
+  String get followListsFollowingEmpty => 'لا يتابع أحدًا بعد';
+
+  @override
+  String get followListsFollowingEmptyBody =>
+      'ستظهر هنا الحسابات التي يتابعها هذا الحساب.';
+
+  @override
+  String get followListsPrivateBody =>
+      'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.';
+
+  @override
+  String get profileOpenFollowers => 'عرض المتابِعين';
+
+  @override
+  String get profileOpenFollowing => 'عرض من يتابعهم';
 }
