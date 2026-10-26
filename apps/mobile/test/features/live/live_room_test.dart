@@ -1121,10 +1121,15 @@ void main() {
         ..ping();
       await tester.pumpAndSettle();
       expect(find.byKey(AudioRoomViewKeys.leave), findsOneWidget);
-      expect(find.byKey(AudioRoomViewKeys.mic), findsOneWidget);
-      await tester.tap(find.byKey(AudioRoomViewKeys.mic));
+      // Owner (2026-10-26): no mic button; a tap on my own seat mutes me
+      // (the mic-off badge shows) and another unmutes me.
+      expect(find.byKey(AudioRoomViewKeys.mic), findsNothing);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
       await tester.pumpAndSettle();
       expect(engine.micEnabled, isFalse);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
+      await tester.pumpAndSettle();
+      expect(engine.micEnabled, isTrue);
       await tester.tap(find.byKey(AudioRoomViewKeys.close));
       await tester.pumpAndSettle();
     });

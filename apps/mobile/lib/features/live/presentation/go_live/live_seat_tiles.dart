@@ -256,7 +256,20 @@ class AudioSeatRing extends StatelessWidget {
     this.seats = const [],
     this.onSeat,
     this.speaking = const {},
+    this.micOff = const {},
+    this.onHost,
+    this.hostTapLabel,
   });
+
+  /// Seat indexes whose own mic is off (the guest muted themselves): the
+  /// mic-off badge, as when the host mutes them.
+  final Set<int> micOff;
+
+  /// Tapping the host's picture (owner, 2026-10-26: the host mutes and
+  /// unmutes themselves there, not with a bar button); [hostTapLabel] says
+  /// what it does to screen readers.
+  final VoidCallback? onHost;
+  final String? hostTapLabel;
 
   /// Seats, the host's included (owner D103: 5, 10, 15, 20 or 25). Up to
   /// [circleMax] they sit on a circle around the host; above, every tile —
@@ -307,6 +320,9 @@ class AudioSeatRing extends StatelessWidget {
   Widget build(BuildContext context) => count > circleMax ? _rows() : _circle();
 
   Widget _hostSeat({bool compact = false}) => _HostSeat(
+    key: seatKey(0),
+    onTap: onHost,
+    tapLabel: hostTapLabel,
     circle: host,
     name: hostName,
     muted: hostMicOn == false,
@@ -454,7 +470,7 @@ class AudioSeatRing extends StatelessWidget {
         key: seatKey(i),
         label: user.displayName,
         semantics: user.displayName,
-        muted: seat.mutedByHost,
+        muted: seat.mutedByHost || micOff.contains(i),
         speaking: speaking.contains(i),
         onTap: onTap,
         child: KAvatar(
@@ -583,9 +599,15 @@ class _HostSeat extends StatelessWidget {
     required this.name,
     required this.muted,
     required this.speaking,
+    super.key,
     this.points,
     this.compact = false,
+    this.onTap,
+    this.tapLabel,
   });
+
+  final VoidCallback? onTap;
+  final String? tapLabel;
 
   final Widget circle;
   final String name;
@@ -603,77 +625,86 @@ class _HostSeat extends StatelessWidget {
     final l10n = context.l10n;
     final text = context.textStyles;
     final points = this.points;
+    final tapLabel = this.tapLabel;
     return Semantics(
-      label: '$name · ${l10n.goLiveHostTag}',
+      button: onTap != null,
+      label: tapLabel == null
+          ? '$name · ${l10n.goLiveHostTag}'
+          : '$name · ${l10n.goLiveHostTag} · $tapLabel',
+      onTap: onTap,
       excludeSemantics: true,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            // Compact: the circle lines up with the chairs of its row.
-            height: compact ? AudioSeatRing.chair : null,
-            child: Center(
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  _Glow(
-                    on: speaking,
-                    child: ClipOval(
-                      child: SizedBox.square(
-                        dimension: compact
-                            ? _Seat.avatar
-                            : AudioSeatRing.hostSize,
-                        child: circle,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: compact ? -2 : 3,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xB3000000),
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                      ),
-                      child: Text(
-                        l10n.goLiveHostTag,
-                        style: text.caption.copyWith(
-                          fontSize: compact ? 7.5 : 8.5,
-                          height: 1.3,
-                          color: KAudioRoom.hostTag,
-                          fontWeight: FontWeight.w800,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              // Compact: the circle lines up with the chairs of its row.
+              height: compact ? AudioSeatRing.chair : null,
+              child: Center(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    _Glow(
+                      on: speaking,
+                      child: ClipOval(
+                        child: SizedBox.square(
+                          dimension: compact
+                              ? _Seat.avatar
+                              : AudioSeatRing.hostSize,
+                          child: circle,
                         ),
                       ),
                     ),
-                  ),
-                  if (muted)
-                    const PositionedDirectional(
-                      bottom: -6,
-                      end: -12,
-                      child: _MicOffBadge(size: 20),
+                    Positioned(
+                      bottom: compact ? -2 : 3,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xB3000000),
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                        ),
+                        child: Text(
+                          l10n.goLiveHostTag,
+                          style: text.caption.copyWith(
+                            fontSize: compact ? 7.5 : 8.5,
+                            height: 1.3,
+                            color: KAudioRoom.hostTag,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
                     ),
-                ],
+                    if (muted)
+                      const PositionedDirectional(
+                        bottom: -6,
+                        end: -12,
+                        child: _MicOffBadge(size: 20),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          SizedBox(height: compact ? 4 : 5),
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: text.caption.copyWith(
-              fontSize: compact ? 11.5 : 12.5,
-              height: 1.2,
-              color: KAudioRoom.text,
-              fontWeight: FontWeight.w600,
+            SizedBox(height: compact ? 4 : 5),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.caption.copyWith(
+                fontSize: compact ? 11.5 : 12.5,
+                height: 1.2,
+                color: KAudioRoom.text,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          if (points != null) ...[
-            const SizedBox(height: 2),
-            _PointsPill(points),
+            if (points != null) ...[
+              const SizedBox(height: 2),
+              _PointsPill(points),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -607,6 +607,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGifts => 'الهدايا';
 
   @override
+  String get liveToolbox => 'صندوق الأدوات';
+
+  @override
   String get liveShare => 'مشاركة';
 
   @override

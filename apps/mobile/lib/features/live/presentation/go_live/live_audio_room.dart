@@ -704,7 +704,12 @@ class LiveRoundButton extends StatelessWidget {
     this.gradient,
     this.asset,
     this.tintAsset = false,
+    this.bare = false,
   });
+
+  /// Only [asset], at the button's full size, with no circle behind it (the
+  /// owner's live bar pack, 2026-10-26).
+  final bool bare;
 
   /// A picture icon (`assets/live_room_icons/`) instead of [icon].
   final String? asset;
@@ -745,29 +750,34 @@ class LiveRoundButton extends StatelessWidget {
               isLabelVisible: badge > 0,
               backgroundColor: KAudioRoom.badge,
               label: Text(badge > 99 ? '99+' : badge.toString()),
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: Border.all(
-                    color: const Color(0x2EFFFFFF),
-                    width: size < 40 ? 1 : 1.4,
-                  ),
-                  // Coloured buttons glow in their colour; the rest lift.
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradient != null && onTap != null
-                          ? gradient!.first.withValues(alpha: 0.45)
-                          : const Color(0x59000000),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+              child: bare && asset != null
+                  ? Opacity(
+                      opacity: onTap == null ? 0.45 : 1,
+                      child: Image.asset(asset!, width: size, height: size),
+                    )
+                  : Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                        border: Border.all(
+                          color: const Color(0x2EFFFFFF),
+                          width: size < 40 ? 1 : 1.4,
+                        ),
+                        // Coloured buttons glow in their colour; the rest lift.
+                        boxShadow: [
+                          BoxShadow(
+                            color: gradient != null && onTap != null
+                                ? gradient!.first.withValues(alpha: 0.45)
+                                : const Color(0x59000000),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _icon(),
                     ),
-                  ],
-                ),
-                child: _icon(),
-              ),
             ),
           ),
         ),

@@ -364,6 +364,10 @@
   "liveClose": "إغلاق",
   "liveCommentHint": "قل شيئًا…",
   "liveGifts": "الهدايا",
+  "liveToolbox": "صندوق الأدوات",
+  "@liveToolbox": {
+    "description": "The audio room bar's toolbox button (owner pack): opens the room tools."
+  },
   "liveShare": "مشاركة",
   "liveVideoPlaceholder": "فيديو البث",
   "@liveVideoPlaceholder": {

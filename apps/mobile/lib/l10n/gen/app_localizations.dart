@@ -1046,6 +1046,12 @@ abstract class AppLocalizations {
   /// **'الهدايا'**
   String get liveGifts;
 
+  /// The audio room bar's toolbox button (owner pack): opens the room tools.
+  ///
+  /// In ar, this message translates to:
+  /// **'صندوق الأدوات'**
+  String get liveToolbox;
+
   /// No description provided for @liveShare.
   ///
   /// In ar, this message translates to:

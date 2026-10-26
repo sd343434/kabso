@@ -573,6 +573,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           key: AudioRoomViewKeys.request,
           icon: Icons.weekend_rounded,
           asset: 'assets/live_bar/seat.png',
+          bare: true,
           label: l10n.liveSeatRequest,
           onTap: () =>
               unawaited(runSeatAction(context, () => _session.requestSeat())),
@@ -674,12 +675,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     key: AudioRoomViewKeys.chat,
                     icon: Icons.chat_bubble_outline_rounded,
                     asset: 'assets/live_bar/chat.png',
+                    bare: true,
                     label: composer.hint,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
                   LiveRoundButton(
                     icon: Icons.emoji_emotions_rounded,
                     asset: 'assets/live_bar/emoji.png',
+                    bare: true,
                     label: l10n.livePreviewEmoji,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
@@ -705,26 +708,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
                     asset: 'assets/live_bar/gift.png',
+                    bare: true,
                     label: l10n.liveGifts,
                     onTap: () => unawaited(_openGifts(context)),
                   ),
-                  if (session.seated)
-                    LiveRoundButton(
-                      key: AudioRoomViewKeys.mic,
-                      icon: engine.micEnabled
-                          ? Icons.mic_rounded
-                          : Icons.mic_off_rounded,
-                      asset: engine.micEnabled
-                          ? 'assets/live_room_icons/mic.png'
-                          : 'assets/live_room_icons/mic_off.png',
-                      tintAsset: true,
-                      label: engine.micEnabled
-                          ? l10n.goLiveMuteMic
-                          : l10n.goLiveUnmuteMic,
-                      onTap: () => unawaited(
-                        engine.setMicEnabled(enabled: !engine.micEnabled),
-                      ),
-                    ),
                 ],
               ),
             ],
@@ -798,6 +785,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         orElse: () =>
             LiveSeat(index: index, state: LiveSeatState.empty, user: null),
       );
+      // Owner (2026-10-26): on my own seat, a tap mutes or unmutes me.
+      if (seat != null && me != null && seat.user?.id == me) {
+        unawaited(engine.setMicEnabled(enabled: !engine.micEnabled));
+        return;
+      }
       if (seat != null) _onSeat(session, seat);
     }
 
@@ -836,12 +828,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       hostName: host.displayName,
       hostPoints: KFormat.compact(score, context.l10n),
       speaking: speaking,
+      micOff: {
+        if (session.mine?.seatIndex case final mine? when !engine.micEnabled)
+          mine,
+      },
       onSeat: onSeat,
     );
   }
 
   static Future<void> _openGifts(BuildContext context) =>
-      KGiftPanel.show(context, builder: (_) => const _GiftSheet());
+      KGiftPreviewSheet.show(context);
 }
 
 /// The localized end reason (HL-L10).
@@ -1008,24 +1004,6 @@ class _FollowButton extends StatelessWidget {
 }
 
 /// The gift sheet's selection (sending is disabled; no combo counter).
-class _GiftSheet extends StatefulWidget {
-  const new();
-
-  @override
-  State<_GiftSheet> createState() => _GiftSheetState();
-}
-
-class _GiftSheetState extends State<_GiftSheet> {
-  String? _selected;
-
-  @override
-  Widget build(BuildContext context) => KGiftPanel(
-    gifts: KGiftPanel.preview(context.l10n),
-    selectedId: _selected,
-    onSelected: (gift) => setState(() => _selected = gift.id),
-  );
-}
-
 class _StageNote extends StatelessWidget {
   const new({required this.icon, required this.text, super.key});
 

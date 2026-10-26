@@ -583,6 +583,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveGifts => 'Gifts';
 
   @override
+  String get liveToolbox => 'Toolbox';
+
+  @override
   String get liveShare => 'Share';
 
   @override

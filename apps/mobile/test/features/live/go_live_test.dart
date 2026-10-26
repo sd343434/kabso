@@ -622,12 +622,25 @@ void main() {
       // The host's seat ("Host"), then numbered empty seats with +.
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
-      // The round mic button mutes and unmutes.
-      expect(find.bySemanticsLabel(l10n.goLiveMuteMic), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveScreen.micKey));
+      // Owner (2026-10-26): no mic button in the bar; the host mutes and
+      // unmutes on their own picture. The toolbox and gift box show.
+      expect(find.byKey(GoLiveScreen.micKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
+      expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(l10n.goLiveMuteMic)), findsOneWidget);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
-      expect(find.bySemanticsLabel(l10n.goLiveUnmuteMic), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp(l10n.goLiveUnmuteMic)),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      await tester.pumpAndSettle();
+      expect(camera.micEnabled, isTrue);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      await tester.pumpAndSettle();
+      expect(camera.micEnabled, isFalse);
       // Share copies the live's invite (no public link exists yet).
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -781,7 +794,9 @@ void main() {
       // room button: each offers the tap action (regression, real web run).
       final handle = tester.ensureSemantics();
       for (final key in [
-        GoLiveScreen.micKey,
+        AudioSeatRing.seatKey(0),
+        GoLiveScreen.audioToolboxKey,
+        GoLiveScreen.audioGiftKey,
         GoLiveScreen.closeKey,
         GoLiveScreen.minimizeKey,
         GoLiveScreen.shareKey,
