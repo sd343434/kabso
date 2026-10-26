@@ -10,6 +10,7 @@ import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { violatedUniqueIndex } from '../users/users.service.js';
+import { awardMedalsIn } from '../medals/medal-awards.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
@@ -160,6 +161,8 @@ export class LiveBulletsService {
           bullet.id,
         );
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        // v1.21-live (CP-018, §10.21): the first bullet message earns a medal.
+        await awardMedalsIn(tx, callerId, ['BULLET_FIRST'], { at: now });
         return { bullet, coins: charged.coins };
       });
     } catch (err) {

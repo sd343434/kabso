@@ -56,6 +56,30 @@ export enum ErrorCode {
   INSUFFICIENT_COINS = 'INSUFFICIENT_COINS',
   /** v1.20-live (DRAFT, D105): the host or a moderator kicked the caller out of this live. */
   LIVE_KICKED = 'LIVE_KICKED',
+  /** v1.21-live (DRAFT, CP-018): the caller (or the person asked) already belongs to a family. */
+  ALREADY_IN_FAMILY = 'ALREADY_IN_FAMILY',
+  /** v1.21-live (DRAFT, CP-018): the family has 500 members. */
+  FAMILY_FULL = 'FAMILY_FULL',
+  /** v1.21-live (DRAFT, CP-018): another family has this name. */
+  FAMILY_NAME_TAKEN = 'FAMILY_NAME_TAKEN',
+  /** v1.21-live (DRAFT, CP-018): the caller already has a pending join request to another family. */
+  FAMILY_REQUEST_PENDING = 'FAMILY_REQUEST_PENDING',
+  /** v1.21-live (DRAFT, CP-018): the join request was already handled, cancelled or expired. */
+  FAMILY_REQUEST_NOT_PENDING = 'FAMILY_REQUEST_NOT_PENDING',
+  /** v1.21-live (DRAFT, CP-018): only a family with the leader alone can be disbanded. */
+  FAMILY_NOT_EMPTY = 'FAMILY_NOT_EMPTY',
+  /** v1.21-live (DRAFT, CP-018): the leader hands the family over (or disbands it) instead of leaving. */
+  FAMILY_LEADER_CANNOT_LEAVE = 'FAMILY_LEADER_CANNOT_LEAVE',
+  /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
+  CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
+  /** v1.21-live (DRAFT, CP-018): the caller already has a pending CP request. */
+  CP_REQUEST_PENDING = 'CP_REQUEST_PENDING',
+  /** v1.21-live (DRAFT, CP-018): the CP request was already accepted, declined, cancelled or expired. */
+  CP_REQUEST_NOT_PENDING = 'CP_REQUEST_NOT_PENDING',
+  /** v1.21-live (DRAFT, CP-018): the caller has no CP partner. */
+  CP_NOT_PAIRED = 'CP_NOT_PAIRED',
+  /** v1.21-live (DRAFT, CP-018): a medal the caller has not unlocked cannot be shown on the profile. */
+  MEDAL_NOT_UNLOCKED = 'MEDAL_NOT_UNLOCKED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -94,6 +118,18 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_CHAT_CLOSED]: 409,
   [ErrorCode.INSUFFICIENT_COINS]: 409,
   [ErrorCode.LIVE_KICKED]: 403,
+  [ErrorCode.ALREADY_IN_FAMILY]: 409,
+  [ErrorCode.FAMILY_FULL]: 409,
+  [ErrorCode.FAMILY_NAME_TAKEN]: 409,
+  [ErrorCode.FAMILY_REQUEST_PENDING]: 409,
+  [ErrorCode.FAMILY_REQUEST_NOT_PENDING]: 409,
+  [ErrorCode.FAMILY_NOT_EMPTY]: 409,
+  [ErrorCode.FAMILY_LEADER_CANNOT_LEAVE]: 409,
+  [ErrorCode.CP_ALREADY_PAIRED]: 409,
+  [ErrorCode.CP_REQUEST_PENDING]: 409,
+  [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
+  [ErrorCode.CP_NOT_PAIRED]: 409,
+  [ErrorCode.MEDAL_NOT_UNLOCKED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -132,6 +168,18 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_CHAT_CLOSED]: 'The chat is off.',
   [ErrorCode.INSUFFICIENT_COINS]: 'Not enough coins.',
   [ErrorCode.LIVE_KICKED]: 'You were removed from this live.',
+  [ErrorCode.ALREADY_IN_FAMILY]: 'Already in a family.',
+  [ErrorCode.FAMILY_FULL]: 'The family is full.',
+  [ErrorCode.FAMILY_NAME_TAKEN]: 'That family name is taken.',
+  [ErrorCode.FAMILY_REQUEST_PENDING]: 'You already asked to join a family.',
+  [ErrorCode.FAMILY_REQUEST_NOT_PENDING]: 'The join request is no longer pending.',
+  [ErrorCode.FAMILY_NOT_EMPTY]: 'The family still has members.',
+  [ErrorCode.FAMILY_LEADER_CANNOT_LEAVE]: 'Hand the family over before leaving.',
+  [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
+  [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',
+  [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',
+  [ErrorCode.CP_NOT_PAIRED]: 'You have no CP partner.',
+  [ErrorCode.MEDAL_NOT_UNLOCKED]: 'You have not unlocked that medal.',
 };
 
 export interface ErrorDetail {

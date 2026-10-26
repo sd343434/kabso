@@ -61,6 +61,13 @@ export enum AuditAction {
   // v1.19-live (DRAFT, CP-017): coins granted or taken back by an admin (`wallet-admin`).
   WALLET_GRANT = 'wallet.grant',
   WALLET_REVOKE = 'wallet.revoke',
+  /** v1.21-live (CP-018): a family was created, handed over, disbanded, or a member removed. */
+  FAMILY_CREATE = 'family.create',
+  FAMILY_TRANSFER = 'family.transfer',
+  FAMILY_DISBAND = 'family.disband',
+  FAMILY_MEMBER_REMOVE = 'family.member.remove',
+  /** v1.21-live (CP-018): `medals-admin backfill` ran. */
+  MEDALS_BACKFILL = 'medals.backfill',
 }
 
 export interface AuditEntry {

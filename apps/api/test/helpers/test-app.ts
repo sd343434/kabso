@@ -166,6 +166,10 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_LIVE_TAPS_USER: GENEROUS,
     // CP-013 (KL-067)
     RATE_LIMIT_LIVE_CHAT_USER: GENEROUS,
+    // CP-018 (KL-079)
+    RATE_LIMIT_FAMILY_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_GIFT_USER: GENEROUS,
     // A LiveKit identity for signing tokens; the media server itself is the in-memory fake
     // (createTestApp) unless a spec passes the real adapter.
     LIVEKIT_URL: 'ws://127.0.0.1:7880',
@@ -193,6 +197,7 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     MEDIA_SWEEP_INTERVAL_SECONDS: '0',
     POSTS_PUBLISH_INTERVAL_SECONDS: '0',
     NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
+    BONDS_SWEEP_INTERVAL_SECONDS: '0',
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

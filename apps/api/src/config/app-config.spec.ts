@@ -528,6 +528,16 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     ).toBe(0);
   });
 
+  it('runs the CP-018 family and CP request sweeper by default and refuses disabling it in production', () => {
+    expect(loadConfig(base).social.bondsSweepIntervalSeconds).toBe(300);
+    expect(loadConfig({ ...base, BONDS_SWEEP_INTERVAL_SECONDS: '0' }).social.bondsSweepIntervalSeconds).toBe(
+      0,
+    );
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', BONDS_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /BONDS_SWEEP_INTERVAL_SECONDS/,
+    );
+  });
+
   it('refuses plain http storage, disabled workers and a weak cursor key in production', () => {
     expect(() =>
       loadConfig({

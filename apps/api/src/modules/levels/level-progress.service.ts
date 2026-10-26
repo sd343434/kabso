@@ -7,6 +7,7 @@ import type {
   PointsSourceType,
   Prisma,
 } from '../../generated/prisma/client.js';
+import { awardCharmMedalsIn } from '../medals/medal-awards.js';
 import type { LoadedCategory } from './level-catalog.js';
 import { progressFor } from './level-math.js';
 import { addPoints, formatMultiplier } from './points-math.js';
@@ -176,6 +177,7 @@ export class LevelProgressService {
           versionId: version?.id ?? null,
         },
       });
+      await this.charmMedals(tx, category, input.userId, level, state.current_level);
     }
     return {
       kind: 'applied',
@@ -278,7 +280,23 @@ export class LevelProgressService {
           versionId: version?.id ?? null,
         },
       });
+      await this.charmMedals(tx, category, userId, level, state.current_level);
     }
     return true;
+  }
+
+  /**
+   * v1.21-live (CP-018, §10.21): a charm (`ATTRACTIVENESS`) level that went up to 10, 50 or 100
+   * awards the charm medals, in the same transaction.
+   */
+  private async charmMedals(
+    tx: Tx,
+    category: LoadedCategory,
+    userId: string,
+    level: number | null,
+    previous: number | null,
+  ): Promise<void> {
+    if (category.code !== 'ATTRACTIVENESS' || level === null || level <= (previous ?? 0)) return;
+    await awardCharmMedalsIn(tx, userId, level);
   }
 }

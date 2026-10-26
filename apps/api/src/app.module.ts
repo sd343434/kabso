@@ -24,6 +24,9 @@ import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
+import { CouplesModule } from './modules/couples/couples.module.js';
+import { FamiliesModule } from './modules/families/families.module.js';
+import { MedalsModule } from './modules/medals/medals.module.js';
 import { ClockModule } from './common/time/clock.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -60,6 +63,10 @@ export class AppModule {
         PublicProfileModule,
         // v1.19-live (DRAFT, CP-017).
         WalletModule,
+        // v1.21-live (DRAFT, CP-018).
+        FamiliesModule,
+        CouplesModule,
+        MedalsModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: AllExceptionsFilter },

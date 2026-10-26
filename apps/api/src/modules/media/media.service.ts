@@ -57,6 +57,8 @@ export const MEDIA_KINDS = [
   'LIVE_COVER',
   'LIVE_CHAT_IMAGE',
   'LIVE_CHAT_VOICE',
+  // v1.21-live (CP-018): a family's emblem (a centre-cropped square, like the live cover).
+  'FAMILY_EMBLEM',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -235,7 +237,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       }
       return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs));
     }
-    const cover = kind === 'LIVE_COVER';
+    const cover = kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM';
     const side = kind === 'STORY_IMAGE' ? STORY_LARGE_SIDE : cover ? COVER_SIDE : LARGE_SIDE;
     let image;
     try {

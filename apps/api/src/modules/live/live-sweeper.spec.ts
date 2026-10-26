@@ -29,6 +29,8 @@ function fakeDb(stale: number, onBatch?: () => Promise<void>) {
       const sql = strings.join('?');
       statements.push(sql.replace(/\s+/g, ' ').trim().slice(0, 40));
       if (sql.includes('set_config')) return Promise.resolve([]);
+      // CP-018: the live medals of the hosts of the ended rooms (none in this fake).
+      if (sql.includes('SELECT DISTINCT host_user_id')) return Promise.resolve([]);
       if (sql.includes('FOR UPDATE SKIP LOCKED')) {
         const limit = values.find((v) => typeof v === 'number') as number;
         const n = Math.min(limit, remaining);

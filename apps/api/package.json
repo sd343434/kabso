@@ -23,7 +23,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "levels:admin": "tsx src/cli/levels-admin.ts",
-    "wallet:admin": "tsx src/cli/wallet-admin.ts"
+    "wallet:admin": "tsx src/cli/wallet-admin.ts",
+    "medals:admin": "tsx src/cli/medals-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

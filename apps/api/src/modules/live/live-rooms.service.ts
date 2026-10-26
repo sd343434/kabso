@@ -15,6 +15,7 @@ import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
 import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
+import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
   DEFAULT_LIVE_THEME,
@@ -28,6 +29,20 @@ import {
 // ---- Response shapes (openapi v1.3) ------------------------------------------------------------
 
 /** `UserSummary`: never contains an email. */
+
+/**
+ * What every path that ends rooms does in its transaction: guests leave their seats (CP-011) and,
+ * v1.21-live (CP-018), the hosts get their live medals (FIRST_LIVE, live hours).
+ */
+async function roomsEndedIn(
+  tx: Prisma.TransactionClient,
+  roomIds: readonly string[],
+  now: Date,
+): Promise<void> {
+  await clearEndedRoomSeatsIn(tx, roomIds, now);
+  await awardLiveMedalsForRoomsIn(tx, roomIds, now);
+}
+
 export interface UserSummaryDto {
   id: string;
   username: string;
@@ -471,7 +486,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE status = 'LIVE' AND last_heartbeat_at <= ${ts(this.cutoff(now))}::timestamptz AND ${scope}
    RETURNING id::text AS id, host_user_id::text AS host_user_id`;
     await this.auditTimeouts(tx, rows);
-    await clearEndedRoomSeatsIn(
+    await roomsEndedIn(
       tx,
       rows.map((row) => row.id),
       now,
@@ -517,7 +532,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND status = 'LIVE' AND last_heartbeat_at <= ${cutoff}::timestamptz
      RETURNING id::text AS id, host_user_id::text AS host_user_id`;
       await this.auditTimeouts(tx, rows);
-      await clearEndedRoomSeatsIn(
+      await roomsEndedIn(
         tx,
         rows.map((row) => row.id),
         now,
@@ -942,7 +957,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
            AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
      RETURNING id::text AS id`;
       if (ended.length === 1) {
-        await clearEndedRoomSeatsIn(tx, [roomId], now);
+        await roomsEndedIn(tx, [roomId], now);
         await this.audit.recordIn(tx, {
           action: AuditAction.LIVE_ROOM_END,
           actorUserId: callerId,
@@ -1040,7 +1055,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE host_user_id = ${hostUserId}::uuid AND status = 'LIVE'
          AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
-    await clearEndedRoomSeatsIn(
+    await roomsEndedIn(
       tx,
       ended.map((row) => row.id),
       now,
@@ -1089,7 +1104,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
        WHERE ${where} AND status = 'LIVE'
          AND last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
    RETURNING id::text AS id`;
-    await clearEndedRoomSeatsIn(
+    await roomsEndedIn(
       tx,
       ended.map((row) => row.id),
       now,

@@ -58,6 +58,19 @@ describe('ErrorCode', () => {
         'INSUFFICIENT_COINS',
         // v1.20-live (DRAFT, D105)
         'LIVE_KICKED',
+        // v1.21-live (DRAFT, CP-018)
+        'ALREADY_IN_FAMILY',
+        'FAMILY_FULL',
+        'FAMILY_NAME_TAKEN',
+        'FAMILY_REQUEST_PENDING',
+        'FAMILY_REQUEST_NOT_PENDING',
+        'FAMILY_NOT_EMPTY',
+        'FAMILY_LEADER_CANNOT_LEAVE',
+        'CP_ALREADY_PAIRED',
+        'CP_REQUEST_PENDING',
+        'CP_REQUEST_NOT_PENDING',
+        'CP_NOT_PAIRED',
+        'MEDAL_NOT_UNLOCKED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -92,6 +105,18 @@ describe('ErrorCode', () => {
       LIVE_CHAT_CLOSED: 409,
       INSUFFICIENT_COINS: 409,
       LIVE_KICKED: 403,
+      ALREADY_IN_FAMILY: 409,
+      FAMILY_FULL: 409,
+      FAMILY_NAME_TAKEN: 409,
+      FAMILY_REQUEST_PENDING: 409,
+      FAMILY_REQUEST_NOT_PENDING: 409,
+      FAMILY_NOT_EMPTY: 409,
+      FAMILY_LEADER_CANNOT_LEAVE: 409,
+      CP_ALREADY_PAIRED: 409,
+      CP_REQUEST_PENDING: 409,
+      CP_REQUEST_NOT_PENDING: 409,
+      CP_NOT_PAIRED: 409,
+      MEDAL_NOT_UNLOCKED: 409,
     });
   });
 

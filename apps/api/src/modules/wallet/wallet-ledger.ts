@@ -1,7 +1,17 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
-/** CP-017 (D104): why a balance changed (`wallet_ledger_reason`). */
-export type WalletLedgerReason = 'ADMIN_GRANT' | 'ADMIN_REVOKE' | 'BULLET_MESSAGE';
+/**
+ * CP-017 (D104): why a balance changed (`wallet_ledger_reason`). v1.21-live (CP-018, D106):
+ * creating a family, a CP request (taken at send), its refund, and a CP gift.
+ */
+export type WalletLedgerReason =
+  | 'ADMIN_GRANT'
+  | 'ADMIN_REVOKE'
+  | 'BULLET_MESSAGE'
+  | 'FAMILY_CREATE'
+  | 'CP_REQUEST'
+  | 'CP_REFUND'
+  | 'CP_GIFT';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

@@ -58,6 +58,13 @@ info:
     `DELETE /live/rooms/{roomId}/kicks/{username}`, `LiveRoom.kicked`, data message `kick` on
     topic `kick`, code `LIVE_KICKED` (CONVENTIONS §10.20); and one person's points and rank in a
     live (`GET /live/rooms/{roomId}/contributors/{username}`, CONVENTIONS §10.12).
+    **CP-018 (D106, DRAFT v1.21-live)** adds families (500 coins to create, up to 500 members,
+    join requests, leader / deputies / members, a family number and a level from the coins its
+    members spend; tag `families`), CP couples (a 99-coin request refunded unless accepted, CP
+    gifts, five tiers; tag `cp`) and automatic medals (tag `medals`); `PublicProfile.family`,
+    `cp` and `medals`; notification types `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`,
+    `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; a profile medal showcase (`PUT /me/medals/showcase`, code
+    `MEDAL_NOT_UNLOCKED`); media kind `FAMILY_EMBLEM` (CONVENTIONS §10.21).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -82,6 +89,12 @@ tags:
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017)."
+  - name: families
+    description: "Families: create, join requests, members and roles, level (v1.21-live DRAFT, CP-018)."
+  - name: cp
+    description: "CP couples: requests, the couple, CP gifts and tiers (v1.21-live DRAFT, CP-018)."
+  - name: medals
+    description: "Medals: the catalogue and a user's medals (v1.21-live DRAFT, CP-018)."
   - name: posts
     description: "Posts, drafts, scheduling, pins, likes, saves, reposts, shares and views (v1.5-social DRAFT)."
   - name: feed
@@ -615,6 +628,8 @@ paths:
         `NOT_FOUND` (no distinction, and no 400 for a malformed name). `liveRoomId` is set only
         while the user has a LIVE room with a fresh heartbeat (§10.2). The static route
         `/users/username-availability` cannot collide: `-` is not allowed in usernames.
+        v1.21-live (CP-018, §10.21): `family`, `cp` and `medals` for the person card; CP tier and
+        medal names follow `Accept-Language`, else the caller's locale.
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -636,8 +651,24 @@ paths:
                     followerCount: 12
                     followingCount: 40
                     isFollowing: true
+                    isMuted: false
                     isSelf: false
                     liveRoomId: 0192f1d0-1111-7aaa-8bbb-0c0d0e0f1011
+                    family: { id: 0192f1d0-8888-7000-8000-000000000002, number: 48213907, name: عائلة النجوم, level: 3, emblemUrl: null, role: DEPUTY }
+                    cp:
+                      partner: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                      since: '2026-10-20T18:30:00.000Z'
+                      level: 2
+                      levelName: ثنائي فضّي
+                      points: 620
+                    medals:
+                      owned: 2
+                      total: 9
+                      latest:
+                        - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp }
+                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+                      showcase:
+                        - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -2431,6 +2462,702 @@ paths:
               example: { coins: 100 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
+  /api/v1/families/config:
+    get:
+      tags: [families]
+      operationId: getFamilyConfig
+      summary: "Family prices, capacity and level ladder (CP-018)"
+      description: CONVENTIONS §10.21. The numbers the app shows before creating or joining a family.
+      responses:
+        '200':
+          description: The family settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyConfig' }
+              example:
+                createCost: 500
+                capacity: 500
+                requestTtlDays: 7
+                levels:
+                  - { level: 1, minPoints: 0 }
+                  - { level: 2, minPoints: 1000 }
+                  - { level: 3, minPoints: 5000 }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families:
+    get:
+      tags: [families]
+      operationId: searchFamilies
+      summary: "Find families by name or number (CP-018)"
+      description: |
+        CONVENTIONS §10.21. Families that are not disbanded, by points (highest first, then id).
+        `q` filters by name (contains, case-insensitive after NFKC) and, when it is 1–8 digits,
+        also by the exact family number. Without `q`: every family (the top families).
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 40 }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of families.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyCardPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [families]
+      operationId: createFamily
+      summary: "Create a family for 500 coins (CP-018)"
+      description: |
+        CONVENTIONS §10.21. The caller becomes its LEADER. Checks, in order: 400 for the body
+        (`name`: the display-name text rules with 2–20 grapheme clusters and at most 40 code
+        points, issues `too_short`, `too_long`, `invalid_format`, `reserved_term`); a retry with the
+        same `clientId` → 200 with the family and the current balance (nothing charged again; 409
+        `IDEMPOTENCY_CONFLICT` when that family was disbanded since); 503
+        `MEDIA_UPLOADS_UNAVAILABLE` for an emblem while uploads are off; 409 `ALREADY_IN_FAMILY`;
+        400 `emblemMediaId` / `invalid_value` (not the caller's unattached `FAMILY_EMBLEM` asset of
+        the last 24 hours); 409 `FAMILY_NAME_TAKEN`; 409 `INSUFFICIENT_COINS` (nothing created or
+        charged). The family, the membership and the charge (ledger `FAMILY_CREATE`) are one
+        transaction; the 500 coins are the family's first points; the caller earns `FIRST_FAMILY`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateFamilyRequest' }
+            example: { name: عائلة النجوم, clientId: 0192f1d0-8888-7000-8000-000000000001 }
+      responses:
+        '201':
+          description: Created and charged; the family and the balance after it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateFamilyResult' }
+              example:
+                family:
+                  id: 0192f1d0-8888-7000-8000-000000000002
+                  number: 48213907
+                  name: عائلة النجوم
+                  emblemUrl: null
+                  level: 1
+                  points: 500
+                  memberCount: 1
+                  capacity: 500
+                  nextLevelPoints: 1000
+                  leader: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                  createdAt: '2026-10-26T18:30:00.000Z'
+                  myRole: LEADER
+                  myRequestId: null
+                coins: 120
+        '200':
+          description: A retry (same `clientId`); the family and the current balance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateFamilyResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`ALREADY_IN_FAMILY`, `FAMILY_NAME_TAKEN`, `INSUFFICIENT_COINS` or `IDEMPOTENCY_CONFLICT`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: FAMILY_NAME_TAKEN
+                  message: That family name is taken.
+                  requestId: 0192f1d0-7777-7000-8000-000000000008
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/families/me:
+    get:
+      tags: [families]
+      operationId: getMyFamily
+      summary: "The caller's family (CP-018)"
+      responses:
+        '200':
+          description: The caller's family, or null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyFamily' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/family-join-request:
+    get:
+      tags: [families]
+      operationId: getMyFamilyJoinRequest
+      summary: "The caller's pending join request (CP-018)"
+      responses:
+        '200':
+          description: The pending request (not expired), or null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyFamilyJoinRequest' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [families]
+      operationId: cancelFamilyJoinRequest
+      summary: "Cancel the caller's pending join request (CP-018)"
+      description: "Idempotent: no pending request → 204 too."
+      responses:
+        '204': { description: Cancelled (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/family-numbers/{number}:
+    get:
+      tags: [families]
+      operationId: getFamilyByNumber
+      summary: "A family by its public number (CP-018)"
+      parameters:
+        - name: number
+          in: path
+          required: true
+          description: The 8-digit family number. Anything else is 404.
+          schema: { type: string, minLength: 1, maxLength: 16 }
+      responses:
+        '200':
+          description: The family.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Family' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}:
+    get:
+      tags: [families]
+      operationId: getFamily
+      summary: "A family (CP-018)"
+      description: A disbanded, unknown or malformed id → 404.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      responses:
+        '200':
+          description: The family, with the caller's role and pending request in it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Family' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [families]
+      operationId: updateFamily
+      summary: "The leader sets or removes the emblem (CP-018)"
+      description: |
+        Leader only (403 `AUTH_FORBIDDEN`). `emblemMediaId`: the caller's unattached
+        `FAMILY_EMBLEM` asset (400 `invalid_value` otherwise; 503 `MEDIA_UPLOADS_UNAVAILABLE` while
+        uploads are off), or null to remove it. The replaced emblem is deleted.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateFamilyRequest' }
+      responses:
+        '200':
+          description: The family.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Family' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [families]
+      operationId: disbandFamily
+      summary: "The leader disbands a family that has only them (CP-018)"
+      description: |
+        Leader only (403). Other members → 409 `FAMILY_NOT_EMPTY`. Pending join requests are
+        cancelled, the name becomes free, the emblem is deleted; no coins come back. Audited
+        `family.disband`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      responses:
+        '204': { description: Disbanded. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/members:
+    get:
+      tags: [families]
+      operationId: listFamilyMembers
+      summary: "A family's members (CP-018)"
+      description: The leader, then deputies, then members, each by join time (ACTIVE accounts only).
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of members.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyMemberPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/members/{username}:
+    delete:
+      tags: [families]
+      operationId: removeFamilyMember
+      summary: "The leader removes a deputy or a member (CP-018)"
+      description: Leader only (403). Not a member of this family → 404; the leader themselves → 400 `username` / `invalid_value`. Audited `family.member.remove`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Removed. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/members/{username}/role:
+    put:
+      tags: [families]
+      operationId: setFamilyMemberRole
+      summary: "The leader makes a member a deputy, or a deputy a member (CP-018)"
+      description: Leader only (403). Not a member → 404; the leader themselves → 400 `username` / `invalid_value`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetFamilyRoleRequest' }
+            example: { role: DEPUTY }
+      responses:
+        '200':
+          description: The member with the new role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyMember' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/transfer:
+    post:
+      tags: [families]
+      operationId: transferFamily
+      summary: "The leader hands the family to another member (CP-018)"
+      description: Leader only (403). The member becomes LEADER and the old leader DEPUTY. Not a member → 404; oneself → 400. Audited `family.transfer`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransferFamilyRequest' }
+            example: { username: layla.k }
+      responses:
+        '200':
+          description: The family.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Family' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/leave:
+    post:
+      tags: [families]
+      operationId: leaveFamily
+      summary: "Leave the family (CP-018)"
+      description: Not a member of this family → 404; the leader → 409 `FAMILY_LEADER_CANNOT_LEAVE` (hand it over, or disband a family that has only the leader). The family keeps the points.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      responses:
+        '204': { description: Left. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/join-requests:
+    post:
+      tags: [families]
+      operationId: requestToJoinFamily
+      summary: "Ask to join a family (CP-018)"
+      description: |
+        CONVENTIONS §10.21. Checks, in order: 404 family; 409 `ALREADY_IN_FAMILY`; a pending
+        request to this family → 200 with it; 409 `FAMILY_REQUEST_PENDING` (a pending request to
+        another family: cancel it first); 403 `AUTH_FORBIDDEN` (the caller and the leader blocked
+        each other, either way); 409 `FAMILY_FULL`. The request expires after 7 days.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      responses:
+        '201':
+          description: Asked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyJoinRequest' }
+        '200':
+          description: Already asked; the pending request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyJoinRequest' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [families]
+      operationId: listFamilyJoinRequests
+      summary: "Pending join requests (leader and deputies, CP-018)"
+      description: Oldest first, not expired, ACTIVE requesters. Anyone else → 403 `AUTH_FORBIDDEN`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyJoinRequestPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/join-requests/{requestId}/accept:
+    post:
+      tags: [families]
+      operationId: acceptFamilyJoinRequest
+      summary: "Accept a join request (leader or deputy, CP-018)"
+      description: |
+        Checks, in order: 404 family; 403 not the leader or a deputy; 404 request; 409
+        `FAMILY_REQUEST_NOT_PENDING` (handled, cancelled or expired); 409 `ALREADY_IN_FAMILY` (the
+        requester joined another family meanwhile; the request is closed); 409 `FAMILY_FULL`. The
+        requester becomes a MEMBER, earns `FIRST_FAMILY` and gets a `FAMILY_JOIN_ACCEPTED`
+        notification.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/BondRequestIdPath'
+      responses:
+        '200':
+          description: The new member.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyMember' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/join-requests/{requestId}/decline:
+    post:
+      tags: [families]
+      operationId: declineFamilyJoinRequest
+      summary: "Decline a join request (leader or deputy, CP-018)"
+      description: Same checks as accepting (without the capacity); the requester gets a `FAMILY_JOIN_DECLINED` notification.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/BondRequestIdPath'
+      responses:
+        '204': { description: Declined. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/config:
+    get:
+      tags: [cp]
+      operationId: getCpConfig
+      summary: "CP request price, gift amounts and tiers (CP-018)"
+      description: Tier names follow `Accept-Language`, else the caller's locale.
+      responses:
+        '200':
+          description: The CP settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpConfig' }
+              example:
+                requestCost: 99
+                requestTtlDays: 7
+                giftAmounts: [10, 52, 99, 520, 1314]
+                tiers:
+                  - { level: 1, minPoints: 0, name: ثنائي متحمّس }
+                  - { level: 2, minPoints: 520, name: ثنائي فضّي }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/requests:
+    post:
+      tags: [cp]
+      operationId: sendCpRequest
+      summary: "Send a CP request for 99 coins (CP-018)"
+      description: |
+        CONVENTIONS §10.21. Checks, in order: 400 body; a retry with the same `clientId` → 200 (the
+        first request and the current balance; nothing charged again); 404 (unknown or inactive
+        user, or a block either way); 400 `username` / `invalid_value` (oneself); 409
+        `CP_ALREADY_PAIRED` (the caller or the other person has a partner); 409
+        `CP_REQUEST_PENDING` (the caller already has a pending request); 409 `INSUFFICIENT_COINS`.
+        99 coins are charged (ledger `CP_REQUEST`) and come back (`CP_REFUND`) if the request is
+        declined, cancelled or expires after 7 days. The receiver gets a `CP_REQUEST`
+        notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CpRequestSendRequest' }
+            example: { username: layla.k, clientId: 0192f1d0-9999-7000-8000-000000000001 }
+      responses:
+        '201':
+          description: Sent and charged.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpRequestResult' }
+              example:
+                request:
+                  id: 0192f1d0-9999-7000-8000-000000000002
+                  sender: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                  receiver: { id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80, username: layla.k, displayName: ليلى, avatarUrl: null }
+                  status: PENDING
+                  cost: 99
+                  createdAt: '2026-10-26T18:30:00.000Z'
+                  expiresAt: '2026-11-02T18:30:00.000Z'
+                coins: 401
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpRequestResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [cp]
+      operationId: listCpRequests
+      summary: "The caller's pending CP requests (CP-018)"
+      description: Newest first, not expired. `incoming` hides senders who are not ACTIVE or are blocked either way.
+      parameters:
+        - name: direction
+          in: query
+          required: true
+          schema: { type: string, enum: [incoming, outgoing] }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpRequestPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/requests/{requestId}:
+    delete:
+      tags: [cp]
+      operationId: cancelCpRequest
+      summary: "The sender cancels a CP request; the 99 coins come back (CP-018)"
+      description: Not the caller's sent request → 404; not pending → 409 `CP_REQUEST_NOT_PENDING`.
+      parameters:
+        - $ref: '#/components/parameters/BondRequestIdPath'
+      responses:
+        '204': { description: Cancelled and refunded. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/requests/{requestId}/accept:
+    post:
+      tags: [cp]
+      operationId: acceptCpRequest
+      summary: "The receiver accepts; the couple is formed (CP-018)"
+      description: |
+        Checks, in order: 404 (not a request to the caller); 409 `CP_REQUEST_NOT_PENDING` (also
+        when it expired, or the sender is no longer active or a block exists either way — then it
+        is closed and refunded); 409 `CP_ALREADY_PAIRED`. Every other pending request of either
+        partner is cancelled and refunded; both earn `FIRST_CP`; the sender gets a `CP_ACCEPTED`
+        notification; the request's 99 coins now count for the sender's family.
+      parameters:
+        - $ref: '#/components/parameters/BondRequestIdPath'
+      responses:
+        '200':
+          description: The caller's new couple.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpCouple' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/requests/{requestId}/decline:
+    post:
+      tags: [cp]
+      operationId: declineCpRequest
+      summary: "The receiver declines; the sender's 99 coins come back (CP-018)"
+      parameters:
+        - $ref: '#/components/parameters/BondRequestIdPath'
+      responses:
+        '204': { description: Declined and refunded. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me:
+    get:
+      tags: [cp]
+      operationId: getMyCp
+      summary: "The caller's CP couple (CP-018)"
+      responses:
+        '200':
+          description: The couple, or null.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyCp' }
+              example:
+                cp:
+                  id: 0192f1d0-9999-7000-8000-000000000003
+                  partner: { id: 0192f1c2-7a10-7c3e-9d2a-3b4c5d6e7f80, username: layla.k, displayName: ليلى, avatarUrl: null }
+                  since: '2026-10-20T18:30:00.000Z'
+                  days: 7
+                  points: 620
+                  level: 2
+                  levelName: ثنائي فضّي
+                  nextLevelName: ثنائي ذهبي
+                  pointsToNext: 694
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [cp]
+      operationId: endCp
+      summary: "End the couple (CP-018)"
+      description: Either partner ends it; nothing is refunded. No partner → 204 too.
+      responses:
+        '204': { description: Ended. }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/cp/me/gifts:
+    post:
+      tags: [cp]
+      operationId: sendCpGift
+      summary: "Spend coins on the partner as a CP gift (CP-018)"
+      description: |
+        Checks, in order: 400 body (`amount` one of `CpConfig.giftAmounts`); a retry with the same
+        `clientId` → 200 (the first gift, the couple and the current balance); 409
+        `CP_NOT_PAIRED`; 409 `INSUFFICIENT_COINS`. The charge (ledger `CP_GIFT`; it counts for the
+        sender's family) and the couple's CP points (+ `amount`) and tier are one transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CpGiftSendRequest' }
+            example: { amount: 520, clientId: 0192f1d0-9999-7000-8000-000000000004 }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpGiftResult' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CpGiftResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/medals:
+    get:
+      tags: [medals]
+      operationId: listMedals
+      summary: "The medal catalogue (CP-018)"
+      description: Every medal in catalogue order with the caller's award time (null when not earned). Names follow `Accept-Language`.
+      responses:
+        '200':
+          description: The catalogue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MedalCatalogue' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/medals/showcase:
+    get:
+      tags: [medals]
+      operationId: getMyMedalShowcase
+      summary: "The medals the caller shows on their profile (CP-018)"
+      responses:
+        '200':
+          description: The showcase, in the caller's order (empty until chosen).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MedalShowcase' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [medals]
+      operationId: setMyMedalShowcase
+      summary: "Choose up to 6 unlocked medals to show on the profile, in order (CP-018)"
+      description: |
+        CONVENTIONS §10.21 (owner D106 amendment). Replaces the showcase; the order is kept; an
+        empty list shows none. 400 `VALIDATION_FAILED`: more than 6 (`medalCodes` / `too_big`) or a
+        code twice (`medalCodes` / `invalid_value`); 409 `MEDAL_NOT_UNLOCKED`: a code the caller
+        has not earned (an unknown code too); nothing changes then.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetMedalShowcaseRequest' }
+            example: { medalCodes: [FIRST_CP, FIRST_LIVE] }
+      responses:
+        '200':
+          description: The new showcase.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MedalShowcase' }
+              example:
+                showcase:
+                  - { code: FIRST_CP, name: أول ثنائي, iconKey: medal_first_cp }
+                  - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/medals:
+    get:
+      tags: [medals]
+      operationId: listUserMedals
+      summary: "A user's medals, newest first (CP-018)"
+      description: Same 404 rules as `getPublicProfile`. Shares its rate limit.
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The medals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserMedalList' }
+              example:
+                data:
+                  - { code: FIRST_LIVE, name: أول لايف, description: استضفت أول بث مباشر لك., iconKey: medal_first_live, awardedAt: '2026-10-26T18:30:00.000Z' }
+                owned: 1
+                total: 9
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
     post:
       tags: [media]
@@ -3594,6 +4321,18 @@ components:
       required: true
       description: A UUID chosen by the client per logical operation (kept 24 hours).
       schema: { type: string, format: uuid }
+    FamilyIdPath:
+      name: familyId
+      in: path
+      required: true
+      description: CP-018 — a malformed, unknown or disbanded id → 404.
+      schema: { type: string, format: uuid }
+    BondRequestIdPath:
+      name: requestId
+      in: path
+      required: true
+      description: CP-018 — a family join request or CP request id; malformed or unknown → 404.
+      schema: { type: string, format: uuid }
   responses:
     Error:
       description: Error envelope (see CONVENTIONS.md §4).
@@ -3759,7 +4498,7 @@ components:
         avatarUrl: { type: [string, 'null'], format: uri }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId, family, cp, medals]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -3782,6 +4521,17 @@ components:
           type: [string, 'null']
           format: uuid
           description: The user's LIVE room with a fresh heartbeat, else null.
+        family:
+          description: "(v1.21-live, CP-018) The user's family and role, or null."
+          oneOf:
+            - $ref: '#/components/schemas/ProfileFamily'
+            - type: 'null'
+        cp:
+          description: "(v1.21-live, CP-018) The user's CP couple (partner, since, tier), or null. The tier name follows Accept-Language."
+          oneOf:
+            - $ref: '#/components/schemas/ProfileCp'
+            - type: 'null'
+        medals: { $ref: '#/components/schemas/ProfileMedals' }
     FollowState:
       type: object
       required: [isFollowing, followerCount]
@@ -4807,12 +5557,13 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
-        a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message; video
+        a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
+        (CP-018) a family's emblem (a centre-cropped square like the live cover); video
         kinds arrive with M2 (CP-006 §2). An asset is attachable only to its kind's target (a
-        post, a story, the live cover or a live chat message).
+        post, a story, the live cover, a live chat message or a family).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -5208,17 +5959,17 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER] }
-        id: { type: string, description: "A post, comment or story id, or a username for USER." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL], description: "(v1.21-live) FAMILY and MEDAL are new; clients ignore target types they do not know." }
+        id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
-        text: { type: [string, 'null'], maxLength: 80, description: "A short excerpt of the comment or caption, or the scheduled live's title (LIVE_SCHEDULED_SOON)." }
+        text: { type: [string, 'null'], maxLength: 80, description: "A short excerpt of the comment or caption, the scheduled live's title (LIVE_SCHEDULED_SOON) or the family's name (FAMILY)." }
         startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
     Notification:
       type: object
@@ -5341,5 +6092,346 @@ components:
       properties:
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+    # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
+    FamilyRole:
+      type: string
+      enum: [LEADER, DEPUTY, MEMBER]
+    BondRequestStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, DECLINED, CANCELLED, EXPIRED]
+    FamilyConfig:
+      type: object
+      required: [createCost, capacity, requestTtlDays, levels]
+      properties:
+        createCost: { type: integer, minimum: 1, description: "Coins a new family costs (500)." }
+        capacity: { type: integer, minimum: 1, description: "The most members, the leader included (500)." }
+        requestTtlDays: { type: integer, minimum: 1, description: "Days before a join request expires (7)." }
+        levels:
+          type: array
+          description: The family level ladder, lowest first.
+          items:
+            type: object
+            required: [level, minPoints]
+            properties:
+              level: { type: integer, minimum: 1 }
+              minPoints: { type: integer, minimum: 0 }
+    FamilyCard:
+      type: object
+      required: [id, number, name, emblemUrl, level, points, memberCount, capacity]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer, minimum: 10000000, maximum: 99999999, description: The public family number. }
+        name: { type: string, minLength: 1, maxLength: 40 }
+        emblemUrl: { type: [string, 'null'], format: uri }
+        level: { type: integer, minimum: 1, maximum: 10 }
+        points: { type: integer, minimum: 0, description: Coins the members spent in the app while in the family. }
+        memberCount: { type: integer, minimum: 0 }
+        capacity: { type: integer, minimum: 1 }
+    Family:
+      type: object
+      required: [id, number, name, emblemUrl, level, points, memberCount, capacity, nextLevelPoints, leader, createdAt, myRole, myRequestId]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer, minimum: 10000000, maximum: 99999999 }
+        name: { type: string, minLength: 1, maxLength: 40 }
+        emblemUrl: { type: [string, 'null'], format: uri }
+        level: { type: integer, minimum: 1, maximum: 10 }
+        points: { type: integer, minimum: 0 }
+        memberCount: { type: integer, minimum: 0 }
+        capacity: { type: integer, minimum: 1 }
+        nextLevelPoints: { type: [integer, 'null'], minimum: 1, description: Points the next level needs; null at the top level. }
+        leader:
+          oneOf:
+            - $ref: '#/components/schemas/UserSummary'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        myRole:
+          description: The caller's role in this family, or null.
+          oneOf:
+            - $ref: '#/components/schemas/FamilyRole'
+            - type: 'null'
+        myRequestId: { type: [string, 'null'], format: uuid, description: The caller's pending join request to this family. }
+    FamilyCardPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyCard' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    MyFamily:
+      type: object
+      required: [family]
+      properties:
+        family:
+          oneOf:
+            - $ref: '#/components/schemas/Family'
+            - type: 'null'
+    CreateFamilyRequest:
+      type: object
+      additionalProperties: false
+      required: [name, clientId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 1000, description: "2–20 grapheme clusters, at most 40 code points after NFC and trimming (display-name text rules)." }
+        emblemMediaId: { type: [string, 'null'], format: uuid, description: "A `FAMILY_EMBLEM` asset of the caller (optional)." }
+        clientId: { type: string, format: uuid, description: "Unique per creator; a retry with the same id is never charged twice (§3)." }
+    CreateFamilyResult:
+      type: object
+      required: [family, coins]
+      properties:
+        family: { $ref: '#/components/schemas/Family' }
+        coins: { type: integer, minimum: 0, maximum: 9007199254740991, description: The creator's balance after the charge. }
+    UpdateFamilyRequest:
+      type: object
+      additionalProperties: false
+      required: [emblemMediaId]
+      properties:
+        emblemMediaId: { type: [string, 'null'], format: uuid }
+    FamilyMember:
+      type: object
+      required: [user, role, joinedAt, points]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        role: { $ref: '#/components/schemas/FamilyRole' }
+        joinedAt: { type: string, format: date-time }
+        points: { type: integer, minimum: 0, description: Family points this member gave while in the family. }
+    FamilyMemberPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyMember' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    FamilyJoinRequest:
+      type: object
+      required: [id, family, user, status, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        family: { $ref: '#/components/schemas/FamilyCard' }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/BondRequestStatus' }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    FamilyJoinRequestPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyJoinRequest' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    MyFamilyJoinRequest:
+      type: object
+      required: [request]
+      properties:
+        request:
+          oneOf:
+            - $ref: '#/components/schemas/FamilyJoinRequest'
+            - type: 'null'
+    SetFamilyRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { type: string, enum: [DEPUTY, MEMBER] }
+    TransferFamilyRequest:
+      type: object
+      additionalProperties: false
+      required: [username]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+    ProfileFamily:
+      type: object
+      description: "(v1.21-live, CP-018) A user's family on their public profile."
+      required: [id, number, name, level, emblemUrl, role]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer, minimum: 10000000, maximum: 99999999 }
+        name: { type: string }
+        level: { type: integer, minimum: 1, maximum: 10 }
+        emblemUrl: { type: [string, 'null'], format: uri }
+        role: { $ref: '#/components/schemas/FamilyRole' }
+    CpConfig:
+      type: object
+      required: [requestCost, requestTtlDays, giftAmounts, tiers]
+      properties:
+        requestCost: { type: integer, minimum: 1, description: "Coins a CP request costs (99), refunded unless accepted." }
+        requestTtlDays: { type: integer, minimum: 1 }
+        giftAmounts:
+          type: array
+          items: { type: integer, minimum: 1 }
+        tiers:
+          type: array
+          description: The CP tiers, lowest first; `name` follows Accept-Language.
+          items:
+            type: object
+            required: [level, minPoints, name]
+            properties:
+              level: { type: integer, minimum: 1 }
+              minPoints: { type: integer, minimum: 0 }
+              name: { type: string }
+    CpRequestSendRequest:
+      type: object
+      additionalProperties: false
+      required: [username, clientId]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        clientId: { type: string, format: uuid, description: "Unique per sender; a retry with the same id is never charged twice (§3)." }
+    CpRequest:
+      type: object
+      required: [id, sender, receiver, status, cost, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        sender: { $ref: '#/components/schemas/UserSummary' }
+        receiver: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/BondRequestStatus' }
+        cost: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    CpRequestResult:
+      type: object
+      required: [request, coins]
+      properties:
+        request: { $ref: '#/components/schemas/CpRequest' }
+        coins: { type: integer, minimum: 0, maximum: 9007199254740991 }
+    CpRequestPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/CpRequest' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    CpCouple:
+      type: object
+      required: [id, partner, since, days, points, level, levelName, nextLevelName, pointsToNext]
+      properties:
+        id: { type: string, format: uuid }
+        partner: { $ref: '#/components/schemas/UserSummary' }
+        since: { type: string, format: date-time }
+        days: { type: integer, minimum: 1, description: Days together; the day the couple was formed is day 1. }
+        points: { type: integer, minimum: 0, description: CP points (the coins of every CP gift). }
+        level: { type: integer, minimum: 1, maximum: 5 }
+        levelName: { type: string }
+        nextLevelName: { type: [string, 'null'] }
+        pointsToNext: { type: [integer, 'null'], minimum: 0 }
+    MyCp:
+      type: object
+      required: [cp]
+      properties:
+        cp:
+          oneOf:
+            - $ref: '#/components/schemas/CpCouple'
+            - type: 'null'
+    CpGiftSendRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, clientId]
+      properties:
+        amount: { type: integer, enum: [10, 52, 99, 520, 1314] }
+        clientId: { type: string, format: uuid }
+    CpGiftResult:
+      type: object
+      required: [gift, cp, coins]
+      properties:
+        gift:
+          type: object
+          required: [id, amount, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            amount: { type: integer, minimum: 1 }
+            createdAt: { type: string, format: date-time }
+        cp: { $ref: '#/components/schemas/CpCouple' }
+        coins: { type: integer, minimum: 0, maximum: 9007199254740991 }
+    ProfileCp:
+      type: object
+      description: "(v1.21-live, CP-018) A user's CP couple on their public profile."
+      required: [partner, since, level, levelName, points]
+      properties:
+        partner: { $ref: '#/components/schemas/UserSummary' }
+        since: { type: string, format: date-time }
+        level: { type: integer, minimum: 1, maximum: 5 }
+        levelName: { type: string }
+        points: { type: integer, minimum: 0 }
+    Medal:
+      type: object
+      required: [code, name, description, iconKey, sortOrder, awardedAt]
+      properties:
+        code: { type: string, maxLength: 40 }
+        name: { type: string }
+        description: { type: string }
+        iconKey: { type: string, description: The app's icon for the medal. }
+        sortOrder: { type: integer }
+        awardedAt: { type: [string, 'null'], format: date-time, description: "When the caller earned it, or null." }
+    MedalCatalogue:
+      type: object
+      required: [data, total, owned]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Medal' }
+        total: { type: integer, minimum: 0 }
+        owned: { type: integer, minimum: 0, description: Medals the caller earned. }
+    UserMedal:
+      type: object
+      required: [code, name, description, iconKey, awardedAt]
+      properties:
+        code: { type: string, maxLength: 40 }
+        name: { type: string }
+        description: { type: string }
+        iconKey: { type: string }
+        awardedAt: { type: string, format: date-time }
+    UserMedalList:
+      type: object
+      required: [data, owned, total]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserMedal' }
+        owned: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+    ProfileMedal:
+      type: object
+      required: [code, name, iconKey]
+      properties:
+        code: { type: string, maxLength: 40 }
+        name: { type: string }
+        iconKey: { type: string }
+    ProfileMedals:
+      type: object
+      description: "(v1.21-live, CP-018) Medals on the public profile: owned, the catalogue size, the newest three and the user's chosen showcase."
+      required: [owned, total, latest, showcase]
+      properties:
+        owned: { type: integer, minimum: 0 }
+        total: { type: integer, minimum: 0 }
+        latest:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/ProfileMedal' }
+        showcase:
+          type: array
+          maxItems: 6
+          description: "The medals the user chose to show (PUT /me/medals/showcase), in their order; empty until they choose (no auto-fill)."
+          items: { $ref: '#/components/schemas/ProfileMedal' }
+    MedalShowcase:
+      type: object
+      required: [showcase]
+      properties:
+        showcase:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/ProfileMedal' }
+    SetMedalShowcaseRequest:
+      type: object
+      additionalProperties: false
+      required: [medalCodes]
+      properties:
+        medalCodes:
+          type: array
+          maxItems: 6
+          uniqueItems: true
+          description: Unlocked medal codes in display order; [] shows none.
+          items: { type: string, minLength: 1, maxLength: 40 }
 security:
   - bearerAuth: []

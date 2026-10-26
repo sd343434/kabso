@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { debitIn, type WalletChange, type WalletLedgerReason } from './wallet-ledger.js';
+import { creditFamilyForSpendIn, FAMILY_SPEND_REASONS } from '../families/family-points.js';
+import { creditIn, debitIn, type WalletChange, type WalletLedgerReason } from './wallet-ledger.js';
 
 /** `Wallet` (openapi v1.19-live, CP-017). */
 export interface WalletDto {
@@ -23,14 +24,33 @@ export class WalletService {
     return { coins: Number(wallet?.coins ?? 0n) };
   }
 
-  /** Charges `amount` coins inside the caller's transaction; null when the balance is short. */
-  debitIn(
+  /**
+   * Charges `amount` coins inside the caller's transaction; null when the balance is short.
+   * v1.21-live (CP-018): spending that counts for the spender's family (bullets, creating a family,
+   * CP gifts) adds the same number of family points in the same transaction.
+   */
+  async debitIn(
     tx: Prisma.TransactionClient,
     userId: string,
     amount: number,
     reason: WalletLedgerReason,
     referenceId: string,
   ): Promise<WalletChange | null> {
-    return debitIn(tx, userId, BigInt(amount), reason, referenceId);
+    const change = await debitIn(tx, userId, BigInt(amount), reason, referenceId);
+    if (change && FAMILY_SPEND_REASONS.has(reason)) {
+      await creditFamilyForSpendIn(tx, userId, change.ledgerId, BigInt(amount));
+    }
+    return change;
+  }
+
+  /** CP-018: gives coins back (a CP refund) inside the caller's transaction. */
+  creditIn(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    amount: number,
+    reason: 'CP_REFUND',
+    referenceId: string,
+  ): Promise<WalletChange> {
+    return creditIn(tx, userId, BigInt(amount), reason, referenceId);
   }
 }

@@ -114,6 +114,22 @@ model User {
   wallet             Wallet?
   walletLedger       WalletLedgerEntry[]
   liveBullets        LiveBullet[]
+  // v1.21-live (CP-018, D106): families, CP couples and medals.
+  familyMember       FamilyMember?
+  familiesCreated    Family[]               @relation("FamilyCreatedBy")
+  familyJoinRequests FamilyJoinRequest[]    @relation("FamilyJoinRequester")
+  familyJoinHandled  FamilyJoinRequest[]    @relation("FamilyJoinHandler")
+  familyPoints       FamilyPointsEntry[]
+  cpRequestsSent     CpRequest[]            @relation("CpRequestSender")
+  cpRequestsReceived CpRequest[]            @relation("CpRequestReceiver")
+  cpCouplesA         CpCouple[]             @relation("CpCoupleA")
+  cpCouplesB         CpCouple[]             @relation("CpCoupleB")
+  cpCouplesEnded     CpCouple[]             @relation("CpCoupleEndedBy")
+  cpPartner          CpPartner?             @relation("CpPartnerUser")
+  cpPartnerOf        CpPartner[]            @relation("CpPartnerOther")
+  cpGiftsSent        CpGift[]               @relation("CpGiftSender")
+  cpGiftsReceived    CpGift[]               @relation("CpGiftReceiver")
+  medals             UserMedal[]
 
   @@map("users")
 }
@@ -631,6 +647,11 @@ enum WalletLedgerReason {
   ADMIN_GRANT
   ADMIN_REVOKE
   BULLET_MESSAGE
+  /// v1.21-live (CP-018, D106).
+  FAMILY_CREATE
+  CP_REQUEST
+  CP_REFUND
+  CP_GIFT
 
   @@map("wallet_ledger_reason")
 }
@@ -659,7 +680,9 @@ model WalletLedgerEntry {
   referenceId  String             @map("reference_id") @db.VarChar(64)
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// CP-018: the family points this spending gave (at most one row).
+  familyPoints FamilyPointsEntry?
 
   @@unique([reason, referenceId], map: "wallet_ledger_reference_once")
   @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
@@ -1176,12 +1199,14 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload      MediaUpload?
-  postMedia   PostMedia?
-  story       Story?
-  liveCover   LiveHost?
-  chatMessage LiveChatMessage?
+  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload       MediaUpload?
+  postMedia    PostMedia?
+  story        Story?
+  liveCover    LiveHost?
+  chatMessage  LiveChatMessage?
+  /// CP-018: a family's emblem.
+  familyEmblem Family?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -1592,6 +1617,12 @@ enum NotificationType {
   POST_PUBLISHED
   CONTENT_REMOVED
   LIVE_SCHEDULED_SOON
+  /// v1.21-live (CP-018, D106).
+  CP_REQUEST
+  CP_ACCEPTED
+  FAMILY_JOIN_ACCEPTED
+  FAMILY_JOIN_DECLINED
+  MEDAL_AWARDED
 
   @@map("notification_type")
 }
@@ -1609,6 +1640,10 @@ model Notification {
   storyId        String?          @map("story_id") @db.Uuid
   /// CP-016 C: the scheduled live a `LIVE_SCHEDULED_SOON` reminds of (deleted with it).
   liveScheduleId String?          @map("live_schedule_id") @db.Uuid
+  /// CP-018: the family of FAMILY_JOIN_ACCEPTED / FAMILY_JOIN_DECLINED.
+  familyId       String?          @map("family_id") @db.Uuid
+  /// CP-018: the medal of MEDAL_AWARDED.
+  medalCode      String?          @map("medal_code") @db.VarChar(40)
   groupKey       String?          @map("group_key") @db.VarChar(80)
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1619,6 +1654,8 @@ model Notification {
   comment      Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
   story        Story?              @relation(fields: [storyId], references: [id], onDelete: Cascade)
   liveSchedule LiveScheduleSlot?   @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
+  family       Family?             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  medal        Medal?              @relation(fields: [medalCode], references: [code], onDelete: Cascade)
   actors       NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
@@ -1629,6 +1666,8 @@ model Notification {
   @@index([commentId], map: "notifications_comment_id_idx")
   @@index([storyId], map: "notifications_story_id_idx")
   @@index([liveScheduleId], map: "notifications_live_schedule_id_idx")
+  @@index([familyId], map: "notifications_family_id_idx")
+  @@index([medalCode], map: "notifications_medal_code_idx")
   @@map("notifications")
 }
 
@@ -1661,4 +1700,242 @@ model NotificationSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_settings")
+}
+
+// ---- v1.21-live (DRAFT, CP-018, D106): families, CP couples and medals ------------------------
+
+enum FamilyRole {
+  LEADER
+  DEPUTY
+  MEMBER
+
+  @@map("family_role")
+}
+
+/// A family join request or a CP request. PENDING until accepted, declined, cancelled or expired.
+enum BondRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+
+  @@map("bond_request_status")
+}
+
+/// CP-018 (D106): a family (العائلة). `number` is its public 8-digit number; `name_key` the
+/// case-folded name, unique among families that are not disbanded; `points` the coins its members
+/// spent while in it (`family_points_ledger`) and `level` the ladder level for them. A disbanded
+/// family keeps its row (`disbanded_at`) so a create retry is never charged twice. CHECKs in
+/// migration 20261110100000_families_cp_medals.
+model Family {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  number         Int       @default(dbgenerated("(10000000 + floor((random() * (90000000)::double precision)))::integer"))
+  name           String    @db.VarChar(40)
+  nameKey        String    @map("name_key") @db.VarChar(80)
+  emblemMediaId  String?   @unique @map("emblem_media_id") @db.Uuid
+  emblemUrl      String?   @map("emblem_url") @db.VarChar(512)
+  points         BigInt    @default(0)
+  level          Int       @default(1)
+  memberCount    Int       @default(0) @map("member_count")
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createClientId String    @map("create_client_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+  disbandedAt    DateTime? @map("disbanded_at") @db.Timestamptz(3)
+
+  createdBy     User?               @relation("FamilyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  emblem        MediaAsset?         @relation(fields: [emblemMediaId], references: [id], onDelete: SetNull)
+  members       FamilyMember[]
+  joinRequests  FamilyJoinRequest[]
+  pointsEntries FamilyPointsEntry[]
+  notifications Notification[]
+
+  @@unique([number], map: "families_number_key")
+  @@unique([createdById, createClientId], map: "families_create_once")
+  @@unique([nameKey], map: "families_name_key_active", where: raw("disbanded_at IS NULL"))
+  @@index([points(sort: Desc), id(sort: Desc)], map: "families_points_idx", where: raw("disbanded_at IS NULL"))
+  @@map("families")
+}
+
+/// A user's family (at most one: the primary key) and role; one LEADER per family.
+model FamilyMember {
+  userId   String     @id @map("user_id") @db.Uuid
+  familyId String     @map("family_id") @db.Uuid
+  role     FamilyRole @default(MEMBER)
+  /// Family points this member gave while in the family.
+  points   BigInt     @default(0)
+  joinedAt DateTime   @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId], map: "family_members_one_leader", where: raw("role = 'LEADER'::family_role"))
+  @@index([familyId, joinedAt], map: "family_members_family_idx")
+  @@map("family_members")
+}
+
+/// A request to join a family; at most one PENDING per user; expires 7 days after it was made.
+model FamilyJoinRequest {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  familyId    String            @map("family_id") @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  status      BondRequestStatus @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime          @map("expires_at") @db.Timestamptz(3)
+  handledAt   DateTime?         @map("handled_at") @db.Timestamptz(3)
+  handledById String?           @map("handled_by_id") @db.Uuid
+
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User   @relation("FamilyJoinRequester", fields: [userId], references: [id], onDelete: Cascade)
+  handledBy User?  @relation("FamilyJoinHandler", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@unique([userId], map: "family_join_requests_one_pending", where: raw("status = 'PENDING'::bond_request_status"))
+  @@index([familyId, createdAt], map: "family_join_requests_family_idx")
+  @@index([userId], map: "family_join_requests_user_idx")
+  @@index([expiresAt], map: "family_join_requests_expiry_idx", where: raw("status = 'PENDING'::bond_request_status"))
+  @@index([handledById], map: "family_join_requests_handled_by_idx")
+  @@map("family_join_requests")
+}
+
+/// Family points: one row per wallet debit of a member that counted for the family (unique
+/// `wallet_ledger_id`, so a spend never counts twice). Append-only for the runtime role.
+model FamilyPointsEntry {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  familyId       String   @map("family_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  walletLedgerId String   @unique @map("wallet_ledger_id") @db.Uuid
+  points         BigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  family      Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletEntry WalletLedgerEntry @relation(fields: [walletLedgerId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt], map: "family_points_ledger_family_idx")
+  @@index([userId], map: "family_points_ledger_user_idx")
+  @@map("family_points_ledger")
+}
+
+/// A CP request (العلاقة): `cost` coins taken at send (ledger CP_REQUEST, reference = id) and
+/// given back when it is declined, cancelled or expires (CP_REFUND, same reference). One PENDING
+/// outgoing request per sender; `client_id` is unique per sender (an idempotent retry).
+model CpRequest {
+  id         String            @id @default(uuid(7)) @db.Uuid
+  senderId   String            @map("sender_id") @db.Uuid
+  receiverId String            @map("receiver_id") @db.Uuid
+  clientId   String            @map("client_id") @db.Uuid
+  cost       Int
+  status     BondRequestStatus @default(PENDING)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt  DateTime          @map("expires_at") @db.Timestamptz(3)
+  handledAt  DateTime?         @map("handled_at") @db.Timestamptz(3)
+
+  sender   User      @relation("CpRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User      @relation("CpRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  couple   CpCouple?
+
+  @@unique([senderId, clientId], map: "cp_requests_client_once")
+  @@unique([senderId], map: "cp_requests_one_outgoing", where: raw("status = 'PENDING'::bond_request_status"))
+  @@index([receiverId, createdAt], map: "cp_requests_receiver_idx")
+  @@index([expiresAt], map: "cp_requests_expiry_idx", where: raw("status = 'PENDING'::bond_request_status"))
+  @@map("cp_requests")
+}
+
+/// A CP couple. `user_a_id` < `user_b_id`; `points` the CP gifts' coins; `level` the CP tier.
+/// Ended couples keep their row (`ended_at`); the partners are in `cp_partners` while it lasts.
+model CpCouple {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userAId   String    @map("user_a_id") @db.Uuid
+  userBId   String    @map("user_b_id") @db.Uuid
+  requestId String?   @unique @map("request_id") @db.Uuid
+  since     DateTime  @default(now()) @db.Timestamptz(3)
+  points    BigInt    @default(0)
+  level     Int       @default(1)
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
+  endedById String?   @map("ended_by_id") @db.Uuid
+
+  userA    User        @relation("CpCoupleA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB    User        @relation("CpCoupleB", fields: [userBId], references: [id], onDelete: Cascade)
+  endedBy  User?       @relation("CpCoupleEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  request  CpRequest?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  partners CpPartner[]
+  gifts    CpGift[]
+
+  @@index([userAId], map: "cp_couples_user_a_idx")
+  @@index([userBId], map: "cp_couples_user_b_idx")
+  @@index([endedById], map: "cp_couples_ended_by_idx")
+  @@map("cp_couples")
+}
+
+/// A user's current CP partner (one row per partner while the couple lasts; the primary key keeps
+/// one partner per user).
+model CpPartner {
+  userId    String @id @map("user_id") @db.Uuid
+  coupleId  String @map("couple_id") @db.Uuid
+  partnerId String @map("partner_id") @db.Uuid
+
+  user    User     @relation("CpPartnerUser", fields: [userId], references: [id], onDelete: Cascade)
+  partner User     @relation("CpPartnerOther", fields: [partnerId], references: [id], onDelete: Cascade)
+  couple  CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId], map: "cp_partners_couple_idx")
+  @@index([partnerId], map: "cp_partners_partner_idx")
+  @@map("cp_partners")
+}
+
+/// A CP gift: coins spent on one's partner (ledger CP_GIFT, reference = id); adds `amount` CP
+/// points to the couple. `client_id` is unique per sender.
+model CpGift {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  coupleId   String   @map("couple_id") @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  receiverId String   @map("receiver_id") @db.Uuid
+  amount     Int
+  clientId   String   @map("client_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  couple   CpCouple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  sender   User     @relation("CpGiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User     @relation("CpGiftReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, clientId], map: "cp_gifts_client_once")
+  @@index([coupleId, createdAt], map: "cp_gifts_couple_idx")
+  @@index([receiverId], map: "cp_gifts_receiver_idx")
+  @@map("cp_gifts")
+}
+
+/// The medal catalogue (الميداليات), seeded by migration 20261110100000_families_cp_medals.
+model Medal {
+  code          String   @id @db.VarChar(40)
+  nameAr        String   @map("name_ar") @db.VarChar(60)
+  nameEn        String   @map("name_en") @db.VarChar(60)
+  descriptionAr String   @map("description_ar") @db.VarChar(200)
+  descriptionEn String   @map("description_en") @db.VarChar(200)
+  iconKey       String   @map("icon_key") @db.VarChar(60)
+  sortOrder     Int      @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  awards        UserMedal[]
+  notifications Notification[]
+
+  @@map("medals")
+}
+
+/// A medal a user earned (once per user and medal).
+model UserMedal {
+  userId           String   @map("user_id") @db.Uuid
+  medalCode        String   @map("medal_code") @db.VarChar(40)
+  awardedAt        DateTime @default(now()) @map("awarded_at") @db.Timestamptz(3)
+  /// Owner D106 amendment: 1 … 6 when shown on the profile (in this order), else null.
+  showcasePosition Int?     @map("showcase_position") @db.SmallInt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medal Medal @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+
+  @@id([userId, medalCode], map: "user_medals_pkey")
+  @@unique([userId, showcasePosition], map: "user_medals_showcase_position_key", where: raw("showcase_position IS NOT NULL"))
+  @@index([userId, awardedAt(sort: Desc)], map: "user_medals_user_awarded_idx")
+  @@index([medalCode], map: "user_medals_medal_idx")
+  @@map("user_medals")
 }

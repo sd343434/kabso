@@ -116,6 +116,8 @@ describe('KL-037 contract coverage', () => {
             'listLiveRankings',
             // CP-017 (v1.19-live draft): bullet messages; kl077-wallet-bullets-chat-media covers it.
             'sendLiveBullet',
+            // CP-018 (v1.21-live draft): a user's medals; kl079-families-cp-medals covers it.
+            'listUserMedals',
           ].includes(o.operationId),
       )
       .filter(
@@ -857,6 +859,10 @@ describe('KL-037 public profile and follow', () => {
       isMuted: false,
       isSelf: false,
       liveRoomId: null,
+      // v1.21-live (CP-018): no family or couple; the catalogue is empty in this database.
+      family: null,
+      cp: null,
+      medals: { owned: 0, total: 0, latest: [], showcase: [] },
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

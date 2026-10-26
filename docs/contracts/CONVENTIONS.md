@@ -111,6 +111,18 @@ All non-2xx responses use one envelope:
 | 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
 | 409 | `INSUFFICIENT_COINS` | *(v1.19-live, DRAFT, CP-017)* The caller's coin balance does not cover the price (a bullet message costs 15 coins, §10.19). Nothing was charged or sent. The app shows the balance (`GET /wallet/me`). |
 | 403 | `LIVE_KICKED` | *(v1.20-live, DRAFT, D105)* The host or a moderator kicked the caller out of this live (§10.20): no media token, chat, bullet, taps or seat request in it until it ends. The app leaves the room and says so; a later live of the same host is fine. |
+| 409 | `ALREADY_IN_FAMILY` | *(v1.21-live, DRAFT, CP-018)* The caller already belongs to a family (creating or asking to join one), or the person a join request is accepted for joined another family meanwhile (§10.21). |
+| 409 | `FAMILY_FULL` | *(v1.21-live, DRAFT, CP-018)* The family has 500 members (§10.21). |
+| 409 | `FAMILY_NAME_TAKEN` | *(v1.21-live, DRAFT, CP-018)* A family that is not disbanded has this name (compared after NFKC and lower case). Nothing was charged. |
+| 409 | `FAMILY_REQUEST_PENDING` | *(v1.21-live, DRAFT, CP-018)* The caller already has a pending join request to another family; the app offers to cancel it. |
+| 409 | `FAMILY_REQUEST_NOT_PENDING` | *(v1.21-live, DRAFT, CP-018)* The join request was already accepted, declined, cancelled or expired. |
+| 409 | `FAMILY_NOT_EMPTY` | *(v1.21-live, DRAFT, CP-018)* Only a family with the leader alone can be disbanded. |
+| 409 | `FAMILY_LEADER_CANNOT_LEAVE` | *(v1.21-live, DRAFT, CP-018)* The leader hands the family over (or disbands a family that has only them) instead of leaving. |
+| 409 | `CP_ALREADY_PAIRED` | *(v1.21-live, DRAFT, CP-018)* The caller or the other person already has a CP partner. Nothing was charged. |
+| 409 | `CP_REQUEST_PENDING` | *(v1.21-live, DRAFT, CP-018)* The caller already has a pending CP request (one at a time); the app offers to cancel it. |
+| 409 | `CP_REQUEST_NOT_PENDING` | *(v1.21-live, DRAFT, CP-018)* The CP request was already accepted, declined, cancelled or expired (its coins were refunded unless it was accepted). |
+| 409 | `CP_NOT_PAIRED` | *(v1.21-live, DRAFT, CP-018)* A CP gift from a caller who has no partner. Nothing was charged. |
+| 409 | `MEDAL_NOT_UNLOCKED` | *(v1.21-live, DRAFT, CP-018)* `PUT /me/medals/showcase` named a medal the caller has not earned (or an unknown code). Nothing changed. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -342,6 +354,11 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /wallet/me` *(v1.19-live, CP-017)* | the per-user default |
 | VOICE and IMAGE chat messages *(v1.19-live, CP-017)* | the chat rows above (they are chat messages); the uploads count in the `POST /media/uploads` bucket |
 | `POST /live/rooms/{roomId}/kicks`, `DELETE /live/rooms/{roomId}/kicks/{username}` *(v1.20-live, D105)* | the CP-011 host and moderator bucket (300 / hour per user); `GET /live/rooms/{roomId}/kicks` uses the per-user default |
+| Family writes: `POST /families`, `PATCH` and `DELETE /families/{familyId}`, join requests (ask, accept, decline, `DELETE /me/family-join-request`), leave, remove, role, transfer *(v1.21-live, CP-018)* | 60 / hour per user (bucket `families:write`). **Replaces** the per-user default; family reads use the default |
+| CP requests (send, cancel, accept, decline) and `DELETE /cp/me` *(v1.21-live, CP-018)* | 30 / hour per user (bucket `cp:write`). **Replaces** the per-user default; CP reads use the default |
+| `POST /cp/me/gifts` *(v1.21-live, CP-018)* | 30 / min per user (bucket `cp:gift`). **Replaces** the per-user default |
+| `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
+| `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -404,6 +421,9 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.19-live)* Tables `wallets`, `wallet_ledger` | Backend — `wallet` module | CTO; Security (financial tables) |
 | *(v1.19-live)* Table `live_bullets` | Backend — `live` module | CTO |
 | *(v1.20-live)* Table `live_room_kicks` | Backend — `live` module | CTO |
+| *(v1.21-live)* Tables `families`, `family_members`, `family_join_requests`, `family_points_ledger` | Backend — `families` module (`family_points_ledger` is written with the wallet's debits) | CTO; Security (the points ledger follows wallet debits) |
+| *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
+| *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -443,6 +463,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.21-live (draft) | 2026-10-26 | **CP-018 (D106, owner 2026-10-26):** families, CP couples and medals. Families (tag `families`): `getFamilyConfig`, `searchFamilies`, `createFamily` (500 coins, ledger `FAMILY_CREATE`, `clientId`), `getMyFamily`, `getFamily`, `getFamilyByNumber` (`GET /family-numbers/{number}`), `updateFamily` (emblem), `disbandFamily`, `listFamilyMembers`, `removeFamilyMember`, `setFamilyMemberRole`, `transferFamily`, `leaveFamily`, `requestToJoinFamily`, `listFamilyJoinRequests`, `acceptFamilyJoinRequest`, `declineFamilyJoinRequest`, `getMyFamilyJoinRequest` / `cancelFamilyJoinRequest` (`/me/family-join-request`). CP (tag `cp`): `getCpConfig`, `sendCpRequest` (99 coins, `CP_REQUEST`, refunded as `CP_REFUND`), `listCpRequests`, `cancelCpRequest`, `acceptCpRequest`, `declineCpRequest`, `getMyCp`, `endCp`, `sendCpGift` (`CP_GIFT`). Medals (tag `medals`): `listMedals`, `listUserMedals`, `getMyMedalShowcase` / `setMyMedalShowcase` (`/me/medals/showcase`, owner amendment: up to 6 unlocked medals, ordered). `PublicProfile.family`, `cp`, `medals` (required; the first two nullable); `NotificationType` `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`, `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; `NotificationTarget.type` `FAMILY`, `MEDAL`; `MediaKind.FAMILY_EMBLEM`; codes `ALREADY_IN_FAMILY`, `FAMILY_FULL`, `FAMILY_NAME_TAKEN`, `FAMILY_REQUEST_PENDING`, `FAMILY_REQUEST_NOT_PENDING`, `FAMILY_NOT_EMPTY`, `FAMILY_LEADER_CANNOT_LEAVE`, `CP_ALREADY_PAIRED`, `CP_REQUEST_PENDING`, `CP_REQUEST_NOT_PENDING`, `CP_NOT_PAIRED`, `MEDAL_NOT_UNLOCKED` (409); server config `BONDS_SWEEP_INTERVAL_SECONDS`; §4, §7, §8, §10.5, §10.21, §11.1, §11.10. | **Additive** (new operations, codes, enum values and response fields). `PublicProfile` gains three **required** fields: strict clients update their model in the same change set; clients ignore unknown notification and target types (§11.10). |
 | v1.20-live (draft) | 2026-10-26 | **Owner D105:** the host and the room's moderators kick a person out of a live (audio and video) until it ends. `kickFromLive` (`POST /live/rooms/{roomId}/kicks`, `LiveKickRequest`, `LiveKick`; 201, 200 when already kicked), `listLiveKicks` (`GET …/kicks`, `LiveKickList`), `unkickFromLive` (`DELETE …/kicks/{username}`, 204); `LiveRoom.kicked`; data message `kick` on topic `kick`; code `LIVE_KICKED` (403) on `createLiveMediaToken`, `sendLiveChatMessage`, `sendLiveBullet`, `tapLiveRoom` and `requestLiveSeat` (the last two now document 403); audit `live.kick`, `live.kick.undo`. Also (owner, same row) `getLiveContributor` (`GET /live/rooms/{roomId}/contributors/{username}`, `LiveContributorStanding`: one person's points and rank in the live). §4, §7, §8, §10.9, §10.11, §10.12, §10.20. | **Additive** (new operations, a new response field, a new code and data message topic). A kicked user's older app sees the new code as a generic error and cannot rejoin. |
 | v1.19-live (draft) | 2026-10-26 | **CP-017 (D104, owner 2026-10-26):** coins and bullet messages, voice clips and images in the live chat. `getMyWallet` (`GET /wallet/me`, `Wallet`; tag `wallet`); coins only from the server's `wallet-admin` tool (purchases still B5); `sendLiveBullet` (`POST /live/rooms/{roomId}/bullets`, `LiveBulletSendRequest`, `LiveBullet`, `LiveBulletResult`), 15 coins, shown in every live as data message `bullet` on topic `bullet`; code `INSUFFICIENT_COINS` (409). Chat: `LiveChatSendRequest.kind` (`TEXT` default, `VOICE`, `IMAGE`) and `mediaId`; `LiveChatMessage.kind`, `media`, `expiresAt` (VOICE and IMAGE vanish 60 s after sending); `MediaKind` `LIVE_CHAT_IMAGE`, `LIVE_CHAT_VOICE`; `CreateMediaUploadRequest.contentType` `audio/mp4`; `MediaAsset.type` `AUDIO`, `durationMs`, `width`/`height` 0 for audio. §4, §7 rows, §8, §10.11, §10.19, §11.1. | **Additive** (new operations, fields, enum values, a code and a data message topic). `LiveChatSendRequest.text` is now required only for `TEXT` (the default, so existing apps send exactly as before); older apps show a VOICE or IMAGE message as an empty line until they update. `MediaAsset.width`/`height` may be 0, only for the new `AUDIO` assets. |
 | v1.18-live (draft) | 2026-10-26 | **Owner D103:** `AUDIO` seat counts 5, 10, 15, 20, 25 (host included; was 6, 9, 15, 20, 25); seat indexes stay 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`); §10.9. Existing rooms of 6 / 9 become 10. | **Breaking for `AUDIO` starts with 6 or 9** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. |
@@ -632,7 +653,12 @@ until a media provider is wired in.
   - `id`, `username`, `displayName`, `avatarUrl`, `bio`;
   - `isPrivate`, `followerCount`, `followingCount`;
   - `isFollowing`, `isSelf`;
-  - `liveRoomId`: a fresh LIVE room (§10.2), else null.
+  - `liveRoomId`: a fresh LIVE room (§10.2), else null;
+  - *(v1.21-live, CP-018)* `family` (`{id, number, name, level, emblemUrl, role}` or null), `cp`
+    (`{partner, since, level, levelName, points}` or null; null too while the partner is not
+    ACTIVE) and `medals` (`{owned, total, latest, showcase}`: at most the 3 newest, and the up to
+    6 medals the user chose to show, in their order), §10.21. Tier and medal
+    names follow `Accept-Language`, else the caller's locale.
 
   The profile **never** includes an email, role, status, locale, or created-at time.
 - **404 `NOT_FOUND` with an identical body** in every one of these cases:
@@ -1073,6 +1099,125 @@ until a media provider is wired in.
 - **Rate limits:** kick and undo count in the CP-011 host and moderator bucket (§7).
 - **Retention:** kicks are removed with the chat mutes, 30 days after their room ended (§10.11).
 
+### 10.21 Families, CP couples and medals *(v1.21-live, DRAFT — CP-018, D106)*
+
+Owner decisions (D106, 2026-10-26) are marked *(owner)*; every other number is a CTO default the
+owner may change (a named constant in the API: `families.constants.ts`, `couples.constants.ts`,
+`medals.catalogue.ts`). Every route needs a token. Money follows §3: integer coins, every change a
+`wallet_ledger` row in the same transaction as what it pays for, a `clientId` (unique per caller)
+in place of the `Idempotency-Key` header, the ledger append-only.
+
+**Families (العائلة).**
+- **Create** `POST /families` `{name, emblemMediaId?, clientId}` → 201 `{family, coins}`; a retry
+  with the same `clientId` → 200 with that family and the current balance (409
+  `IDEMPOTENCY_CONFLICT` when it was disbanded since). Costs **500 coins** *(owner)* (ledger
+  `FAMILY_CREATE`, reference the family id); the caller becomes its **LEADER**. Order: 400 body →
+  retry → 503 `MEDIA_UPLOADS_UNAVAILABLE` (an emblem while uploads are off) → 409
+  `ALREADY_IN_FAMILY` → 400 `emblemMediaId` / `invalid_value` → 409 `FAMILY_NAME_TAKEN` → 409
+  `INSUFFICIENT_COINS` (nothing created or charged). A pending join request of the creator is
+  cancelled.
+- **Name:** the display-name text rules (§6: NFC, trimmed, text hygiene, joiners, zalgo, a letter,
+  digit or emoji, no mixed-script word, no reserved term) with **2–20 grapheme clusters**, at most
+  40 code points; unique among families that are not disbanded, compared after NFKC and lower
+  case. **Emblem** (optional): a `FAMILY_EMBLEM` upload (§11.1), set at create or by the leader
+  with `PATCH /families/{familyId}` `{emblemMediaId | null}`; `emblemUrl` (640 px) or null.
+- **Number:** a random public **8-digit** family number (`number`), unique, like the room number
+  (§10.17); `GET /family-numbers/{number}` finds a family by it.
+- **Members:** at most **500** *(owner)*, the leader included; a user is in **at most one** family
+  *(owner)*. Roles `LEADER` (one), `DEPUTY`, `MEMBER`. `GET /families/{familyId}/members` → the
+  leader, then deputies, then members, each by join time (ACTIVE accounts; paged).
+- **Joining by request** *(owner)*: `POST /families/{familyId}/join-requests` → 201 (200 when the
+  caller already asked this family). Order: 404 → 409 `ALREADY_IN_FAMILY` → retry 200 → 409
+  `FAMILY_REQUEST_PENDING` (one pending request at a time) → 403 `AUTH_FORBIDDEN` (a block either
+  way between the caller and the leader) → 409 `FAMILY_FULL`. Requests **expire after 7 days**
+  *(owner)* (read as `EXPIRED`; a sweeper closes them, `BONDS_SWEEP_INTERVAL_SECONDS`). The
+  caller reads and cancels their own with `GET` / `DELETE /me/family-join-request` (cancel is
+  idempotent). The leader and deputies list pending ones (`GET …/join-requests`, oldest first;
+  403 for anyone else) and answer: `POST …/join-requests/{requestId}/accept` → 200 `FamilyMember`
+  (order: 404 family → 403 → 404 request → 409 `FAMILY_REQUEST_NOT_PENDING` → 409
+  `ALREADY_IN_FAMILY` (the requester joined elsewhere; the request is closed) → 409
+  `FAMILY_FULL`) or `…/decline` → 204. The requester gets `FAMILY_JOIN_ACCEPTED` /
+  `FAMILY_JOIN_DECLINED` (§11.10).
+- **Roles and leaving** *(owner)*: the leader makes a member a deputy or back
+  (`PUT …/members/{username}/role {role: DEPUTY|MEMBER}`), removes a deputy or member
+  (`DELETE …/members/{username}`, audited `family.member.remove`) and hands the family over
+  (`POST …/transfer {username}`: the member becomes LEADER, the old leader DEPUTY; audited
+  `family.transfer`). Only the leader does these (403 `AUTH_FORBIDDEN`); the target must be a
+  member (404), not the leader themselves (400 `username` / `invalid_value`). Members and deputies
+  leave (`POST …/leave` → 204); the leader cannot (409 `FAMILY_LEADER_CANNOT_LEAVE`). The leader
+  **disbands** a family that has only them (`DELETE /families/{familyId}` → 204; others → 409
+  `FAMILY_NOT_EMPTY`): pending requests are cancelled, the name becomes free, the emblem is
+  deleted, no coins come back; audited `family.disband`.
+- **Family level** *(owner: points from members' spending)*: every coin a member spends in the app
+  **while in the family** is 1 family point: bullet messages, creating the family, CP gifts, and a
+  CP request once it is **accepted** (until then its coins may come back). Admin revokes and
+  refunds never count. Points are written with the debit (`family_points_ledger`, one row per
+  ledger row) and stay with the family when the member leaves. Ladder (CTO default): level 1 at
+  0, 2 at 1 000, 3 at 5 000, 4 at 20 000, 5 at 50 000, 6 at 100 000, 7 at 200 000, 8 at 500 000,
+  9 at 1 000 000, 10 at 2 000 000 (`GET /families/config`). `Family.points`, `level`,
+  `nextLevelPoints`; `FamilyMember.points` is what that member gave.
+- **Reads:** `GET /families?q=` (by points, highest first; `q` a name fragment, or digits that
+  also match the number; paged), `GET /families/{familyId}` (with `myRole` and `myRequestId`),
+  `GET /families/me` → `{family | null}`, `GET /families/config`.
+
+**CP couples (العلاقة).**
+- **Request** `POST /cp/requests {username, clientId}` → 201 `{request, coins}`; a retry with the
+  same `clientId` → 200 (nothing charged again). Costs **99 coins** *(owner)*, taken at send
+  (ledger `CP_REQUEST`, reference the request id) and **given back** (`CP_REFUND`, same reference)
+  when it is declined, cancelled or **expires after 7 days** *(owner)* (by the sweeper, or at the
+  next action on it). Order: 400 body → retry → 404 (unknown or inactive user, **or a block either
+  way**) → 400 `username` / `invalid_value` (oneself) → 409 `CP_ALREADY_PAIRED` (either has a
+  partner) → 409 `CP_REQUEST_PENDING` (one outgoing pending request at a time *(owner)*) → 409
+  `INSUFFICIENT_COINS`. The receiver gets `CP_REQUEST`.
+- `GET /cp/requests?direction=incoming|outgoing` (pending, newest first; incoming hides senders who
+  are not ACTIVE or are blocked either way). The sender cancels (`DELETE /cp/requests/{id}` →
+  204); the receiver declines (`POST …/decline` → 204) or **accepts** (`POST …/accept` → 200
+  `CpCouple`). Not pending → 409 `CP_REQUEST_NOT_PENDING`. Accepting checks the block and the
+  sender's account again (either fails → the request is closed and refunded, 409
+  `CP_REQUEST_NOT_PENDING`), then 409 `CP_ALREADY_PAIRED`; it forms the couple (`since` now), closes
+  and refunds every other pending request of either partner, counts the 99 coins for the
+  sender's family, and the sender gets `CP_ACCEPTED`. **One partner per user** *(owner)*.
+- **The couple:** `GET /cp/me` → `{cp | null}`, `CpCouple` = `{id, partner, since, days, points,
+  level, levelName, nextLevelName, pointsToNext}` (`days`: the day it was formed is day 1).
+  **Ending** *(owner)*: either partner, `DELETE /cp/me` → 204 (no refund; no partner → 204 too).
+- **CP gifts** *(owner)*: `POST /cp/me/gifts {amount, clientId}` → 201 `{gift, cp, coins}` (retry →
+  200). `amount` one of **10, 52, 99, 520, 1314** coins (CTO default); ledger `CP_GIFT` (counts for
+  the sender's family); the couple gains `amount` CP points. Order: 400 → retry → 409
+  `CP_NOT_PAIRED` → 409 `INSUFFICIENT_COINS`. The partner receives no coins.
+- **Tiers** (CTO default; names localized by `Accept-Language`, else the caller's locale):
+  1 ثنائي متحمّس / Eager couple (0), 2 ثنائي فضّي / Silver couple (520), 3 ثنائي ذهبي / Gold
+  couple (1 314), 4 ثنائي ماسي / Diamond couple (5 200), 5 ثنائي أسطوري / Legendary couple
+  (13 140). `GET /cp/config` → price, lifetime, gift amounts and tiers.
+
+**Medals (الميداليات)** *(owner: automatic achievements)*.
+- The catalogue (`medals`, seeded by migration): `FIRST_LIVE` (first live hosted, awarded when it
+  ends), `LIVE_HOURS_10`, `LIVE_HOURS_100` (hours of all ended lives hosted, `ended_at −
+  started_at`), `CHARM_10`, `CHARM_50`, `CHARM_100` (charm level reached, CP-005
+  `ATTRACTIVENESS`), `FIRST_FAMILY` (created or joined a family), `FIRST_CP` (formed a couple),
+  `BULLET_FIRST` (sent a first bullet message). Each has Arabic and English names and
+  descriptions, an `iconKey` for the app and a sort order. *Not built:* `STREAK_7` / `STREAK_30`
+  (no record of active days exists to derive them cheaply; a later change).
+- **Awarding** is automatic, in the same transaction as the event (every path that ends a live,
+  a charm level change, a family create or accepted join, an accepted CP request, a bullet), once
+  per user and medal (awarding again does nothing), with a `MEDAL_AWARDED` notification. Past
+  events: `medals-admin backfill [--notify]` (server CLI, idempotent; without `--notify` no
+  notifications; docs/DEPLOYMENT.md).
+- **Showcase** *(owner, D106 amendment)*: a user chooses up to **6** of their unlocked medals to
+  show on their profile, in order: `PUT /me/medals/showcase {medalCodes: [...]}` → 200
+  `{showcase: [{code, name, iconKey}]}` (replaces the choice; `[]` shows none). 400: more than 6
+  (`too_big`) or a code twice (`invalid_value`); 409 `MEDAL_NOT_UNLOCKED`: a code the caller has
+  not earned. `GET /me/medals/showcase` reads it; `PublicProfile.medals.showcase` shows it. Never
+  chosen → empty (no auto-fill).
+- `GET /medals` → `{data, total, owned}` (catalogue order, each with the caller's `awardedAt` or
+  null); `GET /users/{username}/medals` → `{data, owned, total}` (newest first, `awardedAt`; 404
+  like the profile).
+
+**Not in v1.21-live:** buying coins (B5), family chat or family live rooms, family tasks or
+rankings beyond `GET /families`, CP gifts that give the partner coins or charm points, streak
+medals, removing a deleted or suspended account from its family or couple (they are left out of
+member lists and `cp` on profiles; a suspended leader's family keeps its leader until an admin
+tool exists).
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1097,6 +1242,8 @@ these rules.
 - *(CP-015)* `LIVE_COVER` uploads follow the same checks; both variants are centre-cropped
   squares, never enlarged: `media/{mediaId}/640.webp` (at most 640 × 640) and `320.webp`. They
   attach only as the host's live cover (§10.13).
+- *(v1.21-live, CP-018)* `FAMILY_EMBLEM` uploads are processed like `LIVE_COVER` (centre-cropped
+  squares, 640 and 320 px) and attach only as a family's emblem (§10.21).
 - *(v1.19-live, CP-017)* `LIVE_CHAT_IMAGE` uploads follow the same checks and sizes as
   `POST_IMAGE` and attach only to a live chat message. `LIVE_CHAT_VOICE` uploads are voice clips:
   `audio/mp4` (AAC in an MPEG-4 container, `.m4a`), at most 1 MiB (else 400 `byteSize` /
@@ -1248,6 +1395,12 @@ count is eventually consistent (≤ 1 min).
   post, comment or story). Notifications are written in the same transaction as their action.
   *(v1.14-live, CP-016 C)* `LIVE_SCHEDULED_SOON`: a host you follow goes live in about 15
   minutes (target the host as `USER` with the title and `startsAt`, §10.16; setting `lives`).
+  *(v1.21-live, CP-018, §10.21)* `CP_REQUEST` (someone sent you a CP request) and `CP_ACCEPTED`
+  (your CP request was accepted): target the other person as `USER`; `FAMILY_JOIN_ACCEPTED` and
+  `FAMILY_JOIN_DECLINED`: target `FAMILY` (the family id, its name as `text`), actor the leader or
+  deputy who answered; `MEDAL_AWARDED` (system, no actor, always on): target `MEDAL` (the medal
+  code as `id`, `text` null; the app reads name and icon from `GET /medals`). No setting switches
+  these off.
 - **Never yourself**; never between two users with a block in either direction (existing ones
   are hidden while it lasts); never from an account the recipient muted (owner, D92); actors no
   longer ACTIVE are left out of `actors` and `actorCount`, and a group left with no visible actor

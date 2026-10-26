@@ -552,6 +552,30 @@ a `CONNECTION LIMIT`.
   deleted by the live sweeper 60 s after they were sent (`LIVE_SWEEP_INTERVAL_SECONDS` cadence);
   they need `MEDIA_UPLOADS_ENABLED` like every upload.
 
+### 5.5 Families, CP couples and medals (migrations `20261110090000_families_cp_medals_enums`, `20261110100000_families_cp_medals`, `20261110110000_medal_showcase`; CP-018, D106) — [IMPLEMENTED, draft contract]
+
+- Additive. The first migration only adds enum values (`wallet_ledger_reason`: `FAMILY_CREATE`,
+  `CP_REQUEST`, `CP_REFUND`, `CP_GIFT`; `notification_type`: five CP-018 types), because PostgreSQL
+  cannot use a value added in the same transaction; the second creates the family, CP and medal
+  tables, replaces the `wallet_ledger_reason_sign` and `media_assets_kind_known` CHECKs, seeds the
+  medal catalogue (9 medals) and makes `family_points_ledger` append-only for the runtime group;
+  the third adds `user_medals.showcase_position`. Apply them in order with the usual
+  `migrate` job (§5); no data is rewritten.
+- New server config `BONDS_SWEEP_INTERVAL_SECONDS` (default 300; `0` disables it and is refused in
+  production): the sweeper that expires family join requests and CP requests after 7 days and gives
+  the CP request's 99 coins back. New rate-limit settings `RATE_LIMIT_FAMILY_WRITE_USER` (60/3600),
+  `RATE_LIMIT_CP_WRITE_USER` (30/3600), `RATE_LIMIT_CP_GIFT_USER` (30/60), all optional.
+- **Medals backfill, once after the deploy** (medals are awarded automatically from then on):
+  `pnpm medals:admin backfill [--notify]` awards every medal earned by past events (hosted lives
+  and hours, charm levels, family members, couples, bullet senders). Idempotent (a second run
+  awards nothing); writes one `medals.backfill` audit row; without `--notify` it sends no
+  notifications (recommended for the first run, so old events do not flood inboxes). Built into
+  the API image as `dist/cli/medals-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/medals-admin.js backfill
+  ```
+
 ## 6. Observability baseline
 
 | Item | Status |
