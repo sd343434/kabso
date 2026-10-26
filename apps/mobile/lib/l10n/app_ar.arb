@@ -401,7 +401,7 @@
   "@giftSendComingSoon": {
     "description": "Purchases are blocked on B5."
   },
-  "giftCombo": "\u2066×{count}\u2069",
+  "giftCombo": "⁦×{count}⁩",
   "@giftCombo": {
     "placeholders": {
       "count": {
@@ -6258,5 +6258,404 @@
         "type": "String"
       }
     }
+  },
+  "cpSpaceTitle": "مساحة الثنائي",
+  "@cpSpaceTitle": {
+    "description": "CP space: page title. (CP-021 (D112))"
+  },
+  "cpSpaceOpen": "فتح مساحة الثنائي",
+  "@cpSpaceOpen": {
+    "description": "CP: button to the CP space. (CP-021 (D112))"
+  },
+  "cpSpaceHelpTitle": "كيف تعمل مساحة الثنائي",
+  "@cpSpaceHelpTitle": {
+    "description": "CP space: help sheet title and button tooltip. (CP-021 (D112))"
+  },
+  "cpSpaceHelpBody": "القرب هو نقاط علاقتكما: تزيده هدايا الثنائي ومكافآت المهام اليومية، وكل مستوى أعلى يفتح امتيازات أكثر. تبدأ المهام اليومية من جديد كل يوم عند 00:00 ({zone}).",
+  "@cpSpaceHelpBody": {
+    "description": "CP space: help text; zone = the CP day's time zone. (CP-021 (D112))",
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceDays": "{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يومًا} other{{days} يوم}}",
+  "@cpSpaceDays": {
+    "description": "CP space: days together on the ribbon. (CP-021 (D112))",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "cpSpaceActionTasks": "المهام اليومية",
+  "@cpSpaceActionTasks": {
+    "description": "CP space: quick action and section title. (CP-021 (D112))"
+  },
+  "cpSpaceActionPrivileges": "امتيازات الثنائي",
+  "@cpSpaceActionPrivileges": {
+    "description": "CP space: quick action and section title. (CP-021 (D112))"
+  },
+  "cpSpaceActionGifts": "هدايا الثنائي",
+  "@cpSpaceActionGifts": {
+    "description": "CP space: quick action and section title. (CP-021 (D112))"
+  },
+  "cpSpaceActionRanking": "الترتيب",
+  "@cpSpaceActionRanking": {
+    "description": "CP space: quick action. (CP-021 (D112))"
+  },
+  "cpSpaceLevelTitle": "مستوى الثنائي",
+  "@cpSpaceLevelTitle": {
+    "description": "CP space: section title. (CP-021 (D112))"
+  },
+  "cpSpaceLevel": "Lv.{level}",
+  "@cpSpaceLevel": {
+    "description": "CP space: the CP level, large. (CP-021 (D112))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "cpSpaceProgress": "{points} / {target}",
+  "@cpSpaceProgress": {
+    "description": "CP space: points of the couple / points of the next level. (CP-021 (D112))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceIntimacy": "القرب {points}",
+  "@cpSpaceIntimacy": {
+    "description": "CP space: the couple's CP points. (CP-021 (D112))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceToNext": "{points} قرب إضافي للوصول إلى {name}",
+  "@cpSpaceToNext": {
+    "description": "CP space: points left to the next tier. (CP-021 (D112))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceTasksResets": "تبدأ من جديد عند {time}",
+  "@cpSpaceTasksResets": {
+    "description": "CP space: when today's tasks reset. (CP-021 (D112))",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceTaskReward": "+{points}",
+  "@cpSpaceTaskReward": {
+    "description": "CP space: a task's reward in intimacy. (CP-021 (D112))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceTaskProgress": "{progress}/{target}",
+  "@cpSpaceTaskProgress": {
+    "description": "CP space: task progress. (CP-021 (D112))",
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "cpSpaceClaim": "استلام",
+  "@cpSpaceClaim": {
+    "description": "CP space: claim a task reward. (CP-021 (D112))"
+  },
+  "cpSpaceClaimed": "تم الاستلام",
+  "@cpSpaceClaimed": {
+    "description": "CP space: a claimed task. (CP-021 (D112))"
+  },
+  "cpSpaceNotDone": "لم تكتمل",
+  "@cpSpaceNotDone": {
+    "description": "CP space: a task not done today. (CP-021 (D112))"
+  },
+  "cpSpaceClaimedToast": "+{points} قرب",
+  "@cpSpaceClaimedToast": {
+    "description": "CP space: a claim added intimacy. (CP-021 (D112))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceClaimedBefore": "تم استلامها اليوم",
+  "@cpSpaceClaimedBefore": {
+    "description": "CP space: the partner claimed it already. (CP-021 (D112))"
+  },
+  "cpSpaceTasksError": "تعذّر تحميل مهام اليوم",
+  "@cpSpaceTasksError": {
+    "description": "CP space: tasks failed to load. (CP-021 (D112))"
+  },
+  "cpPrivSpecialFrame": "إطار مميز",
+  "@cpPrivSpecialFrame": {
+    "description": "CP privilege name. (CP-021 (D112))"
+  },
+  "cpPrivChatBubble": "فقاعة حصرية",
+  "@cpPrivChatBubble": {
+    "description": "CP privilege name. (CP-021 (D112))"
+  },
+  "cpPrivMicEffect": "تأثير مايك الثنائي",
+  "@cpPrivMicEffect": {
+    "description": "CP privilege name. (CP-021 (D112))"
+  },
+  "cpPrivEntranceEffect": "تأثير الدخول",
+  "@cpPrivEntranceEffect": {
+    "description": "CP privilege name. (CP-021 (D112))"
+  },
+  "cpPrivGiftWall": "جدار هدايا الثنائي",
+  "@cpPrivGiftWall": {
+    "description": "CP privilege name. (CP-021 (D112))"
+  },
+  "cpPrivSpecialFrameAbout": "إطار على شكل قلب حول صورتيكما.",
+  "@cpPrivSpecialFrameAbout": {
+    "description": "CP privilege description. (CP-021 (D112))"
+  },
+  "cpPrivChatBubbleAbout": "تظهر رسائلكما في دردشة البث داخل فقاعة الثنائي.",
+  "@cpPrivChatBubbleAbout": {
+    "description": "CP privilege description. (CP-021 (D112))"
+  },
+  "cpPrivMicEffectAbout": "تأثير الثنائي على مقعديكما عندما تكونان على المايك.",
+  "@cpPrivMicEffectAbout": {
+    "description": "CP privilege description. (CP-021 (D112))"
+  },
+  "cpPrivEntranceEffectAbout": "عندما تدخل بثًا، ترى الغرفة دخولك كثنائي.",
+  "@cpPrivEntranceEffectAbout": {
+    "description": "CP privilege description. (CP-021 (D112))"
+  },
+  "cpPrivGiftWallAbout": "يرى الجميع هدايا الثنائي التي تبادلتماها.",
+  "@cpPrivGiftWallAbout": {
+    "description": "CP privilege description. (CP-021 (D112))"
+  },
+  "cpSpaceUnlocksAt": "يُفتح عند Lv.{level}",
+  "@cpSpaceUnlocksAt": {
+    "description": "CP space: the level that unlocks a privilege. (CP-021 (D112))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "cpSpaceUnlocked": "مفتوح",
+  "@cpSpaceUnlocked": {
+    "description": "CP space: an unlocked privilege. (CP-021 (D112))"
+  },
+  "cpSpaceLocked": "مقفل",
+  "@cpSpaceLocked": {
+    "description": "CP space: a locked privilege. (CP-021 (D112))"
+  },
+  "cpSpaceGiftWall": "جدار الهدايا",
+  "@cpSpaceGiftWall": {
+    "description": "CP space: open the gift wall. (CP-021 (D112))"
+  },
+  "cpSpaceGiftWallTotals": "الهدايا {gifts} · العملات {coins}",
+  "@cpSpaceGiftWallTotals": {
+    "description": "CP space: gift wall totals. (CP-021 (D112))",
+    "placeholders": {
+      "gifts": {
+        "type": "String"
+      },
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceGiftWallEntry": "من {from} إلى {to}",
+  "@cpSpaceGiftWallEntry": {
+    "description": "CP space: who sent a gift to whom. (CP-021 (D112))",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceGiftWallEmpty": "لا توجد هدايا ثنائي بعد",
+  "@cpSpaceGiftWallEmpty": {
+    "description": "CP space: empty gift wall. (CP-021 (D112))"
+  },
+  "cpSpaceGiftWallLocked": "يُفتح جدار هدايا هذا الثنائي عند Lv.{level}.",
+  "@cpSpaceGiftWallLocked": {
+    "description": "CP space: another couple's wall before it is unlocked. (CP-021 (D112))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "cpSpaceGiftWallError": "تعذّر تحميل جدار الهدايا",
+  "@cpSpaceGiftWallError": {
+    "description": "CP space: gift wall failed. (CP-021 (D112))"
+  },
+  "cpSpaceGiftConfirm": "إرسال {gift} مقابل {coins}؟",
+  "@cpSpaceGiftConfirm": {
+    "description": "CP space: confirm a named CP gift. (CP-021 (D112))",
+    "placeholders": {
+      "gift": {
+        "type": "String"
+      },
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceConfessionsTitle": "جدار الاعترافات",
+  "@cpSpaceConfessionsTitle": {
+    "description": "CP space: section title. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionsEmpty": "كن أول من يترك اعترافًا لشريكك",
+  "@cpSpaceConfessionsEmpty": {
+    "description": "CP space: empty confession wall (own couple). (CP-021 (D112))"
+  },
+  "cpSpaceConfessionsEmptyPublic": "لا توجد اعترافات بعد",
+  "@cpSpaceConfessionsEmptyPublic": {
+    "description": "CP space: empty confession wall (another couple). (CP-021 (D112))"
+  },
+  "cpSpaceConfessionHint": "اكتب إلى {name}",
+  "@cpSpaceConfessionHint": {
+    "description": "CP space: confession field hint. (CP-021 (D112))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceConfessionSend": "إرسال",
+  "@cpSpaceConfessionSend": {
+    "description": "CP space: send a confession. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionSent": "تم ترك الاعتراف",
+  "@cpSpaceConfessionSent": {
+    "description": "CP space: confession written. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionTo": "من {from} إلى {to}",
+  "@cpSpaceConfessionTo": {
+    "description": "CP space: a confession's author and recipient. (CP-021 (D112))",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceConfessionMenu": "خيارات الاعتراف",
+  "@cpSpaceConfessionMenu": {
+    "description": "CP space: confession menu tooltip. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionDelete": "حذف",
+  "@cpSpaceConfessionDelete": {
+    "description": "CP space: delete a confession. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionDeleteTitle": "حذف هذا الاعتراف؟",
+  "@cpSpaceConfessionDeleteTitle": {
+    "description": "CP space: confirm delete. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionDeleted": "تم حذف الاعتراف",
+  "@cpSpaceConfessionDeleted": {
+    "description": "CP space: deleted. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionReport": "إبلاغ",
+  "@cpSpaceConfessionReport": {
+    "description": "CP space: report a confession. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionReportTitle": "لماذا تبلّغ عن هذا الاعتراف؟",
+  "@cpSpaceConfessionReportTitle": {
+    "description": "CP space: report reasons title. (CP-021 (D112))"
+  },
+  "cpSpaceConfessionsError": "تعذّر تحميل الاعترافات",
+  "@cpSpaceConfessionsError": {
+    "description": "CP space: confessions failed. (CP-021 (D112))"
+  },
+  "cpSpaceRankingTitle": "ترتيب الثنائيات",
+  "@cpSpaceRankingTitle": {
+    "description": "CP space: ranking sheet title. (CP-021 (D112))"
+  },
+  "cpSpaceRankingWeek": "هذا الأسبوع",
+  "@cpSpaceRankingWeek": {
+    "description": "CP space: ranking tab. (CP-021 (D112))"
+  },
+  "cpSpaceRankingAll": "كل الأوقات",
+  "@cpSpaceRankingAll": {
+    "description": "CP space: ranking tab. (CP-021 (D112))"
+  },
+  "cpSpaceRankingEmpty": "لا توجد ثنائيات هنا بعد",
+  "@cpSpaceRankingEmpty": {
+    "description": "CP space: empty ranking. (CP-021 (D112))"
+  },
+  "cpSpaceRankingError": "تعذّر تحميل الترتيب",
+  "@cpSpaceRankingError": {
+    "description": "CP space: ranking failed. (CP-021 (D112))"
+  },
+  "cpSpaceRankingMe": "ثنائيكما: #{rank}",
+  "@cpSpaceRankingMe": {
+    "description": "CP space: the caller's rank. (CP-021 (D112))",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceRankingMeUnranked": "ثنائيكما غير مرتّب بعد",
+  "@cpSpaceRankingMeUnranked": {
+    "description": "CP space: the caller has no points in the period. (CP-021 (D112))"
+  },
+  "cpSpacePair": "{first} و{second}",
+  "@cpSpacePair": {
+    "description": "CP space: two partners' names. (CP-021 (D112))",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSpaceLoadError": "تعذّر تحميل مساحة الثنائي",
+  "@cpSpaceLoadError": {
+    "description": "CP space: failed to load. (CP-021 (D112))"
+  },
+  "cpSpaceGoneTitle": "مساحة هذا الثنائي غير متاحة",
+  "@cpSpaceGoneTitle": {
+    "description": "CP space: 404 title. (CP-021 (D112))"
+  },
+  "cpSpaceGoneBody": "ربما انتهت العلاقة، أو لا يمكن عرضها لك.",
+  "@cpSpaceGoneBody": {
+    "description": "CP space: 404 body. (CP-021 (D112))"
+  },
+  "errorCpTaskNotCompleted": "لم تكتمل هذه المهمة اليوم بعد.",
+  "@errorCpTaskNotCompleted": {
+    "description": "Error CP_TASK_NOT_COMPLETED (CP-021). (CP-021 (D112))"
+  },
+  "errorCpPrivilegeLocked": "لم يفتح هذا الثنائي هذه الميزة بعد.",
+  "@errorCpPrivilegeLocked": {
+    "description": "Error CP_PRIVILEGE_LOCKED (CP-021). (CP-021 (D112))"
   }
 }

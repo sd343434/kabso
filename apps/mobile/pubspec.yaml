@@ -104,6 +104,8 @@ flutter:
     - assets/profile_card/
     # Owner's person-card box icons (family, CP, gift wall).
     - assets/card_boxes/
+    # CP-021 CP space art (owner-supplied; assets/cp_space/PROVENANCE.md).
+    - assets/cp_space/
     # CP-020 live gift art and effects, named by the catalogue's assetKey /
     # animationKey (owner-supplied; assets/gifts/PROVENANCE.md).
     - assets/gifts/

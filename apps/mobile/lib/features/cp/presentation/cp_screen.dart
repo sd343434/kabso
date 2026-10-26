@@ -36,6 +36,7 @@ class CpScreen extends ConsumerStatefulWidget {
   static const coupleKey = Key('cp.couple');
   static const noneKey = Key('cp.none');
   static const endKey = Key('cp.end');
+  static const spaceKey = Key('cp.space');
   static const incomingKey = Key('cp.tab.incoming');
   static const outgoingKey = Key('cp.tab.outgoing');
 
@@ -406,6 +407,13 @@ class _CoupleState extends ConsumerState<_Couple> {
               ],
             ),
           const SizedBox(height: KSpacing.lg),
+          // CP-021: the couple's CP space (tasks, privileges, confessions).
+          KButton(
+            key: CpScreen.spaceKey,
+            label: l10n.cpSpaceOpen,
+            onPressed: () => unawaited(context.push(AppRoutes.cpSpace)),
+          ),
+          const SizedBox(height: KSpacing.sm),
           KButton(
             key: CpScreen.endKey,
             label: l10n.cpEnd,

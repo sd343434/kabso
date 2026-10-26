@@ -5030,4 +5030,265 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveGiftBagCount(String count) {
     return 'You have $count';
   }
+
+  @override
+  String get cpSpaceTitle => 'CP space';
+
+  @override
+  String get cpSpaceOpen => 'Open CP space';
+
+  @override
+  String get cpSpaceHelpTitle => 'How the CP space works';
+
+  @override
+  String cpSpaceHelpBody(String zone) {
+    return 'Intimacy is your couple\'s CP points: CP gifts and daily task rewards add to them, and a higher CP level unlocks more privileges. Daily tasks start again every day at 00:00 ($zone).';
+  }
+
+  @override
+  String cpSpaceDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '$days day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cpSpaceActionTasks => 'Daily tasks';
+
+  @override
+  String get cpSpaceActionPrivileges => 'CP privileges';
+
+  @override
+  String get cpSpaceActionGifts => 'Couple gifts';
+
+  @override
+  String get cpSpaceActionRanking => 'Ranking';
+
+  @override
+  String get cpSpaceLevelTitle => 'CP level';
+
+  @override
+  String cpSpaceLevel(int level) {
+    return 'Lv.$level';
+  }
+
+  @override
+  String cpSpaceProgress(String points, String target) {
+    return '$points / $target';
+  }
+
+  @override
+  String cpSpaceIntimacy(String points) {
+    return 'Intimacy $points';
+  }
+
+  @override
+  String cpSpaceToNext(String points, String name) {
+    return '$points more intimacy to reach $name';
+  }
+
+  @override
+  String cpSpaceTasksResets(String time) {
+    return 'Starts again at $time';
+  }
+
+  @override
+  String cpSpaceTaskReward(String points) {
+    return '+$points';
+  }
+
+  @override
+  String cpSpaceTaskProgress(int progress, int target) {
+    return '$progress/$target';
+  }
+
+  @override
+  String get cpSpaceClaim => 'Claim';
+
+  @override
+  String get cpSpaceClaimed => 'Claimed';
+
+  @override
+  String get cpSpaceNotDone => 'Not done';
+
+  @override
+  String cpSpaceClaimedToast(String points) {
+    return '+$points intimacy';
+  }
+
+  @override
+  String get cpSpaceClaimedBefore => 'Already claimed today';
+
+  @override
+  String get cpSpaceTasksError => 'Couldn\'t load today\'s tasks';
+
+  @override
+  String get cpPrivSpecialFrame => 'Special frame';
+
+  @override
+  String get cpPrivChatBubble => 'Exclusive bubble';
+
+  @override
+  String get cpPrivMicEffect => 'Couple mic effect';
+
+  @override
+  String get cpPrivEntranceEffect => 'Entrance effect';
+
+  @override
+  String get cpPrivGiftWall => 'CP gift wall';
+
+  @override
+  String get cpPrivSpecialFrameAbout => 'A heart frame around your pictures.';
+
+  @override
+  String get cpPrivChatBubbleAbout =>
+      'Your messages in a live\'s chat show in a couple bubble.';
+
+  @override
+  String get cpPrivMicEffectAbout =>
+      'A couple effect on your seats when you\'re both on the mic.';
+
+  @override
+  String get cpPrivEntranceEffectAbout =>
+      'When you enter a live, the room sees you arrive as a couple.';
+
+  @override
+  String get cpPrivGiftWallAbout =>
+      'Everyone can see the CP gifts you sent each other.';
+
+  @override
+  String cpSpaceUnlocksAt(int level) {
+    return 'Unlocks at Lv.$level';
+  }
+
+  @override
+  String get cpSpaceUnlocked => 'Unlocked';
+
+  @override
+  String get cpSpaceLocked => 'Locked';
+
+  @override
+  String get cpSpaceGiftWall => 'Gift wall';
+
+  @override
+  String cpSpaceGiftWallTotals(String gifts, String coins) {
+    return 'Gifts $gifts · Coins $coins';
+  }
+
+  @override
+  String cpSpaceGiftWallEntry(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get cpSpaceGiftWallEmpty => 'No CP gifts yet';
+
+  @override
+  String cpSpaceGiftWallLocked(int level) {
+    return 'This couple\'s gift wall opens at Lv.$level.';
+  }
+
+  @override
+  String get cpSpaceGiftWallError => 'Couldn\'t load the gift wall';
+
+  @override
+  String cpSpaceGiftConfirm(String gift, String coins) {
+    return 'Send $gift for $coins?';
+  }
+
+  @override
+  String get cpSpaceConfessionsTitle => 'Confession wall';
+
+  @override
+  String get cpSpaceConfessionsEmpty =>
+      'Be the first to leave a confession for your CP';
+
+  @override
+  String get cpSpaceConfessionsEmptyPublic => 'No confessions yet';
+
+  @override
+  String cpSpaceConfessionHint(String name) {
+    return 'Write to $name';
+  }
+
+  @override
+  String get cpSpaceConfessionSend => 'Send';
+
+  @override
+  String get cpSpaceConfessionSent => 'Confession left';
+
+  @override
+  String cpSpaceConfessionTo(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get cpSpaceConfessionMenu => 'Confession options';
+
+  @override
+  String get cpSpaceConfessionDelete => 'Delete';
+
+  @override
+  String get cpSpaceConfessionDeleteTitle => 'Delete this confession?';
+
+  @override
+  String get cpSpaceConfessionDeleted => 'Confession deleted';
+
+  @override
+  String get cpSpaceConfessionReport => 'Report';
+
+  @override
+  String get cpSpaceConfessionReportTitle =>
+      'Why are you reporting this confession?';
+
+  @override
+  String get cpSpaceConfessionsError => 'Couldn\'t load the confessions';
+
+  @override
+  String get cpSpaceRankingTitle => 'Couples ranking';
+
+  @override
+  String get cpSpaceRankingWeek => 'This week';
+
+  @override
+  String get cpSpaceRankingAll => 'All time';
+
+  @override
+  String get cpSpaceRankingEmpty => 'No couples here yet';
+
+  @override
+  String get cpSpaceRankingError => 'Couldn\'t load the ranking';
+
+  @override
+  String cpSpaceRankingMe(String rank) {
+    return 'Your couple: #$rank';
+  }
+
+  @override
+  String get cpSpaceRankingMeUnranked => 'Your couple isn\'t ranked yet';
+
+  @override
+  String cpSpacePair(String first, String second) {
+    return '$first & $second';
+  }
+
+  @override
+  String get cpSpaceLoadError => 'Couldn\'t load the CP space';
+
+  @override
+  String get cpSpaceGoneTitle => 'This couple\'s space isn\'t available';
+
+  @override
+  String get cpSpaceGoneBody =>
+      'The couple may have ended, or it can\'t be shown to you.';
+
+  @override
+  String get errorCpTaskNotCompleted => 'This task isn\'t done yet today.';
+
+  @override
+  String get errorCpPrivilegeLocked => 'This couple hasn\'t unlocked this yet.';
 }

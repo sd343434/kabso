@@ -167,6 +167,30 @@ void main() {
       expect(fakes.visited, ['/users/omar']);
     });
 
+    testWidgets("CP-021: someone's couple opens its CP space by id", (
+      tester,
+    ) async {
+      final profile = _profile();
+      final fakes = await _card(
+        tester,
+        profile.copyWith(cp: profile.cp!.copyWith(id: 'couple-9')),
+      );
+      final box = find.byKey(LivePersonBoxes.boxKey(1));
+      await _show(tester, box);
+      await tester.tap(box);
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/cp/couples/couple-9']);
+    });
+
+    testWidgets('CP-021: your own couple opens your CP space', (tester) async {
+      final fakes = await _card(tester, _profile(self: true));
+      final box = find.byKey(LivePersonBoxes.boxKey(1));
+      await _show(tester, box);
+      await tester.tap(box);
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/cp/space']);
+    });
+
     testWidgets('your own empty boxes open families and your CP page', (
       tester,
     ) async {

@@ -66,6 +66,13 @@ void main() {
       'FakeCpRepository',
       'FakeMedalsRepository',
       'testMedals(',
+      // CP-021 (the CP space fixtures).
+      'cpTasksJson(',
+      'cpPrivilegesJson(',
+      'cpCouplePublicJson(',
+      'cpConfessionJson(',
+      'cpRankingsJson(',
+      'cpGiftWallJson(',
       // CP-019 (test/fixtures/bag/bag_api_fixtures.dart,
       // test/helpers/fake_bag_repository.dart).
       'bagCatalogueItemJson(',

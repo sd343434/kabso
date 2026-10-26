@@ -132,6 +132,14 @@ abstract final class AppRoutes {
   /// CP-018: your relationship (CP) and its requests.
   static const cp = '/cp';
 
+  /// CP-021: your couple's CP space, and a couple's read-only page.
+  static const cpSpace = '/cp/space';
+  static const cpCouplePattern = '/cp/couples/:coupleId';
+
+  /// The CP space of couple [coupleId] (yours opens in full).
+  static String cpCouple(String coupleId) =>
+      '/cp/couples/${Uri.encodeComponent(coupleId)}';
+
   /// CP-018: the medal catalogue (yours) and the showcase picker.
   static const medals = '/medals';
   static const medalShowcase = '/medals/showcase';

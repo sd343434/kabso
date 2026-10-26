@@ -57,6 +57,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.giftBagInsufficient => l10n.errorGiftBagInsufficient,
     ErrorCode.liveGiftRecipientUnavailable =>
       l10n.errorLiveGiftRecipientUnavailable,
+    ErrorCode.cpTaskNotCompleted => l10n.errorCpTaskNotCompleted,
+    ErrorCode.cpPrivilegeLocked => l10n.errorCpPrivilegeLocked,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

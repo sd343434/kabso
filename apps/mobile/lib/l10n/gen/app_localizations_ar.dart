@@ -5057,4 +5057,264 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveGiftBagCount(String count) {
     return 'لديك $count';
   }
+
+  @override
+  String get cpSpaceTitle => 'مساحة الثنائي';
+
+  @override
+  String get cpSpaceOpen => 'فتح مساحة الثنائي';
+
+  @override
+  String get cpSpaceHelpTitle => 'كيف تعمل مساحة الثنائي';
+
+  @override
+  String cpSpaceHelpBody(String zone) {
+    return 'القرب هو نقاط علاقتكما: تزيده هدايا الثنائي ومكافآت المهام اليومية، وكل مستوى أعلى يفتح امتيازات أكثر. تبدأ المهام اليومية من جديد كل يوم عند 00:00 ($zone).';
+  }
+
+  @override
+  String cpSpaceDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يومًا',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cpSpaceActionTasks => 'المهام اليومية';
+
+  @override
+  String get cpSpaceActionPrivileges => 'امتيازات الثنائي';
+
+  @override
+  String get cpSpaceActionGifts => 'هدايا الثنائي';
+
+  @override
+  String get cpSpaceActionRanking => 'الترتيب';
+
+  @override
+  String get cpSpaceLevelTitle => 'مستوى الثنائي';
+
+  @override
+  String cpSpaceLevel(int level) {
+    return 'Lv.$level';
+  }
+
+  @override
+  String cpSpaceProgress(String points, String target) {
+    return '$points / $target';
+  }
+
+  @override
+  String cpSpaceIntimacy(String points) {
+    return 'القرب $points';
+  }
+
+  @override
+  String cpSpaceToNext(String points, String name) {
+    return '$points قرب إضافي للوصول إلى $name';
+  }
+
+  @override
+  String cpSpaceTasksResets(String time) {
+    return 'تبدأ من جديد عند $time';
+  }
+
+  @override
+  String cpSpaceTaskReward(String points) {
+    return '+$points';
+  }
+
+  @override
+  String cpSpaceTaskProgress(int progress, int target) {
+    return '$progress/$target';
+  }
+
+  @override
+  String get cpSpaceClaim => 'استلام';
+
+  @override
+  String get cpSpaceClaimed => 'تم الاستلام';
+
+  @override
+  String get cpSpaceNotDone => 'لم تكتمل';
+
+  @override
+  String cpSpaceClaimedToast(String points) {
+    return '+$points قرب';
+  }
+
+  @override
+  String get cpSpaceClaimedBefore => 'تم استلامها اليوم';
+
+  @override
+  String get cpSpaceTasksError => 'تعذّر تحميل مهام اليوم';
+
+  @override
+  String get cpPrivSpecialFrame => 'إطار مميز';
+
+  @override
+  String get cpPrivChatBubble => 'فقاعة حصرية';
+
+  @override
+  String get cpPrivMicEffect => 'تأثير مايك الثنائي';
+
+  @override
+  String get cpPrivEntranceEffect => 'تأثير الدخول';
+
+  @override
+  String get cpPrivGiftWall => 'جدار هدايا الثنائي';
+
+  @override
+  String get cpPrivSpecialFrameAbout => 'إطار على شكل قلب حول صورتيكما.';
+
+  @override
+  String get cpPrivChatBubbleAbout =>
+      'تظهر رسائلكما في دردشة البث داخل فقاعة الثنائي.';
+
+  @override
+  String get cpPrivMicEffectAbout =>
+      'تأثير الثنائي على مقعديكما عندما تكونان على المايك.';
+
+  @override
+  String get cpPrivEntranceEffectAbout =>
+      'عندما تدخل بثًا، ترى الغرفة دخولك كثنائي.';
+
+  @override
+  String get cpPrivGiftWallAbout => 'يرى الجميع هدايا الثنائي التي تبادلتماها.';
+
+  @override
+  String cpSpaceUnlocksAt(int level) {
+    return 'يُفتح عند Lv.$level';
+  }
+
+  @override
+  String get cpSpaceUnlocked => 'مفتوح';
+
+  @override
+  String get cpSpaceLocked => 'مقفل';
+
+  @override
+  String get cpSpaceGiftWall => 'جدار الهدايا';
+
+  @override
+  String cpSpaceGiftWallTotals(String gifts, String coins) {
+    return 'الهدايا $gifts · العملات $coins';
+  }
+
+  @override
+  String cpSpaceGiftWallEntry(String from, String to) {
+    return 'من $from إلى $to';
+  }
+
+  @override
+  String get cpSpaceGiftWallEmpty => 'لا توجد هدايا ثنائي بعد';
+
+  @override
+  String cpSpaceGiftWallLocked(int level) {
+    return 'يُفتح جدار هدايا هذا الثنائي عند Lv.$level.';
+  }
+
+  @override
+  String get cpSpaceGiftWallError => 'تعذّر تحميل جدار الهدايا';
+
+  @override
+  String cpSpaceGiftConfirm(String gift, String coins) {
+    return 'إرسال $gift مقابل $coins؟';
+  }
+
+  @override
+  String get cpSpaceConfessionsTitle => 'جدار الاعترافات';
+
+  @override
+  String get cpSpaceConfessionsEmpty => 'كن أول من يترك اعترافًا لشريكك';
+
+  @override
+  String get cpSpaceConfessionsEmptyPublic => 'لا توجد اعترافات بعد';
+
+  @override
+  String cpSpaceConfessionHint(String name) {
+    return 'اكتب إلى $name';
+  }
+
+  @override
+  String get cpSpaceConfessionSend => 'إرسال';
+
+  @override
+  String get cpSpaceConfessionSent => 'تم ترك الاعتراف';
+
+  @override
+  String cpSpaceConfessionTo(String from, String to) {
+    return 'من $from إلى $to';
+  }
+
+  @override
+  String get cpSpaceConfessionMenu => 'خيارات الاعتراف';
+
+  @override
+  String get cpSpaceConfessionDelete => 'حذف';
+
+  @override
+  String get cpSpaceConfessionDeleteTitle => 'حذف هذا الاعتراف؟';
+
+  @override
+  String get cpSpaceConfessionDeleted => 'تم حذف الاعتراف';
+
+  @override
+  String get cpSpaceConfessionReport => 'إبلاغ';
+
+  @override
+  String get cpSpaceConfessionReportTitle => 'لماذا تبلّغ عن هذا الاعتراف؟';
+
+  @override
+  String get cpSpaceConfessionsError => 'تعذّر تحميل الاعترافات';
+
+  @override
+  String get cpSpaceRankingTitle => 'ترتيب الثنائيات';
+
+  @override
+  String get cpSpaceRankingWeek => 'هذا الأسبوع';
+
+  @override
+  String get cpSpaceRankingAll => 'كل الأوقات';
+
+  @override
+  String get cpSpaceRankingEmpty => 'لا توجد ثنائيات هنا بعد';
+
+  @override
+  String get cpSpaceRankingError => 'تعذّر تحميل الترتيب';
+
+  @override
+  String cpSpaceRankingMe(String rank) {
+    return 'ثنائيكما: #$rank';
+  }
+
+  @override
+  String get cpSpaceRankingMeUnranked => 'ثنائيكما غير مرتّب بعد';
+
+  @override
+  String cpSpacePair(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String get cpSpaceLoadError => 'تعذّر تحميل مساحة الثنائي';
+
+  @override
+  String get cpSpaceGoneTitle => 'مساحة هذا الثنائي غير متاحة';
+
+  @override
+  String get cpSpaceGoneBody => 'ربما انتهت العلاقة، أو لا يمكن عرضها لك.';
+
+  @override
+  String get errorCpTaskNotCompleted => 'لم تكتمل هذه المهمة اليوم بعد.';
+
+  @override
+  String get errorCpPrivilegeLocked => 'لم يفتح هذا الثنائي هذه الميزة بعد.';
 }

@@ -132,6 +132,14 @@ enum ErrorCode {
   /// on a seat (or a block); the app reloads the seats.
   liveGiftRecipientUnavailable('LIVE_GIFT_RECIPIENT_UNAVAILABLE'),
 
+  /// v1.24-live (CP-021, §10.24, 409): a daily CP task claimed before it is
+  /// done today; nothing was added.
+  cpTaskNotCompleted('CP_TASK_NOT_COMPLETED'),
+
+  /// v1.24-live (CP-021, §10.24, 403): another couple's gift wall before it
+  /// unlocked `GIFT_WALL`.
+  cpPrivilegeLocked('CP_PRIVILEGE_LOCKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

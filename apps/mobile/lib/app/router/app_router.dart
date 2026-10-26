@@ -18,6 +18,7 @@ import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/bag/presentation/bag_screen.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
+import 'package:kabso_live/features/cp/presentation/cp_space_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
@@ -250,6 +251,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               ? CpDirection.outgoing
               : CpDirection.incoming,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.cpSpace,
+        builder: (_, _) => const CpSpaceScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.cpCouplePattern,
+        builder: (_, state) =>
+            CpCoupleScreen(coupleId: state.pathParameters['coupleId']!),
       ),
       GoRoute(path: AppRoutes.medals, builder: (_, _) => const MedalsScreen()),
       GoRoute(

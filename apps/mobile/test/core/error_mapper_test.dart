@@ -61,6 +61,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.giftUnavailable: 409,
   ErrorCode.giftBagInsufficient: 409,
   ErrorCode.liveGiftRecipientUnavailable: 409,
+  ErrorCode.cpTaskNotCompleted: 409,
+  ErrorCode.cpPrivilegeLocked: 403,
 };
 
 DioException _badResponse(
@@ -142,6 +144,9 @@ void main() {
           'GIFT_UNAVAILABLE',
           'GIFT_BAG_INSUFFICIENT',
           'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+          // v1.24-live (CP-021)
+          'CP_TASK_NOT_COMPLETED',
+          'CP_PRIVILEGE_LOCKED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

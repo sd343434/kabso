@@ -290,9 +290,288 @@ as String,
 
 
 /// @nodoc
+mixin _$CpGiftPreset {
+
+ String get code; int get amount; String get name; String get assetKey;
+/// Create a copy of CpGiftPreset
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CpGiftPresetCopyWith<CpGiftPreset> get copyWith => _$CpGiftPresetCopyWithImpl<CpGiftPreset>(this as CpGiftPreset, _$identity);
+
+  /// Serializes this CpGiftPreset to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CpGiftPreset;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpGiftPreset&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.amount, _this.amount) || other.amount == _this.amount)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CpGiftPreset;
+  return Object.hash(runtimeType,_this.code,_this.amount,_this.name,_this.assetKey);
+}
+
+@override
+String toString() {
+  final _this = this as CpGiftPreset;
+  return 'CpGiftPreset(code: ${_this.code}, amount: ${_this.amount}, name: ${_this.name}, assetKey: ${_this.assetKey})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CpGiftPresetCopyWith<$Res>  {
+  factory $CpGiftPresetCopyWith(CpGiftPreset value, $Res Function(CpGiftPreset) _then) = _$CpGiftPresetCopyWithImpl;
+@useResult
+$Res call({
+ String code, int amount, String name, String assetKey
+});
+
+
+
+
+}
+/// @nodoc
+class _$CpGiftPresetCopyWithImpl<$Res>
+    implements $CpGiftPresetCopyWith<$Res> {
+  _$CpGiftPresetCopyWithImpl(this._self, this._then);
+
+  final CpGiftPreset _self;
+  final $Res Function(CpGiftPreset) _then;
+
+/// Create a copy of CpGiftPreset
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? amount = null,Object? name = null,Object? assetKey = null,}) {
+  return _then(CpGiftPreset(
+code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CpGiftPreset].
+extension CpGiftPresetPatterns on CpGiftPreset {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CpGiftPreset value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CpGiftPreset() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CpGiftPreset value)  $default,){
+final _that = this;
+switch (_that) {
+case _CpGiftPreset():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CpGiftPreset value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CpGiftPreset() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  int amount,  String name,  String assetKey)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CpGiftPreset() when $default != null:
+return $default(_that.code,_that.amount,_that.name,_that.assetKey);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  int amount,  String name,  String assetKey)  $default,) {final _that = this;
+switch (_that) {
+case _CpGiftPreset():
+return $default(_that.code,_that.amount,_that.name,_that.assetKey);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  int amount,  String name,  String assetKey)?  $default,) {final _that = this;
+switch (_that) {
+case _CpGiftPreset() when $default != null:
+return $default(_that.code,_that.amount,_that.name,_that.assetKey);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CpGiftPreset implements CpGiftPreset {
+  const _CpGiftPreset({required this.code, required this.amount, required this.name, required this.assetKey});
+  factory _CpGiftPreset.fromJson(Map<String, dynamic> json) => _$CpGiftPresetFromJson(json);
+
+@override final  String code;
+@override final  int amount;
+@override final  String name;
+@override final  String assetKey;
+
+/// Create a copy of CpGiftPreset
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CpGiftPresetCopyWith<_CpGiftPreset> get copyWith => __$CpGiftPresetCopyWithImpl<_CpGiftPreset>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CpGiftPresetToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpGiftPreset&&(identical(other.code, code) || other.code == code)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.name, name) || other.name == name)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,code,amount,name,assetKey);
+}
+
+@override
+String toString() {
+    return 'CpGiftPreset(code: $code, amount: $amount, name: $name, assetKey: $assetKey)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CpGiftPresetCopyWith<$Res> implements $CpGiftPresetCopyWith<$Res> {
+  factory _$CpGiftPresetCopyWith(_CpGiftPreset value, $Res Function(_CpGiftPreset) _then) = __$CpGiftPresetCopyWithImpl;
+@override @useResult
+$Res call({
+ String code, int amount, String name, String assetKey
+});
+
+
+
+
+}
+/// @nodoc
+class __$CpGiftPresetCopyWithImpl<$Res>
+    implements _$CpGiftPresetCopyWith<$Res> {
+  __$CpGiftPresetCopyWithImpl(this._self, this._then);
+
+  final _CpGiftPreset _self;
+  final $Res Function(_CpGiftPreset) _then;
+
+/// Create a copy of CpGiftPreset
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? amount = null,Object? name = null,Object? assetKey = null,}) {
+  return _then(_CpGiftPreset(
+code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
+as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$CpConfig {
 
- int get requestCost; int get requestTtlDays; List<int> get giftAmounts; List<CpTier> get tiers;
+ int get requestCost; int get requestTtlDays; List<int> get giftAmounts; List<CpTier> get tiers; List<CpGiftPreset> get gifts;
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -306,20 +585,20 @@ $CpConfigCopyWith<CpConfig> get copyWith => _$CpConfigCopyWithImpl<CpConfig>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as CpConfig;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpConfig&&(identical(other.requestCost, _this.requestCost) || other.requestCost == _this.requestCost)&&(identical(other.requestTtlDays, _this.requestTtlDays) || other.requestTtlDays == _this.requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _this.giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _this.tiers));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CpConfig&&(identical(other.requestCost, _this.requestCost) || other.requestCost == _this.requestCost)&&(identical(other.requestTtlDays, _this.requestTtlDays) || other.requestTtlDays == _this.requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _this.giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _this.tiers)&&const DeepCollectionEquality().equals(other.gifts, _this.gifts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as CpConfig;
-  return Object.hash(runtimeType,_this.requestCost,_this.requestTtlDays,const DeepCollectionEquality().hash(_this.giftAmounts),const DeepCollectionEquality().hash(_this.tiers));
+  return Object.hash(runtimeType,_this.requestCost,_this.requestTtlDays,const DeepCollectionEquality().hash(_this.giftAmounts),const DeepCollectionEquality().hash(_this.tiers),const DeepCollectionEquality().hash(_this.gifts));
 }
 
 @override
 String toString() {
   final _this = this as CpConfig;
-  return 'CpConfig(requestCost: ${_this.requestCost}, requestTtlDays: ${_this.requestTtlDays}, giftAmounts: ${_this.giftAmounts}, tiers: ${_this.tiers})';
+  return 'CpConfig(requestCost: ${_this.requestCost}, requestTtlDays: ${_this.requestTtlDays}, giftAmounts: ${_this.giftAmounts}, tiers: ${_this.tiers}, gifts: ${_this.gifts})';
 }
 
 
@@ -330,7 +609,7 @@ abstract mixin class $CpConfigCopyWith<$Res>  {
   factory $CpConfigCopyWith(CpConfig value, $Res Function(CpConfig) _then) = _$CpConfigCopyWithImpl;
 @useResult
 $Res call({
- int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers
+ int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts
 });
 
 
@@ -347,13 +626,14 @@ class _$CpConfigCopyWithImpl<$Res>
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,}) {
   return _then(CpConfig(
 requestCost: null == requestCost ? _self.requestCost : requestCost // ignore: cast_nullable_to_non_nullable
 as int,requestTtlDays: null == requestTtlDays ? _self.requestTtlDays : requestTtlDays // ignore: cast_nullable_to_non_nullable
 as int,giftAmounts: null == giftAmounts ? _self.giftAmounts : giftAmounts // ignore: cast_nullable_to_non_nullable
 as List<int>,tiers: null == tiers ? _self.tiers : tiers // ignore: cast_nullable_to_non_nullable
-as List<CpTier>,
+as List<CpTier>,gifts: null == gifts ? _self.gifts : gifts // ignore: cast_nullable_to_non_nullable
+as List<CpGiftPreset>,
   ));
 }
 
@@ -438,10 +718,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CpConfig() when $default != null:
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
   return orElse();
 
 }
@@ -459,10 +739,10 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)  $default,) {final _that = this;
 switch (_that) {
 case _CpConfig():
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -479,10 +759,10 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int requestCost,  int requestTtlDays,  List<int> giftAmounts,  List<CpTier> tiers,  List<CpGiftPreset> gifts)?  $default,) {final _that = this;
 switch (_that) {
 case _CpConfig() when $default != null:
-return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers);case _:
+return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.tiers,_that.gifts);case _:
   return null;
 
 }
@@ -494,7 +774,7 @@ return $default(_that.requestCost,_that.requestTtlDays,_that.giftAmounts,_that.t
 @JsonSerializable()
 
 class _CpConfig implements CpConfig {
-  const _CpConfig({required this.requestCost, required this.requestTtlDays, required  List<int> giftAmounts, required  List<CpTier> tiers}): _giftAmounts = giftAmounts,_tiers = tiers;
+  const _CpConfig({required this.requestCost, required this.requestTtlDays, required  List<int> giftAmounts, required  List<CpTier> tiers,  List<CpGiftPreset> gifts = const <CpGiftPreset>[]}): _giftAmounts = giftAmounts,_tiers = tiers,_gifts = gifts;
   factory _CpConfig.fromJson(Map<String, dynamic> json) => _$CpConfigFromJson(json);
 
 @override final  int requestCost;
@@ -513,6 +793,13 @@ class _CpConfig implements CpConfig {
   return EqualUnmodifiableListView(_tiers);
 }
 
+ final  List<CpGiftPreset> _gifts;
+@override@JsonKey() List<CpGiftPreset> get gifts {
+  if (_gifts is EqualUnmodifiableListView) return _gifts;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_gifts);
+}
+
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -527,18 +814,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpConfig&&(identical(other.requestCost, requestCost) || other.requestCost == requestCost)&&(identical(other.requestTtlDays, requestTtlDays) || other.requestTtlDays == requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _tiers));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CpConfig&&(identical(other.requestCost, requestCost) || other.requestCost == requestCost)&&(identical(other.requestTtlDays, requestTtlDays) || other.requestTtlDays == requestTtlDays)&&const DeepCollectionEquality().equals(other.giftAmounts, _giftAmounts)&&const DeepCollectionEquality().equals(other.tiers, _tiers)&&const DeepCollectionEquality().equals(other.gifts, _gifts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,requestCost,requestTtlDays,const DeepCollectionEquality().hash(_giftAmounts),const DeepCollectionEquality().hash(_tiers));
+    return Object.hash(runtimeType,requestCost,requestTtlDays,const DeepCollectionEquality().hash(_giftAmounts),const DeepCollectionEquality().hash(_tiers),const DeepCollectionEquality().hash(_gifts));
 }
 
 @override
 String toString() {
-    return 'CpConfig(requestCost: $requestCost, requestTtlDays: $requestTtlDays, giftAmounts: $giftAmounts, tiers: $tiers)';
+    return 'CpConfig(requestCost: $requestCost, requestTtlDays: $requestTtlDays, giftAmounts: $giftAmounts, tiers: $tiers, gifts: $gifts)';
 }
 
 
@@ -549,7 +836,7 @@ abstract mixin class _$CpConfigCopyWith<$Res> implements $CpConfigCopyWith<$Res>
   factory _$CpConfigCopyWith(_CpConfig value, $Res Function(_CpConfig) _then) = __$CpConfigCopyWithImpl;
 @override @useResult
 $Res call({
- int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers
+ int requestCost, int requestTtlDays, List<int> giftAmounts, List<CpTier> tiers, List<CpGiftPreset> gifts
 });
 
 
@@ -566,13 +853,14 @@ class __$CpConfigCopyWithImpl<$Res>
 
 /// Create a copy of CpConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? requestCost = null,Object? requestTtlDays = null,Object? giftAmounts = null,Object? tiers = null,Object? gifts = null,}) {
   return _then(_CpConfig(
 requestCost: null == requestCost ? _self.requestCost : requestCost // ignore: cast_nullable_to_non_nullable
 as int,requestTtlDays: null == requestTtlDays ? _self.requestTtlDays : requestTtlDays // ignore: cast_nullable_to_non_nullable
 as int,giftAmounts: null == giftAmounts ? _self._giftAmounts : giftAmounts // ignore: cast_nullable_to_non_nullable
 as List<int>,tiers: null == tiers ? _self._tiers : tiers // ignore: cast_nullable_to_non_nullable
-as List<CpTier>,
+as List<CpTier>,gifts: null == gifts ? _self._gifts : gifts // ignore: cast_nullable_to_non_nullable
+as List<CpGiftPreset>,
   ));
 }
 
@@ -1794,7 +2082,7 @@ as DateTime,
 /// @nodoc
 mixin _$ProfileCp {
 
- UserSummary get partner; DateTime get since; int get level; String get levelName; int get points;
+ UserSummary get partner; DateTime get since; int get level; String get levelName; int get points; String? get id; List<String> get privileges;
 /// Create a copy of ProfileCp
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1808,20 +2096,20 @@ $ProfileCpCopyWith<ProfileCp> get copyWith => _$ProfileCpCopyWithImpl<ProfileCp>
 @override
 bool operator ==(Object other) {
   final _this = this as ProfileCp;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileCp&&(identical(other.partner, _this.partner) || other.partner == _this.partner)&&(identical(other.since, _this.since) || other.since == _this.since)&&(identical(other.level, _this.level) || other.level == _this.level)&&(identical(other.levelName, _this.levelName) || other.levelName == _this.levelName)&&(identical(other.points, _this.points) || other.points == _this.points));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileCp&&(identical(other.partner, _this.partner) || other.partner == _this.partner)&&(identical(other.since, _this.since) || other.since == _this.since)&&(identical(other.level, _this.level) || other.level == _this.level)&&(identical(other.levelName, _this.levelName) || other.levelName == _this.levelName)&&(identical(other.points, _this.points) || other.points == _this.points)&&(identical(other.id, _this.id) || other.id == _this.id)&&const DeepCollectionEquality().equals(other.privileges, _this.privileges));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as ProfileCp;
-  return Object.hash(runtimeType,_this.partner,_this.since,_this.level,_this.levelName,_this.points);
+  return Object.hash(runtimeType,_this.partner,_this.since,_this.level,_this.levelName,_this.points,_this.id,const DeepCollectionEquality().hash(_this.privileges));
 }
 
 @override
 String toString() {
   final _this = this as ProfileCp;
-  return 'ProfileCp(partner: ${_this.partner}, since: ${_this.since}, level: ${_this.level}, levelName: ${_this.levelName}, points: ${_this.points})';
+  return 'ProfileCp(partner: ${_this.partner}, since: ${_this.since}, level: ${_this.level}, levelName: ${_this.levelName}, points: ${_this.points}, id: ${_this.id}, privileges: ${_this.privileges})';
 }
 
 
@@ -1832,7 +2120,7 @@ abstract mixin class $ProfileCpCopyWith<$Res>  {
   factory $ProfileCpCopyWith(ProfileCp value, $Res Function(ProfileCp) _then) = _$ProfileCpCopyWithImpl;
 @useResult
 $Res call({
- UserSummary partner, DateTime since, int level, String levelName, int points
+ UserSummary partner, DateTime since, int level, String levelName, int points, String? id, List<String> privileges
 });
 
 
@@ -1849,14 +2137,16 @@ class _$ProfileCpCopyWithImpl<$Res>
 
 /// Create a copy of ProfileCp
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? partner = null,Object? since = null,Object? level = null,Object? levelName = null,Object? points = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? partner = null,Object? since = null,Object? level = null,Object? levelName = null,Object? points = null,Object? id = freezed,Object? privileges = null,}) {
   return _then(ProfileCp(
 partner: null == partner ? _self.partner : partner // ignore: cast_nullable_to_non_nullable
 as UserSummary,since: null == since ? _self.since : since // ignore: cast_nullable_to_non_nullable
 as DateTime,level: null == level ? _self.level : level // ignore: cast_nullable_to_non_nullable
 as int,levelName: null == levelName ? _self.levelName : levelName // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
-as int,
+as int,id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String?,privileges: null == privileges ? _self.privileges : privileges // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 /// Create a copy of ProfileCp
@@ -1950,10 +2240,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points,  String? id,  List<String> privileges)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProfileCp() when $default != null:
-return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points);case _:
+return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points,_that.id,_that.privileges);case _:
   return orElse();
 
 }
@@ -1971,10 +2261,10 @@ return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.poin
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points,  String? id,  List<String> privileges)  $default,) {final _that = this;
 switch (_that) {
 case _ProfileCp():
-return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points);case _:
+return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points,_that.id,_that.privileges);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1991,10 +2281,10 @@ return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.poin
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( UserSummary partner,  DateTime since,  int level,  String levelName,  int points,  String? id,  List<String> privileges)?  $default,) {final _that = this;
 switch (_that) {
 case _ProfileCp() when $default != null:
-return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points);case _:
+return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.points,_that.id,_that.privileges);case _:
   return null;
 
 }
@@ -2006,7 +2296,7 @@ return $default(_that.partner,_that.since,_that.level,_that.levelName,_that.poin
 @JsonSerializable()
 
 class _ProfileCp implements ProfileCp {
-  const _ProfileCp({required this.partner, required this.since, required this.level, required this.levelName, required this.points});
+  const _ProfileCp({required this.partner, required this.since, required this.level, required this.levelName, required this.points, this.id,  List<String> privileges = const <String>[]}): _privileges = privileges;
   factory _ProfileCp.fromJson(Map<String, dynamic> json) => _$ProfileCpFromJson(json);
 
 @override final  UserSummary partner;
@@ -2014,6 +2304,14 @@ class _ProfileCp implements ProfileCp {
 @override final  int level;
 @override final  String levelName;
 @override final  int points;
+@override final  String? id;
+ final  List<String> _privileges;
+@override@JsonKey() List<String> get privileges {
+  if (_privileges is EqualUnmodifiableListView) return _privileges;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_privileges);
+}
+
 
 /// Create a copy of ProfileCp
 /// with the given fields replaced by the non-null parameter values.
@@ -2028,18 +2326,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileCp&&(identical(other.partner, partner) || other.partner == partner)&&(identical(other.since, since) || other.since == since)&&(identical(other.level, level) || other.level == level)&&(identical(other.levelName, levelName) || other.levelName == levelName)&&(identical(other.points, points) || other.points == points));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileCp&&(identical(other.partner, partner) || other.partner == partner)&&(identical(other.since, since) || other.since == since)&&(identical(other.level, level) || other.level == level)&&(identical(other.levelName, levelName) || other.levelName == levelName)&&(identical(other.points, points) || other.points == points)&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other.privileges, _privileges));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,partner,since,level,levelName,points);
+    return Object.hash(runtimeType,partner,since,level,levelName,points,id,const DeepCollectionEquality().hash(_privileges));
 }
 
 @override
 String toString() {
-    return 'ProfileCp(partner: $partner, since: $since, level: $level, levelName: $levelName, points: $points)';
+    return 'ProfileCp(partner: $partner, since: $since, level: $level, levelName: $levelName, points: $points, id: $id, privileges: $privileges)';
 }
 
 
@@ -2050,7 +2348,7 @@ abstract mixin class _$ProfileCpCopyWith<$Res> implements $ProfileCpCopyWith<$Re
   factory _$ProfileCpCopyWith(_ProfileCp value, $Res Function(_ProfileCp) _then) = __$ProfileCpCopyWithImpl;
 @override @useResult
 $Res call({
- UserSummary partner, DateTime since, int level, String levelName, int points
+ UserSummary partner, DateTime since, int level, String levelName, int points, String? id, List<String> privileges
 });
 
 
@@ -2067,14 +2365,16 @@ class __$ProfileCpCopyWithImpl<$Res>
 
 /// Create a copy of ProfileCp
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? partner = null,Object? since = null,Object? level = null,Object? levelName = null,Object? points = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? partner = null,Object? since = null,Object? level = null,Object? levelName = null,Object? points = null,Object? id = freezed,Object? privileges = null,}) {
   return _then(_ProfileCp(
 partner: null == partner ? _self.partner : partner // ignore: cast_nullable_to_non_nullable
 as UserSummary,since: null == since ? _self.since : since // ignore: cast_nullable_to_non_nullable
 as DateTime,level: null == level ? _self.level : level // ignore: cast_nullable_to_non_nullable
 as int,levelName: null == levelName ? _self.levelName : levelName // ignore: cast_nullable_to_non_nullable
 as String,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
-as int,
+as int,id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String?,privileges: null == privileges ? _self._privileges : privileges // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

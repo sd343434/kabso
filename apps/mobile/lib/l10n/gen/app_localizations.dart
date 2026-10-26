@@ -8767,6 +8767,426 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لديك {count}'**
   String liveGiftBagCount(String count);
+
+  /// CP space: page title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'مساحة الثنائي'**
+  String get cpSpaceTitle;
+
+  /// CP: button to the CP space. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح مساحة الثنائي'**
+  String get cpSpaceOpen;
+
+  /// CP space: help sheet title and button tooltip. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف تعمل مساحة الثنائي'**
+  String get cpSpaceHelpTitle;
+
+  /// CP space: help text; zone = the CP day's time zone. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'القرب هو نقاط علاقتكما: تزيده هدايا الثنائي ومكافآت المهام اليومية، وكل مستوى أعلى يفتح امتيازات أكثر. تبدأ المهام اليومية من جديد كل يوم عند 00:00 ({zone}).'**
+  String cpSpaceHelpBody(String zone);
+
+  /// CP space: days together on the ribbon. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يومًا} other{{days} يوم}}'**
+  String cpSpaceDays(int days);
+
+  /// CP space: quick action and section title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام اليومية'**
+  String get cpSpaceActionTasks;
+
+  /// CP space: quick action and section title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'امتيازات الثنائي'**
+  String get cpSpaceActionPrivileges;
+
+  /// CP space: quick action and section title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الثنائي'**
+  String get cpSpaceActionGifts;
+
+  /// CP space: quick action. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب'**
+  String get cpSpaceActionRanking;
+
+  /// CP space: section title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الثنائي'**
+  String get cpSpaceLevelTitle;
+
+  /// CP space: the CP level, large. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'Lv.{level}'**
+  String cpSpaceLevel(int level);
+
+  /// CP space: points of the couple / points of the next level. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} / {target}'**
+  String cpSpaceProgress(String points, String target);
+
+  /// CP space: the couple's CP points. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'القرب {points}'**
+  String cpSpaceIntimacy(String points);
+
+  /// CP space: points left to the next tier. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} قرب إضافي للوصول إلى {name}'**
+  String cpSpaceToNext(String points, String name);
+
+  /// CP space: when today's tasks reset. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تبدأ من جديد عند {time}'**
+  String cpSpaceTasksResets(String time);
+
+  /// CP space: a task's reward in intimacy. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'+{points}'**
+  String cpSpaceTaskReward(String points);
+
+  /// CP space: task progress. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{progress}/{target}'**
+  String cpSpaceTaskProgress(int progress, int target);
+
+  /// CP space: claim a task reward. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'استلام'**
+  String get cpSpaceClaim;
+
+  /// CP space: a claimed task. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاستلام'**
+  String get cpSpaceClaimed;
+
+  /// CP space: a task not done today. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تكتمل'**
+  String get cpSpaceNotDone;
+
+  /// CP space: a claim added intimacy. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'+{points} قرب'**
+  String cpSpaceClaimedToast(String points);
+
+  /// CP space: the partner claimed it already. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم استلامها اليوم'**
+  String get cpSpaceClaimedBefore;
+
+  /// CP space: tasks failed to load. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل مهام اليوم'**
+  String get cpSpaceTasksError;
+
+  /// CP privilege name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'إطار مميز'**
+  String get cpPrivSpecialFrame;
+
+  /// CP privilege name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'فقاعة حصرية'**
+  String get cpPrivChatBubble;
+
+  /// CP privilege name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تأثير مايك الثنائي'**
+  String get cpPrivMicEffect;
+
+  /// CP privilege name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تأثير الدخول'**
+  String get cpPrivEntranceEffect;
+
+  /// CP privilege name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'جدار هدايا الثنائي'**
+  String get cpPrivGiftWall;
+
+  /// CP privilege description. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'إطار على شكل قلب حول صورتيكما.'**
+  String get cpPrivSpecialFrameAbout;
+
+  /// CP privilege description. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر رسائلكما في دردشة البث داخل فقاعة الثنائي.'**
+  String get cpPrivChatBubbleAbout;
+
+  /// CP privilege description. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تأثير الثنائي على مقعديكما عندما تكونان على المايك.'**
+  String get cpPrivMicEffectAbout;
+
+  /// CP privilege description. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما تدخل بثًا، ترى الغرفة دخولك كثنائي.'**
+  String get cpPrivEntranceEffectAbout;
+
+  /// CP privilege description. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى الجميع هدايا الثنائي التي تبادلتماها.'**
+  String get cpPrivGiftWallAbout;
+
+  /// CP space: the level that unlocks a privilege. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'يُفتح عند Lv.{level}'**
+  String cpSpaceUnlocksAt(int level);
+
+  /// CP space: an unlocked privilege. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'مفتوح'**
+  String get cpSpaceUnlocked;
+
+  /// CP space: a locked privilege. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفل'**
+  String get cpSpaceLocked;
+
+  /// CP space: open the gift wall. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'جدار الهدايا'**
+  String get cpSpaceGiftWall;
+
+  /// CP space: gift wall totals. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا {gifts} · العملات {coins}'**
+  String cpSpaceGiftWallTotals(String gifts, String coins);
+
+  /// CP space: who sent a gift to whom. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'من {from} إلى {to}'**
+  String cpSpaceGiftWallEntry(String from, String to);
+
+  /// CP space: empty gift wall. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد هدايا ثنائي بعد'**
+  String get cpSpaceGiftWallEmpty;
+
+  /// CP space: another couple's wall before it is unlocked. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'يُفتح جدار هدايا هذا الثنائي عند Lv.{level}.'**
+  String cpSpaceGiftWallLocked(int level);
+
+  /// CP space: gift wall failed. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل جدار الهدايا'**
+  String get cpSpaceGiftWallError;
+
+  /// CP space: confirm a named CP gift. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال {gift} مقابل {coins}؟'**
+  String cpSpaceGiftConfirm(String gift, String coins);
+
+  /// CP space: section title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'جدار الاعترافات'**
+  String get cpSpaceConfessionsTitle;
+
+  /// CP space: empty confession wall (own couple). (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'كن أول من يترك اعترافًا لشريكك'**
+  String get cpSpaceConfessionsEmpty;
+
+  /// CP space: empty confession wall (another couple). (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد اعترافات بعد'**
+  String get cpSpaceConfessionsEmptyPublic;
+
+  /// CP space: confession field hint. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب إلى {name}'**
+  String cpSpaceConfessionHint(String name);
+
+  /// CP space: send a confession. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get cpSpaceConfessionSend;
+
+  /// CP space: confession written. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم ترك الاعتراف'**
+  String get cpSpaceConfessionSent;
+
+  /// CP space: a confession's author and recipient. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'من {from} إلى {to}'**
+  String cpSpaceConfessionTo(String from, String to);
+
+  /// CP space: confession menu tooltip. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات الاعتراف'**
+  String get cpSpaceConfessionMenu;
+
+  /// CP space: delete a confession. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get cpSpaceConfessionDelete;
+
+  /// CP space: confirm delete. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذا الاعتراف؟'**
+  String get cpSpaceConfessionDeleteTitle;
+
+  /// CP space: deleted. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حذف الاعتراف'**
+  String get cpSpaceConfessionDeleted;
+
+  /// CP space: report a confession. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ'**
+  String get cpSpaceConfessionReport;
+
+  /// CP space: report reasons title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لماذا تبلّغ عن هذا الاعتراف؟'**
+  String get cpSpaceConfessionReportTitle;
+
+  /// CP space: confessions failed. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الاعترافات'**
+  String get cpSpaceConfessionsError;
+
+  /// CP space: ranking sheet title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب الثنائيات'**
+  String get cpSpaceRankingTitle;
+
+  /// CP space: ranking tab. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الأسبوع'**
+  String get cpSpaceRankingWeek;
+
+  /// CP space: ranking tab. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'كل الأوقات'**
+  String get cpSpaceRankingAll;
+
+  /// CP space: empty ranking. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ثنائيات هنا بعد'**
+  String get cpSpaceRankingEmpty;
+
+  /// CP space: ranking failed. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الترتيب'**
+  String get cpSpaceRankingError;
+
+  /// CP space: the caller's rank. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'ثنائيكما: #{rank}'**
+  String cpSpaceRankingMe(String rank);
+
+  /// CP space: the caller has no points in the period. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'ثنائيكما غير مرتّب بعد'**
+  String get cpSpaceRankingMeUnranked;
+
+  /// CP space: two partners' names. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{first} و{second}'**
+  String cpSpacePair(String first, String second);
+
+  /// CP space: failed to load. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل مساحة الثنائي'**
+  String get cpSpaceLoadError;
+
+  /// CP space: 404 title. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'مساحة هذا الثنائي غير متاحة'**
+  String get cpSpaceGoneTitle;
+
+  /// CP space: 404 body. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'ربما انتهت العلاقة، أو لا يمكن عرضها لك.'**
+  String get cpSpaceGoneBody;
+
+  /// Error CP_TASK_NOT_COMPLETED (CP-021). (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تكتمل هذه المهمة اليوم بعد.'**
+  String get errorCpTaskNotCompleted;
+
+  /// Error CP_PRIVILEGE_LOCKED (CP-021). (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يفتح هذا الثنائي هذه الميزة بعد.'**
+  String get errorCpPrivilegeLocked;
 }
 
 class _AppLocalizationsDelegate
