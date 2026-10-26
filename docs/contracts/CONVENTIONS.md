@@ -1145,6 +1145,14 @@ until a media provider is wired in.
   400 `mediaId` / `invalid_value`, after the counting rule). A voice clip is at most **30 s**: the
   server reads the length from the file when the upload completes and refuses a longer one (422
   `MEDIA_INVALID`); `media.durationMs` carries it.
+- **Recording inside a live (app, owner report 2026-10-26, D122):** on Android the live's own capture
+  (LiveKit/WebRTC) and the clip recorder cannot both hear the microphone, so a host or seated guest
+  whose microphone is published has it **paused for the clip** (muted for the others, detached from
+  its sender so WebRTC releases the capture) and restored as it was when the clip stops, is
+  cancelled, fails or the chat box closes; a small line says so while recording. If it cannot be
+  paused nothing is recorded (with a message). A clip whose level never rose above −60 dBFS is
+  **not sent** (a message says no sound was picked up), and a clip that cannot play says so. No
+  contract change.
 - **They vanish after 60 s (owner D104):** a VOICE or IMAGE message carries `expiresAt` = sent +
   60 s, also in its `chat` data message. Apps hide it at `expiresAt` (server time; apps without a
   synced clock may hide it 60 s after receiving it). From then on `GET …/chat` does not return it,

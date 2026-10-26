@@ -4190,6 +4190,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'This voice clip is too large. Record a shorter one.';
 
   @override
+  String get liveVoiceLiveMicPaused =>
+      'Your live mic is paused while you record';
+
+  @override
+  String get liveVoiceLiveMicBusy =>
+      'Your live mic couldn\'t be paused, so a voice clip can\'t be recorded right now.';
+
+  @override
+  String get liveVoicePlayFailed => 'This voice clip couldn\'t be played.';
+
+  @override
+  String get liveVoiceSilent =>
+      'No sound was picked up in this clip, so it wasn\'t sent. Try again.';
+
+  @override
   String get liveChatPrivateMessages => 'Private messages';
 
   @override

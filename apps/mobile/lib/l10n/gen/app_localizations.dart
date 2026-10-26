@@ -7418,6 +7418,30 @@ abstract class AppLocalizations {
   /// **'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.'**
   String get liveVoiceTooLarge;
 
+  /// Live chat: while a voice clip records, the person's own live microphone (host or seated guest) is paused; shown next to the chat tools (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'مايك البث متوقف مؤقتاً أثناء التسجيل'**
+  String get liveVoiceLiveMicPaused;
+
+  /// Live chat: the live microphone could not be paused for a voice clip, so nothing is recorded (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إيقاف مايك البث مؤقتاً، لذلك لا يمكن تسجيل مقطع صوتي الآن.'**
+  String get liveVoiceLiveMicBusy;
+
+  /// Live chat: a voice clip could not be played (the player failed to load or start it) (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل هذا المقطع الصوتي.'**
+  String get liveVoicePlayFailed;
+
+  /// Live chat: the recorded voice clip was silent (the microphone delivered nothing), so it was not sent (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُلتقط أي صوت في هذا المقطع، لذلك لم يُرسل. حاول مرة أخرى.'**
+  String get liveVoiceSilent;
+
   /// Live chat tool: opens the Messages tab (CP-017).
   ///
   /// In ar, this message translates to:

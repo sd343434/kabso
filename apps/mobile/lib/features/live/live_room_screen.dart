@@ -423,6 +423,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             }),
             child: LiveRoomComposer(
               roomId: widget.room.id,
+              // CP-017: a seated guest's mic pauses while a clip records.
+              liveMic: _session.engine,
               controller: _chat,
               focusNode: _chatFocus,
               onSend: _sendChat,

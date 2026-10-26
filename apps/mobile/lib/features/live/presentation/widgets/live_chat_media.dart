@@ -17,6 +17,10 @@ class LiveVoiceClipPill extends StatefulWidget {
 
   static Key keyFor(String mediaId) => Key('liveChat.voice.$mediaId');
 
+  /// Makes the player (tests replace it).
+  @visibleForTesting
+  static AudioPlayer Function() newPlayer = AudioPlayer.new;
+
   @override
   State<LiveVoiceClipPill> createState() => _LiveVoiceClipPillState();
 }
@@ -36,7 +40,7 @@ class _LiveVoiceClipPillState extends State<LiveVoiceClipPill> {
 
   Future<void> _toggle() async {
     try {
-      final player = _player ??= AudioPlayer();
+      final player = _player ??= LiveVoiceClipPill.newPlayer();
       _done ??= player.onPlayerComplete.listen((_) {
         if (mounted) {
           setState(() {
@@ -58,13 +62,21 @@ class _LiveVoiceClipPillState extends State<LiveVoiceClipPill> {
         }
       }
     } on Object {
-      // No player here (or the clip is gone): back to idle.
+      // No player here, or the clip could not be loaded (gone, or not
+      // served as audio): back to idle, and say so instead of staying
+      // silent.
       if (mounted) {
         setState(() {
           _playing = false;
           _started = false;
         });
+        KSnack.error(context, context.l10n.liveVoicePlayFailed);
       }
+      final player = _player;
+      _player = null;
+      unawaited(_done?.cancel());
+      _done = null;
+      unawaited(player?.dispose().then((_) {}, onError: (Object _) {}));
     }
   }
 

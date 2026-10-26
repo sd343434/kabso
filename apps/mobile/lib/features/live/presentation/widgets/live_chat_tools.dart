@@ -27,7 +27,9 @@ import 'package:material_ui/material_ui.dart';
 ///   and the balance (`GET /wallet/me`); send posts a bullet (≤ 60).
 /// - **Voice:** tap to record, tap again (or the send arrow) to send, ✕ to
 ///   throw away; it stops and sends by itself at 30 s. Hidden where clips
-///   cannot be recorded (the web).
+///   cannot be recorded (the web). The person's own live microphone
+///   ([liveMic]: host or seated guest) is paused while the clip records
+///   and restored after, whatever happens; a silent clip is not sent.
 /// - **Messages:** [onMessages] (the Messages tab).
 /// - **Picture:** one photo from the library.
 ///
@@ -41,8 +43,13 @@ class LiveRoomComposer extends ConsumerStatefulWidget {
     required this.onSend,
     required this.onEmoji,
     required this.onMessages,
+    this.liveMic,
     super.key,
   });
+
+  /// CP-017: the live's own microphone, paused while a voice clip records
+  /// (null: no live media here).
+  final LiveVoiceMic? liveMic;
 
   final String roomId;
   final TextEditingController controller;
@@ -63,6 +70,7 @@ class LiveRoomComposer extends ConsumerStatefulWidget {
   static const recordingKey = Key('liveChat.voice.recording');
   static const voiceCancelKey = Key('liveChat.voice.cancel');
   static const sendingKey = Key('liveChat.sending');
+  static const micPausedKey = Key('liveChat.voice.livePaused');
 
   /// The longest voice clip (§10.19).
   static const maxVoice = Duration(seconds: 30);
@@ -88,6 +96,9 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
   bool _recording = false;
   bool _starting = false;
   bool _uploading = false;
+
+  /// The live microphone was paused for this clip (CP-017).
+  bool _micPaused = false;
   int _seconds = 0;
   Timer? _tick;
   Timer? _limit;
@@ -95,9 +106,37 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
   @override
   void dispose() {
     _stopTimers();
-    // A clip being recorded when the box closes is thrown away.
-    unawaited(_recorder.dispose());
+    // A clip being recorded when the box closes is thrown away, then the
+    // live microphone comes back.
+    final paused = _micPaused;
+    final mic = widget.liveMic;
+    _micPaused = false;
+    unawaited(
+      _recorder
+          .dispose()
+          .then<void>((_) {}, onError: (Object _) {})
+          .whenComplete(() {
+            if (paused && mic != null) unawaited(_resume(mic));
+          }),
+    );
     super.dispose();
+  }
+
+  static Future<void> _resume(LiveVoiceMic mic) async {
+    try {
+      await mic.resumeAfterClip();
+    } on Object {
+      // Nothing more to do; the mic button still works.
+    }
+  }
+
+  /// Gives the live microphone back after a clip (stop, cancel, failure).
+  Future<void> _restoreMic() async {
+    final mic = widget.liveMic;
+    if (!_micPaused || mic == null) return;
+    _micPaused = false;
+    if (mounted) setState(() {});
+    await _resume(mic);
   }
 
   void _stopTimers() {
@@ -149,17 +188,32 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
     final l10n = context.l10n;
     _starting = true;
     try {
-      await _recorder.start();
-    } on LiveVoiceException catch (e) {
-      if (mounted) {
-        KSnack.error(
-          context,
-          e.problem == LiveVoiceProblem.denied
-              ? l10n.liveVoiceDenied
-              : l10n.liveVoiceUnavailable,
-        );
+      // On Android the live's own capture and the clip recorder cannot both
+      // hear the microphone: the live microphone is paused first, or no
+      // clip (it would be silence).
+      final mic = widget.liveMic;
+      if (mic != null) {
+        try {
+          _micPaused = await mic.pauseForClip();
+        } on Object {
+          if (mounted) KSnack.error(context, l10n.liveVoiceLiveMicBusy);
+          return;
+        }
       }
-      return;
+      try {
+        await _recorder.start();
+      } on LiveVoiceException catch (e) {
+        await _restoreMic();
+        if (mounted) {
+          KSnack.error(
+            context,
+            e.problem == LiveVoiceProblem.denied
+                ? l10n.liveVoiceDenied
+                : l10n.liveVoiceUnavailable,
+          );
+        }
+        return;
+      }
     } finally {
       _starting = false;
     }
@@ -179,7 +233,11 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
     if (!_recording) return;
     _stopTimers();
     setState(() => _recording = false);
-    await _recorder.cancel();
+    try {
+      await _recorder.cancel();
+    } finally {
+      await _restoreMic();
+    }
   }
 
   Future<void> _stopAndSend() async {
@@ -191,16 +249,26 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
       _uploading = true;
     });
     try {
-      final Uint8List? bytes;
+      final LiveVoiceClip? clip;
       try {
-        bytes = await _recorder.stop();
+        clip = await _recorder.stop();
       } on Object {
         if (mounted) KSnack.error(context, l10n.liveVoiceUnavailable);
         return;
+      } finally {
+        // The recorder let go of the microphone: the live gets it back
+        // before the upload.
+        await _restoreMic();
       }
       if (!mounted) return;
-      if (bytes == null || bytes.isEmpty) {
+      final bytes = clip?.bytes;
+      if (clip == null || bytes == null || bytes.isEmpty) {
         KSnack.error(context, l10n.liveVoiceUnavailable);
+        return;
+      }
+      // Silence (a microphone that delivered nothing) is not sent.
+      if (clip.silent) {
+        KSnack.error(context, l10n.liveVoiceSilent);
         return;
       }
       if (bytes.length > maxVoiceBytes) {
@@ -337,6 +405,33 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
           label: l10n.liveChatPicture,
           onTap: () => unawaited(_pickPicture()),
         ),
+        // CP-017: the person's live microphone is paused for the clip.
+        if (_recording && _micPaused)
+          Expanded(
+            child: Row(
+              key: LiveRoomComposer.micPausedKey,
+              children: [
+                const Icon(
+                  Icons.mic_off_rounded,
+                  size: 14,
+                  color: LiveChatComposer.hintInk,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    l10n.liveVoiceLiveMicPaused,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.caption.copyWith(
+                      fontSize: 11,
+                      height: 1.2,
+                      color: LiveChatComposer.hintInk,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     ),
   );

@@ -93,6 +93,39 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   Future<void> setMicEnabled({required bool enabled}) async => _mic = enabled;
 
+  // ---- CP-017: the live microphone around a voice clip -------------------
+
+  /// Whether the live microphone is paused for a voice clip now.
+  bool micPausedForClip = false;
+
+  /// When set, `pauseForClip` throws (the microphone cannot be freed).
+  bool micPauseFails = false;
+
+  /// `pause` / `resume` in order (only the calls that changed something).
+  final List<String> clipMicLog = [];
+
+  /// Whether a microphone is published (the host after `publish`, a seated
+  /// guest after `publishLocal`).
+  bool get micPublished => published != null || publishingLocal;
+
+  @override
+  Future<bool> pauseForClip() async {
+    if (!micPublished || micPausedForClip) return false;
+    if (micPauseFails) {
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    }
+    micPausedForClip = true;
+    clipMicLog.add('pause');
+    return true;
+  }
+
+  @override
+  Future<void> resumeAfterClip() async {
+    if (!micPausedForClip) return;
+    micPausedForClip = false;
+    clipMicLog.add('resume');
+  }
+
   @override
   Future<void> publish(LiveMediaAccess access) async {
     if (publishFailure case final failure?) throw failure;

@@ -409,6 +409,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             }),
             child: LiveRoomComposer(
               roomId: room?.id ?? '',
+              // CP-017: the host's mic pauses while a voice clip records.
+              liveMic: engine,
               controller: _chat,
               focusNode: _chatFocus,
               onSend: send,

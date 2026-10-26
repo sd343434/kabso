@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
@@ -30,8 +31,9 @@ enum LiveCaptureProblem {
 
 /// The camera, microphone and media session of the person going live
 /// (CP-010, LiveKit, D3), behind an interface so screens and tests do not
-/// depend on the device or the media server.
-abstract interface class LiveMediaEngine {
+/// depend on the device or the media server. As a [LiveVoiceMic] it frees
+/// the published microphone while a chat voice clip records (CP-017).
+abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// Starts the camera (front by default, unless [video] is false: audio
   /// rooms) and the microphone for the preview. Throws a
   /// [LiveCaptureException] when they cannot start. Calling it again with
@@ -148,6 +150,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   int? _roomInfoVersion;
   bool _removed = false;
 
+  /// CP-017: the published microphone is paused for a voice clip.
+  bool _clipHold = false;
+
   @override
   bool get videoEnabled => _video != null;
 
@@ -262,12 +267,48 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   Future<void> setMicEnabled({required bool enabled}) async {
     _mic = enabled;
     final audio = _audio;
-    if (audio == null) return;
+    // While a voice clip records, the choice applies when it ends.
+    if (audio == null || _clipHold) return;
     if (enabled) {
       await audio.unmute();
     } else {
       await audio.mute();
     }
+  }
+
+  @override
+  /// CP-017: on Android, WebRTC's capture and the clip recorder cannot both
+  /// hear the microphone (the clip came out silent). Muting the track tells
+  /// the others (their usual muted state) and stops it; detaching it from
+  /// the sender stops the send stream, so WebRTC closes its capture and the
+  /// recorder gets the microphone. [resumeAfterClip] unmutes, which
+  /// restarts the track and attaches it again.
+  @override
+  Future<bool> pauseForClip() async {
+    final audio = _audio;
+    final sender = audio?.sender;
+    if (audio == null || sender == null || _clipHold) return false;
+    _clipHold = true;
+    try {
+      if (!audio.muted) await audio.mute();
+      await sender.replaceTrack(null);
+    } on Object {
+      await resumeAfterClip();
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    }
+    return true;
+  }
+
+  @override
+  Future<void> resumeAfterClip() async {
+    if (!_clipHold) return;
+    _clipHold = false;
+    final audio = _audio;
+    if (audio == null || audio.sender == null) return;
+    // Back as the person left it: on again only if it was on. A muted
+    // track stays detached; turning the mic on restarts and attaches it.
+    if (_mic) await audio.unmute();
+    _changes.ping();
   }
 
   @override
@@ -376,6 +417,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   Future<void> unpublishLocal() async {
+    _clipHold = false;
     await _room?.localParticipant?.unpublishAllTracks();
     await _stopVideo();
     final audio = _audio;
@@ -438,6 +480,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     _room = null;
     final audio = _audio;
     _audio = null;
+    _clipHold = false;
     await room?.disconnect();
     await room?.dispose();
     await _stopVideo();

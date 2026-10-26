@@ -4216,6 +4216,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';
 
   @override
+  String get liveVoiceLiveMicPaused => 'مايك البث متوقف مؤقتاً أثناء التسجيل';
+
+  @override
+  String get liveVoiceLiveMicBusy =>
+      'تعذّر إيقاف مايك البث مؤقتاً، لذلك لا يمكن تسجيل مقطع صوتي الآن.';
+
+  @override
+  String get liveVoicePlayFailed => 'تعذّر تشغيل هذا المقطع الصوتي.';
+
+  @override
+  String get liveVoiceSilent =>
+      'لم يُلتقط أي صوت في هذا المقطع، لذلك لم يُرسل. حاول مرة أخرى.';
+
+  @override
   String get liveChatPrivateMessages => 'الرسائل الخاصة';
 
   @override
