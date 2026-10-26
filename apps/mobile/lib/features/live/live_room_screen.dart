@@ -1306,7 +1306,7 @@ class _HostSheet extends ConsumerWidget {
             ? _Card.avatar / 2
             : math.max(
                 _Card.avatar / 2,
-                KabsoProfileHeader.overhang(box.maxWidth),
+                header.overhang(box.maxWidth),
               );
         return Stack(
           key: const Key('room.hostSheet'),
@@ -1339,7 +1339,7 @@ class _HostSheet extends ConsumerWidget {
             ),
             if (header != null)
               Positioned(
-                top: edge - KabsoProfileHeader.overhang(box.maxWidth),
+                top: edge - header.overhang(box.maxWidth),
                 left: 0,
                 child: KabsoProfileHeaderArt(
                   header,

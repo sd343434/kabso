@@ -6,37 +6,46 @@ import 'package:material_ui/material_ui.dart';
 
 /// The owner's profile-card header decorations (2026-10-26,
 /// `assets/profile_card/`): an ornament that sits on the card's top edge
-/// and loops (SVGA), with a still for tests and reduced motion.
+/// and loops (SVGA, canvas 750 × 280). [code] is the bag item's code
+/// (PROFILE_CARD, CP-019). Royal Bunny is every new account's free one.
 enum KabsoProfileHeader {
+  bunnyRoyal('bunny_royal', 'assets/profile_card/header_bunny_royal.svga'),
+  kabiRoyal('kabi_royal', 'assets/profile_card/header_kabi_royal.svga'),
+  goldenStags('golden_stags', 'assets/profile_card/header_golden_stags.svga'),
   emeraldWings(
+    'emerald_wings',
     'assets/profile_card/header_emerald_wings.svga',
-    'assets/profile_card/header_emerald_wings_static.png',
-    stillRatio: 247 / 750,
-    stillBar: 201.5 / 247,
+    // Measured on the rendered animation (2026-10-26).
+    bar: 0.834,
+    still: (
+      asset: 'assets/profile_card/header_emerald_wings_static.png',
+      ratio: 247 / 750,
+      bar: 201.5 / 247,
+    ),
   );
 
-  new(
-    this.animation,
-    this.still, {
-    required this.stillRatio,
-    required this.stillBar,
-  });
+  new(this.code, this.animation, {this.bar = 230 / 280, this.still});
 
+  final String code;
   final String animation;
-  final String still;
 
-  /// The still's height ÷ width, and where its bar's line is (÷ height).
-  final double stillRatio;
-  final double stillBar;
+  /// Where the gold bar's line is, as a fraction of the canvas height (the
+  /// owner: y = 230 of 280 for every header).
+  final double bar;
 
-  /// The SVGA canvas: 750 × 280. The bar's line is at 83.4 % of its height,
-  /// measured on the rendered animation (2026-10-26); the 93.2 % in the
-  /// owner's sample left the bar about 13 dp above the card's edge.
+  /// A still for tests and reduced motion: its height ÷ width and its bar's
+  /// line (÷ height). Without one, reduced motion shows the first frame.
+  final ({String asset, double ratio, double bar})? still;
+
+  /// The SVGA canvas: height ÷ width.
   static const double ratio = 280 / 750;
-  static const bar = 0.834;
+
+  /// The header with the bag item [code], if the app knows it.
+  static KabsoProfileHeader? byCode(String? code) =>
+      values.where((h) => h.code == code).firstOrNull;
 
   /// How far the ornament rises above the card's top edge at [width].
-  static double overhang(double width) => width * ratio * bar;
+  double overhang(double width) => width * ratio * bar;
 }
 
 /// [header] drawn across [width], its bar's line [KabsoProfileHeader.
@@ -71,13 +80,15 @@ class _KabsoProfileHeaderArtState extends State<KabsoProfileHeaderArt>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    if (KabsoProfileHeaderArt.animate &&
-        !MediaQuery.disableAnimationsOf(context)) {
-      unawaited(_load());
+    if (!KabsoProfileHeaderArt.animate) return;
+    final still = MediaQuery.disableAnimationsOf(context);
+    // Reduced motion: the still, or the first frame when there is none.
+    if (!still || widget.header.still == null) {
+      unawaited(_load(play: !still));
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({required bool play}) async {
     final asset = widget.header.animation;
     try {
       var movie = _cache[asset];
@@ -90,7 +101,7 @@ class _KabsoProfileHeaderArtState extends State<KabsoProfileHeaderArt>
       }
       if (!mounted) return;
       _controller.videoItem = movie;
-      _controller.repeat();
+      if (play) _controller.repeat();
       setState(() => _ready = true);
     } on Object catch (e) {
       // A broken file keeps the still.
@@ -107,34 +118,39 @@ class _KabsoProfileHeaderArtState extends State<KabsoProfileHeaderArt>
   @override
   Widget build(BuildContext context) {
     final w = widget.width;
-    final h = w * KabsoProfileHeader.ratio;
-    final line = KabsoProfileHeader.overhang(w);
     final header = widget.header;
-    final stillHeight = w * header.stillRatio;
+    final still = header.still;
+    final Widget child;
+    if (_ready) {
+      child = SVGAImage(
+        _controller,
+        fit: BoxFit.fill,
+        clearsAfterStop: false,
+        filterQuality: FilterQuality.medium,
+      );
+    } else if (still != null) {
+      final stillHeight = w * still.ratio;
+      child = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: header.overhang(w) - stillHeight * still.bar,
+            height: stillHeight,
+            child: Image.asset(still.asset, fit: BoxFit.fill),
+          ),
+        ],
+      );
+    } else {
+      child = const SizedBox.shrink();
+    }
     return IgnorePointer(
       child: ExcludeSemantics(
         child: SizedBox(
           width: w,
-          height: h,
-          child: _ready
-              ? SVGAImage(
-                  _controller,
-                  fit: BoxFit.fill,
-                  clearsAfterStop: false,
-                  filterQuality: FilterQuality.medium,
-                )
-              : Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: line - stillHeight * header.stillBar,
-                      height: stillHeight,
-                      child: Image.asset(header.still, fit: BoxFit.fill),
-                    ),
-                  ],
-                ),
+          height: w * KabsoProfileHeader.ratio,
+          child: child,
         ),
       ),
     );
