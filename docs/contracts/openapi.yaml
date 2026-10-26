@@ -92,6 +92,24 @@ info:
     points: every CP `level` is 1–6 (privileges still unlock at 1–5; CONVENTIONS §10.21).
     **D115 (DRAFT v1.24.2-live)** adds `LiveSeatCouple.privileges`, so apps play the Couple Mic
     Effect (`MIC_EFFECT`, CP level 3) on a speaking partner's seat (CONVENTIONS §10.9).
+    **D117 (DRAFT v1.24.3-live)** adds `Gift.tag` (`GiftTag` `{code, name}` or null): a gift's
+    optional sub-category, shown as chips under the gift panel's tabs (CONVENTIONS §10.23).
+    **D119 (DRAFT v1.24.4-live)** adds `LiveChatMessage.authorBadges` (`LiveChatAuthorBadges`:
+    the author's charm and support level numbers and family `{name, level}`, each null when there
+    is none), so the live chat shows them under the author's name (CONVENTIONS §10.11).
+    **CP-022 (D116, DRAFT v1.25-live)** adds the family boards (`PRESTIGE`: family points this
+    month; `ACTIVE`: members active this week) and a family's standing on them, each member's
+    points this month, the month's contributions, members sorted by points with a search, presence
+    (online now / last active, with `PrivacySettings.showActivityStatus`), a family cover
+    (`FAMILY_COVER`) and tagline, `Family.pendingRequestCount`, and the family chat (members
+    only, polled; delete, mute, report target `FAMILY_CHAT_MESSAGE`, code `FAMILY_CHAT_MUTED`)
+    (CONVENTIONS §10.25).
+    **D120 (DRAFT v1.25.1-live)** counts the host's own taps on their live like a viewer's (the
+    score, the popularity board and the host's charm points, under the same per-person limits);
+    no shape changes (CONVENTIONS §10.10, §10.18).
+    **D121 (DRAFT v1.25.2-live)** adds the follower and following lists of a user
+    (`listUserFollowers`, `listUserFollowing`; `FollowListItem`, `FollowListPage`) and counts
+    only ACTIVE accounts in `PublicProfile` / `FollowState` counts (CONVENTIONS §10.5, §10.6).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -755,6 +773,74 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/followers:
+    get:
+      tags: [users]
+      operationId: listUserFollowers
+      summary: "Who follows a user, newest first (D121)"
+      description: |
+        The accounts that follow `username`.
+        CONVENTIONS §10.6 (v1.25.2-live, D121). Newest follow first (the follow's time, then the
+        user id), paged with the signed cursor of §5 bound to the list, the user and the caller
+        (a cursor of another list, user or caller → 400 `cursor` / `invalid_value`). Rows: only
+        ACTIVE accounts, never one with a block either way with the caller; the caller's own row
+        has `isSelf: true`. The user unknown / malformed / suspended / deleted, or with a block
+        either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
+        caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
+        rate limit (§7).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowListPage' }
+              example:
+                data:
+                  - { id: 2b5c7d3e-8f41-4c2a-9e6b-1d0f3a7c5e92, username: sara_k, displayName: سارة, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: false, followsMe: true }
+                page: { nextCursor: null, hasMore: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/users/{username}/following:
+    get:
+      tags: [users]
+      operationId: listUserFollowing
+      summary: "Whom a user follows, newest first (D121)"
+      description: |
+        The accounts `username` follows.
+        CONVENTIONS §10.6 (v1.25.2-live, D121). Newest follow first (the follow's time, then the
+        user id), paged with the signed cursor of §5 bound to the list, the user and the caller
+        (a cursor of another list, user or caller → 400 `cursor` / `invalid_value`). Rows: only
+        ACTIVE accounts, never one with a block either way with the caller; the caller's own row
+        has `isSelf: true`. The user unknown / malformed / suspended / deleted, or with a block
+        either way with the caller → 404 `NOT_FOUND`. A private user (`isPrivate`) whom the
+        caller neither is nor follows → 403 `AUTH_FORBIDDEN`. Shares the `getPublicProfile`
+        rate limit (§7).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: One page of the list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FollowListPage' }
+              example:
+                data:
+                  - { id: 7e1a9c4b-3d2f-4b8e-a5c6-0f9d8e7b6a51, username: omar.live, displayName: Omar, avatarUrl: null, isSelf: false, isPrivate: false, followedByMe: true, followsMe: false }
+                page: { nextCursor: null, hasMore: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/config:
     get:
@@ -1086,8 +1172,9 @@ paths:
         CONVENTIONS §10.10. Signed-in callers only (a guest → 401). The app batches taps and
         sends at most one request a second. Counted per caller and room: at most 10 a second
         (a batch adds at most 10 × the seconds since the caller's last counted batch, and at
-        most 10 for the first one) and at most 10 000 in the live. The host's own taps count 0;
-        seated guests and moderators count like any viewer. Taps past a limit are dropped and
+        most 10 for the first one) and at most 10 000 in the live. *(v1.25.1-live, D120)* The
+        host's own taps count like a viewer's, under the same limits (before: 0); seated guests
+        and moderators count like any viewer. Taps past a limit are dropped and
         the answer is still 200, with `accepted` below `count`. Ended room → 409
         `LIVE_ROOM_ENDED`; a room the caller may not see → 404. v1.20-live (D105): a caller
         kicked out of this live → 403 `LIVE_KICKED` (after the 409).
@@ -2678,6 +2765,9 @@ paths:
                   createdAt: '2026-10-26T18:30:00.000Z'
                   myRole: LEADER
                   myRequestId: null
+                  coverUrl: null
+                  tagline: null
+                  pendingRequestCount: 0
                 coins: 120
         '200':
           description: A retry (same `clientId`); the family and the current balance.
@@ -2773,11 +2863,15 @@ paths:
     patch:
       tags: [families]
       operationId: updateFamily
-      summary: "The leader sets or removes the emblem (CP-018)"
+      summary: "The leader sets or removes the emblem, cover or tagline (CP-018, CP-022)"
       description: |
-        Leader only (403 `AUTH_FORBIDDEN`). `emblemMediaId`: the caller's unattached
-        `FAMILY_EMBLEM` asset (400 `invalid_value` otherwise; 503 `MEDIA_UPLOADS_UNAVAILABLE` while
-        uploads are off), or null to remove it. The replaced emblem is deleted.
+        Leader only (403 `AUTH_FORBIDDEN`). At least one field (400 `too_small`). `emblemMediaId`:
+        the caller's unattached `FAMILY_EMBLEM` asset (400 `invalid_value` otherwise; 503
+        `MEDIA_UPLOADS_UNAVAILABLE` while uploads are off), or null to remove it. The replaced
+        emblem is deleted. *(v1.25-live, CP-022)* `coverMediaId`: the same with a `FAMILY_COVER`
+        asset (400 `coverMediaId` / `invalid_value`); `tagline`: one line of 1–60 code points (the
+        live chat text rules, §10.11), null or `""` removes it. A field equal to the current value
+        changes nothing.
       parameters:
         - $ref: '#/components/parameters/FamilyIdPath'
       requestBody:
@@ -2819,9 +2913,22 @@ paths:
       tags: [families]
       operationId: listFamilyMembers
       summary: "A family's members (CP-018)"
-      description: The leader, then deputies, then members, each by join time (ACTIVE accounts only).
+      description: |
+        `sort=ROLE` (default): the leader, then deputies, then members, each by join time;
+        *(v1.25-live)* `sort=POINTS`: by the points each gave (`points`), highest first, ties by
+        join time then user id, each with `rank` (its place in the whole family, the search
+        ignored). `q` keeps members whose username or display name contains it (case-insensitive).
+        ACTIVE accounts only. `presence` and `chatMuted` per CONVENTIONS §10.25.
       parameters:
         - $ref: '#/components/parameters/FamilyIdPath'
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [ROLE, POINTS], default: ROLE }
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 40 }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -2832,6 +2939,191 @@ paths:
               schema: { $ref: '#/components/schemas/FamilyMemberPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/rankings:
+    get:
+      tags: [families]
+      operationId: listFamilyRankings
+      summary: "The family boards: prestige this month, most active this week (CP-022)"
+      description: |
+        `PRESTIGE` (default, هيبة العائلة): family points gained in the current calendar month;
+        `ACTIVE` (الأكثر نشاطاً): members (ACTIVE accounts) active in the app during the current week
+        (from Monday), not counting members who turned off `showActivityStatus`. Windows in
+        `LIVE_RANKINGS_TIME_ZONE` (`startsAt` / `endsAt`). Families with a score of 0 are not
+        listed; highest first, ties by the family's total points, then id; at most 100 families,
+        paged. `me`: the caller's family (`rank` null with a score of 0), null without a family.
+        CONVENTIONS §10.25.
+      parameters:
+        - name: board
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/FamilyRankingBoard' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of the board.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyRankings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/rankings:
+    get:
+      tags: [families]
+      operationId: getFamilyStanding
+      summary: "A family's place on both boards (CP-022)"
+      description: The exact rank among all families (null with a score of 0) and the score on each board. 404 like `getFamily`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      responses:
+        '200':
+          description: The family's standing.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyStanding' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/contributions:
+    get:
+      tags: [families]
+      operationId: listFamilyContributions
+      summary: "Who gave the family the most points this month (CP-022)"
+      description: |
+        Members (ACTIVE accounts) with points given in the current calendar month during their
+        current membership, most first (ties by who joined first, then user id), with `rank`.
+        Paged. 404 like `getFamily`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of contributions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyContributions' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/chat:
+    get:
+      tags: [families]
+      operationId: listFamilyChat
+      summary: "The family chat, newest first (CP-022)"
+      description: |
+        Members only: 404 family → 403 `AUTH_FORBIDDEN`. Messages that are not deleted, from ACTIVE
+        authors with no block either way with the reader, newest first (paged back with `cursor`;
+        `limit` default 30). There is no push: the app reads the first page again while the chat is
+        open. `muted`: the caller is muted here; `canModerate`: the caller is the leader or a deputy.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of messages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyChatPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [families]
+      operationId: sendFamilyChatMessage
+      summary: "Send a message to the family chat (CP-022)"
+      description: |
+        Checks, in order (after auth and the rate limit, 30 a minute per user, §7): 404 family; 400
+        body (`text`: the live chat text rules, 1–200 code points, one line; `clientId`); a retry
+        with the same `clientId` → 200 with the first message (409 `IDEMPOTENCY_CONFLICT` when that
+        id was used in another family); 403 `AUTH_FORBIDDEN` (not a member); 403
+        `FAMILY_CHAT_MUTED`. The leader's live blocked words are masked (§10.14) before it is stored.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FamilyChatSendRequest' }
+            example: { text: مساء الخير يا عائلة, clientId: 0192f1d0-9999-7000-8000-000000000021 }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyChatMessage' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FamilyChatMessage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/chat/{messageId}:
+    delete:
+      tags: [families]
+      operationId: deleteFamilyChatMessage
+      summary: "Delete a family chat message (CP-022)"
+      description: |
+        The author, the leader or a deputy; a deputy never deletes the leader's or another deputy's
+        message (403). Order: 404 family → 403 not a member → 404 message → 403. Soft; already
+        deleted → 204.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/families/{familyId}/chat/mutes/{username}:
+    put:
+      tags: [families]
+      operationId: muteFamilyChatMember
+      summary: "Mute a member in the family chat (CP-022)"
+      description: |
+        The leader or a deputy (403 otherwise). The target must be a member (404), not the caller
+        (400 `username` / `invalid_value`), not the leader, and for a deputy not another deputy
+        (403). Idempotent. The member reads `muted` in `listFamilyChat`; sending → 403
+        `FAMILY_CHAT_MUTED`.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Muted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [families]
+      operationId: unmuteFamilyChatMember
+      summary: "Unmute a member in the family chat (CP-022)"
+      description: Same rules as `muteFamilyChatMember`. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/FamilyIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Not muted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/families/{familyId}/members/{username}:
@@ -3668,8 +3960,8 @@ paths:
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, sortOrder: 20, badge: NEW }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب } }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, sortOrder: 20, badge: NEW, tag: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/gifts/bag:
@@ -3689,7 +3981,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, quantity: 99 }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quantity: 99 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -5054,8 +5346,14 @@ components:
         isPrivate:
           type: boolean
           description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
-        followerCount: { type: integer, minimum: 0 }
-        followingCount: { type: integer, minimum: 0 }
+        followerCount:
+          type: integer
+          minimum: 0
+          description: "Accounts following this user (v1.25.2-live, D121: ACTIVE accounts only, the rows of `listUserFollowers`)."
+        followingCount:
+          type: integer
+          minimum: 0
+          description: "Accounts this user follows (v1.25.2-live, D121: ACTIVE accounts only, the rows of `listUserFollowing`)."
         isFollowing:
           type: boolean
           description: Whether the caller follows this user (always false when isSelf).
@@ -5091,7 +5389,34 @@ components:
         followerCount:
           type: integer
           minimum: 0
-          description: The target's follower count after the operation.
+          description: The target's follower count after the operation (v1.25.2-live, D121, ACTIVE followers only, like `PublicProfile.followerCount`).
+    FollowListItem:
+      description: "(v1.25.2-live, D121) A row of `listUserFollowers` / `listUserFollowing`: the account and the caller's relation to it."
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          required: [isSelf, isPrivate, followedByMe, followsMe]
+          properties:
+            isSelf:
+              type: boolean
+              description: The row is the caller (no Follow control).
+            isPrivate:
+              type: boolean
+              description: The account is private; a new follow → 403 (§10.5), so the client offers Follow only when `followedByMe`.
+            followedByMe:
+              type: boolean
+              description: The caller follows this account (false when `isSelf`).
+            followsMe:
+              type: boolean
+              description: This account follows the caller (false when `isSelf`); the client shows "Follow back".
+    FollowListPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FollowListItem' }
+        page: { $ref: '#/components/schemas/PageInfo' }
     CategorySlug:
       type: string
       minLength: 2
@@ -5557,10 +5882,11 @@ components:
           description: Chosen by the app for each message; a retry with the same id returns the first message.
     LiveChatMessage:
       type: object
-      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt, cpBubble]
+      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt, cpBubble, authorBadges]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
+        authorBadges: { $ref: '#/components/schemas/LiveChatAuthorBadges' }
         cpBubble:
           type: boolean
           description: |
@@ -5609,6 +5935,37 @@ components:
         expiresAt: '2026-10-26T18:31:00.000Z'
         createdAt: '2026-10-26T18:30:00.000Z'
         cpBubble: false
+        authorBadges: { charmLevel: 12, supportLevel: 3, family: { name: نجوم كابسو, level: 2 } }
+    LiveChatAuthorBadges:
+      type: object
+      description: |
+        (v1.24.4-live, D119) The small badges a live chat line shows under the author's name, as
+        they are now (read when the message is sent or listed; the server may cache them up to
+        30 s). Messages from before v1.24.4-live get them too (they are not stored).
+      required: [charmLevel, supportLevel, family]
+      properties:
+        charmLevel:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 200
+          description: The author's charm (`ATTRACTIVENESS`) level number; null while that category is unavailable (CP-005).
+        supportLevel:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 200
+          description: The author's `SUPPORT` level number; null while that category is unavailable (CP-005).
+        family:
+          description: The author's family (CP-018), or null.
+          oneOf:
+            - $ref: '#/components/schemas/LiveChatAuthorFamily'
+            - type: 'null'
+    LiveChatAuthorFamily:
+      type: object
+      description: (v1.24.4-live, D119) The family of a live chat message's author.
+      required: [name, level]
+      properties:
+        name: { type: string }
+        level: { type: integer, minimum: 1, maximum: 10 }
     LiveChatMessageList:
       type: object
       required: [data]
@@ -5814,7 +6171,7 @@ components:
       type: string
       enum: [EARN, REVERSAL, ADJUSTMENT]
     PointsSourceType:
-      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; LIVE_TAPS for a viewer's taps in a live (v1.17-live, CONVENTIONS §10.18); ADMIN for manual adjustments; CONFIG for recalculations.
+      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; LIVE_TAPS for a viewer's taps in a live (v1.17-live; v1.25.1-live, D120, the host's own taps too; CONVENTIONS §10.18); ADMIN for manual adjustments; CONFIG for recalculations.
       type: string
       enum: [GIFT_RECEIVED, GIFT_SENT, LUCKY_GIFT_SENT, GAME_SPEND, LIVE_TAPS, ADMIN, CONFIG]
     PointsEntry:
@@ -6146,11 +6503,12 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
-        (CP-018) a family's emblem (a centre-cropped square like the live cover); video
+        (CP-018) a family's emblem (a centre-cropped square like the live cover); (CP-022) a
+        family's cover (processed like a post image, at most 1 080 px on the long side); video
         kinds arrive with M2 (CP-006 §2). An asset is attachable only to its kind's target (a
         post, a story, the live cover, a live chat message or a family).
     CreateMediaUploadRequest:
@@ -6630,12 +6988,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message or CP confession id, or a username for USER.
+          description: A post, comment, story, live room, live chat message, CP confession or (CP-022) family chat message id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -6643,7 +7001,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }
@@ -6670,10 +7028,11 @@ components:
         note: { type: string, maxLength: 500 }
     PrivacySettings:
       type: object
-      required: [whoCanMention, defaultWhoCanComment]
+      required: [whoCanMention, defaultWhoCanComment, showActivityStatus]
       properties:
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+        showActivityStatus: { type: boolean, description: "(v1.25-live, CP-022) Others may see when the user was last active (default true, CONVENTIONS §10.25)." }
     UpdatePrivacyRequest:
       type: object
       additionalProperties: false
@@ -6681,6 +7040,7 @@ components:
       properties:
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
+        showActivityStatus: { type: boolean }
     # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
     FamilyRole:
       type: string
@@ -6718,7 +7078,7 @@ components:
         capacity: { type: integer, minimum: 1 }
     Family:
       type: object
-      required: [id, number, name, emblemUrl, level, points, memberCount, capacity, nextLevelPoints, leader, createdAt, myRole, myRequestId]
+      required: [id, number, name, emblemUrl, level, points, memberCount, capacity, nextLevelPoints, leader, createdAt, myRole, myRequestId, coverUrl, tagline, pendingRequestCount]
       properties:
         id: { type: string, format: uuid }
         number: { type: integer, minimum: 10000000, maximum: 99999999 }
@@ -6740,6 +7100,9 @@ components:
             - $ref: '#/components/schemas/FamilyRole'
             - type: 'null'
         myRequestId: { type: [string, 'null'], format: uuid, description: The caller's pending join request to this family. }
+        coverUrl: { type: [string, 'null'], format: uri, description: "(v1.25-live) The family's cover picture (1 080 px), or null." }
+        tagline: { type: [string, 'null'], minLength: 1, maxLength: 60, description: "(v1.25-live) The short line under the name, or null." }
+        pendingRequestCount: { type: [integer, 'null'], minimum: 0, description: "(v1.25-live) Pending join requests, for the leader and deputies; null for anyone else." }
     FamilyCardPage:
       type: object
       required: [data, page]
@@ -6773,17 +7136,35 @@ components:
     UpdateFamilyRequest:
       type: object
       additionalProperties: false
-      required: [emblemMediaId]
+      minProperties: 1
+      description: (v1.25-live) Every field optional, at least one (v1.21-live required `emblemMediaId`).
       properties:
         emblemMediaId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid, description: "(v1.25-live) A `FAMILY_COVER` asset of the caller, or null to remove the cover." }
+        tagline: { type: [string, 'null'], maxLength: 480, description: "(v1.25-live) 1–60 code points after the live chat text rules; null or empty removes it." }
+    FamilyPresence:
+      type: object
+      required: [online, lastActiveAt]
+      description: (v1.25-live, CONVENTIONS §10.25) Online = an authenticated request in the last 5 minutes.
+      properties:
+        online: { type: boolean }
+        lastActiveAt: { type: [string, 'null'], format: date-time, description: The last authenticated request (to the minute); null when never seen. }
     FamilyMember:
       type: object
-      required: [user, role, joinedAt, points]
+      required: [user, role, joinedAt, points, monthPoints, presence, chatMuted]
       properties:
         user: { $ref: '#/components/schemas/UserSummary' }
         role: { $ref: '#/components/schemas/FamilyRole' }
         joinedAt: { type: string, format: date-time }
         points: { type: integer, minimum: 0, description: Family points this member gave while in the family. }
+        monthPoints: { type: integer, minimum: 0, description: "(v1.25-live) Of those, the ones given in the current month (LIVE_RANKINGS_TIME_ZONE)." }
+        presence:
+          description: "(v1.25-live) Shown to members of the same family, unless the person turned off `showActivityStatus` or there is a block either way (the caller always sees their own); else null."
+          oneOf:
+            - $ref: '#/components/schemas/FamilyPresence'
+            - type: 'null'
+        chatMuted: { type: [boolean, 'null'], description: "(v1.25-live) Muted in the family chat; null unless the caller is this family's leader or a deputy." }
+        rank: { type: integer, minimum: 1, description: "(v1.25-live) With `sort=POINTS` only: the place by points in the whole family." }
     FamilyMemberPage:
       type: object
       required: [data, page]
@@ -6792,6 +7173,102 @@ components:
           type: array
           items: { $ref: '#/components/schemas/FamilyMember' }
         page: { $ref: '#/components/schemas/PageInfo' }
+    # ---- v1.25-live (DRAFT, CP-022, D116) — families v2 ------------------------------------------
+    FamilyRankingBoard:
+      type: string
+      enum: [PRESTIGE, ACTIVE]
+      description: "`PRESTIGE`: family points gained this month; `ACTIVE`: members active this week (CONVENTIONS §10.25)."
+    FamilyRankingEntry:
+      type: object
+      required: [rank, family, score]
+      properties:
+        rank: { type: integer, minimum: 1, maximum: 100 }
+        family: { $ref: '#/components/schemas/FamilyCard' }
+        score: { type: integer, minimum: 1, description: "Points this month (`PRESTIGE`) or active members this week (`ACTIVE`)." }
+    FamilyRankings:
+      type: object
+      required: [board, startsAt, endsAt, data, page, me]
+      properties:
+        board: { $ref: '#/components/schemas/FamilyRankingBoard' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyRankingEntry' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        me:
+          oneOf:
+            - type: object
+              required: [family, rank, score]
+              properties:
+                family: { $ref: '#/components/schemas/FamilyCard' }
+                rank: { type: [integer, 'null'], minimum: 1 }
+                score: { type: integer, minimum: 0 }
+            - type: 'null'
+    FamilyBoardStanding:
+      type: object
+      required: [rank, score, startsAt, endsAt]
+      properties:
+        rank: { type: [integer, 'null'], minimum: 1, description: The exact place among all families; null with a score of 0. }
+        score: { type: integer, minimum: 0 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+    FamilyStanding:
+      type: object
+      required: [familyId, prestige, active]
+      properties:
+        familyId: { type: string, format: uuid }
+        prestige: { $ref: '#/components/schemas/FamilyBoardStanding' }
+        active: { $ref: '#/components/schemas/FamilyBoardStanding' }
+    FamilyContribution:
+      type: object
+      required: [rank, user, role, points]
+      properties:
+        rank: { type: integer, minimum: 1 }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        role: { $ref: '#/components/schemas/FamilyRole' }
+        points: { type: integer, minimum: 1, description: Points given this month during the current membership. }
+    FamilyContributions:
+      type: object
+      required: [startsAt, endsAt, data, page]
+      properties:
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyContribution' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    FamilyChatSendRequest:
+      type: object
+      additionalProperties: false
+      required: [text, clientId]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1600, description: "1–200 code points after the live chat text rules (§10.11)." }
+        clientId: { type: string, format: uuid, description: Unique per author; a retry with the same id answers the first message. }
+    FamilyChatMessage:
+      type: object
+      required: [id, familyId, author, authorRole, text, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        familyId: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/UserSummary' }
+        authorRole:
+          description: The author's role in the family now; null when they left.
+          oneOf:
+            - $ref: '#/components/schemas/FamilyRole'
+            - type: 'null'
+        text: { type: string, description: "The leader's live blocked words are masked (each character → `*`)." }
+        createdAt: { type: string, format: date-time }
+    FamilyChatPage:
+      type: object
+      required: [data, page, muted, canModerate]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FamilyChatMessage' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        muted: { type: boolean, description: The caller is muted in this chat. }
+        canModerate: { type: boolean, description: The caller is the leader or a deputy. }
     FamilyJoinRequest:
       type: object
       required: [id, family, user, status, createdAt, expiresAt]
@@ -7305,7 +7782,7 @@ components:
       description: The corner badge of a gift in the panel; unknown values show as NONE.
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, sortOrder, badge]
+      required: [code, category, name, priceCoins, assetKey, animationKey, sortOrder, badge, tag]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
@@ -7318,6 +7795,26 @@ components:
           description: "The app's SVGA / full-screen effect, or null (the image only)."
         sortOrder: { type: integer, minimum: 0 }
         badge: { $ref: '#/components/schemas/GiftBadge' }
+        tag:
+          description: |
+            v1.24.3-live (CP-020, D117): the gift's optional sub-category, shown as a chip under the panel's
+            tabs ("All" plus the distinct tags of the open tab), or null (none). Always present in
+            responses; clients that do not know the field ignore it.
+          oneOf:
+            - $ref: '#/components/schemas/GiftTag'
+            - type: 'null'
+    GiftTag:
+      type: object
+      description: v1.24.3-live (CP-020, D117). A gift sub-category, managed with the `gift-admin` CLI.
+      required: [code, name]
+      properties:
+        code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: treasure_box }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: "Localized by `Accept-Language`, else the caller's locale."
+          example: Treasure Box
     GiftCatalogue:
       type: object
       required: [version, categories, quantities, maxRecipients, comboWindowSeconds, data]

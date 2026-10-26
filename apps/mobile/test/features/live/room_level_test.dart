@@ -1,6 +1,8 @@
 // CP-016 D (D101): the room level (the host's charm level) as the owner's
-// charm badge next to the room name, and the owner's tap characters — only
-// the tiers the host has reached — where a viewer taps the live.
+// charm badge next to the room name, and the owner's tap characters where a
+// viewer taps the live — D120: any of all ten, whatever the room level.
+
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,14 +33,14 @@ List<String> _characters(WidgetTester tester) => [
     (image.image as AssetImage).assetName,
 ];
 
-Future<void> _pumpTaps(WidgetTester tester, {required int maxTier}) async {
+Future<void> _pumpTaps(WidgetTester tester, {int seed = 1}) async {
   setViewport(tester, GoldenViewport.phone);
   await pumpScreen(
     tester,
     Scaffold(
       body: LiveTapLayer(
         onTap: () {},
-        maxTier: maxTier,
+        random: math.Random(seed),
         child: const ColoredBox(color: Colors.black),
       ),
     ),
@@ -172,37 +174,90 @@ void main() {
   });
 
   group('tap characters (owner tap pack)', () {
-    testWidgets('a level 1 room shows only the sprout', (tester) async {
-      await _pumpTaps(tester, maxTier: 1);
-      for (var i = 0; i < 3; i++) {
+    testWidgets('D120: every tap picks any of the ten characters, never '
+        'the same twice in a row; over many taps all ten show', (tester) async {
+      await _pumpTaps(tester);
+      final seen = <String>[];
+      for (var i = 0; i < 40; i++) {
         await tester.tap(find.byKey(LiveTapLayer.tapKey));
         await tester.pump(const Duration(milliseconds: 50));
+        seen.add(_characters(tester).last);
       }
-      expect(_characters(tester), List.filled(3, CharmTier.sprout.tap));
+      final all = [for (final t in CharmTier.values) t.tap];
+      expect(seen.every(all.contains), isTrue);
+      expect(seen.toSet(), all.toSet());
+      for (var i = 1; i < seen.length; i++) {
+        expect(seen[i], isNot(seen[i - 1]));
+      }
       await tester.pumpAndSettle();
       expect(find.byType(LiveTapCharacter), findsNothing);
     });
 
-    testWidgets('the reached tiers take turns; the 10th tap of a combo is a '
-        "big pop of the host's highest tier with a ring", (tester) async {
-      await _pumpTaps(tester, maxTier: 3);
+    testWidgets('D120: wherever the finger taps, every character starts '
+        'and rises inside the narrow lane at the physical right edge near '
+        'the bottom, at half the old size', (tester) async {
+      await _pumpTaps(tester, seed: 5);
+      final layer = tester.getRect(find.byKey(LiveTapLayer.tapKey));
+      final lane = LiveTapLayer.lane(layer.size, 72).shift(layer.topLeft);
+      expect(lane.width, LiveTapLayer.laneWidth);
+      expect(layer.right - lane.right, LiveTapLayer.laneRightInset);
+      expect(LiveTapLayer.size, 19);
+      final rects = <Rect>[];
+      void sample() {
+        for (final e
+            in find
+                .descendant(
+                  of: find.byType(LiveTapCharacter),
+                  matching: find.byType(Image),
+                )
+                .evaluate()) {
+          rects.add(tester.getRect(find.byWidget(e.widget)));
+        }
+      }
+
+      // Taps far from the lane: top-left, centre, bottom-left (any side).
+      final spots = [
+        layer.topLeft + const Offset(40, 120),
+        layer.center,
+        layer.bottomLeft + const Offset(30, -200),
+      ];
+      for (var i = 0; i < 12; i++) {
+        await tester.tapAt(spots[i % spots.length]);
+        await tester.pump(const Duration(milliseconds: 16));
+        sample();
+        await tester.pump(const Duration(milliseconds: 90));
+        sample();
+      }
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        sample();
+      }
+      expect(rects, isNotEmpty);
+      final inLane = lane.inflate(0.5);
+      for (final r in rects) {
+        expect(
+          inLane.contains(r.topLeft) && inLane.contains(r.bottomRight),
+          isTrue,
+          reason: '$r outside $lane',
+        );
+      }
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the 10th tap of a combo is a big pop with a ring', (
+      tester,
+    ) async {
+      await _pumpTaps(tester, seed: 3);
       for (var i = 0; i < 4; i++) {
         await tester.tap(find.byKey(LiveTapLayer.tapKey));
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(_characters(tester), [
-        CharmTier.sprout.tap,
-        CharmTier.bunny.tap,
-        CharmTier.kitty.tap,
-        CharmTier.sprout.tap,
-      ]);
       expect(find.text('x4'), findsOneWidget);
       for (var i = 0; i < 6; i++) {
         await tester.tap(find.byKey(LiveTapLayer.tapKey));
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(find.text('x10'), findsOneWidget);
-      expect(_characters(tester).last, CharmTier.kitty.tap);
       final sizes = [
         for (final image in tester.widgetList<Image>(
           find.descendant(
@@ -223,7 +278,7 @@ void main() {
     testWidgets('a pause longer than the combo timeout starts a new combo', (
       tester,
     ) async {
-      await _pumpTaps(tester, maxTier: 2);
+      await _pumpTaps(tester);
       await tester.tap(find.byKey(LiveTapLayer.tapKey));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(LiveTapLayer.tapKey));

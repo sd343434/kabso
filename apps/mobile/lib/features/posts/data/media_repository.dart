@@ -63,6 +63,9 @@ abstract interface class MediaRepository {
   /// CP-018: a family's emblem (`FAMILY_EMBLEM`, a centre-cropped square
   /// like the live cover).
   Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType);
+
+  /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
+  Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
 }
 
 class MediaRepositoryImpl implements MediaRepository {
@@ -106,6 +109,10 @@ class MediaRepositoryImpl implements MediaRepository {
   @override
   Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType) =>
       _upload(bytes, contentType, kind: 'FAMILY_EMBLEM');
+
+  @override
+  Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'FAMILY_COVER');
 
   /// Slot, PUT, complete.
   Future<MediaAsset> _upload(

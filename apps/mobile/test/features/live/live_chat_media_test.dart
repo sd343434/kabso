@@ -4,8 +4,10 @@
 // expiresAt, and bullets shown as a box in the viewer's and the host's chat
 // (owner, 2026-10-26: they no longer fly over the screen).
 
+import 'dart:typed_data';
 import 'dart:ui' show Tristate;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,7 @@ import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
@@ -115,6 +118,34 @@ LiveBullet _bullet(String id, String text, {UserSummary sender = _huda}) =>
       roomId: 'room-9',
       createdAt: DateTime.utc(2026, 10, 26, 18),
     );
+
+/// A player whose source fails to load (like a clip served wrongly).
+class _FailingPlayer implements AudioPlayer {
+  final List<String> played = [];
+  bool disposed = false;
+
+  @override
+  Stream<void> get onPlayerComplete => const Stream.empty();
+
+  @override
+  Future<void> play(
+    Source source, {
+    double? volume,
+    double? balance,
+    AudioContext? ctx,
+    Duration? position,
+    PlayerMode? mode,
+  }) async {
+    if (source is UrlSource) played.add(source.url);
+    throw Exception('source error');
+  }
+
+  @override
+  Future<void> dispose() async => disposed = true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _Room {
   const new({
@@ -530,6 +561,226 @@ void main() {
       expect(find.text(l10n.liveVoiceDenied), findsOneWidget);
       expect(find.byKey(LiveRoomComposer.recordingKey), findsNothing);
       await _leave(tester);
+    });
+  });
+
+  // Owner report (staging, Android): a voice clip recorded in a live had no
+  // sound. LiveKit/WebRTC holds the microphone for the live, so the live mic
+  // is paused while the clip records and always restored after.
+  group('voice clips and the live microphone', () {
+    Future<_Room> seated(WidgetTester tester) async {
+      final room = await _pumpRoom(tester);
+      // A seated guest publishing the microphone.
+      room.engine.publishingLocal = true;
+      await _openComposer(tester);
+      return room;
+    }
+
+    testWidgets('a seated guest: the live mic pauses before recording, the '
+        'hint shows, and it comes back after the clip stops, before upload', (
+      tester,
+    ) async {
+      final room = await seated(tester);
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      expect(room.engine.clipMicLog, ['pause']);
+      expect(room.recorder.log, ['start']);
+      expect(room.engine.micPausedForClip, isTrue);
+      expect(find.byKey(LiveRoomComposer.micPausedKey), findsOneWidget);
+      expect(find.text(l10n.liveVoiceLiveMicPaused), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pump();
+      await tester.pump();
+      expect(room.recorder.log, ['start', 'stop']);
+      expect(room.engine.clipMicLog, ['pause', 'resume']);
+      expect(room.engine.micPausedForClip, isFalse);
+      expect(find.byKey(LiveRoomComposer.micPausedKey), findsNothing);
+      expect(room.media.liveChatUploads, ['voice:audio/mp4:2048']);
+      await _leave(tester);
+    });
+
+    testWidgets('restored after cancel, a recorder that cannot start, a '
+        'failed stop, and when the chat box goes away mid-recording', (
+      tester,
+    ) async {
+      final room = await seated(tester);
+      // Cancel.
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      await tester.tap(find.byKey(LiveRoomComposer.voiceCancelKey));
+      await tester.pump();
+      expect(room.engine.clipMicLog, ['pause', 'resume']);
+      // The recorder cannot start.
+      room.recorder.problem = LiveVoiceProblem.unavailable;
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      expect(find.text(l10n.liveVoiceUnavailable), findsOneWidget);
+      expect(room.engine.clipMicLog, ['pause', 'resume', 'pause', 'resume']);
+      expect(find.byKey(LiveRoomComposer.recordingKey), findsNothing);
+      _clearSnack(tester);
+      // Stopping fails.
+      room.recorder
+        ..problem = null
+        ..stopFailure = Exception('encoder');
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pump();
+      await tester.pump();
+      expect(room.engine.micPausedForClip, isFalse);
+      expect(room.engine.clipMicLog, hasLength(6));
+      expect(room.media.liveChatUploads, isEmpty);
+      // The screen goes away while recording.
+      room.recorder.stopFailure = null;
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      expect(room.engine.micPausedForClip, isTrue);
+      await _leave(tester);
+      expect(room.engine.micPausedForClip, isFalse);
+      expect(room.engine.clipMicLog.last, 'resume');
+      expect(room.media.liveChatUploads, isEmpty);
+    });
+
+    testWidgets('a viewer who publishes no mic: nothing paused, no hint', (
+      tester,
+    ) async {
+      final room = await _pumpRoom(tester);
+      await _openComposer(tester);
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      expect(room.recorder.starts, 1);
+      expect(find.byKey(LiveRoomComposer.micPausedKey), findsNothing);
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pump();
+      await tester.pump();
+      expect(room.engine.clipMicLog, isEmpty);
+      expect(room.media.liveChatUploads, hasLength(1));
+      await _leave(tester);
+    });
+
+    testWidgets('a live mic that cannot be paused: no recording, says why', (
+      tester,
+    ) async {
+      final room = await seated(tester);
+      room.engine.micPauseFails = true;
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      expect(find.text(l10n.liveVoiceLiveMicBusy), findsOneWidget);
+      expect(room.recorder.starts, 0);
+      expect(find.byKey(LiveRoomComposer.recordingKey), findsNothing);
+      expect(room.engine.micPausedForClip, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('a silent clip is not sent and says so; the mic comes back', (
+      tester,
+    ) async {
+      final room = await seated(tester);
+      // What a microphone held elsewhere delivers: digital silence.
+      room.recorder.peakDb = -160;
+      await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(l10n.liveVoiceSilent), findsOneWidget);
+      expect(room.media.liveChatUploads, isEmpty);
+      expect(room.repo.chatCalls.where((c) => c.startsWith('voice')), isEmpty);
+      expect(room.engine.clipMicLog, ['pause', 'resume']);
+      await _leave(tester);
+    });
+  });
+
+  testWidgets('the host of an audio live: the published mic pauses for '
+      'the clip and comes back after', (tester) async {
+    final repo = FakeLiveRepository(
+      categories: const [LiveCategory(slug: 'music', name: 'Music')],
+    );
+    final engine = FakeLiveMediaEngine();
+    final recorder = FakeLiveVoiceRecorder();
+    final media = FakeMediaRepository();
+    setViewport(tester, GoldenViewport.phone);
+    await pumpScreen(
+      tester,
+      const GoLiveScreen(),
+      liveMediaEngine: engine,
+      overrides: [
+        ..._overrides(
+          repo,
+          recorder,
+          media,
+          FakePhotoPicker(),
+          signedIn: false,
+        ),
+        currentUserProvider.overrideWithValue(
+          testUser().copyWith(canHost: true),
+        ),
+        liveBlockedWordsRepositoryProvider.overrideWithValue(
+          FakeLiveBlockedWordsRepository(),
+        ),
+        liveScheduleRepositoryProvider.overrideWithValue(
+          FakeLiveScheduleRepository(),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+    await tester.tap(find.byKey(GoLiveScreen.startKey));
+    await tester.pump();
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    await tester.pumpAndSettle();
+    expect(engine.micPublished, isTrue);
+    await tester.tap(find.byKey(GoLiveScreen.audioChatKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+    await tester.pump();
+    expect(engine.clipMicLog, ['pause']);
+    expect(find.byKey(LiveRoomComposer.micPausedKey), findsOneWidget);
+    await tester.tap(find.byKey(LiveChatComposer.sendKey));
+    await tester.pump();
+    await tester.pump();
+    expect(engine.clipMicLog, ['pause', 'resume']);
+    expect(media.liveChatUploads, ['voice:audio/mp4:2048']);
+    // The host's own mic choice is untouched.
+    expect(engine.micEnabled, isTrue);
+    await _leave(tester);
+  });
+
+  testWidgets('a clip that cannot play says so instead of staying silent', (
+    tester,
+  ) async {
+    final player = _FailingPlayer();
+    LiveVoiceClipPill.newPlayer = () => player;
+    addTearDown(() => LiveVoiceClipPill.newPlayer = AudioPlayer.new);
+    await _pumpRoom(tester);
+    await _openComposer(tester);
+    await tester.tap(find.byKey(LiveRoomComposer.voiceKey));
+    await tester.pump();
+    await tester.tap(find.byKey(LiveChatComposer.sendKey));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(_inChat(find.byKey(LiveVoiceClipPill.keyFor('c1'))));
+    await tester.pump();
+    await tester.pump();
+    expect(player.played, ['https://media.example.test/media/c1/voice.m4a']);
+    expect(find.text(l10n.liveVoicePlayFailed), findsOneWidget);
+    expect(player.disposed, isTrue);
+    await _leave(tester);
+  });
+
+  group('LiveVoiceClip', () {
+    test('silence is under -60 dBFS; an unknown level is not refused', () {
+      final bytes = Uint8List(4);
+      expect(LiveVoiceClip(bytes, peakDb: -160).silent, isTrue);
+      expect(LiveVoiceClip(bytes, peakDb: -61).silent, isTrue);
+      expect(LiveVoiceClip(bytes, peakDb: -45).silent, isFalse);
+      expect(LiveVoiceClip(bytes).silent, isFalse);
     });
   });
 

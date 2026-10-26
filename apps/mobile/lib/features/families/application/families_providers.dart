@@ -67,17 +67,20 @@ familySearchProvider = AsyncNotifierProvider.autoDispose
       FamilySearchController.new,
     );
 
-/// A family's members: the leader, deputies, then members.
+/// A family's members by points (v1.25-live `sort=POINTS`, with `rank`,
+/// §10.25); the argument is the family id, or `id?q=text` for a search
+/// (see [familyMembersKey]).
 class FamilyMembersController extends PagedListController<FamilyMember> {
-  new(this.familyId);
+  new(this.key);
 
-  final String familyId;
+  final String key;
 
   @override
   Future<PageResult<FamilyMember>> fetch(String? cursor) async {
+    final (familyId, query) = splitFamilyMembersKey(key);
     final page = await ref
         .read(familiesRepositoryProvider)
-        .members(familyId, cursor: cursor);
+        .members(familyId, cursor: cursor, byPoints: true, query: query);
     return (items: page.data, next: page.page.nextCursor);
   }
 
@@ -94,6 +97,89 @@ familyMembersProvider = AsyncNotifierProvider.autoDispose
     .family<FamilyMembersController, FeedItems<FamilyMember>, String>(
       FamilyMembersController.new,
     );
+
+/// The [familyMembersProvider] argument for [familyId] and a search.
+String familyMembersKey(String familyId, [String query = '']) =>
+    query.trim().isEmpty ? familyId : '$familyId?q=${query.trim()}';
+
+/// The family id and the search of a [familyMembersKey].
+(String, String?) splitFamilyMembersKey(String key) {
+  final i = key.indexOf('?q=');
+  return i < 0 ? (key, null) : (key.substring(0, i), key.substring(i + 3));
+}
+
+/// One family board (v1.25-live, top 100, paged). [me] is the caller's
+/// family on it, from the first page.
+class FamilyRankingsController extends PagedListController<FamilyRankingEntry> {
+  new(this.board);
+
+  final FamilyRankingBoard board;
+
+  /// The caller's family on this board (null without one).
+  FamilyRankingMe? me;
+
+  @override
+  Future<PageResult<FamilyRankingEntry>> fetch(String? cursor) async {
+    final page = await ref
+        .read(familiesRepositoryProvider)
+        .rankings(board, cursor: cursor);
+    if (cursor == null) me = page.me;
+    return (items: page.data, next: page.page.nextCursor);
+  }
+
+  @override
+  String idOf(FamilyRankingEntry item) => item.family.id;
+}
+
+final AsyncNotifierProviderFamily<
+  FamilyRankingsController,
+  FeedItems<FamilyRankingEntry>,
+  FamilyRankingBoard
+>
+familyRankingsProvider = AsyncNotifierProvider.autoDispose
+    .family<
+      FamilyRankingsController,
+      FeedItems<FamilyRankingEntry>,
+      FamilyRankingBoard
+    >(FamilyRankingsController.new);
+
+/// A family's place on both boards (`GET /families/{familyId}/rankings`).
+final FutureProviderFamily<FamilyStanding, String> familyStandingProvider =
+    FutureProvider.autoDispose.family(
+      (ref, familyId) =>
+          ref.watch(familiesRepositoryProvider).standing(familyId),
+    );
+
+/// This month's contributions of a family, most first.
+class FamilyContributionsController
+    extends PagedListController<FamilyContribution> {
+  new(this.familyId);
+
+  final String familyId;
+
+  @override
+  Future<PageResult<FamilyContribution>> fetch(String? cursor) async {
+    final page = await ref
+        .read(familiesRepositoryProvider)
+        .contributions(familyId, cursor: cursor);
+    return (items: page.data, next: page.page.nextCursor);
+  }
+
+  @override
+  String idOf(FamilyContribution item) => item.user.id;
+}
+
+final AsyncNotifierProviderFamily<
+  FamilyContributionsController,
+  FeedItems<FamilyContribution>,
+  String
+>
+familyContributionsProvider = AsyncNotifierProvider.autoDispose
+    .family<
+      FamilyContributionsController,
+      FeedItems<FamilyContribution>,
+      String
+    >(FamilyContributionsController.new);
 
 /// Pending join requests of a family (leader and deputies), oldest first.
 class FamilyJoinRequestsController
@@ -131,13 +217,16 @@ void refreshFamilies(WidgetRef ref, {String? familyId}) {
   if (familyId != null) {
     ref
       ..invalidate(familyProvider(familyId))
-      ..invalidate(familyMembersProvider(familyId))
-      ..invalidate(familyJoinRequestsProvider(familyId));
+      ..invalidate(familyMembersProvider)
+      ..invalidate(familyJoinRequestsProvider(familyId))
+      ..invalidate(familyContributionsProvider(familyId))
+      ..invalidate(familyStandingProvider(familyId));
   }
   ref
     ..invalidate(myFamilyProvider)
     ..invalidate(myFamilyRequestProvider)
     ..invalidate(familySearchProvider)
+    ..invalidate(familyRankingsProvider)
     ..invalidate(profileStatsProvider)
     ..invalidate(publicProfileProvider);
 }

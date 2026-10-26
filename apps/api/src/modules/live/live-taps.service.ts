@@ -59,6 +59,8 @@ export interface LiveContributorStandingDto {
  *
  * CP-016 D (D101, §10.18): in the same transaction the batch gives the host charm points
  * ({@link charmPointsFor}); a level change raises the room's info version so apps read it again.
+ * D120 (owner, 2026-10-26): the host's own taps count like a viewer's (the score, the popularity
+ * board and the host's charm points), with the same per-person limits.
  */
 @Injectable()
 export class LiveTapsService {
@@ -106,7 +108,7 @@ export class LiveTapsService {
       // (their first batch is a first batch).
       const accepted = acceptedTaps({
         count,
-        isHost: room.host_user_id === callerId,
+        // D120 (owner): the host's own taps count like anyone's, same limits.
         tapper: tapper?.last_batch_at ? { counted: tapper.counted, lastBatchAt: tapper.last_batch_at } : null,
         now,
       });
@@ -212,8 +214,8 @@ export class LiveTapsService {
    * this live, highest first. Points (`live_room_tappers.points`) are the person's counted taps (1
    * each) plus, v1.23-live (CP-020), 100 for every coin of gift value they sent here. Ties: who
    * reached their total first, i.e. the earlier `points_at` (set by every batch that counts and
-   * every gift, which is when the current total was reached), then user id. The host (whose taps count
-   * 0 anyway), people with 0 points, inactive accounts and, for a signed-in reader, people blocked
+   * every gift, which is when the current total was reached), then user id. The host (whose own
+   * taps count since D120, but who is not their own supporter), people with 0 points, inactive accounts and, for a signed-in reader, people blocked
    * either way are left out. Anyone who may watch reads it (a guest needs `allowGuests`), also on an
    * ended room; a room the caller may not see → 404.
    */

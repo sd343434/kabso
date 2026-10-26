@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
@@ -54,8 +53,9 @@ class _LiveCpEntranceLayerState extends ConsumerState<LiveCpEntranceLayer>
   /// later ones show the name at once.
   ProviderSubscription<AsyncValue<CpConfig>>? _tiers;
 
-  /// The newest join line already looked at (lines already in the chat when
-  /// this layer appears are not replayed).
+  /// The newest join already looked at (the one already shown when this
+  /// layer appears is not replayed). D119: joins are the chat's
+  /// `latestJoin`, not lines.
   int _seen = -1;
 
   @override
@@ -65,7 +65,7 @@ class _LiveCpEntranceLayerState extends ConsumerState<LiveCpEntranceLayer>
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _next();
       });
-    _seen = _newestSerial(ref.read(liveChatProvider(widget.roomId)).items);
+    _seen = ref.read(liveChatProvider(widget.roomId)).latestJoin?.serial ?? -1;
   }
 
   @override
@@ -75,15 +75,11 @@ class _LiveCpEntranceLayerState extends ConsumerState<LiveCpEntranceLayer>
     super.dispose();
   }
 
-  static int _newestSerial(List<LiveChatItem> items) => items
-      .whereType<LiveChatJoinLine>()
-      .fold(-1, (m, j) => math.max(m, j.serial));
-
   void _onChat(LiveChatState next) {
-    for (final line in next.items.whereType<LiveChatJoinLine>()) {
-      if (line.serial <= _seen) continue;
+    if (next.latestJoin case final line?) {
+      if (line.serial <= _seen) return;
       _seen = line.serial;
-      if (line.cp == null) continue;
+      if (line.cp == null) return;
       _tiers ??= ref.listenManual(cpConfigProvider, (_, _) {});
       if (_current == null) {
         _show(line);

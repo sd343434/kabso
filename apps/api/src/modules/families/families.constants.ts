@@ -50,3 +50,19 @@ export function familyLevelFor(points: number | bigint): number {
 export function familyNextLevelPoints(level: number): number | null {
   return FAMILY_LEVELS.find((step) => step.level === level + 1)?.minPoints ?? null;
 }
+
+// ---- v1.25-live (CP-022, owner D116, CONVENTIONS §10.25) ---------------------------------------
+
+/**
+ * The family boards (owner D116): `PRESTIGE` (هيبة العائلة) = family points gained in the current
+ * calendar month; `ACTIVE` (الأكثر نشاطاً) = members active in the app during the current week (CTO
+ * definition, §10.25). Both windows follow LIVE_RANKINGS_TIME_ZONE (the app's one region).
+ */
+export const FAMILY_RANKING_BOARDS = ['PRESTIGE', 'ACTIVE'] as const;
+export type FamilyRankingBoard = (typeof FAMILY_RANKING_BOARDS)[number];
+/** At most this many families on a board (owner D116: top 100). */
+export const FAMILY_RANKING_MAX = 100;
+/** A family's tagline (the "tags" line under its name): 1–60 code points, one line (CTO). */
+export const FAMILY_TAGLINE_MAX_CODE_POINTS = 60;
+/** A family chat message: the live chat text rules with at most 200 code points (CTO). */
+export const FAMILY_CHAT_MAX_CODE_POINTS = 200;

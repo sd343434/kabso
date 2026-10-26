@@ -72,6 +72,9 @@ _Family _$FamilyFromJson(Map<String, dynamic> json) => _Family(
   createdAt: DateTime.parse(json['createdAt'] as String),
   myRole: $enumDecodeNullable(_$FamilyRoleEnumMap, json['myRole']),
   myRequestId: json['myRequestId'] as String?,
+  coverUrl: json['coverUrl'] as String?,
+  tagline: json['tagline'] as String?,
+  pendingRequestCount: (json['pendingRequestCount'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$FamilyToJson(_Family instance) => <String, dynamic>{
@@ -88,6 +91,9 @@ Map<String, dynamic> _$FamilyToJson(_Family instance) => <String, dynamic>{
   'createdAt': instance.createdAt.toIso8601String(),
   'myRole': _$FamilyRoleEnumMap[instance.myRole],
   'myRequestId': instance.myRequestId,
+  'coverUrl': instance.coverUrl,
+  'tagline': instance.tagline,
+  'pendingRequestCount': instance.pendingRequestCount,
 };
 
 const _$FamilyRoleEnumMap = {
@@ -102,6 +108,12 @@ _FamilyMember _$FamilyMemberFromJson(Map<String, dynamic> json) =>
       role: $enumDecode(_$FamilyRoleEnumMap, json['role']),
       joinedAt: DateTime.parse(json['joinedAt'] as String),
       points: (json['points'] as num).toInt(),
+      monthPoints: (json['monthPoints'] as num?)?.toInt() ?? 0,
+      presence: json['presence'] == null
+          ? null
+          : FamilyPresence.fromJson(json['presence'] as Map<String, dynamic>),
+      chatMuted: json['chatMuted'] as bool?,
+      rank: (json['rank'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$FamilyMemberToJson(_FamilyMember instance) =>
@@ -110,6 +122,10 @@ Map<String, dynamic> _$FamilyMemberToJson(_FamilyMember instance) =>
       'role': _$FamilyRoleEnumMap[instance.role]!,
       'joinedAt': instance.joinedAt.toIso8601String(),
       'points': instance.points,
+      'monthPoints': instance.monthPoints,
+      'presence': instance.presence,
+      'chatMuted': instance.chatMuted,
+      'rank': instance.rank,
     };
 
 _FamilyJoinRequest _$FamilyJoinRequestFromJson(Map<String, dynamic> json) =>
@@ -193,4 +209,183 @@ Map<String, dynamic> _$ProfileFamilyToJson(_ProfileFamily instance) =>
       'level': instance.level,
       'emblemUrl': instance.emblemUrl,
       'role': _$FamilyRoleEnumMap[instance.role]!,
+    };
+
+_FamilyPresence _$FamilyPresenceFromJson(Map<String, dynamic> json) =>
+    _FamilyPresence(
+      online: json['online'] as bool,
+      lastActiveAt: json['lastActiveAt'] == null
+          ? null
+          : DateTime.parse(json['lastActiveAt'] as String),
+    );
+
+Map<String, dynamic> _$FamilyPresenceToJson(_FamilyPresence instance) =>
+    <String, dynamic>{
+      'online': instance.online,
+      'lastActiveAt': instance.lastActiveAt?.toIso8601String(),
+    };
+
+_FamilyRankingEntry _$FamilyRankingEntryFromJson(Map<String, dynamic> json) =>
+    _FamilyRankingEntry(
+      rank: (json['rank'] as num).toInt(),
+      family: FamilyCard.fromJson(json['family'] as Map<String, dynamic>),
+      score: (json['score'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$FamilyRankingEntryToJson(_FamilyRankingEntry instance) =>
+    <String, dynamic>{
+      'rank': instance.rank,
+      'family': instance.family,
+      'score': instance.score,
+    };
+
+_FamilyRankingMe _$FamilyRankingMeFromJson(Map<String, dynamic> json) =>
+    _FamilyRankingMe(
+      family: FamilyCard.fromJson(json['family'] as Map<String, dynamic>),
+      rank: (json['rank'] as num?)?.toInt(),
+      score: (json['score'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$FamilyRankingMeToJson(_FamilyRankingMe instance) =>
+    <String, dynamic>{
+      'family': instance.family,
+      'rank': instance.rank,
+      'score': instance.score,
+    };
+
+_FamilyRankings _$FamilyRankingsFromJson(Map<String, dynamic> json) =>
+    _FamilyRankings(
+      board: $enumDecode(_$FamilyRankingBoardEnumMap, json['board']),
+      startsAt: DateTime.parse(json['startsAt'] as String),
+      endsAt: DateTime.parse(json['endsAt'] as String),
+      data: (json['data'] as List<dynamic>)
+          .map((e) => FamilyRankingEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      page: PageInfo.fromJson(json['page'] as Map<String, dynamic>),
+      me: json['me'] == null
+          ? null
+          : FamilyRankingMe.fromJson(json['me'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$FamilyRankingsToJson(_FamilyRankings instance) =>
+    <String, dynamic>{
+      'board': _$FamilyRankingBoardEnumMap[instance.board]!,
+      'startsAt': instance.startsAt.toIso8601String(),
+      'endsAt': instance.endsAt.toIso8601String(),
+      'data': instance.data,
+      'page': instance.page,
+      'me': instance.me,
+    };
+
+const _$FamilyRankingBoardEnumMap = {
+  FamilyRankingBoard.prestige: 'PRESTIGE',
+  FamilyRankingBoard.active: 'ACTIVE',
+};
+
+_FamilyBoardStanding _$FamilyBoardStandingFromJson(Map<String, dynamic> json) =>
+    _FamilyBoardStanding(
+      rank: (json['rank'] as num?)?.toInt(),
+      score: (json['score'] as num).toInt(),
+      startsAt: DateTime.parse(json['startsAt'] as String),
+      endsAt: DateTime.parse(json['endsAt'] as String),
+    );
+
+Map<String, dynamic> _$FamilyBoardStandingToJson(
+  _FamilyBoardStanding instance,
+) => <String, dynamic>{
+  'rank': instance.rank,
+  'score': instance.score,
+  'startsAt': instance.startsAt.toIso8601String(),
+  'endsAt': instance.endsAt.toIso8601String(),
+};
+
+_FamilyStanding _$FamilyStandingFromJson(Map<String, dynamic> json) =>
+    _FamilyStanding(
+      familyId: json['familyId'] as String,
+      prestige: FamilyBoardStanding.fromJson(
+        json['prestige'] as Map<String, dynamic>,
+      ),
+      active: FamilyBoardStanding.fromJson(
+        json['active'] as Map<String, dynamic>,
+      ),
+    );
+
+Map<String, dynamic> _$FamilyStandingToJson(_FamilyStanding instance) =>
+    <String, dynamic>{
+      'familyId': instance.familyId,
+      'prestige': instance.prestige,
+      'active': instance.active,
+    };
+
+_FamilyContribution _$FamilyContributionFromJson(Map<String, dynamic> json) =>
+    _FamilyContribution(
+      rank: (json['rank'] as num).toInt(),
+      user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+      role: $enumDecode(_$FamilyRoleEnumMap, json['role']),
+      points: (json['points'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$FamilyContributionToJson(_FamilyContribution instance) =>
+    <String, dynamic>{
+      'rank': instance.rank,
+      'user': instance.user,
+      'role': _$FamilyRoleEnumMap[instance.role]!,
+      'points': instance.points,
+    };
+
+_FamilyContributions _$FamilyContributionsFromJson(Map<String, dynamic> json) =>
+    _FamilyContributions(
+      startsAt: DateTime.parse(json['startsAt'] as String),
+      endsAt: DateTime.parse(json['endsAt'] as String),
+      data: (json['data'] as List<dynamic>)
+          .map((e) => FamilyContribution.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      page: PageInfo.fromJson(json['page'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$FamilyContributionsToJson(
+  _FamilyContributions instance,
+) => <String, dynamic>{
+  'startsAt': instance.startsAt.toIso8601String(),
+  'endsAt': instance.endsAt.toIso8601String(),
+  'data': instance.data,
+  'page': instance.page,
+};
+
+_FamilyChatMessage _$FamilyChatMessageFromJson(Map<String, dynamic> json) =>
+    _FamilyChatMessage(
+      id: json['id'] as String,
+      familyId: json['familyId'] as String,
+      author: UserSummary.fromJson(json['author'] as Map<String, dynamic>),
+      authorRole: $enumDecodeNullable(_$FamilyRoleEnumMap, json['authorRole']),
+      text: json['text'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+
+Map<String, dynamic> _$FamilyChatMessageToJson(_FamilyChatMessage instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'familyId': instance.familyId,
+      'author': instance.author,
+      'authorRole': _$FamilyRoleEnumMap[instance.authorRole],
+      'text': instance.text,
+      'createdAt': instance.createdAt.toIso8601String(),
+    };
+
+_FamilyChatPage _$FamilyChatPageFromJson(Map<String, dynamic> json) =>
+    _FamilyChatPage(
+      data: (json['data'] as List<dynamic>)
+          .map((e) => FamilyChatMessage.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      page: PageInfo.fromJson(json['page'] as Map<String, dynamic>),
+      muted: json['muted'] as bool,
+      canModerate: json['canModerate'] as bool,
+    );
+
+Map<String, dynamic> _$FamilyChatPageToJson(_FamilyChatPage instance) =>
+    <String, dynamic>{
+      'data': instance.data,
+      'page': instance.page,
+      'muted': instance.muted,
+      'canModerate': instance.canModerate,
     };

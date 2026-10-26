@@ -871,7 +871,7 @@ void main() {
   });
 
   group('Reels', () {
-    testWidgets('full-bleed under a floating dark header, light status bar, '
+    testWidgets('below the app-themed header (same mode as Posts), '
         'author, time and caption; no play or count controls', (tester) async {
       await _pump(
         tester,
@@ -879,18 +879,18 @@ void main() {
         overrides: _populated(AppLanguage.en),
       );
       final page = tester.getRect(find.byType(HomeReelPage).first);
-      expect(page.top, 0);
       expect(page.width, 393);
       final header = tester.getRect(find.byKey(FeedScreen.headerKey));
       expect(header.top, 0);
-      expect(header.overlaps(page), isTrue);
+      expect(page.top, moreOrLessEquals(header.bottom, epsilon: 1));
       final label = find.descendant(
         of: _feedTab(_en.homeFeedTrending),
         matching: find.byType(RichText),
       );
+      final context = tester.element(find.byType(FeedScreen));
       expect(
         tester.widget<RichText>(label).text.style?.color,
-        KPalette.dark.textPrimary,
+        context.palette.textPrimary,
       );
       expect(
         tester
@@ -898,7 +898,9 @@ void main() {
               find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
             )
             .value,
-        SystemUiOverlayStyle.light,
+        Theme.of(context).brightness == Brightness.dark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
       );
       expect(find.text('Layla'), findsOneWidget);
       expect(find.text(_en.relativeDaysAgo(2)), findsOneWidget);

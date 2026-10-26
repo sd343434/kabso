@@ -59,6 +59,8 @@ export const MEDIA_KINDS = [
   'LIVE_CHAT_VOICE',
   // v1.21-live (CP-018): a family's emblem (a centre-cropped square, like the live cover).
   'FAMILY_EMBLEM',
+  // v1.25-live (CP-022): a family's cover (processed like a post image).
+  'FAMILY_COVER',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 

@@ -221,15 +221,35 @@ describe('CP-012 live taps and the room score', () => {
       await end(roomId, h);
     });
 
-    it("the host's own taps count 0 (200)", async () => {
+    it("D120: the host's own taps count like a viewer's, with the same limits", async () => {
       const h = await host();
+      const v = await signup();
       const roomId = await goLive(h);
-      expect(await tapOk(roomId, h, 10)).toEqual({
-        accepted: 0,
-        score: { total: 0, tapPoints: 0, supportPoints: 0 },
+      // A first batch counts at most 10, like anyone's.
+      expect(await tapOk(roomId, h, 15)).toEqual({
+        accepted: 10,
+        score: { total: 10, tapPoints: 10, supportPoints: 0 },
       });
-      expect(await tapper(roomId, h.id)).toBeNull();
-      expect(media.metadataWrites.filter((w) => w.room === roomId)).toEqual([]);
+      expect((await tapper(roomId, h.id))?.counted).toBe(10);
+      // 10 a second: no time passed → nothing more; 2 seconds later at most 20.
+      expect((await tapOk(roomId, h, 5)).accepted).toBe(0);
+      clock.advance(2);
+      expect((await tapOk(roomId, h, 50)).accepted).toBe(20);
+      // The host and a viewer each have their own limits.
+      expect((await tapOk(roomId, v, 10)).accepted).toBe(10);
+      // 10 000 a live: the host's counted taps stop there too.
+      await ctx.prisma.liveRoomTapper.update({
+        where: { roomId_userId: { roomId, userId: h.id } },
+        data: { counted: 9_995, points: 9_995 },
+      });
+      clock.advance(10);
+      expect((await tapOk(roomId, h, 50)).accepted).toBe(5);
+      clock.advance(10);
+      expect((await tapOk(roomId, h, 50)).accepted).toBe(0);
+      expect((await tapper(roomId, h.id))?.counted).toBe(10_000);
+      expect((await room(roomId)).body.scoreParts).toEqual({ total: 45, tapPoints: 45, supportPoints: 0 });
+      // The score reaches the media room's metadata like a viewer's taps.
+      expect(media.metadataWrites.some((w) => w.room === roomId)).toBe(true);
       await end(roomId, h);
     });
 
@@ -251,8 +271,9 @@ describe('CP-012 live taps and the room score', () => {
 
       expect((await tapOk(roomId, guest, 6)).accepted).toBe(6);
       expect((await tapOk(roomId, mod, 4)).accepted).toBe(4);
-      expect((await tapOk(roomId, h, 9)).accepted).toBe(0);
-      expect((await room(roomId)).body.scoreParts).toEqual({ total: 10, tapPoints: 10, supportPoints: 0 });
+      // D120: the host on their own seat counts too.
+      expect((await tapOk(roomId, h, 9)).accepted).toBe(9);
+      expect((await room(roomId)).body.scoreParts).toEqual({ total: 19, tapPoints: 19, supportPoints: 0 });
       await end(roomId, h);
     });
   });

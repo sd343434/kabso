@@ -377,6 +377,15 @@ void main() {
             .groupValue,
         WhoCanComment.everyone,
       );
+
+      // v1.25-live (CP-022): the activity status switch.
+      final activity = find.byKey(PrivacyScreen.activityKey);
+      await tester.scrollUntilVisible(activity, 100);
+      expect(tester.widget<SwitchListTile>(activity).value, isTrue);
+      await tester.tap(activity);
+      await tester.pumpAndSettle();
+      expect(safety.calls, contains('updatePrivacy:::activity=false'));
+      expect(tester.widget<SwitchListTile>(activity).value, isFalse);
     });
 
     testWidgets('blocked accounts: Unblock removes them; none says so', (

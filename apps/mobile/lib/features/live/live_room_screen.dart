@@ -423,6 +423,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             }),
             child: LiveRoomComposer(
               roomId: widget.room.id,
+              // CP-017: a seated guest's mic pauses while a clip records.
+              liveMic: _session.engine,
               controller: _chat,
               focusNode: _chatFocus,
               onSend: _sendChat,
@@ -584,9 +586,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ended = room.status == LiveRoomStatus.ended;
     if (ended && canFollow && !following) _endedOfferedFollow = true;
 
-    // CP-012: signed-in viewers other than the host tap to cheer (D95).
+    // CP-012: signed-in people tap to cheer (D95); D120 (owner): the host's
+    // own taps count too.
     final me = ref.watch(currentUserProvider);
-    final canTap = !ended && me != null && me.id != host.id;
+    final canTap = !ended && me != null;
     final score = engine.score ?? session.score ?? room.score;
     final composer = liveChatComposerHint(
       l10n,
@@ -610,8 +613,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
           : LiveTapLayer(
               onTap: canTap ? _session.tap : null,
-              // D101: only the charm tiers the host has reached.
-              maxTier: CharmTier.of(room.roomLevel ?? 1).number,
+              // D120: the lane starts just above the chat input.
+              laneBottomInset: 120,
               child: _video(session, engine),
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
@@ -769,8 +772,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         // would never be hit); seats, buttons and the chat keep their taps.
         child: LiveTapLayer(
           onTap: canTap ? _session.tap : null,
-          // D101: only the charm tiers the host has reached.
-          maxTier: CharmTier.of(room.roomLevel ?? 1).number,
+          // D120: the lane starts just above the room's bar.
+          laneBottomInset: 56,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1006,7 +1009,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       host: KAvatar(
         name: host.displayName,
         imageUrl: host.avatarUrl,
-        size: AudioSeatRing.hostSize,
+        size: AudioSeatRing.picture,
       ),
       hostName: host.displayName,
       hostPoints: KFormat.compact(score, context.l10n),
@@ -1119,10 +1122,6 @@ abstract final class _Card {
   static const soft = Color(0xFF9A9BA5);
   static const avatar = 92.0;
 
-  /// CP-021 (D112): the picture's width inside the Special Frame (a little
-  /// narrower, so the winged heart keeps the card's height in bounds).
-  static const framedPicture = 84.0;
-
   /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
   static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
 }
@@ -1172,9 +1171,7 @@ class _HostSheet extends ConsumerWidget {
     final scope = this.scope;
     // CP-021 (D112): the couple's Special Frame around the picture.
     final framed = cpWearsSpecialFrame(profile?.cp);
-    final frameWidth = CpSpecialFrameAvatar.widthForPicture(
-      _Card.framedPicture,
-    );
+    final frameWidth = CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
     final frameTop = CpSpecialFrameAvatar.pictureCentreY(frameWidth);
     final frameBelow = CpSpecialFrameAvatar.heightFor(frameWidth) - frameTop;
     void close(VoidCallback then) {

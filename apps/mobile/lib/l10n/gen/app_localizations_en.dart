@@ -3795,6 +3795,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveChatCharmLabel(int level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String liveChatSupportLabel(int level) {
+    return 'Support level $level';
+  }
+
+  @override
+  String liveChatFamilyLabel(String name, int level) {
+    return 'Family $name, level $level';
+  }
+
+  @override
   String get liveChatTool => 'Chat';
 
   @override
@@ -4160,8 +4175,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'The microphone isn\'t available right now.';
 
   @override
+  String get liveVoiceUploadsUnavailable =>
+      'Voice messages aren\'t available right now.';
+
+  @override
+  String get liveRoomRulesNotice =>
+      'Welcome to Kabso Live. Offensive content and anything against our community guidelines isn\'t allowed. Our moderators watch lives around the clock.';
+
+  @override
+  String get liveRoomRulesLabel => 'Kabso notice';
+
+  @override
   String get liveVoiceTooLarge =>
       'This voice clip is too large. Record a shorter one.';
+
+  @override
+  String get liveVoiceLiveMicPaused =>
+      'Your live mic is paused while you record';
+
+  @override
+  String get liveVoiceLiveMicBusy =>
+      'Your live mic couldn\'t be paused, so a voice clip can\'t be recorded right now.';
+
+  @override
+  String get liveVoicePlayFailed => 'This voice clip couldn\'t be played.';
+
+  @override
+  String get liveVoiceSilent =>
+      'No sound was picked up in this clip, so it wasn\'t sent. Try again.';
 
   @override
   String get liveChatPrivateMessages => 'Private messages';
@@ -5032,6 +5073,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get liveGiftTagAll => 'All';
+
+  @override
+  String get liveGiftTagsSemantics => 'Gift categories';
+
+  @override
   String get cpSpaceTitle => 'CP space';
 
   @override
@@ -5301,4 +5348,286 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveCpEntranceLevel(String level) {
     return 'Couple entrance · $level';
   }
+
+  @override
+  String get errorFamilyChatMuted => 'You are muted in the family chat.';
+
+  @override
+  String get familiesListTitle => 'Families list';
+
+  @override
+  String get familiesSearchShort => 'Search families';
+
+  @override
+  String get familiesTabPrestige => 'Prestige';
+
+  @override
+  String get familiesTabBattle => 'Battles';
+
+  @override
+  String get familiesTabActive => 'Most active';
+
+  @override
+  String familiesSoonLabel(String feature) {
+    return '$feature, coming soon';
+  }
+
+  @override
+  String get familiesBoardEmpty => 'No families on this board yet';
+
+  @override
+  String get familiesBoardEmptyPrestige =>
+      'Families that gain points this month show up here.';
+
+  @override
+  String get familiesBoardEmptyActive =>
+      'Families whose members are active this week show up here.';
+
+  @override
+  String familiesScoreMonth(String points) {
+    return 'Points this month: $points';
+  }
+
+  @override
+  String familiesScoreActive(String count) {
+    return 'Active this week: $count';
+  }
+
+  @override
+  String familiesPodiumLabel(int place, String name) {
+    return 'Place $place: $name';
+  }
+
+  @override
+  String get familiesMyRankNone => 'Your family is not ranked yet';
+
+  @override
+  String get familyJoinShort => 'Join';
+
+  @override
+  String familyJoinNamed(String name) {
+    return 'Join $name';
+  }
+
+  @override
+  String familyLevelLong(int level) {
+    return 'Level $level';
+  }
+
+  @override
+  String get familyActiveJustNow => 'Active just now';
+
+  @override
+  String get familyOnlineNow => 'Online now';
+
+  @override
+  String get familySoon => 'Soon';
+
+  @override
+  String get familyPageTitle => 'Family';
+
+  @override
+  String get familyShare => 'Share the family';
+
+  @override
+  String get familyInvite => 'Invite members';
+
+  @override
+  String get familyInviteCopied => 'Invite copied. Send it to anyone.';
+
+  @override
+  String familyInviteText(String name, String number) {
+    return 'Join my family “$name” on Kabso Live. Family number: $number';
+  }
+
+  @override
+  String get familyNumberLabel => 'Family number';
+
+  @override
+  String familyNumberCopy(String number) {
+    return 'Family number $number, copy';
+  }
+
+  @override
+  String get familyCopyNumber => 'Copy family number';
+
+  @override
+  String get familyMemberWord => 'members';
+
+  @override
+  String familyMembersShort(String count) {
+    return '$count members';
+  }
+
+  @override
+  String get familyMembersSearchHint => 'Search members';
+
+  @override
+  String get familyMembersNoMatch => 'No member matches';
+
+  @override
+  String familyToReach(int level) {
+    return 'to reach level $level';
+  }
+
+  @override
+  String get familyToolManage => 'Manage';
+
+  @override
+  String get familyToolCompetitions => 'Contests';
+
+  @override
+  String get familyToolShop => 'Family shop';
+
+  @override
+  String get familyToolTasks => 'Tasks';
+
+  @override
+  String get familyTabMembers => 'Members';
+
+  @override
+  String get familyTabEvents => 'Events';
+
+  @override
+  String get familyTabContributions => 'Contributions';
+
+  @override
+  String get familyTabRanking => 'Ranking';
+
+  @override
+  String get familyContributionsThisMonth =>
+      'Members\' contributions this month';
+
+  @override
+  String get familyContributionsEmpty => 'No contributions this month yet';
+
+  @override
+  String get familyContributionsEmptyBody =>
+      'Every coin members spend in the app counts for the family.';
+
+  @override
+  String get familyRankNone => '—';
+
+  @override
+  String get familyRankingNote =>
+      'The place among all families: prestige this month, activity this week.';
+
+  @override
+  String get familyChangeCover => 'Change cover';
+
+  @override
+  String get familyRemoveCover => 'Remove cover';
+
+  @override
+  String get familyCoverUpdated => 'Cover updated';
+
+  @override
+  String get familyCoverRemoved => 'Cover removed';
+
+  @override
+  String get familyTaglineTitle => 'Family tagline';
+
+  @override
+  String get familyTaglineHint => 'e.g. Global family · Fun · Live';
+
+  @override
+  String get familySave => 'Save';
+
+  @override
+  String get familySaved => 'Saved';
+
+  @override
+  String get familyViewProfile => 'View profile';
+
+  @override
+  String get familyChatOpen => 'Chat';
+
+  @override
+  String get familyChatTitle => 'Family chat';
+
+  @override
+  String get familyChatHint => 'Message the family';
+
+  @override
+  String get familyChatSend => 'Send';
+
+  @override
+  String get familyChatEmpty => 'Start the conversation';
+
+  @override
+  String get familyChatEmptyBody => 'Only family members see messages here.';
+
+  @override
+  String get familyChatLoadError => 'Couldn\'t load the chat';
+
+  @override
+  String get familyChatMembersOnly => 'The chat is for family members';
+
+  @override
+  String get familyChatMembersOnlyBody => 'Join the family to take part.';
+
+  @override
+  String get familyChatDelete => 'Delete message';
+
+  @override
+  String get familyChatDeleted => 'Message deleted';
+
+  @override
+  String get familyChatReport => 'Report message';
+
+  @override
+  String get familyChatReported => 'Thanks, report sent';
+
+  @override
+  String get familyChatMute => 'Mute in chat';
+
+  @override
+  String get familyChatUnmute => 'Unmute in chat';
+
+  @override
+  String familyChatMutedName(String name) {
+    return '$name is muted in the chat';
+  }
+
+  @override
+  String familyChatUnmutedName(String name) {
+    return '$name can chat again';
+  }
+
+  @override
+  String get privacyActivityTitle => 'Activity status';
+
+  @override
+  String get privacyActivityLabel => 'Show activity status';
+
+  @override
+  String get privacyActivityHint =>
+      'Your family members see if you are online now or when you were last active.';
+
+  @override
+  String get followListsFollowBack => 'Follow back';
+
+  @override
+  String get followListsFollowersEmpty => 'No followers yet';
+
+  @override
+  String get followListsFollowersEmptyBody =>
+      'When someone follows this account, they\'ll appear here.';
+
+  @override
+  String get followListsFollowingEmpty => 'Not following anyone yet';
+
+  @override
+  String get followListsFollowingEmptyBody =>
+      'Accounts this person follows will appear here.';
+
+  @override
+  String get followListsPrivateBody =>
+      'Only approved followers can see this account\'s followers and who it follows.';
+
+  @override
+  String get profileOpenFollowers => 'Show followers';
+
+  @override
+  String get profileOpenFollowing => 'Show following';
 }

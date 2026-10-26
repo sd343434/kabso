@@ -14,6 +14,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -40,6 +41,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -112,9 +114,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   bool _previewRequested = false;
   Timer? _tick;
 
+  /// D120 (owner): the host taps their own live and it counts like a
+  /// viewer's tap (CONVENTIONS §10.10); the batches of the room on air.
+  LiveTapBatcher? _taps;
+  String? _tapsRoom;
+  int? _tapScore;
+
   @override
   void dispose() {
     _tick?.cancel();
+    _taps?.close();
     _title.dispose();
     _titleFocus.dispose();
     _chat.dispose();
@@ -123,6 +132,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   LiveHostController get _host => ref.read(liveHostControllerProvider.notifier);
+
+  /// One tap of the host on their own live (D120): batched and sent like a
+  /// viewer's; the answer moves the score until the media room's catches up.
+  void _tapLive(String roomId) {
+    if (_tapsRoom != roomId) {
+      _taps?.close();
+      _tapsRoom = roomId;
+      _tapScore = null;
+      final repo = ref.read(liveRepositoryProvider);
+      _taps = LiveTapBatcher(
+        send: (count) => repo.tap(roomId, count),
+        onScore: (total) {
+          if (mounted) setState(() => _tapScore = total);
+        },
+      );
+    }
+    _taps!.tap();
+  }
 
   void _close() {
     final router = GoRouter.maybeOf(context);
@@ -339,8 +366,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final liveSeats = onAir && seats && room != null
         ? ref.watch(liveSeatsProvider(room.id)).value
         : null;
-    final seatCount =
-        liveSeats?.seatCount ?? room?.seatCount ?? state.seatCount;
+    // Before going live, the count previewed is the one that will be sent
+    // (a count the server no longer allows shows as the next allowed one).
+    final setupSeats = switch (state.seatCount) {
+      final c? => fitSeatCount(
+        c,
+        state.mode == LiveRoomMode.audio
+            ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
+            : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
+      ),
+      null => null,
+    };
+    final seatCount = liveSeats?.seatCount ?? room?.seatCount ?? setupSeats;
     final engine = _host.engine;
     _watchSeatsVersion(room);
     _attachChat(room, engine, onAir);
@@ -372,6 +409,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             }),
             child: LiveRoomComposer(
               roomId: room?.id ?? '',
+              // CP-017: the host's mic pauses while a voice clip records.
+              liveMic: engine,
               controller: _chat,
               focusNode: _chatFocus,
               onSend: send,
@@ -403,9 +442,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         if (seat.user != null && engine.speaking.contains(seat.user!.id))
           seat.index,
     };
+    // Owner (2026-10-26, "the host cannot tap"): a seat answers the host's
+    // tap as soon as the room exists — while the seats are still being read
+    // (or the last read failed) the tap reads them first, and says why when
+    // it cannot.
     ValueChanged<int>? onSeat;
-    if (liveSeats != null && room != null) {
-      onSeat = (index) => unawaited(_seatActions(room.id, liveSeats, index));
+    if (room != null && seats) {
+      onSeat = (index) => unawaited(_tapSeat(room.id, liveSeats, index));
     }
 
     final audioOnAir =
@@ -631,7 +674,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               )
             : null,
         seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25],
-        seatCount: state.seatCount!,
+        seatCount: setupSeats!,
         onSeatCount: previewing
             ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
             : null,
@@ -650,8 +693,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             : () => unawaited(_shareLive(_title.text.trim(), user.username)),
       );
     } else if (audioOnAir) {
-      // CP-012: the score from the media room's metadata, else the room's.
-      final score = engine.score ?? room?.score ?? 0;
+      // CP-012: the score from the media room's metadata, else the host's
+      // last tap batch (D120), else the room's.
+      final score =
+          engine.score ??
+          (_tapsRoom == room?.id ? _tapScore : null) ??
+          room?.score ??
+          0;
       final viewers = room == null
           ? null
           : ref.watch(liveViewersPreviewProvider(room.id)).value;
@@ -861,7 +909,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           host: KAvatar(
             name: hostName,
             imageUrl: user?.avatarUrl,
-            size: AudioSeatRing.hostSize,
+            size: AudioSeatRing.picture,
           ),
           hostName: hostName,
           hostMicOn: state.micEnabled,
@@ -1086,7 +1134,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     counts: state.mode == LiveRoomMode.audio
                         ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
-                    selected: state.seatCount!,
+                    selected: setupSeats!,
                     accent: art.accent,
                     onSelect: previewing
                         ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
@@ -1165,7 +1213,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               fit: StackFit.expand,
               children: [
                 background,
-                body,
+                // D120 (owner): the host cheers their own live like a viewer:
+                // a tap on an empty part of the stage counts and pops a
+                // character; seats, the bar, the chat and the cards keep
+                // their taps.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveTapLayer(
+                    onTap: () => _tapLive(room.id),
+                    // The lane starts just above the audio bar, or above
+                    // the chat pill and tools of a video live.
+                    laneBottomInset: audioOnAir ? 56 : 160,
+                    child: body,
+                  )
+                else
+                  body,
                 // CP-020: gift banners and effects over the live.
                 if (onAir && room != null)
                   LiveGiftEffectsLayer(roomId: room.id),
@@ -1298,6 +1359,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           },
         ),
       );
+
+  /// A tap on seat [index]: its actions, from [seats] or, when they are not
+  /// read yet, from a fresh read (a failure is explained).
+  Future<void> _tapSeat(String roomId, LiveSeats? seats, int index) async {
+    final LiveSeats current;
+    if (seats != null) {
+      current = seats;
+    } else {
+      try {
+        current = await ref.refresh(liveSeatsProvider(roomId).future);
+      } on Object catch (e) {
+        if (mounted) {
+          KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+        }
+        return;
+      }
+      if (!mounted) return;
+    }
+    await _seatActions(roomId, current, index);
+  }
 
   Future<void> _seatActions(String roomId, LiveSeats seats, int index) {
     final repo = ref.read(liveRepositoryProvider);

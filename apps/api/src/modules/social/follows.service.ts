@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { Notifier } from '../notifications/notifier.js';
 import { isValidUsername } from '../users/username.js';
 import { UsersService } from '../users/users.service.js';
+import { ACTIVE_COUNTERPART } from './follow-lists.service.js';
 import { blockedEitherWayIn, lockUserPairIn } from './pair-lock.js';
 
 /** `FollowState` (openapi v1.3). */
@@ -82,7 +83,9 @@ export class FollowsService {
       }
       return {
         isFollowing: true,
-        followerCount: await tx.follow.count({ where: { followeeId: target.id } }),
+        followerCount: await tx.follow.count({
+          where: { followeeId: target.id, follower: ACTIVE_COUNTERPART },
+        }),
       };
     });
   }
@@ -100,15 +103,21 @@ export class FollowsService {
       }
       return {
         isFollowing: false,
-        followerCount: await tx.follow.count({ where: { followeeId: target.id } }),
+        followerCount: await tx.follow.count({
+          where: { followeeId: target.id, follower: ACTIVE_COUNTERPART },
+        }),
       };
     });
   }
 
+  /**
+   * D121: only edges whose other side is ACTIVE count, the same rows the follower and following
+   * lists show (the lists also leave out accounts with a block either way with the reader).
+   */
   async counts(userId: string): Promise<FollowCounts> {
     const [followerCount, followingCount] = await Promise.all([
-      this.prisma.follow.count({ where: { followeeId: userId } }),
-      this.prisma.follow.count({ where: { followerId: userId } }),
+      this.prisma.follow.count({ where: { followeeId: userId, follower: ACTIVE_COUNTERPART } }),
+      this.prisma.follow.count({ where: { followerId: userId, followee: ACTIVE_COUNTERPART } }),
     ]);
     return { followerCount, followingCount };
   }

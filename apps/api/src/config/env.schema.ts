@@ -272,6 +272,8 @@ export const envSchema = z
     // deletes) and new confessions, per user, each replacing the default authenticated bucket.
     RATE_LIMIT_CP_SPACE_WRITE_USER: rateLimit('60/60'),
     RATE_LIMIT_CP_CONFESSION_USER: rateLimit('10/3600'),
+    // v1.25-live (CP-022, D116): family chat messages, 30 / minute per user.
+    RATE_LIMIT_FAMILY_CHAT_USER: rateLimit('30/60'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.

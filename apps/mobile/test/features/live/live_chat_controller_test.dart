@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -12,6 +13,13 @@ import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/fakes.dart';
+
+const _omar = UserSummary(
+  id: 'u-omar',
+  username: 'omar',
+  displayName: 'Omar',
+  avatarUrl: null,
+);
 
 const _huda = UserSummary(
   id: 'u-huda',
@@ -40,15 +48,17 @@ LiveChatEntry _entry(
   createdAt: DateTime.utc(2026, 10, 24, 20),
 );
 
-List<String> _texts(LiveChatState state) => [
+/// The lines' texts; the rules line (D118) only where [notice].
+List<String> _texts(LiveChatState state, {bool notice = false}) => [
   for (final item in state.items)
-    switch (item) {
-      LiveChatPosted(:final entry) => entry.text,
-      LiveChatPending(:final text, :final failed) =>
-        failed ? '!$text' : '…$text',
-      LiveChatJoinLine(:final user) => '+${user.username}',
-      LiveChatBulletLine(:final bullet) => '*${bullet.text}',
-    },
+    if (notice || item is! LiveChatNoticeLine)
+      switch (item) {
+        LiveChatPosted(:final entry) => entry.text,
+        LiveChatPending(:final text, :final failed) =>
+          failed ? '!$text' : '…$text',
+        LiveChatBulletLine(:final bullet) => '*${bullet.text}',
+        LiveChatNoticeLine() => '#rules',
+      },
 ];
 
 void main() {
@@ -99,7 +109,56 @@ void main() {
       ..add(const LiveChatJoined(_huda))
       ..add(const LiveChatDeleted('m1'));
     await pumpEventQueue();
-    expect(_texts(state()), ['hi', 'welcome', '+huda']);
+    // D119: a join is not a line; it is the chat's latest join.
+    expect(_texts(state()), ['hi', 'welcome']);
+    expect(state().latestJoin?.user, _huda);
+  });
+
+  test('D119: each join replaces the latest; quick ones add up (+N); '
+      'joins do not count toward the 50 lines', () async {
+    var now = DateTime.utc(2026, 10, 26, 20);
+    await withClock(Clock(() => now), () async {
+      await attach();
+      engine.chat.add(const LiveChatJoined(_huda));
+      await pumpEventQueue();
+      final first = state().latestJoin!;
+      expect((first.user, first.burst), (_huda, 0));
+      now = now.add(const Duration(milliseconds: 500));
+      engine.chat.add(const LiveChatJoined(_omar));
+      await pumpEventQueue();
+      final second = state().latestJoin!;
+      expect((second.user, second.burst), (_omar, 1));
+      expect(second.serial, greaterThan(first.serial));
+      now = now.add(const Duration(seconds: 5));
+      engine.chat.add(const LiveChatJoined(_huda));
+      await pumpEventQueue();
+      expect((state().latestJoin!.user, state().latestJoin!.burst), (_huda, 0));
+    });
+    expect(state().items.whereType<LiveChatPosted>(), isEmpty);
+    // 50 messages after the rules line: all 50 stay with the rules line.
+    for (var i = 0; i < 50; i++) {
+      engine.chat.add(LiveChatReceived(_entry('x$i', 'm$i')));
+    }
+    await pumpEventQueue();
+    expect(_texts(state()), [for (var i = 0; i < 50; i++) 'm$i']);
+    expect(state().items.whereType<LiveChatNoticeLine>(), hasLength(1));
+    engine.chat.add(LiveChatReceived(_entry('x50', 'm50')));
+    await pumpEventQueue();
+    expect(_texts(state()).first, 'm1');
+    expect(_texts(state()), hasLength(50));
+  });
+
+  test('D118: the rules line comes once, after the last messages and '
+      'before what the room delivers; it is local (never sent)', () async {
+    repo.chat = [_entry('m1', 'hello')];
+    await attach();
+    expect(_texts(state(), notice: true), ['hello', '#rules']);
+    engine.chat.add(LiveChatReceived(_entry('m2', 'hi')));
+    await pumpEventQueue();
+    // A second attach (the chat box reopened) adds no second rules line.
+    await attach();
+    expect(_texts(state(), notice: true), ['hello', '#rules', 'hi']);
+    expect(repo.chatCalls, ['list']);
   });
 
   test('hides live lines from people this person blocked', () async {
@@ -110,6 +169,7 @@ void main() {
       ..add(LiveChatReceived(_entry('h1', 'ok')));
     await pumpEventQueue();
     expect(_texts(state()), ['ok']);
+    expect(state().latestJoin, isNull);
   });
 
   test('the host turns the chat off and on (chat-state)', () async {
@@ -185,7 +245,7 @@ void main() {
     repo.chatFailure = const NetworkFailure.offline();
     expect((await chat().send('again'))?.code, ErrorCode.networkOffline);
     expect(_texts(state()), ['!again']);
-    final failed = state().items.single as LiveChatPending;
+    final failed = state().items.whereType<LiveChatPending>().single;
     expect(await chat().retry(failed), isNull);
     expect(_texts(state()), ['again']);
     // Discarding a failed line drops it.
@@ -200,7 +260,9 @@ void main() {
     await attach();
     engine.chat.add(LiveChatReceived(_entry('m50', 'line 50')));
     await pumpEventQueue();
-    expect(state().items, hasLength(LiveChatController.maxLines));
+    // D119: 50 messages; the rules line (D118) stays and does not count.
+    expect(_texts(state()), hasLength(LiveChatController.maxLines));
+    expect(_texts(state(), notice: true)[49], '#rules');
     expect(_texts(state()).first, 'line 1');
     expect(_texts(state()).last, 'line 50');
   });

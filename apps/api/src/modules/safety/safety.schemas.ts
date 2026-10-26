@@ -32,7 +32,17 @@ export const REPORT_REASONS = [
 /** `CreateReportRequest`. */
 export const createReportSchema = z.strictObject({
   // v1.24-live (CP-021): CP_CONFESSION, a confession on a CP couple's page (§10.24).
-  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'USER', 'LIVE_ROOM', 'LIVE_CHAT_MESSAGE', 'CP_CONFESSION']),
+  // v1.25-live (CP-022): FAMILY_CHAT_MESSAGE, a message in the reporter's family chat (§10.25).
+  targetType: z.enum([
+    'POST',
+    'COMMENT',
+    'STORY',
+    'USER',
+    'LIVE_ROOM',
+    'LIVE_CHAT_MESSAGE',
+    'CP_CONFESSION',
+    'FAMILY_CHAT_MESSAGE',
+  ]),
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
   note: noteSchema.optional(),
@@ -51,6 +61,8 @@ export const updatePrivacySchema = z
   .strictObject({
     whoCanMention: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
     defaultWhoCanComment: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
+    // v1.25-live (CP-022, D116): others may see when the user was last active (§10.25).
+    showActivityStatus: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
 

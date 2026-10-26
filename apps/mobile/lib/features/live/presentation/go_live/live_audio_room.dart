@@ -515,7 +515,9 @@ class LiveAudioRoomHeader extends StatelessWidget {
                 onTap: onTap,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
-                  height: 39.6,
+                  // At least 39.6 pt; it grows with large text instead of
+                  // clipping the title and the subtitle.
+                  constraints: const BoxConstraints(minHeight: 39.6),
                   padding: const EdgeInsetsDirectional.fromSTEB(5, 5, 14, 5),
                   decoration: BoxDecoration(
                     color: KAudioRoom.bar,

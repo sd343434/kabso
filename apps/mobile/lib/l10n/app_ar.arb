@@ -4421,6 +4421,36 @@
       }
     }
   },
+  "liveChatCharmLabel": "مستوى الجاذبية {level}",
+  "@liveChatCharmLabel": {
+    "description": "D119: screen reader label of the charm level badge under a chat author's name.",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "liveChatSupportLabel": "مستوى الدعم {level}",
+  "@liveChatSupportLabel": {
+    "description": "D119: screen reader label of the support level badge under a chat author's name.",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "liveChatFamilyLabel": "العائلة {name}، المستوى {level}",
+  "@liveChatFamilyLabel": {
+    "description": "D119: screen reader label of the family chip under a chat author's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
   "liveChatTool": "الدردشة",
   "@liveChatTool": {
     "description": "Host tool: the room chat on/off switch (CP-013); its state is shown by the button."
@@ -4959,9 +4989,37 @@
   "@liveVoiceUnavailable": {
     "description": "The microphone could not start (CP-017)."
   },
+  "liveVoiceUploadsUnavailable": "إرسال الرسائل الصوتية غير متاح حالياً.",
+  "@liveVoiceUploadsUnavailable": {
+    "description": "Live chat: a voice clip could not be sent because uploads are off on the server (503 MEDIA_UPLOADS_UNAVAILABLE). D118."
+  },
+  "liveRoomRulesNotice": "مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.",
+  "@liveRoomRulesNotice": {
+    "description": "The red system line with the room's rules, shown once when a live opens (host and viewers); local, never sent. D118."
+  },
+  "liveRoomRulesLabel": "تنبيه من Kabso Live",
+  "@liveRoomRulesLabel": {
+    "description": "Screen-reader name of the red system line in the live chat. D118."
+  },
   "liveVoiceTooLarge": "المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.",
   "@liveVoiceTooLarge": {
     "description": "A voice clip over 1 MiB (CP-017)."
+  },
+  "liveVoiceLiveMicPaused": "مايك البث متوقف مؤقتاً أثناء التسجيل",
+  "@liveVoiceLiveMicPaused": {
+    "description": "Live chat: while a voice clip records, the person's own live microphone (host or seated guest) is paused; shown next to the chat tools (CP-017)."
+  },
+  "liveVoiceLiveMicBusy": "تعذّر إيقاف مايك البث مؤقتاً، لذلك لا يمكن تسجيل مقطع صوتي الآن.",
+  "@liveVoiceLiveMicBusy": {
+    "description": "Live chat: the live microphone could not be paused for a voice clip, so nothing is recorded (CP-017)."
+  },
+  "liveVoicePlayFailed": "تعذّر تشغيل هذا المقطع الصوتي.",
+  "@liveVoicePlayFailed": {
+    "description": "Live chat: a voice clip could not be played (the player failed to load or start it) (CP-017)."
+  },
+  "liveVoiceSilent": "لم يُلتقط أي صوت في هذا المقطع، لذلك لم يُرسل. حاول مرة أخرى.",
+  "@liveVoiceSilent": {
+    "description": "Live chat: the recorded voice clip was silent (the microphone delivered nothing), so it was not sent (CP-017)."
   },
   "liveChatPrivateMessages": "الرسائل الخاصة",
   "@liveChatPrivateMessages": {
@@ -6259,6 +6317,14 @@
       }
     }
   },
+  "liveGiftTagAll": "الكل",
+  "@liveGiftTagAll": {
+    "description": "Gift panel: the first sub-category chip, every gift of the open tab. (D117)"
+  },
+  "liveGiftTagsSemantics": "تصنيفات الهدايا",
+  "@liveGiftTagsSemantics": {
+    "description": "Screen reader label of the gift panel's sub-category chip row. (D117)"
+  },
   "cpSpaceTitle": "مساحة الثنائي",
   "@cpSpaceTitle": {
     "description": "CP space: page title. (CP-021 (D112))"
@@ -6678,5 +6744,403 @@
         "type": "String"
       }
     }
+  },
+  "errorFamilyChatMuted": "تم كتمك في دردشة العائلة.",
+  "@errorFamilyChatMuted": {
+    "description": "Error FAMILY_CHAT_MUTED. (CP-022 (D116))"
+  },
+  "familiesListTitle": "قائمة العائلات",
+  "@familiesListTitle": {
+    "description": "Families screen: section title above the search and boards. (CP-022 (D116))"
+  },
+  "familiesSearchShort": "ابحث عن عائلة",
+  "@familiesSearchShort": {
+    "description": "Families screen: search field hint (name or number). (CP-022 (D116))"
+  },
+  "familiesTabPrestige": "هيبة العائلة",
+  "@familiesTabPrestige": {
+    "description": "Board tab: families by points gained this month. (CP-022 (D116))"
+  },
+  "familiesTabBattle": "ترتيب القتال",
+  "@familiesTabBattle": {
+    "description": "Board tab shown as Soon: family battles are not built. (CP-022 (D116))"
+  },
+  "familiesTabActive": "الأكثر نشاطاً",
+  "@familiesTabActive": {
+    "description": "Board tab: families by members active this week. (CP-022 (D116))"
+  },
+  "familiesSoonLabel": "{feature}، قريباً",
+  "@familiesSoonLabel": {
+    "description": "Screen-reader label of a feature that is not built yet. (CP-022 (D116))",
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "familiesBoardEmpty": "لا توجد عائلات في الترتيب بعد",
+  "@familiesBoardEmpty": {
+    "description": "Board empty state title. (CP-022 (D116))"
+  },
+  "familiesBoardEmptyPrestige": "تظهر هنا العائلات التي جمعت نقاطاً هذا الشهر.",
+  "@familiesBoardEmptyPrestige": {
+    "description": "Prestige board empty state body. (CP-022 (D116))"
+  },
+  "familiesBoardEmptyActive": "تظهر هنا العائلات التي نشط أعضاؤها هذا الأسبوع.",
+  "@familiesBoardEmptyActive": {
+    "description": "Active board empty state body. (CP-022 (D116))"
+  },
+  "familiesScoreMonth": "نقاط هذا الشهر: {points}",
+  "@familiesScoreMonth": {
+    "description": "Board row: points gained this month (compact). (CP-022 (D116))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "familiesScoreActive": "نشطون هذا الأسبوع: {count}",
+  "@familiesScoreActive": {
+    "description": "Board row: members active this week (compact). (CP-022 (D116))",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "familiesPodiumLabel": "المركز {place}: {name}",
+  "@familiesPodiumLabel": {
+    "description": "Screen-reader label of a podium card. (CP-022 (D116))",
+    "placeholders": {
+      "place": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familiesMyRankNone": "لم تدخل عائلتك الترتيب بعد",
+  "@familiesMyRankNone": {
+    "description": "Pinned bar: the caller's family has no score on this board. (CP-022 (D116))"
+  },
+  "familyJoinShort": "انضمام",
+  "@familyJoinShort": {
+    "description": "Gold Join pill on a family row. (CP-022 (D116))"
+  },
+  "familyJoinNamed": "انضمام إلى {name}",
+  "@familyJoinNamed": {
+    "description": "Screen-reader label of the podium + button. (CP-022 (D116))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyLevelLong": "المستوى {level}",
+  "@familyLevelLong": {
+    "description": "A family level (podium, rows, hero chip, progress). (CP-022 (D116))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "familyActiveJustNow": "نشط الآن",
+  "@familyActiveJustNow": {
+    "description": "Presence: last active under a minute ago but not counted online. (CP-022 (D116))"
+  },
+  "familyOnlineNow": "متصل الآن",
+  "@familyOnlineNow": {
+    "description": "Presence: active in the last 5 minutes. (CP-022 (D116))"
+  },
+  "familySoon": "قريباً",
+  "@familySoon": {
+    "description": "Small tag on a feature that is not built yet (D62 convention). (CP-022 (D116))"
+  },
+  "familyPageTitle": "العائلة",
+  "@familyPageTitle": {
+    "description": "Family page title in the hero. (CP-022 (D116))"
+  },
+  "familyShare": "مشاركة العائلة",
+  "@familyShare": {
+    "description": "Hero share button tooltip (copies the invite). (CP-022 (D116))"
+  },
+  "familyInvite": "دعوة أعضاء",
+  "@familyInvite": {
+    "description": "Family page bottom bar: copies the invite text. (CP-022 (D116))"
+  },
+  "familyInviteCopied": "تم نسخ الدعوة. أرسلها لمن تريد.",
+  "@familyInviteCopied": {
+    "description": "Snack after copying the invite. (CP-022 (D116))"
+  },
+  "familyInviteText": "انضم إلى عائلتي «{name}» على Kabso Live. رقم العائلة: {number}",
+  "@familyInviteText": {
+    "description": "The copied invite (no public link yet, B7). (CP-022 (D116))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "familyNumberLabel": "رقم العائلة",
+  "@familyNumberLabel": {
+    "description": "Hero box label above the number. (CP-022 (D116))"
+  },
+  "familyNumberCopy": "رقم العائلة {number}، انسخ",
+  "@familyNumberCopy": {
+    "description": "Screen-reader label of the number box. (CP-022 (D116))",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCopyNumber": "نسخ رقم العائلة",
+  "@familyCopyNumber": {
+    "description": "Hero menu item. (CP-022 (D116))"
+  },
+  "familyMemberWord": "عضو",
+  "@familyMemberWord": {
+    "description": "Under the member count in the header. (CP-022 (D116))"
+  },
+  "familyMembersShort": "{count} عضو",
+  "@familyMembersShort": {
+    "description": "Member count (compact) next to the member search. (CP-022 (D116))",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "familyMembersSearchHint": "ابحث في الأعضاء",
+  "@familyMembersSearchHint": {
+    "description": "Members tab search hint. (CP-022 (D116))"
+  },
+  "familyMembersNoMatch": "لا يوجد عضو بهذا الاسم",
+  "@familyMembersNoMatch": {
+    "description": "Members tab: empty search. (CP-022 (D116))"
+  },
+  "familyToReach": "للوصول إلى المستوى {level}",
+  "@familyToReach": {
+    "description": "Under the level progress numbers. (CP-022 (D116))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "familyToolManage": "إدارة العائلة",
+  "@familyToolManage": {
+    "description": "Tool tile (leader). (CP-022 (D116))"
+  },
+  "familyToolCompetitions": "المسابقات",
+  "@familyToolCompetitions": {
+    "description": "Tool tile shown as Soon. (CP-022 (D116))"
+  },
+  "familyToolShop": "متجر العائلة",
+  "@familyToolShop": {
+    "description": "Tool tile shown as Soon. (CP-022 (D116))"
+  },
+  "familyToolTasks": "المهام",
+  "@familyToolTasks": {
+    "description": "Tool tile shown as Soon. (CP-022 (D116))"
+  },
+  "familyTabMembers": "الأعضاء",
+  "@familyTabMembers": {
+    "description": "Family page tab. (CP-022 (D116))"
+  },
+  "familyTabEvents": "الفعاليات",
+  "@familyTabEvents": {
+    "description": "Family page tab shown as Soon. (CP-022 (D116))"
+  },
+  "familyTabContributions": "المساهمات",
+  "@familyTabContributions": {
+    "description": "Family page tab: this month's contributions. (CP-022 (D116))"
+  },
+  "familyTabRanking": "الترتيب",
+  "@familyTabRanking": {
+    "description": "Family page tab: the family on both boards. (CP-022 (D116))"
+  },
+  "familyContributionsThisMonth": "مساهمات الأعضاء هذا الشهر",
+  "@familyContributionsThisMonth": {
+    "description": "Contributions tab header. (CP-022 (D116))"
+  },
+  "familyContributionsEmpty": "لا مساهمات هذا الشهر بعد",
+  "@familyContributionsEmpty": {
+    "description": "Contributions tab empty title. (CP-022 (D116))"
+  },
+  "familyContributionsEmptyBody": "كل عملة ينفقها الأعضاء في التطبيق تُحتسب للعائلة.",
+  "@familyContributionsEmptyBody": {
+    "description": "Contributions tab empty body. (CP-022 (D116))"
+  },
+  "familyRankNone": "—",
+  "@familyRankNone": {
+    "description": "Ranking tab: not ranked (score 0). (CP-022 (D116))"
+  },
+  "familyRankingNote": "الترتيب بين كل العائلات: هيبة العائلة لهذا الشهر، والنشاط لهذا الأسبوع.",
+  "@familyRankingNote": {
+    "description": "Ranking tab footnote. (CP-022 (D116))"
+  },
+  "familyChangeCover": "تغيير الغلاف",
+  "@familyChangeCover": {
+    "description": "Leader menu item. (CP-022 (D116))"
+  },
+  "familyRemoveCover": "إزالة الغلاف",
+  "@familyRemoveCover": {
+    "description": "Leader menu item. (CP-022 (D116))"
+  },
+  "familyCoverUpdated": "تم تحديث الغلاف",
+  "@familyCoverUpdated": {
+    "description": "Snack. (CP-022 (D116))"
+  },
+  "familyCoverRemoved": "تمت إزالة الغلاف",
+  "@familyCoverRemoved": {
+    "description": "Snack. (CP-022 (D116))"
+  },
+  "familyTaglineTitle": "وصف العائلة",
+  "@familyTaglineTitle": {
+    "description": "Dialog title and menu item (the line under the name). (CP-022 (D116))"
+  },
+  "familyTaglineHint": "مثال: عائلة عالمية · ترفيه · بث مباشر",
+  "@familyTaglineHint": {
+    "description": "Tagline field hint. (CP-022 (D116))"
+  },
+  "familySave": "حفظ",
+  "@familySave": {
+    "description": "Dialog save button. (CP-022 (D116))"
+  },
+  "familySaved": "تم الحفظ",
+  "@familySaved": {
+    "description": "Snack. (CP-022 (D116))"
+  },
+  "familyViewProfile": "عرض الملف الشخصي",
+  "@familyViewProfile": {
+    "description": "Member menu item. (CP-022 (D116))"
+  },
+  "familyChatOpen": "مراسلة العائلة",
+  "@familyChatOpen": {
+    "description": "Family page bottom bar: opens the family chat. (CP-022 (D116))"
+  },
+  "familyChatTitle": "دردشة العائلة",
+  "@familyChatTitle": {
+    "description": "Family chat title while the family loads. (CP-022 (D116))"
+  },
+  "familyChatHint": "اكتب رسالة للعائلة",
+  "@familyChatHint": {
+    "description": "Family chat input hint. (CP-022 (D116))"
+  },
+  "familyChatSend": "إرسال",
+  "@familyChatSend": {
+    "description": "Family chat send button tooltip. (CP-022 (D116))"
+  },
+  "familyChatEmpty": "ابدأوا الحديث",
+  "@familyChatEmpty": {
+    "description": "Family chat empty title. (CP-022 (D116))"
+  },
+  "familyChatEmptyBody": "الرسائل هنا يراها أعضاء العائلة فقط.",
+  "@familyChatEmptyBody": {
+    "description": "Family chat empty body. (CP-022 (D116))"
+  },
+  "familyChatLoadError": "تعذّر تحميل الدردشة",
+  "@familyChatLoadError": {
+    "description": "Family chat load error. (CP-022 (D116))"
+  },
+  "familyChatMembersOnly": "الدردشة لأعضاء العائلة فقط",
+  "@familyChatMembersOnly": {
+    "description": "Family chat: the caller is not a member. (CP-022 (D116))"
+  },
+  "familyChatMembersOnlyBody": "انضم إلى العائلة لتشارك في الدردشة.",
+  "@familyChatMembersOnlyBody": {
+    "description": "Family chat: not a member body. (CP-022 (D116))"
+  },
+  "familyChatDelete": "حذف الرسالة",
+  "@familyChatDelete": {
+    "description": "Family chat long-press action. (CP-022 (D116))"
+  },
+  "familyChatDeleted": "تم حذف الرسالة",
+  "@familyChatDeleted": {
+    "description": "Snack. (CP-022 (D116))"
+  },
+  "familyChatReport": "الإبلاغ عن الرسالة",
+  "@familyChatReport": {
+    "description": "Family chat long-press action and report sheet title. (CP-022 (D116))"
+  },
+  "familyChatReported": "شكراً، تم إرسال البلاغ",
+  "@familyChatReported": {
+    "description": "Snack. (CP-022 (D116))"
+  },
+  "familyChatMute": "كتم في الدردشة",
+  "@familyChatMute": {
+    "description": "Member menu: leader or deputy mutes the member in the family chat. (CP-022 (D116))"
+  },
+  "familyChatUnmute": "إلغاء الكتم في الدردشة",
+  "@familyChatUnmute": {
+    "description": "Member menu. (CP-022 (D116))"
+  },
+  "familyChatMutedName": "تم كتم {name} في الدردشة",
+  "@familyChatMutedName": {
+    "description": "Snack. (CP-022 (D116))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyChatUnmutedName": "تم إلغاء كتم {name}",
+  "@familyChatUnmutedName": {
+    "description": "Snack. (CP-022 (D116))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyActivityTitle": "حالة النشاط",
+  "@privacyActivityTitle": {
+    "description": "Privacy section title. (CP-022 (D116))"
+  },
+  "privacyActivityLabel": "إظهار حالة النشاط",
+  "@privacyActivityLabel": {
+    "description": "Privacy switch. (CP-022 (D116))"
+  },
+  "privacyActivityHint": "يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.",
+  "@privacyActivityHint": {
+    "description": "Privacy switch subtitle. (CP-022 (D116))"
+  },
+  "followListsFollowBack": "رد المتابعة",
+  "@followListsFollowBack": {
+    "description": "D121: follow-list row button when that person follows you and you do not follow them."
+  },
+  "followListsFollowersEmpty": "لا يوجد متابِعون بعد",
+  "@followListsFollowersEmpty": {
+    "description": "D121: empty Followers tab."
+  },
+  "followListsFollowersEmptyBody": "عندما يتابع أحدٌ هذا الحساب سيظهر هنا.",
+  "@followListsFollowersEmptyBody": {
+    "description": "D121: under followListsFollowersEmpty."
+  },
+  "followListsFollowingEmpty": "لا يتابع أحدًا بعد",
+  "@followListsFollowingEmpty": {
+    "description": "D121: empty Following tab."
+  },
+  "followListsFollowingEmptyBody": "ستظهر هنا الحسابات التي يتابعها هذا الحساب.",
+  "@followListsFollowingEmptyBody": {
+    "description": "D121: under followListsFollowingEmpty."
+  },
+  "followListsPrivateBody": "لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.",
+  "@followListsPrivateBody": {
+    "description": "D121: a private account's lists for someone who does not follow it (403); under profilePrivateTitle."
+  },
+  "profileOpenFollowers": "عرض المتابِعين",
+  "@profileOpenFollowers": {
+    "description": "D121: screen-reader hint of the Followers count on a profile (opens the list)."
+  },
+  "profileOpenFollowing": "عرض من يتابعهم",
+  "@profileOpenFollowing": {
+    "description": "D121: screen-reader hint of the Following count on a profile (opens the list)."
   }
 }

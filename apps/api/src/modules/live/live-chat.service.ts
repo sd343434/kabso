@@ -15,6 +15,11 @@ import { LiveRoomsService, type RoomRow, type UserSummaryDto } from './live-room
 import { isUuid, parseLiveChatSend, type LiveChatKind } from './live.schemas.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
+import {
+  LiveChatBadgesService,
+  NO_BADGES,
+  type LiveChatAuthorBadgesDto,
+} from './live-chat-badges.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
 // ---- Response shapes (openapi v1.9-live, CP-013) -----------------------------------------------
@@ -37,6 +42,8 @@ export interface LiveChatMessageDto {
   createdAt: string;
   /** v1.24-live (CP-021): the author's couple had the Exclusive Chat Bubble when it was sent. */
   cpBubble: boolean;
+  /** v1.24.4-live (D119): the author's level and family badges now (cached up to 30 s). */
+  authorBadges: LiveChatAuthorBadgesDto;
 }
 
 /** `LiveChatMute`. */
@@ -117,6 +124,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     private readonly blockedWords: LiveBlockedWordsService,
     private readonly assets: MediaService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    private readonly badges: LiveChatBadgesService,
   ) {}
 
   onModuleInit(): void {
@@ -145,7 +153,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     this.sweepTimer.unref();
   }
 
-  private toDto(row: MessageRow): LiveChatMessageDto {
+  private toDto(row: MessageRow, authorBadges: LiveChatAuthorBadgesDto): LiveChatMessageDto {
     return {
       id: row.id,
       roomId: row.roomId,
@@ -157,7 +165,13 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       expiresAt: row.expiresAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       cpBubble: row.cpBubble,
+      authorBadges,
     };
+  }
+
+  /** One message with its author's badges (D119). */
+  private async withBadges(row: MessageRow): Promise<LiveChatMessageDto> {
+    return this.toDto(row, await this.badges.one(row.userId));
   }
 
   // ---- Delivery --------------------------------------------------------------------------------
@@ -231,7 +245,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     const clientId = input.clientId.toLowerCase();
 
     const first = await this.byClientId(callerId, clientId);
-    if (first) return { created: false, message: this.toDto(first) };
+    if (first) return { created: false, message: await this.withBadges(first) };
 
     const isHost = callerId === row.host_user_id;
     if (!isHost) {
@@ -253,7 +267,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     if (waitMs > 0) {
       // A concurrent request with the same clientId may have stored it meanwhile: still a retry.
       const stored = await this.byClientId(callerId, clientId);
-      if (stored) return { created: false, message: this.toDto(stored) };
+      if (stored) return { created: false, message: await this.withBadges(stored) };
       throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
         'Retry-After': String(Math.max(1, Math.ceil(waitMs / 1000))),
       });
@@ -305,11 +319,11 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       // A concurrent request with the same clientId won: answer with its message.
       if (violatedUniqueIndex(err) !== null) {
         const raced = await this.byClientId(callerId, clientId);
-        if (raced) return { created: false, message: this.toDto(raced) };
+        if (raced) return { created: false, message: await this.withBadges(raced) };
       }
       throw err;
     }
-    const message = this.toDto(created);
+    const message = await this.withBadges(created);
     await this.broadcast(row.id, { type: 'chat', message });
     return { created: true, message };
   }
@@ -351,7 +365,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       take: LIVE_CHAT_LIST_MAX,
       include: MESSAGE_INCLUDE,
     });
-    return { data: rows.reverse().map((r) => this.toDto(r)) };
+    const badges = await this.badges.of(rows.map((r) => r.userId));
+    return { data: rows.reverse().map((r) => this.toDto(r, badges.get(r.userId) ?? NO_BADGES)) };
   }
 
   // ---- Moderation ------------------------------------------------------------------------------

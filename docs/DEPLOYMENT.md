@@ -550,7 +550,11 @@ a `CONNECTION LIMIT`.
   ```
 - Voice clips and images of the live chat (migration `20261108100000_live_chat_media`) are
   deleted by the live sweeper 60 s after they were sent (`LIVE_SWEEP_INTERVAL_SECONDS` cadence);
-  they need `MEDIA_UPLOADS_ENABLED` like every upload.
+  they need `MEDIA_UPLOADS_ENABLED` like every upload. While it is off, every live-chat picture and
+  voice clip is refused with 503 `MEDIA_UPLOADS_UNAVAILABLE` (the app says photo uploads / voice
+  messages are unavailable, D118); turning them on needs `MEDIA_UPLOADS_ENABLED=true` plus
+  `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `MEDIA_PUBLIC_BASE_URL` (required, or
+  the API refuses to start), `S3_ENDPOINT` and `S3_REGION` (`auto`) for R2, as in §5.3.
 
 ### 5.5 Families, CP couples and medals (migrations `20261110090000_families_cp_medals_enums`, `20261110100000_families_cp_medals`, `20261110110000_medal_showcase`; CP-018, D106) — [IMPLEMENTED, draft contract]
 
@@ -653,6 +657,26 @@ a `CONNECTION LIMIT`.
   confessions). No sweeper and no CLI.
 - Reported confessions appear in the existing admin reports queue (`targetType: CP_CONFESSION`);
   `REMOVE_TARGET` hides the confession.
+
+### 5.9 Families v2 (migrations `20261115090000_families_v2_enums`, `20261115100000_families_v2`; CP-022, D116) — [IMPLEMENTED, draft contract]
+
+- Apply in order with `prisma migrate deploy` (the enum value `FAMILY_CHAT_MESSAGE` must be committed
+  before the second migration uses it). No GRANT: the runtime group gets DML on the new tables
+  (`family_chat_messages`, `family_chat_mutes`) through the default privileges.
+- New columns: `users.last_active_at` (presence, empty until users make requests after the deploy),
+  `privacy_settings.show_activity_status` (default true), `families.cover_media_id` / `cover_url` /
+  `tagline`; a new index `family_points_ledger_created_idx` (built in the migration; on a large
+  ledger consider building it `CONCURRENTLY` by hand first, the migration's `CREATE INDEX` then
+  needs `IF NOT EXISTS`); the `media_assets_kind_known` check gains `FAMILY_COVER`; the
+  `reports_one_target` check gains `FAMILY_CHAT_MESSAGE`. No backfill.
+- Each authenticated request now schedules at most one `UPDATE users SET last_active_at` per user
+  per minute and API process (after the response).
+- The family boards follow the existing `LIVE_RANKINGS_TIME_ZONE` (month for prestige, Monday week
+  for the most active board).
+- **New optional server config:** `RATE_LIMIT_FAMILY_CHAT_USER` (default `30/60`). No sweeper and
+  no CLI; family chat messages have no retention limit yet.
+- Reported family chat messages appear in the existing admin reports queue
+  (`targetType: FAMILY_CHAT_MESSAGE`); `REMOVE_TARGET` hides the message.
 
 ## 6. Observability baseline
 

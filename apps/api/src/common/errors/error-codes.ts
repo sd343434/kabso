@@ -70,6 +70,8 @@ export enum ErrorCode {
   FAMILY_NOT_EMPTY = 'FAMILY_NOT_EMPTY',
   /** v1.21-live (DRAFT, CP-018): the leader hands the family over (or disbands it) instead of leaving. */
   FAMILY_LEADER_CANNOT_LEAVE = 'FAMILY_LEADER_CANNOT_LEAVE',
+  /** v1.25-live (CP-022): the leader or a deputy muted the caller in the family chat. */
+  FAMILY_CHAT_MUTED = 'FAMILY_CHAT_MUTED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
   /** v1.21-live (DRAFT, CP-018): the caller already has a pending CP request. */
@@ -137,6 +139,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.FAMILY_REQUEST_NOT_PENDING]: 409,
   [ErrorCode.FAMILY_NOT_EMPTY]: 409,
   [ErrorCode.FAMILY_LEADER_CANNOT_LEAVE]: 409,
+  [ErrorCode.FAMILY_CHAT_MUTED]: 403,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
@@ -193,6 +196,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.FAMILY_REQUEST_NOT_PENDING]: 'The join request is no longer pending.',
   [ErrorCode.FAMILY_NOT_EMPTY]: 'The family still has members.',
   [ErrorCode.FAMILY_LEADER_CANNOT_LEAVE]: 'Hand the family over before leaving.',
+  [ErrorCode.FAMILY_CHAT_MUTED]: 'You are muted in this family chat.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',

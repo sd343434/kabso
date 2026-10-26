@@ -140,6 +140,10 @@ enum ErrorCode {
   /// unlocked `GIFT_WALL`.
   cpPrivilegeLocked('CP_PRIVILEGE_LOCKED'),
 
+  /// v1.25-live (CP-022, §10.25, 403): the leader or a deputy muted the
+  /// caller in the family chat.
+  familyChatMuted('FAMILY_CHAT_MUTED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

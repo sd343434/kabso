@@ -6,6 +6,14 @@ part of 'live_gift_models.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_GiftTag _$GiftTagFromJson(Map<String, dynamic> json) =>
+    _GiftTag(code: json['code'] as String, name: json['name'] as String);
+
+Map<String, dynamic> _$GiftTagToJson(_GiftTag instance) => <String, dynamic>{
+  'code': instance.code,
+  'name': instance.name,
+};
+
 _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   code: json['code'] as String,
   category: $enumDecode(_$GiftCategoryEnumMap, json['category']),
@@ -19,6 +27,9 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
     json['badge'],
     unknownValue: GiftBadge.none,
   ),
+  tag: json['tag'] == null
+      ? null
+      : GiftTag.fromJson(json['tag'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
@@ -30,6 +41,7 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'animationKey': instance.animationKey,
   'sortOrder': instance.sortOrder,
   'badge': _$GiftBadgeEnumMap[instance.badge]!,
+  'tag': instance.tag,
 };
 
 const _$GiftCategoryEnumMap = {

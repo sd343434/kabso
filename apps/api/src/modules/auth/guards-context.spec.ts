@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard.js';
 import type { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { loadConfig } from '../../config/app-config.js';
+import type { PresenceTracker } from '../users/presence.js';
 import { AccessTokenGuard } from './access-token.guard.js';
 import type { AccessTokenService } from './access-token.service.js';
 import type { SessionsService } from './sessions.service.js';
@@ -32,6 +33,7 @@ describe('guards deny non-HTTP execution contexts (SEC-013)', () => {
     new Reflector(),
     { verify } as unknown as AccessTokenService,
     {} as SessionsService,
+    {} as PresenceTracker,
   );
   const consume = vi.fn();
   const rate = new RateLimitGuard(new Reflector(), { consume } as unknown as RateLimitService, config);

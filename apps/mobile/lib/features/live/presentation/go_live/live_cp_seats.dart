@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:material_ui/material_ui.dart';
@@ -88,18 +87,10 @@ List<CpSeatPair> cpSeatPairs(LiveSeats? seats, {required String hostId}) {
 /// The CP privilege code of the Couple Mic Effect (D112, D115).
 const cpMicEffectPrivilege = 'MIC_EFFECT';
 
-/// Rows layout (15, 20, 25 tiles, D103): consecutive tiles of the same row
-/// of [rowSize].
+/// Audio seats are always rows of [rowSize] (D118): consecutive tiles of
+/// the same row.
 bool cpRowsAdjacent(CpSeatPair p, {required int count, int rowSize = 5}) =>
     p.b == p.a + 1 && p.b < count && p.a ~/ rowSize == p.b ~/ rowSize;
-
-/// Circle layout (5, 10 tiles): neighbouring guests on the ring (the last
-/// and the first too). The host sits in the middle, never next to a seat.
-bool cpCircleAdjacent(CpSeatPair p, {required int count}) {
-  final guests = count - 1;
-  if (p.a < 1 || p.b > guests || guests < 2) return false;
-  return p.b - p.a == 1 || (guests > 2 && p.a == 1 && p.b == guests);
-}
 
 /// One ring of a CP level frame (D113): the [asset] of [size] pixels whose
 /// transparent hole is centred at [hole] with [holeDiameter] pixels.
@@ -313,105 +304,6 @@ Widget cpRingAt({
   );
 }
 
-/// The circle layout (D113 review): a partner's ring drawn whole around the
-/// picture centred at [centre] ([picture] its diameter), never cut by a
-/// rectangle. Where it would reach another seat's picture or name (the
-/// [obstacles]) or leave [bounds], its outer extent shrinks uniformly: the
-/// art shows within a circle of the largest clear radius, fading over its
-/// last points; the hole stays on the picture.
-Widget cpRingAround({
-  required CpRingPiece piece,
-  required Offset centre,
-  required double picture,
-  required List<CpObstacle> obstacles,
-  required Rect bounds,
-  Key? key,
-}) {
-  final ring = piece.rectFor(centre, picture);
-  final radius = cpRingRadius(
-    centre,
-    ring,
-    obstacles: obstacles,
-    bounds: bounds,
-  );
-  return Positioned.fromRect(
-    key: key,
-    rect: ring,
-    child: IgnorePointer(
-      child: ExcludeSemantics(
-        child: CpRingArt(
-          piece: piece,
-          radius: radius,
-          centre: centre - ring.topLeft,
-        ),
-      ),
-    ),
-  );
-}
-
-/// The largest radius around [centre] the ring art ([ring], its whole
-/// piece) may reach: its own farthest corner at most, and clear of every
-/// obstacle and of the [bounds] edges.
-double cpRingRadius(
-  Offset centre,
-  Rect ring, {
-  required List<CpObstacle> obstacles,
-  required Rect bounds,
-}) {
-  var r = [
-    ring.topLeft,
-    ring.topRight,
-    ring.bottomLeft,
-    ring.bottomRight,
-  ].map((c) => (c - centre).distance).reduce(math.max);
-  for (final o in obstacles) {
-    r = math.min(r, o.distanceTo(centre));
-  }
-  return math.min(
-    r,
-    [
-      centre.dx - bounds.left,
-      bounds.right - centre.dx,
-      centre.dy - bounds.top,
-      bounds.bottom - centre.dy,
-    ].reduce(math.min),
-  );
-}
-
-/// A ring's art, shown within [radius] of [centre] (local coordinates).
-class CpRingArt extends StatelessWidget {
-  const new({
-    required this.piece,
-    required this.radius,
-    required this.centre,
-    super.key,
-  });
-
-  final CpRingPiece piece;
-  final double radius;
-  final Offset centre;
-
-  @override
-  Widget build(BuildContext context) {
-    final art = Image.asset(
-      piece.asset,
-      fit: BoxFit.fill,
-      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-    );
-    final fade = math.min(cpRingFade, radius / 4);
-    return ShaderMask(
-      blendMode: BlendMode.dstIn,
-      shaderCallback: (bounds) => ui.Gradient.radial(
-        centre,
-        radius,
-        const [Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0x00FFFFFF)],
-        [0, (radius - fade) / radius, 1],
-      ),
-      child: art,
-    );
-  }
-}
-
 /// How far a ring's art fades where the tile cuts it.
 const cpRingFade = 5.0;
 
@@ -420,9 +312,6 @@ const cpRingFade = 5.0;
 sealed class CpObstacle {
   const new();
   bool overlaps(Rect r);
-
-  /// How far [p] is from the obstacle (0 inside it).
-  double distanceTo(Offset p);
 }
 
 class CpCircleObstacle extends CpObstacle {
@@ -438,10 +327,6 @@ class CpCircleObstacle extends CpObstacle {
     final dy = center.dy - ny;
     return dx * dx + dy * dy < radius * radius;
   }
-
-  @override
-  double distanceTo(Offset p) =>
-      math.max(0, (p - center).distance - radius).toDouble();
 }
 
 class CpRectObstacle extends CpObstacle {
@@ -450,13 +335,6 @@ class CpRectObstacle extends CpObstacle {
 
   @override
   bool overlaps(Rect r) => rect.overlaps(r);
-
-  @override
-  double distanceTo(Offset p) {
-    final dx = math.max(0, math.max(rect.left - p.dx, p.dx - rect.right));
-    final dy = math.max(0, math.max(rect.top - p.dy, p.dy - rect.bottom));
-    return math.sqrt(dx * dx + dy * dy);
-  }
 }
 
 /// Whether the ellipse inscribed in [e] touches [o] (sampled on its edge,

@@ -57,19 +57,25 @@ final class LiveChatPending extends LiveChatItem {
   String get key => 'p:$clientId';
 }
 
-/// "X joined" (signed-in viewers, at most one a second per room).
-final class LiveChatJoinLine extends LiveChatItem {
-  const new(this.user, this.serial, {this.cp});
+/// "X joined" (signed-in viewers, at most one a second per room). Owner
+/// (2026-10-26, D119): not a chat line any more — the newest one shows in
+/// the join strip pinned under the chat ([LiveChatState.latestJoin]), each
+/// join replacing the one before.
+final class LiveChatJoinLine {
+  const new(this.user, this.serial, {this.cp, this.burst = 0});
 
   final UserSummary user;
+
+  /// Grows with every join of this visit (a new join, even of the same
+  /// person, is a new strip).
   final int serial;
 
   /// v1.24-live (CP-021, §10.24): the joiner's couple when it unlocked the
   /// Entrance Effect (the room plays the CP entrance); null otherwise.
   final LiveJoinCp? cp;
 
-  @override
-  String get key => 'j:$serial';
+  /// Others who joined within a second before this one (shown as "+N").
+  final int burst;
 }
 
 /// CP-017 (owner, 2026-10-26): a bullet ("public message") in the chat, as
@@ -83,6 +89,16 @@ final class LiveChatBulletLine extends LiveChatItem {
   String get key => 'b:${bullet.id}';
 }
 
+/// Owner (2026-10-26, D118): the room's rules, a system line shown once
+/// each time a live opens (host and viewers), in red. Local only: never
+/// sent, never stored, never from a user; the text is the app's (l10n).
+final class LiveChatNoticeLine extends LiveChatItem {
+  const new();
+
+  @override
+  String get key => 'n:rules';
+}
+
 class LiveChatState {
   const new({
     this.items = const [],
@@ -90,7 +106,11 @@ class LiveChatState {
     this.muted = false,
     this.loaded = false,
     this.kicked = false,
+    this.latestJoin,
   });
+
+  /// D119: the newest "X joined" (the join strip under the chat), or null.
+  final LiveChatJoinLine? latestJoin;
 
   /// v1.20-live (D105): this person was kicked out of the live (the kick
   /// data message named them, or the server answered `LIVE_KICKED`).
@@ -114,7 +134,9 @@ class LiveChatState {
     bool? muted,
     bool? loaded,
     bool? kicked,
+    LiveChatJoinLine? latestJoin,
   }) => LiveChatState(
+    latestJoin: latestJoin ?? this.latestJoin,
     items: items ?? this.items,
     enabled: enabled ?? this.enabled,
     muted: muted ?? this.muted,
@@ -133,8 +155,14 @@ class LiveChatController extends Notifier<LiveChatState> {
 
   final String roomId;
 
-  /// Lines kept on screen (the API returns the last 50 too).
+  /// Lines kept on screen (the API returns the last 50 too). D119: only
+  /// messages and bullets count (joins are not lines; the rules line stays).
   static const maxLines = 50;
+
+  /// D119: joins closer than this add up in the join strip ("+N").
+  static const joinBurstWindow = Duration(seconds: 1);
+
+  DateTime? _lastJoinAt;
 
   /// CP-017: how long a voice clip or picture stays (§10.19).
   static const mediaLifetime = Duration(seconds: 60);
@@ -231,12 +259,23 @@ class LiveChatController extends Notifier<LiveChatState> {
       final live = state.items.where(
         (i) => i is! LiveChatPosted || !known.contains(i.entry.id),
       );
+      // D118: the rules line follows the history, so it is the first thing
+      // said in this visit.
       state = state.copyWith(
-        items: _trim([...messages.map(LiveChatPosted.new), ...live]),
+        items: _trim([
+          ...messages.map(LiveChatPosted.new),
+          const LiveChatNoticeLine(),
+          ...live,
+        ]),
         loaded: true,
       );
     } on Object {
-      if (ref.mounted) state = state.copyWith(loaded: true);
+      if (ref.mounted) {
+        state = state.copyWith(
+          items: _trim([const LiveChatNoticeLine(), ...state.items]),
+          loaded: true,
+        );
+      }
     }
   }
 
@@ -290,16 +329,21 @@ class LiveChatController extends Notifier<LiveChatState> {
         );
       case LiveChatJoined(:final user, :final cp):
         if (_blocked.contains(user.id) || user.id == me?.id) return;
+        // D119: the newest join replaces the one before (never a line);
+        // joins less than a second apart add up as "+N".
+        final now = clock.now();
+        final last = _lastJoinAt;
+        final quick = last != null && now.difference(last) < joinBurstWindow;
+        _lastJoinAt = now;
+        final before = state.latestJoin;
         state = state.copyWith(
-          items: _trim([
-            ...state.items,
-            // A partner this person blocked: a normal join.
-            LiveChatJoinLine(
-              user,
-              _serial++,
-              cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
-            ),
-          ]),
+          // A partner this person blocked: a normal join.
+          latestJoin: LiveChatJoinLine(
+            user,
+            _serial++,
+            cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
+            burst: quick && before != null ? before.burst + 1 : 0,
+          ),
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);
@@ -319,13 +363,15 @@ class LiveChatController extends Notifier<LiveChatState> {
   bool _has(String id) =>
       state.items.any((it) => it is LiveChatPosted && it.entry.id == id);
 
-  /// Keeps the newest [maxLines] lines; this person's pending ones stay.
+  /// Keeps the newest [maxLines] lines; this person's pending ones and the
+  /// rules line (D118) stay and do not count.
   List<LiveChatItem> _trim(List<LiveChatItem> items) {
-    var extra = items.length - maxLines;
+    var extra =
+        items.where((it) => it is! LiveChatNoticeLine).length - maxLines;
     if (extra <= 0) return items;
     final kept = <LiveChatItem>[];
     for (final it in items) {
-      if (extra > 0 && it is! LiveChatPending) {
+      if (extra > 0 && it is! LiveChatPending && it is! LiveChatNoticeLine) {
         extra--;
         continue;
       }

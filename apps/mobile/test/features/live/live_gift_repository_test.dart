@@ -80,6 +80,32 @@ void main() {
         'sports_car',
       ]);
       expect(c.of(GiftCategory.fun), isEmpty);
+      // D117: the optional tag, by language; the tabs' distinct tags.
+      expect(rose.tag, const GiftTag(code: 'love', name: 'حب'));
+      expect(c.tagsOf(GiftCategory.popular).map((t) => t.code), [
+        'love',
+        'luxury',
+      ]);
+    });
+
+    test('tag (v1.24.3-live): null and an older API without it', () async {
+      http.on(
+        'GET',
+        '$_base/gifts/catalogue',
+        (_) => FakeResponse(
+          200,
+          body: giftCatalogueJson(
+            codes: const ['lantern'],
+            extra: [
+              {...giftJson('cake')}..remove('tag'),
+            ],
+          ),
+        ),
+      );
+      final c = await repo().catalogue();
+      expect(c.byCode('lantern')!.tag, isNull);
+      expect(c.byCode('cake')!.tag, isNull);
+      expect(c.tagsOf(GiftCategory.event), isEmpty);
     });
 
     test('empty (production today) is valid', () async {

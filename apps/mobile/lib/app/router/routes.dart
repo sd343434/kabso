@@ -129,6 +129,11 @@ abstract final class AppRoutes {
   static String family(String familyId) =>
       '/families/${Uri.encodeComponent(familyId)}';
 
+  /// CP-022: the family chat of a family (members only).
+  static const familyChatPattern = '/families/:familyId/chat';
+  static String familyChat(String familyId) =>
+      '/families/${Uri.encodeComponent(familyId)}/chat';
+
   /// CP-018: your relationship (CP) and its requests.
   static const cp = '/cp';
 
@@ -153,6 +158,14 @@ abstract final class AppRoutes {
   /// The medals of [username].
   static String userMedals(String username) =>
       '${userProfile(username)}/medals';
+
+  /// D121: a user's followers and following (two tabs; `?tab=following`
+  /// opens the second).
+  static const userFollowsPattern = '/users/:username/follows';
+
+  /// The follow lists of [username], on Following when [following].
+  static String userFollows(String username, {bool following = false}) =>
+      '${userProfile(username)}/follows${following ? '?tab=following' : ''}';
 
   /// Prefix of every debug-only route (`!kReleaseMode`).
   static const debugPrefix = '/debug/';

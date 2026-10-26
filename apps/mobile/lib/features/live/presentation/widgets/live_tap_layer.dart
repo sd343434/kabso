@@ -8,20 +8,38 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// CP-012: tapping the live cheers the host, and [onTap] counts it (the
-/// session batches and sends taps). D101 (owner's tap pack): each tap pops
-/// one of the Kabi characters at the finger, which floats up with a sway and
-/// fades; only the tiers the host's charm level has reached ([maxTier], 1–10)
-/// take turns. Every 10th tap of a combo is a big pop with a ring of
-/// sparkles. Without [onTap] (the host, guests without an account) it is
+/// session batches and sends taps). The owner's tap pack (D101): each tap
+/// pops one of the Kabi characters, which floats up with a small sway and
+/// fades. D120 (owner): the characters do not fly where the finger is: they
+/// all rise in one narrow lane at the **physical right** edge near the
+/// bottom ([lane]; right in Arabic and English alike), like the hearts lane
+/// of other live apps, at half the old size. Every tap picks one of **all ten**
+/// characters at random, whatever the host's charm level (never the same one
+/// twice in a row, so a run of taps always mixes). Every 10th tap of a combo
+/// is a big pop with a ring of sparkles. The host taps their own live too
+/// (D120). Without [onTap] (guests without an account, an ended live) it is
 /// just [child].
+///
+/// A tap counts only where nothing above took it: seats, buttons, the chat
+/// and person cards keep their own taps (the inner gesture wins the arena).
 class LiveTapLayer extends StatefulWidget {
-  const new({required this.child, super.key, this.onTap, this.maxTier = 1});
+  const new({
+    required this.child,
+    super.key,
+    this.onTap,
+    this.random,
+    this.laneBottomInset = 72,
+  });
 
   final Widget child;
   final VoidCallback? onTap;
 
-  /// The highest charm tier the host has reached (the room level's tier).
-  final int maxTier;
+  /// How far above the layer's bottom safe edge the lane starts: just above
+  /// the screen's bottom bar or chat input (each screen passes its own).
+  final double laneBottomInset;
+
+  /// The source of the characters' picks and motion (tests seed it).
+  final math.Random? random;
 
   static const tapKey = Key('live.tapLayer');
 
@@ -32,8 +50,34 @@ class LiveTapLayer extends StatefulWidget {
   /// A pause longer than this starts a new combo.
   static const comboTimeout = Duration(milliseconds: 900);
 
-  /// The character's size; a big pop is 1.7 ×.
-  static const size = 38.0;
+  /// The character's size (D120: half of the first 38); a big pop is 1.7 ×.
+  static const size = 19.0;
+
+  /// The size of the 10th tap's big pop.
+  static const double bigSize = size * 1.7;
+
+  /// D120: the lane's width and its inset from the physical right edge.
+  static const laneWidth = 72.0;
+  static const laneRightInset = 12.0;
+
+  /// How high a character rises (from its start) at most.
+  static const maxRise = 260.0;
+
+  /// The lane every character starts and rises in, for a layer of [size]
+  /// whose lane bottom is [bottom] above the layer's bottom edge.
+  static Rect lane(Size size, double bottom) {
+    final right = size.width - laneRightInset;
+    final lower = size.height - bottom;
+    return Rect.fromLTRB(
+      right - laneWidth,
+      lower - maxRise - bigSize,
+      right,
+      lower,
+    );
+  }
+
+  /// Sideways sway of a character at most (it stays in the lane).
+  static const maxSway = 5.0;
 
   @override
   State<LiveTapLayer> createState() => _LiveTapLayerState();
@@ -66,13 +110,20 @@ class _Pop {
 class _LiveTapLayerState extends State<LiveTapLayer>
     with TickerProviderStateMixin {
   final _pops = <_Pop>[];
-  final _random = math.Random();
-  int _turn = 0;
+  late final math.Random _random = widget.random ?? math.Random();
+  CharmTier? _lastTier;
   int _combo = 0;
   DateTime _last = DateTime(0);
-  Offset? _comboAt;
+  Rect? _lane;
 
-  int get _tiers => widget.maxTier.clamp(1, CharmTier.values.length);
+  /// D120: any of the ten characters, not the one just shown.
+  CharmTier _pick() {
+    const all = CharmTier.values;
+    final last = _lastTier;
+    var tier = all[_random.nextInt(last == null ? all.length : all.length - 1)];
+    if (last != null && tier.index >= last.index) tier = all[tier.index + 1];
+    return _lastTier = tier;
+  }
 
   @override
   void dispose() {
@@ -87,7 +138,11 @@ class _LiveTapLayerState extends State<LiveTapLayer>
     final now = clock.now();
     _combo = now.difference(_last) > LiveTapLayer.comboTimeout ? 1 : _combo + 1;
     _last = now;
-    _comboAt = details.localPosition;
+    final size = context.size ?? Size.zero;
+    final lane = _lane = LiveTapLayer.lane(
+      size,
+      widget.laneBottomInset + MediaQuery.paddingOf(context).bottom,
+    );
     final big = _combo % 10 == 0;
     unawaited(
       big ? HapticFeedback.mediumImpact() : HapticFeedback.selectionClick(),
@@ -101,14 +156,23 @@ class _LiveTapLayerState extends State<LiveTapLayer>
         milliseconds: big ? 1700 : 1300 + _random.nextInt(500),
       ),
     );
+    final s = big
+        ? LiveTapLayer.bigSize
+        : LiveTapLayer.size * (0.85 + _random.nextDouble() * 0.3);
+    final sway = big ? 0.0 : 2 + _random.nextDouble() * 3;
+    // The start: the lane's bottom, with a little sideways jitter that keeps
+    // the character (even at its elastic overshoot) and its sway in the lane;
+    // the big pop starts in the middle so its ring fits.
+    final room = math.max(0, lane.width / 2 - s * 0.7 - sway);
+    final x =
+        lane.center.dx + (big ? 0 : (_random.nextDouble() * 2 - 1) * room);
     final pop = _Pop(
-      at: details.localPosition,
-      // The big pop shows the host's highest tier; the others take turns.
-      tier: CharmTier.values[big ? _tiers - 1 : _turn++ % _tiers],
+      at: Offset(x, lane.bottom - LiveTapLayer.bigSize / 2),
+      tier: _pick(),
       controller: controller,
-      size: LiveTapLayer.size * (big ? 1.7 : 0.85 + _random.nextDouble() * 0.3),
-      rise: 220 + _random.nextDouble() * 120,
-      sway: 14 + _random.nextDouble() * 22,
+      size: s,
+      rise: 200 + _random.nextDouble() * 60,
+      sway: sway,
       phase: _random.nextDouble() * math.pi * 2,
       spin: (_random.nextDouble() - 0.5) * 0.5,
       big: big,
@@ -127,12 +191,15 @@ class _LiveTapLayerState extends State<LiveTapLayer>
   @override
   Widget build(BuildContext context) {
     if (widget.onTap == null) return widget.child;
-    final comboAt = _comboAt;
+    final lane = _lane;
     // A tap counts when the finger lifts and nothing above took it (a seat,
     // a button, the chat), so pressing those never cheers as well.
     return GestureDetector(
       key: LiveTapLayer.tapKey,
       behavior: HitTestBehavior.opaque,
+      // Screen readers use the one "tap to cheer" item below; a tap action
+      // here would pull every label of the room into one node.
+      excludeFromSemantics: true,
       onTapUp: _onTapUp,
       child: Stack(
         fit: StackFit.expand,
@@ -154,12 +221,12 @@ class _LiveTapLayerState extends State<LiveTapLayer>
               clipBehavior: Clip.none,
               children: [
                 for (final p in _pops) LiveTapCharacter._(p, key: ObjectKey(p)),
-                if (comboAt != null && _combo > 1 && _pops.isNotEmpty)
+                if (lane != null && _combo > 1 && _pops.isNotEmpty)
                   _ComboLabel(
                     key: ValueKey(_combo),
-                    at: comboAt,
+                    lane: lane,
                     combo: _combo,
-                    color: CharmTier.values[(_combo ~/ 10) % _tiers].pillEnd,
+                    color: _pops.last.tier.pillEnd,
                   ),
               ],
             ),
@@ -170,8 +237,9 @@ class _LiveTapLayerState extends State<LiveTapLayer>
   }
 }
 
-/// One tap character: an elastic pop at the finger (the first 18 %), then
-/// it rises with a sine sway, shrinks a little and fades in the last 30 %.
+/// One tap character: an elastic pop at the lane's start (the first 18 %),
+/// then it rises in the lane with a small sine sway, shrinks a little and
+/// fades in the last 30 %.
 class LiveTapCharacter extends StatelessWidget {
   const new _(this._pop, {super.key});
 
@@ -246,7 +314,10 @@ class _Ring extends StatelessWidget {
           height: ring,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: color.withValues(alpha: fade), width: 3),
+            border: Border.all(
+              color: color.withValues(alpha: fade),
+              width: size * 0.08,
+            ),
           ),
         ),
         for (var j = 0; j < 8; j++)
@@ -269,17 +340,18 @@ class _Ring extends StatelessWidget {
   }
 }
 
-/// "x12" next to the finger while a combo runs; it springs in on every tap
-/// and fades once the combo times out.
+/// "x12" beside the lane's start while a combo runs; it springs in on every
+/// tap and fades once the combo times out.
 class _ComboLabel extends StatefulWidget {
   const new({
-    required this.at,
+    required this.lane,
     required this.combo,
     required this.color,
     super.key,
   });
 
-  final Offset at;
+  /// The tap lane ([LiveTapLayer.lane]): the label sits just left of it.
+  final Rect lane;
   final int combo;
   final Color color;
 
@@ -294,6 +366,8 @@ class _ComboLabelState extends State<_ComboLabel>
     duration: LiveTapLayer.comboTimeout + const Duration(milliseconds: 400),
   )..forward();
 
+  static const _width = 64.0;
+
   @override
   void dispose() {
     _spring.dispose();
@@ -302,8 +376,9 @@ class _ComboLabelState extends State<_ComboLabel>
 
   @override
   Widget build(BuildContext context) => Positioned(
-    left: widget.at.dx + 18,
-    top: widget.at.dy - 54,
+    left: widget.lane.left - _width - 2,
+    width: _width,
+    top: widget.lane.bottom - LiveTapLayer.bigSize - 24,
     child: AnimatedBuilder(
       animation: _spring,
       builder: (context, child) {
@@ -315,14 +390,19 @@ class _ComboLabelState extends State<_ComboLabel>
         final fade = ms <= idle ? 1.0 : (1 - (ms - idle) / 400).clamp(0.0, 1.0);
         return Opacity(
           opacity: fade,
-          child: Transform.scale(scale: 0.6 + 0.4 * t, child: child),
+          child: Transform.scale(
+            scale: 0.6 + 0.4 * t,
+            alignment: Alignment.centerRight,
+            child: child,
+          ),
         );
       },
       child: Text(
         'x${widget.combo}',
         textDirection: TextDirection.ltr,
+        textAlign: TextAlign.right,
         style: TextStyle(
-          fontSize: widget.combo % 10 == 0 ? 26 : 20,
+          fontSize: widget.combo % 10 == 0 ? 20 : 16,
           fontWeight: FontWeight.w900,
           fontStyle: FontStyle.italic,
           color: Colors.white,

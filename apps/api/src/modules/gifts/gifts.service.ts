@@ -13,7 +13,13 @@ export const LIVE_GIFT_COMBO_WINDOW_SECONDS = 5;
 /** At most this many recipients per send: the host and 24 seats (§10.9). */
 export const LIVE_GIFT_MAX_RECIPIENTS = 25;
 
-/** `Gift` (openapi v1.23-live). */
+/** `GiftTag` (v1.24.3-live): a gift's sub-category, its name in the reader's language. */
+export interface GiftTagDto {
+  code: string;
+  name: string;
+}
+
+/** `Gift` (openapi v1.23-live; `tag` v1.24.3-live). */
 export interface GiftDto {
   code: string;
   category: GiftCategory;
@@ -23,6 +29,7 @@ export interface GiftDto {
   animationKey: string | null;
   sortOrder: number;
   badge: GiftBadge;
+  tag: GiftTagDto | null;
 }
 
 /** `GiftCatalogue`. */
@@ -49,6 +56,16 @@ export function giftName(gift: Pick<Gift, 'nameAr' | 'nameEn'>, lang: ContentLan
   return lang === 'ar' ? gift.nameAr : gift.nameEn;
 }
 
+/** The gift's tag in `lang`, or null (none, or an incomplete row the CHECK forbids anyway). */
+export function giftTagDto(
+  gift: Pick<Gift, 'tagCode' | 'tagNameAr' | 'tagNameEn'>,
+  lang: ContentLanguage,
+): GiftTagDto | null {
+  const name = lang === 'ar' ? gift.tagNameAr : gift.tagNameEn;
+  if (gift.tagCode === null || name === null) return null;
+  return { code: gift.tagCode, name };
+}
+
 export function giftDto(gift: Gift, lang: ContentLanguage): GiftDto {
   return {
     code: gift.code,
@@ -59,6 +76,7 @@ export function giftDto(gift: Gift, lang: ContentLanguage): GiftDto {
     animationKey: gift.animationKey,
     sortOrder: gift.sortOrder,
     badge: gift.badge,
+    tag: giftTagDto(gift, lang),
   };
 }
 

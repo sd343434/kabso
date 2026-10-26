@@ -3825,6 +3825,21 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveChatCharmLabel(int level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String liveChatSupportLabel(int level) {
+    return 'مستوى الدعم $level';
+  }
+
+  @override
+  String liveChatFamilyLabel(String name, int level) {
+    return 'العائلة $name، المستوى $level';
+  }
+
+  @override
   String get liveChatTool => 'الدردشة';
 
   @override
@@ -4187,7 +4202,32 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceUnavailable => 'الميكروفون غير متاح الآن.';
 
   @override
+  String get liveVoiceUploadsUnavailable =>
+      'إرسال الرسائل الصوتية غير متاح حالياً.';
+
+  @override
+  String get liveRoomRulesNotice =>
+      'مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.';
+
+  @override
+  String get liveRoomRulesLabel => 'تنبيه من Kabso Live';
+
+  @override
   String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';
+
+  @override
+  String get liveVoiceLiveMicPaused => 'مايك البث متوقف مؤقتاً أثناء التسجيل';
+
+  @override
+  String get liveVoiceLiveMicBusy =>
+      'تعذّر إيقاف مايك البث مؤقتاً، لذلك لا يمكن تسجيل مقطع صوتي الآن.';
+
+  @override
+  String get liveVoicePlayFailed => 'تعذّر تشغيل هذا المقطع الصوتي.';
+
+  @override
+  String get liveVoiceSilent =>
+      'لم يُلتقط أي صوت في هذا المقطع، لذلك لم يُرسل. حاول مرة أخرى.';
 
   @override
   String get liveChatPrivateMessages => 'الرسائل الخاصة';
@@ -5059,6 +5099,12 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get liveGiftTagAll => 'الكل';
+
+  @override
+  String get liveGiftTagsSemantics => 'تصنيفات الهدايا';
+
+  @override
   String get cpSpaceTitle => 'مساحة الثنائي';
 
   @override
@@ -5327,4 +5373,285 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveCpEntranceLevel(String level) {
     return 'دخول الثنائي · $level';
   }
+
+  @override
+  String get errorFamilyChatMuted => 'تم كتمك في دردشة العائلة.';
+
+  @override
+  String get familiesListTitle => 'قائمة العائلات';
+
+  @override
+  String get familiesSearchShort => 'ابحث عن عائلة';
+
+  @override
+  String get familiesTabPrestige => 'هيبة العائلة';
+
+  @override
+  String get familiesTabBattle => 'ترتيب القتال';
+
+  @override
+  String get familiesTabActive => 'الأكثر نشاطاً';
+
+  @override
+  String familiesSoonLabel(String feature) {
+    return '$feature، قريباً';
+  }
+
+  @override
+  String get familiesBoardEmpty => 'لا توجد عائلات في الترتيب بعد';
+
+  @override
+  String get familiesBoardEmptyPrestige =>
+      'تظهر هنا العائلات التي جمعت نقاطاً هذا الشهر.';
+
+  @override
+  String get familiesBoardEmptyActive =>
+      'تظهر هنا العائلات التي نشط أعضاؤها هذا الأسبوع.';
+
+  @override
+  String familiesScoreMonth(String points) {
+    return 'نقاط هذا الشهر: $points';
+  }
+
+  @override
+  String familiesScoreActive(String count) {
+    return 'نشطون هذا الأسبوع: $count';
+  }
+
+  @override
+  String familiesPodiumLabel(int place, String name) {
+    return 'المركز $place: $name';
+  }
+
+  @override
+  String get familiesMyRankNone => 'لم تدخل عائلتك الترتيب بعد';
+
+  @override
+  String get familyJoinShort => 'انضمام';
+
+  @override
+  String familyJoinNamed(String name) {
+    return 'انضمام إلى $name';
+  }
+
+  @override
+  String familyLevelLong(int level) {
+    return 'المستوى $level';
+  }
+
+  @override
+  String get familyActiveJustNow => 'نشط الآن';
+
+  @override
+  String get familyOnlineNow => 'متصل الآن';
+
+  @override
+  String get familySoon => 'قريباً';
+
+  @override
+  String get familyPageTitle => 'العائلة';
+
+  @override
+  String get familyShare => 'مشاركة العائلة';
+
+  @override
+  String get familyInvite => 'دعوة أعضاء';
+
+  @override
+  String get familyInviteCopied => 'تم نسخ الدعوة. أرسلها لمن تريد.';
+
+  @override
+  String familyInviteText(String name, String number) {
+    return 'انضم إلى عائلتي «$name» على Kabso Live. رقم العائلة: $number';
+  }
+
+  @override
+  String get familyNumberLabel => 'رقم العائلة';
+
+  @override
+  String familyNumberCopy(String number) {
+    return 'رقم العائلة $number، انسخ';
+  }
+
+  @override
+  String get familyCopyNumber => 'نسخ رقم العائلة';
+
+  @override
+  String get familyMemberWord => 'عضو';
+
+  @override
+  String familyMembersShort(String count) {
+    return '$count عضو';
+  }
+
+  @override
+  String get familyMembersSearchHint => 'ابحث في الأعضاء';
+
+  @override
+  String get familyMembersNoMatch => 'لا يوجد عضو بهذا الاسم';
+
+  @override
+  String familyToReach(int level) {
+    return 'للوصول إلى المستوى $level';
+  }
+
+  @override
+  String get familyToolManage => 'إدارة العائلة';
+
+  @override
+  String get familyToolCompetitions => 'المسابقات';
+
+  @override
+  String get familyToolShop => 'متجر العائلة';
+
+  @override
+  String get familyToolTasks => 'المهام';
+
+  @override
+  String get familyTabMembers => 'الأعضاء';
+
+  @override
+  String get familyTabEvents => 'الفعاليات';
+
+  @override
+  String get familyTabContributions => 'المساهمات';
+
+  @override
+  String get familyTabRanking => 'الترتيب';
+
+  @override
+  String get familyContributionsThisMonth => 'مساهمات الأعضاء هذا الشهر';
+
+  @override
+  String get familyContributionsEmpty => 'لا مساهمات هذا الشهر بعد';
+
+  @override
+  String get familyContributionsEmptyBody =>
+      'كل عملة ينفقها الأعضاء في التطبيق تُحتسب للعائلة.';
+
+  @override
+  String get familyRankNone => '—';
+
+  @override
+  String get familyRankingNote =>
+      'الترتيب بين كل العائلات: هيبة العائلة لهذا الشهر، والنشاط لهذا الأسبوع.';
+
+  @override
+  String get familyChangeCover => 'تغيير الغلاف';
+
+  @override
+  String get familyRemoveCover => 'إزالة الغلاف';
+
+  @override
+  String get familyCoverUpdated => 'تم تحديث الغلاف';
+
+  @override
+  String get familyCoverRemoved => 'تمت إزالة الغلاف';
+
+  @override
+  String get familyTaglineTitle => 'وصف العائلة';
+
+  @override
+  String get familyTaglineHint => 'مثال: عائلة عالمية · ترفيه · بث مباشر';
+
+  @override
+  String get familySave => 'حفظ';
+
+  @override
+  String get familySaved => 'تم الحفظ';
+
+  @override
+  String get familyViewProfile => 'عرض الملف الشخصي';
+
+  @override
+  String get familyChatOpen => 'مراسلة العائلة';
+
+  @override
+  String get familyChatTitle => 'دردشة العائلة';
+
+  @override
+  String get familyChatHint => 'اكتب رسالة للعائلة';
+
+  @override
+  String get familyChatSend => 'إرسال';
+
+  @override
+  String get familyChatEmpty => 'ابدأوا الحديث';
+
+  @override
+  String get familyChatEmptyBody => 'الرسائل هنا يراها أعضاء العائلة فقط.';
+
+  @override
+  String get familyChatLoadError => 'تعذّر تحميل الدردشة';
+
+  @override
+  String get familyChatMembersOnly => 'الدردشة لأعضاء العائلة فقط';
+
+  @override
+  String get familyChatMembersOnlyBody => 'انضم إلى العائلة لتشارك في الدردشة.';
+
+  @override
+  String get familyChatDelete => 'حذف الرسالة';
+
+  @override
+  String get familyChatDeleted => 'تم حذف الرسالة';
+
+  @override
+  String get familyChatReport => 'الإبلاغ عن الرسالة';
+
+  @override
+  String get familyChatReported => 'شكراً، تم إرسال البلاغ';
+
+  @override
+  String get familyChatMute => 'كتم في الدردشة';
+
+  @override
+  String get familyChatUnmute => 'إلغاء الكتم في الدردشة';
+
+  @override
+  String familyChatMutedName(String name) {
+    return 'تم كتم $name في الدردشة';
+  }
+
+  @override
+  String familyChatUnmutedName(String name) {
+    return 'تم إلغاء كتم $name';
+  }
+
+  @override
+  String get privacyActivityTitle => 'حالة النشاط';
+
+  @override
+  String get privacyActivityLabel => 'إظهار حالة النشاط';
+
+  @override
+  String get privacyActivityHint =>
+      'يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.';
+
+  @override
+  String get followListsFollowBack => 'رد المتابعة';
+
+  @override
+  String get followListsFollowersEmpty => 'لا يوجد متابِعون بعد';
+
+  @override
+  String get followListsFollowersEmptyBody =>
+      'عندما يتابع أحدٌ هذا الحساب سيظهر هنا.';
+
+  @override
+  String get followListsFollowingEmpty => 'لا يتابع أحدًا بعد';
+
+  @override
+  String get followListsFollowingEmptyBody =>
+      'ستظهر هنا الحسابات التي يتابعها هذا الحساب.';
+
+  @override
+  String get followListsPrivateBody =>
+      'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.';
+
+  @override
+  String get profileOpenFollowers => 'عرض المتابِعين';
+
+  @override
+  String get profileOpenFollowing => 'عرض من يتابعهم';
 }

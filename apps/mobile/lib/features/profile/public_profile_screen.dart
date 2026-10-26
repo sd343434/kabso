@@ -404,6 +404,16 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 profile: profile,
               ),
               cpFrame: cpWearsSpecialFrame(profile.cp),
+              // D121: the lists; a private account's are its followers'
+              // only, so a locked profile keeps the counts plain.
+              onOpenFollowers: locked
+                  ? null
+                  : () => context.push(AppRoutes.userFollows(profile.username)),
+              onOpenFollowing: locked
+                  ? null
+                  : () => context.push(
+                      AppRoutes.userFollows(profile.username, following: true),
+                    ),
               actions: _actions(profile),
             ),
           ),

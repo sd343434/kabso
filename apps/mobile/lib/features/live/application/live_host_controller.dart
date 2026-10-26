@@ -46,8 +46,8 @@ class GoLiveState {
     this.liveSince,
     this.endedAt,
     this.mode = LiveRoomMode.solo,
-    this.multiSeats = 6,
-    this.audioSeats = 9,
+    this.multiSeats = defaultMultiSeats,
+    this.audioSeats = defaultAudioSeats,
     this.theme = LiveThemes.classic,
     this.beauty = const LiveBeauty(),
     this.noiseReduction = true,
@@ -64,6 +64,12 @@ class GoLiveState {
   /// The seat count chosen for each mode (host tile included).
   final int multiSeats;
   final int audioSeats;
+
+  /// The counts a new room starts with: MULTI 6 (D94), AUDIO 10 (owner,
+  /// 2026-10-26; D103 allows 5, 10, 15, 20, 25 — the old default 9 was
+  /// refused by the server).
+  static const defaultMultiSeats = 6;
+  static const defaultAudioSeats = 10;
 
   /// The seat count of [mode], or `null` for SOLO.
   int? get seatCount => switch (mode) {
@@ -122,6 +128,14 @@ class GoLiveState {
     liveSince: liveSince ?? this.liveSince,
     endedAt: endedAt ?? this.endedAt,
   );
+}
+
+/// [count] when [allowed] lists it (or lists nothing); else the smallest
+/// allowed count above it, else the largest allowed one.
+int fitSeatCount(int count, List<int> allowed) {
+  if (allowed.isEmpty || allowed.contains(count)) return count;
+  final sorted = [...allowed]..sort();
+  return sorted.firstWhere((c) => c > count, orElse: () => sorted.last);
 }
 
 /// The go-live flow (CP-010 L1): camera preview → `POST /live/rooms` →
@@ -339,6 +353,20 @@ class LiveHostController extends Notifier<GoLiveState> {
     LiveRoom? room;
     try {
       final config = await _repo.getConfig();
+      // The count sent is the one previewed: a count the server no longer
+      // allows moves to the next allowed one first (as D103 moved rooms).
+      final allowed = switch (state.mode) {
+        LiveRoomMode.audio => config.seatCounts.audio,
+        LiveRoomMode.multi => config.seatCounts.multi,
+        LiveRoomMode.solo || LiveRoomMode.pk => const <int>[],
+      };
+      if (state.seatCount case final count?
+          when fitSeatCount(count, allowed) != count) {
+        final fitted = fitSeatCount(count, allowed);
+        state = state.mode == LiveRoomMode.audio
+            ? state.copyWith(audioSeats: fitted)
+            : state.copyWith(multiSeats: fitted);
+      }
       room = await _repo.startRoom(
         title: title,
         categorySlug: categorySlug,

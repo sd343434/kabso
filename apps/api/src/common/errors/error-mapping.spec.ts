@@ -80,6 +80,8 @@ describe('ErrorCode', () => {
         // v1.24-live (DRAFT, CP-021)
         'CP_TASK_NOT_COMPLETED',
         'CP_PRIVILEGE_LOCKED',
+        // v1.25-live (DRAFT, CP-022)
+        'FAMILY_CHAT_MUTED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -132,6 +134,7 @@ describe('ErrorCode', () => {
       LIVE_GIFT_RECIPIENT_UNAVAILABLE: 409,
       CP_TASK_NOT_COMPLETED: 409,
       CP_PRIVILEGE_LOCKED: 403,
+      FAMILY_CHAT_MUTED: 403,
     });
   });
 

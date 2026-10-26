@@ -6722,6 +6722,24 @@ abstract class AppLocalizations {
   /// **'{name}: {text}'**
   String liveChatLineLabel(String name, String text);
 
+  /// D119: screen reader label of the charm level badge under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {level}'**
+  String liveChatCharmLabel(int level);
+
+  /// D119: screen reader label of the support level badge under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الدعم {level}'**
+  String liveChatSupportLabel(int level);
+
+  /// D119: screen reader label of the family chip under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة {name}، المستوى {level}'**
+  String liveChatFamilyLabel(String name, int level);
+
   /// Host tool: the room chat on/off switch (CP-013); its state is shown by the button.
   ///
   /// In ar, this message translates to:
@@ -7376,11 +7394,53 @@ abstract class AppLocalizations {
   /// **'الميكروفون غير متاح الآن.'**
   String get liveVoiceUnavailable;
 
+  /// Live chat: a voice clip could not be sent because uploads are off on the server (503 MEDIA_UPLOADS_UNAVAILABLE). D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرسائل الصوتية غير متاح حالياً.'**
+  String get liveVoiceUploadsUnavailable;
+
+  /// The red system line with the room's rules, shown once when a live opens (host and viewers); local, never sent. D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.'**
+  String get liveRoomRulesNotice;
+
+  /// Screen-reader name of the red system line in the live chat. D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه من Kabso Live'**
+  String get liveRoomRulesLabel;
+
   /// A voice clip over 1 MiB (CP-017).
   ///
   /// In ar, this message translates to:
   /// **'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.'**
   String get liveVoiceTooLarge;
+
+  /// Live chat: while a voice clip records, the person's own live microphone (host or seated guest) is paused; shown next to the chat tools (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'مايك البث متوقف مؤقتاً أثناء التسجيل'**
+  String get liveVoiceLiveMicPaused;
+
+  /// Live chat: the live microphone could not be paused for a voice clip, so nothing is recorded (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إيقاف مايك البث مؤقتاً، لذلك لا يمكن تسجيل مقطع صوتي الآن.'**
+  String get liveVoiceLiveMicBusy;
+
+  /// Live chat: a voice clip could not be played (the player failed to load or start it) (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل هذا المقطع الصوتي.'**
+  String get liveVoicePlayFailed;
+
+  /// Live chat: the recorded voice clip was silent (the microphone delivered nothing), so it was not sent (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُلتقط أي صوت في هذا المقطع، لذلك لم يُرسل. حاول مرة أخرى.'**
+  String get liveVoiceSilent;
 
   /// Live chat tool: opens the Messages tab (CP-017).
   ///
@@ -8768,6 +8828,18 @@ abstract class AppLocalizations {
   /// **'لديك {count}'**
   String liveGiftBagCount(String count);
 
+  /// Gift panel: the first sub-category chip, every gift of the open tab. (D117)
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveGiftTagAll;
+
+  /// Screen reader label of the gift panel's sub-category chip row. (D117)
+  ///
+  /// In ar, this message translates to:
+  /// **'تصنيفات الهدايا'**
+  String get liveGiftTagsSemantics;
+
   /// CP space: page title. (CP-021 (D112))
   ///
   /// In ar, this message translates to:
@@ -9199,6 +9271,504 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'دخول الثنائي · {level}'**
   String liveCpEntranceLevel(String level);
+
+  /// Error FAMILY_CHAT_MUTED. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم كتمك في دردشة العائلة.'**
+  String get errorFamilyChatMuted;
+
+  /// Families screen: section title above the search and boards. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة العائلات'**
+  String get familiesListTitle;
+
+  /// Families screen: search field hint (name or number). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن عائلة'**
+  String get familiesSearchShort;
+
+  /// Board tab: families by points gained this month. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'هيبة العائلة'**
+  String get familiesTabPrestige;
+
+  /// Board tab shown as Soon: family battles are not built. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'ترتيب القتال'**
+  String get familiesTabBattle;
+
+  /// Board tab: families by members active this week. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر نشاطاً'**
+  String get familiesTabActive;
+
+  /// Screen-reader label of a feature that is not built yet. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'{feature}، قريباً'**
+  String familiesSoonLabel(String feature);
+
+  /// Board empty state title. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عائلات في الترتيب بعد'**
+  String get familiesBoardEmpty;
+
+  /// Prestige board empty state body. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا العائلات التي جمعت نقاطاً هذا الشهر.'**
+  String get familiesBoardEmptyPrestige;
+
+  /// Active board empty state body. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا العائلات التي نشط أعضاؤها هذا الأسبوع.'**
+  String get familiesBoardEmptyActive;
+
+  /// Board row: points gained this month (compact). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط هذا الشهر: {points}'**
+  String familiesScoreMonth(String points);
+
+  /// Board row: members active this week (compact). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'نشطون هذا الأسبوع: {count}'**
+  String familiesScoreActive(String count);
+
+  /// Screen-reader label of a podium card. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {place}: {name}'**
+  String familiesPodiumLabel(int place, String name);
+
+  /// Pinned bar: the caller's family has no score on this board. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تدخل عائلتك الترتيب بعد'**
+  String get familiesMyRankNone;
+
+  /// Gold Join pill on a family row. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'انضمام'**
+  String get familyJoinShort;
+
+  /// Screen-reader label of the podium + button. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'انضمام إلى {name}'**
+  String familyJoinNamed(String name);
+
+  /// A family level (podium, rows, hero chip, progress). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'المستوى {level}'**
+  String familyLevelLong(int level);
+
+  /// Presence: last active under a minute ago but not counted online. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'نشط الآن'**
+  String get familyActiveJustNow;
+
+  /// Presence: active in the last 5 minutes. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'متصل الآن'**
+  String get familyOnlineNow;
+
+  /// Small tag on a feature that is not built yet (D62 convention). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get familySoon;
+
+  /// Family page title in the hero. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة'**
+  String get familyPageTitle;
+
+  /// Hero share button tooltip (copies the invite). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'مشاركة العائلة'**
+  String get familyShare;
+
+  /// Family page bottom bar: copies the invite text. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'دعوة أعضاء'**
+  String get familyInvite;
+
+  /// Snack after copying the invite. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ الدعوة. أرسلها لمن تريد.'**
+  String get familyInviteCopied;
+
+  /// The copied invite (no public link yet, B7). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى عائلتي «{name}» على Kabso Live. رقم العائلة: {number}'**
+  String familyInviteText(String name, String number);
+
+  /// Hero box label above the number. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم العائلة'**
+  String get familyNumberLabel;
+
+  /// Screen-reader label of the number box. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم العائلة {number}، انسخ'**
+  String familyNumberCopy(String number);
+
+  /// Hero menu item. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'نسخ رقم العائلة'**
+  String get familyCopyNumber;
+
+  /// Under the member count in the header. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'عضو'**
+  String get familyMemberWord;
+
+  /// Member count (compact) next to the member search. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} عضو'**
+  String familyMembersShort(String count);
+
+  /// Members tab search hint. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في الأعضاء'**
+  String get familyMembersSearchHint;
+
+  /// Members tab: empty search. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد عضو بهذا الاسم'**
+  String get familyMembersNoMatch;
+
+  /// Under the level progress numbers. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'للوصول إلى المستوى {level}'**
+  String familyToReach(int level);
+
+  /// Tool tile (leader). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة العائلة'**
+  String get familyToolManage;
+
+  /// Tool tile shown as Soon. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'المسابقات'**
+  String get familyToolCompetitions;
+
+  /// Tool tile shown as Soon. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'متجر العائلة'**
+  String get familyToolShop;
+
+  /// Tool tile shown as Soon. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'المهام'**
+  String get familyToolTasks;
+
+  /// Family page tab. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء'**
+  String get familyTabMembers;
+
+  /// Family page tab shown as Soon. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الفعاليات'**
+  String get familyTabEvents;
+
+  /// Family page tab: this month's contributions. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'المساهمات'**
+  String get familyTabContributions;
+
+  /// Family page tab: the family on both boards. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب'**
+  String get familyTabRanking;
+
+  /// Contributions tab header. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'مساهمات الأعضاء هذا الشهر'**
+  String get familyContributionsThisMonth;
+
+  /// Contributions tab empty title. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا مساهمات هذا الشهر بعد'**
+  String get familyContributionsEmpty;
+
+  /// Contributions tab empty body. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'كل عملة ينفقها الأعضاء في التطبيق تُحتسب للعائلة.'**
+  String get familyContributionsEmptyBody;
+
+  /// Ranking tab: not ranked (score 0). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'—'**
+  String get familyRankNone;
+
+  /// Ranking tab footnote. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب بين كل العائلات: هيبة العائلة لهذا الشهر، والنشاط لهذا الأسبوع.'**
+  String get familyRankingNote;
+
+  /// Leader menu item. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الغلاف'**
+  String get familyChangeCover;
+
+  /// Leader menu item. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الغلاف'**
+  String get familyRemoveCover;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث الغلاف'**
+  String get familyCoverUpdated;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالة الغلاف'**
+  String get familyCoverRemoved;
+
+  /// Dialog title and menu item (the line under the name). (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'وصف العائلة'**
+  String get familyTaglineTitle;
+
+  /// Tagline field hint. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'مثال: عائلة عالمية · ترفيه · بث مباشر'**
+  String get familyTaglineHint;
+
+  /// Dialog save button. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get familySave;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get familySaved;
+
+  /// Member menu item. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف الشخصي'**
+  String get familyViewProfile;
+
+  /// Family page bottom bar: opens the family chat. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'مراسلة العائلة'**
+  String get familyChatOpen;
+
+  /// Family chat title while the family loads. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'دردشة العائلة'**
+  String get familyChatTitle;
+
+  /// Family chat input hint. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب رسالة للعائلة'**
+  String get familyChatHint;
+
+  /// Family chat send button tooltip. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال'**
+  String get familyChatSend;
+
+  /// Family chat empty title. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'ابدأوا الحديث'**
+  String get familyChatEmpty;
+
+  /// Family chat empty body. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل هنا يراها أعضاء العائلة فقط.'**
+  String get familyChatEmptyBody;
+
+  /// Family chat load error. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الدردشة'**
+  String get familyChatLoadError;
+
+  /// Family chat: the caller is not a member. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة لأعضاء العائلة فقط'**
+  String get familyChatMembersOnly;
+
+  /// Family chat: not a member body. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم إلى العائلة لتشارك في الدردشة.'**
+  String get familyChatMembersOnlyBody;
+
+  /// Family chat long-press action. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف الرسالة'**
+  String get familyChatDelete;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حذف الرسالة'**
+  String get familyChatDeleted;
+
+  /// Family chat long-press action and report sheet title. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن الرسالة'**
+  String get familyChatReport;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً، تم إرسال البلاغ'**
+  String get familyChatReported;
+
+  /// Member menu: leader or deputy mutes the member in the family chat. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم في الدردشة'**
+  String get familyChatMute;
+
+  /// Member menu. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الكتم في الدردشة'**
+  String get familyChatUnmute;
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم كتم {name} في الدردشة'**
+  String familyChatMutedName(String name);
+
+  /// Snack. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء كتم {name}'**
+  String familyChatUnmutedName(String name);
+
+  /// Privacy section title. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة النشاط'**
+  String get privacyActivityTitle;
+
+  /// Privacy switch. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'إظهار حالة النشاط'**
+  String get privacyActivityLabel;
+
+  /// Privacy switch subtitle. (CP-022 (D116))
+  ///
+  /// In ar, this message translates to:
+  /// **'يرى أعضاء عائلتك إن كنت متصلاً الآن أو متى كنت نشطاً آخر مرة.'**
+  String get privacyActivityHint;
+
+  /// D121: follow-list row button when that person follows you and you do not follow them.
+  ///
+  /// In ar, this message translates to:
+  /// **'رد المتابعة'**
+  String get followListsFollowBack;
+
+  /// D121: empty Followers tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد متابِعون بعد'**
+  String get followListsFollowersEmpty;
+
+  /// D121: under followListsFollowersEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'عندما يتابع أحدٌ هذا الحساب سيظهر هنا.'**
+  String get followListsFollowersEmptyBody;
+
+  /// D121: empty Following tab.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يتابع أحدًا بعد'**
+  String get followListsFollowingEmpty;
+
+  /// D121: under followListsFollowingEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا الحسابات التي يتابعها هذا الحساب.'**
+  String get followListsFollowingEmptyBody;
+
+  /// D121: a private account's lists for someone who does not follow it (403); under profilePrivateTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.'**
+  String get followListsPrivateBody;
+
+  /// D121: screen-reader hint of the Followers count on a profile (opens the list).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض المتابِعين'**
+  String get profileOpenFollowers;
+
+  /// D121: screen-reader hint of the Following count on a profile (opens the list).
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض من يتابعهم'**
+  String get profileOpenFollowing;
 }
 
 class _AppLocalizationsDelegate
