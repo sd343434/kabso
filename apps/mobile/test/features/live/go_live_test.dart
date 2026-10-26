@@ -643,6 +643,9 @@ void main() {
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('room.userCard.invite')), findsOneWidget);
+      // The card is at most half the screen: scroll to the button.
+      await tester.ensureVisible(find.byKey(const Key('room.userCard.invite')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('room.userCard.invite')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('room.hostSheet')), findsNothing);

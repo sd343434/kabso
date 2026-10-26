@@ -976,9 +976,10 @@ Future<void> showHostSheet(
   isScrollControlled: true,
   backgroundColor: const Color(0x00000000),
   barrierColor: KMetrics.roomSheetBarrier,
+  // Owner (2026-10-26): the card never goes above the middle of the
+  // screen; the rest scrolls.
   constraints: KMetrics.sheetConstraints(
-    maxHeight:
-        MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
+    maxHeight: MediaQuery.sizeOf(context).height * 0.5,
   ),
   builder: (_) =>
       _HostSheet(username: username, scope: scope, onInvite: onInvite),
@@ -1090,14 +1091,31 @@ class _HostSheet extends ConsumerWidget {
             children: [
               // Room for the picture.
               const SizedBox(height: _Card.avatar / 2 + 8),
-              Semantics(
-                header: true,
-                child: Text(
-                  profile.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.title.copyWith(color: _Card.ink, fontSize: 20),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        profile.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.title.copyWith(
+                          color: _Card.ink,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Owner (2026-10-26): everyone sees that the person is the
+                  // host or a moderator of this live.
+                  if (scope?.target case final role?
+                      when role != LivePersonRole.viewer) ...[
+                    const SizedBox(width: 6),
+                    _RoleBadge(host: role == LivePersonRole.host),
+                  ],
+                ],
               ),
               const SizedBox(height: 2),
               // @username, copied with one tap (the reference's ID line).
@@ -1164,17 +1182,6 @@ class _HostSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
-              // Owner (2026-10-26, design file): family, relationship, gift
-              // wall and medals. None exists on the server yet, so each shows
-              // its empty state and says "soon" instead of made-up content.
-              Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: LivePersonBoxes(
-                  name: profile.displayName,
-                  self: profile.isSelf,
-                  avatar: _networkImage(profile.avatarUrl),
-                ),
-              ),
               if (profile.bio case final bio? when bio.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -1192,6 +1199,17 @@ class _HostSheet extends ConsumerWidget {
                   stat(profile.followerCount, l10n.profileFollowers),
                   stat(profile.followingCount, l10n.profileFollowingCount),
                 ],
+              ),
+              // Owner (2026-10-26, design file; under the stats): family,
+              // relationship, gift wall and medals. None exists on the server
+              // yet, so each shows its empty state and says "soon".
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: LivePersonBoxes(
+                  name: profile.displayName,
+                  self: profile.isSelf,
+                  avatar: _networkImage(profile.avatarUrl),
+                ),
               ),
               const SizedBox(height: 14),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
@@ -1344,6 +1362,63 @@ class _HostSheet extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The host's or a moderator's badge next to the name on a person's card.
+class _RoleBadge extends StatelessWidget {
+  const new({required this.host});
+
+  final bool host;
+
+  static const badgeKey = Key('room.userCard.roleBadge');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = host ? l10n.goLiveHostTag : l10n.liveSeatModeratorTag;
+    final colors = host
+        ? const [Color(0xFFFFC94D), Color(0xFFF29A1F)]
+        : const [Color(0xFF6FA8FF), Color(0xFF3B6FE0)];
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Container(
+        key: badgeKey,
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          gradient: LinearGradient(colors: colors),
+          boxShadow: [
+            BoxShadow(
+              color: colors.last.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              host ? Icons.mic_rounded : Icons.shield_rounded,
+              size: 13,
+              color: const Color(0xFFFFFFFF),
+            ),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: context.textStyles.caption.copyWith(
+                color: const Color(0xFFFFFFFF),
+                fontSize: 11,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

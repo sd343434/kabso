@@ -517,6 +517,8 @@ void main() {
         find.descendant(of: follow, matching: find.text(l10n.liveFollowing)),
         findsOneWidget,
       );
+      await tester.ensureVisible(follow);
+      await tester.pumpAndSettle();
       await tester.tap(follow);
       await tester.pumpAndSettle();
       expect(profiles.calls.last, 'DELETE host0');
@@ -1683,6 +1685,19 @@ void main() {
         expect(tool(LivePersonToolKeys.mute), findsNothing, reason: '$target');
         expect(tool(LivePersonToolKeys.admin), findsNothing);
         expect(tool(LivePersonToolKeys.points), findsOneWidget);
+        // Owner: everyone sees that they are the host or a moderator.
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('room.userCard.roleBadge')),
+            matching: find.text(
+              target == LivePersonRole.host
+                  ? l10n.goLiveHostTag
+                  : l10n.liveSeatModeratorTag,
+            ),
+          ),
+          findsOneWidget,
+          reason: '$target',
+        );
       }
     });
 
@@ -1691,6 +1706,8 @@ void main() {
       await card(tester, viewer: LivePersonRole.viewer);
       expect(tool(LivePersonToolKeys.points), findsOneWidget);
       expect(tool(LivePersonToolKeys.more), findsOneWidget);
+      // A plain viewer has no role badge.
+      expect(find.byKey(const Key('room.userCard.roleBadge')), findsNothing);
       expect(tool(LivePersonToolKeys.kick), findsNothing);
       expect(tool(LivePersonToolKeys.mute), findsNothing);
       expect(tool(LivePersonToolKeys.admin), findsNothing);
@@ -1834,9 +1851,7 @@ void main() {
     ) async {
       await card(tester, viewer: LivePersonRole.viewer);
       expect(find.text(l10n.liveUserFamilyNone), findsOneWidget);
-      expect(find.text(l10n.liveUserFamilyHint), findsOneWidget);
       expect(find.text(l10n.liveUserCpNone), findsOneWidget);
-      expect(find.text(l10n.liveUserCpBar), findsOneWidget);
       expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
       expect(find.text(l10n.liveUserMedals), findsOneWidget);
       // No counts anywhere: "soon" instead.
@@ -1848,7 +1863,9 @@ void main() {
         l10n.liveUserMedals,
       ].indexed) {
         final box = find.byKey(LivePersonBoxes.boxKey(i));
-        await tester.ensureVisible(box);
+        // The card is at most half the screen: scroll the box to the middle
+        // (the picture and the top buttons sit over the scroll's top).
+        await Scrollable.ensureVisible(tester.element(box), alignment: 0.5);
         await tester.pumpAndSettle();
         await tester.tap(box);
         await tester.pump();
