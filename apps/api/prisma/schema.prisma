@@ -132,6 +132,10 @@ model User {
   medals             UserMedal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
   bagItems           UserBagItem[]
+  // v1.23-live (CP-020, D108): live gifts and the gift bag.
+  giftStock          UserGiftStock[]
+  giftsSent          LiveGift[]
+  giftsReceived      LiveGiftRecipient[]
 
   @@map("users")
 }
@@ -420,6 +424,7 @@ model LiveRoom {
   chatMutes    LiveChatMute[]
   kicks        LiveRoomKick[]
   bullets      LiveBullet[]
+  gifts        LiveGift[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -573,18 +578,25 @@ model LiveScheduleSlot {
 /// 10-a-second and 10 000-a-live limits are checked against it. Kept for admins (abuse watch, no
 /// endpoint). CHECK `live_room_tappers_counted` (migration 20261028090000_live_taps).
 model LiveRoomTapper {
-  roomId      String   @map("room_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  counted     Int      @default(0)
-  lastBatchAt DateTime @map("last_batch_at") @db.Timestamptz(3)
+  roomId       String    @map("room_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  counted      Int       @default(0)
+  /// The last tap batch that counted (null: this person only sent gifts in the live).
+  lastBatchAt  DateTime? @map("last_batch_at") @db.Timestamptz(3)
+  /// v1.23-live (CP-020): the coin value of the gifts this person sent in the live.
+  supportCoins BigInt    @default(0) @map("support_coins")
+  /// v1.23-live (CP-020): Contribution points = counted + 100 × supportCoins (CHECK
+  /// `live_room_tappers_points`), and when that total was reached (ties).
+  points       BigInt    @default(0)
+  pointsAt     DateTime  @map("points_at") @db.Timestamptz(3)
 
   room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId], map: "live_room_tappers_pkey")
   @@index([userId], map: "live_room_tappers_user_idx")
-  /// CP-014: the Contribution list (counted desc, then who reached it first, then user id).
-  @@index([roomId, counted(sort: Desc), lastBatchAt, userId], map: "live_room_tappers_room_rank_idx")
+  /// CP-014 / v1.23-live: the Contribution list (points desc, then who reached them first, then user id).
+  @@index([roomId, points(sort: Desc), pointsAt, userId], map: "live_room_tappers_room_rank_idx")
   @@map("live_room_tappers")
 }
 
@@ -654,6 +666,8 @@ enum WalletLedgerReason {
   CP_REQUEST
   CP_REFUND
   CP_GIFT
+  /// v1.23-live (CP-020, D108): a gift sent in a live, paid with coins.
+  LIVE_GIFT
 
   @@map("wallet_ledger_reason")
 }
@@ -2000,4 +2014,123 @@ model UserBagItem {
   @@unique([userId, category], map: "user_bag_items_equipped_key", where: raw("equipped"))
   @@index([itemCode, category], map: "user_bag_items_item_idx")
   @@map("user_bag_items")
+}
+
+// ---- v1.23-live (CP-020, D108): live gifts (CONVENTIONS §10.23) --------------------------------
+
+/// A catalogue tab of the gift panel.
+enum GiftCategory {
+  POPULAR
+  EVENT
+  FUN
+
+  @@map("gift_category")
+}
+
+/// The corner badge of a gift in the panel.
+enum GiftBadge {
+  NONE
+  NEW
+  EVENT
+
+  @@map("gift_badge")
+}
+
+/// How a send was paid: coins from the wallet, or gifts from the sender's bag.
+enum LiveGiftSource {
+  COINS
+  BAG
+
+  @@map("live_gift_source")
+}
+
+/// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled, never
+/// deleted. CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
+model Gift {
+  code         String       @id @db.VarChar(40)
+  category     GiftCategory
+  nameAr       String       @map("name_ar") @db.VarChar(60)
+  nameEn       String       @map("name_en") @db.VarChar(60)
+  priceCoins   Int          @map("price_coins")
+  /// The app's static image of the gift.
+  assetKey     String       @map("asset_key") @db.VarChar(80)
+  /// The app's full-screen effect (SVGA), or null for none.
+  animationKey String?      @map("animation_key") @db.VarChar(80)
+  sortOrder    Int          @default(0) @map("sort_order")
+  badge        GiftBadge    @default(NONE)
+  enabled      Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  stock UserGiftStock[]
+  sends LiveGift[]
+
+  @@index([category, sortOrder], map: "gifts_category_sort_idx")
+  @@map("gifts")
+}
+
+/// The gift bag (الحقيبة): gifts a user owns. CHECK `user_gift_stock_quantity_range` (0 … 10^9);
+/// rows at 0 stay and are not listed.
+model UserGiftStock {
+  userId    String   @map("user_id") @db.Uuid
+  giftCode  String   @map("gift_code") @db.VarChar(40)
+  quantity  Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gift Gift @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+
+  @@id([userId, giftCode], map: "user_gift_stock_pkey")
+  @@index([giftCode], map: "user_gift_stock_gift_idx")
+  @@map("user_gift_stock")
+}
+
+/// One send in a live: `quantity` of one gift to each recipient. `totalCoins` is the coin value
+/// (unitPrice × quantity × recipients); `coinsCharged` is that for COINS and 0 for BAG. CHECKs
+/// `live_gifts_quantity_positive`, `live_gifts_amounts`, `live_gifts_combo`.
+model LiveGift {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  senderId      String         @map("sender_id") @db.Uuid
+  clientId      String         @map("client_id") @db.Uuid
+  /// The live it was sent in (null once that room is gone).
+  roomId        String?        @map("room_id") @db.Uuid
+  giftCode      String         @map("gift_code") @db.VarChar(40)
+  quantity      Int
+  source        LiveGiftSource
+  unitPrice     Int            @map("unit_price")
+  totalCoins    BigInt         @map("total_coins")
+  coinsCharged  BigInt         @map("coins_charged")
+  /// The recipients' user ids, sorted and joined (combo matching).
+  recipientsKey String         @map("recipients_key")
+  /// The first send of the combo (its own id when it starts one).
+  comboId       String         @map("combo_id") @db.Uuid
+  comboCount    Int            @map("combo_count")
+  comboQuantity BigInt         @map("combo_quantity")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  sender     User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room       LiveRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  gift       Gift                @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+  recipients LiveGiftRecipient[]
+
+  @@unique([senderId, clientId], map: "live_gifts_client_once")
+  @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
+  @@index([roomId, createdAt], map: "live_gifts_room_idx")
+  @@index([giftCode], map: "live_gifts_gift_idx")
+  @@map("live_gifts")
+}
+
+/// A recipient of a send, in the order the sender listed them; `coins` = unitPrice × quantity.
+model LiveGiftRecipient {
+  giftId   String @map("gift_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  position Int    @db.SmallInt
+  coins    BigInt
+
+  gift LiveGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([giftId, userId], map: "live_gift_recipients_pkey")
+  @@index([userId], map: "live_gift_recipients_user_idx")
+  @@map("live_gift_recipients")
 }

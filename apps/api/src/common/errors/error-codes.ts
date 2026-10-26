@@ -82,6 +82,12 @@ export enum ErrorCode {
   MEDAL_NOT_UNLOCKED = 'MEDAL_NOT_UNLOCKED',
   /** v1.22-live (DRAFT, CP-019): the caller does not own that bag item (or it does not exist). */
   BAG_ITEM_NOT_OWNED = 'BAG_ITEM_NOT_OWNED',
+  /** v1.23-live (DRAFT, CP-020): the gift is not in the catalogue or is disabled. */
+  GIFT_UNAVAILABLE = 'GIFT_UNAVAILABLE',
+  /** v1.23-live (DRAFT, CP-020): the caller's gift bag holds fewer of that gift than the send needs. */
+  GIFT_BAG_INSUFFICIENT = 'GIFT_BAG_INSUFFICIENT',
+  /** v1.23-live (DRAFT, CP-020): a recipient is not the host or seated in the live now (or cannot get gifts from the caller). */
+  LIVE_GIFT_RECIPIENT_UNAVAILABLE = 'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -133,6 +139,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_NOT_PAIRED]: 409,
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 409,
   [ErrorCode.BAG_ITEM_NOT_OWNED]: 409,
+  [ErrorCode.GIFT_UNAVAILABLE]: 409,
+  [ErrorCode.GIFT_BAG_INSUFFICIENT]: 409,
+  [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -184,6 +193,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.CP_NOT_PAIRED]: 'You have no CP partner.',
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 'You have not unlocked that medal.',
   [ErrorCode.BAG_ITEM_NOT_OWNED]: 'You do not own that item.',
+  [ErrorCode.GIFT_UNAVAILABLE]: 'That gift is not available.',
+  [ErrorCode.GIFT_BAG_INSUFFICIENT]: 'Not enough of that gift in your bag.',
+  [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 'A recipient cannot receive gifts in this live now.',
 };
 
 export interface ErrorDetail {

@@ -204,7 +204,7 @@ describe('CP-012 live taps and the room score', () => {
       // Fixture: as if the caller had already tapped 9 995 times (counted taps and points agree).
       await ctx.prisma.liveRoomTapper.update({
         where: { roomId_userId: { roomId, userId: v.id } },
-        data: { counted: 9_995 },
+        data: { counted: 9_995, points: 9_995 },
       });
       await ctx.prisma.liveRoomScore.update({ where: { roomId }, data: { tapPoints: BigInt(9_995) } });
       await ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { score: BigInt(9_995) } });

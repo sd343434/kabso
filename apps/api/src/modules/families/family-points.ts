@@ -5,7 +5,8 @@ import { familyLevelFor } from './families.constants.js';
 
 /**
  * Wallet debits that count for the spender's family at the moment they are made (CP-018, D106,
- * CONVENTIONS §10.21): bullet messages, creating a family and CP gifts. A CP request counts only
+ * CONVENTIONS §10.21): bullet messages, creating a family, CP gifts and (v1.23-live) live gifts paid
+ * with coins. A CP request counts only
  * when it is accepted (until then its coins may come back), through {@link creditFamilyForSpendIn}
  * called by the couples module; admin revokes and refunds never count.
  */
@@ -13,6 +14,8 @@ export const FAMILY_SPEND_REASONS: ReadonlySet<WalletLedgerReason> = new Set([
   'BULLET_MESSAGE',
   'FAMILY_CREATE',
   'CP_GIFT',
+  // v1.23-live (CP-020, D108): gifts in a live paid with coins (not those sent from the bag).
+  'LIVE_GIFT',
 ]);
 
 /**

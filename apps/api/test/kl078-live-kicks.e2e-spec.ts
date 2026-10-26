@@ -428,8 +428,8 @@ describe('D105 one person’s points in a live (GET …/contributors/{username})
   const setTapper = (roomId: string, userId: string, counted: number, at: Date) =>
     ctx.prisma.liveRoomTapper.upsert({
       where: { roomId_userId: { roomId, userId } },
-      create: { roomId, userId, counted, lastBatchAt: at },
-      update: { counted, lastBatchAt: at },
+      create: { roomId, userId, counted, lastBatchAt: at, points: counted, pointsAt: at },
+      update: { counted, lastBatchAt: at, points: counted, pointsAt: at },
     });
   const standing = async (roomId: string, username: string, reader?: { token: string }) => {
     const req = ctx.http.get(`/api/v1/live/rooms/${roomId}/contributors/${username}`);

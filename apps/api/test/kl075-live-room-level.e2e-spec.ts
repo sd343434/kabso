@@ -182,7 +182,7 @@ describe('CP-016 D room level and charm points from taps', () => {
       // Near the end of the live's limit (as after 999 points' worth of taps).
       await ctx.prisma.liveRoomTapper.update({
         where: { roomId_userId: { roomId, userId: viewer.id } },
-        data: { counted: MAX_TAPS_PER_ROOM - 15 },
+        data: { counted: MAX_TAPS_PER_ROOM - 15, points: MAX_TAPS_PER_ROOM - 15 },
       });
       expect((await tap(roomId, viewer, 50)).accepted).toBe(15); // 1 point at 10 000
       expect((await tap(roomId, viewer, 50)).accepted).toBe(0); // the limit: nothing more

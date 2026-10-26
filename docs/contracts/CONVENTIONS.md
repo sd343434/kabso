@@ -124,6 +124,9 @@ All non-2xx responses use one envelope:
 | 409 | `CP_NOT_PAIRED` | *(v1.21-live, DRAFT, CP-018)* A CP gift from a caller who has no partner. Nothing was charged. |
 | 409 | `MEDAL_NOT_UNLOCKED` | *(v1.21-live, DRAFT, CP-018)* `PUT /me/medals/showcase` named a medal the caller has not earned (or an unknown code). Nothing changed. |
 | 409 | `BAG_ITEM_NOT_OWNED` | *(v1.22-live, DRAFT, CP-019)* `PUT /me/bag/equipped` named an item the caller does not own in that category (or an unknown code). Nothing changed (§10.22). |
+| 409 | `GIFT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A gift send named a code that is not in the gift catalogue or was disabled. Nothing was charged or sent; the app reloads `GET /gifts/catalogue` (§10.23). |
+| 409 | `GIFT_BAG_INSUFFICIENT` | *(v1.23-live, DRAFT, CP-020)* A send with `source: BAG` needs more of that gift (quantity × recipients) than the caller's gift bag holds. Nothing was taken or sent; the app reloads `GET /me/gifts/bag` (§10.23). |
+| 409 | `LIVE_GIFT_RECIPIENT_UNAVAILABLE` | *(v1.23-live, DRAFT, CP-020)* A recipient of a gift send is not the host or seated in that live now, has no ACTIVE account with that username, or blocked the sender (or was blocked by them). Nothing was charged or sent; the app reloads the seats (§10.23). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -360,6 +363,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/gifts` *(v1.21-live, CP-018)* | 30 / min per user (bucket `cp:gift`). **Replaces** the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
+| `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
@@ -427,6 +431,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
+| *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -466,6 +471,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.23-live (draft) | 2026-10-26 | **CP-020 (D108, owner 2026-10-26):** live gifts. Tag `gifts`: `getGiftCatalogue` (`GET /gifts/catalogue`, `GiftCatalogue` with `version`, `categories`, `quantities`, `maxRecipients`, `comboWindowSeconds`; `Gift`, `GiftCategory` `POPULAR`/`EVENT`/`FUN`, `GiftBadge` `NONE`/`NEW`/`EVENT`), `getMyGiftBag` (`GET /me/gifts/bag`, `GiftBag`, `GiftBagItem`); tag `live`: `sendLiveGift` (`POST /live/rooms/{roomId}/gifts`, `LiveGiftSendRequest`, `LiveGiftResult`, `LiveGift`, `LiveGiftCombo`, `LiveGiftSource` `COINS`/`BAG`), data message `gift` on topic `gift`; wallet ledger reason `LIVE_GIFT` (counts for the family); codes `GIFT_UNAVAILABLE`, `GIFT_BAG_INSUFFICIENT`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (409). Gifts now write `LiveScore.supportPoints` (100 a coin), the Contribution list and the popularity board (100 a coin), charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) levels. Server config `LIVE_GIFT_QUANTITIES`, `RATE_LIMIT_LIVE_GIFT_USER`; CLI `gift-admin add|update|disable|enable|list|grant|bag`; audit `gift.add`, `gift.update`, `gift.disable`, `gift.enable`, `gift.grant`. The catalogue starts empty. §4, §7, §8, §10.10, §10.11, §10.12, §10.15, §10.18, §10.19, §10.23. | **Additive** (new operations, schemas, codes, a data message topic and a ledger reason). `LiveContributor.points` and the board's points now include gifts (same fields). |
 | v1.22-live (draft) | 2026-10-26 | **CP-019 (D107, owner 2026-10-26):** the bag (الحقيبة), first category `PROFILE_CARD`. Tag `bag`: `listBagCatalogue` (`GET /bag/catalogue?category=`, `BagCatalogue`, `BagCatalogueItem`), `getMyBag` (`GET /me/bag?category=`, `Bag`, `BagItem`), `setMyBagEquipped` (`PUT /me/bag/equipped`, `SetBagEquippedRequest`, `BagEquipped`, `BagEquippedItem`); `BagCategory` (`PROFILE_CARD`), `BagItemSource` (`FREE_SIGNUP`, `BACKFILL`, `ADMIN`); parameter `BagCategoryQuery`; `PublicProfile.profileCard` (`ProfileCard` or null, required); code `BAG_ITEM_NOT_OWNED` (409). Every new account receives `bunny_royal` and wears it; existing accounts receive it by the migration. Server CLI `bag-admin grant|revoke|list`; audit `bag.grant`, `bag.revoke`. §4, §7, §8, §10.5, §10.22. | **Additive** (new operations, schemas, a code and a response field). `PublicProfile` gains one **required**, nullable field: strict clients update their model in the same change set. `BagCategory` and `BagItemSource` will gain values: clients ignore items of unknown categories and show unknown sources as opaque. |
 | v1.21-live (draft) | 2026-10-26 | **CP-018 (D106, owner 2026-10-26):** families, CP couples and medals. Families (tag `families`): `getFamilyConfig`, `searchFamilies`, `createFamily` (500 coins, ledger `FAMILY_CREATE`, `clientId`), `getMyFamily`, `getFamily`, `getFamilyByNumber` (`GET /family-numbers/{number}`), `updateFamily` (emblem), `disbandFamily`, `listFamilyMembers`, `removeFamilyMember`, `setFamilyMemberRole`, `transferFamily`, `leaveFamily`, `requestToJoinFamily`, `listFamilyJoinRequests`, `acceptFamilyJoinRequest`, `declineFamilyJoinRequest`, `getMyFamilyJoinRequest` / `cancelFamilyJoinRequest` (`/me/family-join-request`). CP (tag `cp`): `getCpConfig`, `sendCpRequest` (99 coins, `CP_REQUEST`, refunded as `CP_REFUND`), `listCpRequests`, `cancelCpRequest`, `acceptCpRequest`, `declineCpRequest`, `getMyCp`, `endCp`, `sendCpGift` (`CP_GIFT`). Medals (tag `medals`): `listMedals`, `listUserMedals`, `getMyMedalShowcase` / `setMyMedalShowcase` (`/me/medals/showcase`, owner amendment: up to 6 unlocked medals, ordered). `PublicProfile.family`, `cp`, `medals` (required; the first two nullable); `NotificationType` `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`, `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; `NotificationTarget.type` `FAMILY`, `MEDAL`; `MediaKind.FAMILY_EMBLEM`; codes `ALREADY_IN_FAMILY`, `FAMILY_FULL`, `FAMILY_NAME_TAKEN`, `FAMILY_REQUEST_PENDING`, `FAMILY_REQUEST_NOT_PENDING`, `FAMILY_NOT_EMPTY`, `FAMILY_LEADER_CANNOT_LEAVE`, `CP_ALREADY_PAIRED`, `CP_REQUEST_PENDING`, `CP_REQUEST_NOT_PENDING`, `CP_NOT_PAIRED`, `MEDAL_NOT_UNLOCKED` (409); server config `BONDS_SWEEP_INTERVAL_SECONDS`; §4, §7, §8, §10.5, §10.21, §11.1, §11.10. | **Additive** (new operations, codes, enum values and response fields). `PublicProfile` gains three **required** fields: strict clients update their model in the same change set; clients ignore unknown notification and target types (§11.10). |
 | v1.20-live (draft) | 2026-10-26 | **Owner D105:** the host and the room's moderators kick a person out of a live (audio and video) until it ends. `kickFromLive` (`POST /live/rooms/{roomId}/kicks`, `LiveKickRequest`, `LiveKick`; 201, 200 when already kicked), `listLiveKicks` (`GET …/kicks`, `LiveKickList`), `unkickFromLive` (`DELETE …/kicks/{username}`, 204); `LiveRoom.kicked`; data message `kick` on topic `kick`; code `LIVE_KICKED` (403) on `createLiveMediaToken`, `sendLiveChatMessage`, `sendLiveBullet`, `tapLiveRoom` and `requestLiveSeat` (the last two now document 403); audit `live.kick`, `live.kick.undo`. Also (owner, same row) `getLiveContributor` (`GET /live/rooms/{roomId}/contributors/{username}`, `LiveContributorStanding`: one person's points and rank in the live). §4, §7, §8, §10.9, §10.11, §10.12, §10.20. | **Additive** (new operations, a new response field, a new code and data message topic). A kicked user's older app sees the new code as a generic error and cannot rejoin. |
@@ -807,7 +813,8 @@ until a media provider is wired in.
 ### 10.10 Live taps and the room score *(v1.8-live, DRAFT — CP-012, D95)*
 
 - **Points:** a counted tap is 1 point; a support coin is 100 points (L3 writes
-  `supportPoints` in the gift's own transaction, and takes them back on a refund). Nothing
+  `supportPoints` in the gift's own transaction, and takes them back on a refund). *(v1.23-live,
+  CP-020: every coin of a gift's value sent in the live, §10.23; there are no refunds yet.)* Nothing
   else changes the score. `LiveScore.total` = `tapPoints` + `supportPoints`. The score
   belongs to one room: a new live starts at 0 and an ended room keeps its score.
 - **Who may tap:** signed-in callers who may see the room. Guests without an account → 401
@@ -881,7 +888,8 @@ until a media provider is wired in.
   until the report is closed.
 - **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal;
   *arrived in v1.20-live, §10.20*), a
-  word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images
+  word filter (owner D96: not now), gift lines (L3; *v1.23-live: gifts reach the room as the `gift`
+  data message, §10.23, not as chat lines*), replies, reactions, stickers, images
   *(images and voice clips arrived in v1.19-live, §10.19)*.
 
 ### 10.12 Editing a live, the topic and the Contribution list *(v1.10-live, DRAFT — CP-014, D97)*
@@ -899,7 +907,9 @@ until a media provider is wired in.
   moves. A `PATCH` that changes nothing does not move it. Edits are audited (`live.room.edit`).
 - **Contribution list:** `GET /live/rooms/{roomId}/contributors` returns up to 50 people, by
   points given to this live, highest first; ties by who reached their total first, then user
-  id. Points = counted taps (CP-012) plus, with L3, 100 a support coin. People with 0 points and
+  id. Points = counted taps (CP-012) plus, with L3, 100 a support coin *(v1.23-live: 100 for every
+  coin of value of the gifts the person sent in this live, from coins or the bag, §10.23; ties by
+  who reached their total first, a gift or a counted batch)*. People with 0 points and
   the host are never listed. Anyone who may watch reads it (guests need `allowGuests`); a
   signed-in reader never gets people they blocked or who blocked them; inactive accounts are
   left out. Also on an ended room. Public by owner decision (D97).
@@ -952,8 +962,9 @@ until a media provider is wired in.
 - `GET /live/rankings?period=HOUR|DAY|WEEK` (default `HOUR`): up to **50 hosts** ranked by the
   points their lives received in the **current** hour, day or week, highest first; ties by user
   id. One region for everyone (owner D99). Points are the same as the live score (CP-012: one
-  counted tap = 1 point; support coins with L3), counted when they are given, whichever live
-  they went to.
+  counted tap = 1 point; support coins with L3 — *v1.23-live: 100 a coin of every gift sent in the
+  host's live, to the host or to a seated guest, §10.23*), counted when they are given, whichever
+  live they went to.
 - **Windows:** the hour is the clock hour; the day starts at midnight and the week on Monday in
   the server's `LIVE_RANKINGS_TIME_ZONE` (an IANA zone, default UTC). `startsAt` / `endsAt` give
   the window (the app's countdown runs to `endsAt`); a new window starts empty.
@@ -1004,7 +1015,9 @@ until a media provider is wired in.
 - **Limit (owner D101):** **10 000 taps per viewer in each live** — the counting limit of §10.10.
   One viewer therefore gives a host at most 1 000 charm points per live; there is no daily cap
   across lives. The host's own taps give nothing (they count 0, §10.10).
-- **Gifts** (L3) add charm points by the CP-005 rules (`GIFT_RECEIVED`); not built yet.
+- **Gifts** (L3) add charm points by the CP-005 rules (`GIFT_RECEIVED`); *built in v1.23-live
+  (§10.23): when the host receives a gift, their charm level (the room level) may move, and the
+  room's info version goes up as for taps.*
 - **Live updates:** when a tap batch changes the host's level, the room's info version goes up
   (§10.12), so apps read the room again and show the new level.
 - Apps draw the level with the owner's ten charm tiers (levels 1–10, 11–20 … 91–100); a level
@@ -1015,7 +1028,8 @@ until a media provider is wired in.
 - **Coins (owner D104, minimal):** every user has a coin balance, a whole number ≥ 0 (0 until
   the first grant; §3: exact as a JSON number, at most 2^53 − 1). `GET /wallet/me` → `{"coins": n}`
   (signed in). Every change is a ledger row (`wallet_ledger`: user, delta, reason `ADMIN_GRANT`,
-  `ADMIN_REVOKE` or `BULLET_MESSAGE`, reference, time) written in the same transaction; one row per
+  `ADMIN_REVOKE` or `BULLET_MESSAGE` — *v1.21-live adds the family and CP reasons, v1.23-live
+  `LIVE_GIFT`* — reference, time) written in the same transaction; one row per
   reason and reference, so a bullet is never charged twice. **No purchases** (B5 still blocks
   them): coins come only from an admin on the server with the `wallet-admin` tool
   (`grant <email> <coins>`, `revoke <email> <coins>`, `balance <email>`; positive whole numbers; a
@@ -1266,6 +1280,105 @@ locale (§10.1).
 **Not in v1.22-live:** buying or earning items (store, rewards, events), items that expire, other
 categories (avatar frames, entrance effects, chat bubbles…), a history of grants other than the
 audit log, and `Me` carrying the worn items (the app reads its own profile, or `GET /me/bag`).
+
+### 10.23 Live gifts *(v1.23-live, DRAFT — CP-020, D108)*
+
+Owner decisions (2026-10-26) are marked *(owner)*; every other number is a CTO default the owner
+may change (D108). Every route needs a token. Names follow `Accept-Language`, else the caller's
+locale (§10.1).
+
+- **Catalogue** *(owner)*: gifts are managed by an admin on the server only, with the `gift-admin`
+  CLI (no app or API writes it): `add <code> --category --name-ar --name-en --price --asset
+  [--animation] [--sort] [--badge]`, `update <code> …` (`--animation none` removes the effect),
+  `disable` / `enable <code>`, `list`; every change is audited (`gift.add`, `gift.update`,
+  `gift.disable`, `gift.enable`). A gift has a `code` (`^[a-z0-9][a-z0-9_]{0,39}$`, never reused:
+  gifts are disabled, not deleted), Arabic and English names (1–60), a `category` — the panel tabs
+  `POPULAR` (شائعة), `EVENT` (مناسبات), `FUN` (مرح); the fourth tab, الحقيبة, is the gift bag below
+  — a price of 1 … 1 000 000 coins, an `assetKey` (the app's static image) and an optional
+  `animationKey` (the app's SVGA / full-screen effect; null: none), a `sortOrder` and a `badge`
+  `NONE`, `NEW` or `EVENT`. Keys are plain strings the app maps to its bundled files
+  (`[A-Za-z0-9][A-Za-z0-9_./-]{0,79}`). **The catalogue starts empty** *(owner: the art comes
+  later)*; an empty catalogue is valid and the app shows empty tabs.
+- **`GET /gifts/catalogue`** → `{version, categories, quantities, maxRecipients,
+  comboWindowSeconds, data: [Gift]}`: the **enabled** gifts by tab (in `categories` order), then
+  `sortOrder`, then `code`, whole (not paged). `Gift` = `{code, category, name, priceCoins,
+  assetKey, animationKey, sortOrder, badge}`. `version` (16 hex characters) changes whenever
+  anything in the response except `name`'s language changes; the app caches the catalogue per
+  language and `version` and redraws the panel only when it moves (responses stay `no-store`, §1).
+  `quantities` are the quantities a send may use (server config `LIVE_GIFT_QUANTITIES`, default
+  **1, 10, 66, 99, 188, 520, 1314**) *(owner)*; `maxRecipients` is **25** (the host and 24 seats);
+  `comboWindowSeconds` is **5**. Clients ignore gifts of a category they do not know.
+- **The gift bag (الحقيبة)** *(owner)*: gifts a user owns and sends without coins
+  (`user_gift_stock`: user, gift, quantity ≥ 0). For now only an admin adds to it: `gift-admin grant
+  <email> <code> <quantity>` (1 … 10^9; a user holds at most 10^9 of one gift; audited `gift.grant`);
+  `gift-admin bag <email>` lists it. `GET /me/gifts/bag` → `{data: [GiftBagItem]}` = every `Gift`
+  field plus `quantity`, for the **enabled** gifts the caller holds at least one of, in catalogue
+  order. A disabled gift stays in the stock but is not listed and cannot be sent until it is enabled
+  again. The CP-019 bag (§10.22) is a different thing: wearable items, one of each.
+- **Sending** *(owner)*: `POST /live/rooms/{roomId}/gifts` with `{giftCode, quantity, recipients,
+  source, clientId}`. `quantity` is one of `quantities` (else 400 `quantity` / `invalid_value`);
+  `recipients` are 1 … 25 distinct usernames: **the host and/or people seated in that room now**
+  (§10.9; audio and video, every mode — a SOLO room has only the host); `source` is `COINS` or
+  `BAG`; `clientId` a UUID. Each recipient receives `quantity` of the gift.
+  - **COINS:** the price is `priceCoins × quantity × recipients`, taken from the wallet in one
+    conditional debit (never below 0), one ledger row with reason **`LIVE_GIFT`** and the send as
+    reference; it counts for the sender's family like other spending (§10.21).
+  - **BAG:** takes `quantity × recipients` of that gift from the sender's bag (never below 0); no
+    coins move and nothing counts for the family.
+  - **Who:** a signed-in caller in that LIVE room now (the host, or a row in its media session,
+    §10.8), not kicked out of it (§10.20). Being muted in the chat or the chat being off does not
+    stop gifts. Nobody sends a gift to themself; the host sends only to seated people.
+  - **Order of checks:** 401, 404 (cannot see the room, e.g. a block with the host), 409
+    `LIVE_ROOM_ENDED`, 400 body, a retry (below), 403 `LIVE_KICKED`, 403 `LIVE_CHAT_NOT_IN_ROOM`,
+    400 `recipients` / `invalid_value` (the caller is among them), 409 `GIFT_UNAVAILABLE` (unknown
+    or disabled code), 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (a username without an ACTIVE account,
+    a recipient who is neither the host nor seated now, or a block either way between the sender
+    and a recipient), then the charge: 409 `INSUFFICIENT_COINS` (COINS) or 409
+    `GIFT_BAG_INSUFFICIENT` (BAG). Any refusal stores, charges and sends nothing. 429 comes from the
+    bucket (§7) before all of these.
+  - **Response:** 201 `{"gift": LiveGift, "coins": <balance after>, "bagQuantity": <what the bag
+    holds of that gift after>}` (both for either source). **Idempotent retry:** `clientId` is unique
+    per sender and plays the role of the §3 `Idempotency-Key` (no header): the same sender and
+    `clientId` → 200 with the first send and the current balance and bag quantity; nothing is
+    charged, taken, credited or sent again (even if the body differs).
+  - **`LiveGift`** = `{id, roomId, giftCode, assetKey, animationKey, unitPrice, quantity, source,
+    totalCoins, sender: UserSummary, recipients: [UserSummary] (in the order sent), combo: {id,
+    count, quantity}, createdAt}`. `unitPrice` is the price when it was sent; `totalCoins` =
+    `unitPrice × quantity × recipients` (the value, also for BAG). No `name`: one message serves
+    every language, the app takes the name from its catalogue by `giftCode`.
+  - **Combos:** a send continues the sender's combo when their previous send **in the same live**
+    was the same gift to the same recipients (in any order) at most `comboWindowSeconds` (5 s)
+    before; otherwise it starts one. `combo.id` is the first send's id, `combo.count` 1, 2, 3 … and
+    `combo.quantity` the gifts per recipient in the combo so far. Sends of one sender are processed
+    one at a time, so counts never repeat. Apps show "×count" and restart the effect per send.
+- **Effects, in the send's transaction** (all from the coin value, the same for COINS and BAG):
+  - **Live score** (§10.10): `supportPoints` and `total` grow by **100 × `totalCoins`**, for gifts
+    to the host and to seated guests alike; the score metadata follows (at most every 2 s).
+  - **Popularity board** (§10.15): the host's points in the current hour grow by the same amount.
+  - **Contribution list** (§10.12): the sender's points in this live grow by **100 ×
+    `totalCoins`** (also when they never tapped). The host is never listed (their own gifts to
+    seated guests count for the room score only).
+  - **Levels** (CP-005, §10.18): per recipient, a normal (not lucky) gift worth `unitPrice ×
+    quantity` coins: the recipient earns **charm** (`ATTRACTIVENESS`, source `GIFT_RECEIVED`) and the
+    sender **support** (`SUPPORT`, source `GIFT_SENT`), each `floor(coins × the published version's
+    multiplier)` points (the owner's ladder: 0.1, 1 point per 10 coins); nothing while a category is
+    unavailable, and a share that rounds to 0 earns nothing. When the host's charm level moves, the
+    room's info version goes up (§10.12). Charm medals follow (§10.21).
+- **Delivery:** after the response the server sends the send to everyone in that live's media room
+  as a reliable data message on topic **`gift`** (best effort, like every data message):
+
+  | `type` | Payload |
+  | ------ | ------- |
+  | `gift` | `{"type":"gift","gift":LiveGift}` |
+
+  Every viewer plays the effect (`animationKey`, else the image) with the sender, the recipients,
+  the quantity and the combo count. A send is a broadcast: the app may hide sends from people the
+  reader blocked (`GET /me/blocks`). Gifts are not chat lines (§10.11) and no read lists them yet.
+- **Rate limit:** 120 sends / min per user (§7); there is no other counting rule.
+
+**Not in v1.23-live:** buying gifts or coins (B5), lucky gifts and their winnings (`LUCKY_GIFT_SENT`,
+`WIZARD`), refunds and reversals, a received-gifts wall or history, gifts as chat lines, a
+spenders (rich) board, gifts outside a live, an admin UI, bag gifts that expire.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

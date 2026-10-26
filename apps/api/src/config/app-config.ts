@@ -75,6 +75,8 @@ export interface AppConfig {
     readonly familyWriteUser: RateLimitRule;
     readonly cpWriteUser: RateLimitRule;
     readonly cpGiftUser: RateLimitRule;
+    /** CP-020: gift sends in a live (per user). */
+    readonly liveGiftUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -119,6 +121,11 @@ export interface AppConfig {
     /** CP-018: family join request and CP request expiry sweeper; 0 = disabled (tests). */
     readonly bondsSweepIntervalSeconds: number;
     readonly cursorKey: string;
+  };
+  /** v1.23-live live gifts (CONVENTIONS §10.23). */
+  readonly gifts: {
+    /** The quantities a send may use, ascending (LIVE_GIFT_QUANTITIES). */
+    readonly quantities: readonly number[];
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
@@ -234,6 +241,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       familyWriteUser: e.RATE_LIMIT_FAMILY_WRITE_USER,
       cpWriteUser: e.RATE_LIMIT_CP_WRITE_USER,
       cpGiftUser: e.RATE_LIMIT_CP_GIFT_USER,
+      liveGiftUser: e.RATE_LIMIT_LIVE_GIFT_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -273,6 +281,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       bondsSweepIntervalSeconds: e.BONDS_SWEEP_INTERVAL_SECONDS,
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
+    gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,

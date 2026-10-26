@@ -73,6 +73,10 @@ describe('ErrorCode', () => {
         'MEDAL_NOT_UNLOCKED',
         // v1.22-live (DRAFT, CP-019)
         'BAG_ITEM_NOT_OWNED',
+        // v1.23-live (DRAFT, CP-020)
+        'GIFT_UNAVAILABLE',
+        'GIFT_BAG_INSUFFICIENT',
+        'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -120,6 +124,9 @@ describe('ErrorCode', () => {
       CP_NOT_PAIRED: 409,
       MEDAL_NOT_UNLOCKED: 409,
       BAG_ITEM_NOT_OWNED: 409,
+      GIFT_UNAVAILABLE: 409,
+      GIFT_BAG_INSUFFICIENT: 409,
+      LIVE_GIFT_RECIPIENT_UNAVAILABLE: 409,
     });
   });
 

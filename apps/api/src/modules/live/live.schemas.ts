@@ -343,6 +343,41 @@ export const liveBulletSendSchema = z.strictObject({
 });
 export type LiveBulletSendInput = z.output<typeof liveBulletSendSchema>;
 
+// ---- v1.23-live (CP-020, D108): live gifts ------------------------------------------------------
+
+/** At most this many recipients per send (the host and 24 seats, §10.9). */
+export const LIVE_GIFT_RECIPIENTS_MAX = 25;
+
+/**
+ * `LiveGiftSendRequest` (strict): `quantity` must be one of `quantities` (LIVE_GIFT_QUANTITIES; else
+ * `invalid_value`); `recipients` are 1 … 25 distinct usernames (a malformed one is simply not
+ * found later: 409 LIVE_GIFT_RECIPIENT_UNAVAILABLE); `source` COINS or BAG.
+ */
+export function liveGiftSendSchema(quantities: readonly number[]) {
+  return z.strictObject({
+    giftCode: z.string().min(1).max(40),
+    quantity: z
+      .number()
+      .int()
+      .refine((q) => quantities.includes(q), {
+        message: 'not an allowed quantity',
+        params: { issue: 'invalid_value' },
+      }),
+    recipients: z
+      .array(z.string().min(1).max(64))
+      .min(1)
+      .max(LIVE_GIFT_RECIPIENTS_MAX)
+      .refine((names) => new Set(names.map((n) => n.toLowerCase())).size === names.length, {
+        message: 'recipients must be distinct',
+        params: { issue: 'invalid_value' },
+      }),
+    // string first, so a missing source reports `required` (a bare enum reports `invalid_value`).
+    source: z.string().pipe(z.enum(['COINS', 'BAG'])),
+    clientId: z.uuid(),
+  });
+}
+export type LiveGiftSendInput = z.output<ReturnType<typeof liveGiftSendSchema>>;
+
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;

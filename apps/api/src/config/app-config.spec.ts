@@ -528,6 +528,30 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     ).toBe(0);
   });
 
+  it('reads the CP-020 gift quantities and the gift-send bucket', () => {
+    expect(loadConfig(base).gifts.quantities).toEqual([1, 10, 66, 99, 188, 520, 1314]);
+    expect(loadConfig(base).rateLimits.liveGiftUser).toEqual({ max: 120, windowSeconds: 60 });
+    expect(loadConfig({ ...base, LIVE_GIFT_QUANTITIES: ' 1, 5 ,9999' }).gifts.quantities).toEqual([
+      1, 5, 9999,
+    ]);
+    expect(loadConfig({ ...base, LIVE_GIFT_QUANTITIES: '7' }).gifts.quantities).toEqual([7]);
+    for (const bad of [
+      '',
+      '0',
+      '1,1',
+      '10,1',
+      '1,10000',
+      '1,x',
+      '01',
+      '1.5',
+      '-1',
+      '1,,2',
+      '1,2,3,4,5,6,7,8,9,10,11,12,13',
+    ]) {
+      expect(() => loadConfig({ ...base, LIVE_GIFT_QUANTITIES: bad }), bad).toThrow(/LIVE_GIFT_QUANTITIES/);
+    }
+  });
+
   it('runs the CP-018 family and CP request sweeper by default and refuses disabling it in production', () => {
     expect(loadConfig(base).social.bondsSweepIntervalSeconds).toBe(300);
     expect(loadConfig({ ...base, BONDS_SWEEP_INTERVAL_SECONDS: '0' }).social.bondsSweepIntervalSeconds).toBe(

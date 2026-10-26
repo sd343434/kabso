@@ -31,6 +31,7 @@ import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
+import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
@@ -115,6 +116,7 @@ export class LiveController {
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
+    private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
     private readonly limiter: RateLimitService,
@@ -492,6 +494,23 @@ export class LiveController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<LiveBulletResultDto> {
     const { created, result } = await this.bullets.send(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
+  /**
+   * v1.23-live (CP-020): a gift to the host and/or seated people, paid with coins or from the bag.
+   * 201 new, 200 a retry with the same `clientId`. 120 / min per user, replacing the default (§7).
+   */
+  @Post('rooms/:roomId/gifts')
+  @RateLimit({ bucket: 'live:gift', rule: 'liveGiftUser', key: byUserId, replacesDefault: true })
+  async sendGift(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveGiftResultDto> {
+    const { created, result } = await this.liveGifts.send(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return result;
   }

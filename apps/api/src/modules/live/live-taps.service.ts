@@ -98,25 +98,30 @@ export class LiveTapsService {
       if (!room) throw new AppException(ErrorCode.NOT_FOUND);
       if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
 
-      const [tapper] = await tx.$queryRaw<{ counted: number; last_batch_at: Date }[]>`
+      const [tapper] = await tx.$queryRaw<{ counted: number; last_batch_at: Date | null }[]>`
         SELECT counted, last_batch_at FROM live_room_tappers
          WHERE room_id = ${id}::uuid AND user_id = ${callerId}::uuid
            FOR UPDATE`;
+      // v1.23-live: a row without a counted batch belongs to someone who only sent gifts here
+      // (their first batch is a first batch).
       const accepted = acceptedTaps({
         count,
         isHost: room.host_user_id === callerId,
-        tapper: tapper ? { counted: tapper.counted, lastBatchAt: tapper.last_batch_at } : null,
+        tapper: tapper?.last_batch_at ? { counted: tapper.counted, lastBatchAt: tapper.last_batch_at } : null,
         now,
       });
 
       let levelChanged = false;
       if (accepted > 0) {
         await tx.$executeRaw`
-          INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at)
-          VALUES (${id}::uuid, ${callerId}::uuid, ${accepted}, ${at}::timestamptz)
+          INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, points, points_at)
+          VALUES (${id}::uuid, ${callerId}::uuid, ${accepted}, ${at}::timestamptz,
+                  ${accepted * POINTS_PER_TAP}, ${at}::timestamptz)
           ON CONFLICT (room_id, user_id) DO UPDATE
              SET counted = live_room_tappers.counted + EXCLUDED.counted,
-                 last_batch_at = EXCLUDED.last_batch_at`;
+                 last_batch_at = EXCLUDED.last_batch_at,
+                 points = live_room_tappers.points + EXCLUDED.points,
+                 points_at = EXCLUDED.points_at`;
         await tx.$executeRaw`
           INSERT INTO live_room_scores (room_id, tap_points, support_points, updated_at)
           VALUES (${id}::uuid, ${accepted}, 0, ${at}::timestamptz)
@@ -204,10 +209,10 @@ export class LiveTapsService {
 
   /**
    * `GET /live/rooms/{roomId}/contributors` (CP-014, §10.12): the top 50 people by points given to
-   * this live, highest first. Points are the caller's counted taps (`live_room_tappers.counted`,
-   * 1 each); support (L3) is not written yet. Ties: who reached their total first, i.e. the earlier
-   * `last_batch_at` (the time of the last batch that counted, which is when the current total was
-   * reached: a batch that counts nothing never moves it), then user id. The host (whose taps count
+   * this live, highest first. Points (`live_room_tappers.points`) are the person's counted taps (1
+   * each) plus, v1.23-live (CP-020), 100 for every coin of gift value they sent here. Ties: who
+   * reached their total first, i.e. the earlier `points_at` (set by every batch that counts and
+   * every gift, which is when the current total was reached), then user id. The host (whose taps count
    * 0 anyway), people with 0 points, inactive accounts and, for a signed-in reader, people blocked
    * either way are left out. Anyone who may watch reads it (a guest needs `allowGuests`), also on an
    * ended room; a room the caller may not see → 404.
@@ -217,12 +222,12 @@ export class LiveTapsService {
     if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
     const rows = await this.prisma.liveRoomTapper.findMany({
       where: contributorsWhere(row.id, row.host_user_id, callerId),
-      orderBy: [{ counted: 'desc' }, { lastBatchAt: 'asc' }, { userId: 'asc' }],
+      orderBy: [{ points: 'desc' }, { pointsAt: 'asc' }, { userId: 'asc' }],
       take: LIVE_CONTRIBUTORS_MAX,
       include: { user: { select: USER_SUMMARY_SELECT } },
     });
     return {
-      data: rows.map((r) => ({ user: userSummary(r.user), points: r.counted * POINTS_PER_TAP })),
+      data: rows.map((r) => ({ user: userSummary(r.user), points: Number(r.points) })),
     };
   }
 
@@ -262,7 +267,7 @@ export class LiveTapsService {
     const where = contributorsWhere(row.id, row.host_user_id, callerId);
     const mine = await this.prisma.liveRoomTapper.findFirst({
       where: { AND: [where, { userId: target.id }] },
-      select: { counted: true, lastBatchAt: true },
+      select: { points: true, pointsAt: true },
     });
     if (!mine) return { user, points: 0, rank: null };
     const ahead = await this.prisma.liveRoomTapper.count({
@@ -271,20 +276,21 @@ export class LiveTapsService {
           where,
           {
             OR: [
-              { counted: { gt: mine.counted } },
-              { counted: mine.counted, lastBatchAt: { lt: mine.lastBatchAt } },
-              { counted: mine.counted, lastBatchAt: mine.lastBatchAt, userId: { lt: target.id } },
+              { points: { gt: mine.points } },
+              { points: mine.points, pointsAt: { lt: mine.pointsAt } },
+              { points: mine.points, pointsAt: mine.pointsAt, userId: { lt: target.id } },
             ],
           },
         ],
       },
     });
-    return { user, points: mine.counted * POINTS_PER_TAP, rank: ahead + 1 };
+    return { user, points: Number(mine.points), rank: ahead + 1 };
   }
 }
 
 /**
- * The rows of the Contribution list (CP-014, §10.12) for a reader: counted taps, not the host,
+ * The rows of the Contribution list (CP-014, §10.12) for a reader: points (taps and, v1.23-live,
+ * gifts), not the host,
  * ACTIVE accounts and, for a signed-in reader, no block either way.
  */
 function contributorsWhere(
@@ -294,7 +300,7 @@ function contributorsWhere(
 ): Prisma.LiveRoomTapperWhereInput {
   return {
     roomId,
-    counted: { gt: 0 },
+    points: { gt: 0 },
     userId: { not: hostUserId },
     user: {
       status: 'ACTIVE',

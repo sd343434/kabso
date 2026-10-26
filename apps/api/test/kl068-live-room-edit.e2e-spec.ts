@@ -388,8 +388,8 @@ describe('CP-014 editing a live and the Contribution list', () => {
     const setTapper = (roomId: string, userId: string, counted: number, at: Date) =>
       ctx.prisma.liveRoomTapper.upsert({
         where: { roomId_userId: { roomId, userId } },
-        create: { roomId, userId, counted, lastBatchAt: at },
-        update: { counted, lastBatchAt: at },
+        create: { roomId, userId, counted, lastBatchAt: at, points: counted, pointsAt: at },
+        update: { counted, lastBatchAt: at, points: counted, pointsAt: at },
       });
 
     it('counts taps through the API: highest first, the user summary and points; the host is never listed', async () => {

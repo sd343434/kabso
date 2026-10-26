@@ -42,6 +42,39 @@ export const intSetting = (fallback: number, min: number, max: number = Number.M
     .pipe(z.number().int().min(min).max(max));
 
 const positiveInt = (fallback: number) => intSetting(fallback, 1);
+
+/** At most this many gift quantities (LIVE_GIFT_QUANTITIES). */
+export const LIVE_GIFT_QUANTITIES_MAX = 12;
+/** The largest gift quantity. */
+export const LIVE_GIFT_QUANTITY_MAX = 9999;
+
+/**
+ * v1.23-live (CP-020): a list of gift quantities, e.g. `1,10,66,99`: plain decimal integers
+ * 1 … 9999, strictly ascending (so no duplicates), 1 … 12 of them.
+ */
+export const giftQuantities = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly number[] => {
+      const parts = value.split(',').map((p) => p.trim());
+      const numbers = parts.map((p) => (/^[1-9][0-9]{0,3}$/.test(p) ? Number(p) : NaN));
+      const ascending = numbers.every((n, i) => i === 0 || n > numbers[i - 1]!);
+      if (
+        parts.length < 1 ||
+        parts.length > LIVE_GIFT_QUANTITIES_MAX ||
+        numbers.some((n) => !Number.isInteger(n) || n < 1 || n > LIVE_GIFT_QUANTITY_MAX) ||
+        !ascending
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `expected 1–${String(LIVE_GIFT_QUANTITIES_MAX)} strictly ascending whole numbers 1–${String(LIVE_GIFT_QUANTITY_MAX)}, comma-separated, got "${value}"`,
+        });
+        return z.NEVER;
+      }
+      return Object.freeze(numbers);
+    });
 const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
 
 /** SEC-035: bounds of LIVE_SWEEP_BATCH_SIZE (rooms ended per sweeper transaction). */
@@ -217,6 +250,9 @@ export const envSchema = z
     RATE_LIMIT_FAMILY_WRITE_USER: rateLimit('60/3600'),
     RATE_LIMIT_CP_WRITE_USER: rateLimit('30/3600'),
     RATE_LIMIT_CP_GIFT_USER: rateLimit('30/60'),
+    // v1.23-live (CP-020, CONVENTIONS §7): gift sends in a live, per user, replacing the default
+    // authenticated bucket (combos are quick taps on "send": one a second on average, 2× headroom).
+    RATE_LIMIT_LIVE_GIFT_USER: rateLimit('120/60'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -270,6 +306,12 @@ export const envSchema = z
         },
         { message: 'must be an IANA time zone' },
       ),
+    /**
+     * v1.23-live (CP-020, D108, CONVENTIONS §10.23): the quantities a gift send may use (the
+     * quantity picker), comma-separated whole numbers 1–9999, strictly ascending, 1–12 of them.
+     * `GET /gifts/catalogue` returns them; any other quantity → 400.
+     */
+    LIVE_GIFT_QUANTITIES: giftQuantities('1,10,66,99,188,520,1314'),
     /**
      * SEC-035 (CONVENTIONS §10.2, D43): the sweeper ends at most this many stale rooms per batch,
      * each batch in its own short transaction. Bounded so one batch always fits its timeout.
