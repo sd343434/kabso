@@ -26,6 +26,35 @@ Map<String, dynamic> _$LiveChatMediaToJson(_LiveChatMedia instance) =>
       'durationMs': instance.durationMs,
     };
 
+_LiveChatAuthorFamily _$LiveChatAuthorFamilyFromJson(
+  Map<String, dynamic> json,
+) => _LiveChatAuthorFamily(
+  name: json['name'] as String,
+  level: (json['level'] as num).toInt(),
+);
+
+Map<String, dynamic> _$LiveChatAuthorFamilyToJson(
+  _LiveChatAuthorFamily instance,
+) => <String, dynamic>{'name': instance.name, 'level': instance.level};
+
+_LiveChatAuthorBadges _$LiveChatAuthorBadgesFromJson(
+  Map<String, dynamic> json,
+) => _LiveChatAuthorBadges(
+  charmLevel: (json['charmLevel'] as num?)?.toInt(),
+  supportLevel: (json['supportLevel'] as num?)?.toInt(),
+  family: json['family'] == null
+      ? null
+      : LiveChatAuthorFamily.fromJson(json['family'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$LiveChatAuthorBadgesToJson(
+  _LiveChatAuthorBadges instance,
+) => <String, dynamic>{
+  'charmLevel': instance.charmLevel,
+  'supportLevel': instance.supportLevel,
+  'family': instance.family,
+};
+
 _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>
     _LiveChatEntry(
       id: json['id'] as String,
@@ -52,6 +81,11 @@ _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['expiresAt'] as String),
       cpBubble: json['cpBubble'] as bool? ?? false,
+      authorBadges: json['authorBadges'] == null
+          ? null
+          : LiveChatAuthorBadges.fromJson(
+              json['authorBadges'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
@@ -66,6 +100,7 @@ Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
       'media': instance.media,
       'expiresAt': instance.expiresAt?.toIso8601String(),
       'cpBubble': instance.cpBubble,
+      'authorBadges': instance.authorBadges,
     };
 
 const _$LiveChatRoleEnumMap = {

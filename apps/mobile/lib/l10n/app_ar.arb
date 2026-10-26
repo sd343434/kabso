@@ -4421,6 +4421,36 @@
       }
     }
   },
+  "liveChatCharmLabel": "مستوى الجاذبية {level}",
+  "@liveChatCharmLabel": {
+    "description": "D119: screen reader label of the charm level badge under a chat author's name.",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "liveChatSupportLabel": "مستوى الدعم {level}",
+  "@liveChatSupportLabel": {
+    "description": "D119: screen reader label of the support level badge under a chat author's name.",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "liveChatFamilyLabel": "العائلة {name}، المستوى {level}",
+  "@liveChatFamilyLabel": {
+    "description": "D119: screen reader label of the family chip under a chat author's name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
   "liveChatTool": "الدردشة",
   "@liveChatTool": {
     "description": "Host tool: the room chat on/off switch (CP-013); its state is shown by the button."
@@ -4962,6 +4992,14 @@
   "liveVoiceUploadsUnavailable": "إرسال الرسائل الصوتية غير متاح حالياً.",
   "@liveVoiceUploadsUnavailable": {
     "description": "Live chat: a voice clip could not be sent because uploads are off on the server (503 MEDIA_UPLOADS_UNAVAILABLE). D118."
+  },
+  "liveRoomRulesNotice": "مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.",
+  "@liveRoomRulesNotice": {
+    "description": "The red system line with the room's rules, shown once when a live opens (host and viewers); local, never sent. D118."
+  },
+  "liveRoomRulesLabel": "تنبيه من Kabso Live",
+  "@liveRoomRulesLabel": {
+    "description": "Screen-reader name of the red system line in the live chat. D118."
   },
   "liveVoiceTooLarge": "المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.",
   "@liveVoiceTooLarge": {

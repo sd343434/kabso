@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { LiveBulletsService } from './live-bullets.service.js';
 import { LiveCategoriesService } from './live-categories.service.js';
+import { LiveChatBadgesService } from './live-chat-badges.service.js';
 import { LiveChatService } from './live-chat.service.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
@@ -61,6 +62,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveSeatsService,
     LiveTapsService,
     LiveChatService,
+    // v1.24.4-live (D119): the level and family badges of chat authors.
+    LiveChatBadgesService,
     LiveCoverService,
     LiveRankingsService,
     LiveBlockedWordsService,

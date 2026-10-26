@@ -1470,8 +1470,16 @@ void main() {
         await tester.pumpAndSettle();
         expect(line('Welcome!'), findsOneWidget);
         expect(line(l10n.liveChatHostBadge), findsOneWidget);
-        // Names are direction-isolated inside the line.
-        expect(line('joined'), findsOneWidget);
+        // D119: the join is the strip pinned under the chat, not a line;
+        // the name is direction-isolated.
+        expect(line('joined'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byKey(LiveChatJoinStrip.stripKey),
+            matching: find.textContaining('joined'),
+          ),
+          findsOneWidget,
+        );
         // Write.
         await tester.tap(find.byKey(AudioRoomViewKeys.chat));
         await tester.pumpAndSettle();
@@ -1480,10 +1488,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.chatCalls, contains('send:Hi all'));
         expect(line('Hi all'), findsOneWidget);
-        // Someone else's line: profile and report only.
+        // Someone else's line: profile and report only. (The oldest line
+        // has scrolled under the top of the box: the rules line, D118, came
+        // after it.)
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
         await tester.tapAt(const Offset(1, 1));
         await tester.pumpAndSettle();
-        await tester.tap(line('Hello room'));
+        await tester.tap(line('Welcome!'));
         await tester.pumpAndSettle();
         expect(
           find.byKey(const Key('liveChat.action.profile')),
@@ -1496,7 +1507,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('feed.post.report.spam')));
         await tester.pumpAndSettle();
-        expect(repo.chatCalls, contains('report:m1:SPAM'));
+        expect(repo.chatCalls, contains('report:m2:SPAM'));
         ScaffoldMessenger.of(tester.element(find.byType(LiveRoomScreen)))
             .removeCurrentSnackBar();
         await tester.pumpAndSettle();

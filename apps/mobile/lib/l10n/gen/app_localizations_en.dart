@@ -3795,6 +3795,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveChatCharmLabel(int level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String liveChatSupportLabel(int level) {
+    return 'Support level $level';
+  }
+
+  @override
+  String liveChatFamilyLabel(String name, int level) {
+    return 'Family $name, level $level';
+  }
+
+  @override
   String get liveChatTool => 'Chat';
 
   @override
@@ -4162,6 +4177,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get liveVoiceUploadsUnavailable =>
       'Voice messages aren\'t available right now.';
+
+  @override
+  String get liveRoomRulesNotice =>
+      'Welcome to Kabso Live. Offensive content and anything against our community guidelines isn\'t allowed. Our moderators watch lives around the clock.';
+
+  @override
+  String get liveRoomRulesLabel => 'Kabso notice';
 
   @override
   String get liveVoiceTooLarge =>

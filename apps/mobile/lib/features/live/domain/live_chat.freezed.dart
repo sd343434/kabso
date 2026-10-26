@@ -299,6 +299,579 @@ as int?,
 
 
 /// @nodoc
+mixin _$LiveChatAuthorFamily {
+
+ String get name; int get level;
+/// Create a copy of LiveChatAuthorFamily
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveChatAuthorFamilyCopyWith<LiveChatAuthorFamily> get copyWith => _$LiveChatAuthorFamilyCopyWithImpl<LiveChatAuthorFamily>(this as LiveChatAuthorFamily, _$identity);
+
+  /// Serializes this LiveChatAuthorFamily to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveChatAuthorFamily;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorFamily&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.level, _this.level) || other.level == _this.level));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveChatAuthorFamily;
+  return Object.hash(runtimeType,_this.name,_this.level);
+}
+
+@override
+String toString() {
+  final _this = this as LiveChatAuthorFamily;
+  return 'LiveChatAuthorFamily(name: ${_this.name}, level: ${_this.level})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveChatAuthorFamilyCopyWith<$Res>  {
+  factory $LiveChatAuthorFamilyCopyWith(LiveChatAuthorFamily value, $Res Function(LiveChatAuthorFamily) _then) = _$LiveChatAuthorFamilyCopyWithImpl;
+@useResult
+$Res call({
+ String name, int level
+});
+
+
+
+
+}
+/// @nodoc
+class _$LiveChatAuthorFamilyCopyWithImpl<$Res>
+    implements $LiveChatAuthorFamilyCopyWith<$Res> {
+  _$LiveChatAuthorFamilyCopyWithImpl(this._self, this._then);
+
+  final LiveChatAuthorFamily _self;
+  final $Res Function(LiveChatAuthorFamily) _then;
+
+/// Create a copy of LiveChatAuthorFamily
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? level = null,}) {
+  return _then(LiveChatAuthorFamily(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,level: null == level ? _self.level : level // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [LiveChatAuthorFamily].
+extension LiveChatAuthorFamilyPatterns on LiveChatAuthorFamily {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveChatAuthorFamily value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveChatAuthorFamily value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveChatAuthorFamily value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  int level)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily() when $default != null:
+return $default(_that.name,_that.level);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  int level)  $default,) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily():
+return $default(_that.name,_that.level);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  int level)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorFamily() when $default != null:
+return $default(_that.name,_that.level);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveChatAuthorFamily implements LiveChatAuthorFamily {
+  const _LiveChatAuthorFamily({required this.name, required this.level});
+  factory _LiveChatAuthorFamily.fromJson(Map<String, dynamic> json) => _$LiveChatAuthorFamilyFromJson(json);
+
+@override final  String name;
+@override final  int level;
+
+/// Create a copy of LiveChatAuthorFamily
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveChatAuthorFamilyCopyWith<_LiveChatAuthorFamily> get copyWith => __$LiveChatAuthorFamilyCopyWithImpl<_LiveChatAuthorFamily>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveChatAuthorFamilyToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorFamily&&(identical(other.name, name) || other.name == name)&&(identical(other.level, level) || other.level == level));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,name,level);
+}
+
+@override
+String toString() {
+    return 'LiveChatAuthorFamily(name: $name, level: $level)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveChatAuthorFamilyCopyWith<$Res> implements $LiveChatAuthorFamilyCopyWith<$Res> {
+  factory _$LiveChatAuthorFamilyCopyWith(_LiveChatAuthorFamily value, $Res Function(_LiveChatAuthorFamily) _then) = __$LiveChatAuthorFamilyCopyWithImpl;
+@override @useResult
+$Res call({
+ String name, int level
+});
+
+
+
+
+}
+/// @nodoc
+class __$LiveChatAuthorFamilyCopyWithImpl<$Res>
+    implements _$LiveChatAuthorFamilyCopyWith<$Res> {
+  __$LiveChatAuthorFamilyCopyWithImpl(this._self, this._then);
+
+  final _LiveChatAuthorFamily _self;
+  final $Res Function(_LiveChatAuthorFamily) _then;
+
+/// Create a copy of LiveChatAuthorFamily
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? level = null,}) {
+  return _then(_LiveChatAuthorFamily(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,level: null == level ? _self.level : level // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$LiveChatAuthorBadges {
+
+ int? get charmLevel; int? get supportLevel; LiveChatAuthorFamily? get family;
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveChatAuthorBadgesCopyWith<LiveChatAuthorBadges> get copyWith => _$LiveChatAuthorBadgesCopyWithImpl<LiveChatAuthorBadges>(this as LiveChatAuthorBadges, _$identity);
+
+  /// Serializes this LiveChatAuthorBadges to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveChatAuthorBadges;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatAuthorBadges&&(identical(other.charmLevel, _this.charmLevel) || other.charmLevel == _this.charmLevel)&&(identical(other.supportLevel, _this.supportLevel) || other.supportLevel == _this.supportLevel)&&(identical(other.family, _this.family) || other.family == _this.family));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveChatAuthorBadges;
+  return Object.hash(runtimeType,_this.charmLevel,_this.supportLevel,_this.family);
+}
+
+@override
+String toString() {
+  final _this = this as LiveChatAuthorBadges;
+  return 'LiveChatAuthorBadges(charmLevel: ${_this.charmLevel}, supportLevel: ${_this.supportLevel}, family: ${_this.family})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveChatAuthorBadgesCopyWith<$Res>  {
+  factory $LiveChatAuthorBadgesCopyWith(LiveChatAuthorBadges value, $Res Function(LiveChatAuthorBadges) _then) = _$LiveChatAuthorBadgesCopyWithImpl;
+@useResult
+$Res call({
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family
+});
+
+
+$LiveChatAuthorFamilyCopyWith<$Res>? get family;
+
+}
+/// @nodoc
+class _$LiveChatAuthorBadgesCopyWithImpl<$Res>
+    implements $LiveChatAuthorBadgesCopyWith<$Res> {
+  _$LiveChatAuthorBadgesCopyWithImpl(this._self, this._then);
+
+  final LiveChatAuthorBadges _self;
+  final $Res Function(LiveChatAuthorBadges) _then;
+
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,}) {
+  return _then(LiveChatAuthorBadges(
+charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
+as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
+as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
+as LiveChatAuthorFamily?,
+  ));
+}
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveChatAuthorFamilyCopyWith<$Res>? get family {
+    if (_self.family == null) {
+    return null;
+  }
+
+  return $LiveChatAuthorFamilyCopyWith<$Res>(_self.family!, (value) {
+    return _then(_self.copyWith(family: value));
+  });
+}
+}
+
+
+/// Adds pattern-matching-related methods to [LiveChatAuthorBadges].
+extension LiveChatAuthorBadgesPatterns on LiveChatAuthorBadges {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveChatAuthorBadges value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveChatAuthorBadges value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveChatAuthorBadges value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges() when $default != null:
+return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)  $default,) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges():
+return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int? charmLevel,  int? supportLevel,  LiveChatAuthorFamily? family)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveChatAuthorBadges() when $default != null:
+return $default(_that.charmLevel,_that.supportLevel,_that.family);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveChatAuthorBadges implements LiveChatAuthorBadges {
+  const _LiveChatAuthorBadges({this.charmLevel, this.supportLevel, this.family});
+  factory _LiveChatAuthorBadges.fromJson(Map<String, dynamic> json) => _$LiveChatAuthorBadgesFromJson(json);
+
+@override final  int? charmLevel;
+@override final  int? supportLevel;
+@override final  LiveChatAuthorFamily? family;
+
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveChatAuthorBadgesCopyWith<_LiveChatAuthorBadges> get copyWith => __$LiveChatAuthorBadgesCopyWithImpl<_LiveChatAuthorBadges>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveChatAuthorBadgesToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatAuthorBadges&&(identical(other.charmLevel, charmLevel) || other.charmLevel == charmLevel)&&(identical(other.supportLevel, supportLevel) || other.supportLevel == supportLevel)&&(identical(other.family, family) || other.family == family));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,charmLevel,supportLevel,family);
+}
+
+@override
+String toString() {
+    return 'LiveChatAuthorBadges(charmLevel: $charmLevel, supportLevel: $supportLevel, family: $family)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveChatAuthorBadgesCopyWith<$Res> implements $LiveChatAuthorBadgesCopyWith<$Res> {
+  factory _$LiveChatAuthorBadgesCopyWith(_LiveChatAuthorBadges value, $Res Function(_LiveChatAuthorBadges) _then) = __$LiveChatAuthorBadgesCopyWithImpl;
+@override @useResult
+$Res call({
+ int? charmLevel, int? supportLevel, LiveChatAuthorFamily? family
+});
+
+
+@override $LiveChatAuthorFamilyCopyWith<$Res>? get family;
+
+}
+/// @nodoc
+class __$LiveChatAuthorBadgesCopyWithImpl<$Res>
+    implements _$LiveChatAuthorBadgesCopyWith<$Res> {
+  __$LiveChatAuthorBadgesCopyWithImpl(this._self, this._then);
+
+  final _LiveChatAuthorBadges _self;
+  final $Res Function(_LiveChatAuthorBadges) _then;
+
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? charmLevel = freezed,Object? supportLevel = freezed,Object? family = freezed,}) {
+  return _then(_LiveChatAuthorBadges(
+charmLevel: freezed == charmLevel ? _self.charmLevel : charmLevel // ignore: cast_nullable_to_non_nullable
+as int?,supportLevel: freezed == supportLevel ? _self.supportLevel : supportLevel // ignore: cast_nullable_to_non_nullable
+as int?,family: freezed == family ? _self.family : family // ignore: cast_nullable_to_non_nullable
+as LiveChatAuthorFamily?,
+  ));
+}
+
+/// Create a copy of LiveChatAuthorBadges
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveChatAuthorFamilyCopyWith<$Res>? get family {
+    if (_self.family == null) {
+    return null;
+  }
+
+  return $LiveChatAuthorFamilyCopyWith<$Res>(_self.family!, (value) {
+    return _then(_self.copyWith(family: value));
+  });
+}
+}
+
+
+/// @nodoc
 mixin _$LiveChatEntry {
 
  String get id; String get roomId; UserSummary get author;@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole get authorRole; String get text; DateTime get createdAt;@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind get kind;/// The clip or picture of a VOICE / IMAGE message; null for TEXT and
@@ -307,7 +880,9 @@ mixin _$LiveChatEntry {
  DateTime? get expiresAt;/// v1.24-live (CP-021, §10.24): the author's couple had the Exclusive
 /// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
 /// the CP bubble. Older servers send nothing (false).
- bool get cpBubble;
+ bool get cpBubble;/// v1.24.4-live (D119): the author's level and family badges; older
+/// servers send none (null: no badges).
+ LiveChatAuthorBadges? get authorBadges;
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -321,20 +896,20 @@ $LiveChatEntryCopyWith<LiveChatEntry> get copyWith => _$LiveChatEntryCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as LiveChatEntry;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.cpBubble, _this.cpBubble) || other.cpBubble == _this.cpBubble));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.cpBubble, _this.cpBubble) || other.cpBubble == _this.cpBubble)&&(identical(other.authorBadges, _this.authorBadges) || other.authorBadges == _this.authorBadges));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveChatEntry;
-  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt,_this.cpBubble);
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt,_this.cpBubble,_this.authorBadges);
 }
 
 @override
 String toString() {
   final _this = this as LiveChatEntry;
-  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt}, cpBubble: ${_this.cpBubble})';
+  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt}, cpBubble: ${_this.cpBubble}, authorBadges: ${_this.authorBadges})';
 }
 
 
@@ -345,11 +920,11 @@ abstract mixin class $LiveChatEntryCopyWith<$Res>  {
   factory $LiveChatEntryCopyWith(LiveChatEntry value, $Res Function(LiveChatEntry) _then) = _$LiveChatEntryCopyWithImpl;
 @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges
 });
 
 
-$UserSummaryCopyWith<$Res> get author;$LiveChatMediaCopyWith<$Res>? get media;
+$UserSummaryCopyWith<$Res> get author;$LiveChatMediaCopyWith<$Res>? get media;$LiveChatAuthorBadgesCopyWith<$Res>? get authorBadges;
 
 }
 /// @nodoc
@@ -362,7 +937,7 @@ class _$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,}) {
   return _then(LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -374,7 +949,8 @@ as DateTime,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_n
 as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,authorBadges: freezed == authorBadges ? _self.authorBadges : authorBadges // ignore: cast_nullable_to_non_nullable
+as LiveChatAuthorBadges?,
   ));
 }
 /// Create a copy of LiveChatEntry
@@ -397,6 +973,18 @@ $LiveChatMediaCopyWith<$Res>? get media {
 
   return $LiveChatMediaCopyWith<$Res>(_self.media!, (value) {
     return _then(_self.copyWith(media: value));
+  });
+}/// Create a copy of LiveChatEntry
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveChatAuthorBadgesCopyWith<$Res>? get authorBadges {
+    if (_self.authorBadges == null) {
+    return null;
+  }
+
+  return $LiveChatAuthorBadgesCopyWith<$Res>(_self.authorBadges!, (value) {
+    return _then(_self.copyWith(authorBadges: value));
   });
 }
 }
@@ -480,10 +1068,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
   return orElse();
 
 }
@@ -501,10 +1089,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry():
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -521,10 +1109,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble,  LiveChatAuthorBadges? authorBadges)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble,_that.authorBadges);case _:
   return null;
 
 }
@@ -536,7 +1124,7 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 @JsonSerializable()
 
 class _LiveChatEntry implements LiveChatEntry {
-  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt, this.cpBubble = false});
+  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt, this.cpBubble = false, this.authorBadges});
   factory _LiveChatEntry.fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
 
 @override final  String id;
@@ -555,6 +1143,9 @@ class _LiveChatEntry implements LiveChatEntry {
 /// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
 /// the CP bubble. Older servers send nothing (false).
 @override@JsonKey() final  bool cpBubble;
+/// v1.24.4-live (D119): the author's level and family badges; older
+/// servers send none (null: no badges).
+@override final  LiveChatAuthorBadges? authorBadges;
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -569,18 +1160,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.cpBubble, cpBubble) || other.cpBubble == cpBubble));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.cpBubble, cpBubble) || other.cpBubble == cpBubble)&&(identical(other.authorBadges, authorBadges) || other.authorBadges == authorBadges));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt,cpBubble);
+    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt,cpBubble,authorBadges);
 }
 
 @override
 String toString() {
-    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt, cpBubble: $cpBubble)';
+    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt, cpBubble: $cpBubble, authorBadges: $authorBadges)';
 }
 
 
@@ -591,11 +1182,11 @@ abstract mixin class _$LiveChatEntryCopyWith<$Res> implements $LiveChatEntryCopy
   factory _$LiveChatEntryCopyWith(_LiveChatEntry value, $Res Function(_LiveChatEntry) _then) = __$LiveChatEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble, LiveChatAuthorBadges? authorBadges
 });
 
 
-@override $UserSummaryCopyWith<$Res> get author;@override $LiveChatMediaCopyWith<$Res>? get media;
+@override $UserSummaryCopyWith<$Res> get author;@override $LiveChatMediaCopyWith<$Res>? get media;@override $LiveChatAuthorBadgesCopyWith<$Res>? get authorBadges;
 
 }
 /// @nodoc
@@ -608,7 +1199,7 @@ class __$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,Object? authorBadges = freezed,}) {
   return _then(_LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -620,7 +1211,8 @@ as DateTime,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_n
 as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,authorBadges: freezed == authorBadges ? _self.authorBadges : authorBadges // ignore: cast_nullable_to_non_nullable
+as LiveChatAuthorBadges?,
   ));
 }
 
@@ -644,6 +1236,18 @@ $LiveChatMediaCopyWith<$Res>? get media {
 
   return $LiveChatMediaCopyWith<$Res>(_self.media!, (value) {
     return _then(_self.copyWith(media: value));
+  });
+}/// Create a copy of LiveChatEntry
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LiveChatAuthorBadgesCopyWith<$Res>? get authorBadges {
+    if (_self.authorBadges == null) {
+    return null;
+  }
+
+  return $LiveChatAuthorBadgesCopyWith<$Res>(_self.authorBadges!, (value) {
+    return _then(_self.copyWith(authorBadges: value));
   });
 }
 }

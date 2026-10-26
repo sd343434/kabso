@@ -45,6 +45,32 @@ abstract class LiveChatMedia with _$LiveChatMedia {
   factory fromJson(Map<String, dynamic> json) => _$LiveChatMediaFromJson(json);
 }
 
+/// `LiveChatAuthorFamily` (v1.24.4-live, D119): the author's family.
+@freezed
+abstract class LiveChatAuthorFamily with _$LiveChatAuthorFamily {
+  const factory({required String name, required int level}) =
+      _LiveChatAuthorFamily;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveChatAuthorFamilyFromJson(json);
+}
+
+/// `LiveChatAuthorBadges` (v1.24.4-live, D119, §10.11): the badges under
+/// the author's name — the charm (`ATTRACTIVENESS`) and `SUPPORT` level
+/// numbers (null while a category is unavailable) and the family (null when
+/// none). The line shows only those present.
+@freezed
+abstract class LiveChatAuthorBadges with _$LiveChatAuthorBadges {
+  const factory({
+    int? charmLevel,
+    int? supportLevel,
+    LiveChatAuthorFamily? family,
+  }) = _LiveChatAuthorBadges;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveChatAuthorBadgesFromJson(json);
+}
+
 /// `LiveChatMessage`: one stored chat message.
 @freezed
 abstract class LiveChatEntry with _$LiveChatEntry {
@@ -72,6 +98,10 @@ abstract class LiveChatEntry with _$LiveChatEntry {
     /// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
     /// the CP bubble. Older servers send nothing (false).
     @Default(false) bool cpBubble,
+
+    /// v1.24.4-live (D119): the author's level and family badges; older
+    /// servers send none (null: no badges).
+    LiveChatAuthorBadges? authorBadges,
   }) = _LiveChatEntry;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);

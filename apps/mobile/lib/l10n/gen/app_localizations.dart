@@ -6722,6 +6722,24 @@ abstract class AppLocalizations {
   /// **'{name}: {text}'**
   String liveChatLineLabel(String name, String text);
 
+  /// D119: screen reader label of the charm level badge under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {level}'**
+  String liveChatCharmLabel(int level);
+
+  /// D119: screen reader label of the support level badge under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الدعم {level}'**
+  String liveChatSupportLabel(int level);
+
+  /// D119: screen reader label of the family chip under a chat author's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة {name}، المستوى {level}'**
+  String liveChatFamilyLabel(String name, int level);
+
   /// Host tool: the room chat on/off switch (CP-013); its state is shown by the button.
   ///
   /// In ar, this message translates to:
@@ -7381,6 +7399,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إرسال الرسائل الصوتية غير متاح حالياً.'**
   String get liveVoiceUploadsUnavailable;
+
+  /// The red system line with the room's rules, shown once when a live opens (host and viewers); local, never sent. D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.'**
+  String get liveRoomRulesNotice;
+
+  /// Screen-reader name of the red system line in the live chat. D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه من Kabso Live'**
+  String get liveRoomRulesLabel;
 
   /// A voice clip over 1 MiB (CP-017).
   ///

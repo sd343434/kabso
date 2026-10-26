@@ -94,6 +94,9 @@ info:
     Effect (`MIC_EFFECT`, CP level 3) on a speaking partner's seat (CONVENTIONS §10.9).
     **D117 (DRAFT v1.24.3-live)** adds `Gift.tag` (`GiftTag` `{code, name}` or null): a gift's
     optional sub-category, shown as chips under the gift panel's tabs (CONVENTIONS §10.23).
+    **D119 (DRAFT v1.24.4-live)** adds `LiveChatMessage.authorBadges` (`LiveChatAuthorBadges`:
+    the author's charm and support level numbers and family `{name, level}`, each null when there
+    is none), so the live chat shows them under the author's name (CONVENTIONS §10.11).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -5559,10 +5562,11 @@ components:
           description: Chosen by the app for each message; a retry with the same id returns the first message.
     LiveChatMessage:
       type: object
-      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt, cpBubble]
+      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt, cpBubble, authorBadges]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
+        authorBadges: { $ref: '#/components/schemas/LiveChatAuthorBadges' }
         cpBubble:
           type: boolean
           description: |
@@ -5611,6 +5615,37 @@ components:
         expiresAt: '2026-10-26T18:31:00.000Z'
         createdAt: '2026-10-26T18:30:00.000Z'
         cpBubble: false
+        authorBadges: { charmLevel: 12, supportLevel: 3, family: { name: نجوم كابسو, level: 2 } }
+    LiveChatAuthorBadges:
+      type: object
+      description: |
+        (v1.24.4-live, D119) The small badges a live chat line shows under the author's name, as
+        they are now (read when the message is sent or listed; the server may cache them up to
+        30 s). Messages from before v1.24.4-live get them too (they are not stored).
+      required: [charmLevel, supportLevel, family]
+      properties:
+        charmLevel:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 200
+          description: The author's charm (`ATTRACTIVENESS`) level number; null while that category is unavailable (CP-005).
+        supportLevel:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 200
+          description: The author's `SUPPORT` level number; null while that category is unavailable (CP-005).
+        family:
+          description: The author's family (CP-018), or null.
+          oneOf:
+            - $ref: '#/components/schemas/LiveChatAuthorFamily'
+            - type: 'null'
+    LiveChatAuthorFamily:
+      type: object
+      description: (v1.24.4-live, D119) The family of a live chat message's author.
+      required: [name, level]
+      properties:
+        name: { type: string }
+        level: { type: integer, minimum: 1, maximum: 10 }
     LiveChatMessageList:
       type: object
       required: [data]

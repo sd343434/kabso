@@ -3825,6 +3825,21 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveChatCharmLabel(int level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String liveChatSupportLabel(int level) {
+    return 'مستوى الدعم $level';
+  }
+
+  @override
+  String liveChatFamilyLabel(String name, int level) {
+    return 'العائلة $name، المستوى $level';
+  }
+
+  @override
   String get liveChatTool => 'الدردشة';
 
   @override
@@ -4189,6 +4204,13 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get liveVoiceUploadsUnavailable =>
       'إرسال الرسائل الصوتية غير متاح حالياً.';
+
+  @override
+  String get liveRoomRulesNotice =>
+      'مرحباً بك في Kabso Live. يُمنع نشر أي محتوى مسيء أو مخالف لإرشادات المجتمع، وفريق الإشراف يتابع البث على مدار الساعة.';
+
+  @override
+  String get liveRoomRulesLabel => 'تنبيه من Kabso Live';
 
   @override
   String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';

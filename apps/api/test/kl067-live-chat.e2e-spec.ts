@@ -927,6 +927,96 @@ describe('CP-013 live room chat', () => {
       await end(roomId, owner);
     });
   });
+
+  // v1.24.4-live (D119): the author's level and family badges under the name.
+  describe('author badges (D119)', () => {
+    type Badges = {
+      charmLevel: number | null;
+      supportLevel: number | null;
+      family: { name: string; level: number } | null;
+    };
+    const badgesOf = (m: unknown) => (m as { authorBadges: Badges }).authorBadges;
+    /** Past the badges cache (30 s) and the counting rule. */
+    const later = () => clock.advance(31);
+
+    const publish = async (code: 'ATTRACTIVENESS' | 'SUPPORT') => {
+      const category = await ctx.prisma.levelCategory.create({
+        data: { code, nameAr: 'فئة', nameEn: 'Category', descriptionAr: 'وصف', descriptionEn: 'About' },
+      });
+      const version = await ctx.prisma.levelCategoryVersion.create({
+        data: {
+          categoryId: category.id,
+          versionNumber: 1,
+          status: 'PUBLISHED',
+          multiplier: '1',
+          valueUnit: 'COIN',
+          publishedAt: clock.now(),
+          levels: {
+            create: [
+              { levelNumber: 1, nameAr: 'أ', nameEn: 'A', requiredPoints: 0n },
+              { levelNumber: 2, nameAr: 'ب', nameEn: 'B', requiredPoints: 2n },
+              { levelNumber: 3, nameAr: 'ج', nameEn: 'C', requiredPoints: 5n },
+            ],
+          },
+        },
+      });
+      await ctx.prisma.levelCategory.update({
+        where: { id: category.id },
+        data: { isEnabled: true, publishedVersionId: version.id },
+      });
+      return category.id;
+    };
+
+    it('null levels and no family while the categories are unavailable; the same badges reach the room', async () => {
+      const owner = await host();
+      const roomId = await goLive(owner);
+      const message = await say(roomId, owner, 'plain');
+      expect(badgesOf(message)).toEqual({ charmLevel: null, supportLevel: null, family: null });
+      expect(chats(roomId)).toEqual([{ type: 'chat', message }]);
+      expect(badgesOf(((await list(roomId)).body.data as ChatMessage[])[0])).toEqual(badgesOf(message));
+      await end(roomId, owner);
+    });
+
+    it('the charm and support levels and the family, from existing data, on send, broadcast and list', async () => {
+      const charm = await publish('ATTRACTIVENESS');
+      await publish('SUPPORT');
+      const owner = await host();
+      const [fan, other] = [await signup(), await signup()];
+      const roomId = await goLive(owner);
+      await join(roomId, fan);
+      await join(roomId, other);
+      later();
+
+      // A published ladder: everyone has level 1 at 0 points; 5 charm points reach level 3.
+      await ctx.prisma.userLevelState.create({
+        data: { userId: fan.id, categoryId: charm, totalPoints: 5n },
+      });
+      const family = await ctx.prisma.family.create({
+        data: { name: 'Kabso Stars', nameKey: 'kabso stars', level: 4, createClientId: randomUUID() },
+      });
+      await ctx.prisma.familyMember.create({ data: { userId: fan.id, familyId: family.id } });
+
+      const byFan = await say(roomId, fan, 'with badges');
+      expect(badgesOf(byFan)).toEqual({
+        charmLevel: 3,
+        supportLevel: 1,
+        family: { name: 'Kabso Stars', level: 4 },
+      });
+      expect(chats(roomId).at(-1)).toEqual({ type: 'chat', message: byFan });
+      const byOther = await say(roomId, other, 'no family');
+      expect(badgesOf(byOther)).toEqual({ charmLevel: 1, supportLevel: 1, family: null });
+      const listed = (await list(roomId)).body.data as ChatMessage[];
+      expect(listed.map(badgesOf)).toEqual([badgesOf(byFan), badgesOf(byOther)]);
+
+      // Cached for 30 s, then read again: a disbanded family is no longer shown.
+      await ctx.prisma.family.update({ where: { id: family.id }, data: { disbandedAt: clock.now() } });
+      tick();
+      expect(badgesOf(await say(roomId, fan, 'cached'))?.family).toEqual({ name: 'Kabso Stars', level: 4 });
+      later();
+      expect(badgesOf(await say(roomId, fan, 'fresh'))?.family).toBeNull();
+      await end(roomId, owner);
+    });
+  });
 });
 
 /**
