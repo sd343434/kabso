@@ -3,3 +3,9 @@
 # replaced by values generated at test time. History is not rewritten. Do not add anything else here.
 d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/modules/auth/access-token.service.spec.ts:generic-api-key:9
 d29d958c4d2520fe59bfac671add0efbe2361056:apps/api/src/config/app-config.spec.ts:generic-api-key:7
+
+# Owner-approved exception (2026-10-26, CP-018): two medal icon keys in the medal catalogue
+# ('medal_live_hours_10', 'medal_live_hours_100') matched generic-api-key by their shape. They are
+# asset names, not secrets. The lines now carry gitleaks:allow, so later edits are not flagged.
+3a151487d9fb0b1483044d9d09c111a56b9f1cfc:apps/api/src/modules/medals/medals.catalogue.ts:generic-api-key:45
+3a151487d9fb0b1483044d9d09c111a56b9f1cfc:apps/api/src/modules/medals/medals.catalogue.ts:generic-api-key:54
