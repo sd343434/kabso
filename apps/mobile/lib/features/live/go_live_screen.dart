@@ -859,9 +859,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           hostName: hostName,
           hostMicOn: state.micEnabled,
-          // Owner (2026-10-26): the host mutes themselves on their picture.
-          onHost: byId['mic']!.onTap,
-          hostTapLabel: state.micEnabled
+          // Owner (2026-10-26): a tap on the host's own picture opens their
+          // card (not a mute); they turn the mic on or off from there.
+          // Before the live starts there is no card: the tap tries the mic.
+          onHost: room == null
+              ? byId['mic']!.onTap
+              : () => unawaited(
+                  _person(
+                    room.id,
+                    room.host.username,
+                    selfMic: (
+                      enabled: state.micEnabled,
+                      set: ({required enabled}) async {
+                        final host = ref.read(liveHostControllerProvider);
+                        if (host.micEnabled != enabled) {
+                          await ref
+                              .read(liveHostControllerProvider.notifier)
+                              .toggleMic();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+          hostTapLabel: room != null
+              ? l10n.liveUserViewProfile
+              : state.micEnabled
               ? l10n.goLiveMuteMic
               : l10n.goLiveUnmuteMic,
           hostPoints: KFormat.compact(score, l10n),
@@ -1202,6 +1224,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     bool? moderator,
     VoidCallback? onInvite,
     ValueChanged<bool>? onModeratorChanged,
+    ({bool enabled, Future<void> Function({required bool enabled}) set})?
+    selfMic,
   }) {
     // Seat rooms know their moderators; a SOLO live reads no seats.
     final seats = liveSeatsProvider(roomId);
@@ -1236,6 +1260,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           await repo.muteSeat(roomId, index, muted: muted);
           await _afterSeatChange(roomId);
         },
+        selfMic: selfMic,
         onGift: switch (ref.read(liveHostControllerProvider).room) {
           final room? when room.id == roomId => (person) => unawaited(
             _openGifts(room, preselect: person),

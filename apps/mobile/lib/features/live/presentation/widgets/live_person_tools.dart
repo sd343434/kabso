@@ -32,6 +32,7 @@ class LivePersonScope {
     this.seat,
     this.onSeatMute,
     this.onGift,
+    this.selfMic,
   });
 
   final String roomId;
@@ -56,6 +57,12 @@ class LivePersonScope {
   /// CP-020: opens the gift panel with this person chosen.
   final ValueChanged<LiveGiftPreselect>? onGift;
 
+  /// Your own card when you are on the mic (owner, 2026-10-26: a tap on
+  /// your seat opens your card; you mute yourself here): whether your mic
+  /// is on now, and how to turn it on or off.
+  final ({bool enabled, Future<void> Function({required bool enabled}) set})?
+  selfMic;
+
   /// Kicking and chat muting (§10.20, §10.11): the host acts on anyone but
   /// themselves; a moderator never on the host or another moderator.
   bool canModerate(LivePersonRole target) => switch (viewer) {
@@ -71,6 +78,7 @@ abstract final class LivePersonToolKeys {
   static const kickConfirm = Key('room.userCard.kickConfirm');
   static const mute = Key('room.userCard.mute');
   static const micMute = Key('room.userCard.micMute');
+  static const selfMic = Key('room.userCard.selfMic');
   static const admin = Key('room.userCard.admin');
   static const more = Key('room.userCard.more');
   static const report = Key('room.userCard.report');
@@ -116,6 +124,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
   /// Whether the person is muted in this live's chat; null until known.
   bool? _muted;
   late bool _micMuted = widget.scope.seat?.mutedByHost ?? false;
+  late bool _selfMicOn = widget.scope.selfMic?.enabled ?? false;
   bool _busy = false;
 
   LivePersonScope get _scope => widget.scope;
@@ -238,6 +247,16 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
         context,
         mute ? l10n.liveSeatUserMuted(name) : l10n.liveSeatUserUnmuted(name),
       );
+    });
+  }
+
+  Future<void> _toggleSelfMic() async {
+    final selfMic = _scope.selfMic;
+    if (selfMic == null) return;
+    final on = !_selfMicOn;
+    await _run(() async {
+      await selfMic.set(enabled: on);
+      if (mounted) setState(() => _selfMicOn = on);
     });
   }
 
@@ -386,6 +405,16 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
         ),
     ];
     final end = [
+      // Passed only for your own card (your seat or the host's picture).
+      if (_scope.selfMic != null)
+        _button(
+          key: LivePersonToolKeys.selfMic,
+          icon: _selfMicOn ? Icons.mic_none_rounded : Icons.mic_off_rounded,
+          tooltip: _selfMicOn ? l10n.goLiveMuteMic : l10n.goLiveUnmuteMic,
+          color: _selfMicOn ? _ink : _danger,
+          active: !_selfMicOn,
+          onTap: () => unawaited(_toggleSelfMic()),
+        ),
       if (_canMuteSeat)
         _button(
           key: LivePersonToolKeys.micMute,

@@ -252,7 +252,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// Opens [username]'s card with what this person may do in the room
   /// (owner, 2026-10-26): points for everyone; kick and chat mute for the
   /// host and moderators; the moderator choice for the host.
-  void _person(String username) {
+  void _person(
+    String username, {
+    ({bool enabled, Future<void> Function({required bool enabled}) set})?
+    selfMic,
+  }) {
     final room = widget.room;
     final session = ref.read(liveRoomSessionProvider(room.id));
     final me = ref.read(currentUserProvider);
@@ -289,6 +293,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               .firstOrNull,
           onSeatMute: (index, {required muted}) =>
               _session.mute(index, muted: muted),
+          selfMic: selfMic,
           onGift: (person) => unawaited(_openGifts(preselect: person)),
         ),
       ),
@@ -895,9 +900,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         orElse: () =>
             LiveSeat(index: index, state: LiveSeatState.empty, user: null),
       );
-      // Owner (2026-10-26): on my own seat, a tap mutes or unmutes me.
+      // Owner (2026-10-26): a tap on my own seat opens my card (not a
+      // mute); I turn my mic on or off from there.
       if (seat != null && me != null && seat.user?.id == me) {
-        unawaited(engine.setMicEnabled(enabled: !engine.micEnabled));
+        _person(
+          seat.user!.username,
+          selfMic: (
+            enabled: engine.micEnabled,
+            set: ({required enabled}) => engine.setMicEnabled(enabled: enabled),
+          ),
+        );
         return;
       }
       if (seat != null) _onSeat(session, seat);
@@ -1022,12 +1034,16 @@ Future<void> showHostSheet(
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
+  // Owner (2026-10-26): the card stays still; no swipe moves it.
+  enableDrag: false,
   backgroundColor: const Color(0x00000000),
   barrierColor: KMetrics.roomSheetBarrier,
-  // Owner (2026-10-26): the card never goes above the middle of the
-  // screen; the rest scrolls.
+  // Owner (2026-10-26): the card is as tall as its content, laid out to
+  // stay under the middle of a common phone (393×852); a small phone lets
+  // it grow a little rather than scroll (the card must not move). Only
+  // very large text scrolls.
   constraints: KMetrics.sheetConstraints(
-    maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+    maxHeight: MediaQuery.sizeOf(context).height * 0.62,
   ),
   builder: (_) => _HostSheet(
     username: username,
@@ -1162,7 +1178,7 @@ class _HostSheet extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Room for the picture.
-              const SizedBox(height: _Card.avatar / 2 + 8),
+              const SizedBox(height: _Card.avatar / 2 + 2),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1229,7 +1245,7 @@ class _HostSheet extends ConsumerWidget {
               // first; a long row scrolls sideways.
               if (shown.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 6),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -1277,7 +1293,7 @@ class _HostSheet extends ConsumerWidget {
                 ),
               if (profile.bio case final bio? when bio.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     bio,
                     maxLines: 2,
@@ -1286,7 +1302,7 @@ class _HostSheet extends ConsumerWidget {
                     style: text.body.copyWith(color: _Card.ink),
                   ),
                 ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   stat(profile.followerCount, l10n.profileFollowers),
@@ -1298,7 +1314,7 @@ class _HostSheet extends ConsumerWidget {
               // family and the couple come from the profile and open what
               // exists; the gift wall has no API yet.
               Padding(
-                padding: const EdgeInsets.only(top: 14),
+                padding: const EdgeInsets.only(top: 10),
                 child: LivePersonBoxes(
                   familyValue: switch (profile.family) {
                     // The box is narrow: the name only (the level is on
@@ -1337,9 +1353,9 @@ class _HostSheet extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   // CP-020: the gift panel with this person chosen (never
@@ -1434,7 +1450,7 @@ class _HostSheet extends ConsumerWidget {
                   top: false,
                   // Large text: the card scrolls instead of overflowing.
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: body,
                   ),
                 ),
