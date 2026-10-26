@@ -1252,6 +1252,7 @@
   "liveToolsViewers": "Viewers",
   "liveSeatGuestsTab": "Guests",
   "liveSeatGuestsEmpty": "Nobody is on a seat right now",
+  "liveSeatInviteFriends": "Invite friends",
   "liveSeatNumberLabel": "Seat {number}",
   "liveEditRoom": "Edit room",
   "liveEditRoomName": "Room name",

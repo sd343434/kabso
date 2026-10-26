@@ -3799,6 +3799,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveSeatGuestsEmpty => 'Nobody is on a seat right now';
 
   @override
+  String get liveSeatInviteFriends => 'Invite friends';
+
+  @override
   String liveSeatNumberLabel(int number) {
     return 'Seat $number';
   }

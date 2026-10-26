@@ -44,7 +44,7 @@ class KGiftPanel extends StatelessWidget {
     isScrollControlled: true,
     backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
     barrierColor: KMetrics.roomSheetBarrier,
-    constraints: BoxConstraints(
+    constraints: KMetrics.sheetConstraints(
       maxHeight:
           MediaQuery.sizeOf(context).height * KMetrics.giftSheetMaxHeightFactor,
     ),

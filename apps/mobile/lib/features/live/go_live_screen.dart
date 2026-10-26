@@ -877,7 +877,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             icon: Icons.weekend_rounded,
             asset: 'assets/live_bar/seat.png',
             label: byId['requests']!.label,
-            onTap: byId['requests']!.onTap,
+            // Owner (2026-10-26): the seat button opens the room's people on
+            // the Guests tab — the requests, then who is on a seat.
+            onTap: switch ((room, byId['requests']!.onTap)) {
+              (final r?, _?) => () => unawaited(
+                _openViewers(r.id, liveSeats, guests: true),
+              ),
+              _ => null,
+            },
             badge: liveSeats?.pendingRequests ?? 0,
           ),
           // PK is not in the contract yet: the button says so.
@@ -1202,26 +1209,41 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// Who is watching: invite to a seat, make or remove moderators.
-  Future<void> _openViewers(String roomId, LiveSeats? seats) =>
-      showInviteViewers(
-        context,
-        roomId: roomId,
-        moderators: seats?.moderators ?? const [],
-        seated: seats?.seats ?? const [],
-        onInvite: (username) async {
-          await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
-          await _afterSeatChange(roomId);
-        },
-        onModerator: (username, {required moderator}) async {
-          final repo = ref.read(liveRepositoryProvider);
-          if (moderator) {
-            await repo.addModerator(roomId, username);
-          } else {
-            await repo.removeModerator(roomId, username);
-          }
-          await _afterSeatChange(roomId);
-        },
-      );
+  Future<void> _openViewers(
+    String roomId,
+    LiveSeats? seats, {
+    bool guests = false,
+  }) {
+    final repo = ref.read(liveRepositoryProvider);
+    return showInviteViewers(
+      context,
+      roomId: roomId,
+      moderators: seats?.moderators ?? const [],
+      seated: seats?.seats ?? const [],
+      initialTab: guests ? 1 : 0,
+      onAccept: (r) async {
+        await repo.acceptSeatRequest(roomId, r.id);
+        await _afterSeatChange(roomId);
+      },
+      onDecline: (r) async {
+        await repo.declineSeatRequest(roomId, r.id);
+        await _afterSeatChange(roomId);
+      },
+      onInvite: (username) async {
+        await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
+        await _afterSeatChange(roomId);
+      },
+      onModerator: (username, {required moderator}) async {
+        final repo = ref.read(liveRepositoryProvider);
+        if (moderator) {
+          await repo.addModerator(roomId, username);
+        } else {
+          await repo.removeModerator(roomId, username);
+        }
+        await _afterSeatChange(roomId);
+      },
+    );
+  }
 
   Future<void> _openRequests(String roomId) {
     final repo = ref.read(liveRepositoryProvider);

@@ -6746,6 +6746,12 @@ abstract class AppLocalizations {
   /// **'لا أحد على المقاعد الآن'**
   String get liveSeatGuestsEmpty;
 
+  /// Guests tab with nobody on a seat: opens the Viewers tab to invite people onto a seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'ادعُ أصدقاءك'**
+  String get liveSeatInviteFriends;
+
   /// Viewers sheet, Guests tab: the person's seat.
   ///
   /// In ar, this message translates to:

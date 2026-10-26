@@ -883,7 +883,7 @@ Future<void> showHostSheet(BuildContext context, String username) =>
       isScrollControlled: true,
       backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
       barrierColor: KMetrics.roomSheetBarrier,
-      constraints: BoxConstraints(
+      constraints: KMetrics.sheetConstraints(
         maxHeight:
             MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
       ),

@@ -4417,6 +4417,10 @@
   "@liveSeatGuestsEmpty": {
     "description": "Viewers sheet, Guests tab empty."
   },
+  "liveSeatInviteFriends": "ادعُ أصدقاءك",
+  "@liveSeatInviteFriends": {
+    "description": "Guests tab with nobody on a seat: opens the Viewers tab to invite people onto a seat."
+  },
   "liveSeatNumberLabel": "المقعد {number}",
   "@liveSeatNumberLabel": {
     "description": "Viewers sheet, Guests tab: the person's seat.",

@@ -652,7 +652,8 @@ void main() {
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
-      // The last request accepted: the sheet closes by itself (real run).
+      // The seat button (owner, 2026-10-26): the room's people on the Guests
+      // tab, the request first with Accept; accepting it takes it away.
       repo.pendingSeatRequests = [
         LiveSeatRequest(
           id: 'req-1',
@@ -668,11 +669,20 @@ void main() {
       ];
       await tester.tap(find.byKey(GoLiveKeys.tool('requests')));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.liveSeatRequestsTitle), findsOneWidget);
+      expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);
+      expect(find.textContaining('Huda'), findsOneWidget);
+      // Full width (it showed as a small box, owner 2026-10-26).
+      expect(
+        tester.getSize(find.byType(BottomSheet)).width,
+        tester.view.physicalSize.width / tester.view.devicePixelRatio,
+      );
       await tester.tap(find.byKey(SeatControlKeys.accept('req-1')));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.liveSeatRequestsTitle), findsNothing);
-      expect(find.text(l10n.liveSeatRequestsEmpty), findsNothing);
+      expect(repo.seatCalls, contains('acceptSeatRequest:req-1:'));
+      expect(find.byKey(SeatControlKeys.accept('req-1')), findsNothing);
+      await tester.tap(find.byTooltip(l10n.liveClose).last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(SeatControlKeys.guestsTab), findsNothing);
       // CP-012: the score replaces @username once there are points; the
       // room bar opens the breakdown.
       expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);

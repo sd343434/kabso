@@ -7,6 +7,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
@@ -32,6 +33,7 @@ abstract final class SeatControlKeys {
   static Key contributor(String username) => Key('seat.contributor.$username');
   static Key moderatorUser(String username) => Key('seat.moderator.$username');
   static Key count(int count) => Key('seat.count.$count');
+  static const inviteFriends = Key('seat.guests.inviteFriends');
 }
 
 const _white = Color(0xFFFFFFFF);
@@ -347,6 +349,9 @@ Future<void> showInviteViewers(
   required Future<void> Function(String username, {required bool moderator})
   onModerator,
   List<LiveSeat> seated = const [],
+  int initialTab = 0,
+  Future<void> Function(LiveSeatRequest request)? onAccept,
+  Future<void> Function(LiveSeatRequest request)? onDecline,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -358,6 +363,9 @@ Future<void> showInviteViewers(
     moderators: moderators,
     onInvite: onInvite,
     onModerator: onModerator,
+    initialTab: initialTab,
+    onAccept: onAccept,
+    onDecline: onDecline,
     seated: [
       for (final s in seated)
         if (s.state == LiveSeatState.taken && s.user != null) s,
@@ -403,8 +411,18 @@ class _ViewersPanel extends ConsumerStatefulWidget {
     required this.onInvite,
     required this.onModerator,
     required this.seated,
+    this.initialTab = 0,
+    this.onAccept,
+    this.onDecline,
   });
 
+  /// 0 viewers, 1 guests (the seat button), 2 contribution.
+  final int initialTab;
+
+  /// The host: the Guests tab lists the seat requests first, with Accept
+  /// and Decline.
+  final Future<void> Function(LiveSeatRequest request)? onAccept;
+  final Future<void> Function(LiveSeatRequest request)? onDecline;
   final String roomId;
   final List<UserSummary> moderators;
   final Future<void> Function(String username) onInvite;
@@ -443,6 +461,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     final tabStyle = text.bodyStrong.copyWith(fontSize: 18, height: 1.2);
     return DefaultTabController(
       length: 3,
+      initialIndex: widget.initialTab,
       child: Container(
         height: MediaQuery.sizeOf(context).height * 0.754,
         decoration: const BoxDecoration(
@@ -627,12 +646,122 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     );
   }
 
+  late Future<List<LiveSeatRequest>> _requests = _fetchRequests();
+
+  Future<List<LiveSeatRequest>> _fetchRequests() async =>
+      widget.onAccept == null
+      ? const []
+      : (await ref.read(liveRepositoryProvider).seatRequests(widget.roomId))
+            .items;
+
+  Future<void> _answer(Future<void> Function() action) async {
+    await runSeatAction(context, action);
+    if (!mounted) return;
+    final next = _fetchRequests();
+    setState(() {
+      _requests = next;
+    });
+  }
+
+  /// Nobody on a seat and no request: Kabi waves, and "Invite friends"
+  /// opens the Viewers tab, where the host invites people onto a seat.
+  Widget _noGuests(BuildContext context) {
+    final l10n = context.l10n;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(KSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Waves once (a looping animation never lets the sheet rest).
+            KabiEmoji(KabsoEmoji.kabi('hi'), size: 96, repeat: false),
+            const SizedBox(height: KSpacing.sm),
+            Text(
+              l10n.liveSeatGuestsEmpty,
+              textAlign: TextAlign.center,
+              style: context.textStyles.body.copyWith(color: _Panel.soft),
+            ),
+            const SizedBox(height: KSpacing.lg),
+            FilledButton(
+              key: SeatControlKeys.inviteFriends,
+              style: FilledButton.styleFrom(
+                backgroundColor: KBrandColors.red500,
+                foregroundColor: _white,
+                minimumSize: const Size(180, 44),
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () => DefaultTabController.of(context).animateTo(0),
+              child: Text(l10n.liveSeatInviteFriends),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _guests(BuildContext context) {
     final l10n = context.l10n;
-    if (widget.seated.isEmpty) return _empty(context, l10n.liveSeatGuestsEmpty);
+    return FutureBuilder<List<LiveSeatRequest>>(
+      future: _requests,
+      builder: (context, snap) {
+        final requests = snap.data ?? const <LiveSeatRequest>[];
+        if (snap.hasError) {
+          return _empty(
+            context,
+            failureMessage(l10n, toAppFailure(snap.error!)),
+          );
+        }
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (requests.isEmpty && widget.seated.isEmpty) {
+          return _noGuests(context);
+        }
+        return _guestList(context, requests);
+      },
+    );
+  }
+
+  Widget _guestList(BuildContext context, List<LiveSeatRequest> requests) {
+    final l10n = context.l10n;
+    final onAccept = widget.onAccept;
+    final onDecline = widget.onDecline;
     return ListView(
       padding: const EdgeInsets.only(top: 6, bottom: 16),
       children: [
+        for (final r in requests)
+          _row(
+            context,
+            name: r.user.displayName,
+            handle: r.seatIndex == null
+                ? '@${r.user.username}'
+                : l10n.goLiveSeat(r.seatIndex! + 1),
+            avatar: KAvatar(
+              name: r.user.displayName,
+              imageUrl: r.user.avatarUrl,
+              size: 40,
+            ),
+            actions: [
+              if (onDecline != null)
+                TextButton(
+                  key: SeatControlKeys.decline(r.id),
+                  style: TextButton.styleFrom(foregroundColor: _Panel.soft),
+                  onPressed: () => _answer(() => onDecline(r)),
+                  child: Text(l10n.liveSeatDecline),
+                ),
+              if (onAccept != null)
+                FilledButton(
+                  key: SeatControlKeys.accept(r.id),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: KBrandColors.red500,
+                    foregroundColor: _white,
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () => _answer(() => onAccept(r)),
+                  child: Text(l10n.liveSeatAccept),
+                ),
+            ],
+          ),
         for (final seat in widget.seated)
           _row(
             context,
