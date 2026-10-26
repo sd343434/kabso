@@ -104,6 +104,10 @@ flutter:
     - assets/profile_card/
     # Owner's person-card box icons (family, CP, gift wall).
     - assets/card_boxes/
+    # CP-020 live gift art and effects, named by the catalogue's assetKey /
+    # animationKey (owner-supplied; assets/gifts/PROVENANCE.md).
+    - assets/gifts/
+    - assets/gifts/anim/
   fonts:
     # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
     - family: Fredoka

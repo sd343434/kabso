@@ -58,6 +58,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.cpNotPaired: 409,
   ErrorCode.medalNotUnlocked: 409,
   ErrorCode.bagItemNotOwned: 409,
+  ErrorCode.giftUnavailable: 409,
+  ErrorCode.giftBagInsufficient: 409,
+  ErrorCode.liveGiftRecipientUnavailable: 409,
 };
 
 DioException _badResponse(
@@ -135,6 +138,10 @@ void main() {
           'MEDAL_NOT_UNLOCKED',
           // v1.22-live (CP-019)
           'BAG_ITEM_NOT_OWNED',
+          // v1.23-live (CP-020)
+          'GIFT_UNAVAILABLE',
+          'GIFT_BAG_INSUFFICIENT',
+          'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

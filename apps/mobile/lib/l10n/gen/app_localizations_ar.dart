@@ -636,7 +636,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String giftCombo(int count) {
-    return '×$count';
+    return '⁦×$count⁩';
   }
 
   @override
@@ -4949,4 +4949,112 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagLockedSection => 'عناصر أخرى';
+
+  @override
+  String get errorGiftUnavailable => 'هذه الهدية لم تعد متاحة.';
+
+  @override
+  String get errorGiftBagInsufficient =>
+      'لا يوجد في حقيبتك ما يكفي من هذه الهدية.';
+
+  @override
+  String get errorLiveGiftRecipientUnavailable =>
+      'أحد المستلمين لم يعد على المايك.';
+
+  @override
+  String get liveGiftTabPopular => 'شائعة';
+
+  @override
+  String get liveGiftTabEvent => 'مناسبات';
+
+  @override
+  String get liveGiftTabFun => 'مرح';
+
+  @override
+  String get liveGiftTabBag => 'الحقيبة';
+
+  @override
+  String get liveGiftHost => 'المضيف';
+
+  @override
+  String get liveGiftAllOnMic => 'الكل';
+
+  @override
+  String get liveGiftAllOnMicSemantics => 'الإهداء لكل من على المايك';
+
+  @override
+  String get liveGiftEmptyTitle => 'لا توجد هدايا بعد';
+
+  @override
+  String get liveGiftEmptyMessage =>
+      'ستظهر الهدايا هنا عندما يضيفها فريق Kabso Live.';
+
+  @override
+  String get liveGiftBagEmptyTitle => 'حقيبة الهدايا فارغة';
+
+  @override
+  String get liveGiftBagEmptyMessage =>
+      'الهدايا التي تحصل عليها تظهر هنا، وترسلها دون عملات.';
+
+  @override
+  String get liveGiftLoadError => 'تعذّر تحميل الهدايا';
+
+  @override
+  String get liveGiftPickGift => 'اختر هدية';
+
+  @override
+  String get liveGiftPickRecipient => 'اختر من سيستلم الهدية';
+
+  @override
+  String get liveGiftNoRecipients => 'لا يوجد أحد على المايك لإهدائه';
+
+  @override
+  String get liveGiftSignIn => 'سجّل الدخول لإرسال الهدايا';
+
+  @override
+  String get liveGiftNotEnoughCoins => 'رصيدك من العملات لا يكفي لهذه الهدية.';
+
+  @override
+  String liveGiftBalance(String coins) {
+    return 'رصيدك: $coins';
+  }
+
+  @override
+  String liveGiftQuantity(String count) {
+    return 'الكمية $count';
+  }
+
+  @override
+  String get liveGiftBadgeNew => 'جديد';
+
+  @override
+  String get liveGiftBadgeEvent => 'مناسبة';
+
+  @override
+  String liveGiftBannerSent(String gift, String recipients) {
+    return 'أهدى $gift إلى $recipients';
+  }
+
+  @override
+  String liveGiftRecipientsTwo(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String liveGiftRecipientsMore(String name, int count) {
+    return '$name +$count';
+  }
+
+  @override
+  String get liveGiftGeneric => 'هدية';
+
+  @override
+  String liveGiftNotOnMic(String name) {
+    return '$name ليس على المايك. تُرسل الهدايا للمضيف ولمن على المايك.';
+  }
+
+  @override
+  String liveGiftBagCount(String count) {
+    return 'لديك $count';
+  }
 }

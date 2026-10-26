@@ -12,9 +12,11 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart'
     show showHostSheet;
@@ -31,8 +33,9 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
-import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -254,6 +257,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     _chatRoom = room.id;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // CP-020: the room's gifts, on the same media session.
+      ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine);
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -933,7 +938,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             asset: 'assets/live_bar/gift.png',
             bare: true,
             label: l10n.liveGifts,
-            onTap: () => unawaited(KGiftPreviewSheet.show(context)),
+            onTap: room == null ? null : () => unawaited(_openGifts(room)),
           ),
         ],
       );
@@ -1133,6 +1138,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               children: [
                 background,
                 body,
+                // CP-020: gift banners and effects over the live.
+                if (onAir && room != null)
+                  LiveGiftEffectsLayer(roomId: room.id),
                 if (_countdown case final n?)
                   // The countdown (sized from the owner's recording).
                   IgnorePointer(
@@ -1228,9 +1236,35 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           await repo.muteSeat(roomId, index, muted: muted);
           await _afterSeatChange(roomId);
         },
+        onGift: switch (ref.read(liveHostControllerProvider).room) {
+          final room? when room.id == roomId => (person) => unawaited(
+            _openGifts(room, preselect: person),
+          ),
+          _ => null,
+        },
       ),
     );
   }
+
+  /// CP-020: the host's gift panel: to the people on a seat now.
+  Future<void> _openGifts(LiveRoom room, {LiveGiftPreselect? preselect}) =>
+      KLiveGiftSheet.show(
+        context,
+        preselect: preselect,
+        room: LiveGiftRoom(
+          roomId: room.id,
+          host: room.host,
+          seated: (ref) => [
+            for (final seat
+                in ref.watch(liveSeatsProvider(room.id)).value?.seats ??
+                    const <LiveSeat>[])
+              ?seat.user,
+          ],
+          onSeatsStale: () {
+            if (mounted) unawaited(_afterSeatChange(room.id));
+          },
+        ),
+      );
 
   Future<void> _seatActions(String roomId, LiveSeats seats, int index) {
     final repo = ref.read(liveRepositoryProvider);

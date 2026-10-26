@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -30,6 +31,7 @@ class LivePersonScope {
     this.onKicked,
     this.seat,
     this.onSeatMute,
+    this.onGift,
   });
 
   final String roomId;
@@ -50,6 +52,9 @@ class LivePersonScope {
   /// Mutes or unmutes that seat's microphone (`POST …/seats/{index}/mute`,
   /// CP-011; throws an AppFailure).
   final Future<void> Function(int index, {required bool muted})? onSeatMute;
+
+  /// CP-020: opens the gift panel with this person chosen.
+  final ValueChanged<LiveGiftPreselect>? onGift;
 
   /// Kicking and chat muting (§10.20, §10.11): the host acts on anyone but
   /// themselves; a moderator never on the host or another moderator.

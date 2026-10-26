@@ -401,7 +401,7 @@
   "@giftSendComingSoon": {
     "description": "Purchases are blocked on B5."
   },
-  "giftCombo": "×{count}",
+  "giftCombo": "\u2066×{count}\u2069",
   "@giftCombo": {
     "placeholders": {
       "count": {
@@ -6094,5 +6094,169 @@
   "bagLockedSection": "عناصر أخرى",
   "@bagLockedSection": {
     "description": "Bag section: catalogue items not owned. (CP-019 (D107))"
+  },
+  "errorGiftUnavailable": "هذه الهدية لم تعد متاحة.",
+  "@errorGiftUnavailable": {
+    "description": "Error GIFT_UNAVAILABLE. (CP-020 (D108))"
+  },
+  "errorGiftBagInsufficient": "لا يوجد في حقيبتك ما يكفي من هذه الهدية.",
+  "@errorGiftBagInsufficient": {
+    "description": "Error GIFT_BAG_INSUFFICIENT. (CP-020 (D108))"
+  },
+  "errorLiveGiftRecipientUnavailable": "أحد المستلمين لم يعد على المايك.",
+  "@errorLiveGiftRecipientUnavailable": {
+    "description": "Error LIVE_GIFT_RECIPIENT_UNAVAILABLE. (CP-020 (D108))"
+  },
+  "liveGiftTabPopular": "شائعة",
+  "@liveGiftTabPopular": {
+    "description": "Gift panel tab POPULAR. (CP-020 (D108))"
+  },
+  "liveGiftTabEvent": "مناسبات",
+  "@liveGiftTabEvent": {
+    "description": "Gift panel tab EVENT. (CP-020 (D108))"
+  },
+  "liveGiftTabFun": "مرح",
+  "@liveGiftTabFun": {
+    "description": "Gift panel tab FUN. (CP-020 (D108))"
+  },
+  "liveGiftTabBag": "الحقيبة",
+  "@liveGiftTabBag": {
+    "description": "Gift panel tab: the caller's gift bag. (CP-020 (D108))"
+  },
+  "liveGiftHost": "المضيف",
+  "@liveGiftHost": {
+    "description": "Chip on the host's picture in the gift recipients row. (CP-020 (D108))"
+  },
+  "liveGiftAllOnMic": "الكل",
+  "@liveGiftAllOnMic": {
+    "description": "Toggle: send to the host and everyone on the mic. (CP-020 (D108))"
+  },
+  "liveGiftAllOnMicSemantics": "الإهداء لكل من على المايك",
+  "@liveGiftAllOnMicSemantics": {
+    "description": "Screen reader label of the All toggle. (CP-020 (D108))"
+  },
+  "liveGiftEmptyTitle": "لا توجد هدايا بعد",
+  "@liveGiftEmptyTitle": {
+    "description": "Gift panel: the catalogue is empty. (CP-020 (D108))"
+  },
+  "liveGiftEmptyMessage": "ستظهر الهدايا هنا عندما يضيفها فريق Kabso Live.",
+  "@liveGiftEmptyMessage": {
+    "description": "Gift panel empty catalogue message. (CP-020 (D108))"
+  },
+  "liveGiftBagEmptyTitle": "حقيبة الهدايا فارغة",
+  "@liveGiftBagEmptyTitle": {
+    "description": "Gift panel bag tab empty title. (CP-020 (D108))"
+  },
+  "liveGiftBagEmptyMessage": "الهدايا التي تحصل عليها تظهر هنا، وترسلها دون عملات.",
+  "@liveGiftBagEmptyMessage": {
+    "description": "Gift panel bag tab empty message. (CP-020 (D108))"
+  },
+  "liveGiftLoadError": "تعذّر تحميل الهدايا",
+  "@liveGiftLoadError": {
+    "description": "Gift panel error title. (CP-020 (D108))"
+  },
+  "liveGiftPickGift": "اختر هدية",
+  "@liveGiftPickGift": {
+    "description": "Why Send is disabled: no gift selected. (CP-020 (D108))"
+  },
+  "liveGiftPickRecipient": "اختر من سيستلم الهدية",
+  "@liveGiftPickRecipient": {
+    "description": "Why Send is disabled: no recipient. (CP-020 (D108))"
+  },
+  "liveGiftNoRecipients": "لا يوجد أحد على المايك لإهدائه",
+  "@liveGiftNoRecipients": {
+    "description": "Host's panel: no seated people. (CP-020 (D108))"
+  },
+  "liveGiftSignIn": "سجّل الدخول لإرسال الهدايا",
+  "@liveGiftSignIn": {
+    "description": "Gift panel for guests. (CP-020 (D108))"
+  },
+  "liveGiftNotEnoughCoins": "رصيدك من العملات لا يكفي لهذه الهدية.",
+  "@liveGiftNotEnoughCoins": {
+    "description": "INSUFFICIENT_COINS on a gift send. (CP-020 (D108))"
+  },
+  "liveGiftBalance": "رصيدك: {coins}",
+  "@liveGiftBalance": {
+    "description": "Screen reader label of the coin balance. (CP-020 (D108))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "liveGiftQuantity": "الكمية {count}",
+  "@liveGiftQuantity": {
+    "description": "Screen reader label of the quantity selector. (CP-020 (D108))",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "liveGiftBadgeNew": "جديد",
+  "@liveGiftBadgeNew": {
+    "description": "Gift badge NEW. (CP-020 (D108))"
+  },
+  "liveGiftBadgeEvent": "مناسبة",
+  "@liveGiftBadgeEvent": {
+    "description": "Gift badge EVENT. (CP-020 (D108))"
+  },
+  "liveGiftBannerSent": "أهدى {gift} إلى {recipients}",
+  "@liveGiftBannerSent": {
+    "description": "Gift banner line under the sender's name. (CP-020 (D108))",
+    "placeholders": {
+      "gift": {
+        "type": "String"
+      },
+      "recipients": {
+        "type": "String"
+      }
+    }
+  },
+  "liveGiftRecipientsTwo": "{first} و{second}",
+  "@liveGiftRecipientsTwo": {
+    "description": "Two recipients in a gift banner. (CP-020 (D108))",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "liveGiftRecipientsMore": "{name} +{count}",
+  "@liveGiftRecipientsMore": {
+    "description": "More than two recipients: the first and how many more. (CP-020 (D108))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "liveGiftGeneric": "هدية",
+  "@liveGiftGeneric": {
+    "description": "A gift whose name the app does not have. (CP-020 (D108))"
+  },
+  "liveGiftNotOnMic": "{name} ليس على المايك. تُرسل الهدايا للمضيف ولمن على المايك.",
+  "@liveGiftNotOnMic": {
+    "description": "Gift panel opened from a person who cannot receive gifts. (CP-020 (D108))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveGiftBagCount": "لديك {count}",
+  "@liveGiftBagCount": {
+    "description": "Screen reader: how many of a bag gift the caller holds. (CP-020 (D108))",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
   }
 }

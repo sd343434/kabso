@@ -8,12 +8,14 @@ import 'dart:async';
 import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
   KabsoBattleEmoji.enabled = false;
+  KGiftEffect.animate = false;
   KabsoProfileHeaderArt.animate = false;
   KabsoPkBar.enabled = false;
   // Visibility (post views) is reported at once instead of on a timer, so

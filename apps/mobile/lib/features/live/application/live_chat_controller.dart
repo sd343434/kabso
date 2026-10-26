@@ -297,6 +297,10 @@ class LiveChatController extends Notifier<LiveChatState> {
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
         _addBullet(bullet);
+      case LiveGiftReceived():
+        // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
+        // them.
+        break;
     }
   }
 

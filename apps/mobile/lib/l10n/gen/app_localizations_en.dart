@@ -4921,4 +4921,113 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bagLockedSection => 'More items';
+
+  @override
+  String get errorGiftUnavailable => 'This gift isn\'t available anymore.';
+
+  @override
+  String get errorGiftBagInsufficient =>
+      'There isn\'t enough of this gift in your bag.';
+
+  @override
+  String get errorLiveGiftRecipientUnavailable =>
+      'One of the recipients isn\'t on the mic anymore.';
+
+  @override
+  String get liveGiftTabPopular => 'Popular';
+
+  @override
+  String get liveGiftTabEvent => 'Events';
+
+  @override
+  String get liveGiftTabFun => 'Fun';
+
+  @override
+  String get liveGiftTabBag => 'Bag';
+
+  @override
+  String get liveGiftHost => 'Host';
+
+  @override
+  String get liveGiftAllOnMic => 'All';
+
+  @override
+  String get liveGiftAllOnMicSemantics => 'Send to everyone on the mic';
+
+  @override
+  String get liveGiftEmptyTitle => 'No gifts yet';
+
+  @override
+  String get liveGiftEmptyMessage =>
+      'Gifts will appear here once the Kabso Live team adds them.';
+
+  @override
+  String get liveGiftBagEmptyTitle => 'Your gift bag is empty';
+
+  @override
+  String get liveGiftBagEmptyMessage =>
+      'Gifts you get appear here, and you send them without coins.';
+
+  @override
+  String get liveGiftLoadError => 'Couldn\'t load the gifts';
+
+  @override
+  String get liveGiftPickGift => 'Pick a gift';
+
+  @override
+  String get liveGiftPickRecipient => 'Choose who gets the gift';
+
+  @override
+  String get liveGiftNoRecipients => 'Nobody is on the mic to receive a gift';
+
+  @override
+  String get liveGiftSignIn => 'Log in to send gifts';
+
+  @override
+  String get liveGiftNotEnoughCoins =>
+      'You don\'t have enough coins for this gift.';
+
+  @override
+  String liveGiftBalance(String coins) {
+    return 'Your balance: $coins';
+  }
+
+  @override
+  String liveGiftQuantity(String count) {
+    return 'Quantity $count';
+  }
+
+  @override
+  String get liveGiftBadgeNew => 'New';
+
+  @override
+  String get liveGiftBadgeEvent => 'Event';
+
+  @override
+  String liveGiftBannerSent(String gift, String recipients) {
+    return 'sent $gift to $recipients';
+  }
+
+  @override
+  String liveGiftRecipientsTwo(String first, String second) {
+    return '$first and $second';
+  }
+
+  @override
+  String liveGiftRecipientsMore(String name, int count) {
+    return '$name +$count';
+  }
+
+  @override
+  String get liveGiftGeneric => 'a gift';
+
+  @override
+  String liveGiftNotOnMic(String name) {
+    return '$name isn\'t on the mic. Gifts go to the host and people on the mic.';
+  }
+
+  @override
+  String liveGiftBagCount(String count) {
+    return 'You have $count';
+  }
 }

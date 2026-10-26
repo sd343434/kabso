@@ -36,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -669,6 +670,15 @@ void main() {
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
+      // CP-020: the host's gift panel (to people on the mic; the catalogue
+      // is empty here, as in production today).
+      await tester.tap(find.byKey(GoLiveScreen.audioGiftKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsOneWidget);
+      expect(find.text(l10n.liveGiftEmptyTitle), findsOneWidget);
+      await tester.tapAt(const Offset(200, 60));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsNothing);
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveMuteMic)), findsOneWidget);
       await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
       await tester.pumpAndSettle();

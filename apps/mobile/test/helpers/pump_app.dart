@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
+import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -21,6 +22,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_live_blocked_words_repository.dart';
+import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
@@ -54,6 +56,7 @@ Future<void> pumpKabsoApp(
   LiveRepository? liveRepository,
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
+  LiveGiftRepository? liveGiftRepository,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -90,6 +93,10 @@ Future<void> pumpKabsoApp(
         // CP-016 C: never the network.
         liveScheduleRepositoryProvider.overrideWithValue(
           FakeLiveScheduleRepository(),
+        ),
+        // CP-020: never the network (an empty catalogue, as production).
+        liveGiftRepositoryProvider.overrideWithValue(
+          liveGiftRepository ?? FakeLiveGiftRepository(),
         ),
         ...overrides,
       ],
@@ -130,6 +137,7 @@ Future<void> pumpScreen(
   AppLanguage language = AppLanguage.en,
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
+  LiveGiftRepository? liveGiftRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -151,6 +159,10 @@ Future<void> pumpScreen(
         storiesRepositoryProvider.overrideWithValue(FakeStoriesRepository()),
         notificationsRepositoryProvider.overrideWithValue(
           FakeNotificationsRepository(),
+        ),
+        // CP-020: never the network (an empty catalogue, as production).
+        liveGiftRepositoryProvider.overrideWithValue(
+          liveGiftRepository ?? FakeLiveGiftRepository(),
         ),
         ...overrides,
       ],

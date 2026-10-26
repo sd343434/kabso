@@ -2,6 +2,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -95,7 +96,8 @@ abstract class LiveBullet with _$LiveBullet {
 }
 
 /// The server's chat data messages in the media room (topic `chat`),
-/// bullets (topic `bullet`, CP-017) and kicks (topic `kick`, v1.20-live).
+/// bullets (topic `bullet`, CP-017), kicks (topic `kick`, v1.20-live) and
+/// gifts (topic `gift`, CP-020).
 sealed class LiveChatEvent {
   const new();
 
@@ -118,6 +120,9 @@ sealed class LiveChatEvent {
         ),
         'kick' => LiveKickReceived(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+        ),
+        'gift' => LiveGiftReceived(
+          LiveGift.fromJson(json['gift']! as Map<String, dynamic>),
         ),
         _ => null,
       };
@@ -165,4 +170,12 @@ final class LiveBulletReceived extends LiveChatEvent {
   const new(this.bullet);
 
   final LiveBullet bullet;
+}
+
+/// CP-020 (§10.23): a gift sent in this live (topic `gift`); every viewer
+/// plays its effect.
+final class LiveGiftReceived extends LiveChatEvent {
+  const new(this.gift);
+
+  final LiveGift gift;
 }

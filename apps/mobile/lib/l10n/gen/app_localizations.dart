@@ -1097,7 +1097,7 @@ abstract class AppLocalizations {
   /// No description provided for @giftCombo.
   ///
   /// In ar, this message translates to:
-  /// **'×{count}'**
+  /// **'⁦×{count}⁩'**
   String giftCombo(int count);
 
   /// No description provided for @giftCellSemantics.
@@ -8587,6 +8587,186 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عناصر أخرى'**
   String get bagLockedSection;
+
+  /// Error GIFT_UNAVAILABLE. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الهدية لم تعد متاحة.'**
+  String get errorGiftUnavailable;
+
+  /// Error GIFT_BAG_INSUFFICIENT. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد في حقيبتك ما يكفي من هذه الهدية.'**
+  String get errorGiftBagInsufficient;
+
+  /// Error LIVE_GIFT_RECIPIENT_UNAVAILABLE. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'أحد المستلمين لم يعد على المايك.'**
+  String get errorLiveGiftRecipientUnavailable;
+
+  /// Gift panel tab POPULAR. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'شائعة'**
+  String get liveGiftTabPopular;
+
+  /// Gift panel tab EVENT. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'مناسبات'**
+  String get liveGiftTabEvent;
+
+  /// Gift panel tab FUN. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'مرح'**
+  String get liveGiftTabFun;
+
+  /// Gift panel tab: the caller's gift bag. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'الحقيبة'**
+  String get liveGiftTabBag;
+
+  /// Chip on the host's picture in the gift recipients row. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'المضيف'**
+  String get liveGiftHost;
+
+  /// Toggle: send to the host and everyone on the mic. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveGiftAllOnMic;
+
+  /// Screen reader label of the All toggle. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'الإهداء لكل من على المايك'**
+  String get liveGiftAllOnMicSemantics;
+
+  /// Gift panel: the catalogue is empty. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد هدايا بعد'**
+  String get liveGiftEmptyTitle;
+
+  /// Gift panel empty catalogue message. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر الهدايا هنا عندما يضيفها فريق Kabso Live.'**
+  String get liveGiftEmptyMessage;
+
+  /// Gift panel bag tab empty title. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'حقيبة الهدايا فارغة'**
+  String get liveGiftBagEmptyTitle;
+
+  /// Gift panel bag tab empty message. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا التي تحصل عليها تظهر هنا، وترسلها دون عملات.'**
+  String get liveGiftBagEmptyMessage;
+
+  /// Gift panel error title. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الهدايا'**
+  String get liveGiftLoadError;
+
+  /// Why Send is disabled: no gift selected. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر هدية'**
+  String get liveGiftPickGift;
+
+  /// Why Send is disabled: no recipient. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر من سيستلم الهدية'**
+  String get liveGiftPickRecipient;
+
+  /// Host's panel: no seated people. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد أحد على المايك لإهدائه'**
+  String get liveGiftNoRecipients;
+
+  /// Gift panel for guests. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول لإرسال الهدايا'**
+  String get liveGiftSignIn;
+
+  /// INSUFFICIENT_COINS on a gift send. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك من العملات لا يكفي لهذه الهدية.'**
+  String get liveGiftNotEnoughCoins;
+
+  /// Screen reader label of the coin balance. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك: {coins}'**
+  String liveGiftBalance(String coins);
+
+  /// Screen reader label of the quantity selector. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'الكمية {count}'**
+  String liveGiftQuantity(String count);
+
+  /// Gift badge NEW. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get liveGiftBadgeNew;
+
+  /// Gift badge EVENT. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'مناسبة'**
+  String get liveGiftBadgeEvent;
+
+  /// Gift banner line under the sender's name. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'أهدى {gift} إلى {recipients}'**
+  String liveGiftBannerSent(String gift, String recipients);
+
+  /// Two recipients in a gift banner. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'{first} و{second}'**
+  String liveGiftRecipientsTwo(String first, String second);
+
+  /// More than two recipients: the first and how many more. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} +{count}'**
+  String liveGiftRecipientsMore(String name, int count);
+
+  /// A gift whose name the app does not have. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية'**
+  String get liveGiftGeneric;
+
+  /// Gift panel opened from a person who cannot receive gifts. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} ليس على المايك. تُرسل الهدايا للمضيف ولمن على المايك.'**
+  String liveGiftNotOnMic(String name);
+
+  /// Screen reader: how many of a bag gift the caller holds. (CP-020 (D108))
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك {count}'**
+  String liveGiftBagCount(String count);
 }
 
 class _AppLocalizationsDelegate

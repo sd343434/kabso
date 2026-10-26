@@ -16,9 +16,11 @@ import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -26,8 +28,9 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
-import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -229,6 +232,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (!mounted) return;
       final room = widget.room;
       unawaited(_session.start(room));
+      // CP-020: the room's gifts, on the same media session.
+      ref
+          .read(liveGiftEffectsProvider(room.id).notifier)
+          .attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -282,6 +289,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               .firstOrNull,
           onSeatMute: (index, {required muted}) =>
               _session.mute(index, muted: muted),
+          onGift: (person) => unawaited(_openGifts(preselect: person)),
         ),
       ),
     );
@@ -482,7 +490,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // CP-017: bullets from every live show in the chat (owner, 2026-10-26).
     return ListenableBuilder(
       listenable: engine.changes,
-      builder: (context, _) => _scaffold(context, session, engine),
+      builder: (context, _) => Stack(
+        fit: StackFit.expand,
+        children: [
+          _scaffold(context, session, engine),
+          // CP-020: gift banners and effects over the room.
+          if (room.status == LiveRoomStatus.live)
+            LiveGiftEffectsLayer(roomId: room.id),
+        ],
+      ),
     );
   }
 
@@ -603,7 +619,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       onTap: () => unawaited(_openChat(composer)),
                     ),
                 const SizedBox(height: KSpacing.sm),
-                KRoomActionBar(onGift: () => unawaited(_openGifts(context))),
+                KRoomActionBar(onGift: () => unawaited(_openGifts())),
               ],
             ),
       cover: ended
@@ -804,7 +820,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     asset: 'assets/live_bar/gift.png',
                     bare: true,
                     label: l10n.liveGifts,
-                    onTap: () => unawaited(_openGifts(context)),
+                    onTap: () => unawaited(_openGifts()),
                   ),
                 ],
               ),
@@ -930,8 +946,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     );
   }
 
-  static Future<void> _openGifts(BuildContext context) =>
-      KGiftPreviewSheet.show(context);
+  /// CP-020: the gift panel for this live (the host and the people on a
+  /// seat now), [preselect] chosen when they can receive.
+  Future<void> _openGifts({LiveGiftPreselect? preselect}) =>
+      KLiveGiftSheet.show(
+        context,
+        preselect: preselect,
+        room: LiveGiftRoom(
+          roomId: widget.room.id,
+          host: widget.room.host,
+          seated: (ref) => [
+            for (final seat
+                in ref
+                        .watch(liveRoomSessionProvider(widget.room.id))
+                        .seats
+                        ?.seats ??
+                    const <LiveSeat>[])
+              ?seat.user,
+          ],
+          onSeatsStale: () {
+            if (mounted) unawaited(_session.refreshSeats());
+          },
+        ),
+      );
 }
 
 /// The localized end reason (HL-L10).
@@ -1305,13 +1342,20 @@ class _HostSheet extends ConsumerWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  action(
-                    key: giftKey,
-                    asset: 'assets/live_bar/gift.png',
-                    label: l10n.liveGifts,
-                    onTap: () =>
-                        close(() => unawaited(KGiftPreviewSheet.show(context))),
-                  ),
+                  // CP-020: the gift panel with this person chosen (never
+                  // to oneself).
+                  if (scope?.onGift case final onGift? when !profile.isSelf)
+                    action(
+                      key: giftKey,
+                      asset: 'assets/live_bar/gift.png',
+                      label: l10n.liveGifts,
+                      onTap: () => close(
+                        () => onGift((
+                          username: profile.username,
+                          name: profile.displayName,
+                        )),
+                      ),
+                    ),
                   if (onInvite != null)
                     action(
                       key: inviteKey,
