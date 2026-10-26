@@ -863,6 +863,8 @@ describe('KL-037 public profile and follow', () => {
       family: null,
       cp: null,
       medals: { owned: 0, total: 0, latest: [], showcase: [] },
+      // v1.22-live (CP-019): the bag catalogue is empty in this database, so nothing is worn.
+      profileCard: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

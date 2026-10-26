@@ -65,6 +65,11 @@ info:
     `cp` and `medals`; notification types `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`,
     `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; a profile medal showcase (`PUT /me/medals/showcase`, code
     `MEDAL_NOT_UNLOCKED`); media kind `FAMILY_EMBLEM` (CONVENTIONS §10.21).
+    **CP-019 (D107, DRAFT v1.22-live)** adds the bag (tag `bag`): a catalogue of items by
+    category (first category `PROFILE_CARD`, the decoration on the profile card's header), the
+    items the caller owns and the one they wear per category (`PUT /me/bag/equipped`, code
+    `BAG_ITEM_NOT_OWNED`); every new account gets `bunny_royal` and wears it;
+    `PublicProfile.profileCard` (CONVENTIONS §10.22).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -95,6 +100,8 @@ tags:
     description: "CP couples: requests, the couple, CP gifts and tiers (v1.21-live DRAFT, CP-018)."
   - name: medals
     description: "Medals: the catalogue and a user's medals (v1.21-live DRAFT, CP-018)."
+  - name: bag
+    description: "The bag: owned items by category and the one worn per category, starting with profile cards (v1.22-live DRAFT, CP-019)."
   - name: posts
     description: "Posts, drafts, scheduling, pins, likes, saves, reposts, shares and views (v1.5-social DRAFT)."
   - name: feed
@@ -629,7 +636,8 @@ paths:
         while the user has a LIVE room with a fresh heartbeat (§10.2). The static route
         `/users/username-availability` cannot collide: `-` is not allowed in usernames.
         v1.21-live (CP-018, §10.21): `family`, `cp` and `medals` for the person card; CP tier and
-        medal names follow `Accept-Language`, else the caller's locale.
+        medal names follow `Accept-Language`, else the caller's locale. v1.22-live (CP-019,
+        §10.22): `profileCard`, the profile card the user wears (null when none).
       parameters:
         - $ref: '#/components/parameters/UsernamePath'
       responses:
@@ -669,6 +677,7 @@ paths:
                         - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
                       showcase:
                         - { code: FIRST_LIVE, name: أول لايف, iconKey: medal_first_live }
+                    profileCard: { code: bunny_royal, assetKey: header_bunny_royal }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -3158,6 +3167,99 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  # ---- v1.22-live (DRAFT, CP-019, D107) — the bag ---------------------------------------------
+  /api/v1/bag/catalogue:
+    get:
+      tags: [bag]
+      operationId: listBagCatalogue
+      summary: "The bag catalogue (CP-019)"
+      description: |
+        CONVENTIONS §10.22. Every item, by category then `sortOrder` (whole, not paged: the
+        catalogue is small). `free` items are given to every new account. Names follow
+        `Accept-Language`, else the caller's locale. An unknown `category` → 400
+        `VALIDATION_FAILED` (`category` / `invalid_value`).
+      parameters:
+        - $ref: '#/components/parameters/BagCategoryQuery'
+      responses:
+        '200':
+          description: The catalogue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BagCatalogue' }
+              example:
+                data:
+                  - { code: bunny_royal, category: PROFILE_CARD, name: الأرنب الملكي, assetKey: header_bunny_royal, sortOrder: 10, free: true }
+                  - { code: kabi_royal, category: PROFILE_CARD, name: كابي الملكي, assetKey: header_kabi_royal, sortOrder: 20, free: false }
+                  - { code: golden_stags, category: PROFILE_CARD, name: الغزلان الذهبية, assetKey: header_golden_stags, sortOrder: 30, free: false }
+                  - { code: emerald_wings, category: PROFILE_CARD, name: الأجنحة الزمردية, assetKey: header_emerald_wings, sortOrder: 40, free: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/bag:
+    get:
+      tags: [bag]
+      operationId: getMyBag
+      summary: "The items the caller owns, and which one they wear (CP-019)"
+      description: |
+        CONVENTIONS §10.22. The caller's items in catalogue order; `equipped` is true for at most
+        one item per category. Names follow `Accept-Language`, else the caller's locale. An
+        unknown `category` → 400 `VALIDATION_FAILED` (`category` / `invalid_value`).
+      parameters:
+        - $ref: '#/components/parameters/BagCategoryQuery'
+      responses:
+        '200':
+          description: The caller's bag.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bag' }
+              example:
+                data:
+                  - { code: bunny_royal, category: PROFILE_CARD, name: الأرنب الملكي, assetKey: header_bunny_royal, acquiredAt: '2026-10-26T18:30:00.000Z', source: FREE_SIGNUP, equipped: true }
+                  - { code: emerald_wings, category: PROFILE_CARD, name: الأجنحة الزمردية, assetKey: header_emerald_wings, acquiredAt: '2026-10-27T09:00:00.000Z', source: ADMIN, equipped: false }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/bag/equipped:
+    put:
+      tags: [bag]
+      operationId: setMyBagEquipped
+      summary: "Wear an owned item, or nothing, in one category (CP-019)"
+      description: |
+        CONVENTIONS §10.22. `code` wears that item and takes off the one worn before in the
+        category; `code: null` takes it off (wears nothing). Idempotent: wearing what is already
+        worn, or nothing when nothing is worn, is 200 with the same body. Wearing nothing stays
+        so: the server never puts an item back on by itself. 400 `VALIDATION_FAILED`: `code`
+        missing (`required`), `category` missing or unknown (`invalid_value`), an empty or too long
+        `code`, or an unknown field; 409
+        `BAG_ITEM_NOT_OWNED`: the caller does not own `code` in that category (an unknown code
+        too); nothing changes then. Names follow `Accept-Language`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetBagEquippedRequest' }
+            examples:
+              wear:
+                summary: Wear the emerald wings
+                value: { category: PROFILE_CARD, code: emerald_wings }
+              takeOff:
+                summary: Wear nothing
+                value: { category: PROFILE_CARD, code: null }
+      responses:
+        '200':
+          description: What the caller wears in the category now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BagEquipped' }
+              examples:
+                worn:
+                  value: { category: PROFILE_CARD, equipped: { code: emerald_wings, name: الأجنحة الزمردية, assetKey: header_emerald_wings } }
+                nothing:
+                  value: { category: PROFILE_CARD, equipped: null }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
     post:
       tags: [media]
@@ -4213,6 +4315,12 @@ components:
       in: query
       required: false
       schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    BagCategoryQuery:
+      name: category
+      in: query
+      required: false
+      description: "(v1.22-live, CP-019) Only this category; all categories when absent."
+      schema: { $ref: '#/components/schemas/BagCategory' }
     UsernamePath:
       name: username
       in: path
@@ -4498,7 +4606,7 @@ components:
         avatarUrl: { type: [string, 'null'], format: uri }
     PublicProfile:
       type: object
-      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId, family, cp, medals]
+      required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard]
       properties:
         id: { type: string, format: uuid }
         username: { $ref: '#/components/schemas/Username' }
@@ -4532,6 +4640,11 @@ components:
             - $ref: '#/components/schemas/ProfileCp'
             - type: 'null'
         medals: { $ref: '#/components/schemas/ProfileMedals' }
+        profileCard:
+          description: "(v1.22-live, CP-019) The profile card the user wears (the header decoration of their profile card), or null when they wear none."
+          oneOf:
+            - $ref: '#/components/schemas/ProfileCard'
+            - type: 'null'
     FollowState:
       type: object
       required: [isFollowing, followerCount]
@@ -6433,5 +6546,84 @@ components:
           uniqueItems: true
           description: Unlocked medal codes in display order; [] shows none.
           items: { type: string, minLength: 1, maxLength: 40 }
+    # ---- v1.22-live (DRAFT, CP-019) — the bag ---------------------------------------------------
+    BagCategory:
+      type: string
+      enum: [PROFILE_CARD]
+      description: "A bag category. PROFILE_CARD: the decoration on the profile card's header. More categories come later; clients ignore items of categories they do not know (§10.22)."
+    BagItemSource:
+      type: string
+      enum: [FREE_SIGNUP, BACKFILL, ADMIN]
+      description: "How the item was obtained: free at signup, free for accounts that existed before the bag, or granted by an admin. More values come later (store, rewards); clients treat unknown values as opaque."
+    BagCatalogueItem:
+      type: object
+      required: [code, category, name, assetKey, sortOrder, free]
+      properties:
+        code: { type: string, maxLength: 40, example: bunny_royal }
+        category: { $ref: '#/components/schemas/BagCategory' }
+        name: { type: string, description: "Localized by `Accept-Language`, else the caller's locale." }
+        assetKey: { type: string, maxLength: 60, description: "The app's asset for the item (for a profile card, the header animation `assets/profile_card/<assetKey>.svga`).", example: header_bunny_royal }
+        sortOrder: { type: integer }
+        free: { type: boolean, description: Every new account receives it. }
+    BagCatalogue:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/BagCatalogueItem' }
+    BagItem:
+      type: object
+      required: [code, category, name, assetKey, acquiredAt, source, equipped]
+      properties:
+        code: { type: string, maxLength: 40 }
+        category: { $ref: '#/components/schemas/BagCategory' }
+        name: { type: string }
+        assetKey: { type: string, maxLength: 60 }
+        acquiredAt: { type: string, format: date-time }
+        source: { $ref: '#/components/schemas/BagItemSource' }
+        equipped: { type: boolean, description: Worn now; at most one item per category. }
+    Bag:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/BagItem' }
+    BagEquippedItem:
+      type: object
+      required: [code, name, assetKey]
+      properties:
+        code: { type: string, maxLength: 40 }
+        name: { type: string }
+        assetKey: { type: string, maxLength: 60 }
+    BagEquipped:
+      type: object
+      required: [category, equipped]
+      properties:
+        category: { $ref: '#/components/schemas/BagCategory' }
+        equipped:
+          description: The item worn in the category, or null (nothing worn).
+          oneOf:
+            - $ref: '#/components/schemas/BagEquippedItem'
+            - type: 'null'
+    SetBagEquippedRequest:
+      type: object
+      additionalProperties: false
+      required: [category, code]
+      properties:
+        category: { $ref: '#/components/schemas/BagCategory' }
+        code:
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 40
+          description: An item the caller owns in `category`, or null to wear nothing.
+    ProfileCard:
+      type: object
+      description: "(v1.22-live, CP-019) The profile card a user wears, on the public profile."
+      required: [code, assetKey]
+      properties:
+        code: { type: string, maxLength: 40, example: bunny_royal }
+        assetKey: { type: string, maxLength: 60, example: header_bunny_royal }
 security:
   - bearerAuth: []

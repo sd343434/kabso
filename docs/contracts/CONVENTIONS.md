@@ -123,6 +123,7 @@ All non-2xx responses use one envelope:
 | 409 | `CP_REQUEST_NOT_PENDING` | *(v1.21-live, DRAFT, CP-018)* The CP request was already accepted, declined, cancelled or expired (its coins were refunded unless it was accepted). |
 | 409 | `CP_NOT_PAIRED` | *(v1.21-live, DRAFT, CP-018)* A CP gift from a caller who has no partner. Nothing was charged. |
 | 409 | `MEDAL_NOT_UNLOCKED` | *(v1.21-live, DRAFT, CP-018)* `PUT /me/medals/showcase` named a medal the caller has not earned (or an unknown code). Nothing changed. |
+| 409 | `BAG_ITEM_NOT_OWNED` | *(v1.22-live, DRAFT, CP-019)* `PUT /me/bag/equipped` named an item the caller does not own in that category (or an unknown code). Nothing changed (§10.22). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -359,6 +360,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/gifts` *(v1.21-live, CP-018)* | 30 / min per user (bucket `cp:gift`). **Replaces** the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
+| `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -424,6 +426,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.21-live)* Tables `families`, `family_members`, `family_join_requests`, `family_points_ledger` | Backend — `families` module (`family_points_ledger` is written with the wallet's debits) | CTO; Security (the points ledger follows wallet debits) |
 | *(v1.21-live)* Tables `cp_requests`, `cp_couples`, `cp_partners`, `cp_gifts` | Backend — `couples` module | CTO; Security (coin paths) |
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
+| *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -463,6 +466,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.22-live (draft) | 2026-10-26 | **CP-019 (D107, owner 2026-10-26):** the bag (الحقيبة), first category `PROFILE_CARD`. Tag `bag`: `listBagCatalogue` (`GET /bag/catalogue?category=`, `BagCatalogue`, `BagCatalogueItem`), `getMyBag` (`GET /me/bag?category=`, `Bag`, `BagItem`), `setMyBagEquipped` (`PUT /me/bag/equipped`, `SetBagEquippedRequest`, `BagEquipped`, `BagEquippedItem`); `BagCategory` (`PROFILE_CARD`), `BagItemSource` (`FREE_SIGNUP`, `BACKFILL`, `ADMIN`); parameter `BagCategoryQuery`; `PublicProfile.profileCard` (`ProfileCard` or null, required); code `BAG_ITEM_NOT_OWNED` (409). Every new account receives `bunny_royal` and wears it; existing accounts receive it by the migration. Server CLI `bag-admin grant|revoke|list`; audit `bag.grant`, `bag.revoke`. §4, §7, §8, §10.5, §10.22. | **Additive** (new operations, schemas, a code and a response field). `PublicProfile` gains one **required**, nullable field: strict clients update their model in the same change set. `BagCategory` and `BagItemSource` will gain values: clients ignore items of unknown categories and show unknown sources as opaque. |
 | v1.21-live (draft) | 2026-10-26 | **CP-018 (D106, owner 2026-10-26):** families, CP couples and medals. Families (tag `families`): `getFamilyConfig`, `searchFamilies`, `createFamily` (500 coins, ledger `FAMILY_CREATE`, `clientId`), `getMyFamily`, `getFamily`, `getFamilyByNumber` (`GET /family-numbers/{number}`), `updateFamily` (emblem), `disbandFamily`, `listFamilyMembers`, `removeFamilyMember`, `setFamilyMemberRole`, `transferFamily`, `leaveFamily`, `requestToJoinFamily`, `listFamilyJoinRequests`, `acceptFamilyJoinRequest`, `declineFamilyJoinRequest`, `getMyFamilyJoinRequest` / `cancelFamilyJoinRequest` (`/me/family-join-request`). CP (tag `cp`): `getCpConfig`, `sendCpRequest` (99 coins, `CP_REQUEST`, refunded as `CP_REFUND`), `listCpRequests`, `cancelCpRequest`, `acceptCpRequest`, `declineCpRequest`, `getMyCp`, `endCp`, `sendCpGift` (`CP_GIFT`). Medals (tag `medals`): `listMedals`, `listUserMedals`, `getMyMedalShowcase` / `setMyMedalShowcase` (`/me/medals/showcase`, owner amendment: up to 6 unlocked medals, ordered). `PublicProfile.family`, `cp`, `medals` (required; the first two nullable); `NotificationType` `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`, `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; `NotificationTarget.type` `FAMILY`, `MEDAL`; `MediaKind.FAMILY_EMBLEM`; codes `ALREADY_IN_FAMILY`, `FAMILY_FULL`, `FAMILY_NAME_TAKEN`, `FAMILY_REQUEST_PENDING`, `FAMILY_REQUEST_NOT_PENDING`, `FAMILY_NOT_EMPTY`, `FAMILY_LEADER_CANNOT_LEAVE`, `CP_ALREADY_PAIRED`, `CP_REQUEST_PENDING`, `CP_REQUEST_NOT_PENDING`, `CP_NOT_PAIRED`, `MEDAL_NOT_UNLOCKED` (409); server config `BONDS_SWEEP_INTERVAL_SECONDS`; §4, §7, §8, §10.5, §10.21, §11.1, §11.10. | **Additive** (new operations, codes, enum values and response fields). `PublicProfile` gains three **required** fields: strict clients update their model in the same change set; clients ignore unknown notification and target types (§11.10). |
 | v1.20-live (draft) | 2026-10-26 | **Owner D105:** the host and the room's moderators kick a person out of a live (audio and video) until it ends. `kickFromLive` (`POST /live/rooms/{roomId}/kicks`, `LiveKickRequest`, `LiveKick`; 201, 200 when already kicked), `listLiveKicks` (`GET …/kicks`, `LiveKickList`), `unkickFromLive` (`DELETE …/kicks/{username}`, 204); `LiveRoom.kicked`; data message `kick` on topic `kick`; code `LIVE_KICKED` (403) on `createLiveMediaToken`, `sendLiveChatMessage`, `sendLiveBullet`, `tapLiveRoom` and `requestLiveSeat` (the last two now document 403); audit `live.kick`, `live.kick.undo`. Also (owner, same row) `getLiveContributor` (`GET /live/rooms/{roomId}/contributors/{username}`, `LiveContributorStanding`: one person's points and rank in the live). §4, §7, §8, §10.9, §10.11, §10.12, §10.20. | **Additive** (new operations, a new response field, a new code and data message topic). A kicked user's older app sees the new code as a generic error and cannot rejoin. |
 | v1.19-live (draft) | 2026-10-26 | **CP-017 (D104, owner 2026-10-26):** coins and bullet messages, voice clips and images in the live chat. `getMyWallet` (`GET /wallet/me`, `Wallet`; tag `wallet`); coins only from the server's `wallet-admin` tool (purchases still B5); `sendLiveBullet` (`POST /live/rooms/{roomId}/bullets`, `LiveBulletSendRequest`, `LiveBullet`, `LiveBulletResult`), 15 coins, shown in every live as data message `bullet` on topic `bullet`; code `INSUFFICIENT_COINS` (409). Chat: `LiveChatSendRequest.kind` (`TEXT` default, `VOICE`, `IMAGE`) and `mediaId`; `LiveChatMessage.kind`, `media`, `expiresAt` (VOICE and IMAGE vanish 60 s after sending); `MediaKind` `LIVE_CHAT_IMAGE`, `LIVE_CHAT_VOICE`; `CreateMediaUploadRequest.contentType` `audio/mp4`; `MediaAsset.type` `AUDIO`, `durationMs`, `width`/`height` 0 for audio. §4, §7 rows, §8, §10.11, §10.19, §11.1. | **Additive** (new operations, fields, enum values, a code and a data message topic). `LiveChatSendRequest.text` is now required only for `TEXT` (the default, so existing apps send exactly as before); older apps show a VOICE or IMAGE message as an empty line until they update. `MediaAsset.width`/`height` may be 0, only for the new `AUDIO` assets. |
@@ -659,6 +663,8 @@ until a media provider is wired in.
     ACTIVE) and `medals` (`{owned, total, latest, showcase}`: at most the 3 newest, and the up to
     6 medals the user chose to show, in their order), §10.21. Tier and medal
     names follow `Accept-Language`, else the caller's locale.
+  - *(v1.22-live, CP-019)* `profileCard`: `{code, assetKey}` of the profile card the user wears
+    (the header decoration of their profile card, §10.22), or null when they wear none.
 
   The profile **never** includes an email, role, status, locale, or created-at time.
 - **404 `NOT_FOUND` with an identical body** in every one of these cases:
@@ -1217,6 +1223,49 @@ rankings beyond `GET /families`, CP gifts that give the partner coins or charm p
 medals, removing a deleted or suspended account from its family or couple (they are left out of
 member lists and `cp` on profiles; a suspended leader's family keeps its leader until an admin
 tool exists).
+
+### 10.22 The bag *(v1.22-live, DRAFT — CP-019, D107)*
+
+Owner decisions (D107, 2026-10-26) are marked *(owner)*; every other choice is a CTO default the
+owner may change. Every route needs a token. Names follow `Accept-Language`, else the caller's
+locale (§10.1).
+
+- **The bag (الحقيبة)** *(owner)*: every user has one. Items belong to a **category**; the first
+  is `PROFILE_CARD`, the decoration on the header of the user's profile card. More categories come
+  later as new `BagCategory` values (clients ignore items of categories they do not know).
+- **Catalogue** (`bag_items`, seeded by migration; `bag.catalogue.ts` keeps the same list)
+  *(owner)*: `bunny_royal` الأرنب الملكي / Royal Bunny (**free**), `kabi_royal` كابي الملكي /
+  Royal Kabi, `golden_stags` الغزلان الذهبية / Golden Stags, `emerald_wings` الأجنحة الزمردية /
+  Emerald Wings. Each has an `assetKey` for the app (`header_<code>`: the profile-card header
+  animation `assets/profile_card/<assetKey>.svga`) and a sort order. `GET /bag/catalogue
+  [?category=]` → `{data: [{code, category, name, assetKey, sortOrder, free}]}`, by category then
+  sort order, whole (not paged).
+- **Getting items:** a **free** item is given to **every new account** when it is created, in the
+  same transaction (source `FREE_SIGNUP`), and worn (the first free item of each category)
+  *(owner)*. Accounts that existed before the bag received it once from the migration (source
+  `BACKFILL`, worn: they never chose to take it off) *(owner, D107)*. The other items are owned by
+  nobody until granted: for now only an admin on the server grants or takes them back
+  (`bag-admin grant|revoke <email> <code>`, `bag-admin list <email>`; source `ADMIN`; audited
+  `bag.grant` / `bag.revoke`); a store or rewards come later (new `BagItemSource` values).
+  Granting never changes what the user wears *(owner)*. Taking back a worn item leaves the user
+  wearing nothing in that category.
+- **The caller's bag:** `GET /me/bag[?category=]` → `{data: [{code, category, name, assetKey,
+  acquiredAt, source, equipped}]}` in catalogue order; at most one item per category has
+  `equipped: true` *(owner)*.
+- **Wearing** *(owner)*: `PUT /me/bag/equipped {category, code}` → 200 `{category, equipped:
+  {code, name, assetKey} | null}`. `code` wears that item and takes off the one worn before in the
+  category; `code: null` takes it off. Idempotent. **Wearing nothing stays so:** the server never
+  puts an item back on by itself (not at login, not when an item is granted) *(owner: "worn
+  automatically unless the person took it off")*. Only an owned item can be worn: 409
+  `BAG_ITEM_NOT_OWNED` otherwise (an unknown code too; nothing changes). 400 `VALIDATION_FAILED`:
+  `code` missing (`required`; send `code: null` to take off), `category` missing or unknown
+  (`invalid_value`), a `code` that is empty or over 40 characters, or an unknown field.
+- **On the profile:** `PublicProfile.profileCard` = `{code, assetKey}` of the worn
+  `PROFILE_CARD`, or null (§10.5).
+
+**Not in v1.22-live:** buying or earning items (store, rewards, events), items that expire, other
+categories (avatar frames, entrance effects, chat bubbles…), a history of grants other than the
+audit log, and `Me` carrying the worn items (the app reads its own profile, or `GET /me/bag`).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

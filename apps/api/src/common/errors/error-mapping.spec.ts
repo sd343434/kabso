@@ -71,6 +71,8 @@ describe('ErrorCode', () => {
         'CP_REQUEST_NOT_PENDING',
         'CP_NOT_PAIRED',
         'MEDAL_NOT_UNLOCKED',
+        // v1.22-live (DRAFT, CP-019)
+        'BAG_ITEM_NOT_OWNED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -117,6 +119,7 @@ describe('ErrorCode', () => {
       CP_REQUEST_NOT_PENDING: 409,
       CP_NOT_PAIRED: 409,
       MEDAL_NOT_UNLOCKED: 409,
+      BAG_ITEM_NOT_OWNED: 409,
     });
   });
 

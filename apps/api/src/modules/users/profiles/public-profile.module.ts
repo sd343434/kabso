@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BagModule } from '../../bag/bag.module.js';
 import { CouplesModule } from '../../couples/couples.module.js';
 import { FamiliesModule } from '../../families/families.module.js';
 import { LiveModule } from '../../live/live.module.js';
@@ -14,7 +15,7 @@ import { PublicProfileService } from './public-profile.service.js';
  * live and social modules. Kept apart from UsersModule, which live and social depend on.
  */
 @Module({
-  imports: [UsersModule, LiveModule, SocialModule, FamiliesModule, CouplesModule, MedalsModule],
+  imports: [UsersModule, LiveModule, SocialModule, FamiliesModule, CouplesModule, MedalsModule, BagModule],
   controllers: [PublicProfileController],
   providers: [PublicProfileService, AccountLifecycleService],
   exports: [AccountLifecycleService],

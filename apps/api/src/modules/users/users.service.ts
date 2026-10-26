@@ -3,6 +3,7 @@ import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type UserRole, type UserStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { grantFreeItemsIn } from '../bag/bag-grants.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -148,11 +149,13 @@ export class UsersService {
 
   /**
    * Creates User + UserProfile + UserSettings inside the caller's transaction. Unique
-   * violations are translated to EMAIL_TAKEN / USERNAME_TAKEN.
+   * violations are translated to EMAIL_TAKEN / USERNAME_TAKEN. v1.22-live (CP-019, D107): the
+   * account receives the free bag items and wears them (`bunny_royal`), in the same transaction.
+   * This is the only path that creates accounts (verify-first registration).
    */
   async createAccount(tx: Prisma.TransactionClient, input: NewAccount): Promise<UserWithProfile> {
     try {
-      return await tx.user.create({
+      const user = await tx.user.create({
         data: {
           email: input.email,
           passwordHash: input.passwordHash,
@@ -164,6 +167,8 @@ export class UsersService {
         },
         include: ME_INCLUDE,
       });
+      await grantFreeItemsIn(tx, user.id, 'FREE_SIGNUP');
+      return user;
     } catch (err) {
       const code = uniqueViolationCode(err);
       if (code) throw new AppException(code);

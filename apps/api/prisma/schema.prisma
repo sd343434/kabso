@@ -130,6 +130,8 @@ model User {
   cpGiftsSent        CpGift[]               @relation("CpGiftSender")
   cpGiftsReceived    CpGift[]               @relation("CpGiftReceiver")
   medals             UserMedal[]
+  // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
+  bagItems           UserBagItem[]
 
   @@map("users")
 }
@@ -1938,4 +1940,64 @@ model UserMedal {
   @@index([userId, awardedAt(sort: Desc)], map: "user_medals_user_awarded_idx")
   @@index([medalCode], map: "user_medals_medal_idx")
   @@map("user_medals")
+}
+
+// ---- v1.22-live (CP-019, D107): the bag (الحقيبة) ---------------------------------------------
+
+/// A bag category. PROFILE_CARD: the decoration on the profile card's header. More come later.
+enum BagCategory {
+  PROFILE_CARD
+
+  @@map("bag_category")
+}
+
+/// How a user got a bag item.
+enum BagItemSource {
+  /// Free item given when the account was created.
+  FREE_SIGNUP
+  /// Free item given to accounts that existed before the feature (migration 20261111090000_bag).
+  BACKFILL
+  /// Granted by an admin (`bag-admin grant`).
+  ADMIN
+
+  @@map("bag_item_source")
+}
+
+/// The bag catalogue, seeded by migration 20261111090000_bag (bag.catalogue.ts keeps the same list).
+model BagItem {
+  code      String      @id @db.VarChar(40)
+  category  BagCategory
+  nameAr    String      @map("name_ar") @db.VarChar(60)
+  nameEn    String      @map("name_en") @db.VarChar(60)
+  /// The app's asset for the item (e.g. `header_emerald_wings`).
+  assetKey  String      @map("asset_key") @db.VarChar(60)
+  sortOrder Int         @map("sort_order")
+  /// Every new account receives it (and wears it, the first per category).
+  free      Boolean     @default(false)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  owners UserBagItem[]
+
+  @@unique([code, category], map: "bag_items_code_category_key")
+  @@index([category, sortOrder], map: "bag_items_category_sort_idx")
+  @@map("bag_items")
+}
+
+/// An item a user owns; at most one equipped per user and category.
+model UserBagItem {
+  userId     String        @map("user_id") @db.Uuid
+  itemCode   String        @map("item_code") @db.VarChar(40)
+  /// Copied from the catalogue (composite FK) so one equipped item per category is an index.
+  category   BagCategory
+  source     BagItemSource
+  acquiredAt DateTime      @default(now()) @map("acquired_at") @db.Timestamptz(3)
+  equipped   Boolean       @default(false)
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item BagItem @relation(fields: [itemCode, category], references: [code, category], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([userId, itemCode], map: "user_bag_items_pkey")
+  @@unique([userId, category], map: "user_bag_items_equipped_key", where: raw("equipped"))
+  @@index([itemCode, category], map: "user_bag_items_item_idx")
+  @@map("user_bag_items")
 }

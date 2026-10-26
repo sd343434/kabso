@@ -80,6 +80,8 @@ export enum ErrorCode {
   CP_NOT_PAIRED = 'CP_NOT_PAIRED',
   /** v1.21-live (DRAFT, CP-018): a medal the caller has not unlocked cannot be shown on the profile. */
   MEDAL_NOT_UNLOCKED = 'MEDAL_NOT_UNLOCKED',
+  /** v1.22-live (DRAFT, CP-019): the caller does not own that bag item (or it does not exist). */
+  BAG_ITEM_NOT_OWNED = 'BAG_ITEM_NOT_OWNED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -130,6 +132,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
   [ErrorCode.CP_NOT_PAIRED]: 409,
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 409,
+  [ErrorCode.BAG_ITEM_NOT_OWNED]: 409,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -180,6 +183,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',
   [ErrorCode.CP_NOT_PAIRED]: 'You have no CP partner.',
   [ErrorCode.MEDAL_NOT_UNLOCKED]: 'You have not unlocked that medal.',
+  [ErrorCode.BAG_ITEM_NOT_OWNED]: 'You do not own that item.',
 };
 
 export interface ErrorDetail {

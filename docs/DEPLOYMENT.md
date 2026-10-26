@@ -576,6 +576,29 @@ a `CONNECTION LIMIT`.
   docker compose --profile jobs run --rm migrate node dist/cli/medals-admin.js backfill
   ```
 
+### 5.6 The bag (migration `20261111090000_bag`; CP-019, D107) — [IMPLEMENTED, draft contract]
+
+- Additive: creates `bag_items` (the catalogue, seeded with `bunny_royal` (free), `kabi_royal`,
+  `golden_stags`, `emerald_wings`) and `user_bag_items` (owned items, at most one worn per user and
+  category), with the enums `bag_category` and `bag_item_source`. Apply it with the usual
+  `migrate` job (§5); no new server config, no new rate-limit setting (`PUT /me/bag/equipped`
+  uses `RATE_LIMIT_FAMILY_WRITE_USER`).
+- **Backfill inside the migration (no separate step):** every account that exists when it runs
+  and is not deleted receives `bunny_royal` (source `BACKFILL`) and wears it (owner D107: those
+  users never chose to take it off). It is one `INSERT … SELECT` over `users` in the migration's
+  transaction; it skips accounts that already own the item, so it never puts back an item someone
+  took off. Accounts created afterwards receive and wear it at signup, in the account's
+  transaction.
+- **Granting the other items** (no store yet): `pnpm bag:admin grant <email> <code>`,
+  `revoke <email> <code>`, `list <email>`. Runs as the migration role; granting does not change
+  what the user wears; each change writes a `bag.grant` / `bag.revoke` audit row. Built into the
+  API image as `dist/cli/bag-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings
+  docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js list someone@example.com
+  ```
+
 ## 6. Observability baseline
 
 | Item | Status |

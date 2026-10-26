@@ -68,6 +68,9 @@ export enum AuditAction {
   FAMILY_MEMBER_REMOVE = 'family.member.remove',
   /** v1.21-live (CP-018): `medals-admin backfill` ran. */
   MEDALS_BACKFILL = 'medals.backfill',
+  /** v1.22-live (CP-019): a bag item granted or taken back by an admin (`bag-admin`). */
+  BAG_GRANT = 'bag.grant',
+  BAG_REVOKE = 'bag.revoke',
 }
 
 export interface AuditEntry {
