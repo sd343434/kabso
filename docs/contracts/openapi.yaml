@@ -53,6 +53,11 @@ info:
     the server, purchases still B5), bullet messages (15 coins, shown in every live as data
     message `bullet`, code `INSUFFICIENT_COINS`) and voice clips (≤ 30 s) and images in the live
     chat that vanish 60 s after sending (CONVENTIONS §10.19, §10.11, §11.1).
+    **v1.20-live (DRAFT, owner D105)** lets the host and the room's moderators kick a person out
+    of a live (audio and video) until it ends: `POST`/`GET /live/rooms/{roomId}/kicks`,
+    `DELETE /live/rooms/{roomId}/kicks/{username}`, `LiveRoom.kicked`, data message `kick` on
+    topic `kick`, code `LIVE_KICKED` (CONVENTIONS §10.20); and one person's points and rank in a
+    live (`GET /live/rooms/{roomId}/contributors/{username}`, CONVENTIONS §10.12).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -902,6 +907,7 @@ paths:
                     scoreParts: { total: 1240, tapPoints: 1240, supportPoints: 0 }
                     chatEnabled: true
                     chatMuted: false
+                    kicked: false
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -951,6 +957,8 @@ paths:
         `LIVE_HOSTING_ENABLED` (else 503 `LIVE_HOSTING_UNAVAILABLE`) → room visible (else 404:
         nonexistent, host not ACTIVE, or a block either way) → room LIVE (else 409
         `LIVE_ROOM_ENDED`) → a guest needs `allowGuests` (else 403 `LIVE_GUESTS_NOT_ALLOWED`).
+        v1.20-live (D105): a signed-in caller kicked out of this live → 403 `LIVE_KICKED` (after
+        the 409); a later live of the same host is not affected.
       security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -1007,7 +1015,8 @@ paths:
         most 10 for the first one) and at most 10 000 in the live. The host's own taps count 0;
         seated guests and moderators count like any viewer. Taps past a limit are dropped and
         the answer is still 200, with `accepted` below `count`. Ended room → 409
-        `LIVE_ROOM_ENDED`; a room the caller may not see → 404.
+        `LIVE_ROOM_ENDED`; a room the caller may not see → 404. v1.20-live (D105): a caller
+        kicked out of this live → 403 `LIVE_KICKED` (after the 409).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1023,6 +1032,7 @@ paths:
               schema: { $ref: '#/components/schemas/LiveTapsResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -1061,7 +1071,8 @@ paths:
         401 without an account; 404 for a room the caller may not see; 409 `LIVE_ROOM_ENDED`;
         400 for the text (NFC, trimmed, 1–200 code points, §6 hygiene, no line breaks);
         403 `LIVE_CHAT_NOT_IN_ROOM`; 403 `LIVE_CHAT_MUTED`; 409 `LIVE_CHAT_CLOSED` (the host may
-        still send); 429. The stored message is sent to everyone in the room as a `chat` data
+        still send); 429. v1.20-live (D105): a caller kicked out of this live → 403
+        `LIVE_KICKED`, checked just before `LIVE_CHAT_NOT_IN_ROOM`. The stored message is sent to everyone in the room as a `chat` data
         message. A retry with the same `clientId` by the same sender returns 200 with the first
         message and sends nothing again.
 
@@ -1178,6 +1189,91 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/kicks:
+    post:
+      tags: [live]
+      operationId: kickFromLive
+      summary: "Host or moderator: kick someone out of this live (v1.20-live, D105)"
+      description: |
+        CONVENTIONS §10.20. Audio and video lives. The person is removed from the media session
+        at once, loses their seat, pending seat request, invitation and moderator role, and
+        cannot come back to **this live** (media token, chat, bullets, taps and seat requests →
+        403 `LIVE_KICKED`) until it ends; a later live of the same host is not affected. The
+        room gets a `kick` data message on topic `kick`. Checks, in order: 401; 404 for a room
+        the caller may not see; 409 `LIVE_ROOM_ENDED`; 400 for the body; 403 `AUTH_FORBIDDEN`
+        when the caller is not the host or a moderator; 404 for an unknown or inactive user;
+        403 `AUTH_FORBIDDEN` when the target is the caller, the host, or (for a moderator)
+        another moderator. Kicking someone already kicked → 200 with the first kick (nothing
+        sent or audited again). Audited (`live.kick`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveKickRequest' }
+            example: { username: sara }
+      responses:
+        '201':
+          description: Kicked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveKick' }
+              example:
+                user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                kickedAt: '2026-10-26T18:30:00.000Z'
+        '200':
+          description: Already kicked from this live; the first kick.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveKick' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [live]
+      operationId: listLiveKicks
+      summary: "Host or moderator: who was kicked out of this live (v1.20-live, D105)"
+      description: |
+        Newest first, every kicked user of the room who is still ACTIVE. Not host or moderator →
+        403 `AUTH_FORBIDDEN`; a room the caller may not see → 404. Also on an ended room.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The kicked users.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveKickList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/kicks/{username}:
+    delete:
+      tags: [live]
+      operationId: unkickFromLive
+      summary: "Host or moderator: let a kicked person back into this live (v1.20-live, idempotent)"
+      description: |
+        CONVENTIONS §10.20. The person may get a media token and watch again (their seat and
+        roles are not given back). Not kicked → 204 too. Checks: 401; 404 room; 409
+        `LIVE_ROOM_ENDED`; 403 `AUTH_FORBIDDEN` (not host or moderator); 404 unknown user.
+        Audited (`live.kick.undo`) when a kick was removed.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '204': { description: Not kicked any more (or never was). }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/live/rooms/{roomId}/bullets:
     post:
       tags: [live]
@@ -1188,7 +1284,8 @@ paths:
         media session). Checks, in order: 401 without an account; 404 for a room the caller may
         not see; 409 `LIVE_ROOM_ENDED`; 400 for the body (`text`: the chat rules with 1–60 code
         points); a retry with the same `clientId` → 200 (the first bullet and the current
-        balance; nothing charged or sent again); 403 `LIVE_CHAT_NOT_IN_ROOM`; 403
+        balance; nothing charged or sent again); 403 `LIVE_KICKED` (v1.20-live, D105: kicked out
+        of this live); 403 `LIVE_CHAT_NOT_IN_ROOM`; 403
         `LIVE_CHAT_MUTED` (muted in this live's chat); 429 (one bullet every 5 s per user); 409
         `INSUFFICIENT_COINS` (a balance under 15; nothing stored, charged or sent). On success 15
         coins are charged in the same transaction and, after the response, the bullet is sent to
@@ -1287,6 +1384,40 @@ paths:
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/contributors/{username}:
+    get:
+      tags: [live]
+      operationId: getLiveContributor
+      summary: "One person's points in this live and their place in the Contribution list (v1.20-live, D105)"
+      description: |
+        CONVENTIONS §10.12. For the "points" button on a person's card. The same points and order
+        as `listLiveContributors`, for anyone, not only the top 50: `points` is what this person
+        gave the live (0 when nothing, and always 0 for the host), `rank` their place among the
+        people with points (1 = first; ties as the list orders them), null when `points` is 0.
+        The rank is counted in the list as the reader sees it (a signed-in reader's blocks
+        either way are left out, as in the list), so the first 50 ranks match the list exactly.
+        Same access as the list: anyone who may watch the room (a guest needs `allowGuests`,
+        else 403 `LIVE_GUESTS_NOT_ALLOWED`); also on an ended room. A room the caller may not
+        see → 404; an unknown or inactive user, or one blocked either way with a signed-in
+        reader → 404.
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The person's points and rank in this live.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveContributorStanding' }
+              example:
+                user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                points: 340
+                rank: 7
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/live/rooms/{roomId}/heartbeat:
     post:
       tags: [live]
@@ -1377,6 +1508,7 @@ paths:
         `LIVE_SEAT_UNAVAILABLE` when the room has no seats (SOLO), the caller is the host or
         already seated, the asked seat is taken, locked or out of range, or no seat is free.
         The request ends when the caller leaves the media session or the room ends.
+        v1.20-live (D105): a caller kicked out of this live → 403 `LIVE_KICKED`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1397,6 +1529,7 @@ paths:
               schema: { $ref: '#/components/schemas/LiveSeatRequest' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -1657,7 +1790,8 @@ paths:
       description: |
         Host only (else 403). The user must be signed in, ACTIVE and not blocked either way with
         the host (else 404). Up to 5 per room (else 422 `VALIDATION_FAILED`, field `moderators`). Moderators last for the room only.
-        Idempotent.
+        Idempotent. v1.20-live (D105): someone kicked out of this live → 422 `VALIDATION_FAILED`
+        (field `username`, `invalid_value`).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/UsernamePath'
@@ -3753,11 +3887,12 @@ components:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted]
+          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted, kicked]
           properties:
             scoreParts: { $ref: '#/components/schemas/LiveScore' }
             chatEnabled: { type: boolean, description: "CP-013: false when the host turned the chat off." }
             chatMuted: { type: boolean, description: "CP-013: the caller is muted in this live's chat (false for guests)." }
+            kicked: { type: boolean, description: "v1.20-live (D105, CONVENTIONS §10.20): the caller was kicked out of this live (false for guests). The app shows the room as closed to them." }
             roomNumber:
               type: [integer, 'null']
               minimum: 100000000
@@ -4004,6 +4139,17 @@ components:
           type: array
           maxItems: 50
           items: { $ref: '#/components/schemas/LiveContributor' }
+    LiveContributorStanding:
+      type: object
+      description: "v1.20-live (D105, CONVENTIONS §10.12): one person's points in a live and their place in the Contribution list."
+      required: [user, points, rank]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        points: { type: integer, format: int64, minimum: 0, description: Points this person gave the live (0 when none; always 0 for the host). }
+        rank:
+          type: [integer, 'null']
+          minimum: 1
+          description: Place among the people with points, as the Contribution list orders them (1 = first); null when `points` is 0.
     # ---- v1.13-live (DRAFT, CP-016 A) — popularity board --------------------------------------
     LiveRankingPeriod:
       type: string
@@ -4145,6 +4291,26 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/LiveChatMute' }
+    # ---- v1.20-live (DRAFT, owner D105) — kicking out of a live ---------------------------------
+    LiveKickRequest:
+      type: object
+      required: [username]
+      additionalProperties: false
+      properties:
+        username: { type: string, description: "The person to kick (lowercase username; a malformed one → 404)." }
+    LiveKick:
+      type: object
+      required: [user, kickedAt]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        kickedAt: { type: string, format: date-time }
+    LiveKickList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/LiveKick' }
     # ---- v1.19-live (DRAFT, CP-017) — coins and bullet messages -------------------------------
     Wallet:
       type: object

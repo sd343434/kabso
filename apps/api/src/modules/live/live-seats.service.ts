@@ -462,6 +462,8 @@ export class LiveSeatsService {
   ): Promise<{ created: boolean; request: LiveSeatRequestDto }> {
     const input = parseBody(liveSeatRequestBodySchema, body);
     const row = await this.seatedRoom(roomId, callerId);
+    // v1.20-live (D105, §10.20): nobody kicked out of this live asks for a seat in it.
+    if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     const outcome = await this.change(row.id, async (tx, now) => {
       const room = await this.lockRoom(tx, row.id);
       if (callerId === room.hostUserId) throw seatUnavailable();
@@ -840,6 +842,10 @@ export class LiveSeatsService {
       }
       if (await this.isModerator(tx, room.id, target.id))
         return { result: undefined, version: null, effects: [] };
+      // v1.20-live (D105, §10.20): someone kicked out of this live cannot moderate it.
+      if ((await tx.liveRoomKick.count({ where: { roomId: room.id, userId: target.id } })) > 0) {
+        throw new UnprocessableValidation([{ field: 'username', issue: 'invalid_value' }]);
+      }
       if ((await tx.liveRoomModerator.count({ where: { roomId: room.id } })) >= MAX_ROOM_MODERATORS) {
         throw new UnprocessableValidation([{ field: 'moderators', issue: 'too_many' }]);
       }
@@ -872,7 +878,7 @@ export class LiveSeatsService {
   // ---- Losing a seat (presence, blocks) and media ------------------------------------------------
 
   /** Media effects of {@link releaseUserIn}: withdraw publishing, push the versions. */
-  private async afterRelease(userId: string, released: readonly ReleasedUser[]): Promise<void> {
+  async afterRelease(userId: string, released: readonly ReleasedUser[]): Promise<void> {
     for (const r of released) {
       await this.applyEffects(
         r.roomId,

@@ -73,6 +73,8 @@ model User {
   liveChatDeletions  LiveChatMessage[]      @relation("LiveChatDeleter")
   liveChatMutes      LiveChatMute[]         @relation("LiveChatMuted")
   liveChatMutesBy    LiveChatMute[]         @relation("LiveChatMutedBy")
+  liveKicks          LiveRoomKick[]         @relation("LiveKicked")
+  liveKicksBy        LiveRoomKick[]         @relation("LiveKickedBy")
   following          Follow[]               @relation("FollowFollower")
   followers          Follow[]               @relation("FollowFollowee")
   levelStates        UserLevelState[]
@@ -398,6 +400,7 @@ model LiveRoom {
   tappers      LiveRoomTapper[]
   chatMessages LiveChatMessage[]
   chatMutes    LiveChatMute[]
+  kicks        LiveRoomKick[]
   bullets      LiveBullet[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
@@ -700,6 +703,26 @@ model LiveChatMute {
   @@index([userId], map: "live_chat_mutes_user_idx")
   @@index([mutedById], map: "live_chat_mutes_muted_by_idx")
   @@map("live_chat_mutes")
+}
+
+/// v1.20-live (owner D105, CONVENTIONS §10.20): a person kicked out of one live by the host or a
+/// moderator. One row per room and user; it ends with the live (a new live is a new room). Kept 30
+/// days after the room ended, like chat mutes. CHECK `live_room_kicks_not_self` (migration
+/// 20261109090000_live_kicks).
+model LiveRoomKick {
+  roomId     String   @map("room_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  kickedById String?  @map("kicked_by_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room     LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation("LiveKicked", fields: [userId], references: [id], onDelete: Cascade)
+  kickedBy User?    @relation("LiveKickedBy", fields: [kickedById], references: [id], onDelete: SetNull)
+
+  @@id([roomId, userId], map: "live_room_kicks_pkey")
+  @@index([userId], map: "live_room_kicks_user_idx")
+  @@index([kickedById], map: "live_room_kicks_kicked_by_idx")
+  @@map("live_room_kicks")
 }
 
 /// Follow graph edge (social module). CHECK `follows_no_self_follow`.

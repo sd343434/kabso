@@ -78,6 +78,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   chatEnabled: boolean;
   /** CP-013: the caller is muted in this live's chat (false for guests). */
   chatMuted: boolean;
+  /** v1.20-live (D105): the caller was kicked out of this live (false for guests). */
+  kicked: boolean;
   /** CP-016 G: the host's public room number (null without the hosting permission). */
   roomNumber: number | null;
   /** CP-016 D (§10.18): the host's charm level. */
@@ -143,6 +145,8 @@ export interface RoomRow {
   chat_enabled: boolean;
   /** CP-013: the reader is muted in this live's chat (room detail only; false otherwise). */
   chat_muted?: boolean;
+  /** v1.20-live (D105): the reader was kicked out of this live (room detail only; false otherwise). */
+  kicked?: boolean;
   host_user_id: string;
   host_status: string;
   username: string;
@@ -206,6 +210,13 @@ function chatMutedSql(viewerId: string | null): Prisma.Sql {
   if (viewerId === null) return Prisma.sql`FALSE`;
   return Prisma.sql`EXISTS (SELECT 1 FROM live_chat_mutes m
                     WHERE m.room_id = r.id AND m.user_id = ${viewerId}::uuid)`;
+}
+
+/** v1.20-live (D105): the reader was kicked out of the room (false for a guest). */
+function kickedSql(viewerId: string | null): Prisma.Sql {
+  if (viewerId === null) return Prisma.sql`FALSE`;
+  return Prisma.sql`EXISTS (SELECT 1 FROM live_room_kicks k
+                    WHERE k.room_id = r.id AND k.user_id = ${viewerId}::uuid)`;
 }
 
 /** CP-013 (owner D96): chat messages and mutes are kept 30 days after their room ended. */
@@ -552,12 +563,14 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * CP-013 retention (owner D96, CONVENTIONS §10.11): chat messages (deleted ones included) and
-   * chat mutes of rooms that ended more than 30 days before `now` are removed, in bounded batches,
+   * CP-013 retention (owner D96, CONVENTIONS §10.11): chat messages (deleted ones included),
+   * chat mutes and (v1.20-live) kicks of rooms that ended more than 30 days before `now` are removed, in bounded batches,
    * except messages an OPEN report points at (they stay until the report is closed). Runs after
    * each stale-room sweep. Returns the rows removed.
    */
-  async sweepChatRetention(now: Date = this.clock.now()): Promise<{ messages: number; mutes: number }> {
+  async sweepChatRetention(
+    now: Date = this.clock.now(),
+  ): Promise<{ messages: number; mutes: number; kicks: number }> {
     const cutoff = ts(new Date(now.getTime() - LIVE_CHAT_RETENTION_MS));
     let messages = 0;
     let mutes = 0;
@@ -583,7 +596,19 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       mutes += removed;
       if (removed < CHAT_RETENTION_BATCH) break;
     }
-    return { messages, mutes };
+    // v1.20-live (D105, §10.20): kicks follow the chat mutes.
+    let kicks = 0;
+    for (let batch = 0; batch < CHAT_RETENTION_MAX_BATCHES; batch += 1) {
+      const removed = await this.prisma.$executeRaw`
+        DELETE FROM live_room_kicks
+         WHERE (room_id, user_id) IN (
+           SELECT x.room_id, x.user_id FROM live_room_kicks x JOIN live_rooms r ON r.id = x.room_id
+            WHERE r.status = 'ENDED' AND r.ended_at < ${cutoff}::timestamptz
+            LIMIT ${CHAT_RETENTION_BATCH})`;
+      kicks += removed;
+      if (removed < CHAT_RETENTION_BATCH) break;
+    }
+    return { messages, mutes, kicks };
   }
 
   /** One sweeper run with the default budget; returns the number of rooms it ended. */
@@ -640,6 +665,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       },
       chatEnabled: row.chat_enabled,
       chatMuted: row.chat_muted ?? false,
+      kicked: row.kicked ?? false,
       roomNumber: row.room_number,
       roomLevel: row.room_level,
     };
@@ -647,7 +673,8 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
 
   private async selectRoom(roomId: string, viewerId: string | null = null): Promise<RoomRow | null> {
     const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted ${ROOM_FROM}
+      SELECT ${ROOM_COLUMNS}, ${chatMutedSql(viewerId)} AS chat_muted, ${kickedSql(viewerId)} AS kicked
+             ${ROOM_FROM}
        WHERE r.id = ${roomId}::uuid AND ${notBlockedSql(viewerId)}`;
     return rows[0] ?? null;
   }

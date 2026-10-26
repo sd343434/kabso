@@ -122,7 +122,8 @@ describe('KL-037 contract coverage', () => {
         (o) =>
           // CP-013 (v1.9-live draft) adds the chat operations; kl067-live-chat covers them.
           // CP-014 (v1.10-live draft) adds listLiveContributors; kl068-live-room-edit covers it.
-          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors)(\/|$)/.test(
+          // v1.20-live (D105) adds kicks and one person's contribution; kl078-live-kicks covers them.
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors|kicks)(\/|$)/.test(
             o.path,
           ),
       )
@@ -314,6 +315,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         roomNumber: expect.any(Number),
         // CP-016 D (§10.18): no charm category in this database → no level.
         roomLevel: null,
+        // v1.20-live (D105): the host is never kicked (kl078 covers kicks).
+        kicked: false,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

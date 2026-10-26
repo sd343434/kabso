@@ -114,6 +114,8 @@ export class LiveBulletsService {
     if (first) return { created: false, result: await this.replay(callerId, first, row.id) };
 
     if (callerId !== row.host_user_id) {
+      // v1.20-live (D105, §10.20): kicked out of this live.
+      if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
       if (!(await this.inMediaSession(row.id, callerId))) {
         throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);
       }

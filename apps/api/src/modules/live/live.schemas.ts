@@ -206,6 +206,9 @@ export const liveSeatInviteBodySchema = z.strictObject({
   seatIndex: seatIndexSchema.optional(),
 });
 
+/** `LiveKickRequest` (v1.20-live, D105); a malformed username is simply not found (404). */
+export const liveKickBodySchema = z.strictObject({ username: z.string().max(1000) });
+
 export const liveSeatMuteBodySchema = z.strictObject({ muted: z.boolean() });
 export const liveSeatLockBodySchema = z.strictObject({ locked: z.boolean() });
 

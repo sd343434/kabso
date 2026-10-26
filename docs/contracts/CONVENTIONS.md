@@ -110,6 +110,7 @@ All non-2xx responses use one envelope:
 | 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
 | 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
 | 409 | `INSUFFICIENT_COINS` | *(v1.19-live, DRAFT, CP-017)* The caller's coin balance does not cover the price (a bullet message costs 15 coins, §10.19). Nothing was charged or sent. The app shows the balance (`GET /wallet/me`). |
+| 403 | `LIVE_KICKED` | *(v1.20-live, DRAFT, D105)* The host or a moderator kicked the caller out of this live (§10.20): no media token, chat, bullet, taps or seat request in it until it ends. The app leaves the room and says so; a later live of the same host is fine. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -331,7 +332,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/taps` *(v1.8-live, CP-012)* | 120 / min per user (one batch a second = 60 / min; 2× headroom). **Replaces** the per-user default (it would exhaust 600 / 15 min). The 10-a-second and 10 000-a-live limits are counting rules, not rate limits: past them taps are dropped with 200 (§10.10) |
 | `POST /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | 20 / min per user, plus a counting rule of 1 a second per user and room (429 with `Retry-After`). **Replaces** the per-user default |
 | Chat delete, chat mutes, `chatEnabled` in `PATCH` *(v1.9-live, CP-013)* | the CP-011 host and moderator bucket (300 / hour per user); deleting one's own message counts there too |
-| `GET /live/rooms/{roomId}/contributors` *(v1.10-live, CP-014)* | the per-user default; guests share the CP-010 guest read limit per IP |
+| `GET /live/rooms/{roomId}/contributors` *(v1.10-live, CP-014)*, and *(v1.20-live)* `GET …/contributors/{username}` | the per-user default; guests share the CP-010 guest read limit per IP |
 | `title`, `categorySlug`, `topic` in `PATCH /live/rooms/{roomId}` *(v1.10-live, CP-014)* | the existing `PATCH` bucket (60 / hour per user) |
 | `PUT` and `DELETE /me/live-cover` *(v1.11-live, CP-015)* | 30 / hour per user (one bucket). **Replaces** the per-user default; the upload itself counts in the `POST /media/uploads` bucket |
 | `PUT /me/live-blocked-words` *(v1.12-live, CP-016 B)* | 30 / hour per user. **Replaces** the per-user default; `GET` uses the default |
@@ -340,6 +341,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/bullets` *(v1.19-live, CP-017)* | 20 / min per user (bucket `live:bullet`, the chat rule's numbers), plus a counting rule of **one bullet every 5 s per user** across all lives (429 with `Retry-After`), checked before the charge. **Replaces** the per-user default |
 | `GET /wallet/me` *(v1.19-live, CP-017)* | the per-user default |
 | VOICE and IMAGE chat messages *(v1.19-live, CP-017)* | the chat rows above (they are chat messages); the uploads count in the `POST /media/uploads` bucket |
+| `POST /live/rooms/{roomId}/kicks`, `DELETE /live/rooms/{roomId}/kicks/{username}` *(v1.20-live, D105)* | the CP-011 host and moderator bucket (300 / hour per user); `GET /live/rooms/{roomId}/kicks` uses the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -401,6 +403,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.5-social)* Tables `user_blocks`, `user_mutes`, `post_hides`, `reports`, `privacy_settings` | Backend — `safety` module | CTO; Security reviews block semantics |
 | *(v1.19-live)* Tables `wallets`, `wallet_ledger` | Backend — `wallet` module | CTO; Security (financial tables) |
 | *(v1.19-live)* Table `live_bullets` | Backend — `live` module | CTO |
+| *(v1.20-live)* Table `live_room_kicks` | Backend — `live` module | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -440,6 +443,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.20-live (draft) | 2026-10-26 | **Owner D105:** the host and the room's moderators kick a person out of a live (audio and video) until it ends. `kickFromLive` (`POST /live/rooms/{roomId}/kicks`, `LiveKickRequest`, `LiveKick`; 201, 200 when already kicked), `listLiveKicks` (`GET …/kicks`, `LiveKickList`), `unkickFromLive` (`DELETE …/kicks/{username}`, 204); `LiveRoom.kicked`; data message `kick` on topic `kick`; code `LIVE_KICKED` (403) on `createLiveMediaToken`, `sendLiveChatMessage`, `sendLiveBullet`, `tapLiveRoom` and `requestLiveSeat` (the last two now document 403); audit `live.kick`, `live.kick.undo`. Also (owner, same row) `getLiveContributor` (`GET /live/rooms/{roomId}/contributors/{username}`, `LiveContributorStanding`: one person's points and rank in the live). §4, §7, §8, §10.9, §10.11, §10.12, §10.20. | **Additive** (new operations, a new response field, a new code and data message topic). A kicked user's older app sees the new code as a generic error and cannot rejoin. |
 | v1.19-live (draft) | 2026-10-26 | **CP-017 (D104, owner 2026-10-26):** coins and bullet messages, voice clips and images in the live chat. `getMyWallet` (`GET /wallet/me`, `Wallet`; tag `wallet`); coins only from the server's `wallet-admin` tool (purchases still B5); `sendLiveBullet` (`POST /live/rooms/{roomId}/bullets`, `LiveBulletSendRequest`, `LiveBullet`, `LiveBulletResult`), 15 coins, shown in every live as data message `bullet` on topic `bullet`; code `INSUFFICIENT_COINS` (409). Chat: `LiveChatSendRequest.kind` (`TEXT` default, `VOICE`, `IMAGE`) and `mediaId`; `LiveChatMessage.kind`, `media`, `expiresAt` (VOICE and IMAGE vanish 60 s after sending); `MediaKind` `LIVE_CHAT_IMAGE`, `LIVE_CHAT_VOICE`; `CreateMediaUploadRequest.contentType` `audio/mp4`; `MediaAsset.type` `AUDIO`, `durationMs`, `width`/`height` 0 for audio. §4, §7 rows, §8, §10.11, §10.19, §11.1. | **Additive** (new operations, fields, enum values, a code and a data message topic). `LiveChatSendRequest.text` is now required only for `TEXT` (the default, so existing apps send exactly as before); older apps show a VOICE or IMAGE message as an empty line until they update. `MediaAsset.width`/`height` may be 0, only for the new `AUDIO` assets. |
 | v1.18-live (draft) | 2026-10-26 | **Owner D103:** `AUDIO` seat counts 5, 10, 15, 20, 25 (host included; was 6, 9, 15, 20, 25); seat indexes stay 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`); §10.9. Existing rooms of 6 / 9 become 10. | **Breaking for `AUDIO` starts with 6 or 9** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.17-live (draft) | 2026-10-25 | **CP-016 part D (D101, owner 2026-10-25):** `LiveRoom.roomLevel` (the host's charm level); every 10 counted taps of a viewer in a live give the host 1 charm point (`PointsSourceType` `LIVE_TAPS`), at most 10 000 taps (1 000 points) per viewer in each live; §10.18, §10.10. | **Additive** (a new field and a new enum value). |
@@ -760,7 +764,7 @@ until a media provider is wired in.
   microphone only.
 - **Losing a seat or a pending request:** leaving the media session (webhook or
   reconciliation), suspension, a block with the host, removal by the host or a moderator,
-  leaving the seat, or the room ending.
+  leaving the seat, the room ending, or *(v1.20-live)* being kicked out of the live (§10.20).
 - **Locks and resizing:** an occupied seat cannot be locked; `seatCount` cannot shrink below an
   occupied seat (409 `LIVE_SEAT_UNAVAILABLE`).
 - **Themes:** `theme` is a slug from `LiveConfig.themes` (the first is the default). The art
@@ -843,7 +847,8 @@ until a media provider is wired in.
 - **Retention (owner D96):** messages, mutes and deleted messages are removed 30 days after
   their room ended, by the live sweeper, except a message with an OPEN report, which stays
   until the report is closed.
-- **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal), a
+- **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal;
+  *arrived in v1.20-live, §10.20*), a
   word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images
   *(images and voice clips arrived in v1.19-live, §10.19)*.
 
@@ -866,6 +871,14 @@ until a media provider is wired in.
   the host are never listed. Anyone who may watch reads it (guests need `allowGuests`); a
   signed-in reader never gets people they blocked or who blocked them; inactive accounts are
   left out. Also on an ended room. Public by owner decision (D97).
+- *(v1.20-live, owner D105)* **One person's points:** `GET /live/rooms/{roomId}/contributors/{username}`
+  → `{"user": UserSummary, "points": n, "rank": r}` for the "points" button on a person's card, for
+  anyone (not only the top 50). `points` is computed exactly as in the list (0 when the person gave
+  nothing; always 0 for the host); `rank` is their place among the people with points in the list
+  as this reader sees it (same order and ties, same exclusions: inactive accounts and, for a
+  signed-in reader, blocks either way), so ranks 1 … 50 match the list; `null` when `points` is 0.
+  Same access as the list (guests need `allowGuests`; also on an ended room). A room the caller may
+  not see, an unknown or inactive user, or one blocked either way with a signed-in reader → 404.
 - **Not in v1.10-live:** room boost (CP-014 part C, after L3), several tags per room.
 
 ### 10.13 The live cover *(v1.11-live, DRAFT — CP-015, D98)*
@@ -1016,6 +1029,49 @@ until a media provider is wired in.
   messages keep §10.11 retention and `expiresAt: null`.
 - **Not in v1.19-live:** buying coins (B5), a coin history for users, gifts (L3), sending coins to
   other users, captions on images, video clips.
+
+### 10.20 Kicking someone out of a live *(v1.20-live, DRAFT — D105)*
+
+- **Who (owner D105):** the host and the room's moderators (§10.9), in every live (audio and
+  video; `SOLO`, `MULTI` and `AUDIO`). Nobody kicks the host or themselves; a moderator never
+  kicks another moderator (403 `AUTH_FORBIDDEN`). The host may kick a moderator. Guests without
+  an account have no username and cannot be kicked (the host can switch guests off, §10.8).
+- **Kick:** `POST /live/rooms/{roomId}/kicks` with `{"username": …}` → 201 `{"user": UserSummary,
+  "kickedAt": …}`; someone already kicked from this live → 200 with the first kick (nothing sent or
+  audited again). Order of checks: 401, 404 (cannot see the room), 409 `LIVE_ROOM_ENDED`, 400
+  body, 403 (caller not host or moderator), 404 (unknown or inactive user; a malformed username
+  too), 403 (the target is protected, above). The person need not be in the room now.
+- **What happens, in one transaction:** a `live_room_kicks` row (room, user, by, time; one per room
+  and user), the person loses their seat, pending seat request and invitation and their moderator
+  role in this room (the seat version moves, §10.9), their media-session row is dropped (the
+  viewer count follows), and the audit log gets `live.kick` (target the user, metadata the room).
+  Then, best effort: the room gets the data message below, and the person is **removed from the
+  media session** at once (LiveKit remove participant).
+- **Until the live ends:** for a kicked user, `createLiveMediaToken` → 403 `LIVE_KICKED`, a media
+  session join (a token issued earlier) is refused and disconnected at once, and chat messages,
+  bullet messages, taps and seat requests in this live → 403 `LIVE_KICKED` (checked after 409
+  `LIVE_ROOM_ENDED`, and in the chat and bullets after the body and the `clientId` retry, before
+  `LIVE_CHAT_NOT_IN_ROOM`). The host cannot appoint a kicked user as a moderator (422
+  `VALIDATION_FAILED`, `username` / `invalid_value`). Reading (room detail, chat, seats,
+  contributors) stays open like for anyone who may see the room; `LiveRoom.kicked` is true for
+  them. A kick belongs to one live: a new live of the same host starts with nobody kicked.
+- **Data message** (topic **`kick`**, reliable, to everyone in the media room, sent before the
+  removal):
+
+  | `type` | Payload |
+  | ------ | ------- |
+  | `kick` | `{"type":"kick","user":UserSummary,"by":UserSummary,"at":"…"}` |
+
+  The kicked person's app leaves the room and shows a message; others drop the person from their
+  lists. The removal may arrive first (LiveKit disconnects with reason "participant removed"), so
+  the app also treats that disconnect, `LiveRoom.kicked` and 403 `LIVE_KICKED` as the same signal.
+- **List and undo (host or moderator):** `GET /live/rooms/{roomId}/kicks` → the kicked users, newest
+  first (ACTIVE only; also on an ended room). `DELETE /live/rooms/{roomId}/kicks/{username}` → 204
+  lets them back in (a new media token works; seat and roles are not given back); not kicked →
+  204; only while the room is live (409 `LIVE_ROOM_ENDED`); audited (`live.kick.undo`) when a kick
+  was removed.
+- **Rate limits:** kick and undo count in the CP-011 host and moderator bucket (§7).
+- **Retention:** kicks are removed with the chat mutes, 30 days after their room ended (§10.11).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

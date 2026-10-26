@@ -56,6 +56,8 @@ describe('ErrorCode', () => {
         'LIVE_SCHEDULE_FULL',
         // v1.19-live (DRAFT, CP-017)
         'INSUFFICIENT_COINS',
+        // v1.20-live (DRAFT, D105)
+        'LIVE_KICKED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -89,6 +91,7 @@ describe('ErrorCode', () => {
       LIVE_CHAT_MUTED: 403,
       LIVE_CHAT_CLOSED: 409,
       INSUFFICIENT_COINS: 409,
+      LIVE_KICKED: 403,
     });
   });
 

@@ -42,6 +42,9 @@ export enum AuditAction {
   // v1.14-live (DRAFT, CP-016 C): the host announced or cancelled a scheduled live.
   LIVE_SCHEDULE_CREATE = 'live.schedule.create',
   LIVE_SCHEDULE_DELETE = 'live.schedule.delete',
+  // v1.20-live (DRAFT, D105): the host or a moderator kicked someone out of a live, or undid it.
+  LIVE_KICK = 'live.kick',
+  LIVE_KICK_UNDO = 'live.kick.undo',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',

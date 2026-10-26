@@ -54,6 +54,8 @@ export enum ErrorCode {
   LIVE_CHAT_CLOSED = 'LIVE_CHAT_CLOSED',
   /** v1.19-live (DRAFT, CP-017): the caller's coin balance does not cover the price. */
   INSUFFICIENT_COINS = 'INSUFFICIENT_COINS',
+  /** v1.20-live (DRAFT, D105): the host or a moderator kicked the caller out of this live. */
+  LIVE_KICKED = 'LIVE_KICKED',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -91,6 +93,7 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_CHAT_MUTED]: 403,
   [ErrorCode.LIVE_CHAT_CLOSED]: 409,
   [ErrorCode.INSUFFICIENT_COINS]: 409,
+  [ErrorCode.LIVE_KICKED]: 403,
 };
 
 /** Default developer-facing messages (clients localize by `code`, not by message). */
@@ -128,6 +131,7 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_CHAT_MUTED]: 'You are muted in this live.',
   [ErrorCode.LIVE_CHAT_CLOSED]: 'The chat is off.',
   [ErrorCode.INSUFFICIENT_COINS]: 'Not enough coins.',
+  [ErrorCode.LIVE_KICKED]: 'You were removed from this live.',
 };
 
 export interface ErrorDetail {

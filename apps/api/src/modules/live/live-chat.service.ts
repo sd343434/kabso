@@ -208,8 +208,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
   /**
    * `POST /live/rooms/{roomId}/chat`. Checks in the order of §10.11 after the auth guard: visible
    * room (404), LIVE (409 LIVE_ROOM_ENDED), the body (400), then a retry with the same `clientId`
-   * by the same sender → the first message (`created` false, nothing sent again), the caller in
-   * the room (403 LIVE_CHAT_NOT_IN_ROOM), not muted (403 LIVE_CHAT_MUTED), the chat on (409
+   * by the same sender → the first message (`created` false, nothing sent again), not kicked out
+   * of this live (403 LIVE_KICKED, v1.20-live), the caller in the room (403 LIVE_CHAT_NOT_IN_ROOM), not muted (403 LIVE_CHAT_MUTED), the chat on (409
    * LIVE_CHAT_CLOSED; the host may still send), and the counting rule (429 with `Retry-After`).
    * CP-017: a VOICE or IMAGE message then takes the caller's unattached `LIVE_CHAT_VOICE` /
    * `LIVE_CHAT_IMAGE` asset (else 400 `mediaId` / `invalid_value`) and expires 60 s later.
@@ -231,6 +231,8 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
 
     const isHost = callerId === row.host_user_id;
     if (!isHost) {
+      // v1.20-live (D105, §10.20): kicked out of this live.
+      if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
       if (!(await this.inMediaSession(row.id, callerId))) {
         throw new AppException(ErrorCode.LIVE_CHAT_NOT_IN_ROOM);
       }
