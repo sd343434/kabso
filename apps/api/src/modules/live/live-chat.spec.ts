@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
-import { liveChatSendSchema, normalizeLiveChatText, updateLiveRoomSchema } from './live.schemas.js';
+import {
+  liveBulletSendSchema,
+  normalizeLiveChatText,
+  parseLiveChatSend,
+  updateLiveRoomSchema,
+} from './live.schemas.js';
 
 /** Builds strings from code points, so invisible characters stay visible in this file. */
 const cp = (...points: number[]) => String.fromCodePoint(...points);
 const ACUTE = cp(0x301);
 const ZWJ = cp(0x200d);
 const CLIENT_ID = '0192f1d0-0000-7000-8000-0000000000aa';
+const MEDIA_ID = '0192f1d0-0000-7000-8000-0000000000bb';
 
 describe('live chat text (CONVENTIONS §10.11)', () => {
   it.each([
@@ -46,12 +52,12 @@ describe('live chat text (CONVENTIONS §10.11)', () => {
 
   it('the request: text and clientId required, unknown fields refused, issues on `text`', () => {
     const details = (body: unknown) => {
-      const parsed = liveChatSendSchema.safeParse(body, { reportInput: true });
-      return parsed.success ? [] : zodErrorToDetails(parsed.error);
+      const parsed = parseLiveChatSend(body);
+      return parsed.success ? [] : parsed.details;
     };
-    expect(liveChatSendSchema.parse({ text: ' hi ', clientId: CLIENT_ID })).toEqual({
-      text: 'hi',
-      clientId: CLIENT_ID,
+    expect(parseLiveChatSend({ text: ' hi ', clientId: CLIENT_ID })).toEqual({
+      success: true,
+      data: { kind: 'TEXT', text: 'hi', clientId: CLIENT_ID },
     });
     expect(details({})).toEqual(
       expect.arrayContaining([
@@ -76,6 +82,65 @@ describe('live chat text (CONVENTIONS §10.11)', () => {
       { field: 'roomId', issue: 'unknown_field' },
     ]);
     expect(details({ text: 5, clientId: CLIENT_ID })).toEqual([{ field: 'text', issue: 'invalid_type' }]);
+    expect(details({ clientId: CLIENT_ID })).toEqual([{ field: 'text', issue: 'required' }]);
+    expect(details({ text: 'hi' })).toEqual([{ field: 'clientId', issue: 'required' }]);
+  });
+
+  it('CP-017 kinds: VOICE and IMAGE take a mediaId and no text; TEXT takes no mediaId', () => {
+    const details = (body: unknown) => {
+      const parsed = parseLiveChatSend(body);
+      return parsed.success ? [] : parsed.details;
+    };
+    expect(parseLiveChatSend({ kind: 'TEXT', text: 'hi', clientId: CLIENT_ID })).toEqual({
+      success: true,
+      data: { kind: 'TEXT', text: 'hi', clientId: CLIENT_ID },
+    });
+    for (const kind of ['VOICE', 'IMAGE']) {
+      expect(parseLiveChatSend({ kind, mediaId: MEDIA_ID, clientId: CLIENT_ID })).toEqual({
+        success: true,
+        data: { kind, mediaId: MEDIA_ID, clientId: CLIENT_ID },
+      });
+      expect(details({ kind, clientId: CLIENT_ID })).toEqual([{ field: 'mediaId', issue: 'required' }]);
+      expect(details({ kind, mediaId: MEDIA_ID, text: 'hi', clientId: CLIENT_ID })).toEqual([
+        { field: 'text', issue: 'invalid_value' },
+      ]);
+      expect(details({ kind, mediaId: 'nope', clientId: CLIENT_ID })).toEqual([
+        { field: 'mediaId', issue: 'invalid_format' },
+      ]);
+    }
+    expect(details({ text: 'hi', mediaId: MEDIA_ID, clientId: CLIENT_ID })).toEqual([
+      { field: 'mediaId', issue: 'invalid_value' },
+    ]);
+    expect(details({ kind: 'VIDEO', mediaId: MEDIA_ID, clientId: CLIENT_ID })).toEqual([
+      { field: 'kind', issue: 'invalid_value' },
+    ]);
+    expect(details({ kind: 'VOICE' })).toEqual([
+      { field: 'mediaId', issue: 'required' },
+      { field: 'clientId', issue: 'required' },
+    ]);
+  });
+
+  it('CP-017 bullet text: the chat rules with at most 60 code points', () => {
+    const details = (body: unknown) => {
+      const parsed = liveBulletSendSchema.safeParse(body, { reportInput: true });
+      return parsed.success ? [] : zodErrorToDetails(parsed.error);
+    };
+    expect(liveBulletSendSchema.parse({ text: ' مرحبا ', clientId: CLIENT_ID })).toEqual({
+      text: 'مرحبا',
+      clientId: CLIENT_ID,
+    });
+    expect(normalizeLiveChatText('x'.repeat(60), 60)).toEqual({ value: 'x'.repeat(60) });
+    expect(details({ text: 'x'.repeat(60), clientId: CLIENT_ID })).toEqual([]);
+    expect(details({ text: 'x'.repeat(61), clientId: CLIENT_ID })).toEqual([
+      { field: 'text', issue: 'too_long' },
+    ]);
+    expect(details({ text: '  ', clientId: CLIENT_ID })).toEqual([{ field: 'text', issue: 'required' }]);
+    expect(details({ text: 'a\nb', clientId: CLIENT_ID })).toEqual([
+      { field: 'text', issue: 'invalid_format' },
+    ]);
+    expect(details({ text: 'hi', clientId: CLIENT_ID, roomId: 'x' })).toEqual([
+      { field: 'roomId', issue: 'unknown_field' },
+    ]);
   });
 
   it('PATCH accepts chatEnabled alone (CP-013)', () => {

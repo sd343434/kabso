@@ -30,6 +30,7 @@ import { AdminGuard, RequireAdminPermission } from '../levels/admin.guard.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
+import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
@@ -107,6 +108,7 @@ export class LiveController {
     private readonly seats: LiveSeatsService,
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
+    private readonly bullets: LiveBulletsService,
     private readonly rankings: LiveRankingsService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
@@ -452,6 +454,24 @@ export class LiveController {
     const { created, message } = await this.chat.send(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return message;
+  }
+
+  /**
+   * CP-017: a bullet message to every live, 15 coins. 201 new, 200 a retry with the same
+   * `clientId`. 20 / min per user, replacing the default (§7); one every 5 s is a counting rule
+   * checked before the charge (§10.19).
+   */
+  @Post('rooms/:roomId/bullets')
+  @RateLimit({ bucket: 'live:bullet', rule: 'liveChatUser', key: byUserId, replacesDefault: true })
+  async sendBullet(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveBulletResultDto> {
+    const { created, result } = await this.bullets.send(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
   }
 
   /** Host and moderators: the muted users of this live, newest first. */

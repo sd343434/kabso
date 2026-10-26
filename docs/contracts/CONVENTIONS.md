@@ -109,6 +109,7 @@ All non-2xx responses use one envelope:
 | 409 | `PIN_LIMIT_REACHED` | *(v1.5-social, DRAFT)* The caller already has 3 pinned posts. |
 | 409 | `REPORT_ALREADY_RESOLVED` | *(v1.5-social, DRAFT)* An admin acted on a report that is no longer OPEN. |
 | 409 | `LIVE_SCHEDULE_FULL` | *(v1.14-live, DRAFT, CP-016 C)* The host already has 10 upcoming scheduled lives. |
+| 409 | `INSUFFICIENT_COINS` | *(v1.19-live, DRAFT, CP-017)* The caller's coin balance does not cover the price (a bullet message costs 15 coins, §10.19). Nothing was charged or sent. The app shows the balance (`GET /wallet/me`). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -336,6 +337,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/live-blocked-words` *(v1.12-live, CP-016 B)* | 30 / hour per user. **Replaces** the per-user default; `GET` uses the default |
 | `GET /live/rankings` *(v1.13-live, CP-016 A)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST` and `DELETE /me/live-schedule` *(v1.14-live, CP-016 C)* | 30 / hour per user (one bucket). **Replaces** the per-user default; `GET` uses the default |
+| `POST /live/rooms/{roomId}/bullets` *(v1.19-live, CP-017)* | 20 / min per user (bucket `live:bullet`, the chat rule's numbers), plus a counting rule of **one bullet every 5 s per user** across all lives (429 with `Retry-After`), checked before the charge. **Replaces** the per-user default |
+| `GET /wallet/me` *(v1.19-live, CP-017)* | the per-user default |
+| VOICE and IMAGE chat messages *(v1.19-live, CP-017)* | the chat rows above (they are chat messages); the uploads count in the `POST /media/uploads` bucket |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule) |
@@ -395,6 +399,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.5-social)* Tables `media_assets`, `media_uploads` | Backend — `media` module | CTO; Security reviews upload validation |
 | *(v1.5-social)* Tables `posts`, `post_media`, `post_likes`, `post_saves`, `post_reposts`, `post_share_events`, `post_views`, `post_pins`, `hashtags`, `post_hashtags`, `post_mentions`, `comments`, `comment_likes`, `comment_mentions` | Backend — `posts` module | CTO |
 | *(v1.5-social)* Tables `user_blocks`, `user_mutes`, `post_hides`, `reports`, `privacy_settings` | Backend — `safety` module | CTO; Security reviews block semantics |
+| *(v1.19-live)* Tables `wallets`, `wallet_ledger` | Backend — `wallet` module | CTO; Security (financial tables) |
+| *(v1.19-live)* Table `live_bullets` | Backend — `live` module | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -434,6 +440,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.19-live (draft) | 2026-10-26 | **CP-017 (D104, owner 2026-10-26):** coins and bullet messages, voice clips and images in the live chat. `getMyWallet` (`GET /wallet/me`, `Wallet`; tag `wallet`); coins only from the server's `wallet-admin` tool (purchases still B5); `sendLiveBullet` (`POST /live/rooms/{roomId}/bullets`, `LiveBulletSendRequest`, `LiveBullet`, `LiveBulletResult`), 15 coins, shown in every live as data message `bullet` on topic `bullet`; code `INSUFFICIENT_COINS` (409). Chat: `LiveChatSendRequest.kind` (`TEXT` default, `VOICE`, `IMAGE`) and `mediaId`; `LiveChatMessage.kind`, `media`, `expiresAt` (VOICE and IMAGE vanish 60 s after sending); `MediaKind` `LIVE_CHAT_IMAGE`, `LIVE_CHAT_VOICE`; `CreateMediaUploadRequest.contentType` `audio/mp4`; `MediaAsset.type` `AUDIO`, `durationMs`, `width`/`height` 0 for audio. §4, §7 rows, §8, §10.11, §10.19, §11.1. | **Additive** (new operations, fields, enum values, a code and a data message topic). `LiveChatSendRequest.text` is now required only for `TEXT` (the default, so existing apps send exactly as before); older apps show a VOICE or IMAGE message as an empty line until they update. `MediaAsset.width`/`height` may be 0, only for the new `AUDIO` assets. |
 | v1.18-live (draft) | 2026-10-26 | **Owner D103:** `AUDIO` seat counts 5, 10, 15, 20, 25 (host included; was 6, 9, 15, 20, 25); seat indexes stay 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`); §10.9. Existing rooms of 6 / 9 become 10. | **Breaking for `AUDIO` starts with 6 or 9** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.17-live (draft) | 2026-10-25 | **CP-016 part D (D101, owner 2026-10-25):** `LiveRoom.roomLevel` (the host's charm level); every 10 counted taps of a viewer in a live give the host 1 charm point (`PointsSourceType` `LIVE_TAPS`), at most 10 000 taps (1 000 points) per viewer in each live; §10.18, §10.10. | **Additive** (a new field and a new enum value). |
 | v1.16-live (draft) | 2026-10-25 | **Owner D100:** `AUDIO` seat counts 6, 9, 15, 20, 25 (host included; was 5, 9, 13); seat indexes 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`, seat paths and bodies); §10.9. | **Breaking for `AUDIO` starts with 5 or 13** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. Existing rooms of 5 / 13 became 6 / 15. |
@@ -795,6 +802,10 @@ until a media provider is wired in.
 - **Text:** NFC, trimmed, 1–200 code points (owner D96), §6 text hygiene, no line breaks
   (`U+000A`, `U+000D`, `U+2028`, `U+2029` → 400 `invalid_format`). Over 200 → `too_long`; empty
   after trimming → `required`. Mentions and links are plain text.
+- *(v1.19-live, CP-017)* **Kinds:** `kind` is `TEXT` (the default: everything above), `VOICE` (a
+  voice clip of at most 30 s) or `IMAGE` (a picture). VOICE and IMAGE send `mediaId` — the
+  caller's own, unattached `LIVE_CHAT_VOICE` / `LIVE_CHAT_IMAGE` asset (§11.1) — and no `text`;
+  they **vanish 60 s after sending** (§10.19). Details in §10.19.
 - **Who may send:** signed-in callers who are in the room now: the host, or a caller with a
   row in the room's media session (§10.8; seated guests and moderators included). Guests
   without an account read only (owner D96). Order of checks: 401, 404 (cannot see the room,
@@ -804,7 +815,7 @@ until a media provider is wired in.
   with the first message (even if the text differs), and no second data message.
 - **`authorRole`:** `HOST`, `MODERATOR`, `SPEAKER` (seated) or `VIEWER`, as when it was sent.
 - **Reading:** `GET /live/rooms/{roomId}/chat` returns the last 50 messages, oldest first,
-  without deleted ones; anyone who may watch the room (guests need `allowGuests`); also on an
+  without deleted ones *(v1.19-live)* and without expired voice clips and images; anyone who may watch the room (guests need `allowGuests`); also on an
   ended room. A signed-in reader never gets messages from someone they blocked or who blocked
   them.
 - **Live delivery** (topic `chat`, reliable, in send order, to everyone in the media room):
@@ -833,7 +844,8 @@ until a media provider is wired in.
   their room ended, by the live sweeper, except a message with an OPEN report, which stays
   until the report is closed.
 - **Not in v1.9-live:** removing someone from the room (owner D96: a follow-up proposal), a
-  word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images.
+  word filter (owner D96: not now), gift lines (L3), replies, reactions, stickers, images
+  *(images and voice clips arrived in v1.19-live, §10.19)*.
 
 ### 10.12 Editing a live, the topic and the Contribution list *(v1.10-live, DRAFT — CP-014, D97)*
 
@@ -953,6 +965,58 @@ until a media provider is wired in.
 - Apps draw the level with the owner's ten charm tiers (levels 1–10, 11–20 … 91–100); a level
   above 100 uses the last tier.
 
+### 10.19 Coins, bullet messages, voice clips and images *(v1.19-live, DRAFT — CP-017, D104)*
+
+- **Coins (owner D104, minimal):** every user has a coin balance, a whole number ≥ 0 (0 until
+  the first grant; §3: exact as a JSON number, at most 2^53 − 1). `GET /wallet/me` → `{"coins": n}`
+  (signed in). Every change is a ledger row (`wallet_ledger`: user, delta, reason `ADMIN_GRANT`,
+  `ADMIN_REVOKE` or `BULLET_MESSAGE`, reference, time) written in the same transaction; one row per
+  reason and reference, so a bullet is never charged twice. **No purchases** (B5 still blocks
+  them): coins come only from an admin on the server with the `wallet-admin` tool
+  (`grant <email> <coins>`, `revoke <email> <coins>`, `balance <email>`; positive whole numbers; a
+  revoke never goes below 0; every grant and revoke is audited; docs/DEPLOYMENT.md §5.4). No API
+  grants coins.
+- **Bullet message (رسالة عامة):** `POST /live/rooms/{roomId}/bullets` with `{text, clientId}`
+  sends a line that is shown in **every live** — audio and video, not only the sender's. It costs
+  **15 coins** (`LIVE_BULLET_COST_COINS`). `text`: the chat text rules (§10.11) with **1–60 code
+  points**; the origin host's blocked words are masked (§10.14). Who may send: like the chat — a
+  signed-in caller who is in that LIVE room now (the host, or in its media session); being muted in
+  that live's chat refuses it too; the chat switch does not. Order of checks: 401, 404 (cannot see
+  the room), 409 `LIVE_ROOM_ENDED`, 400 body, a retry (below), 403 `LIVE_CHAT_NOT_IN_ROOM`, 403
+  `LIVE_CHAT_MUTED`, 429 (one bullet every 5 s per user, across lives), then the charge: a balance
+  under 15 → 409 `INSUFFICIENT_COINS` and nothing is stored, charged or sent. The bullet and the
+  charge are one transaction.
+- **Response:** 201 `{"bullet": LiveBullet, "coins": <balance after>}`. **Idempotent retry:**
+  `clientId` is unique per sender and plays the role of the §3 `Idempotency-Key` for this
+  financial request (no header): the same sender and `clientId` → 200 with the first bullet and the
+  current balance, nothing charged or sent again (even if the text differs).
+- **Delivery:** after the response the server sends the bullet to every LIVE room as a reliable
+  data message on topic **`bullet`** (best effort per room, like every data message):
+
+  | `type` | Payload |
+  | ------ | ------- |
+  | `bullet` | `{"type":"bullet","bullet":{"id","text","sender":UserSummary,"roomId":<origin live>,"createdAt"}}` |
+
+  Apps show it over the live (a floating line) with the sender, and may link to the origin live
+  (`roomId`). A bullet is a broadcast to everyone: the app hides bullets from people the reader
+  blocked (`GET /me/blocks`). Bullets are not part of the chat and are not returned by any read.
+- **Voice clips and images in the chat:** the app uploads with `POST /media/uploads`
+  (`kind: LIVE_CHAT_VOICE`, `contentType: audio/mp4`, at most 1 MiB; or `kind: LIVE_CHAT_IMAGE`, an
+  image type as for posts), PUTs the bytes, completes the upload (§11.1), then sends
+  `{"kind":"VOICE"|"IMAGE","mediaId":…,"clientId":…}` to `POST /live/rooms/{roomId}/chat` (the
+  §10.11 checks and limits apply; an asset that is not the caller's unattached asset of that kind →
+  400 `mediaId` / `invalid_value`, after the counting rule). A voice clip is at most **30 s**: the
+  server reads the length from the file when the upload completes and refuses a longer one (422
+  `MEDIA_INVALID`); `media.durationMs` carries it.
+- **They vanish after 60 s (owner D104):** a VOICE or IMAGE message carries `expiresAt` = sent +
+  60 s, also in its `chat` data message. Apps hide it at `expiresAt` (server time; apps without a
+  synced clock may hide it 60 s after receiving it). From then on `GET …/chat` does not return it,
+  it cannot be reported, and the live sweeper deletes its asset and the stored objects (within one
+  sweep interval, 15 s by default); its `media` is null if it is read before the sweep. TEXT
+  messages keep §10.11 retention and `expiresAt: null`.
+- **Not in v1.19-live:** buying coins (B5), a coin history for users, gifts (L3), sending coins to
+  other users, captions on images, video clips.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -977,6 +1041,17 @@ these rules.
 - *(CP-015)* `LIVE_COVER` uploads follow the same checks; both variants are centre-cropped
   squares, never enlarged: `media/{mediaId}/640.webp` (at most 640 × 640) and `320.webp`. They
   attach only as the host's live cover (§10.13).
+- *(v1.19-live, CP-017)* `LIVE_CHAT_IMAGE` uploads follow the same checks and sizes as
+  `POST_IMAGE` and attach only to a live chat message. `LIVE_CHAT_VOICE` uploads are voice clips:
+  `audio/mp4` (AAC in an MPEG-4 container, `.m4a`), at most 1 MiB (else 400 `byteSize` /
+  `too_big`; an image type for this kind, or `audio/mp4` for another kind → 400 `contentType` /
+  `invalid_value`). Completing checks the container — an `ftyp` box first, the movie length from
+  `moov/mvhd`, every track a sound track — and refuses a clip longer than 30 s (up to 30.5 s of
+  encoder padding is accepted and reported as 30 000 ms) with 422 `MEDIA_INVALID`; the audio is
+  not decoded or re-encoded. The bytes are stored unchanged as `media/{mediaId}/voice.m4a`
+  (`audio/mp4`). The asset is `type: AUDIO`, `width`/`height` 0, `blurhash` null, `thumbUrl` =
+  `url`, plus `durationMs`. Both kinds attach only to a live chat message and are deleted 60 s
+  after it was sent (§10.19).
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.

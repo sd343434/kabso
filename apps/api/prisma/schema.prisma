@@ -109,6 +109,9 @@ model User {
   notificationPrefs  NotificationSettings?
   livePointsHourly   LiveHostPointsHourly[] @relation("LiveHostPointsHourly")
   liveScheduleSlots  LiveScheduleSlot[]     @relation("LiveScheduleSlots")
+  wallet             Wallet?
+  walletLedger       WalletLedgerEntry[]
+  liveBullets        LiveBullet[]
 
   @@map("users")
 }
@@ -395,6 +398,7 @@ model LiveRoom {
   tappers      LiveRoomTapper[]
   chatMessages LiveChatMessage[]
   chatMutes    LiveChatMute[]
+  bullets      LiveBullet[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -573,31 +577,111 @@ enum LiveChatAuthorRole {
   @@map("live_chat_author_role")
 }
 
+/// CP-017 (D104): what a chat message carries. VOICE and IMAGE vanish 60 s after sending.
+enum LiveChatMessageKind {
+  TEXT
+  VOICE
+  IMAGE
+
+  @@map("live_chat_message_kind")
+}
+
 /// CP-013 (D96): a live room chat message. `text` is 1–200 code points after the §10.11 rules
 /// (CHECK `live_chat_messages_text_length`); `client_id` is chosen by the app, unique per sender
 /// (an idempotent retry). Soft-deleted by its author, the host, a moderator or an admin report
 /// action. Removed by the live sweeper 30 days after the room ended unless an OPEN report points
 /// at it (migration 20261029090000_live_chat).
+/// CP-017 (D104): a VOICE or IMAGE message has empty `text`, its `LIVE_CHAT_*` asset in
+/// `media_id` and `expires_at` = sent + 60 s; the live chat sweeper deletes the asset after that
+/// (`media_id` becomes NULL). CHECKs `live_chat_messages_text_length` and
+/// `live_chat_messages_kind_shape` (migration 20261108100000_live_chat_media).
 model LiveChatMessage {
-  id          String             @id @default(uuid(7)) @db.Uuid
-  roomId      String             @map("room_id") @db.Uuid
-  userId      String             @map("user_id") @db.Uuid
-  clientId    String             @map("client_id") @db.Uuid
-  text        String             @db.VarChar(200)
-  authorRole  LiveChatAuthorRole @map("author_role")
-  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(3)
-  deletedById String?            @map("deleted_by_id") @db.Uuid
+  id          String              @id @default(uuid(7)) @db.Uuid
+  roomId      String              @map("room_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  clientId    String              @map("client_id") @db.Uuid
+  kind        LiveChatMessageKind @default(TEXT)
+  text        String              @default("") @db.VarChar(200)
+  mediaId     String?             @unique(map: "live_chat_messages_media_once") @map("media_id") @db.Uuid
+  expiresAt   DateTime?           @map("expires_at") @db.Timestamptz(3)
+  authorRole  LiveChatAuthorRole  @map("author_role")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime?           @map("deleted_at") @db.Timestamptz(3)
+  deletedById String?             @map("deleted_by_id") @db.Uuid
 
-  room      LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user      User     @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  deletedBy User?    @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  room      LiveRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User        @relation("LiveChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  deletedBy User?       @relation("LiveChatDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  media     MediaAsset? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
   reports   Report[]
 
   @@unique([userId, clientId], map: "live_chat_messages_client_once")
   @@index([roomId, createdAt], map: "live_chat_messages_room_created_idx")
   @@index([deletedById], map: "live_chat_messages_deleted_by_idx")
+  /// The expired-media sweep (only messages that still hold an asset).
+  @@index([expiresAt], map: "live_chat_messages_media_expiry_idx", where: raw("media_id IS NOT NULL"))
   @@map("live_chat_messages")
+}
+
+/// CP-017 (D104): why a coin balance changed.
+enum WalletLedgerReason {
+  ADMIN_GRANT
+  ADMIN_REVOKE
+  BULLET_MESSAGE
+
+  @@map("wallet_ledger_reason")
+}
+
+/// CP-017 (D104): a user's coin balance (no row = 0). CHECK `wallets_coins_range`: 0 … 2^53−1
+/// (CONVENTIONS §3). Changed only together with a `wallet_ledger` row.
+model Wallet {
+  userId    String   @id @map("user_id") @db.Uuid
+  coins     BigInt   @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+/// CP-017 (D104): every change of a coin balance. `(reason, reference_id)` is unique (one charge
+/// per bullet, one row per admin grant). CHECKs `wallet_ledger_delta_nonzero` and
+/// `wallet_ledger_balance_range` (migration 20261108090000_wallet_and_bullets).
+model WalletLedgerEntry {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  userId       String             @map("user_id") @db.Uuid
+  delta        BigInt
+  balanceAfter BigInt             @map("balance_after")
+  reason       WalletLedgerReason
+  referenceId  String             @map("reference_id") @db.VarChar(64)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reason, referenceId], map: "wallet_ledger_reference_once")
+  @@index([userId, createdAt(sort: Desc)], map: "wallet_ledger_user_created_idx")
+  @@map("wallet_ledger")
+}
+
+/// CP-017 (D104): a bullet message (رسالة عامة), sent from one live to every live. `client_id`
+/// is unique per sender (an idempotent retry, never charged twice); `cost` is what it cost.
+/// CHECKs `live_bullets_text_length`, `live_bullets_cost_positive`.
+model LiveBullet {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  /// The live it was sent from (null once that room is gone).
+  roomId    String?  @map("room_id") @db.Uuid
+  text      String   @db.VarChar(60)
+  cost      Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room LiveRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clientId], map: "live_bullets_client_once")
+  @@index([roomId], map: "live_bullets_room_idx")
+  @@map("live_bullets")
 }
 
 /// CP-013 (D96): a user muted in one live's chat by the host or a moderator (not a block).
@@ -1054,10 +1138,14 @@ model MediaUpload {
 model MediaAsset {
   id         String    @id @default(uuid(7)) @db.Uuid
   ownerId    String    @map("owner_id") @db.Uuid
-  /// `POST_IMAGE`, `STORY_IMAGE` or `LIVE_COVER` (the upload's kind).
+  /// `POST_IMAGE`, `STORY_IMAGE`, `LIVE_COVER`, `LIVE_CHAT_IMAGE` or `LIVE_CHAT_VOICE` (the
+  /// upload's kind).
   kind       String    @default("POST_IMAGE") @db.VarChar(32)
+  /// 0 for a `LIVE_CHAT_VOICE` clip (CP-017).
   width      Int
   height     Int
+  /// CP-017: a `LIVE_CHAT_VOICE` clip's length (≤ 30 000 ms); null for images.
+  durationMs Int?      @map("duration_ms")
   blurhash   String?   @db.VarChar(64)
   largeKey   String    @map("large_key") @db.VarChar(256)
   thumbKey   String    @map("thumb_key") @db.VarChar(256)
@@ -1065,11 +1153,12 @@ model MediaAsset {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
 
-  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  upload    MediaUpload?
-  postMedia PostMedia?
-  story     Story?
-  liveCover LiveHost?
+  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload      MediaUpload?
+  postMedia   PostMedia?
+  story       Story?
+  liveCover   LiveHost?
+  chatMessage LiveChatMessage?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")

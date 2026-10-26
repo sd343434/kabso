@@ -4,6 +4,8 @@ import { AdminGuard, AdminPermissions } from '../levels/admin.guard.js';
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { WalletModule } from '../wallet/wallet.module.js';
+import { LiveBulletsService } from './live-bullets.service.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatService } from './live-chat.service.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
@@ -33,12 +35,13 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
  * `live_room_moderators`, the CP-012 score tables `live_room_scores` and `live_room_tappers`, and the
  * CP-013 chat tables `live_chat_messages` and `live_chat_mutes`, and the CP-015 live cover
  * (`live_hosts.cover_*`, through the media module's `LIVE_COVER` assets), and the CP-016 tables
- * `live_host_points_hourly` and `live_schedule_slots`. Runs the in-process
+ * `live_host_points_hourly` and `live_schedule_slots`, and the CP-017 `live_bullets` (charged through
+ * the wallet module). Runs the in-process
  * stale-room sweeper and the media reconciliation; talks to the media server through
  * {@link LIVE_MEDIA_PROVIDER} (LiveKit, D3).
  */
 @Module({
-  imports: [MediaModule, UsersModule],
+  imports: [MediaModule, UsersModule, WalletModule],
   controllers: [
     LiveController,
     LiveCoverController,
@@ -59,6 +62,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBlockedWordsService,
     LiveScheduleService,
     LiveRoomMetadataService,
+    // CP-017: bullet messages, charged through the wallet (§10.19).
+    LiveBulletsService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).
     LevelProgressService,
     AdminGuard,

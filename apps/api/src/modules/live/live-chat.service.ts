@@ -1,16 +1,17 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
 import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { Clock } from '../../common/time/clock.js';
-import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { MediaService, type MediaAssetDto, type MediaKind } from '../media/media.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveRoomsService, type RoomRow, type UserSummaryDto } from './live-rooms.service.js';
-import { isUuid, liveChatSendSchema } from './live.schemas.js';
+import { isUuid, parseLiveChatSend, type LiveChatKind } from './live.schemas.js';
 import { maskBlockedWords } from './live-blocked-words.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
@@ -19,13 +20,19 @@ import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.
 
 export type LiveChatAuthorRole = 'HOST' | 'MODERATOR' | 'SPEAKER' | 'VIEWER';
 
-/** `LiveChatMessage`. */
+/** `LiveChatMessage` (`kind`, `media`, `expiresAt`: CP-017). */
 export interface LiveChatMessageDto {
   id: string;
   roomId: string;
   author: UserSummaryDto;
   authorRole: LiveChatAuthorRole;
+  kind: LiveChatKind;
+  /** Empty for VOICE and IMAGE. */
   text: string;
+  /** The clip or picture of a VOICE or IMAGE message (null for TEXT, and once it expired). */
+  media: MediaAssetDto | null;
+  /** VOICE and IMAGE: 60 s after sending, when apps hide it; null for TEXT. */
+  expiresAt: string | null;
   createdAt: string;
 }
 
@@ -43,6 +50,16 @@ export const LIVE_CHAT_LIST_MAX = 50;
 export const LIVE_CHAT_SEND_INTERVAL_MS = 1_000;
 /** At most one "joined" line a second per room; extras are dropped (owner D96). */
 export const LIVE_CHAT_JOIN_INTERVAL_MS = 1_000;
+/** CP-017 (owner D104): voice clips and images vanish 60 s after sending. */
+export const LIVE_CHAT_MEDIA_TTL_MS = 60_000;
+/** The asset kind a VOICE or IMAGE message takes (CONVENTIONS §11.1). */
+const MEDIA_KIND_OF: Readonly<Record<'VOICE' | 'IMAGE', MediaKind>> = {
+  VOICE: 'LIVE_CHAT_VOICE',
+  IMAGE: 'LIVE_CHAT_IMAGE',
+};
+/** Expired-media sweep: assets per batch and batches per run. */
+const MEDIA_SWEEP_BATCH = 200;
+const MEDIA_SWEEP_MAX_BATCHES = 20;
 
 /** The data messages of topic `chat` (CONVENTIONS §10.11). */
 export type LiveChatData =
@@ -51,18 +68,12 @@ export type LiveChatData =
   | { readonly type: 'join'; readonly user: UserSummaryDto }
   | { readonly type: 'chat-state'; readonly enabled: boolean };
 
-const MESSAGE_INCLUDE = { user: { select: USER_SUMMARY_SELECT } } as const;
+const MESSAGE_INCLUDE = { user: { select: USER_SUMMARY_SELECT }, media: true } as const;
 type MessageRow = Prisma.LiveChatMessageGetPayload<{ include: typeof MESSAGE_INCLUDE }>;
 
-function toDto(row: MessageRow): LiveChatMessageDto {
-  return {
-    id: row.id,
-    roomId: row.roomId,
-    author: userSummary(row.user),
-    authorRole: row.authorRole,
-    text: row.text,
-    createdAt: row.createdAt.toISOString(),
-  };
+/** Messages a read may still return: TEXT, or VOICE / IMAGE before they expire (CP-017). */
+function notExpired(now: Date): Prisma.LiveChatMessageWhereInput {
+  return { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
 }
 
 function forbidden(): AppException {
@@ -85,10 +96,13 @@ function notFound(): AppException {
  * in this instance.
  */
 @Injectable()
-export class LiveChatService {
+export class LiveChatService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LiveChatService.name);
   /** Room → the tail of its broadcast chain (send order per room). */
   private readonly queues = new Map<string, Promise<void>>();
+  private sweepTimer: NodeJS.Timeout | undefined;
+  private sweepInFlight: Promise<unknown> | null = null;
+  private stopped = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -98,7 +112,49 @@ export class LiveChatService {
     private readonly clock: Clock,
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     private readonly blockedWords: LiveBlockedWordsService,
+    private readonly assets: MediaService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  onModuleInit(): void {
+    if (this.config.live.sweepIntervalSeconds > 0) this.scheduleSweep();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.stopped = true;
+    if (this.sweepTimer) clearTimeout(this.sweepTimer);
+    await this.sweepInFlight?.catch(() => undefined);
+  }
+
+  /** CP-017: the expired-media sweep at the live sweeper's cadence; one run at a time. */
+  private scheduleSweep(): void {
+    if (this.stopped) return;
+    this.sweepTimer = setTimeout(() => {
+      this.sweepInFlight = this.sweepExpiredMedia()
+        .catch((err: unknown) => {
+          this.logger.error({ error: safeErrorLog(err) }, 'Live chat media sweep failed');
+        })
+        .finally(() => {
+          this.sweepInFlight = null;
+          this.scheduleSweep();
+        });
+    }, this.config.live.sweepIntervalSeconds * 1000);
+    this.sweepTimer.unref();
+  }
+
+  private toDto(row: MessageRow): LiveChatMessageDto {
+    return {
+      id: row.id,
+      roomId: row.roomId,
+      author: userSummary(row.user),
+      authorRole: row.authorRole,
+      kind: row.kind,
+      text: row.text,
+      media: row.media ? this.assets.toDto(row.media) : null,
+      expiresAt: row.expiresAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
 
   // ---- Delivery --------------------------------------------------------------------------------
 
@@ -155,6 +211,8 @@ export class LiveChatService {
    * by the same sender → the first message (`created` false, nothing sent again), the caller in
    * the room (403 LIVE_CHAT_NOT_IN_ROOM), not muted (403 LIVE_CHAT_MUTED), the chat on (409
    * LIVE_CHAT_CLOSED; the host may still send), and the counting rule (429 with `Retry-After`).
+   * CP-017: a VOICE or IMAGE message then takes the caller's unattached `LIVE_CHAT_VOICE` /
+   * `LIVE_CHAT_IMAGE` asset (else 400 `mediaId` / `invalid_value`) and expires 60 s later.
    */
   async send(
     callerId: string,
@@ -163,13 +221,13 @@ export class LiveChatService {
   ): Promise<{ created: boolean; message: LiveChatMessageDto }> {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const parsed = liveChatSendSchema.safeParse(body ?? {}, { reportInput: true });
-    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
-    const { text } = parsed.data;
-    const clientId = parsed.data.clientId.toLowerCase();
+    const parsed = parseLiveChatSend(body);
+    if (!parsed.success) throw AppException.validation(parsed.details);
+    const input = parsed.data;
+    const clientId = input.clientId.toLowerCase();
 
     const first = await this.byClientId(callerId, clientId);
-    if (first) return { created: false, message: toDto(first) };
+    if (first) return { created: false, message: this.toDto(first) };
 
     const isHost = callerId === row.host_user_id;
     if (!isHost) {
@@ -189,36 +247,52 @@ export class LiveChatService {
     if (waitMs > 0) {
       // A concurrent request with the same clientId may have stored it meanwhile: still a retry.
       const stored = await this.byClientId(callerId, clientId);
-      if (stored) return { created: false, message: toDto(stored) };
+      if (stored) return { created: false, message: this.toDto(stored) };
       throw new AppException(ErrorCode.RATE_LIMITED, undefined, undefined, {
         'Retry-After': String(Math.max(1, Math.ceil(waitMs / 1000))),
       });
     }
 
-    // CP-016 B: the host's blocked words are masked before the message is stored or sent.
-    const shown = maskBlockedWords(text, await this.blockedWords.wordsOf(row.host_user_id));
+    const authorRole = await this.roleOf(row, callerId);
     let created: MessageRow;
     try {
-      created = await this.prisma.liveChatMessage.create({
-        data: {
-          roomId: row.id,
-          userId: callerId,
-          clientId,
-          text: shown,
-          authorRole: await this.roleOf(row, callerId),
-          createdAt: now,
-        },
-        include: MESSAGE_INCLUDE,
-      });
+      if (input.kind === 'TEXT') {
+        // CP-016 B: the host's blocked words are masked before the message is stored or sent.
+        const shown = maskBlockedWords(input.text, await this.blockedWords.wordsOf(row.host_user_id));
+        created = await this.prisma.liveChatMessage.create({
+          data: { roomId: row.id, userId: callerId, clientId, text: shown, authorRole, createdAt: now },
+          include: MESSAGE_INCLUDE,
+        });
+      } else {
+        const { kind, mediaId } = input;
+        created = await this.prisma.$transaction(async (tx) => {
+          const claimed = await this.assets.claimAssetsIn(tx, callerId, [mediaId], MEDIA_KIND_OF[kind]);
+          if (!claimed) throw AppException.validation([{ field: 'mediaId', issue: 'invalid_value' }]);
+          return tx.liveChatMessage.create({
+            data: {
+              roomId: row.id,
+              userId: callerId,
+              clientId,
+              kind,
+              text: '',
+              mediaId: mediaId.toLowerCase(),
+              expiresAt: new Date(now.getTime() + LIVE_CHAT_MEDIA_TTL_MS),
+              authorRole,
+              createdAt: now,
+            },
+            include: MESSAGE_INCLUDE,
+          });
+        });
+      }
     } catch (err) {
       // A concurrent request with the same clientId won: answer with its message.
       if (violatedUniqueIndex(err) !== null) {
         const raced = await this.byClientId(callerId, clientId);
-        if (raced) return { created: false, message: toDto(raced) };
+        if (raced) return { created: false, message: this.toDto(raced) };
       }
       throw err;
     }
-    const message = toDto(created);
+    const message = this.toDto(created);
     await this.broadcast(row.id, { type: 'chat', message });
     return { created: true, message };
   }
@@ -233,8 +307,8 @@ export class LiveChatService {
   // ---- Reading ---------------------------------------------------------------------------------
 
   /**
-   * `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first, without deleted ones or
-   * those of inactive accounts; a signed-in reader gets none from someone they blocked or who
+   * `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first, without deleted ones,
+   * expired voice clips and images (CP-017) or those of inactive accounts; a signed-in reader gets none from someone they blocked or who
    * blocked them. Guests need the room's `allowGuests` (403 LIVE_GUESTS_NOT_ALLOWED). Ended rooms
    * too.
    */
@@ -245,6 +319,7 @@ export class LiveChatService {
       where: {
         roomId: row.id,
         deletedAt: null,
+        ...notExpired(this.clock.now()),
         user: {
           status: 'ACTIVE',
           ...(callerId === null
@@ -259,7 +334,7 @@ export class LiveChatService {
       take: LIVE_CHAT_LIST_MAX,
       include: MESSAGE_INCLUDE,
     });
-    return { data: rows.reverse().map(toDto) };
+    return { data: rows.reverse().map((r) => this.toDto(r)) };
   }
 
   // ---- Moderation ------------------------------------------------------------------------------
@@ -362,14 +437,15 @@ export class LiveChatService {
   // ---- Reports (CONVENTIONS §11.7) --------------------------------------------------------------
 
   /**
-   * A message `reporterId` could read (§10.11): not deleted, in a room they may see, by an active
-   * author with no block either way; else 404. Returns its id and author.
+   * A message `reporterId` could read (§10.11): not deleted nor expired (CP-017), in a room they
+   * may see, by an active author with no block either way; else 404. Returns its id and author.
    */
   async readableMessage(messageId: string, reporterId: string): Promise<{ id: string; userId: string }> {
     const message = await this.prisma.liveChatMessage.findFirst({
       where: {
         id: messageId,
         deletedAt: null,
+        ...notExpired(this.clock.now()),
         user: {
           status: 'ACTIVE',
           blocking: { none: { blockedId: reporterId } },
@@ -404,5 +480,29 @@ export class LiveChatService {
   /** After {@link removeIn} committed: the room's apps drop the line. */
   async afterRemoved(roomId: string, messageId: string): Promise<void> {
     await this.broadcast(roomId, { type: 'chat-delete', id: messageId });
+  }
+
+  // ---- CP-017: expired voice clips and images --------------------------------------------------
+
+  /**
+   * Deletes the assets of VOICE and IMAGE messages that expired (`expires_at` ≤ now): their
+   * objects, then their rows (the message keeps its row, with `media_id` NULL, and is no longer
+   * returned). Bounded batches; a storage failure stops the run and the next one retries.
+   */
+  async sweepExpiredMedia(now: Date = this.clock.now()): Promise<number> {
+    let removed = 0;
+    for (let batch = 0; batch < MEDIA_SWEEP_MAX_BATCHES; batch += 1) {
+      const expired = await this.prisma.liveChatMessage.findMany({
+        where: { mediaId: { not: null }, expiresAt: { lte: now } },
+        orderBy: { expiresAt: 'asc' },
+        take: MEDIA_SWEEP_BATCH,
+        select: { media: { select: { id: true, largeKey: true, thumbKey: true } } },
+      });
+      const assets = expired.flatMap((m) => (m.media ? [m.media] : []));
+      if (assets.length === 0) break;
+      removed += await this.assets.purgeAssets(assets);
+      if (expired.length < MEDIA_SWEEP_BATCH) break;
+    }
+    return removed;
   }
 }

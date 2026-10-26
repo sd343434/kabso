@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { ErrorDetail } from '../../common/errors/error-codes.js';
+import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
 import { trimHygiene } from '../users/text-hygiene.js';
@@ -228,17 +230,20 @@ export type LiveChatTextIssue = 'required' | 'too_long' | 'invalid_format';
 
 /**
  * A chat message's text (CONVENTIONS §10.11): NFC, trimmed (spaces and U+FEFF, §6 rule 4); empty
- * → `required`; a line break → `invalid_format`; over 200 code points → `too_long`; then the §6
- * hygiene rules shared with comments (rejected code points, misplaced joiners, the zalgo cap) →
- * `invalid_format`.
+ * → `required`; a line break → `invalid_format`; over `max` code points (200; a bullet message
+ * 60, CP-017) → `too_long`; then the §6 hygiene rules shared with comments (rejected code points,
+ * misplaced joiners, the zalgo cap) → `invalid_format`.
  */
-export function normalizeLiveChatText(raw: string): { value: string } | { issue: LiveChatTextIssue } {
+export function normalizeLiveChatText(
+  raw: string,
+  max: number = LIVE_CHAT_MAX_CODE_POINTS,
+): { value: string } | { issue: LiveChatTextIssue } {
   const value = trimHygiene(raw.normalize('NFC'));
   if (value.length === 0) return { issue: 'required' };
   if (LINE_BREAK.test(value)) return { issue: 'invalid_format' };
-  if ([...value].length > LIVE_CHAT_MAX_CODE_POINTS) return { issue: 'too_long' };
+  if ([...value].length > max) return { issue: 'too_long' };
   const result = normalizeContentText(value, {
-    maxCodePoints: LIVE_CHAT_MAX_CODE_POINTS,
+    maxCodePoints: max,
     maxLineBreaks: 0,
     allowEmpty: false,
   });
@@ -246,22 +251,94 @@ export function normalizeLiveChatText(raw: string): { value: string } | { issue:
   return { value: result.value };
 }
 
-/** `LiveChatSendRequest`; the raw text is bounded first (no unbounded work), then normalized. */
-export const liveChatSendSchema = z.strictObject({
-  text: z
+/** A text field of at most `max` code points: bounded first (no unbounded work), then normalized. */
+function chatTextSchema(max: number) {
+  return z
     .string()
-    .max(LIVE_CHAT_MAX_CODE_POINTS * 8)
+    .max(max * 8)
     .transform((raw, ctx) => {
-      const result = normalizeLiveChatText(raw);
+      const result = normalizeLiveChatText(raw, max);
       if ('issue' in result) {
         ctx.addIssue({ code: 'custom', message: result.issue, params: { issue: result.issue } });
         return z.NEVER;
       }
       return result.value;
-    }),
+    });
+}
+
+/** CP-017 (D104): what a chat message carries. */
+export const LIVE_CHAT_KINDS = ['TEXT', 'VOICE', 'IMAGE'] as const;
+export type LiveChatKind = (typeof LIVE_CHAT_KINDS)[number];
+
+/**
+ * The fields of `LiveChatSendRequest`, each checked on its own; which of `text` / `mediaId` is
+ * required depends on `kind` ({@link parseLiveChatSend}).
+ */
+const liveChatSendFieldsSchema = z.strictObject({
+  kind: z.enum(LIVE_CHAT_KINDS).optional(),
+  text: chatTextSchema(LIVE_CHAT_MAX_CODE_POINTS).optional(),
+  mediaId: z.uuid().optional(),
   clientId: z.uuid(),
 });
-export type LiveChatSendInput = z.output<typeof liveChatSendSchema>;
+
+export type LiveChatSendInput =
+  | { readonly kind: 'TEXT'; readonly text: string; readonly clientId: string }
+  | { readonly kind: 'VOICE' | 'IMAGE'; readonly mediaId: string; readonly clientId: string };
+
+const SEND_FIELD_ORDER = ['kind', 'text', 'mediaId', 'clientId'];
+
+/**
+ * `LiveChatSendRequest` (CONVENTIONS §10.11; CP-017 kinds): `kind` defaults to TEXT. TEXT needs
+ * `text` and takes no `mediaId`; VOICE and IMAGE need `mediaId` (the caller's `LIVE_CHAT_VOICE` /
+ * `LIVE_CHAT_IMAGE` asset) and take no `text`. A missing field → `required`, a field the kind does
+ * not take → `invalid_value`; details are in field order.
+ */
+export function parseLiveChatSend(
+  body: unknown,
+): { success: true; data: LiveChatSendInput } | { success: false; details: ErrorDetail[] } {
+  const parsed = liveChatSendFieldsSchema.safeParse(body ?? {}, { reportInput: true });
+  const details: ErrorDetail[] = parsed.success ? [] : zodErrorToDetails(parsed.error);
+  const raw = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+  const kind: LiveChatKind | null =
+    raw.kind === undefined
+      ? 'TEXT'
+      : (LIVE_CHAT_KINDS as readonly unknown[]).includes(raw.kind)
+        ? (raw.kind as LiveChatKind)
+        : null;
+  const add = (field: string, issue: string) => {
+    if (!details.some((d) => d.field === field)) details.push({ field, issue });
+  };
+  if (kind === 'TEXT') {
+    if (raw.text === undefined) add('text', 'required');
+    if (raw.mediaId !== undefined) add('mediaId', 'invalid_value');
+  } else if (kind !== null) {
+    if (raw.mediaId === undefined) add('mediaId', 'required');
+    if (raw.text !== undefined) add('text', 'invalid_value');
+  }
+  if (details.length > 0 || !parsed.success) {
+    const rank = (field: string) => {
+      const i = SEND_FIELD_ORDER.indexOf(field);
+      return i < 0 ? SEND_FIELD_ORDER.length : i;
+    };
+    return { success: false, details: [...details].sort((a, b) => rank(a.field) - rank(b.field)) };
+  }
+  const { text, mediaId, clientId } = parsed.data;
+  return kind === 'TEXT'
+    ? { success: true, data: { kind, text: text!, clientId } }
+    : { success: true, data: { kind: kind!, mediaId: mediaId!, clientId } };
+}
+
+// ---- CP-017 (D104): bullet messages ---------------------------------------------------------
+
+/** 1–60 code points (owner D104). */
+export const LIVE_BULLET_MAX_CODE_POINTS = 60;
+
+/** `LiveBulletSendRequest`: the chat text rules with at most 60 code points. */
+export const liveBulletSendSchema = z.strictObject({
+  text: chatTextSchema(LIVE_BULLET_MAX_CODE_POINTS),
+  clientId: z.uuid(),
+});
+export type LiveBulletSendInput = z.output<typeof liveBulletSendSchema>;
 
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });

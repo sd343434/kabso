@@ -532,6 +532,26 @@ a `CONNECTION LIMIT`.
   custom domain and API token (B12), and an image-moderation provider (B13; until then photo
   posts are visible only to their author, CONVENTIONS §11.2).
 
+### 5.4 Coins (migration `20261108090000_wallet_and_bullets`, CP-017, D104) — [IMPLEMENTED, draft contract]
+
+- Additive: `wallets` (one balance per user, 0 without a row), `wallet_ledger` (every change;
+  append-only for the runtime group, like `points_ledger`) and `live_bullets`. Bullet messages
+  cost 15 coins (CONVENTIONS §10.19). There is no purchase yet (B5): coins are granted only by an
+  admin with the migration role.
+- `pnpm wallet:admin grant <email> <coins>` adds coins (a positive whole number, at most 10^9 per
+  command); `revoke <email> <coins>` takes them back (refused if the balance is smaller);
+  `balance <email>` prints it. Every grant and revoke writes a ledger row and an audit log row
+  (`wallet.grant` / `wallet.revoke`) in one transaction. The tool is built into the API image as
+  `dist/cli/wallet-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/wallet-admin.js grant someone@example.com 100
+  docker compose --profile jobs run --rm migrate node dist/cli/wallet-admin.js balance someone@example.com
+  ```
+- Voice clips and images of the live chat (migration `20261108100000_live_chat_media`) are
+  deleted by the live sweeper 60 s after they were sent (`LIVE_SWEEP_INTERVAL_SECONDS` cadence);
+  they need `MEDIA_UPLOADS_ENABLED` like every upload.
+
 ## 6. Observability baseline
 
 | Item | Status |

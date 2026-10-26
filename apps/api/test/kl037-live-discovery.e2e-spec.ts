@@ -114,6 +114,8 @@ describe('KL-037 contract coverage', () => {
             'tapLiveRoom',
             // CP-016 A (v1.13-live draft): the popularity board; kl071-live-rankings covers it.
             'listLiveRankings',
+            // CP-017 (v1.19-live draft): bullet messages; kl077-wallet-bullets-chat-media covers it.
+            'sendLiveBullet',
           ].includes(o.operationId),
       )
       .filter(

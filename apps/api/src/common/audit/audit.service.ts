@@ -55,6 +55,9 @@ export enum AuditAction {
   LEVELS_PERMISSION_REVOKE = 'levels.permission.revoke',
   // v1.5-social (CP-006 M1): moderation of reports (CONVENTIONS §11.7).
   MODERATION_REPORT_ACTION = 'moderation.report.action',
+  // v1.19-live (DRAFT, CP-017): coins granted or taken back by an admin (`wallet-admin`).
+  WALLET_GRANT = 'wallet.grant',
+  WALLET_REVOKE = 'wallet.revoke',
 }
 
 export interface AuditEntry {

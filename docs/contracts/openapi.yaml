@@ -49,6 +49,10 @@ info:
     host's charm level); taps give the host charm points (`LIVE_TAPS`, CONVENTIONS §10.18).
     **v1.18-live (DRAFT, owner D103)** changes the `AUDIO` seat counts to 5, 10, 15, 20 or 25
     (host included; seat indexes stay 1 … 24, CONVENTIONS §10.9).
+    **CP-017 (D104, DRAFT v1.19-live)** adds coins (`GET /wallet/me`; granted only by an admin on
+    the server, purchases still B5), bullet messages (15 coins, shown in every live as data
+    message `bullet`, code `INSUFFICIENT_COINS`) and voice clips (≤ 30 s) and images in the live
+    chat that vanish 60 s after sending (CONVENTIONS §10.19, §10.11, §11.1).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -71,6 +75,8 @@ tags:
     description: "Admin: the hosting permission (v1.6-live DRAFT, CP-010)."
   - name: media
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
+  - name: wallet
+    description: "The caller's coins (v1.19-live DRAFT, CP-017)."
   - name: posts
     description: "Posts, drafts, scheduling, pins, likes, saves, reposts, shares and views (v1.5-social DRAFT)."
   - name: feed
@@ -1029,8 +1035,9 @@ paths:
       description: |
         CONVENTIONS §10.11. Anyone who may watch the room reads it; a guest without an account
         needs the room's `allowGuests` (else 403 `LIVE_GUESTS_NOT_ALLOWED`). Server-bounded and
-        unpaginated (§5): the last 50 messages, without deleted ones. A signed-in reader never
-        gets messages from someone they blocked or who blocked them. Works on an ended room too.
+        unpaginated (§5): the last 50 messages, without deleted ones and (CP-017) without voice
+        clips and images past their `expiresAt`. A signed-in reader never gets messages from
+        someone they blocked or who blocked them. Works on an ended room too.
         A room the caller may not see → 404.
       security: [{}, {bearerAuth: []}]
       parameters:
@@ -1057,6 +1064,12 @@ paths:
         still send); 429. The stored message is sent to everyone in the room as a `chat` data
         message. A retry with the same `clientId` by the same sender returns 200 with the first
         message and sends nothing again.
+
+        CP-017 (CONVENTIONS §10.19): `kind` `VOICE` or `IMAGE` sends the caller's completed
+        `LIVE_CHAT_VOICE` / `LIVE_CHAT_IMAGE` upload (`mediaId`, no `text`); the same checks
+        apply, then an asset that is not the caller's unattached asset of that kind → 400
+        `mediaId` / `invalid_value`. Such a message has `expiresAt` = sent + 60 s and is not
+        returned after that.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1064,6 +1077,11 @@ paths:
         content:
           application/json:
             schema: { $ref: '#/components/schemas/LiveChatSendRequest' }
+            examples:
+              text:
+                value: { text: أهلاً بالجميع, clientId: 0192f1d0-1111-7000-8000-000000000001 }
+              voice:
+                value: { kind: VOICE, mediaId: 0192f1d0-2222-7000-8000-000000000002, clientId: 0192f1d0-1111-7000-8000-000000000003 }
       responses:
         '201':
           description: The stored message.
@@ -1158,6 +1176,65 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/bullets:
+    post:
+      tags: [live]
+      operationId: sendLiveBullet
+      summary: "Send a bullet message to every live, for 15 coins (CP-017)"
+      description: |
+        CONVENTIONS §10.19. A signed-in caller who is in this LIVE room now (the host, or in its
+        media session). Checks, in order: 401 without an account; 404 for a room the caller may
+        not see; 409 `LIVE_ROOM_ENDED`; 400 for the body (`text`: the chat rules with 1–60 code
+        points); a retry with the same `clientId` → 200 (the first bullet and the current
+        balance; nothing charged or sent again); 403 `LIVE_CHAT_NOT_IN_ROOM`; 403
+        `LIVE_CHAT_MUTED` (muted in this live's chat); 429 (one bullet every 5 s per user); 409
+        `INSUFFICIENT_COINS` (a balance under 15; nothing stored, charged or sent). On success 15
+        coins are charged in the same transaction and, after the response, the bullet is sent to
+        every LIVE room as a `bullet` data message on topic `bullet`
+        (`{"type":"bullet","bullet":LiveBullet}`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveBulletSendRequest' }
+            example: { text: مساء الخير يا أحلى لايف, clientId: 0192f1d0-3333-7000-8000-000000000004 }
+      responses:
+        '201':
+          description: Sent and charged; the bullet and the balance after it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveBulletResult' }
+              example:
+                bullet:
+                  id: 0192f1d0-4444-7000-8000-000000000005
+                  text: مساء الخير يا أحلى لايف
+                  sender: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                  roomId: 0192f1d0-6666-7000-8000-000000000007
+                  createdAt: '2026-10-26T18:30:00.000Z'
+                coins: 85
+        '200':
+          description: A retry (same `clientId`); the first bullet and the current balance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveBulletResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, or `INSUFFICIENT_COINS` (nothing charged)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: INSUFFICIENT_COINS
+                  message: Not enough coins.
+                  requestId: 0192f1d0-7777-7000-8000-000000000008
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/rankings:
@@ -2203,6 +2280,23 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/wallet/me:
+    get:
+      tags: [wallet]
+      operationId: getMyWallet
+      summary: "The caller's coin balance (CP-017)"
+      description: |
+        CONVENTIONS §10.19. 0 for a user who never had coins. Coins are granted only by an admin
+        on the server; there is no purchase yet (B5).
+      responses:
+        '200':
+          description: The balance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+              example: { coins: 100 }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
     post:
       tags: [media]
@@ -2212,7 +2306,8 @@ paths:
         CONVENTIONS §11.1. Check order: auth → rate limit (counted before the switch, like
         go-live) → `MEDIA_UPLOADS_ENABLED` (503 `MEDIA_UPLOADS_UNAVAILABLE`) → body. Only `POST_IMAGE` exists in M1 (video
         and stories arrive with M2/M3). The URL is valid for 10 minutes; the client sends the bytes
-        with exactly `method` and `headers`, then calls `completeMediaUpload`.
+        with exactly `method` and `headers`, then calls `completeMediaUpload`. CP-017: a
+        `LIVE_CHAT_VOICE` upload is `audio/mp4` of at most 1 MiB (CONVENTIONS §11.1).
       requestBody:
         required: true
         content:
@@ -2237,7 +2332,9 @@ paths:
         CONVENTIONS §11.1. Only the uploader may complete (anyone else: 404). The object must
         exist, match the declared type and size, and decode as an image of at most 8 000 px per
         side; else 422 `MEDIA_INVALID` and the object is deleted. Completing again returns the
-        same asset (idempotent).
+        same asset (idempotent). CP-017: a `LIVE_CHAT_VOICE` upload must be an MPEG-4 audio file
+        whose tracks are all sound and whose length is at most 30 s (else 422 `MEDIA_INVALID`);
+        the asset is `type: AUDIO` with `durationMs`.
       parameters:
         - $ref: '#/components/parameters/UploadIdPath'
       responses:
@@ -3954,19 +4051,35 @@ components:
       minLength: 1
       maxLength: 200
       description: NFC, trimmed, 1–200 code points, §6 text hygiene, no line breaks (CONVENTIONS §10.11).
+    LiveChatMessageKind:
+      type: string
+      enum: [TEXT, VOICE, IMAGE]
+      description: |
+        CP-017 (CONVENTIONS §10.19): `TEXT` a text line; `VOICE` a voice clip of at most 30 s;
+        `IMAGE` a picture. VOICE and IMAGE vanish 60 s after sending. Apps show an unknown kind
+        as nothing.
     LiveChatSendRequest:
       type: object
-      required: [text, clientId]
+      required: [clientId]
       additionalProperties: false
+      description: |
+        `kind` defaults to `TEXT`, which needs `text` and takes no `mediaId`. `VOICE` and `IMAGE`
+        need `mediaId` and take no `text`. A missing field → `required`; a field the kind does not
+        take → `invalid_value`.
       properties:
+        kind: { $ref: '#/components/schemas/LiveChatMessageKind' }
         text: { $ref: '#/components/schemas/LiveChatText' }
+        mediaId:
+          type: string
+          format: uuid
+          description: CP-017 — the caller's completed `LIVE_CHAT_VOICE` (VOICE) or `LIVE_CHAT_IMAGE` (IMAGE) upload, not used before.
         clientId:
           type: string
           format: uuid
           description: Chosen by the app for each message; a retry with the same id returns the first message.
     LiveChatMessage:
       type: object
-      required: [id, roomId, author, authorRole, text, createdAt]
+      required: [id, roomId, author, authorRole, kind, text, media, expiresAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
@@ -3975,10 +4088,42 @@ components:
           type: string
           enum: [HOST, MODERATOR, SPEAKER, VIEWER]
           description: The author's role in the room when they sent it.
+        kind: { $ref: '#/components/schemas/LiveChatMessageKind' }
         text:
           type: string
-          description: CP-016 B — the host's blocked words are already masked (each character → `*`).
+          description: CP-016 B — the host's blocked words are already masked (each character → `*`). Empty for `VOICE` and `IMAGE`.
+        media:
+          description: |
+            CP-017 — the voice clip (`type: AUDIO`, with `durationMs`) or picture (`type: IMAGE`)
+            of a `VOICE` or `IMAGE` message. Null for `TEXT`, and once the media expired and was
+            deleted.
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: CP-017 — `VOICE` and `IMAGE`, sent + 60 s; apps hide the message then. Null for `TEXT`.
         createdAt: { type: string, format: date-time }
+      example:
+        id: 0192f1d0-8888-7000-8000-000000000009
+        roomId: 0192f1d0-6666-7000-8000-000000000007
+        author: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+        authorRole: VIEWER
+        kind: VOICE
+        text: ''
+        media:
+          id: 0192f1d0-2222-7000-8000-000000000002
+          type: AUDIO
+          status: READY
+          width: 0
+          height: 0
+          blurhash: null
+          url: https://media.example.com/media/0192f1d0-2222-7000-8000-000000000002/voice.m4a
+          thumbUrl: https://media.example.com/media/0192f1d0-2222-7000-8000-000000000002/voice.m4a
+          durationMs: 12500
+        expiresAt: '2026-10-26T18:31:00.000Z'
+        createdAt: '2026-10-26T18:30:00.000Z'
     LiveChatMessageList:
       type: object
       required: [data]
@@ -4000,6 +4145,55 @@ components:
         data:
           type: array
           items: { $ref: '#/components/schemas/LiveChatMute' }
+    # ---- v1.19-live (DRAFT, CP-017) — coins and bullet messages -------------------------------
+    Wallet:
+      type: object
+      required: [coins]
+      properties:
+        coins:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: The caller's coin balance (CONVENTIONS §3, §10.19).
+    LiveBulletSendRequest:
+      type: object
+      required: [text, clientId]
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: NFC, trimmed, 1–60 code points, §6 text hygiene, no line breaks (the chat rules, CONVENTIONS §10.11, §10.19).
+        clientId:
+          type: string
+          format: uuid
+          description: Chosen by the app for each bullet; a retry with the same id returns the first bullet and is never charged again.
+    LiveBullet:
+      type: object
+      required: [id, text, sender, roomId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        text:
+          type: string
+          description: The origin host's blocked words are already masked (CP-016 B).
+        sender: { $ref: '#/components/schemas/UserSummary' }
+        roomId:
+          type: string
+          format: uuid
+          description: The live it was sent from.
+        createdAt: { type: string, format: date-time }
+    LiveBulletResult:
+      type: object
+      required: [bullet, coins]
+      properties:
+        bullet: { $ref: '#/components/schemas/LiveBullet' }
+        coins:
+          type: integer
+          format: int64
+          minimum: 0
+          description: The caller's balance after the bullet (for a retry, the current balance).
     # ---- v1.4-levels (DRAFT, CP-005) ------------------------------------------------------
     LevelCategoryCode:
       type: string
@@ -4447,11 +4641,12 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE]
       description: |
-        Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; video
+        Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
+        a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message; video
         kinds arrive with M2 (CP-006 §2). An asset is attachable only to its kind's target (a
-        post, a story or the live cover).
+        post, a story, the live cover or a live chat message).
     CreateMediaUploadRequest:
       type: object
       additionalProperties: false
@@ -4460,9 +4655,16 @@ components:
         kind: { $ref: '#/components/schemas/MediaKind' }
         contentType:
           type: string
-          enum: [image/jpeg, image/png, image/webp]
-          description: HEIC/HEIF is not accepted; the app converts such photos to JPEG on the device.
-        byteSize: { type: integer, minimum: 1, maximum: 15728640 }
+          enum: [image/jpeg, image/png, image/webp, audio/mp4]
+          description: |
+            HEIC/HEIF is not accepted; the app converts such photos to JPEG on the device.
+            `audio/mp4` (AAC in MPEG-4, `.m4a`) is for `LIVE_CHAT_VOICE` only, and that kind takes
+            nothing else (CP-017; else `invalid_value`).
+        byteSize:
+          type: integer
+          minimum: 1
+          maximum: 15728640
+          description: At most 1 048 576 for `LIVE_CHAT_VOICE` (else `too_big`).
     MediaUpload:
       type: object
       required: [uploadId, uploadUrl, method, headers, expiresAt]
@@ -4480,21 +4682,36 @@ components:
       required: [id, type, status, width, height, blurhash, url, thumbUrl]
       properties:
         id: { type: string, format: uuid }
-        type: { type: string, enum: [IMAGE] }
+        type:
+          type: string
+          enum: [IMAGE, AUDIO]
+          description: CP-017 — `AUDIO` is a `LIVE_CHAT_VOICE` clip.
         status: { type: string, enum: [READY] }
-        width: { type: integer, minimum: 1 }
-        height: { type: integer, minimum: 1 }
+        width:
+          type: integer
+          minimum: 0
+          description: At least 1 for an image; 0 for `AUDIO`.
+        height:
+          type: integer
+          minimum: 0
+          description: At least 1 for an image; 0 for `AUDIO`.
         blurhash: { type: [string, 'null'] }
         url:
           type: string
           format: uri
           description: |
             WebP, at most 1 080 px on the long side (1 920 px for a `STORY_IMAGE`, CP-008; a
-            `LIVE_COVER` is centre-cropped to a square of at most 640 px, CP-015).
+            `LIVE_COVER` is centre-cropped to a square of at most 640 px, CP-015). `AUDIO`: the
+            clip as uploaded (`audio/mp4`).
         thumbUrl:
           type: string
           format: uri
-          description: WebP, at most 320 px on the long side (a square for a `LIVE_COVER`).
+          description: "WebP, at most 320 px on the long side (a square for a `LIVE_COVER`). `AUDIO`: the same as `url`."
+        durationMs:
+          type: integer
+          minimum: 1
+          maximum: 30000
+          description: CP-017 — `AUDIO` only (absent for images); the clip's length.
     SetLiveBlockedWordsRequest:
       type: object
       additionalProperties: false
