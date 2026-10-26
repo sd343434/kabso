@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
@@ -659,6 +660,142 @@ void main() {
     });
   });
 
+  group('D109: viewers see who else is watching', () {
+    const huda = UserSummary(
+      id: 'u-huda',
+      username: 'huda',
+      displayName: 'Huda',
+      avatarUrl: null,
+    );
+    const omar = UserSummary(
+      id: 'u-omar',
+      username: 'omar',
+      displayName: 'Omar',
+      avatarUrl: null,
+    );
+    List<LiveViewer> watching() => [
+      LiveViewer(
+        kind: LiveViewerKind.user,
+        user: huda,
+        guestNumber: null,
+        joinedAt: DateTime.utc(2026, 10, 26, 12, 2),
+      ),
+      LiveViewer(
+        kind: LiveViewerKind.guest,
+        user: null,
+        guestNumber: 4821,
+        joinedAt: DateTime.utc(2026, 10, 26, 12, 1),
+      ),
+      LiveViewer(
+        kind: LiveViewerKind.user,
+        user: omar,
+        guestNumber: null,
+        joinedAt: DateTime.utc(2026, 10, 26, 12),
+      ),
+    ];
+
+    for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
+      for (final language in AppLanguage.values) {
+        testWidgets('${mode.name} room (${language.name}): the faces and the '
+            'count from the viewer list; a tap opens it read-only and a '
+            'person opens their card', (tester) async {
+          final l = l10nFor(language);
+          final repo = FakeLiveRepository(
+            room: (id) => apiRoom(
+              id: id,
+              ar: language == AppLanguage.ar,
+              viewerCount: 1,
+            ).copyWith(mode: mode, seatCount: mode.hasSeats ? 10 : null),
+          )..viewerList = watching();
+          if (mode.hasSeats) {
+            repo.seatState = LiveSeats(
+              roomId: 'room-0',
+              mode: mode,
+              seatCount: 10,
+              version: 1,
+              moderators: const [],
+              seats: [
+                for (var i = 1; i < 10; i++)
+                  LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+              ],
+            );
+          }
+          await _pumpRoom(
+            tester,
+            repo: repo,
+            language: language,
+            engine: FakeLiveMediaEngine()..present.add('user-0'),
+            user: testUser(),
+          );
+          final stack = find.byKey(LiveRoomScreen.viewersKey);
+          expect(stack, findsOneWidget);
+          // Two people (the guest has no face) and the list's count, not
+          // the room's stale 1.
+          expect(
+            find.descendant(of: stack, matching: find.byType(KAvatar)),
+            findsNWidgets(2),
+          );
+          expect(
+            find.descendant(of: stack, matching: find.text('3')),
+            findsOneWidget,
+          );
+          expect(find.bySemanticsLabel(l.liveViewers(3, '3')), findsOneWidget);
+
+          await tester.tap(stack);
+          await tester.pumpAndSettle();
+          expect(find.text(l.liveViewersTab('3')), findsOneWidget);
+          expect(find.textContaining('Huda'), findsOneWidget);
+          expect(find.textContaining('Omar'), findsOneWidget);
+          expect(find.textContaining('4821'), findsOneWidget);
+          // Read-only: no invite to a seat, no moderator choice.
+          expect(find.byKey(SeatControlKeys.inviteUser('huda')), findsNothing);
+          expect(find.byKey(SeatControlKeys.inviteUser('omar')), findsNothing);
+          // A person: their card (not the moderator menu).
+          await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+          await tester.pumpAndSettle();
+          final card = find.byKey(const Key('room.hostSheet'));
+          expect(card, findsOneWidget);
+          expect(find.byKey(SeatControlKeys.moderatorAction), findsNothing);
+          expect(find.byKey(LivePersonToolKeys.kick), findsNothing);
+          Navigator.of(tester.element(card)).pop();
+          await tester.pumpAndSettle();
+
+          // Nobody seated: no "Invite friends" for a viewer either.
+          await tester.tap(find.byKey(SeatControlKeys.guestsTab));
+          await tester.pumpAndSettle();
+          expect(find.byKey(SeatControlKeys.inviteFriends), findsNothing);
+        });
+      }
+    }
+
+    testWidgets('the list refreshes every 10 s, as the host does', (
+      tester,
+    ) async {
+      final repo = FakeLiveRepository(room: (id) => apiRoom(id: id))
+        ..viewerList = watching().take(1).toList();
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine()..present.add('user-0'),
+        user: testUser(),
+      );
+      final stack = find.byKey(LiveRoomScreen.viewersKey);
+      expect(find.descendant(of: stack, matching: find.text('1')), findsOne);
+      repo.viewerList = watching();
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pumpAndSettle();
+      expect(find.descendant(of: stack, matching: find.text('3')), findsOne);
+    });
+
+    testWidgets('an ended room shows no viewers', (tester) async {
+      final repo = FakeLiveRepository(
+        room: (id) => apiRoom(id: id, status: LiveRoomStatus.ended),
+      )..viewerList = watching();
+      await _pumpRoom(tester, repo: repo);
+      expect(find.byKey(LiveRoomScreen.viewersKey), findsNothing);
+    });
+  });
+
   group('honesty', () {
     testWidgets('no viewer count or avatars while presence does not exist', (
       tester,
@@ -672,15 +809,19 @@ void main() {
     testWidgets('a real viewer count from the API is shown as is', (
       tester,
     ) async {
+      // No one in the viewer list (yet): the room's count, no faces, no list.
       await _pumpRoom(tester, room: (id) => apiRoom(id: id, viewerCount: 3));
-      expect(find.byType(KViewerCountChip), findsOneWidget);
+      final stack = find.byKey(LiveRoomScreen.viewersKey);
+      expect(stack, findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(KViewerStrip),
-          matching: find.byType(KAvatar),
-        ),
+        find.descendant(of: stack, matching: find.text('3')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: stack, matching: find.byType(KAvatar)),
         findsNothing,
       );
+      expect(tester.widget<LiveViewersStack>(stack).onTap, isNull);
     });
 
     testWidgets('no decorative controls: every room button acts', (

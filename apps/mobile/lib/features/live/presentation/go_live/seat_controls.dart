@@ -385,6 +385,39 @@ Future<void> showInviteViewers(
   ),
 );
 
+/// D109 (v1.23.2-live): the same sheet for a viewer of the room, read-only —
+/// who is watching now (people and guests), who is on a seat and the
+/// Contribution list; no invite, no moderator choice and no seat requests.
+/// Tapping a person opens their card ([onPerson]).
+Future<void> showLiveViewers(
+  BuildContext context, {
+  required String roomId,
+  List<UserSummary> moderators = const [],
+  List<LiveSeat> seated = const [],
+  int initialTab = 0,
+  void Function(UserSummary user)? onPerson,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: const Color(0x00000000),
+  barrierColor: const Color(0x00000000),
+  builder: (sheet) => _ViewersPanel(
+    roomId: roomId,
+    moderators: moderators,
+    onInvite: null,
+    onModerator: null,
+    initialTab: initialTab,
+    onPerson: onPerson == null
+        ? null
+        : (u, {required moderator, onInvite, onModeratorChanged}) async =>
+              onPerson(u),
+    seated: [
+      for (final s in seated)
+        if (s.state == LiveSeatState.taken && s.user != null) s,
+    ],
+  ),
+);
+
 // Measured on the owner's reference (430 pt wide).
 abstract final class _Panel {
   static const ink = Color(0xFF2E3130);
@@ -442,10 +475,16 @@ class _ViewersPanel extends ConsumerStatefulWidget {
   final Future<void> Function(LiveSeatRequest request)? onDecline;
   final String roomId;
   final List<UserSummary> moderators;
-  final Future<void> Function(String username) onInvite;
-  final Future<void> Function(String username, {required bool moderator})
+
+  /// Null for a viewer (D109): the sheet is read-only.
+  final Future<void> Function(String username)? onInvite;
+  final Future<void> Function(String username, {required bool moderator})?
   onModerator;
   final List<LiveSeat> seated;
+
+  /// A viewer's sheet (D109, [showLiveViewers]): nothing to invite or
+  /// moderate.
+  bool get readOnly => onInvite == null;
 
   @override
   ConsumerState<_ViewersPanel> createState() => _ViewersPanelState();
@@ -629,32 +668,38 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               ),
               // Tapping the person: their card (the moderator choice is a
               // button there), else the moderator choice directly.
-              onTap: () => unawaited(switch (widget.onPerson) {
-                final card? => card(
-                  u,
-                  moderator: _moderators.contains(u.username),
-                  onModeratorChanged: (moderator) {
-                    if (!mounted) return;
-                    setState(
-                      () => moderator
-                          ? _moderators.add(u.username)
-                          : _moderators.remove(u.username),
-                    );
-                  },
-                  onInvite: seatedIds.contains(u.id)
-                      ? null
-                      : () => unawaited(
-                          runSeatAction(
-                            context,
-                            () => widget.onInvite(u.username),
-                            success: context.l10n.liveSeatInvited,
-                          ),
-                        ),
+              onTap: switch ((widget.readOnly, widget.onPerson)) {
+                (true, final card?) => () => unawaited(
+                  card(u, moderator: _moderators.contains(u.username)),
                 ),
-                null => _moderatorMenu(context, u),
-              }),
+                (true, null) => null,
+                _ => () => unawaited(switch (widget.onPerson) {
+                  final card? => card(
+                    u,
+                    moderator: _moderators.contains(u.username),
+                    onModeratorChanged: (moderator) {
+                      if (!mounted) return;
+                      setState(
+                        () => moderator
+                            ? _moderators.add(u.username)
+                            : _moderators.remove(u.username),
+                      );
+                    },
+                    onInvite: seatedIds.contains(u.id)
+                        ? null
+                        : () => unawaited(
+                            runSeatAction(
+                              context,
+                              () => widget.onInvite!(u.username),
+                              success: context.l10n.liveSeatInvited,
+                            ),
+                          ),
+                  ),
+                  null => _moderatorMenu(context, u),
+                }),
+              },
               actions: [
-                if (!seatedIds.contains(u.id))
+                if (!widget.readOnly && !seatedIds.contains(u.id))
                   _round(
                     key: SeatControlKeys.inviteUser(u.username),
                     tooltip: l10n.liveSeatInviteSend,
@@ -667,7 +712,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     ),
                     onTap: () => runSeatAction(
                       context,
-                      () => widget.onInvite(u.username),
+                      () => widget.onInvite!(u.username),
                       success: l10n.liveSeatInvited,
                     ),
                   ),
@@ -722,18 +767,20 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               textAlign: TextAlign.center,
               style: context.textStyles.body.copyWith(color: _Panel.soft),
             ),
-            const SizedBox(height: KSpacing.lg),
-            FilledButton(
-              key: SeatControlKeys.inviteFriends,
-              style: FilledButton.styleFrom(
-                backgroundColor: KBrandColors.red500,
-                foregroundColor: _white,
-                minimumSize: const Size(180, 44),
-                shape: const StadiumBorder(),
+            if (!widget.readOnly) ...[
+              const SizedBox(height: KSpacing.lg),
+              FilledButton(
+                key: SeatControlKeys.inviteFriends,
+                style: FilledButton.styleFrom(
+                  backgroundColor: KBrandColors.red500,
+                  foregroundColor: _white,
+                  minimumSize: const Size(180, 44),
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () => DefaultTabController.of(context).animateTo(0),
+                child: Text(l10n.liveSeatInviteFriends),
               ),
-              onPressed: () => DefaultTabController.of(context).animateTo(0),
-              child: Text(l10n.liveSeatInviteFriends),
-            ),
+            ],
           ],
         ),
       ),
@@ -808,6 +855,15 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             context,
             name: seat.user!.displayName,
             handle: l10n.liveSeatNumberLabel(seat.index),
+            // D109: a viewer taps a seated person for their card.
+            onTap: widget.readOnly && widget.onPerson != null
+                ? () => unawaited(
+                    widget.onPerson!(
+                      seat.user!,
+                      moderator: _moderators.contains(seat.user!.username),
+                    ),
+                  )
+                : null,
             avatar: KAvatar(
               name: seat.user!.displayName,
               imageUrl: seat.user!.avatarUrl,
@@ -920,7 +976,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
     if (go != true || !context.mounted) return;
     await runSeatAction(
       context,
-      () => widget.onModerator(u.username, moderator: !isModerator),
+      () => widget.onModerator!(u.username, moderator: !isModerator),
     );
     if (mounted) {
       setState(

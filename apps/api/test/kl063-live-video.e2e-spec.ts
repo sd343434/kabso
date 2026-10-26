@@ -358,7 +358,8 @@ describe('CP-010 live video', () => {
           .map((v: { user: { id: string } }) => v.user.id)
           .sort(),
       ).toEqual([a.id, b.id].sort());
-      expect((await ctx.http.get(`/api/v1/live/rooms/${roomId}/viewers`).set(auth(a))).status).toBe(404);
+      // v1.23.2-live (D109): a viewer lists them too (was host only, 404).
+      expect((await ctx.http.get(`/api/v1/live/rooms/${roomId}/viewers`).set(auth(a))).status).toBe(200);
       const stolen = await ctx.http
         .get(`/api/v1/live/rooms/${quiet}/viewers?cursor=${encodeURIComponent(page1.body.page.nextCursor)}`)
         .set(auth(h2));
@@ -382,6 +383,85 @@ describe('CP-010 live video', () => {
       expect(await ctx.prisma.liveRoomViewer.count({ where: { roomId } })).toBe(0);
       expect((await ctx.http.get(`/api/v1/live/rooms/${roomId}/viewers`).set(auth(h))).body.data).toEqual([]);
       await ctx.http.post(`/api/v1/live/rooms/${quiet}/end`).set(auth(h2)).expect(200);
+    });
+
+    it('v1.23.2-live (D109): viewers and guests list who is watching; blocks hidden; kicked → 403', async () => {
+      const [h, a, b, c, k] = [await host(), await signup(), await signup(), await signup(), await signup()];
+      const roomId = await goLive(h);
+      const guestId = randomUUID();
+      for (const id of [a.id, b.id, `guest:${guestId}`, c.id]) {
+        await hook('participant_joined', roomId, id).expect(200);
+      }
+      const list = (u?: TestUser, q = '') => {
+        const req = ctx.http.get(`/api/v1/live/rooms/${roomId}/viewers${q}`);
+        if (u) void req.set(auth(u));
+        return req;
+      };
+      const ids = (body: {
+        data: { kind: string; user: { id: string } | null; guestNumber: number | null }[];
+      }) => body.data.map((v) => (v.kind === 'GUEST' ? `g${v.guestNumber}` : v.user!.id));
+      const g = `g${ctx.app.get(LiveMediaService).guestNumber(guestId)}`;
+
+      // A signed-in viewer: everyone connected, newest first, the same shape as the host's.
+      const mine = await list(a);
+      expect(mine.status).toBe(200);
+      expectContract(mine, 'listLiveRoomViewers');
+      expect(ids(mine.body)).toEqual([c.id, g, b.id, a.id]);
+      expect(ids((await list(h)).body)).toEqual([c.id, g, b.id, a.id]);
+      // Paging works for a viewer too.
+      const p1 = await list(a, '?limit=3');
+      expect(p1.body.page.hasMore).toBe(true);
+      const p2 = await list(a, `?limit=3&cursor=${encodeURIComponent(p1.body.page.nextCursor)}`);
+      expect([...ids(p1.body), ...ids(p2.body)]).toEqual([c.id, g, b.id, a.id]);
+      // A guest without an account (the room allows guests): users and guests alike.
+      const guest = await list();
+      expect(guest.status).toBe(200);
+      expectContract(guest, 'listLiveRoomViewers');
+      expect(ids(guest.body)).toEqual([c.id, g, b.id, a.id]);
+
+      // Blocks either way hide the person from the caller only; the host still sees everyone.
+      await ctx.http.put(`/api/v1/users/${b.username}/block`).set(auth(a)).expect(200);
+      await ctx.http.put(`/api/v1/users/${a.username}/block`).set(auth(c)).expect(200);
+      expect(ids((await list(a)).body)).toEqual([g, a.id]);
+      expect(ids((await list(b)).body)).toEqual([c.id, g, b.id]);
+      expect(ids((await list(c)).body)).toEqual([c.id, g, b.id]);
+      expect(ids((await list(h)).body)).toEqual([c.id, g, b.id, a.id]);
+      // A room across a block with the host is 404, like the room itself.
+      await ctx.http.put(`/api/v1/users/${k.username}/block`).set(auth(h)).expect(200);
+      expect((await list(k)).status).toBe(404);
+      await ctx.http.delete(`/api/v1/users/${k.username}/block`).set(auth(h)).expect(200);
+
+      // Kicked out of this live → 403 LIVE_KICKED.
+      await hook('participant_joined', roomId, k.id).expect(200);
+      await ctx.http
+        .post(`/api/v1/live/rooms/${roomId}/kicks`)
+        .set(auth(h))
+        .send({ username: k.username })
+        .expect(201);
+      const kicked = await list(k);
+      expect(kicked.status).toBe(403);
+      expect(kicked.body.error.code).toBe('LIVE_KICKED');
+      expect(ids((await list(h)).body)).not.toContain(k.id);
+
+      // Guests switched off → 403 LIVE_GUESTS_NOT_ALLOWED for a guest; users still read.
+      await ctx.http
+        .patch(`/api/v1/live/rooms/${roomId}`)
+        .set(auth(h))
+        .send({ allowGuests: false })
+        .expect(200);
+      const off = await list();
+      expect(off.status).toBe(403);
+      expect(off.body.error.code).toBe('LIVE_GUESTS_NOT_ALLOWED');
+      expect(ids((await list(b)).body)).toEqual([c.id, b.id]);
+
+      // Unknown or malformed room → 404; an ended room → an empty list.
+      expect((await ctx.http.get(`/api/v1/live/rooms/${randomUUID()}/viewers`).set(auth(a))).status).toBe(
+        404,
+      );
+      expect((await ctx.http.get('/api/v1/live/rooms/nope/viewers')).status).toBe(404);
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
+      expect((await list(a)).body).toEqual({ data: [], page: { hasMore: false, nextCursor: null } });
+      expect((await list(h)).body.data).toEqual([]);
     });
 
     it('reconciliation records a viewer whose join webhook was missed (real two-browser run)', async () => {

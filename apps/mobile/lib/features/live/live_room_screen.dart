@@ -17,6 +17,8 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_host_controller.dart'
+    show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -60,6 +62,8 @@ import 'package:material_ui/material_ui.dart';
 /// - gifts: the sheet opens with Kabso's preview art, no prices, and Send
 ///   disabled with the reason (no catalogue or wallet, B5);
 /// - viewers: no presence → nothing (`viewerCount` is 0), never a count;
+///   D109: who is watching (`GET /live/rooms/{id}/viewers`, every 10 s):
+///   the first faces and the count, opening the list read-only;
 /// - share: no room link domain (B7) → no share button.
 ///
 /// States (HL-L10): loading, live (video unavailable), ended (host ended /
@@ -72,6 +76,9 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
+
+  /// D109: who is watching (faces and count); opens the list.
+  static const viewersKey = Key('room.viewers');
 
   final String roomId;
 
@@ -295,6 +302,55 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _session.mute(index, muted: muted),
           selfMic: selfMic,
           onGift: (person) => unawaited(_openGifts(preselect: person)),
+        ),
+      ),
+    );
+  }
+
+  /// D109: who is watching — the first faces and the count from
+  /// `GET /live/rooms/{id}/viewers` (refreshed every 10 s, as the host's),
+  /// opening the list read-only. Until the list arrives (or when it cannot
+  /// be read or shows nobody) the room's own `viewerCount`, without faces or
+  /// a list.
+  Widget? _viewers(LiveRoomSessionState session) {
+    final l10n = context.l10n;
+    final room = widget.room;
+    if (room.status != LiveRoomStatus.live) return null;
+    final preview = ref.watch(liveViewersPreviewProvider(room.id)).value;
+    if (preview == null || preview.items.isEmpty) {
+      if (room.viewerCount < 1) return null;
+      return LiveViewersStack(
+        key: LiveRoomScreen.viewersKey,
+        avatars: const [],
+        count: KFormat.compact(room.viewerCount, l10n),
+        label: l10n.liveViewers(
+          room.viewerCount,
+          KFormat.grouped(room.viewerCount),
+        ),
+      );
+    }
+    final n = preview.items.length;
+    final more = preview.next == null ? '' : '+';
+    return LiveViewersStack(
+      key: LiveRoomScreen.viewersKey,
+      avatars: [
+        for (final v in preview.items)
+          if (v.user case final u?)
+            KAvatar(
+              name: u.displayName,
+              imageUrl: u.avatarUrl,
+              size: LiveViewersStack.size,
+            ),
+      ],
+      count: '${KFormat.compact(n, l10n)}$more',
+      label: l10n.liveViewers(n, '${KFormat.grouped(n)}$more'),
+      onTap: () => unawaited(
+        showLiveViewers(
+          context,
+          roomId: room.id,
+          moderators: session.seats?.moderators ?? const [],
+          seated: session.seats?.seats ?? const [],
+          onPerson: (u) => _person(u.username),
         ),
       ),
     );
@@ -569,18 +625,23 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
-      viewers: room.viewerCount > 0 || score > 0
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (score > 0)
-                  KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
-                if (score > 0 && room.viewerCount > 0)
-                  const SizedBox(width: KSpacing.xs),
-                if (room.viewerCount > 0) KViewerStrip(count: room.viewerCount),
-              ],
-            )
-          : null,
+      viewers: switch (ended ? null : _viewers(session)) {
+        final watching? => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (score > 0) ...[
+              KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
+              const SizedBox(width: KSpacing.xs),
+            ],
+            watching,
+          ],
+        ),
+        null when score > 0 => KScoreChip(
+          key: LiveRoomScreen.scoreKey,
+          score: score,
+        ),
+        null => null,
+      },
       onClose: widget.onClose,
       roomInfo: KRoomInfoRow(
         title: room.title,
@@ -769,15 +830,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (room.viewerCount > 0)
-                      LiveViewersStack(
-                        avatars: const [],
-                        count: KFormat.compact(room.viewerCount, l10n),
-                        label: l10n.liveViewers(
-                          room.viewerCount,
-                          KFormat.grouped(room.viewerCount),
-                        ),
-                      ),
+                    ?_viewers(session),
                   ],
                 ),
                 stage: _stage(session, engine),

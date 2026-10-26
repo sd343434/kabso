@@ -230,15 +230,22 @@ export class LiveController {
     return this.media.mediaToken(callerOf(req), roomId, body);
   }
 
-  /** CP-010: who is watching now (host only). */
+  /**
+   * CP-010: who is watching now. v1.23.2-live (D109): the host and anyone else who may watch the
+   * room; guests too (per IP) when the room allows guests.
+   */
   @Get('rooms/:roomId/viewers')
-  @RateLimit({ bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true })
+  @OptionalAuth()
+  @RateLimit(
+    { bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true, appliesTo: 'user' },
+    GUEST_READ,
+  )
   viewers(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
   ): Promise<{ data: LiveViewerDto[]; page: { nextCursor: string | null; hasMore: boolean } }> {
-    return this.media.viewers(requireCaller(req), roomId, query);
+    return this.media.viewers(callerOf(req), roomId, query);
   }
 
   // ---- CP-011: seats (CONVENTIONS §10.9) --------------------------------------------------------

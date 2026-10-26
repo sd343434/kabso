@@ -119,7 +119,8 @@ abstract interface class LiveRepository {
   /// account.
   Future<LiveMediaAccess> mediaToken(String roomId, {String? guestId});
 
-  /// `GET /live/rooms/{roomId}/viewers` (host): who is watching now.
+  /// `GET /live/rooms/{roomId}/viewers` (the host and, D109, anyone who may
+  /// watch the room): who is watching now, newest first.
   Future<({List<LiveViewer> items, String? next})> viewers(
     String roomId, {
     String? cursor,

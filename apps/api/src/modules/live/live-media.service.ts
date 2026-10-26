@@ -317,13 +317,36 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     await this.recount(this.prisma, roomId);
   }
 
-  /** `GET /live/rooms/{roomId}/viewers` (host only): connected now, newest first. */
+  /**
+   * `GET /live/rooms/{roomId}/viewers`: connected now, newest first. The host as before (CP-010:
+   * their own room, else 404). v1.23.2-live (D109): anyone else who may watch the room too —
+   * visible room (404) → a guest needs `allowGuests` (403 LIVE_GUESTS_NOT_ALLOWED) → not kicked
+   * out of this live (403 LIVE_KICKED); a signed-in non-host caller never sees a user with a block
+   * either way. An ended room → an empty list.
+   */
   async viewers(
-    hostId: string,
+    callerId: string | null,
     roomId: string,
     query: { cursor?: string; limit: number },
   ): Promise<{ data: LiveViewerDto[]; page: { nextCursor: string | null; hasMore: boolean } }> {
-    const room = await this.hostLiveRoom(hostId, roomId);
+    let room: { id: string };
+    let hideBlocksOf: string | null = null;
+    const own =
+      callerId !== null && isUuid(roomId)
+        ? await this.prisma.liveRoom.findFirst({
+            where: { id: roomId.toLowerCase(), hostUserId: callerId },
+            select: { id: true },
+          })
+        : null;
+    if (own) {
+      room = own;
+    } else {
+      const row = await this.rooms.visibleRow(roomId, callerId);
+      if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
+      if (row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
+      room = { id: row.id };
+      hideBlocksOf = callerId;
+    }
     const scope = `live-viewers:${room.id}`;
     let after: { at: Date; identity: string } | null = null;
     if (query.cursor !== undefined) {
@@ -336,7 +359,20 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       where: {
         roomId: room.id,
         room: { status: 'LIVE' },
-        OR: [{ guestId: { not: null } }, { user: { status: 'ACTIVE' } }],
+        OR: [
+          { guestId: { not: null } },
+          {
+            user: {
+              status: 'ACTIVE',
+              ...(hideBlocksOf === null
+                ? {}
+                : {
+                    blocking: { none: { blockedId: hideBlocksOf } },
+                    blockedBy: { none: { blockerId: hideBlocksOf } },
+                  }),
+            },
+          },
+        ],
         ...(after
           ? {
               AND: [

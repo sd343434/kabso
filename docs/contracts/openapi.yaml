@@ -77,6 +77,8 @@ info:
     message `gift` on topic `gift`, combos); gifts feed the live score, the Contribution list,
     the popularity board, charm and support levels; codes `GIFT_UNAVAILABLE`,
     `GIFT_BAG_INSUFFICIENT`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (CONVENTIONS §10.23).
+    **D109 (DRAFT v1.23.2-live)** opens `listLiveRoomViewers` to everyone who may watch the room
+    (guests included), not only the host (CONVENTIONS §10.8).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1033,10 +1035,17 @@ paths:
     get:
       tags: [live]
       operationId: listLiveRoomViewers
-      summary: "Host: who is watching now, newest first (CP-010)"
+      summary: "Who is watching now, newest first (CP-010; everyone in the room since v1.23.2-live)"
       description: |
-        Host only (else 404). Users and guests connected now, newest first, paged by the shared
+        CONVENTIONS §10.8. Users and guests connected now, newest first, paged by the shared
         cursor. A guest is shown as "Guest" with `guestNumber`. Ended room → an empty list.
+        The host of the room: as in v1.6-live, everyone connected. v1.23.2-live (D109): anyone
+        else who may watch the room reads it too, in the same shape — a room the caller may not
+        see → 404; a guest without an account needs the room's `allowGuests` (else 403
+        `LIVE_GUESTS_NOT_ALLOWED`); a caller kicked out of this live → 403 `LIVE_KICKED`. A
+        signed-in caller other than the host never sees a user they blocked or who blocked them.
+        Before v1.23.2-live it was host only (anyone else → 404).
+      security: [{}, {bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
         - $ref: '#/components/parameters/Cursor'
@@ -1049,6 +1058,7 @@ paths:
               schema: { $ref: '#/components/schemas/LiveViewerPage' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 

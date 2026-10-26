@@ -470,8 +470,9 @@ final FutureProviderFamily<LiveSeats, String> liveSeatsProvider = FutureProvider
       return ref.watch(liveRepositoryProvider).seats(roomId);
     });
 
-/// The host's first page of viewers (`GET /live/rooms/{id}/viewers`) for
-/// the audio room's avatars and count, refreshed every 10 seconds.
+/// The first page of viewers (`GET /live/rooms/{id}/viewers`) for the
+/// room's avatars and count, refreshed every 10 seconds: the host's audio
+/// room and, D109 (v1.23.2-live), every viewer's room screen.
 final FutureProviderFamily<({List<LiveViewer> items, String? next}), String>
 liveViewersPreviewProvider = FutureProvider.autoDispose
     .family<({List<LiveViewer> items, String? next}), String>((ref, roomId) {
