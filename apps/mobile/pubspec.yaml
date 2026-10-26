@@ -100,6 +100,8 @@ flutter:
     # D73 Kabi on the PK score bar (owner-supplied Lottie, markers idle,
     # push, fire, tense, win, cheer; not edited).
     - assets/pk/
+    # Owner's profile-card header decorations (SVGA 750×280 + still).
+    - assets/profile_card/
   fonts:
     # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
     - family: Fredoka

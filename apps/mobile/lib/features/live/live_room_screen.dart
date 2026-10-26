@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_states.d
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -976,6 +978,7 @@ Future<void> showHostSheet(
   String username, {
   LivePersonScope? scope,
   VoidCallback? onInvite,
+  KabsoProfileHeader? header,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -986,8 +989,12 @@ Future<void> showHostSheet(
   constraints: KMetrics.sheetConstraints(
     maxHeight: MediaQuery.sizeOf(context).height * 0.5,
   ),
-  builder: (_) =>
-      _HostSheet(username: username, scope: scope, onInvite: onInvite),
+  builder: (_) => _HostSheet(
+    username: username,
+    scope: scope,
+    onInvite: onInvite,
+    header: header,
+  ),
 );
 
 abstract final class _Card {
@@ -1000,11 +1007,15 @@ abstract final class _Card {
 }
 
 class _HostSheet extends ConsumerWidget {
-  const new({required this.username, this.scope, this.onInvite});
+  const new({required this.username, this.scope, this.onInvite, this.header});
 
   final String username;
   final LivePersonScope? scope;
   final VoidCallback? onInvite;
+
+  /// The person's header decoration on the card's top edge (owner,
+  /// 2026-10-26); null: the plain gold edge.
+  final KabsoProfileHeader? header;
 
   static const inviteKey = Key('room.userCard.invite');
   static const profileKey = Key('room.userCard.profile');
@@ -1286,83 +1297,108 @@ class _HostSheet extends ConsumerWidget {
             ],
           );
 
-    return Stack(
-      key: const Key('room.hostSheet'),
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        // Attached to the bottom (not a floating card), with a gold edge.
-        Container(
-          margin: const EdgeInsets.only(top: _Card.avatar / 2),
-          padding: const EdgeInsets.only(top: 3),
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            gradient: LinearGradient(colors: _Card.gold),
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFFFFF),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-            ),
-            child: SafeArea(
-              top: false,
-              // Large text: the card scrolls instead of overflowing.
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: body,
-              ),
-            ),
-          ),
-        ),
-        // The top row: points, kick, mute, moderator at the start; ⋯ at
-        // the end (owner's reference), either side of the picture.
-        if (scope != null && profile != null)
-          PositionedDirectional(
-            top: _Card.avatar / 2 + 8,
-            start: 10,
-            end: 10,
-            child: LivePersonTools(
-              scope: scope,
-              person: (
-                id: profile.id,
-                username: username,
-                name: profile.displayName,
-              ),
-              self: profile.isSelf,
-              middle: _Card.avatar + 16,
-            ),
-          ),
-        // The picture in a gold ring, the charm level on a plate under it.
-        Column(
-          mainAxisSize: MainAxisSize.min,
+    final header = this.header;
+    return LayoutBuilder(
+      builder: (context, box) {
+        // The card's top edge: under the middle of the picture, or lower when
+        // the header decoration rises higher than the picture.
+        final edge = header == null
+            ? _Card.avatar / 2
+            : math.max(
+                _Card.avatar / 2,
+                KabsoProfileHeader.overhang(box.maxWidth),
+              );
+        return Stack(
+          key: const Key('room.hostSheet'),
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
           children: [
+            // Attached to the bottom (not a floating card), with a gold edge.
             Container(
-              padding: const EdgeInsets.all(3),
+              margin: EdgeInsets.only(top: edge),
+              // The header's own bar is the edge: no gold line under it.
+              padding: EdgeInsets.only(top: header == null ? 3 : 0),
               decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: _Card.gold,
-                ),
-                boxShadow: [
-                  BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
-                ],
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                gradient: LinearGradient(colors: _Card.gold),
               ),
-              child: ClipOval(
-                child: SizedBox.square(
-                  dimension: _Card.avatar,
-                  child: KAvatar(
-                    name: profile?.displayName ?? username,
-                    image: _networkImage(profile?.avatarUrl),
-                    size: _Card.avatar,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFFFFF),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  // Large text: the card scrolls instead of overflowing.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: body,
                   ),
                 ),
               ),
             ),
+            if (header != null)
+              Positioned(
+                top: edge - KabsoProfileHeader.overhang(box.maxWidth),
+                left: 0,
+                child: KabsoProfileHeaderArt(
+                  header,
+                  key: const Key('room.userCard.header'),
+                  width: box.maxWidth,
+                ),
+              ),
+            // The top row: points, kick, mute, moderator at the start; ⋯ at
+            // the end (owner's reference), either side of the picture.
+            if (scope != null && profile != null)
+              PositionedDirectional(
+                top: edge + 8,
+                start: 10,
+                end: 10,
+                child: LivePersonTools(
+                  scope: scope,
+                  person: (
+                    id: profile.id,
+                    username: username,
+                    name: profile.displayName,
+                  ),
+                  self: profile.isSelf,
+                  middle: _Card.avatar + 16,
+                ),
+              ),
+            // The picture in a gold ring, the charm level on a plate under it.
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: edge - _Card.avatar / 2),
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: _Card.gold,
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: SizedBox.square(
+                      dimension: _Card.avatar,
+                      child: KAvatar(
+                        name: profile?.displayName ?? username,
+                        image: _networkImage(profile?.avatarUrl),
+                        size: _Card.avatar,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
