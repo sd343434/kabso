@@ -6770,6 +6770,36 @@ abstract class AppLocalizations {
   /// **'عرض الملف'**
   String get liveUserViewProfile;
 
+  /// Person card in a live: the family box (no families yet: says soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة'**
+  String get liveUserFamily;
+
+  /// Person card in a live: the gifts they received (no gifts API yet: says soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'حائط الهدايا'**
+  String get liveUserGiftWall;
+
+  /// Person card in a live: their medals (no medals yet: says soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميداليات'**
+  String get liveUserMedals;
+
+  /// Tag on a person-card box whose feature is not built yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريباً'**
+  String get liveUserSoon;
+
+  /// Snack when a not-yet-built person-card box is tapped.
+  ///
+  /// In ar, this message translates to:
+  /// **'{box}: قريباً'**
+  String liveUserBoxSoon(String box);
+
   /// Viewers sheet, Guests tab: the person's seat.
   ///
   /// In ar, this message translates to:

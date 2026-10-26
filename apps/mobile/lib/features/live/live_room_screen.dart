@@ -10,6 +10,7 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
@@ -1083,6 +1084,73 @@ class _HostSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // Owner (2026-10-26): family, gift wall and medals boxes. None
+              // exists on the server yet, so each says "Soon" (as the room
+              // tools do, D99) instead of showing made-up content.
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    for (final (i, box) in [
+                      (
+                        l10n.liveUserFamily,
+                        KabiEmoji(
+                          EmojiPack.dubi.emojis.firstWhere(
+                            (e) => e.id == 'hug',
+                          ),
+                          size: 34,
+                          animate: false,
+                        ),
+                        const [
+                          Color(0xFFFF7AD9),
+                          Color(0xFFE5399F),
+                          Color(0xFFB01F78),
+                        ],
+                        const Color(0xFFFFFFFF),
+                      ),
+                      (
+                        l10n.liveUserGiftWall,
+                        Image.asset(
+                          'assets/live_bar/gift.png',
+                          width: 30,
+                          height: 30,
+                        ),
+                        const [
+                          Color(0xFFB98BFF),
+                          Color(0xFF8A4DFF),
+                          Color(0xFF5B27D6),
+                        ],
+                        const Color(0xFFFFFFFF),
+                      ),
+                      (
+                        l10n.liveUserMedals,
+                        Image.asset(
+                          CharmTier.royal.icon,
+                          width: 32,
+                          height: 32,
+                        ),
+                        const [
+                          Color(0xFF5A4019),
+                          Color(0xFF3A2810),
+                          Color(0xFF1E1508),
+                        ],
+                        const Color(0xFFF7D27A),
+                      ),
+                    ].indexed) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      Expanded(
+                        child: _SoonBox(
+                          key: Key('room.userCard.box$i'),
+                          label: box.$1,
+                          art: box.$2,
+                          colors: box.$3,
+                          ink: box.$4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               if (profile.bio case final bio? when bio.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -1195,7 +1263,8 @@ class _HostSheet extends ConsumerWidget {
             ),
             child: SafeArea(
               top: false,
-              child: Padding(
+              // Large text: the card scrolls instead of overflowing.
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 child: body,
               ),
@@ -1244,6 +1313,148 @@ class _HostSheet extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// A person-card box for a feature that is not built yet (owner's reference,
+/// 2026-10-26): a glossy gradient tile with a light rim, a coloured glow and
+/// sparkles, the name and a "Soon" tag at the start and the art at the end;
+/// a tap says it is coming.
+class _SoonBox extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.art,
+    required this.colors,
+    required this.ink,
+    super.key,
+  });
+
+  final String label;
+  final Widget art;
+  final List<Color> colors;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    const radius = BorderRadius.all(Radius.circular(14));
+    Widget sparkle(double size) => Icon(
+      Icons.auto_awesome,
+      size: size,
+      color: ink.withValues(alpha: 0.55),
+    );
+    return Semantics(
+      button: true,
+      label: '$label, ${l10n.liveUserSoon}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => KSnack.info(context, l10n.liveUserBoxSoon(label)),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+            border: Border.all(color: ink.withValues(alpha: 0.45), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: colors[1].withValues(alpha: 0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              children: [
+                // The gloss over the top half.
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.center,
+                        colors: [
+                          const Color(0xFFFFFFFF).withValues(alpha: 0.28),
+                          const Color(0x00FFFFFF),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                PositionedDirectional(top: 6, start: 42, child: sparkle(9)),
+                PositionedDirectional(bottom: 7, start: 6, child: sparkle(7)),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 4, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // One line; a long name shrinks to fit.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                style: text.bodyStrong.copyWith(
+                                  color: ink,
+                                  fontSize: 13,
+                                  height: 1.15,
+                                  fontWeight: FontWeight.w800,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0x66000000),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ink.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(
+                                  KRadius.pill,
+                                ),
+                              ),
+                              child: Text(
+                                l10n.liveUserSoon,
+                                style: text.caption.copyWith(
+                                  color: ink,
+                                  fontSize: 10,
+                                  height: 1.3,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ExcludeSemantics(child: art),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

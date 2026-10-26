@@ -3841,6 +3841,23 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveUserViewProfile => 'عرض الملف';
 
   @override
+  String get liveUserFamily => 'العائلة';
+
+  @override
+  String get liveUserGiftWall => 'حائط الهدايا';
+
+  @override
+  String get liveUserMedals => 'الميداليات';
+
+  @override
+  String get liveUserSoon => 'قريباً';
+
+  @override
+  String liveUserBoxSoon(String box) {
+    return '$box: قريباً';
+  }
+
+  @override
   String liveSeatNumberLabel(int number) {
     return 'المقعد $number';
   }

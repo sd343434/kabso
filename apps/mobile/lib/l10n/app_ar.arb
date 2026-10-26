@@ -4430,6 +4430,31 @@
   "@liveUserViewProfile": {
     "description": "Person card in a live: opens their full profile."
   },
+  "liveUserFamily": "العائلة",
+  "@liveUserFamily": {
+    "description": "Person card in a live: the family box (no families yet: says soon)."
+  },
+  "liveUserGiftWall": "حائط الهدايا",
+  "@liveUserGiftWall": {
+    "description": "Person card in a live: the gifts they received (no gifts API yet: says soon)."
+  },
+  "liveUserMedals": "الميداليات",
+  "@liveUserMedals": {
+    "description": "Person card in a live: their medals (no medals yet: says soon)."
+  },
+  "liveUserSoon": "قريباً",
+  "@liveUserSoon": {
+    "description": "Tag on a person-card box whose feature is not built yet."
+  },
+  "liveUserBoxSoon": "{box}: قريباً",
+  "@liveUserBoxSoon": {
+    "description": "Snack when a not-yet-built person-card box is tapped.",
+    "placeholders": {
+      "box": {
+        "type": "String"
+      }
+    }
+  },
   "@liveSeatInviteFriends": {
     "description": "Guests tab with nobody on a seat: opens the Viewers tab to invite people onto a seat."
   },

@@ -3811,6 +3811,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveUserViewProfile => 'View profile';
 
   @override
+  String get liveUserFamily => 'Family';
+
+  @override
+  String get liveUserGiftWall => 'Gift wall';
+
+  @override
+  String get liveUserMedals => 'Medals';
+
+  @override
+  String get liveUserSoon => 'Soon';
+
+  @override
+  String liveUserBoxSoon(String box) {
+    return '$box: coming soon';
+  }
+
+  @override
   String liveSeatNumberLabel(int number) {
     return 'Seat $number';
   }

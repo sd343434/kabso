@@ -1028,6 +1028,14 @@ void main() {
       expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
       expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
       expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
+      // Family, gift wall and medals do not exist yet: each says so.
+      final l10n = lookupAppLocalizations(const Locale('en'));
+      await tester.tap(find.byKey(const Key('room.userCard.box1')));
+      await tester.pump();
+      expect(
+        find.text(l10n.liveUserBoxSoon(l10n.liveUserGiftWall)),
+        findsOneWidget,
+      );
       // Nobody asked for a seat.
       expect(repo.seatCalls, isNot(contains(startsWith('requestSeat'))));
     });
