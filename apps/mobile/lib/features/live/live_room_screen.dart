@@ -1007,8 +1007,8 @@ class _HostSheet extends ConsumerWidget {
         : Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Room for the picture and its level plate.
-              const SizedBox(height: _Card.avatar / 2 + 22),
+              // Room for the picture.
+              const SizedBox(height: _Card.avatar / 2 + 8),
               Semantics(
                 header: true,
                 child: Text(
@@ -1054,26 +1054,33 @@ class _HostSheet extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (shown.any((l) => l.category != LevelCategory.attractiveness))
+              // Owner (2026-10-26): every level in one row, the charm level
+              // first; a long row scrolls sideways.
+              if (shown.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      for (final l in shown)
-                        if (l.category != LevelCategory.attractiveness)
-                          Semantics(
-                            label: '${l.name} ${l.level!.levelNumber}',
-                            excludeSemantics: true,
-                            child: KLevelBadge(
-                              category: l.category,
-                              levelNumber: l.level!.levelNumber,
-                              iconKey: l.level!.iconKey,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (charm != null)
+                          CharmLevelBadge(level: charm.levelNumber, height: 18),
+                        for (final l in shown)
+                          if (l.category != LevelCategory.attractiveness) ...[
+                            const SizedBox(width: 8),
+                            Semantics(
+                              label: '${l.name} ${l.level!.levelNumber}',
+                              excludeSemantics: true,
+                              child: KLevelBadge(
+                                category: l.category,
+                                levelNumber: l.level!.levelNumber,
+                                iconKey: l.level!.iconKey,
+                              ),
                             ),
-                          ),
-                    ],
+                          ],
+                      ],
+                    ),
                   ),
                 ),
               if (profile.bio case final bio? when bio.isNotEmpty)
@@ -1234,13 +1241,6 @@ class _HostSheet extends ConsumerWidget {
                 ),
               ),
             ),
-            if (charm != null)
-              Transform.translate(
-                offset: const Offset(0, -10),
-                child: IntrinsicWidth(
-                  child: CharmLevelBadge(level: charm.levelNumber, height: 18),
-                ),
-              ),
           ],
         ),
       ],
