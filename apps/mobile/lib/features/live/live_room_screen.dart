@@ -1317,11 +1317,7 @@ class _HostSheet extends ConsumerWidget {
                     // the profile.
                     action(
                       key: messageKey,
-                      glyph: const Icon(
-                        Icons.chat_bubble_rounded,
-                        size: 30,
-                        color: Color(0xFF5B8DEF),
-                      ),
+                      glyph: const _MessageGlyph(),
                       label: l10n.profileMessage,
                       onTap: () => close(
                         () => unawaited(
@@ -1465,6 +1461,64 @@ class _HostSheet extends ConsumerWidget {
       },
     );
   }
+}
+
+/// The card's Message button art (owner, 2026-10-26: the flat bubble looked
+/// poor): a glossy bubble in a blue-to-violet gradient with a soft shine and
+/// three white dots, sized like the gift icon beside it.
+class _MessageGlyph extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 32,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (r) => const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6FB6FF), Color(0xFF6A5CFF)],
+          ).createShader(r),
+          child: const Icon(Icons.mode_comment_rounded, size: 32),
+        ),
+        // A soft shine on the upper part.
+        Positioned(
+          top: 5,
+          left: 7,
+          child: Container(
+            width: 10,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0x66FFFFFF),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) const SizedBox(width: 2.5),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// The host's or a moderator's badge next to the name on a person's card.
