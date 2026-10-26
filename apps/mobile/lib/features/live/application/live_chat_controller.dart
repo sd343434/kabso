@@ -68,14 +68,29 @@ final class LiveChatJoinLine extends LiveChatItem {
   String get key => 'j:$serial';
 }
 
+/// CP-017 (owner, 2026-10-26): a bullet ("public message") in the chat, as
+/// a box of its own; it stays like a message.
+final class LiveChatBulletLine extends LiveChatItem {
+  const new(this.bullet);
+
+  final LiveBullet bullet;
+
+  @override
+  String get key => 'b:${bullet.id}';
+}
+
 class LiveChatState {
   const new({
     this.items = const [],
     this.enabled = true,
     this.muted = false,
     this.loaded = false,
-    this.bullets = const [],
+    this.kicked = false,
   });
+
+  /// v1.20-live (D105): this person was kicked out of the live (the kick
+  /// data message named them, or the server answered `LIVE_KICKED`).
+  final bool kicked;
 
   /// Oldest first.
   final List<LiveChatItem> items;
@@ -89,22 +104,18 @@ class LiveChatState {
   /// The last messages were read (or failed to; the live ones still come).
   final bool loaded;
 
-  /// CP-017: bullets waiting to fly over the live, oldest first (the first
-  /// is on screen).
-  final List<LiveBullet> bullets;
-
   LiveChatState copyWith({
     List<LiveChatItem>? items,
     bool? enabled,
     bool? muted,
     bool? loaded,
-    List<LiveBullet>? bullets,
+    bool? kicked,
   }) => LiveChatState(
     items: items ?? this.items,
     enabled: enabled ?? this.enabled,
     muted: muted ?? this.muted,
     loaded: loaded ?? this.loaded,
-    bullets: bullets ?? this.bullets,
+    kicked: kicked ?? this.kicked,
   );
 }
 
@@ -123,9 +134,6 @@ class LiveChatController extends Notifier<LiveChatState> {
 
   /// CP-017: how long a voice clip or picture stays (§10.19).
   static const mediaLifetime = Duration(seconds: 60);
-
-  /// Bullets waiting at once; more are dropped (a flood never piles up).
-  static const maxQueuedBullets = 20;
 
   late LiveRepository _repo;
   StreamSubscription<LiveChatEvent>? _events;
@@ -188,14 +196,11 @@ class LiveChatController extends Notifier<LiveChatState> {
     );
   }
 
-  /// A bullet has flown: the next one may come.
-  void bulletShown(String id) {
-    if (!ref.mounted) return;
+  /// CP-017: [bullet] joins the chat once (by id).
+  void _addBullet(LiveBullet bullet) {
+    if (!_bulletIds.add(bullet.id)) return;
     state = state.copyWith(
-      bullets: [
-        for (final b in state.bullets)
-          if (b.id != id) b,
-      ],
+      items: _trim([...state.items, LiveChatBulletLine(bullet)]),
     );
   }
 
@@ -286,12 +291,12 @@ class LiveChatController extends Notifier<LiveChatState> {
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);
+      case LiveKickReceived(:final user):
+        if (user.id == me?.id) state = state.copyWith(kicked: true);
       case LiveBulletReceived(:final bullet):
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
-        if (!_bulletIds.add(bullet.id)) return;
-        if (state.bullets.length >= maxQueuedBullets) return;
-        state = state.copyWith(bullets: [...state.bullets, bullet]);
+        _addBullet(bullet);
     }
   }
 
@@ -373,6 +378,7 @@ class LiveChatController extends Notifier<LiveChatState> {
       state = state.copyWith(
         muted: code == ErrorCode.liveChatMuted ? true : null,
         enabled: code == ErrorCode.liveChatClosed ? false : null,
+        kicked: code == ErrorCode.liveKicked ? true : null,
         items: items,
       );
       return failure;
@@ -435,6 +441,7 @@ class LiveChatController extends Notifier<LiveChatState> {
       state = state.copyWith(
         muted: code == ErrorCode.liveChatMuted ? true : null,
         enabled: code == ErrorCode.liveChatClosed ? false : null,
+        kicked: code == ErrorCode.liveKicked ? true : null,
       );
       return failure;
     }
@@ -452,7 +459,11 @@ class LiveChatController extends Notifier<LiveChatState> {
         text: trimmed,
         clientId: _uuidV4(),
       );
-      if (ref.mounted) ref.read(liveCoinsProvider.notifier).set(result.coins);
+      if (ref.mounted) {
+        ref.read(liveCoinsProvider.notifier).set(result.coins);
+        // In the chat at once; the room's copy of it is not added again.
+        _addBullet(result.bullet);
+      }
       return null;
     } on Object catch (e) {
       final failure = toAppFailure(e);
@@ -463,6 +474,9 @@ class LiveChatController extends Notifier<LiveChatState> {
       }
       if (failure.code == ErrorCode.liveChatMuted) {
         state = state.copyWith(muted: true);
+      }
+      if (failure.code == ErrorCode.liveKicked) {
+        state = state.copyWith(kicked: true);
       }
       return failure;
     }

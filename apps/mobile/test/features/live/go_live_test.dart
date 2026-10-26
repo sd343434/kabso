@@ -36,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -618,11 +619,29 @@ void main() {
       await tester.tap(invite);
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveSeatInvited), findsOneWidget);
-      // Tapping the person: their card, with Manage and Invite (the host).
+      // Tapping the person: their card, with the host's tools (points,
+      // kick, chat mute, make moderator, ⋯) and Invite.
       await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
-      expect(find.byKey(const Key('room.userCard.manage')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
+      for (final key in [
+        LivePersonToolKeys.points,
+        LivePersonToolKeys.kick,
+        LivePersonToolKeys.mute,
+        LivePersonToolKeys.admin,
+        LivePersonToolKeys.more,
+      ]) {
+        expect(find.byKey(key), findsOneWidget, reason: '$key');
+      }
+      // Make moderator from the card: the API, then the button flips.
+      await tester.tap(find.byKey(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('addModerator:huda'));
+      expect(find.byTooltip(l10n.liveSeatRemoveModerator), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('room.userCard.invite')), findsOneWidget);
       await tester.tap(find.byKey(const Key('room.userCard.invite')));
       await tester.pumpAndSettle();

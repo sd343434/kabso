@@ -7399,6 +7399,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إيقاف مؤقت'**
   String get liveChatPause;
+
+  /// LIVE_KICKED (403, v1.20-live, D105): the host or a moderator kicked the caller out of this live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إخراجك من هذا البث. يمكنك مشاهدة البث التالي للمضيف.'**
+  String get errorLiveKicked;
+
+  /// Shown instead of the room when the host or a moderator kicked this person out (D105).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إخراجك من هذا البث'**
+  String get liveKickedTitle;
+
+  /// Body of the removed-from-live message (D105).
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرجك المضيف أو أحد المشرفين، ولا يمكنك العودة إليه حتى ينتهي. يمكنك مشاهدة البث التالي للمضيف.'**
+  String get liveKickedBody;
+
+  /// Person card in a live: the points button (tooltip) and the title of the points popover (D105).
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط في هذا البث'**
+  String get liveUserPoints;
+
+  /// Points popover: the person's place in this live's Contribution list.
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {rank} في هذا البث'**
+  String liveUserRank(String rank);
+
+  /// Points popover: the person gave this live no points.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا نقاط في هذا البث بعد'**
+  String get liveUserNoPoints;
+
+  /// Person card (host, moderators): kicks the person out of this live (D105).
+  ///
+  /// In ar, this message translates to:
+  /// **'إخراج من البث'**
+  String get liveUserKick;
+
+  /// Confirm dialog title before kicking someone out of a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخراج {name} من هذا البث؟'**
+  String liveUserKickTitle(String name);
+
+  /// Confirm dialog body before kicking someone out of a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيخرج من البث الآن ولن يستطيع العودة حتى ينتهي.'**
+  String get liveUserKickBody;
+
+  /// Confirm button: kick someone out of a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخراج'**
+  String get liveUserKickConfirm;
+
+  /// Snack after kicking someone out of a live.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إخراج {name} من هذا البث'**
+  String liveUserKicked(String name);
+
+  /// Snack after the host makes someone a moderator from their card.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} أصبح مشرفاً'**
+  String liveUserModeratorAdded(String name);
+
+  /// Snack after the host removes a moderator from their card.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} لم يعد مشرفاً'**
+  String liveUserModeratorRemoved(String name);
+
+  /// Person card in a live: the more button (report, block).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get liveUserMore;
+
+  /// Person card in a live: the relationship (CP) box (not built yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'العلاقة'**
+  String get liveUserCp;
+
+  /// Family box on someone else's card: families do not exist yet, so nobody is in one.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس في عائلة بعد'**
+  String get liveUserFamilyNone;
+
+  /// Family box on your own card (owner's copy): families do not exist yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'لست في عائلة بعد'**
+  String get liveUserFamilyNoneSelf;
+
+  /// Family box: second line (owner's copy); joining is not built yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم لعائلة أو أنشئ عائلتك'**
+  String get liveUserFamilyHint;
+
+  /// Relationship box: nobody is linked (CP does not exist yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد شريك بعد'**
+  String get liveUserCpNone;
+
+  /// Relationship box: the bottom bar; CP gifts are not built yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا CP قريباً: أرسلها لشخص مميّز لتصبحا ثنائياً'**
+  String get liveUserCpBar;
+
+  /// Screen reader label of the empty partner slot in the relationship box.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكان الشريك فارغ'**
+  String get liveUserCpPartner;
+
+  /// Tag on a public message (bullet, CP-017) shown as a box in the room chat (owner, 2026-10-26).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة'**
+  String get liveBulletTag;
 }
 
 class _AppLocalizationsDelegate

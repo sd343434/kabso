@@ -4967,5 +4967,118 @@
   "liveChatPause": "إيقاف مؤقت",
   "@liveChatPause": {
     "description": "Pauses a voice clip in the live chat (CP-017)."
+  },
+  "errorLiveKicked": "تم إخراجك من هذا البث. يمكنك مشاهدة البث التالي للمضيف.",
+  "@errorLiveKicked": {
+    "description": "LIVE_KICKED (403, v1.20-live, D105): the host or a moderator kicked the caller out of this live."
+  },
+  "liveKickedTitle": "تم إخراجك من هذا البث",
+  "@liveKickedTitle": {
+    "description": "Shown instead of the room when the host or a moderator kicked this person out (D105)."
+  },
+  "liveKickedBody": "أخرجك المضيف أو أحد المشرفين، ولا يمكنك العودة إليه حتى ينتهي. يمكنك مشاهدة البث التالي للمضيف.",
+  "@liveKickedBody": {
+    "description": "Body of the removed-from-live message (D105)."
+  },
+  "liveUserPoints": "النقاط في هذا البث",
+  "@liveUserPoints": {
+    "description": "Person card in a live: the points button (tooltip) and the title of the points popover (D105)."
+  },
+  "liveUserRank": "المركز {rank} في هذا البث",
+  "@liveUserRank": {
+    "description": "Points popover: the person's place in this live's Contribution list.",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserNoPoints": "لا نقاط في هذا البث بعد",
+  "@liveUserNoPoints": {
+    "description": "Points popover: the person gave this live no points."
+  },
+  "liveUserKick": "إخراج من البث",
+  "@liveUserKick": {
+    "description": "Person card (host, moderators): kicks the person out of this live (D105)."
+  },
+  "liveUserKickTitle": "إخراج {name} من هذا البث؟",
+  "@liveUserKickTitle": {
+    "description": "Confirm dialog title before kicking someone out of a live.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserKickBody": "سيخرج من البث الآن ولن يستطيع العودة حتى ينتهي.",
+  "@liveUserKickBody": {
+    "description": "Confirm dialog body before kicking someone out of a live."
+  },
+  "liveUserKickConfirm": "إخراج",
+  "@liveUserKickConfirm": {
+    "description": "Confirm button: kick someone out of a live."
+  },
+  "liveUserKicked": "تم إخراج {name} من هذا البث",
+  "@liveUserKicked": {
+    "description": "Snack after kicking someone out of a live.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserModeratorAdded": "{name} أصبح مشرفاً",
+  "@liveUserModeratorAdded": {
+    "description": "Snack after the host makes someone a moderator from their card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserModeratorRemoved": "{name} لم يعد مشرفاً",
+  "@liveUserModeratorRemoved": {
+    "description": "Snack after the host removes a moderator from their card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserMore": "المزيد",
+  "@liveUserMore": {
+    "description": "Person card in a live: the more button (report, block)."
+  },
+  "liveUserCp": "العلاقة",
+  "@liveUserCp": {
+    "description": "Person card in a live: the relationship (CP) box (not built yet)."
+  },
+  "liveUserFamilyNone": "ليس في عائلة بعد",
+  "@liveUserFamilyNone": {
+    "description": "Family box on someone else's card: families do not exist yet, so nobody is in one."
+  },
+  "liveUserFamilyNoneSelf": "لست في عائلة بعد",
+  "@liveUserFamilyNoneSelf": {
+    "description": "Family box on your own card (owner's copy): families do not exist yet."
+  },
+  "liveUserFamilyHint": "انضم لعائلة أو أنشئ عائلتك",
+  "@liveUserFamilyHint": {
+    "description": "Family box: second line (owner's copy); joining is not built yet."
+  },
+  "liveUserCpNone": "لا يوجد شريك بعد",
+  "@liveUserCpNone": {
+    "description": "Relationship box: nobody is linked (CP does not exist yet)."
+  },
+  "liveUserCpBar": "هدايا CP قريباً: أرسلها لشخص مميّز لتصبحا ثنائياً",
+  "@liveUserCpBar": {
+    "description": "Relationship box: the bottom bar; CP gifts are not built yet."
+  },
+  "liveUserCpPartner": "مكان الشريك فارغ",
+  "@liveUserCpPartner": {
+    "description": "Screen reader label of the empty partner slot in the relationship box."
+  },
+  "liveBulletTag": "رسالة عامة",
+  "@liveBulletTag": {
+    "description": "Tag on a public message (bullet, CP-017) shown as a box in the room chat (owner, 2026-10-26)."
   }
 }

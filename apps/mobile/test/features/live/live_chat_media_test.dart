@@ -1,7 +1,8 @@
 // CP-017 (D104): the live chat's tools — bullet messages (15 coins, the
 // balance from GET /wallet/me), voice clips (fake recorder, 30 s at most),
 // pictures, private messages — voice and picture lines that vanish at
-// expiresAt, and bullets flying over the viewer's and the host's screens.
+// expiresAt, and bullets shown as a box in the viewer's and the host's chat
+// (owner, 2026-10-26: they no longer fly over the screen).
 
 import 'dart:ui' show Tristate;
 
@@ -27,7 +28,6 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_bullet_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -456,7 +456,7 @@ void main() {
             .text,
         'Hi',
       );
-      expect(find.byKey(LiveBulletLayer.bannerKey), findsNothing);
+      expect(find.byType(LiveChatBulletBox), findsNothing);
       await _leave(tester);
     });
   });
@@ -612,93 +612,109 @@ void main() {
     });
   });
 
-  group('bullets over the live', () {
-    testWidgets('viewer: a bullet flies once from the end to the start with '
-        'the sender and text; several queue; blocked senders are skipped', (
-      tester,
-    ) async {
+  group('bullets in the chat', () {
+    Finder box(String id) => find.byKey(LiveChatBulletBox.keyFor(id));
+
+    testWidgets('viewer: a bullet shows in the chat as the public-message '
+        'box with the sender and text, and stays; the same bullet shows '
+        'once; blocked senders are skipped; nothing flies', (tester) async {
       final room = await _pumpRoom(tester, blocked: [_omar]);
       room.engine.chat
         ..add(LiveBulletReceived(_bullet('b1', 'Good evening')))
         ..add(LiveBulletReceived(_bullet('b2', 'Spam', sender: _omar)))
         ..add(LiveBulletReceived(_bullet('b3', 'Second one')))
-        // The same bullet twice flies once.
+        // The same bullet twice shows once.
         ..add(LiveBulletReceived(_bullet('b1', 'Good evening')));
-      await tester.pump();
-      await tester.pump();
-      final banner = find.byKey(LiveBulletLayer.bannerKey);
-      expect(banner, findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(box('b1'), findsOneWidget);
+      expect(box('b3'), findsOneWidget);
+      expect(box('b2'), findsNothing);
+      expect(find.textContaining('Spam', findRichText: true), findsNothing);
+      // Inside the chat list, with the tag, the name and the text.
+      final lines = find.byKey(LiveRoomChatLines.listKey);
+      expect(find.descendant(of: lines, matching: box('b1')), findsOneWidget);
+      expect(
+        find.descendant(of: box('b1'), matching: find.text(l10n.liveBulletTag)),
+        findsOneWidget,
+      );
       expect(
         find.descendant(
-          of: banner,
-          matching: find.textContaining('Good evening', findRichText: true),
+          of: box('b1'),
+          matching: find.textContaining('Good evening'),
         ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: box('b1'), matching: find.textContaining('Huda')),
         findsOneWidget,
       );
       expect(
         find.bySemanticsLabel(l10n.liveBulletLabel('Huda', 'Good evening')),
         findsOneWidget,
       );
-      final width =
-          tester.view.physicalSize.width / tester.view.devicePixelRatio;
-      // English: from the right (end) towards the left (start).
-      await tester.pump(const Duration(seconds: 1));
-      final early = tester.getCenter(banner).dx;
-      await tester.pump(const Duration(seconds: 3));
-      final later = tester.getCenter(banner).dx;
-      expect(later, lessThan(early));
-      expect(early, greaterThan(width / 2));
-      // It flies once, then the next one comes; the blocked one never.
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pump();
-      await tester.pump();
+      // b1 then b3, oldest first.
       expect(
-        find.descendant(
-          of: find.byKey(LiveBulletLayer.bannerKey),
-          matching: find.textContaining('Second one', findRichText: true),
-        ),
-        findsOneWidget,
+        tester.getTopLeft(box('b1')).dy,
+        lessThan(tester.getTopLeft(box('b3')).dy),
       );
-      await tester.pump(const Duration(seconds: 8));
-      await tester.pump();
-      expect(find.byKey(LiveBulletLayer.bannerKey), findsNothing);
-      expect(find.textContaining('Spam', findRichText: true), findsNothing);
+      // It does not move or expire: still there, in place, a minute later.
+      final at = tester.getRect(box('b1'));
+      await tester.pump(const Duration(seconds: 61));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(box('b1')), at);
       await _leave(tester);
     });
 
-    testWidgets('Arabic: it flies from the left (end) to the right; reduced '
-        'motion shows it still for a few seconds', (tester) async {
-      final room = await _pumpRoom(tester, language: AppLanguage.ar);
-      room.engine.chat.add(LiveBulletReceived(_bullet('b1', 'مساء الخير')));
-      await tester.pump();
-      await tester.pump();
-      final banner = find.byKey(LiveBulletLayer.bannerKey);
-      await tester.pump(const Duration(seconds: 1));
-      final early = tester.getCenter(banner).dx;
-      await tester.pump(const Duration(seconds: 3));
-      expect(tester.getCenter(banner).dx, greaterThan(early));
-      await tester.pump(const Duration(seconds: 6));
-      await tester.pump();
-      expect(banner, findsNothing);
+    testWidgets('my own bullet shows once in the chat (the answer and the '
+        "room's copy)", (tester) async {
+      final room = await _pumpRoom(tester);
+      await _openComposer(tester);
+      await tester.tap(find.byKey(LiveRoomComposer.bulletKey));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(LiveChatBulletBox), findsOneWidget);
+      final id = tester
+          .widget<LiveChatBulletBox>(find.byType(LiveChatBulletBox))
+          .bullet
+          .id;
+      final sent = tester
+          .widget<LiveChatBulletBox>(find.byType(LiveChatBulletBox))
+          .bullet;
+      room.engine.chat.add(LiveBulletReceived(sent));
+      await tester.pumpAndSettle();
+      expect(box(id), findsOneWidget);
+      expect(find.byType(LiveChatBulletBox), findsOneWidget);
+      await _leave(tester);
+    });
 
+    testWidgets('Arabic: the tag is localized; reduced motion shows the box '
+        'at once, still', (tester) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
         tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
       );
-      room.engine.chat.add(LiveBulletReceived(_bullet('b2', 'ثابتة')));
+      final ar = l10nFor(AppLanguage.ar);
+      final room = await _pumpRoom(tester, language: AppLanguage.ar);
+      room.engine.chat.add(LiveBulletReceived(_bullet('b1', 'مساء الخير')));
       await tester.pump();
       await tester.pump();
-      final still = tester.getCenter(banner);
+      expect(box('b1'), findsOneWidget);
+      expect(
+        find.descendant(of: box('b1'), matching: find.text(ar.liveBulletTag)),
+        findsOneWidget,
+      );
+      final at = tester.getRect(box('b1'));
       await tester.pump(const Duration(seconds: 2));
-      expect(tester.getCenter(banner), still);
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump();
-      expect(banner, findsNothing);
+      expect(tester.getRect(box('b1')), at);
       await _leave(tester);
     });
 
-    testWidgets('host: a bullet flies over the host live too', (tester) async {
+    testWidgets('host: a bullet shows as the box in the host live chat', (
+      tester,
+    ) async {
       final repo = FakeLiveRepository(
         categories: const [LiveCategory(slug: 'music', name: 'Music')],
       );
@@ -731,22 +747,21 @@ void main() {
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Evening');
       await tester.tap(find.byKey(GoLiveScreen.startKey));
       await tester.pumpAndSettle();
-      engine.chat.add(LiveBulletReceived(_bullet('b1', 'Hello host')));
-      await tester.pump();
-      await tester.pump();
+      engine.chat
+        ..add(LiveBulletReceived(_bullet('b1', 'Hello host')))
+        ..add(LiveBulletReceived(_bullet('b1', 'Hello host')));
+      await tester.pumpAndSettle();
+      expect(box('b1'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byKey(LiveBulletLayer.bannerKey),
-          matching: find.textContaining('Hello host', findRichText: true),
+          of: find.byKey(LiveRoomChatLines.listKey),
+          matching: find.textContaining('Hello host'),
         ),
         findsOneWidget,
       );
-      // It flies across in 7 s, then it is gone.
-      for (var i = 0; i < 9; i++) {
-        await tester.pump(const Duration(seconds: 1));
-      }
-      await tester.pump();
-      expect(find.byKey(LiveBulletLayer.bannerKey), findsNothing);
+      // Still there later: it stays like a message.
+      await tester.pump(const Duration(seconds: 10));
+      expect(box('b1'), findsOneWidget);
       await _leave(tester);
     });
   });

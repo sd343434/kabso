@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -31,8 +32,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_bullet_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -354,8 +355,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         : LiveRoomChatLines(
             roomId: room.id,
             role: LiveChatViewerRole.host,
-            onProfile: (username) =>
-                unawaited(showHostSheet(context, username)),
+            onProfile: (username) => _person(room.id, username),
           );
     final chatComposer = _writing
         ? TapRegion(
@@ -1037,7 +1037,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                               role: LiveChatViewerRole.host,
                               bubble: KLiveColors.chatScrim,
                               onProfile: (username) =>
-                                  unawaited(showHostSheet(context, username)),
+                                  _person(room.id, username),
                             ),
                           ),
                         ],
@@ -1133,8 +1133,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               children: [
                 background,
                 body,
-                // CP-017: bullets from every live fly over this one.
-                if (onAir && room != null) LiveBulletLayer(roomId: room.id),
                 if (_countdown case final n?)
                   // The countdown (sized from the owner's recording).
                   IgnorePointer(
@@ -1186,6 +1184,46 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   Future<void> _afterSeatChange(String roomId) async =>
       ref.invalidate(liveSeatsProvider(roomId));
+
+  /// [username]'s card, seen by the host (owner, 2026-10-26): points, kick,
+  /// chat mute, make or remove moderator, report and block; Invite to a
+  /// seat when [onInvite] is given.
+  Future<void> _person(
+    String roomId,
+    String username, {
+    bool? moderator,
+    VoidCallback? onInvite,
+    ValueChanged<bool>? onModeratorChanged,
+  }) {
+    // Seat rooms know their moderators; a SOLO live reads no seats.
+    final seats = liveSeatsProvider(roomId);
+    final moderators =
+        (ref.exists(seats) ? ref.read(seats).value?.moderators : null) ??
+        const <UserSummary>[];
+    final isModerator =
+        moderator ?? moderators.any((m) => m.username == username);
+    final repo = ref.read(liveRepositoryProvider);
+    return showHostSheet(
+      context,
+      username,
+      onInvite: onInvite,
+      scope: LivePersonScope(
+        roomId: roomId,
+        viewer: LivePersonRole.host,
+        target: isModerator ? LivePersonRole.moderator : LivePersonRole.viewer,
+        onModerator: (username, {required moderator}) async {
+          if (moderator) {
+            await repo.addModerator(roomId, username);
+          } else {
+            await repo.removeModerator(roomId, username);
+          }
+          onModeratorChanged?.call(moderator);
+          await _afterSeatChange(roomId);
+        },
+        onKicked: () => unawaited(_afterSeatChange(roomId)),
+      ),
+    );
+  }
 
   Future<void> _seatActions(String roomId, LiveSeats seats, int index) {
     final repo = ref.read(liveRepositoryProvider);
@@ -1253,12 +1291,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       moderators: seats?.moderators ?? const [],
       seated: seats?.seats ?? const [],
       initialTab: guests ? 1 : 0,
-      onPerson: (u, {onManage, onInvite}) => showHostSheet(
-        context,
-        u.username,
-        onManage: onManage,
-        onInvite: onInvite,
-      ),
+      onPerson: (u, {required moderator, onInvite, onModeratorChanged}) =>
+          _person(
+            roomId,
+            u.username,
+            moderator: moderator,
+            onInvite: onInvite,
+            onModeratorChanged: onModeratorChanged,
+          ),
       onAccept: (r) async {
         await repo.acceptSeatRequest(roomId, r.id);
         await _afterSeatChange(roomId);

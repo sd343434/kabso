@@ -193,11 +193,14 @@ Future<void> showSeatActions(
   );
 }
 
-/// Opens a person's card in a live ([onManage] and [onInvite] for the host).
+/// Opens a person's card in a live: [moderator] is whether they moderate
+/// this live, [onInvite] invites them to a seat (the host), and
+/// [onModeratorChanged] tells the list when the card made or removed them.
 typedef LivePersonCard = Future<void> Function(
   UserSummary user, {
-  VoidCallback? onManage,
+  required bool moderator,
   VoidCallback? onInvite,
+  ValueChanged<bool>? onModeratorChanged,
 });
 
 /// The pending requests, oldest first, with Accept and Decline.
@@ -426,8 +429,8 @@ class _ViewersPanel extends ConsumerStatefulWidget {
     this.onDecline,
   });
 
-  /// Tapping a person: their card, with Manage (the moderator choice) and
-  /// Invite to a seat when they are not on one.
+  /// Tapping a person: their card (kick, chat mute, make or remove
+  /// moderator, …) with Invite to a seat when they are not on one.
   final LivePersonCard? onPerson;
 
   /// 0 viewers, 1 guests (the seat button), 2 contribution.
@@ -624,12 +627,20 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                 imageUrl: u.avatarUrl,
                 size: 40,
               ),
-              // Tapping the person: their card (Manage = make or remove a
-              // moderator), else the moderator choice directly.
+              // Tapping the person: their card (the moderator choice is a
+              // button there), else the moderator choice directly.
               onTap: () => unawaited(switch (widget.onPerson) {
                 final card? => card(
                   u,
-                  onManage: () => unawaited(_moderatorMenu(context, u)),
+                  moderator: _moderators.contains(u.username),
+                  onModeratorChanged: (moderator) {
+                    if (!mounted) return;
+                    setState(
+                      () => moderator
+                          ? _moderators.add(u.username)
+                          : _moderators.remove(u.username),
+                    );
+                  },
                   onInvite: seatedIds.contains(u.id)
                       ? null
                       : () => unawaited(

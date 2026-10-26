@@ -4167,4 +4167,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveChatPause => 'Pause';
+
+  @override
+  String get errorLiveKicked =>
+      'You were removed from this live. You can watch the host\'s next live.';
+
+  @override
+  String get liveKickedTitle => 'You were removed from this live';
+
+  @override
+  String get liveKickedBody =>
+      'The host or a moderator removed you, and you cannot come back until it ends. You can watch the host\'s next live.';
+
+  @override
+  String get liveUserPoints => 'Points in this live';
+
+  @override
+  String liveUserRank(String rank) {
+    return '#$rank in this live';
+  }
+
+  @override
+  String get liveUserNoPoints => 'No points in this live yet';
+
+  @override
+  String get liveUserKick => 'Remove from live';
+
+  @override
+  String liveUserKickTitle(String name) {
+    return 'Remove $name from this live?';
+  }
+
+  @override
+  String get liveUserKickBody =>
+      'They leave the live now and cannot come back until it ends.';
+
+  @override
+  String get liveUserKickConfirm => 'Remove';
+
+  @override
+  String liveUserKicked(String name) {
+    return '$name was removed from this live';
+  }
+
+  @override
+  String liveUserModeratorAdded(String name) {
+    return '$name is now a moderator';
+  }
+
+  @override
+  String liveUserModeratorRemoved(String name) {
+    return '$name is no longer a moderator';
+  }
+
+  @override
+  String get liveUserMore => 'More';
+
+  @override
+  String get liveUserCp => 'Relationship';
+
+  @override
+  String get liveUserFamilyNone => 'Not in a family yet';
+
+  @override
+  String get liveUserFamilyNoneSelf => 'You\'re not in a family yet';
+
+  @override
+  String get liveUserFamilyHint => 'Join a family or start your own';
+
+  @override
+  String get liveUserCpNone => 'No partner yet';
+
+  @override
+  String get liveUserCpBar =>
+      'CP gifts are coming soon: send them to someone special to become a pair';
+
+  @override
+  String get liveUserCpPartner => 'Partner slot, empty';
+
+  @override
+  String get liveBulletTag => 'Public message';
 }

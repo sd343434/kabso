@@ -187,6 +187,106 @@ void main() {
       expect(room.category, const LiveCategory(slug: 'music', name: 'موسيقى'));
     });
 
+    test("v1.20-live: kick, list, undo and one person's standing", () async {
+      const sara = {
+        'id': '0192f1d0-5555-7000-8000-000000000006',
+        'username': 'sara',
+        'displayName': 'سارة',
+        'avatarUrl': null,
+      };
+      http
+        ..on(
+          'POST',
+          '$_base/live/rooms/r1/kicks',
+          (_) => const FakeResponse(
+            201,
+            body: {'user': sara, 'kickedAt': '2026-10-26T18:30:00.000Z'},
+          ),
+        )
+        ..on(
+          'GET',
+          '$_base/live/rooms/r1/kicks',
+          (_) => const FakeResponse(
+            200,
+            body: {
+              'data': [
+                {'user': sara, 'kickedAt': '2026-10-26T18:30:00.000Z'},
+              ],
+            },
+          ),
+        )
+        ..on(
+          'DELETE',
+          '$_base/live/rooms/r1/kicks/sara',
+          (_) => const FakeResponse(204),
+        )
+        ..on(
+          'GET',
+          '$_base/live/rooms/r1/contributors/sara',
+          (_) => const FakeResponse(
+            200,
+            body: {'user': sara, 'points': 1240, 'rank': 3},
+          ),
+        )
+        ..on(
+          'GET',
+          '$_base/live/rooms/r1/contributors/omar',
+          (_) => const FakeResponse(
+            200,
+            body: {
+              'user': {
+                'id': '0192f1d0-5555-7000-8000-000000000007',
+                'username': 'omar',
+                'displayName': 'عمر',
+                'avatarUrl': null,
+              },
+              'points': 0,
+              'rank': null,
+            },
+          ),
+        );
+      final kick = await live.kick('r1', 'sara');
+      expect(kick.user.username, 'sara');
+      expect(kick.kickedAt, DateTime.utc(2026, 10, 26, 18, 30));
+      expect(http.requests.last.data, {'username': 'sara'});
+      expect((await live.kicks('r1')).single.user.displayName, 'سارة');
+      await live.unkick('r1', 'sara');
+      expect(http.requests.last.method, 'DELETE');
+      final standing = await live.contributor('r1', 'sara');
+      expect((standing.points, standing.rank), (1240, 3));
+      final none = await live.contributor('r1', 'omar');
+      expect((none.points, none.rank), (0, null));
+    });
+
+    test('v1.20-live: LiveRoom.kicked and LIVE_KICKED', () async {
+      http
+        ..on(
+          'GET',
+          '$_base/live/rooms/r1',
+          (_) =>
+              FakeResponse(200, body: {...endedLiveRoomJson(), 'kicked': true}),
+        )
+        ..on(
+          'POST',
+          '$_base/live/rooms/r1/media-token',
+          (_) =>
+              FakeResponse(403, body: errorEnvelope('LIVE_KICKED', 'dev text')),
+        );
+      expect((await live.getRoom('r1')).kicked, isTrue);
+      // Older payloads without the field: not kicked.
+      expect(LiveRoom.fromJson(endedLiveRoomJson()).kicked, isFalse);
+      await expectLater(
+        live.mediaToken('r1'),
+        throwsA(
+          isA<ServerFailure>().having(
+            (f) => f.code,
+            'code',
+            ErrorCode.liveKicked,
+          ),
+        ),
+      );
+    });
+
     test('a bad cursor maps to VALIDATION_FAILED on field "cursor"', () async {
       http.on(
         'GET',

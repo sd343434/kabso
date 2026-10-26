@@ -140,6 +140,24 @@ abstract interface class LiveRepository {
   /// `GET /live/rooms/{roomId}/contributors` (CP-014): the top 50.
   Future<List<LiveContributor>> contributors(String roomId);
 
+  /// `GET /live/rooms/{roomId}/contributors/{username}` (v1.20-live, D105):
+  /// one person's points in this live and their rank (null with 0 points).
+  Future<LiveContributorStanding> contributor(String roomId, String username);
+
+  // ---- v1.20-live kicks (CONVENTIONS §10.20, D105) ---------------------
+
+  /// `POST /live/rooms/{roomId}/kicks` (host, moderator): [username] leaves
+  /// this live and cannot come back until it ends. Already kicked → the
+  /// first kick.
+  Future<LiveKick> kick(String roomId, String username);
+
+  /// `GET /live/rooms/{roomId}/kicks` (host, moderator), newest first.
+  Future<List<LiveKick>> kicks(String roomId);
+
+  /// `DELETE /live/rooms/{roomId}/kicks/{username}` (host, moderator;
+  /// idempotent): lets them back in.
+  Future<void> unkick(String roomId, String username);
+
   // ---- CP-013 chat (CONVENTIONS §10.11) ---------------------------------
 
   /// `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first.
@@ -330,6 +348,39 @@ class LiveRepositoryImpl implements LiveRepository {
             LiveContributor.fromJson(c as Map<String, dynamic>),
         ];
       });
+
+  @override
+  Future<LiveContributorStanding> contributor(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '${_room(roomId)}/contributors/${pathSegment(username)}',
+        );
+        return LiveContributorStanding.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveKick> kick(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/kicks',
+          data: {'username': username},
+        );
+        return LiveKick.fromJson(res.data!);
+      });
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/kicks');
+    return [
+      for (final k in res.data!['data']! as List<dynamic>)
+        LiveKick.fromJson(k as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<void> unkick(String roomId, String username) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/kicks/${pathSegment(username)}');
+  });
 
   @override
   Future<({List<LiveViewer> items, String? next})> viewers(

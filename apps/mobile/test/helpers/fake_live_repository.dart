@@ -333,6 +333,66 @@ class FakeLiveRepository implements LiveRepository {
     return contributorList;
   }
 
+  /// v1.20-live: one person's standing, by username; anyone else has 0
+  /// points and no rank.
+  Map<String, ({int points, int? rank})> standings = {};
+
+  /// Every `contributor` call (usernames).
+  final List<String> standingCalls = [];
+
+  @override
+  Future<LiveContributorStanding> contributor(
+    String roomId,
+    String username,
+  ) async {
+    standingCalls.add(username);
+    if (contributorsFailure case final failure?) throw failure;
+    final s = standings[username];
+    return LiveContributorStanding(
+      user: UserSummary(
+        id: 'u-$username',
+        username: username,
+        displayName: username,
+        avatarUrl: null,
+      ),
+      points: s?.points ?? 0,
+      rank: s?.rank,
+    );
+  }
+
+  // ---- v1.20-live kicks ----------------------------------------------------
+
+  /// Every kick call: `kick:<username>`, `unkick:<username>`.
+  final List<String> kickCalls = [];
+
+  /// Thrown by the next `kick` (then cleared).
+  AppFailure? kickFailure;
+
+  @override
+  Future<LiveKick> kick(String roomId, String username) async {
+    kickCalls.add('kick:$username');
+    if (kickFailure case final failure?) {
+      kickFailure = null;
+      throw failure;
+    }
+    return LiveKick(
+      user: UserSummary(
+        id: 'u-$username',
+        username: username,
+        displayName: username,
+        avatarUrl: null,
+      ),
+      kickedAt: DateTime.utc(2026, 10, 26, 18, 30),
+    );
+  }
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) async => const [];
+
+  @override
+  Future<void> unkick(String roomId, String username) async =>
+      kickCalls.add('unkick:$username');
+
   @override
   Future<LiveRoom> updateRoom(
     String roomId, {

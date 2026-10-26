@@ -192,4 +192,11 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
 
   @override
   bool get connected => !dropped && (joined != null || published != null);
+
+  /// v1.20-live: the media server removed this participant (a kick); set
+  /// with [dropped] and [ping].
+  bool kickedOut = false;
+
+  @override
+  bool get removed => kickedOut;
 }

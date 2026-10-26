@@ -39,6 +39,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.liveScheduleFull => l10n.errorLiveScheduleFull,
     ErrorCode.reportAlreadyResolved => l10n.errorReportAlreadyResolved,
     ErrorCode.insufficientCoins => l10n.errorInsufficientCoins,
+    ErrorCode.liveKicked => l10n.errorLiveKicked,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

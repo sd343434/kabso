@@ -378,6 +378,24 @@ class DemoLiveRepository implements LiveRepository {
   @override
   Future<List<LiveContributor>> contributors(String roomId) async => const [];
 
+  @override
+  Future<LiveContributorStanding> contributor(
+    String roomId,
+    String username,
+  ) async => throw _serverOnly;
+
+  // v1.20-live: kicking needs the server.
+  @override
+  Future<LiveKick> kick(String roomId, String username) async =>
+      throw _serverOnly;
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) async => const [];
+
+  @override
+  Future<void> unkick(String roomId, String username) async =>
+      throw _serverOnly;
+
   // CP-013: the demo hub has no server, so no chat.
   @override
   Future<List<LiveChatEntry>> chatMessages(String roomId) async => const [];

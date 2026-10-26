@@ -4193,4 +4193,84 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveChatPause => 'إيقاف مؤقت';
+
+  @override
+  String get errorLiveKicked =>
+      'تم إخراجك من هذا البث. يمكنك مشاهدة البث التالي للمضيف.';
+
+  @override
+  String get liveKickedTitle => 'تم إخراجك من هذا البث';
+
+  @override
+  String get liveKickedBody =>
+      'أخرجك المضيف أو أحد المشرفين، ولا يمكنك العودة إليه حتى ينتهي. يمكنك مشاهدة البث التالي للمضيف.';
+
+  @override
+  String get liveUserPoints => 'النقاط في هذا البث';
+
+  @override
+  String liveUserRank(String rank) {
+    return 'المركز $rank في هذا البث';
+  }
+
+  @override
+  String get liveUserNoPoints => 'لا نقاط في هذا البث بعد';
+
+  @override
+  String get liveUserKick => 'إخراج من البث';
+
+  @override
+  String liveUserKickTitle(String name) {
+    return 'إخراج $name من هذا البث؟';
+  }
+
+  @override
+  String get liveUserKickBody =>
+      'سيخرج من البث الآن ولن يستطيع العودة حتى ينتهي.';
+
+  @override
+  String get liveUserKickConfirm => 'إخراج';
+
+  @override
+  String liveUserKicked(String name) {
+    return 'تم إخراج $name من هذا البث';
+  }
+
+  @override
+  String liveUserModeratorAdded(String name) {
+    return '$name أصبح مشرفاً';
+  }
+
+  @override
+  String liveUserModeratorRemoved(String name) {
+    return '$name لم يعد مشرفاً';
+  }
+
+  @override
+  String get liveUserMore => 'المزيد';
+
+  @override
+  String get liveUserCp => 'العلاقة';
+
+  @override
+  String get liveUserFamilyNone => 'ليس في عائلة بعد';
+
+  @override
+  String get liveUserFamilyNoneSelf => 'لست في عائلة بعد';
+
+  @override
+  String get liveUserFamilyHint => 'انضم لعائلة أو أنشئ عائلتك';
+
+  @override
+  String get liveUserCpNone => 'لا يوجد شريك بعد';
+
+  @override
+  String get liveUserCpBar =>
+      'هدايا CP قريباً: أرسلها لشخص مميّز لتصبحا ثنائياً';
+
+  @override
+  String get liveUserCpPartner => 'مكان الشريك فارغ';
+
+  @override
+  String get liveBulletTag => 'رسالة عامة';
 }

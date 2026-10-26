@@ -7,10 +7,10 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
-import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
@@ -26,8 +26,9 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_bullet_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
@@ -62,6 +63,9 @@ class LiveRoomScreen extends ConsumerWidget {
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
 
+  /// v1.20-live (D105): this person was kicked out of the live.
+  static const kickedKey = Key('room.kicked');
+
   final String roomId;
 
   @override
@@ -74,7 +78,10 @@ class LiveRoomScreen extends ConsumerWidget {
 
     final room = async.value;
     final Widget body;
-    if (room != null && !async.isLoading) {
+    if (room != null && !async.isLoading && room.kicked) {
+      // Kicked out of this live (§10.20): opening it again says so.
+      body = kickedMessage(l10n, close);
+    } else if (room != null && !async.isLoading) {
       body = _RoomView(room: room, onClose: close);
     } else if (async.hasError && !async.isLoading) {
       body = _failure(l10n, toAppFailure(async.error!), close, retry);
@@ -83,6 +90,18 @@ class LiveRoomScreen extends ConsumerWidget {
     }
     return Scaffold(backgroundColor: KPalette.dark.background, body: body);
   }
+
+  /// "You were removed from this live" (v1.20-live, D105), in place of the
+  /// room.
+  static Widget kickedMessage(AppLocalizations l10n, VoidCallback close) =>
+      KRoomMessage(
+        key: kickedKey,
+        icon: Icons.logout_rounded,
+        iconColor: KPalette.dark.textSecondary,
+        title: l10n.liveKickedTitle,
+        message: l10n.liveKickedBody,
+        onClose: close,
+      );
 
   static Widget _failure(
     AppLocalizations l10n,
@@ -219,6 +238,46 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     });
   }
 
+  /// Opens [username]'s card with what this person may do in the room
+  /// (owner, 2026-10-26): points for everyone; kick and chat mute for the
+  /// host and moderators; the moderator choice for the host.
+  void _person(String username) {
+    final room = widget.room;
+    final session = ref.read(liveRoomSessionProvider(room.id));
+    final me = ref.read(currentUserProvider);
+    final mine = session.mine?.role;
+    final viewer = me != null && me.id == room.host.id
+        ? LivePersonRole.host
+        : switch (mine) {
+            LiveSeatRole.host => LivePersonRole.host,
+            LiveSeatRole.moderator => LivePersonRole.moderator,
+            _ => LivePersonRole.viewer,
+          };
+    final moderators = session.seats?.moderators ?? const <UserSummary>[];
+    final target = username == room.host.username
+        ? LivePersonRole.host
+        : moderators.any((m) => m.username == username)
+        ? LivePersonRole.moderator
+        : LivePersonRole.viewer;
+    unawaited(
+      showHostSheet(
+        context,
+        username,
+        scope: LivePersonScope(
+          roomId: room.id,
+          viewer: viewer,
+          target: target,
+          onModerator: viewer == LivePersonRole.host
+              ? (username, {required moderator}) => moderator
+                    ? _session.addModerator(username)
+                    : _session.removeModerator(username)
+              : null,
+          onKicked: () => unawaited(_session.refreshSeats()),
+        ),
+      ),
+    );
+  }
+
   /// CP-013: what the chat offers this person.
   LiveChatViewerRole _chatRole(LiveRoomSessionState session) {
     final me = ref.read(currentUserProvider);
@@ -260,7 +319,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         roomId: widget.room.id,
         role: _chatRole(session),
         bubble: bubble ?? KAudioRoom.bubble,
-        onProfile: (username) => unawaited(showHostSheet(context, username)),
+        onProfile: _person,
       );
 
   /// The chat box while writing; it closes by itself when this person may
@@ -355,7 +414,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     }
     // A viewer taps someone on a seat: their card (owner, 2026-10-26).
     if (seat.user case final user? when seat.state == LiveSeatState.taken) {
-      unawaited(showHostSheet(context, user.username));
+      _person(user.username);
       return;
     }
     final signedIn = ref.read(currentUserProvider) != null;
@@ -378,6 +437,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final room = widget.room;
     _start();
     final session = ref.watch(liveRoomSessionProvider(room.id));
+    // v1.20-live (D105): kicked out (the kick message, the media server's
+    // removal, LiveRoom.kicked or LIVE_KICKED): leave and say so.
+    final chatKicked = ref.watch(
+      liveChatProvider(room.id).select((c) => c.kicked),
+    );
+    if (chatKicked && !session.kicked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _session.markKicked();
+      });
+    }
     ref.listen(liveRoomSessionProvider(room.id), (previous, next) {
       // The media session dropped (the host ended the live): re-read the
       // room so the ended state shows.
@@ -397,19 +466,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (muted && !_mutedShown) KSnack.info(context, l10n.liveSeatMutedByHost);
       _mutedShown = muted;
     });
+    if (session.kicked || chatKicked) {
+      return LiveRoomScreen.kickedMessage(l10n, widget.onClose);
+    }
     final engine = _session.engine;
-    final view = ListenableBuilder(
+    // CP-017: bullets from every live show in the chat (owner, 2026-10-26).
+    return ListenableBuilder(
       listenable: engine.changes,
       builder: (context, _) => _scaffold(context, session, engine),
-    );
-    if (room.status != LiveRoomStatus.live) return view;
-    // CP-017: bullets from every live fly over this one.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        view,
-        LiveBulletLayer(roomId: room.id),
-      ],
     );
   }
 
@@ -472,9 +536,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onFollow: canFollow
             ? () => unawaited(_setFollowing(follow: true))
             : null,
-        onTap: profile == null
-            ? null
-            : () => unawaited(showHostSheet(context, _username)),
+        onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
       viewers: room.viewerCount > 0 || score > 0
@@ -630,7 +692,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     final n? => l10n.liveRoomNumber('$n'),
                     null => '@${host.username}',
                   },
-                  onTap: () => unawaited(showHostSheet(context, _username)),
+                  onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
                           key: AudioRoomViewKeys.follow,
@@ -895,15 +957,20 @@ Future<void> setHostFollowing(
 
 /// A person's card in a live (owner, 2026-10-26; the host's mini-profile of
 /// HL-L2 too): a white sheet with the picture over its top edge, the name
-/// with their charm level, @username, followers and following, their public
-/// levels, Follow, and Invite to a seat (the host, [onInvite]) or their full
-/// profile. [onManage] (the host) opens the moderator choice. All from
-/// `GET /users/{username}` and `GET /users/{username}/levels`.
+/// with their charm level, @username, their public levels, the family,
+/// relationship, gift wall and medals boxes (empty states: none exists yet),
+/// followers and following, Follow, and Invite to a seat (the host,
+/// [onInvite]) or their full profile. All from `GET /users/{username}` and
+/// `GET /users/{username}/levels`.
+///
+/// In a room ([scope]) the top row adds the person's points in this live
+/// (everyone), kick and chat mute (the host and moderators), make or remove
+/// moderator (the host) and ⋯ with report and block (LivePersonTools).
 Future<void> showHostSheet(
   BuildContext context,
   String username, {
+  LivePersonScope? scope,
   VoidCallback? onInvite,
-  VoidCallback? onManage,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -914,7 +981,7 @@ Future<void> showHostSheet(
         MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
   ),
   builder: (_) =>
-      _HostSheet(username: username, onInvite: onInvite, onManage: onManage),
+      _HostSheet(username: username, scope: scope, onInvite: onInvite),
 );
 
 abstract final class _Card {
@@ -927,14 +994,13 @@ abstract final class _Card {
 }
 
 class _HostSheet extends ConsumerWidget {
-  const new({required this.username, this.onInvite, this.onManage});
+  const new({required this.username, this.scope, this.onInvite});
 
   final String username;
+  final LivePersonScope? scope;
   final VoidCallback? onInvite;
-  final VoidCallback? onManage;
 
   static const inviteKey = Key('room.userCard.invite');
-  static const manageKey = Key('room.userCard.manage');
   static const profileKey = Key('room.userCard.profile');
   static const giftKey = Key('room.userCard.gift');
   static const copyKey = Key('room.userCard.copy');
@@ -955,7 +1021,7 @@ class _HostSheet extends ConsumerWidget {
         .firstOrNull
         ?.level;
     final onInvite = this.onInvite;
-    final onManage = this.onManage;
+    final scope = this.scope;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
       then();
@@ -1098,71 +1164,15 @@ class _HostSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
-              // Owner (2026-10-26): family, gift wall and medals boxes. None
-              // exists on the server yet, so each says "Soon" (as the room
-              // tools do, D99) instead of showing made-up content.
+              // Owner (2026-10-26, design file): family, relationship, gift
+              // wall and medals. None exists on the server yet, so each shows
+              // its empty state and says "soon" instead of made-up content.
               Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Row(
-                  children: [
-                    for (final (i, box) in [
-                      (
-                        l10n.liveUserFamily,
-                        KabiEmoji(
-                          EmojiPack.dubi.emojis.firstWhere(
-                            (e) => e.id == 'hug',
-                          ),
-                          size: 34,
-                          animate: false,
-                        ),
-                        const [
-                          Color(0xFFFF7AD9),
-                          Color(0xFFE5399F),
-                          Color(0xFFB01F78),
-                        ],
-                        const Color(0xFFFFFFFF),
-                      ),
-                      (
-                        l10n.liveUserGiftWall,
-                        Image.asset(
-                          'assets/live_bar/gift.png',
-                          width: 30,
-                          height: 30,
-                        ),
-                        const [
-                          Color(0xFFB98BFF),
-                          Color(0xFF8A4DFF),
-                          Color(0xFF5B27D6),
-                        ],
-                        const Color(0xFFFFFFFF),
-                      ),
-                      (
-                        l10n.liveUserMedals,
-                        Image.asset(
-                          CharmTier.royal.icon,
-                          width: 32,
-                          height: 32,
-                        ),
-                        const [
-                          Color(0xFF5A4019),
-                          Color(0xFF3A2810),
-                          Color(0xFF1E1508),
-                        ],
-                        const Color(0xFFF7D27A),
-                      ),
-                    ].indexed) ...[
-                      if (i > 0) const SizedBox(width: 8),
-                      Expanded(
-                        child: _SoonBox(
-                          key: Key('room.userCard.box$i'),
-                          label: box.$1,
-                          art: box.$2,
-                          colors: box.$3,
-                          ink: box.$4,
-                        ),
-                      ),
-                    ],
-                  ],
+                padding: const EdgeInsets.only(top: 14),
+                child: LivePersonBoxes(
+                  name: profile.displayName,
+                  self: profile.isSelf,
+                  avatar: _networkImage(profile.avatarUrl),
                 ),
               ),
               if (profile.bio case final bio? when bio.isNotEmpty)
@@ -1285,15 +1295,22 @@ class _HostSheet extends ConsumerWidget {
             ),
           ),
         ),
-        if (onManage != null)
+        // The top row: points, kick, mute, moderator at the start; ⋯ at
+        // the end (owner's reference), either side of the picture.
+        if (scope != null && profile != null)
           PositionedDirectional(
             top: _Card.avatar / 2 + 8,
-            end: 8,
-            child: IconButton(
-              key: manageKey,
-              tooltip: l10n.liveUserManage,
-              onPressed: () => close(onManage),
-              icon: const Icon(Icons.more_horiz_rounded, color: _Card.soft),
+            start: 10,
+            end: 10,
+            child: LivePersonTools(
+              scope: scope,
+              person: (
+                id: profile.id,
+                username: username,
+                name: profile.displayName,
+              ),
+              self: profile.isSelf,
+              middle: _Card.avatar + 16,
             ),
           ),
         // The picture in a gold ring, the charm level on a plate under it.
@@ -1327,148 +1344,6 @@ class _HostSheet extends ConsumerWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-/// A person-card box for a feature that is not built yet (owner's reference,
-/// 2026-10-26): a glossy gradient tile with a light rim, a coloured glow and
-/// sparkles, the name and a "Soon" tag at the start and the art at the end;
-/// a tap says it is coming.
-class _SoonBox extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.art,
-    required this.colors,
-    required this.ink,
-    super.key,
-  });
-
-  final String label;
-  final Widget art;
-  final List<Color> colors;
-  final Color ink;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final text = context.textStyles;
-    const radius = BorderRadius.all(Radius.circular(14));
-    Widget sparkle(double size) => Icon(
-      Icons.auto_awesome,
-      size: size,
-      color: ink.withValues(alpha: 0.55),
-    );
-    return Semantics(
-      button: true,
-      label: '$label, ${l10n.liveUserSoon}',
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: () => KSnack.info(context, l10n.liveUserBoxSoon(label)),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: colors,
-            ),
-            border: Border.all(color: ink.withValues(alpha: 0.45), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: colors[1].withValues(alpha: 0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: Stack(
-              children: [
-                // The gloss over the top half.
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.center,
-                        colors: [
-                          const Color(0xFFFFFFFF).withValues(alpha: 0.28),
-                          const Color(0x00FFFFFF),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                PositionedDirectional(top: 6, start: 42, child: sparkle(9)),
-                PositionedDirectional(bottom: 7, start: 6, child: sparkle(7)),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 4, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // One line; a long name shrinks to fit.
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                label,
-                                maxLines: 1,
-                                style: text.bodyStrong.copyWith(
-                                  color: ink,
-                                  fontSize: 13,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w800,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0x66000000),
-                                      offset: Offset(0, 1),
-                                      blurRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ink.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(
-                                  KRadius.pill,
-                                ),
-                              ),
-                              child: Text(
-                                l10n.liveUserSoon,
-                                style: text.caption.copyWith(
-                                  color: ink,
-                                  fontSize: 10,
-                                  height: 1.3,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ExcludeSemantics(child: art),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

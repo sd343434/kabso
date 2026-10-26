@@ -47,6 +47,7 @@ List<String> _texts(LiveChatState state) => [
       LiveChatPending(:final text, :final failed) =>
         failed ? '!$text' : '…$text',
       LiveChatJoinLine(:final user) => '+${user.username}',
+      LiveChatBulletLine(:final bullet) => '*${bullet.text}',
     },
 ];
 

@@ -94,8 +94,8 @@ abstract class LiveBullet with _$LiveBullet {
   factory fromJson(Map<String, dynamic> json) => _$LiveBulletFromJson(json);
 }
 
-/// The server's chat data messages in the media room (topic `chat`), and
-/// bullets (topic `bullet`, CP-017).
+/// The server's chat data messages in the media room (topic `chat`),
+/// bullets (topic `bullet`, CP-017) and kicks (topic `kick`, v1.20-live).
 sealed class LiveChatEvent {
   const new();
 
@@ -115,6 +115,9 @@ sealed class LiveChatEvent {
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
         'bullet' => LiveBulletReceived(
           LiveBullet.fromJson(json['bullet']! as Map<String, dynamic>),
+        ),
+        'kick' => LiveKickReceived(
+          UserSummary.fromJson(json['user']! as Map<String, dynamic>),
         ),
         _ => null,
       };
@@ -146,6 +149,15 @@ final class LiveChatStateChanged extends LiveChatEvent {
   const new({required this.enabled});
 
   final bool enabled;
+}
+
+/// v1.20-live (D105, §10.20): the host or a moderator kicked [user] out of
+/// this live (topic `kick`). The kicked person's app leaves; the others
+/// drop them from their lists.
+final class LiveKickReceived extends LiveChatEvent {
+  const new(this.user);
+
+  final UserSummary user;
 }
 
 /// CP-017: a bullet sent in any live (topic `bullet`).

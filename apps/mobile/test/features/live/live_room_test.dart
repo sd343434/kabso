@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
@@ -32,6 +33,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
@@ -40,6 +43,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/safety/safety_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -49,6 +53,7 @@ import '../../helpers/component_harness.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
+import '../../helpers/fake_safety_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -519,8 +524,8 @@ void main() {
         find.descendant(of: follow, matching: find.text(l10n.liveFollow)),
         findsOneWidget,
       );
-      // The pill offers Follow again.
-      await tester.tapAt(const Offset(200, 200));
+      // The pill offers Follow again (the card is tall: tap above it).
+      await tester.tapAt(const Offset(200, 20));
       await tester.pumpAndSettle();
       expect(sheet, findsNothing);
       expect(_label(l10n.liveFollow), findsOneWidget);
@@ -1024,13 +1029,21 @@ void main() {
       await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
-      // Not the host: no Manage, no Invite; their full profile instead.
-      expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
+      // Not the host: no moderator tools, no Invite; their points, ⋯ and
+      // their full profile instead.
+      expect(find.byKey(LivePersonToolKeys.points), findsOneWidget);
+      expect(find.byKey(LivePersonToolKeys.more), findsOneWidget);
+      expect(find.byKey(LivePersonToolKeys.kick), findsNothing);
+      expect(find.byKey(LivePersonToolKeys.mute), findsNothing);
+      expect(find.byKey(LivePersonToolKeys.admin), findsNothing);
       expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
       expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
-      // Family, gift wall and medals do not exist yet: each says so.
+      // Family, relationship, gift wall and medals do not exist yet: each
+      // says so.
       final l10n = lookupAppLocalizations(const Locale('en'));
-      await tester.tap(find.byKey(const Key('room.userCard.box1')));
+      await tester.ensureVisible(find.byKey(LivePersonBoxes.boxKey(2)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonBoxes.boxKey(2)));
       await tester.pump();
       expect(
         find.text(l10n.liveUserBoxSoon(l10n.liveUserGiftWall)),
@@ -1566,6 +1579,403 @@ void main() {
       await tester.tap(find.text(l10n.liveSeatAccept));
       await tester.pumpAndSettle();
       expect(repo.seatCalls, contains('acceptSeatRequest:r9:'));
+    });
+  });
+
+  group("a person's card in a live (owner, 2026-10-26; D105)", () {
+    /// Opens host0's card ("Sara") as [viewer]; returns the fakes.
+    Future<({FakeLiveRepository repo, FakeSafetyRepository safety})> card(
+      WidgetTester tester, {
+      required LivePersonRole viewer,
+      LivePersonRole target = LivePersonRole.viewer,
+      bool self = false,
+      List<String> moderated = const [],
+      List<String> kicked = const [],
+      AppLanguage language = AppLanguage.en,
+    }) async {
+      final repo = FakeLiveRepository()
+        ..standings = {'host0': (points: 1240, rank: 3)};
+      final safety = FakeSafetyRepository();
+      setViewport(tester, GoldenViewport.android);
+      await pumpScreen(
+        tester,
+        Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => showHostSheet(
+                  context,
+                  'host0',
+                  scope: LivePersonScope(
+                    roomId: 'room-0',
+                    viewer: viewer,
+                    target: target,
+                    onModerator: viewer == LivePersonRole.host
+                        ? (u, {required moderator}) async =>
+                              moderated.add('$u:$moderator')
+                        : null,
+                    onKicked: () => kicked.add('kicked'),
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+        language: language,
+        overrides: [
+          liveRepositoryProvider.overrideWithValue(repo),
+          profileRepositoryProvider.overrideWithValue(
+            FakeProfileRepository(apiProfile(isSelf: self)),
+          ),
+          safetyRepositoryProvider.overrideWithValue(safety),
+          currentUserProvider.overrideWithValue(testUser()),
+        ],
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return (repo: repo, safety: safety);
+    }
+
+    Finder tool(Key key) => find.byKey(key);
+    final sara = KFormat.bidiIsolate('Sara');
+
+    testWidgets('the host sees points, kick, chat mute, make moderator and ⋯', (
+      tester,
+    ) async {
+      await card(tester, viewer: LivePersonRole.host);
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      for (final key in [
+        LivePersonToolKeys.points,
+        LivePersonToolKeys.kick,
+        LivePersonToolKeys.mute,
+        LivePersonToolKeys.admin,
+        LivePersonToolKeys.more,
+      ]) {
+        expect(tool(key), findsOneWidget, reason: '$key');
+      }
+      // The old "⋯ = Manage" is gone.
+      expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
+      // The host may also act on a moderator.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await card(
+        tester,
+        viewer: LivePersonRole.host,
+        target: LivePersonRole.moderator,
+      );
+      expect(tool(LivePersonToolKeys.kick), findsOneWidget);
+      expect(tool(LivePersonToolKeys.mute), findsOneWidget);
+      expect(find.byTooltip(l10n.liveSeatRemoveModerator), findsOneWidget);
+    });
+
+    testWidgets('a moderator sees kick and mute but never the moderator '
+        'choice; nothing on another moderator or the host', (tester) async {
+      await card(tester, viewer: LivePersonRole.moderator);
+      expect(tool(LivePersonToolKeys.points), findsOneWidget);
+      expect(tool(LivePersonToolKeys.kick), findsOneWidget);
+      expect(tool(LivePersonToolKeys.mute), findsOneWidget);
+      expect(tool(LivePersonToolKeys.admin), findsNothing);
+      expect(tool(LivePersonToolKeys.more), findsOneWidget);
+      for (final target in [LivePersonRole.moderator, LivePersonRole.host]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await card(tester, viewer: LivePersonRole.moderator, target: target);
+        expect(tool(LivePersonToolKeys.kick), findsNothing, reason: '$target');
+        expect(tool(LivePersonToolKeys.mute), findsNothing, reason: '$target');
+        expect(tool(LivePersonToolKeys.admin), findsNothing);
+        expect(tool(LivePersonToolKeys.points), findsOneWidget);
+      }
+    });
+
+    testWidgets('a viewer sees only points and ⋯; on your own card only '
+        'points', (tester) async {
+      await card(tester, viewer: LivePersonRole.viewer);
+      expect(tool(LivePersonToolKeys.points), findsOneWidget);
+      expect(tool(LivePersonToolKeys.more), findsOneWidget);
+      expect(tool(LivePersonToolKeys.kick), findsNothing);
+      expect(tool(LivePersonToolKeys.mute), findsNothing);
+      expect(tool(LivePersonToolKeys.admin), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await card(tester, viewer: LivePersonRole.host, self: true);
+      expect(tool(LivePersonToolKeys.points), findsOneWidget);
+      expect(tool(LivePersonToolKeys.more), findsNothing);
+      expect(tool(LivePersonToolKeys.kick), findsNothing);
+      expect(tool(LivePersonToolKeys.mute), findsNothing);
+      expect(tool(LivePersonToolKeys.admin), findsNothing);
+    });
+
+    testWidgets("points: the person's points and rank in this live, or "
+        '"no points yet"', (tester) async {
+      final fakes = await card(tester, viewer: LivePersonRole.viewer);
+      await tester.tap(tool(LivePersonToolKeys.points));
+      await tester.pumpAndSettle();
+      final popover = find.byKey(LivePersonToolKeys.pointsPopover);
+      expect(popover, findsOneWidget);
+      expect(fakes.repo.standingCalls, ['host0']);
+      expect(
+        find.descendant(
+          of: popover,
+          matching: find.text(l10n.liveScore(1240, '1,240')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: popover,
+          matching: find.text(l10n.liveUserRank('3')),
+        ),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+      fakes.repo.standings = {};
+      await tester.tap(tool(LivePersonToolKeys.points));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveUserNoPoints), findsOneWidget);
+      expect(find.text(l10n.liveUserRank('3')), findsNothing);
+    });
+
+    testWidgets('kick: asks first, then POST …/kicks, says so and closes', (
+      tester,
+    ) async {
+      final kicked = <String>[];
+      final fakes = await card(
+        tester,
+        viewer: LivePersonRole.moderator,
+        kicked: kicked,
+      );
+      await tester.tap(tool(LivePersonToolKeys.kick));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveUserKickTitle(sara)), findsOneWidget);
+      // Cancel: nothing happens.
+      await tester.tap(find.text(l10n.actionCancel));
+      await tester.pumpAndSettle();
+      expect(fakes.repo.kickCalls, isEmpty);
+      await tester.tap(tool(LivePersonToolKeys.kick));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonToolKeys.kickConfirm));
+      await tester.pumpAndSettle();
+      expect(fakes.repo.kickCalls, ['kick:host0']);
+      expect(kicked, ['kicked']);
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
+      expect(find.text(l10n.liveUserKicked(sara)), findsOneWidget);
+    });
+
+    testWidgets('chat mute shows the state and toggles', (tester) async {
+      final fakes = await card(tester, viewer: LivePersonRole.host);
+      expect(find.byTooltip(l10n.liveChatMuteUser(sara)), findsOneWidget);
+      await tester.tap(tool(LivePersonToolKeys.mute));
+      await tester.pumpAndSettle();
+      expect(fakes.repo.chatCalls, contains('mute:host0'));
+      expect(find.byTooltip(l10n.liveChatUnmuteUser(sara)), findsOneWidget);
+      await tester.tap(tool(LivePersonToolKeys.mute));
+      await tester.pumpAndSettle();
+      expect(fakes.repo.chatCalls, contains('unmute:host0'));
+      // Already muted when the card opens: it says so.
+      await tester.pumpWidget(const SizedBox.shrink());
+      final again = await card(tester, viewer: LivePersonRole.host);
+      again.repo.chatMuteList = [
+        LiveChatMute(
+          user: const UserSummary(
+            id: 'user-0',
+            username: 'host0',
+            displayName: 'Sara',
+            avatarUrl: null,
+          ),
+          mutedAt: DateTime.utc(2026, 10, 26),
+        ),
+      ];
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip(l10n.liveChatUnmuteUser(sara)), findsOneWidget);
+    });
+
+    testWidgets('the host makes and removes a moderator from the card', (
+      tester,
+    ) async {
+      final moderated = <String>[];
+      await card(tester, viewer: LivePersonRole.host, moderated: moderated);
+      await tester.tap(tool(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(moderated, ['host0:true']);
+      expect(find.byTooltip(l10n.liveSeatRemoveModerator), findsOneWidget);
+      await tester.tap(tool(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(moderated, ['host0:true', 'host0:false']);
+      expect(find.byTooltip(l10n.liveSeatMakeModerator), findsOneWidget);
+    });
+
+    testWidgets('⋯: report and block go through the safety actions', (
+      tester,
+    ) async {
+      final fakes = await card(tester, viewer: LivePersonRole.viewer);
+      await tester.tap(tool(LivePersonToolKeys.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonToolKeys.report));
+      await tester.pumpAndSettle();
+      // The reason picker: pick spam.
+      await tester.tap(find.byKey(const ValueKey('feed.post.report.spam')));
+      await tester.pumpAndSettle();
+      expect(fakes.safety.calls, ['reportUser:user-0:SPAM']);
+      await tester.tap(tool(LivePersonToolKeys.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonToolKeys.block));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('safety.block.confirm')));
+      await tester.pumpAndSettle();
+      expect(fakes.safety.calls, contains('block:host0:true'));
+      // Blocked: the card closes.
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
+    });
+
+    testWidgets('the four boxes show their empty states and say soon', (
+      tester,
+    ) async {
+      await card(tester, viewer: LivePersonRole.viewer);
+      expect(find.text(l10n.liveUserFamilyNone), findsOneWidget);
+      expect(find.text(l10n.liveUserFamilyHint), findsOneWidget);
+      expect(find.text(l10n.liveUserCpNone), findsOneWidget);
+      expect(find.text(l10n.liveUserCpBar), findsOneWidget);
+      expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
+      expect(find.text(l10n.liveUserMedals), findsOneWidget);
+      // No counts anywhere: "soon" instead.
+      expect(find.textContaining('/'), findsNothing);
+      for (final (i, label) in [
+        l10n.liveUserFamily,
+        l10n.liveUserCp,
+        l10n.liveUserGiftWall,
+        l10n.liveUserMedals,
+      ].indexed) {
+        final box = find.byKey(LivePersonBoxes.boxKey(i));
+        await tester.ensureVisible(box);
+        await tester.pumpAndSettle();
+        await tester.tap(box);
+        await tester.pump();
+        expect(find.text(l10n.liveUserBoxSoon(label)), findsOneWidget);
+        ScaffoldMessenger.of(tester.element(find.text('open')))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('fits at 360 dp with text scale 2 (the card scrolls)', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      for (final language in AppLanguage.values) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await card(tester, viewer: LivePersonRole.host, language: language);
+        expect(tester.takeException(), isNull);
+        final medals = find.byKey(LivePersonBoxes.boxKey(3));
+        await tester.ensureVisible(medals);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    });
+  });
+
+  group('kicked out of a live (v1.20-live, D105)', () {
+    final me = testUser();
+    UserSummary summary(User u) => UserSummary(
+      id: u.id,
+      username: u.username,
+      displayName: u.displayName,
+      avatarUrl: null,
+    );
+
+    testWidgets('LiveRoom.kicked: opening it says so instead of the room', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine();
+      final (repo, _) = await _pumpRoom(
+        tester,
+        room: (id) => apiRoom(id: id).copyWith(kicked: true),
+        engine: engine,
+        user: me,
+      );
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsOneWidget);
+      expect(find.text(l10n.liveKickedTitle), findsOneWidget);
+      expect(find.text(l10n.liveKickedBody), findsOneWidget);
+      // Never joined.
+      expect(repo.tokenRequests, isEmpty);
+      expect(engine.joined, isNull);
+    });
+
+    testWidgets('the kick data message naming me: leave and say so; someone '
+        "else's kick only refreshes", (tester) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      await _pumpRoom(tester, engine: engine, user: me);
+      expect(engine.joined, isNotNull);
+      engine.chat.add(
+        const LiveKickReceived(
+          UserSummary(
+            id: 'u-other',
+            username: 'other',
+            displayName: 'Other',
+            avatarUrl: null,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsNothing);
+      final stops = engine.stops;
+      engine.chat.add(LiveKickReceived(summary(me)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsOneWidget);
+      expect(find.text(l10n.liveKickedTitle), findsOneWidget);
+      // Left the media session.
+      expect(engine.stops, greaterThan(stops));
+    });
+
+    testWidgets('the media server removes me ("participant removed")', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      await _pumpRoom(tester, engine: engine, user: me);
+      engine
+        ..kickedOut = true
+        ..dropped = true
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsOneWidget);
+    });
+
+    testWidgets('LIVE_KICKED from the media token or the chat', (tester) async {
+      const kickedFailure = ServerFailure(
+        code: ErrorCode.liveKicked,
+        rawCode: 'LIVE_KICKED',
+        debugMessage: 'x',
+        statusCode: 403,
+      );
+      final repo = FakeLiveRepository(room: (id) => apiRoom(id: id))
+        ..tokenFailure = kickedFailure;
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: me,
+      );
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsOneWidget);
+
+      final chatRepo = FakeLiveRepository(room: (id) => apiRoom(id: id))
+        ..chatFailure = kickedFailure;
+      await _pumpRoom(
+        tester,
+        repo: chatRepo,
+        engine: FakeLiveMediaEngine()..present.add('user-0'),
+        user: me,
+      );
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsNothing);
+      await tester.tap(find.byKey(AudioRoomViewKeys.chat));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi');
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.kickedKey), findsOneWidget);
+      expect(LiveRoomScreen.kickedKey, isNotNull);
+      expect(l10n.errorLiveKicked, isNot(l10n.errorUnknown));
     });
   });
 }

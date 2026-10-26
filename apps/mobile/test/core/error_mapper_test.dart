@@ -42,6 +42,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.liveScheduleFull: 409,
   // v1.19-live (CP-017)
   ErrorCode.insufficientCoins: 409,
+  // v1.20-live (D105)
+  ErrorCode.liveKicked: 403,
 };
 
 DioException _badResponse(
@@ -102,6 +104,8 @@ void main() {
           'LIVE_SCHEDULE_FULL',
           // v1.19-live (CP-017)
           'INSUFFICIENT_COINS',
+          // v1.20-live (D105)
+          'LIVE_KICKED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

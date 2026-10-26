@@ -66,6 +66,10 @@ enum ErrorCode {
   /// coins; 409, nothing charged).
   insufficientCoins('INSUFFICIENT_COINS'),
 
+  /// v1.20-live (D105): the host or a moderator kicked the caller out of
+  /// this live (403); the app leaves the room and says so.
+  liveKicked('LIVE_KICKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

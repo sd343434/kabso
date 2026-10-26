@@ -117,6 +117,10 @@ abstract interface class LiveMediaEngine {
   Listenable get changes;
 
   bool get connected;
+
+  /// v1.20-live (§10.20): the media server removed this participant (the
+  /// LiveKit disconnect reason "participant removed": a kick).
+  bool get removed;
 }
 
 class _Changes extends ChangeNotifier {
@@ -142,6 +146,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   int? _seatsVersion;
   int? _score;
   int? _roomInfoVersion;
+  bool _removed = false;
 
   @override
   bool get videoEnabled => _video != null;
@@ -278,6 +283,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   Future<lk.Room> _connect(LiveMediaAccess access) async {
     final room = lk.Room();
     _room = room;
+    _removed = false;
     _listen(room);
     await room.connect(access.url, access.token);
     _readMetadata(room.metadata);
@@ -316,7 +322,12 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       ..on<lk.TrackMutedEvent>((_) => _changes.ping())
       ..on<lk.TrackUnmutedEvent>((_) => _changes.ping())
       ..on<lk.ParticipantPermissionsUpdatedEvent>((_) => _changes.ping())
-      ..on<lk.RoomDisconnectedEvent>((_) => _changes.ping());
+      ..on<lk.RoomDisconnectedEvent>((e) {
+        if (e.reason == lk.DisconnectReason.participantRemoved) {
+          _removed = true;
+        }
+        _changes.ping();
+      });
   }
 
   void _readMetadata(String? metadata) {
@@ -414,6 +425,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   bool get connected => _room?.connectionState == lk.ConnectionState.connected;
+
+  @override
+  bool get removed => _removed;
 
   @override
   Future<void> stop() async {
