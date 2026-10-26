@@ -6668,6 +6668,30 @@ abstract class AppLocalizations {
   /// **'أُلغي كتم {name}'**
   String liveChatUserUnmuted(String name);
 
+  /// Person card: mute this seated person's or guest's microphone.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم مايك {name}'**
+  String liveSeatMuteUser(String name);
+
+  /// Person card: unmute this seated person's or guest's microphone.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء كتم مايك {name}'**
+  String liveSeatUnmuteUser(String name);
+
+  /// Snack after muting someone's seat microphone.
+  ///
+  /// In ar, this message translates to:
+  /// **'كُتم مايك {name}'**
+  String liveSeatUserMuted(String name);
+
+  /// Snack after unmuting someone's seat microphone.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُلغي كتم مايك {name}'**
+  String liveSeatUserUnmuted(String name);
+
   /// Chat line action.
   ///
   /// In ar, this message translates to:
@@ -7489,6 +7513,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'العلاقة'**
   String get liveUserCp;
+
+  /// Person card in a live: a small box with nothing in it yet (family, CP).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد'**
+  String get liveUserNone;
 
   /// Family box on someone else's card: families do not exist yet, so nobody is in one.
   ///

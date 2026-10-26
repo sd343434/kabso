@@ -4357,6 +4357,42 @@
       }
     }
   },
+  "liveSeatMuteUser": "كتم مايك {name}",
+  "@liveSeatMuteUser": {
+    "description": "Person card: mute this seated person's or guest's microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUnmuteUser": "إلغاء كتم مايك {name}",
+  "@liveSeatUnmuteUser": {
+    "description": "Person card: unmute this seated person's or guest's microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUserMuted": "كُتم مايك {name}",
+  "@liveSeatUserMuted": {
+    "description": "Snack after muting someone's seat microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUserUnmuted": "أُلغي كتم مايك {name}",
+  "@liveSeatUserUnmuted": {
+    "description": "Snack after unmuting someone's seat microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "liveChatReport": "الإبلاغ عن الرسالة",
   "@liveChatReport": {
     "description": "Chat line action."
@@ -5052,6 +5088,10 @@
   "liveUserCp": "العلاقة",
   "@liveUserCp": {
     "description": "Person card in a live: the relationship (CP) box (not built yet)."
+  },
+  "liveUserNone": "لا يوجد",
+  "@liveUserNone": {
+    "description": "Person card in a live: a small box with nothing in it yet (family, CP)."
   },
   "liveUserFamilyNone": "ليس في عائلة بعد",
   "@liveUserFamilyNone": {

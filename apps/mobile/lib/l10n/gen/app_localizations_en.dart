@@ -3758,6 +3758,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String liveSeatMuteUser(String name) {
+    return 'Mute $name\'s mic';
+  }
+
+  @override
+  String liveSeatUnmuteUser(String name) {
+    return 'Unmute $name\'s mic';
+  }
+
+  @override
+  String liveSeatUserMuted(String name) {
+    return '$name\'s mic is muted';
+  }
+
+  @override
+  String liveSeatUserUnmuted(String name) {
+    return '$name\'s mic is on again';
+  }
+
+  @override
   String get liveChatReport => 'Report message';
 
   @override
@@ -4225,6 +4245,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveUserCp => 'Relationship';
+
+  @override
+  String get liveUserNone => 'None yet';
 
   @override
   String get liveUserFamilyNone => 'Not in a family yet';

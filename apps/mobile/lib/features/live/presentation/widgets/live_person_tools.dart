@@ -28,6 +28,8 @@ class LivePersonScope {
     this.target = LivePersonRole.viewer,
     this.onModerator,
     this.onKicked,
+    this.seat,
+    this.onSeatMute,
   });
 
   final String roomId;
@@ -40,6 +42,14 @@ class LivePersonScope {
 
   /// After a kick: the seats and lists are read again.
   final VoidCallback? onKicked;
+
+  /// The person's seat when they sit on the mic (audio) or are a guest
+  /// (video); null otherwise.
+  final LiveSeat? seat;
+
+  /// Mutes or unmutes that seat's microphone (`POST …/seats/{index}/mute`,
+  /// CP-011; throws an AppFailure).
+  final Future<void> Function(int index, {required bool muted})? onSeatMute;
 
   /// Kicking and chat muting (§10.20, §10.11): the host acts on anyone but
   /// themselves; a moderator never on the host or another moderator.
@@ -55,6 +65,7 @@ abstract final class LivePersonToolKeys {
   static const kick = Key('room.userCard.kick');
   static const kickConfirm = Key('room.userCard.kickConfirm');
   static const mute = Key('room.userCard.mute');
+  static const micMute = Key('room.userCard.micMute');
   static const admin = Key('room.userCard.admin');
   static const more = Key('room.userCard.more');
   static const report = Key('room.userCard.report');
@@ -66,9 +77,11 @@ abstract final class LivePersonToolKeys {
 typedef LivePersonTarget = ({String id, String username, String name});
 
 /// The card's top row (owner's reference): small outline buttons at the
-/// start — points (everyone), kick and chat mute (the host and moderators,
-/// when the person may be acted on), make or remove moderator (the host) —
-/// and ⋯ (report, block) at the end. On your own card: points only.
+/// start — points (everyone), kick (the host and moderators, when the person
+/// may be acted on), make or remove moderator (the host) — and at the end,
+/// next to ⋯ (report, block), the two mutes (owner, 2026-10-26): the mic of
+/// a seated person or guest, and writing in the chat. On your own card:
+/// points only.
 /// [middle] keeps the picture's place free between the two groups.
 class LivePersonTools extends ConsumerStatefulWidget {
   const new({
@@ -97,6 +110,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
 
   /// Whether the person is muted in this live's chat; null until known.
   bool? _muted;
+  late bool _micMuted = widget.scope.seat?.mutedByHost ?? false;
   bool _busy = false;
 
   LivePersonScope get _scope => widget.scope;
@@ -108,6 +122,9 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
       _scope.viewer == LivePersonRole.host &&
       _target != LivePersonRole.host &&
       _scope.onModerator != null;
+
+  bool get _canMuteSeat =>
+      _moderates && _scope.seat != null && _scope.onSeatMute != null;
 
   bool get _signedIn => ref.read(currentUserProvider) != null;
 
@@ -197,6 +214,24 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
       KSnack.success(
         context,
         mute ? l10n.liveChatUserMuted(name) : l10n.liveChatUserUnmuted(name),
+      );
+    });
+  }
+
+  Future<void> _toggleMic() async {
+    final l10n = context.l10n;
+    final seat = _scope.seat;
+    final onSeatMute = _scope.onSeatMute;
+    if (seat == null || onSeatMute == null) return;
+    final mute = !_micMuted;
+    final name = KFormat.bidiIsolate(widget.person.name);
+    await _run(() async {
+      await onSeatMute(seat.index, muted: mute);
+      if (!mounted) return;
+      setState(() => _micMuted = mute);
+      KSnack.success(
+        context,
+        mute ? l10n.liveSeatUserMuted(name) : l10n.liveSeatUserUnmuted(name),
       );
     });
   }
@@ -323,7 +358,7 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
           ),
         ),
       ),
-      if (_moderates) ...[
+      if (_moderates)
         _button(
           key: LivePersonToolKeys.kick,
           icon: Icons.logout_rounded,
@@ -331,19 +366,6 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
           color: _danger,
           onTap: () => unawaited(_kick()),
         ),
-        _button(
-          key: LivePersonToolKeys.mute,
-          icon: muted
-              ? Icons.speaker_notes_off_rounded
-              : Icons.speaker_notes_outlined,
-          tooltip: muted
-              ? l10n.liveChatUnmuteUser(name)
-              : l10n.liveChatMuteUser(name),
-          color: muted ? _danger : _ink,
-          active: muted,
-          onTap: () => unawaited(_toggleMute()),
-        ),
-      ],
       if (_canAdmin)
         _button(
           key: LivePersonToolKeys.admin,
@@ -356,6 +378,39 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
           color: moderator ? _on : _ink,
           active: moderator,
           onTap: () => unawaited(_toggleAdmin()),
+        ),
+    ];
+    final end = [
+      if (_canMuteSeat)
+        _button(
+          key: LivePersonToolKeys.micMute,
+          icon: _micMuted ? Icons.mic_off_rounded : Icons.mic_none_rounded,
+          tooltip: _micMuted
+              ? l10n.liveSeatUnmuteUser(name)
+              : l10n.liveSeatMuteUser(name),
+          color: _micMuted ? _danger : _ink,
+          active: _micMuted,
+          onTap: () => unawaited(_toggleMic()),
+        ),
+      if (_moderates)
+        _button(
+          key: LivePersonToolKeys.mute,
+          icon: muted
+              ? Icons.speaker_notes_off_rounded
+              : Icons.speaker_notes_outlined,
+          tooltip: muted
+              ? l10n.liveChatUnmuteUser(name)
+              : l10n.liveChatMuteUser(name),
+          color: muted ? _danger : _ink,
+          active: muted,
+          onTap: () => unawaited(_toggleMute()),
+        ),
+      if (!widget.self && _signedIn)
+        _button(
+          key: LivePersonToolKeys.more,
+          icon: Icons.more_horiz_rounded,
+          tooltip: l10n.liveUserMore,
+          onTap: () => unawaited(_more()),
         ),
     ];
     return Row(
@@ -377,14 +432,11 @@ class _LivePersonToolsState extends ConsumerState<LivePersonTools> {
         Expanded(
           child: Align(
             alignment: AlignmentDirectional.centerEnd,
-            child: !widget.self && _signedIn
-                ? _button(
-                    key: LivePersonToolKeys.more,
-                    icon: Icons.more_horiz_rounded,
-                    tooltip: l10n.liveUserMore,
-                    onTap: () => unawaited(_more()),
-                  )
-                : const SizedBox.shrink(),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerEnd,
+              child: Row(mainAxisSize: MainAxisSize.min, children: end),
+            ),
           ),
         ),
       ],

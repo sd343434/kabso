@@ -3788,6 +3788,26 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveSeatMuteUser(String name) {
+    return 'كتم مايك $name';
+  }
+
+  @override
+  String liveSeatUnmuteUser(String name) {
+    return 'إلغاء كتم مايك $name';
+  }
+
+  @override
+  String liveSeatUserMuted(String name) {
+    return 'كُتم مايك $name';
+  }
+
+  @override
+  String liveSeatUserUnmuted(String name) {
+    return 'أُلغي كتم مايك $name';
+  }
+
+  @override
   String get liveChatReport => 'الإبلاغ عن الرسالة';
 
   @override
@@ -4251,6 +4271,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveUserCp => 'العلاقة';
+
+  @override
+  String get liveUserNone => 'لا يوجد';
 
   @override
   String get liveUserFamilyNone => 'ليس في عائلة بعد';

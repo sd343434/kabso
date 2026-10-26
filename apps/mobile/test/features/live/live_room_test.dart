@@ -1594,6 +1594,8 @@ void main() {
       List<String> moderated = const [],
       List<String> kicked = const [],
       AppLanguage language = AppLanguage.en,
+      LiveSeat? seat,
+      List<String>? seatMutes,
     }) async {
       final repo = FakeLiveRepository()
         ..standings = {'host0': (points: 1240, rank: 3)};
@@ -1617,6 +1619,9 @@ void main() {
                               moderated.add('$u:$moderator')
                         : null,
                     onKicked: () => kicked.add('kicked'),
+                    seat: seat,
+                    onSeatMute: (index, {required muted}) async =>
+                        seatMutes?.add('$index:$muted'),
                   ),
                 ),
                 child: const Text('open'),
@@ -1777,6 +1782,111 @@ void main() {
       expect(find.text(l10n.liveUserKicked(sara)), findsOneWidget);
     });
 
+    const seated = LiveSeat(
+      index: 3,
+      state: LiveSeatState.taken,
+      user: UserSummary(
+        id: 'user-0',
+        username: 'host0',
+        displayName: 'Sara',
+        avatarUrl: null,
+      ),
+    );
+
+    testWidgets('the two mutes sit next to ⋯ at the end, away from points', (
+      tester,
+    ) async {
+      for (final language in AppLanguage.values) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await card(
+          tester,
+          viewer: LivePersonRole.host,
+          seat: seated,
+          language: language,
+        );
+        final rtl = language == AppLanguage.ar;
+        double x(Key k) => tester.getCenter(tool(k)).dx;
+        // Reading order: … mic, chat, ⋯ at the end; points at the start.
+        final order = [
+          LivePersonToolKeys.points,
+          LivePersonToolKeys.micMute,
+          LivePersonToolKeys.mute,
+          LivePersonToolKeys.more,
+        ].map(x).toList();
+        for (var i = 1; i < order.length; i++) {
+          expect(
+            rtl ? order[i] < order[i - 1] : order[i] > order[i - 1],
+            isTrue,
+            reason: '$language $order',
+          );
+        }
+        // Chat mute is the ⋯ button's neighbour (36 dp buttons).
+        expect(
+          (x(LivePersonToolKeys.more) - x(LivePersonToolKeys.mute)).abs(),
+          closeTo(36, 0.5),
+        );
+        final width =
+            tester.view.physicalSize.width / tester.view.devicePixelRatio;
+        expect(
+          rtl
+              ? x(LivePersonToolKeys.mute) < width / 2
+              : x(LivePersonToolKeys.mute) > width / 2,
+          isTrue,
+        );
+      }
+    });
+
+    testWidgets('mic mute: only for a seated person or guest, toggles the '
+        "seat's mic, and follows the same rules", (tester) async {
+      // Not on a seat: no mic button.
+      await card(tester, viewer: LivePersonRole.host);
+      expect(tool(LivePersonToolKeys.micMute), findsNothing);
+      // On a seat, seen by the host.
+      final mutes = <String>[];
+      await tester.pumpWidget(const SizedBox.shrink());
+      await card(
+        tester,
+        viewer: LivePersonRole.host,
+        seat: seated,
+        seatMutes: mutes,
+      );
+      expect(find.byTooltip(l10n.liveSeatMuteUser(sara)), findsOneWidget);
+      await tester.tap(tool(LivePersonToolKeys.micMute));
+      await tester.pumpAndSettle();
+      expect(mutes, ['3:true']);
+      expect(find.text(l10n.liveSeatUserMuted(sara)), findsOneWidget);
+      expect(find.byTooltip(l10n.liveSeatUnmuteUser(sara)), findsOneWidget);
+      await tester.tap(tool(LivePersonToolKeys.micMute));
+      await tester.pumpAndSettle();
+      expect(mutes, ['3:true', '3:false']);
+      // Already muted by the host: it opens as "unmute".
+      await tester.pumpWidget(const SizedBox.shrink());
+      await card(
+        tester,
+        viewer: LivePersonRole.moderator,
+        seat: seated.copyWith(mutedByHost: true),
+      );
+      expect(find.byTooltip(l10n.liveSeatUnmuteUser(sara)), findsOneWidget);
+      // A moderator never on another moderator or the host; a viewer never.
+      for (final (viewer, target) in [
+        (LivePersonRole.moderator, LivePersonRole.moderator),
+        (LivePersonRole.moderator, LivePersonRole.host),
+        (LivePersonRole.viewer, LivePersonRole.viewer),
+      ]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await card(tester, viewer: viewer, target: target, seat: seated);
+        expect(
+          tool(LivePersonToolKeys.micMute),
+          findsNothing,
+          reason: '$viewer → $target',
+        );
+      }
+      // Your own card: never.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await card(tester, viewer: LivePersonRole.host, self: true, seat: seated);
+      expect(tool(LivePersonToolKeys.micMute), findsNothing);
+    });
+
     testWidgets('chat mute shows the state and toggles', (tester) async {
       final fakes = await card(tester, viewer: LivePersonRole.host);
       expect(find.byTooltip(l10n.liveChatMuteUser(sara)), findsOneWidget);
@@ -1846,21 +1956,25 @@ void main() {
       expect(find.byKey(const Key('room.hostSheet')), findsNothing);
     });
 
-    testWidgets('the four boxes show their empty states and say soon', (
+    testWidgets('the three boxes show their empty states and say soon', (
       tester,
     ) async {
       await card(tester, viewer: LivePersonRole.viewer);
-      expect(find.text(l10n.liveUserFamilyNone), findsOneWidget);
-      expect(find.text(l10n.liveUserCpNone), findsOneWidget);
+      expect(find.text(l10n.liveUserNone), findsNWidgets(2));
       expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
-      expect(find.text(l10n.liveUserMedals), findsOneWidget);
-      // No counts anywhere: "soon" instead.
+      // Medals are not a box (owner): they sit in a row under the levels.
+      expect(find.text(l10n.liveUserMedals), findsNothing);
+      expect(find.byKey(LivePersonBoxes.boxKey(3)), findsNothing);
+      // The three boxes sit side by side.
+      final family = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
+      final gifts = tester.getRect(find.byKey(LivePersonBoxes.boxKey(2)));
+      expect(family.center.dy, closeTo(gifts.center.dy, 0.5));
+      // No counts anywhere.
       expect(find.textContaining('/'), findsNothing);
       for (final (i, label) in [
         l10n.liveUserFamily,
         l10n.liveUserCp,
         l10n.liveUserGiftWall,
-        l10n.liveUserMedals,
       ].indexed) {
         final box = find.byKey(LivePersonBoxes.boxKey(i));
         // The card is at most half the screen: scroll the box to the middle
@@ -1885,8 +1999,8 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
         await card(tester, viewer: LivePersonRole.host, language: language);
         expect(tester.takeException(), isNull);
-        final medals = find.byKey(LivePersonBoxes.boxKey(3));
-        await tester.ensureVisible(medals);
+        final gifts = find.byKey(LivePersonBoxes.boxKey(2));
+        await tester.ensureVisible(gifts);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }

@@ -1197,9 +1197,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }) {
     // Seat rooms know their moderators; a SOLO live reads no seats.
     final seats = liveSeatsProvider(roomId);
-    final moderators =
-        (ref.exists(seats) ? ref.read(seats).value?.moderators : null) ??
-        const <UserSummary>[];
+    final current = ref.exists(seats) ? ref.read(seats).value : null;
+    final moderators = current?.moderators ?? const <UserSummary>[];
+    final seat = current?.seats
+        .where((s) => s.user?.username == username)
+        .firstOrNull;
     final isModerator =
         moderator ?? moderators.any((m) => m.username == username);
     final repo = ref.read(liveRepositoryProvider);
@@ -1221,6 +1223,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           await _afterSeatChange(roomId);
         },
         onKicked: () => unawaited(_afterSeatChange(roomId)),
+        seat: seat,
+        onSeatMute: (index, {required muted}) async {
+          await repo.muteSeat(roomId, index, muted: muted);
+          await _afterSeatChange(roomId);
+        },
       ),
     );
   }

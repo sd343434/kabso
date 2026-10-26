@@ -273,6 +273,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     : _session.removeModerator(username)
               : null,
           onKicked: () => unawaited(_session.refreshSeats()),
+          seat: session.seats?.seats
+              .where((s) => s.user?.username == username)
+              .firstOrNull,
+          onSeatMute: (index, {required muted}) =>
+              _session.mute(index, muted: muted),
         ),
       ),
     );
@@ -1200,16 +1205,12 @@ class _HostSheet extends ConsumerWidget {
                   stat(profile.followingCount, l10n.profileFollowingCount),
                 ],
               ),
-              // Owner (2026-10-26, design file; under the stats): family,
-              // relationship, gift wall and medals. None exists on the server
-              // yet, so each shows its empty state and says "soon".
-              Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: LivePersonBoxes(
-                  name: profile.displayName,
-                  self: profile.isSelf,
-                  avatar: _networkImage(profile.avatarUrl),
-                ),
+              // Owner (2026-10-26; under the stats): family, relationship
+              // and gift wall as three small boxes side by side. None exists
+              // on the server yet, so each shows its empty state.
+              const Padding(
+                padding: EdgeInsets.only(top: 14),
+                child: LivePersonBoxes(),
               ),
               const SizedBox(height: 14),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
