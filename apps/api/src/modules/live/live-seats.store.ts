@@ -112,3 +112,27 @@ export async function releaseUserIn(
     version: versions.get(roomId) ?? 0,
   }));
 }
+
+/**
+ * v1.23.3-live (D111, CONVENTIONS §10.9): `LiveSeats.couples` lists the CP couples whose partners
+ * both sit in a room (the host's seat included). When something outside the seats changes what
+ * that list says for `a` and `b` — a couple formed or ended, its CP level moved, a block between
+ * them added or removed — every LIVE room where both are present (host or seated) gets a new seat
+ * version, so apps refetch. Called inside the caller's transaction; the media room metadata
+ * follows with the sweeper's reconciliation (§10.9). Returns the rooms that changed.
+ */
+export async function bumpRoomsSeatingBothIn(
+  tx: Prisma.TransactionClient,
+  a: string,
+  b: string,
+): Promise<string[]> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    UPDATE live_rooms r SET seats_version = r.seats_version + 1
+     WHERE r.status = 'LIVE'
+       AND (r.host_user_id = ${a}::uuid
+            OR EXISTS (SELECT 1 FROM live_room_seats s WHERE s.room_id = r.id AND s.user_id = ${a}::uuid))
+       AND (r.host_user_id = ${b}::uuid
+            OR EXISTS (SELECT 1 FROM live_room_seats s WHERE s.room_id = r.id AND s.user_id = ${b}::uuid))
+ RETURNING r.id::text AS id`;
+  return rows.map((r) => r.id);
+}

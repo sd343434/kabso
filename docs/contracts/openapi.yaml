@@ -79,6 +79,9 @@ info:
     `GIFT_BAG_INSUFFICIENT`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (CONVENTIONS §10.23).
     **D109 (DRAFT v1.23.2-live)** opens `listLiveRoomViewers` to everyone who may watch the room
     (guests included), not only the host (CONVENTIONS §10.8).
+    **D111 (DRAFT v1.23.3-live)** adds `LiveSeats.couples`: the CP couples (CP-018) whose
+    partners both sit in the room now, the host included, so apps can show the pair joined
+    (CONVENTIONS §10.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1624,7 +1627,8 @@ paths:
         CONVENTIONS §10.9. Open to everyone who may see the room, guests included (rate-limited
         by IP). `version` increases on every seat change; the API also writes it into the media
         room's metadata so connected apps refetch only when it moves. `pendingRequests` is
-        present for the host and moderators only; `mine` for a signed-in caller only. A SOLO
+        present for the host and moderators only; `mine` for a signed-in caller only.
+        v1.23.3-live (D111): `couples` lists the CP couples whose partners both sit now. A SOLO
         room → 409 `LIVE_SEAT_UNAVAILABLE`. Ended room → 409 `LIVE_ROOM_ENDED`. Not visible → 404.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -5084,9 +5088,24 @@ components:
           oneOf:
             - $ref: '#/components/schemas/LiveSeatInvite'
             - type: 'null'
+    LiveSeatCouple:
+      type: object
+      description: v1.23.3-live (D111). Two seated CP partners.
+      required: [userIds, level, levelName]
+      properties:
+        userIds:
+          type: array
+          minItems: 2
+          maxItems: 2
+          description: The two partners' user ids, in seat order (the host first, then by seat index).
+          items: { type: string, format: uuid }
+        level: { type: integer, minimum: 1, maximum: 5, description: The couple's CP level (`CpCouple.level`). }
+        levelName:
+          type: string
+          description: The level's tier name, localized by `Accept-Language`, else the caller's locale.
     LiveSeats:
       type: object
-      required: [roomId, mode, version, seatCount, seats, moderators]
+      required: [roomId, mode, version, seatCount, seats, moderators, couples]
       properties:
         roomId: { type: string, format: uuid }
         mode: { type: string, enum: [MULTI, AUDIO] }
@@ -5099,6 +5118,18 @@ components:
           type: array
           maxItems: 5
           items: { $ref: '#/components/schemas/UserSummary' }
+        couples:
+          type: array
+          maxItems: 12
+          description: |
+            v1.23.3-live (D111, CONVENTIONS §10.9): the CP couples (CP-018) whose partners BOTH sit in
+            the room now — the host (seat 0) and the TAKEN seats — ordered by the first partner's
+            seat (the host first). Shown only while both accounts are ACTIVE and neither blocked the
+            other; an ended couple is never listed. Empty when there is none. A change of the list
+            (a couple formed or ended, its level moved, a block between the partners) raises
+            `version` in every LIVE room where both sit. Every caller, guests included, reads the
+            same list. Clients that do not know the field ignore it.
+          items: { $ref: '#/components/schemas/LiveSeatCouple' }
         pendingRequests: { type: integer, minimum: 0, description: Host and moderators only; absent for others. }
         mine:
           description: Signed-in callers only; absent for guests.

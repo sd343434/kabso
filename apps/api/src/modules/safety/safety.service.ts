@@ -9,6 +9,7 @@ import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
+import { bumpRoomsSeatingBothIn } from '../live/live-seats.store.js';
 import { Notifier } from '../notifications/notifier.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
@@ -110,6 +111,9 @@ export class SafetyService {
       } else {
         await tx.userBlock.deleteMany({ where: { blockerId: callerId, blockedId: targetId } });
       }
+      // v1.23.3-live (D111): a block between CP partners hides their joined seats (§10.9).
+      const partners = await tx.cpPartner.count({ where: { userId: callerId, partnerId: targetId } });
+      if (partners > 0) await bumpRoomsSeatingBothIn(tx, callerId, targetId);
       return targetId;
     });
     // CP-011 (§10.9): a block with a live host ends the other user's seat, request, invitation and

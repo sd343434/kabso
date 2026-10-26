@@ -11,6 +11,8 @@ import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
 import { UsersService } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
+import type { ContentLanguage } from '../../common/http/content-language.js';
+import { cpTierName } from '../couples/couples.constants.js';
 import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
@@ -63,6 +65,16 @@ export interface LiveSeatInviteDto {
 
 export type LiveSeatRole = 'HOST' | 'MODERATOR' | 'SEATED' | 'VIEWER';
 
+/**
+ * v1.23.3-live (D111): a CP couple (CP-018) whose partners both sit in the room now, the host's
+ * seat included. `userIds` in seat order (the host first, then by seat index).
+ */
+export interface LiveSeatCoupleDto {
+  userIds: [string, string];
+  level: number;
+  levelName: string;
+}
+
 export interface LiveSeatsDto {
   roomId: string;
   mode: SeatedMode;
@@ -70,6 +82,7 @@ export interface LiveSeatsDto {
   seatCount: number;
   seats: LiveSeatDto[];
   moderators: UserSummaryDto[];
+  couples: LiveSeatCoupleDto[];
   pendingRequests?: number;
   mine?: {
     role: LiveSeatRole;
@@ -379,13 +392,17 @@ export class LiveSeatsService {
   // ---- Reading ---------------------------------------------------------------------------------
 
   /** `GET /live/rooms/{roomId}/seats` (guests too: no `mine`, no `pendingRequests`). */
-  async getSeats(callerId: string | null, roomId: string): Promise<LiveSeatsDto> {
+  async getSeats(callerId: string | null, roomId: string, lang: ContentLanguage): Promise<LiveSeatsDto> {
     const row = await this.seatedRoom(roomId, callerId);
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** The seats of a room as `callerId` sees them (after a change, or for a read). */
-  private async seatsOf(roomId: string, callerId: string | null): Promise<LiveSeatsDto> {
+  private async seatsOf(
+    roomId: string,
+    callerId: string | null,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const room = await this.prisma.liveRoom.findUniqueOrThrow({
       where: { id: roomId },
       select: { id: true, mode: true, seatCount: true, seatsVersion: true, hostUserId: true },
@@ -422,6 +439,7 @@ export class LiveSeatsService {
       seatCount,
       seats,
       moderators: moderators.map((m) => userSummary(m.user)),
+      couples: await this.seatedCouples(room.hostUserId, seats, lang),
     };
     if (callerId === null) return dto;
 
@@ -450,6 +468,59 @@ export class LiveSeatsService {
       invite: invite ? inviteDto(invite) : null,
     };
     return dto;
+  }
+
+  /**
+   * v1.23.3-live (D111): the CP couples (CP-018) whose partners both sit in the room now — the host
+   * and the TAKEN seats. Like `PublicProfile.cp`, a couple shows only while both accounts are
+   * ACTIVE; a couple whose partners have a block between them (either way) is not shown. An ended
+   * couple has no `cp_partners` rows, so it is never listed.
+   */
+  private async seatedCouples(
+    hostUserId: string,
+    seats: readonly LiveSeatDto[],
+    lang: ContentLanguage,
+  ): Promise<LiveSeatCoupleDto[]> {
+    const order = new Map<string, number>([[hostUserId, 0]]);
+    for (const seat of seats) if (seat.user) order.set(seat.user.id, seat.index);
+    if (order.size < 2) return [];
+    const ids = [...order.keys()];
+    const rows = await this.prisma.cpPartner.findMany({
+      where: {
+        userId: { in: ids },
+        partnerId: { in: ids },
+        user: { status: 'ACTIVE' },
+        partner: { status: 'ACTIVE' },
+        couple: { endedAt: null },
+      },
+      select: { userId: true, partnerId: true, couple: { select: { level: true } } },
+    });
+    const pairs = rows.filter((r) => r.userId < r.partnerId);
+    if (pairs.length === 0) return [];
+    const blocks = await this.prisma.userBlock.findMany({
+      where: { blockerId: { in: ids }, blockedId: { in: ids } },
+      select: { blockerId: true, blockedId: true },
+    });
+    const blocked = new Set(blocks.map((b) => `${b.blockerId}:${b.blockedId}`));
+    const couples: LiveSeatCoupleDto[] = [];
+    for (const pair of pairs) {
+      if (
+        blocked.has(`${pair.userId}:${pair.partnerId}`) ||
+        blocked.has(`${pair.partnerId}:${pair.userId}`)
+      ) {
+        continue;
+      }
+      const [first, second] =
+        order.get(pair.userId)! < order.get(pair.partnerId)!
+          ? [pair.userId, pair.partnerId]
+          : [pair.partnerId, pair.userId];
+      couples.push({
+        userIds: [first, second],
+        level: pair.couple.level,
+        levelName: cpTierName(pair.couple.level, lang),
+      });
+    }
+    return couples.sort((x, y) => order.get(x.userIds[0])! - order.get(y.userIds[0])!);
   }
 
   // ---- Seat requests ---------------------------------------------------------------------------
@@ -557,6 +628,7 @@ export class LiveSeatsService {
     roomId: string,
     requestId: string,
     body: unknown,
+    lang: ContentLanguage,
   ): Promise<LiveSeatsDto> {
     const input = parseBody(liveSeatRequestBodySchema, body);
     if (!isUuid(requestId)) throw notFound();
@@ -589,7 +661,7 @@ export class LiveSeatsService {
       const effect = await this.seatUserIn(tx, room, request.userId, seatIndex, now);
       return { result: undefined, version: await this.bump(tx, room.id), effects: [effect] };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `POST …/seat-requests/{requestId}/decline` (host or moderator; already handled → 204). */
@@ -666,7 +738,7 @@ export class LiveSeatsService {
   }
 
   /** `POST /live/rooms/{roomId}/seat-invites/me/accept`. */
-  async acceptInvite(callerId: string, roomId: string): Promise<LiveSeatsDto> {
+  async acceptInvite(callerId: string, roomId: string, lang: ContentLanguage): Promise<LiveSeatsDto> {
     const row = await this.seatedRoom(roomId, callerId);
     await this.change(row.id, async (tx, now) => {
       const room = await this.lockRoom(tx, row.id);
@@ -686,7 +758,7 @@ export class LiveSeatsService {
       const effect = await this.seatUserIn(tx, room, callerId, seatIndex, now);
       return { result: undefined, version: await this.bump(tx, room.id), effects: [effect] };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `POST /live/rooms/{roomId}/seat-invites/me/decline` (idempotent). */
@@ -729,7 +801,13 @@ export class LiveSeatsService {
   }
 
   /** `POST /live/rooms/{roomId}/seats/{seatIndex}/mute` (host or moderator; idempotent). */
-  async mute(callerId: string, roomId: string, rawIndex: string, body: unknown): Promise<LiveSeatsDto> {
+  async mute(
+    callerId: string,
+    roomId: string,
+    rawIndex: string,
+    body: unknown,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const input = parseBody(liveSeatMuteBodySchema, body);
     const index = seatIndexOf(rawIndex);
     const row = await this.seatedRoom(roomId, callerId);
@@ -752,11 +830,16 @@ export class LiveSeatsService {
         ],
       };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `POST /live/rooms/{roomId}/seats/{seatIndex}/remove` (host or moderator; empty → unchanged). */
-  async remove(callerId: string, roomId: string, rawIndex: string): Promise<LiveSeatsDto> {
+  async remove(
+    callerId: string,
+    roomId: string,
+    rawIndex: string,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const index = seatIndexOf(rawIndex);
     const row = await this.seatedRoom(roomId, callerId);
     await this.change(row.id, async (tx) => {
@@ -772,11 +855,17 @@ export class LiveSeatsService {
         effects: [{ kind: 'permission', identity: seat.userId, permission: VIEWER_PERMISSION }],
       };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `POST /live/rooms/{roomId}/seats/{seatIndex}/lock` (host only; an occupied seat → 409). */
-  async lock(callerId: string, roomId: string, rawIndex: string, body: unknown): Promise<LiveSeatsDto> {
+  async lock(
+    callerId: string,
+    roomId: string,
+    rawIndex: string,
+    body: unknown,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const input = parseBody(liveSeatLockBodySchema, body);
     const index = seatIndexOf(rawIndex);
     const row = await this.seatedRoom(roomId, callerId);
@@ -798,7 +887,7 @@ export class LiveSeatsService {
       }
       return { result: undefined, version: await this.bump(tx, room.id), effects: [] };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /**
@@ -830,7 +919,12 @@ export class LiveSeatsService {
   // ---- Moderators ------------------------------------------------------------------------------
 
   /** `PUT /live/rooms/{roomId}/moderators/{username}` (host only; up to 5; idempotent). */
-  async addModerator(callerId: string, roomId: string, username: string): Promise<LiveSeatsDto> {
+  async addModerator(
+    callerId: string,
+    roomId: string,
+    username: string,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const row = await this.seatedRoom(roomId, callerId);
     const target = await this.users.findActivePublicUser(username);
     await this.change(row.id, async (tx, now) => {
@@ -852,11 +946,16 @@ export class LiveSeatsService {
       await tx.liveRoomModerator.create({ data: { roomId: room.id, userId: target.id, addedAt: now } });
       return { result: undefined, version: await this.bump(tx, room.id), effects: [] };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   /** `DELETE /live/rooms/{roomId}/moderators/{username}` (host only; idempotent). */
-  async removeModerator(callerId: string, roomId: string, username: string): Promise<LiveSeatsDto> {
+  async removeModerator(
+    callerId: string,
+    roomId: string,
+    username: string,
+    lang: ContentLanguage,
+  ): Promise<LiveSeatsDto> {
     const row = await this.seatedRoom(roomId, callerId);
     const target = await this.users.findActivePublicUser(username);
     await this.change(row.id, async (tx) => {
@@ -872,7 +971,7 @@ export class LiveSeatsService {
         effects: [],
       };
     });
-    return this.seatsOf(row.id, callerId);
+    return this.seatsOf(row.id, callerId, lang);
   }
 
   // ---- Losing a seat (presence, blocks) and media ------------------------------------------------

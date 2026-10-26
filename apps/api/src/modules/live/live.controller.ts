@@ -263,8 +263,8 @@ export class LiveController {
     },
     GUEST_READ,
   )
-  getSeats(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
-    return this.seats.getSeats(callerOf(req), roomId);
+  async getSeats(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
+    return this.seats.getSeats(callerOf(req), roomId, await this.language(req));
   }
 
   /** A viewer asks for a seat: 201 new, 200 the pending one. */
@@ -300,13 +300,13 @@ export class LiveController {
   @Post('rooms/:roomId/seat-requests/:requestId/accept')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  acceptSeatRequest(
+  async acceptSeatRequest(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('requestId') requestId: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.acceptRequest(requireCaller(req), roomId, requestId, body);
+    return this.seats.acceptRequest(requireCaller(req), roomId, requestId, body, await this.language(req));
   }
 
   @Post('rooms/:roomId/seat-requests/:requestId/decline')
@@ -333,8 +333,8 @@ export class LiveController {
 
   @Post('rooms/:roomId/seat-invites/me/accept')
   @HttpCode(200)
-  acceptSeatInvite(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
-    return this.seats.acceptInvite(requireCaller(req), roomId);
+  async acceptSeatInvite(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
+    return this.seats.acceptInvite(requireCaller(req), roomId, await this.language(req));
   }
 
   @Post('rooms/:roomId/seat-invites/me/decline')
@@ -352,58 +352,58 @@ export class LiveController {
   @Post('rooms/:roomId/seats/:seatIndex/mute')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  muteSeat(
+  async muteSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.mute(requireCaller(req), roomId, seatIndex, body);
+    return this.seats.mute(requireCaller(req), roomId, seatIndex, body, await this.language(req));
   }
 
   @Post('rooms/:roomId/seats/:seatIndex/remove')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  removeFromSeat(
+  async removeFromSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.remove(requireCaller(req), roomId, seatIndex);
+    return this.seats.remove(requireCaller(req), roomId, seatIndex, await this.language(req));
   }
 
   @Post('rooms/:roomId/seats/:seatIndex/lock')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  lockSeat(
+  async lockSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.lock(requireCaller(req), roomId, seatIndex, body);
+    return this.seats.lock(requireCaller(req), roomId, seatIndex, body, await this.language(req));
   }
 
   @Put('rooms/:roomId/moderators/:username')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  addModerator(
+  async addModerator(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('username') username: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.addModerator(requireCaller(req), roomId, username);
+    return this.seats.addModerator(requireCaller(req), roomId, username, await this.language(req));
   }
 
   @Delete('rooms/:roomId/moderators/:username')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  removeModerator(
+  async removeModerator(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('username') username: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.removeModerator(requireCaller(req), roomId, username);
+    return this.seats.removeModerator(requireCaller(req), roomId, username, await this.language(req));
   }
 
   // ---- CP-012: taps and the room score (CONVENTIONS §10.10) --------------------------------------
