@@ -42,7 +42,7 @@ import 'package:material_ui/material_ui.dart';
 /// - **Multi-guest:** the room theme behind a grid of 4, 6, 9 or 12 tiles,
 ///   the host's camera in the first.
 /// - **Audio:** the room theme behind the host's crowned circle and rows of
-///   seats (6, 9, 15, 20 or 25 with the host, D100).
+///   seats (5, 10, 15, 20 or 25 with the host, D103).
 ///
 /// Above: the glass title card (picture, title, guests, `#` categories,
 /// Kabi). Below: the seat count, the tools (flip, beauty, microphone,
@@ -506,7 +506,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   showSeatCountSheet(
                     context,
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: seatCount!,
                     accent: art.accent,
@@ -612,7 +612,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               )
             : null,
-        seatCounts: cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25],
+        seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25],
         seatCount: state.seatCount!,
         onSeatCount: previewing
             ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
@@ -1014,7 +1014,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   padding: const EdgeInsets.only(bottom: KSpacing.md),
                   child: GoLiveSeatCountPicker(
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: state.seatCount!,
                     accent: art.accent,

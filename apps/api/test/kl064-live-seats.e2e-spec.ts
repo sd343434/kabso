@@ -176,12 +176,12 @@ describe('CP-011 multi-guest and audio rooms', () => {
           'heart-garden',
           'galaxy',
         ],
-        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] },
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] },
       });
 
       const [h1, h2, h3] = [await host(), await host(), await host()];
       const multi = await goLive(h1, { mode: 'MULTI', seatCount: 6, theme: 'ice-palace' });
-      const audio = await goLive(h2, { mode: 'AUDIO', seatCount: 9 });
+      const audio = await goLive(h2, { mode: 'AUDIO', seatCount: 10 });
       const solo = await goLive(h3, {});
       const detail = await ctx.http.get(`/api/v1/live/rooms/${multi}`);
       expectContract(detail, 'getLiveRoom');
@@ -193,7 +193,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       });
       expect((await ctx.http.get(`/api/v1/live/rooms/${audio}`)).body).toMatchObject({
         mode: 'AUDIO',
-        seatCount: 9,
+        seatCount: 10,
         theme: 'classic',
       });
       expect((await ctx.http.get(`/api/v1/live/rooms/${solo}`)).body).toMatchObject({
@@ -206,7 +206,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expectContract(list, 'listLiveRooms');
       expect(list.body.data.find((r: { id: string }) => r.id === audio)).toMatchObject({
         mode: 'AUDIO',
-        seatCount: 9,
+        seatCount: 10,
         occupiedSeats: 0,
       });
 
@@ -232,6 +232,9 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const cases: [object, { field: string; issue: string }[]][] = [
         [{ mode: 'MULTI' }, [{ field: 'seatCount', issue: 'required' }]],
         [{ mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+        [{ mode: 'AUDIO', seatCount: 6 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+        [{ mode: 'AUDIO', seatCount: 9 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
+        [{ mode: 'MULTI', seatCount: 5 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ mode: 'MULTI', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
         [{ mode: 'PK' }, [{ field: 'mode', issue: 'invalid_value' }]],
@@ -256,15 +259,15 @@ describe('CP-011 multi-guest and audio rooms', () => {
   describe('reading the seats', () => {
     it('everyone who may see the room reads them; mine and pendingRequests only for whom they concern', async () => {
       const [h, viewer] = [await host(), await signup()];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 6 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
       const asHost = await seats(roomId, h);
       expectContract(asHost, 'getLiveRoomSeats');
       expect(asHost.body).toEqual({
         roomId,
         mode: 'AUDIO',
         version: 0,
-        seatCount: 6,
-        seats: [1, 2, 3, 4, 5].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
+        seatCount: 5,
+        seats: [1, 2, 3, 4].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
         moderators: [],
         pendingRequests: 0,
         mine: { role: 'HOST', seatIndex: null, request: null, invite: null },
@@ -489,7 +492,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
         await signup(),
         await signup(),
       ];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 6 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
       await watch(roomId, a, b, blocked);
 
       expectError(
@@ -599,7 +602,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       );
       expectError(await invite(roomId, h, {}), 400, 'VALIDATION_FAILED', 'inviteToLiveSeat');
       expectError(
-        await invite(roomId, h, { username: b.username, seatIndex: 5 + 1 }),
+        await invite(roomId, h, { username: b.username, seatIndex: 4 + 1 }),
         409,
         'LIVE_SEAT_UNAVAILABLE',
         'inviteToLiveSeat',
@@ -742,7 +745,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
       await end(roomId, h);
 
       // AUDIO: muting withdraws the microphone, so nothing is published.
-      const audio = await goLive(ha, { mode: 'AUDIO', seatCount: 6 });
+      const audio = await goLive(ha, { mode: 'AUDIO', seatCount: 5 });
       await seat(audio, ha, a);
       await call('post', `${audio}/seats/1/mute`, ha, { muted: true }).expect(200);
       expect(media.lastPermission(audio, a.id)).toEqual({ visible: true, sources: [] });
@@ -951,7 +954,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
 
     it('a block with the host, a suspension and the room ending free seats and end requests', async () => {
       const [h, a, b, m, s] = [await host(), await signup(), await signup(), await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 9 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 10 });
       await watch(roomId, a, b, m, s);
       await seat(roomId, h, a);
       await seat(roomId, h, s);

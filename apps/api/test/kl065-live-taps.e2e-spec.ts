@@ -478,7 +478,7 @@ describe('CP-012 live taps and the room score', () => {
     it('seat changes keep the score and taps keep the seat version (one merged metadata)', async () => {
       const h = await host();
       const [guest, v] = [await signup(), await signup()];
-      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 6 });
+      const roomId = await goLive(h, { mode: 'AUDIO', seatCount: 5 });
       await tapOk(roomId, v, 8);
       expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 8 });
 

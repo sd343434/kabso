@@ -1293,8 +1293,8 @@ void main() {
         ]) {
           final engine = FakeLiveMediaEngine();
           final repo = FakeLiveRepository(
-            room: (_) => room.copyWith(mode: LiveRoomMode.audio, seatCount: 9),
-          )..seatState = seats(mode: LiveRoomMode.audio, count: 9);
+            room: (_) => room.copyWith(mode: LiveRoomMode.audio, seatCount: 10),
+          )..seatState = seats(mode: LiveRoomMode.audio, count: 10);
           await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
           expect(find.byTooltip(hint), findsOneWidget);
           await tester.tap(find.byKey(AudioRoomViewKeys.chat));
@@ -1312,8 +1312,8 @@ void main() {
         final repo = FakeLiveRepository(
           room: (id) => apiRoom(
             id: id,
-          ).copyWith(mode: LiveRoomMode.audio, seatCount: 9, chatMuted: muted),
-        )..seatState = seats(mode: LiveRoomMode.audio, count: 9);
+          ).copyWith(mode: LiveRoomMode.audio, seatCount: 10, chatMuted: muted),
+        )..seatState = seats(mode: LiveRoomMode.audio, count: 10);
         await _pumpRoom(
           tester,
           repo: repo,

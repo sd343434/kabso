@@ -59,8 +59,8 @@ export const LIVE_THEMES = [
 ] as const;
 export const DEFAULT_LIVE_THEME = LIVE_THEMES[0];
 
-/** Allowed `seatCount` per mode, host tile included (owner D94; AUDIO owner D100). */
-export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] } as const;
+/** Allowed `seatCount` per mode, host tile included (owner D94; AUDIO owner D103). */
+export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] } as const;
 export type SeatedMode = keyof typeof LIVE_SEAT_COUNTS;
 
 /** Seat indexes 1 … 24 (the host is 0; the largest room has 25 tiles). */

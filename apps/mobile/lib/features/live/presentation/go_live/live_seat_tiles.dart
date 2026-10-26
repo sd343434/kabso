@@ -258,7 +258,7 @@ class AudioSeatRing extends StatelessWidget {
     this.speaking = const {},
   });
 
-  /// Seats, the host's included (owner D100: 6, 9, 15, 20 or 25). Up to
+  /// Seats, the host's included (owner D103: 5, 10, 15, 20 or 25). Up to
   /// [circleMax] they sit on a circle around the host; above, every tile —
   /// the host's first — sits in rows of [rowSize].
   final int count;
@@ -343,7 +343,8 @@ class AudioSeatRing extends StatelessWidget {
   /// Owner D100: 15, 20 or 25 tiles in rows of [rowSize] — the host is the
   /// first tile, then seats 1 … count-1, in reading order (start to end, so
   /// mirrored in Arabic). A narrow screen scales the tiles down instead of
-  /// wrapping them.
+  /// wrapping them, and a short one (owner, 2026-10-26: 25 seats hid under
+  /// the chat) scales every row down so all of them show.
   Widget _rows() => LayoutBuilder(
     builder: (context, box) {
       final cell = box.maxWidth / rowSize;
@@ -363,7 +364,7 @@ class AudioSeatRing extends StatelessWidget {
           ),
         ),
       );
-      return Column(
+      final rows = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var first = 0; first < count; first += rowSize) ...[
@@ -379,8 +380,27 @@ class AudioSeatRing extends StatelessWidget {
           ],
         ],
       );
+      final height = AudioStageBounds.of(context);
+      if (height == null || !height.isFinite) return rows;
+      return Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: math.max(height, minRowsHeight),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.topCenter,
+            child: SizedBox(width: box.maxWidth, child: rows),
+          ),
+        ),
+      );
     },
   );
+
+  /// The rows never shrink below this height (with the keyboard up, the
+  /// stage scrolls instead).
+  static const minRowsHeight = 240.0;
 
   Widget _circle() => LayoutBuilder(
     builder: (context, box) {

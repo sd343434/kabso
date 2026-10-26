@@ -434,6 +434,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.18-live (draft) | 2026-10-26 | **Owner D103:** `AUDIO` seat counts 5, 10, 15, 20, 25 (host included; was 6, 9, 15, 20, 25); seat indexes stay 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`); §10.9. Existing rooms of 6 / 9 become 10. | **Breaking for `AUDIO` starts with 6 or 9** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.17-live (draft) | 2026-10-25 | **CP-016 part D (D101, owner 2026-10-25):** `LiveRoom.roomLevel` (the host's charm level); every 10 counted taps of a viewer in a live give the host 1 charm point (`PointsSourceType` `LIVE_TAPS`), at most 10 000 taps (1 000 points) per viewer in each live; §10.18, §10.10. | **Additive** (a new field and a new enum value). |
 | v1.16-live (draft) | 2026-10-25 | **Owner D100:** `AUDIO` seat counts 6, 9, 15, 20, 25 (host included; was 5, 9, 13); seat indexes 1 … 24 (`LiveSeatCount`, `LiveConfig.seatCounts`, seat paths and bodies); §10.9. | **Breaking for `AUDIO` starts with 5 or 13** (400 `invalid_value`); apps read the counts from `LiveConfig.seatCounts`. Existing rooms of 5 / 13 became 6 / 15. |
 | v1.15-live (draft) | 2026-10-25 | **CP-016 part G (D99, owner 2026-10-25):** `LiveRoom.roomNumber` (the host's 9-digit public room number); §10.17. | **Additive** (a new field). |
@@ -728,8 +729,8 @@ until a media provider is wired in.
 
 - **Modes:** `SOLO` (§10.8), `MULTI` (video seats) and `AUDIO` (voice seats). `PK` stays
   reserved (L5). `seatCount` counts the host's tile: `MULTI` 4, 6, 9 or 12 (owner D94); `AUDIO`
-  6, 9, 15, 20 or 25 (v1.16-live, owner D100; was 5, 9 or 13 — rooms of 5 became 6, of 13
-  became 15). Seats are numbered 1 … `seatCount`-1 (at most 24); the host is 0.
+  5, 10, 15, 20 or 25 (v1.18-live, owner D103; was 6, 9, 15, 20 or 25 — rooms of 6 or 9
+  became 10; before v1.16-live, owner D100, it was 5, 9 or 13). Seats are numbered 1 … `seatCount`-1 (at most 24); the host is 0.
 - **Seat state:** `EMPTY`, `LOCKED` or `TAKEN` (with the user and `mutedByHost`). Every change
   increases the room's seat `version` in the same transaction and writes `{"seatsVersion": n}`
   into the media room's metadata; apps refetch `getLiveRoomSeats` when it moves.

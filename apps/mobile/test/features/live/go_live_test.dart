@@ -531,14 +531,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip(_l10n(tester).liveClose).last);
       await tester.pumpAndSettle();
-      // Seats (D100): 6 / 9 / 15 / 20 / 25 in the sheet; a pick closes it.
+      // Seats (D103): 5 / 10 / 15 / 20 / 25 in the sheet; a pick closes it.
       await tester.tap(find.byKey(GoLiveAudioSetup.seatsKey));
       await tester.pumpAndSettle();
-      for (final c in [6, 9, 15, 20, 25]) {
+      for (final c in [5, 10, 15, 20, 25]) {
         expect(find.byKey(GoLiveKeys.seatCount(c)), findsOneWidget);
       }
-      expect(find.byKey(GoLiveKeys.seatCount(5)), findsNothing);
-      expect(find.byKey(GoLiveKeys.seatCount(13)), findsNothing);
+      expect(find.byKey(GoLiveKeys.seatCount(6)), findsNothing);
+      expect(find.byKey(GoLiveKeys.seatCount(9)), findsNothing);
       await tester.tap(find.byKey(GoLiveKeys.seatCount(25)));
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.seatCount(25)), findsNothing);

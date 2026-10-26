@@ -47,6 +47,8 @@ info:
     included) and seat indexes to 1 … 24 (CONVENTIONS §10.9).
     **CP-016 part D (D101, DRAFT v1.17-live)** adds the room level (`LiveRoom.roomLevel`, the
     host's charm level); taps give the host charm points (`LIVE_TAPS`, CONVENTIONS §10.18).
+    **v1.18-live (DRAFT, owner D103)** changes the `AUDIO` seat counts to 5, 10, 15, 20 or 25
+    (host included; seat indexes stay 1 … 24, CONVENTIONS §10.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -698,7 +700,7 @@ paths:
                 heartbeatIntervalSeconds: 15
                 heartbeatStaleAfterSeconds: 45
                 themes: [classic, ice-palace, desert-night, rose-garden, sunset-sky, moon-palace, ocean-depths, golden-hall, game-arena, heart-garden, galaxy]
-                seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] }
+                seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
@@ -3591,7 +3593,7 @@ components:
           required: [MULTI, AUDIO]
           properties:
             MULTI: { type: array, items: { type: integer }, example: [4, 6, 9, 12] }
-            AUDIO: { type: array, items: { type: integer }, example: [5, 9, 13] }
+            AUDIO: { type: array, items: { type: integer }, example: [5, 10, 15, 20, 25] }
     LiveRoomMode:
       type: string
       enum: [SOLO, PK, MULTI, AUDIO]
@@ -3766,10 +3768,11 @@ components:
     # ---- v1.7-live (DRAFT, CP-011) --------------------------------------------------------
     LiveSeatCount:
       type: integer
-      enum: [4, 6, 9, 12, 15, 20, 25]
+      enum: [4, 5, 6, 9, 10, 12, 15, 20, 25]
       description: |
         CP-011: tiles in a MULTI or AUDIO room, the host's included. MULTI: 4, 6, 9 or 12;
-        AUDIO: 6, 9, 15, 20 or 25 (v1.16-live, owner D100; was 5, 9 or 13) (`LiveConfig.seatCounts`).
+        AUDIO: 5, 10, 15, 20 or 25 (v1.18-live, owner D103; was 6, 9, 15, 20 or 25 since v1.16-live,
+        D100, and 5, 9 or 13 before) (`LiveConfig.seatCounts`).
         Any other mode/count pair → 400.
     LiveThemeSlug:
       type: string

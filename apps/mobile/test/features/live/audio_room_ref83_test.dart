@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:material_ui/material_ui.dart';
@@ -39,7 +40,7 @@ Future<void> _ring(
 }
 
 void main() {
-  for (final count in [6, 9]) {
+  for (final count in [5, 10]) {
     testWidgets('$count seats: ${count - 1} chairs on a circle around the '
         'host', (tester) async {
       await _ring(tester, count);
@@ -53,6 +54,39 @@ void main() {
       expect(first.dy, lessThan(host.dy));
     });
   }
+
+  testWidgets('25 seats with the chat on a 360 × 800 phone: every row shows '
+      'above the chat (they hid under it, owner 2026-10-26)', (tester) async {
+    setViewport(tester, GoldenViewport.android);
+    await pumpScreen(
+      tester,
+      Scaffold(
+        body: LiveAudioRoomLayout(
+          header: const SizedBox(height: 48),
+          chips: const SizedBox(height: 32),
+          stage: AudioSeatRing(
+            count: 25,
+            host: const KAvatar(name: 'Layla', size: AudioSeatRing.hostSize),
+            hostName: 'Layla',
+            hostPoints: '0',
+            onSeat: (_) {},
+          ),
+          chat: [
+            for (var i = 0; i < 6; i++)
+              SizedBox(key: ValueKey('chat$i'), height: 36),
+          ],
+          barStart: const [SizedBox.square(dimension: 44)],
+          barEnd: const [SizedBox.square(dimension: 44)],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final chatTop = tester.getTopLeft(find.byKey(const ValueKey('chat0'))).dy;
+    for (var i = 1; i <= 24; i++) {
+      final seat = tester.getRect(find.byKey(AudioSeatRing.seatKey(i)));
+      expect(seat.bottom, lessThanOrEqualTo(chatTop), reason: 'seat $i');
+    }
+  });
 
   for (final count in [15, 20, 25]) {
     testWidgets('$count seats (D100): rows of 5, the host the first tile, '

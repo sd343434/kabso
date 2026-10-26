@@ -1,6 +1,6 @@
 /**
- * KL-074 / owner D100: AUDIO rooms have 6, 9, 15, 20 or 25 tiles, the host included (openapi
- * v1.16-live DRAFT, CONVENTIONS §10.9), end to end against PostgreSQL + Redis with the API as the
+ * KL-074 / owner D100, amended by D103: AUDIO rooms have 5, 10, 15, 20 or 25 tiles, the host
+ * included (openapi v1.18-live DRAFT, CONVENTIONS §10.9), end to end against PostgreSQL + Redis with the API as the
  * DML-only runtime role and the in-memory media server.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -15,7 +15,7 @@ interface TestUser {
   readonly token: string;
 }
 
-describe('D100 audio room sizes', () => {
+describe('D100 / D103 audio room sizes', () => {
   let ctx: TestContext;
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
   const signup = async (): Promise<TestUser> => {
@@ -44,16 +44,28 @@ describe('D100 audio room sizes', () => {
   });
   afterAll(async () => ctx?.close());
 
-  it('the config lists 6, 9, 15, 20 and 25; 5 and 13 are refused', async () => {
+  it('the config lists 5, 10, 15, 20 and 25; 6, 9 and 13 are refused; 5 and 10 start', async () => {
     const h = await host();
     const cfg = await ctx.http.get('/api/v1/live/config').set(auth(h));
     expect(cfg.status).toBe(200);
     expectContract(cfg, 'getLiveConfig');
-    expect(cfg.body.seatCounts).toEqual({ MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] });
-    for (const old of [5, 13]) {
+    expect(cfg.body.seatCounts).toEqual({ MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] });
+    for (const old of [6, 9, 13]) {
       const res = await start(h, old);
       expect(res.status).toBe(400);
       expect(res.body.error.details).toEqual([{ field: 'seatCount', issue: 'invalid_value' }]);
+    }
+    for (const size of [5, 10]) {
+      const res = await start(h, size);
+      expect(res.status).toBe(201);
+      expectContract(res, 'startLiveRoom');
+      expect(res.body.seatCount).toBe(size);
+      const seats = await ctx.http.get(`${live(res.body.id)}/seats`).set(auth(h));
+      expect(seats.status).toBe(200);
+      expect(seats.body.seats.map((s: { index: number }) => s.index)).toEqual(
+        Array.from({ length: size - 1 }, (_, i) => i + 1),
+      );
+      await end(res.body.id, h);
     }
   });
 
@@ -89,8 +101,10 @@ describe('D100 audio room sizes', () => {
     const shrink = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: 20 });
     expect(shrink.status).toBe(409);
     expect(shrink.body.error.code).toBe('LIVE_SEAT_UNAVAILABLE');
-    const bad = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: 13 });
-    expect(bad.status).toBe(400);
+    for (const old of [6, 9, 13]) {
+      const bad = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: old });
+      expect(bad.status).toBe(400);
+    }
     await end(roomId, h);
 
     const second = await start(h, 15);
@@ -103,11 +117,16 @@ describe('D100 audio room sizes', () => {
 
   it('the database refuses an AUDIO size outside the set and a seat index above 24', async () => {
     const h = await host();
-    const started = await start(h, 9);
+    const started = await start(h, 10);
+    expect(started.status).toBe(201);
     const roomId = started.body.id as string;
-    await expect(
-      ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { seatCount: 13 } }),
-    ).rejects.toThrow();
+    for (const old of [6, 9, 13]) {
+      await expect(
+        ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { seatCount: old } }),
+      ).rejects.toThrow();
+    }
+    // The allowed sizes pass the CHECK.
+    await ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { seatCount: 5 } });
     await expect(
       ctx.prisma.liveRoomSeat.create({ data: { roomId, seatIndex: 25, locked: true } }),
     ).rejects.toThrow();

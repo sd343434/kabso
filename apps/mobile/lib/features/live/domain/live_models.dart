@@ -30,7 +30,7 @@ abstract class LiveConfig with _$LiveConfig {
 abstract class LiveSeatCounts with _$LiveSeatCounts {
   const factory({
     @JsonKey(name: 'MULTI') @Default(<int>[4, 6, 9, 12]) List<int> multi,
-    @JsonKey(name: 'AUDIO') @Default(<int>[6, 9, 15, 20, 25]) List<int> audio,
+    @JsonKey(name: 'AUDIO') @Default(<int>[5, 10, 15, 20, 25]) List<int> audio,
   }) = _LiveSeatCounts;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);

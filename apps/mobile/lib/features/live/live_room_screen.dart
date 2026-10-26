@@ -823,23 +823,20 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         if (seat.user != null && engine.speaking.contains(seat.user!.id))
           seat.index,
     };
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: height * 0.55),
-      child: SingleChildScrollView(
-        child: AudioSeatRing(
-          count: count,
-          seats: seats?.seats ?? const [],
-          host: KAvatar(
-            name: host.displayName,
-            imageUrl: host.avatarUrl,
-            size: AudioSeatRing.hostSize,
-          ),
-          hostName: host.displayName,
-          hostPoints: KFormat.compact(score, context.l10n),
-          speaking: speaking,
-          onSeat: onSeat,
-        ),
+    // The room's stage scrolls, and rows of seats shrink to fit it
+    // (AudioStageBounds).
+    return AudioSeatRing(
+      count: count,
+      seats: seats?.seats ?? const [],
+      host: KAvatar(
+        name: host.displayName,
+        imageUrl: host.avatarUrl,
+        size: AudioSeatRing.hostSize,
       ),
+      hostName: host.displayName,
+      hostPoints: KFormat.compact(score, context.l10n),
+      speaking: speaking,
+      onSeat: onSeat,
     );
   }
 

@@ -232,7 +232,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
           'heart-garden',
           'galaxy',
         ],
-        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] },
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] },
       });
     });
 

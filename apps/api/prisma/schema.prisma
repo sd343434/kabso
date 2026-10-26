@@ -361,7 +361,7 @@ model LiveRoom {
   viewerCount     Int                @default(0) @map("viewer_count")
   /// CP-010: people without an account may watch (owner D93: allowed by default).
   allowGuests     Boolean            @default(true) @map("allow_guests")
-  /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (6, 9, 15, 20, 25, D100) room; null for
+  /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (5, 10, 15, 20, 25, D103) room; null for
   /// SOLO. CHECK `live_rooms_seat_count_mode` (migration 20261027090000_live_seats).
   seatCount       Int?               @map("seat_count") @db.SmallInt
   /// CP-011: a slug of LiveConfig.themes (CHECK `live_rooms_theme_format`).

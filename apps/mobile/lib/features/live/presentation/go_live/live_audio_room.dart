@@ -143,10 +143,15 @@ class LiveAudioRoomLayout extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: SingleChildScrollView(
-                        // The seat circle's centre 373 pt from the top.
-                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
-                        child: stage,
+                      child: LayoutBuilder(
+                        builder: (context, stageBox) => SingleChildScrollView(
+                          // The seat circle's centre 373 pt from the top.
+                          padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                          child: AudioStageBounds(
+                            height: stageBox.maxHeight - 66,
+                            child: stage,
+                          ),
+                        ),
                       ),
                     ),
                     if (chat.isNotEmpty)
@@ -209,6 +214,21 @@ class LiveAudioRoomLayout extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The height the seats have on screen (above the chat), so rows of seats
+/// can shrink to fit instead of hiding under the chat (owner, 2026-10-26).
+class AudioStageBounds extends InheritedWidget {
+  const new({required this.height, required super.child, super.key});
+
+  final double height;
+
+  static double? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AudioStageBounds>()?.height;
+
+  @override
+  bool updateShouldNotify(AudioStageBounds oldWidget) =>
+      height != oldWidget.height;
 }
 
 /// The chat box (owner's reference): a white panel across the bottom with
