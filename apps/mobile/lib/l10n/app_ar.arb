@@ -4422,6 +4422,14 @@
     "description": "Viewers sheet, Guests tab empty."
   },
   "liveSeatInviteFriends": "ادعُ أصدقاءك",
+  "liveUserManage": "إدارة",
+  "@liveUserManage": {
+    "description": "Person card in a live (host): opens the moderator choice."
+  },
+  "liveUserViewProfile": "عرض الملف",
+  "@liveUserViewProfile": {
+    "description": "Person card in a live: opens their full profile."
+  },
   "@liveSeatInviteFriends": {
     "description": "Guests tab with nobody on a seat: opens the Viewers tab to invite people onto a seat."
   },

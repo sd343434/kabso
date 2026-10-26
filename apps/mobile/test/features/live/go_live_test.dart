@@ -37,13 +37,16 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_live_blocked_words_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_live_schedule_repository.dart';
+import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -107,6 +110,10 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
       ),
       liveScheduleRepositoryProvider.overrideWithValue(
         FakeLiveScheduleRepository(),
+      ),
+      // A person's card reads their profile.
+      profileRepositoryProvider.overrideWithValue(
+        FakeProfileRepository(apiProfile()),
       ),
     ],
   );
@@ -611,6 +618,19 @@ void main() {
       await tester.tap(invite);
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveSeatInvited), findsOneWidget);
+      // Tapping the person: their card, with Manage and Invite (the host).
+      await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.manage')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.invite')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('room.userCard.invite')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
+      expect(
+        repo.seatCalls.where((c) => c.startsWith('inviteToSeat')),
+        hasLength(2),
+      );
       await tester.tap(find.byKey(SeatControlKeys.guestsTab));
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveSeatGuestsEmpty), findsOneWidget);

@@ -1243,6 +1243,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       moderators: seats?.moderators ?? const [],
       seated: seats?.seats ?? const [],
       initialTab: guests ? 1 : 0,
+      onPerson: (u, {onManage, onInvite}) => showHostSheet(
+        context,
+        u.username,
+        onManage: onManage,
+        onInvite: onInvite,
+      ),
       onAccept: (r) async {
         await repo.acceptSeatRequest(roomId, r.id);
         await _afterSeatChange(roomId);

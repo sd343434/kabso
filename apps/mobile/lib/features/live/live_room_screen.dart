@@ -10,6 +10,9 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
@@ -342,6 +345,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               : _session.removeModerator(username),
         ),
       );
+      return;
+    }
+    // A viewer taps someone on a seat: their card (owner, 2026-10-26).
+    if (seat.user case final user? when seat.state == LiveSeatState.taken) {
+      unawaited(showHostSheet(context, user.username));
       return;
     }
     final signedIn = ref.read(currentUserProvider) != null;
@@ -870,99 +878,280 @@ Future<void> setHostFollowing(
   }
 }
 
-/// The host's profile as a non-dimming room sheet (HL-L2 "tap opens the
-/// host mini-profile"): avatar, name, @username, followers, bio and the
-/// follow toggle, all from `GET /users/{username}`.
-Future<void> showHostSheet(BuildContext context, String username) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
-      barrierColor: KMetrics.roomSheetBarrier,
-      constraints: KMetrics.sheetConstraints(
-        maxHeight:
-            MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
-      ),
-      builder: (_) => KLiveSurface(child: _HostSheet(username: username)),
-    );
+/// A person's card in a live (owner, 2026-10-26; the host's mini-profile of
+/// HL-L2 too): a white sheet with the picture over its top edge, the name
+/// with their charm level, @username, followers and following, their public
+/// levels, Follow, and Invite to a seat (the host, [onInvite]) or their full
+/// profile. [onManage] (the host) opens the moderator choice. All from
+/// `GET /users/{username}` and `GET /users/{username}/levels`.
+Future<void> showHostSheet(
+  BuildContext context,
+  String username, {
+  VoidCallback? onInvite,
+  VoidCallback? onManage,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: const Color(0x00000000),
+  barrierColor: KMetrics.roomSheetBarrier,
+  constraints: KMetrics.sheetConstraints(
+    maxHeight:
+        MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
+  ),
+  builder: (_) =>
+      _HostSheet(username: username, onInvite: onInvite, onManage: onManage),
+);
+
+abstract final class _Card {
+  static const ink = Color(0xFF2E3130);
+  static const soft = Color(0xFF9A9BA5);
+  static const avatar = 92.0;
+
+  /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
+  static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
+}
 
 class _HostSheet extends ConsumerWidget {
-  const new({required this.username});
+  const new({required this.username, this.onInvite, this.onManage});
 
   final String username;
+  final VoidCallback? onInvite;
+  final VoidCallback? onManage;
+
+  static const inviteKey = Key('room.userCard.invite');
+  static const manageKey = Key('room.userCard.manage');
+  static const profileKey = Key('room.userCard.profile');
+  static const giftKey = Key('room.userCard.gift');
+  static const copyKey = Key('room.userCard.copy');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final p = context.palette;
     final text = context.textStyles;
-    final profile = ref.watch(publicProfileProvider(username)).value;
-    final bio = profile?.bio;
-    return Container(
-      key: const Key('room.hostSheet'),
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(KRadius.xl),
+    final loaded = ref.watch(publicProfileProvider(username));
+    final profile = loaded.value;
+    final levels = ref.watch(profileLevelsProvider(username)).value ?? const [];
+    final shown = [
+      for (final l in levels)
+        if (l.level != null) l,
+    ];
+    final charm = shown
+        .where((l) => l.category == LevelCategory.attractiveness)
+        .firstOrNull
+        ?.level;
+    final onInvite = this.onInvite;
+    final onManage = this.onManage;
+    void close(VoidCallback then) {
+      Navigator.of(context).pop();
+      then();
+    }
+
+    Widget stat(int value, String label) => Expanded(
+      child: Column(
+        children: [
+          Text(
+            KFormat.compact(value, l10n),
+            style: text.title.copyWith(color: _Card.ink, fontSize: 20),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: text.caption.copyWith(color: _Card.soft)),
+        ],
+      ),
+    );
+    Widget action({
+      required Key key,
+      required String asset,
+      required String label,
+      required VoidCallback onTap,
+    }) => Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkResponse(
+        key: key,
+        onTap: onTap,
+        radius: 32,
+        child: SizedBox(
+          width: 70,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(asset, width: 32, height: 32),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.caption.copyWith(color: _Card.ink),
+              ),
+            ],
+          ),
         ),
       ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            KSpacing.xl,
-            KSpacing.sm,
-            KSpacing.xl,
-            KSpacing.xl,
-          ),
-          child: profile == null
-              ? const SizedBox(height: KSizes.avatarLg)
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: KMetrics.sheetHandleWidth,
-                      height: KMetrics.sheetHandleHeight,
-                      decoration: BoxDecoration(
-                        color: p.border,
-                        borderRadius: BorderRadius.circular(KRadius.pill),
+    );
+
+    final body = profile == null
+        ? SizedBox(
+            height: 200,
+            child: Center(
+              child: switch (loaded.error) {
+                final error? => Text(
+                  failureMessage(l10n, toAppFailure(error)),
+                  textAlign: TextAlign.center,
+                  style: text.body.copyWith(color: _Card.soft),
+                ),
+                null => const CircularProgressIndicator(),
+              },
+            ),
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Room for the picture and its level plate.
+              const SizedBox(height: _Card.avatar / 2 + 22),
+              Semantics(
+                header: true,
+                child: Text(
+                  profile.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.title.copyWith(color: _Card.ink, fontSize: 20),
+                ),
+              ),
+              const SizedBox(height: 2),
+              // @username, copied with one tap (the reference's ID line).
+              InkWell(
+                key: copyKey,
+                borderRadius: BorderRadius.circular(KRadius.pill),
+                onTap: () {
+                  unawaited(
+                    Clipboard.setData(
+                      ClipboardData(text: '@${profile.username}'),
+                    ),
+                  );
+                  KSnack.info(context, l10n.profileCopied);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.liveRoomUsername(profile.username),
+                        textDirection: TextDirection.ltr,
+                        style: text.body.copyWith(color: _Card.soft),
                       ),
-                    ),
-                    const SizedBox(height: KSpacing.lg),
-                    KAvatar(
-                      name: profile.displayName,
-                      image: _networkImage(profile.avatarUrl),
-                      size: KSizes.avatarLg,
-                    ),
-                    const SizedBox(height: KSpacing.md),
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        profile.displayName,
-                        textAlign: TextAlign.center,
-                        style: text.title,
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: _Card.soft,
                       ),
-                    ),
-                    Text(
-                      l10n.liveRoomUsername(profile.username),
-                      textDirection: TextDirection.ltr,
-                      style: text.caption,
-                    ),
-                    const SizedBox(height: KSpacing.sm),
-                    Text(
-                      l10n.liveRoomFollowers(
-                        profile.followerCount,
-                        KFormat.compact(profile.followerCount, l10n),
-                      ),
-                      style: text.body.copyWith(color: p.textSecondary),
-                    ),
-                    if (bio != null && bio.isNotEmpty) ...[
-                      const SizedBox(height: KSpacing.sm),
-                      Text(bio, textAlign: TextAlign.center, style: text.body),
                     ],
-                    if (profile.canFollow) ...[
-                      const SizedBox(height: KSpacing.lg),
-                      _FollowButton(
+                  ),
+                ),
+              ),
+              if (shown.any((l) => l.category != LevelCategory.attractiveness))
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final l in shown)
+                        if (l.category != LevelCategory.attractiveness)
+                          Semantics(
+                            label: '${l.name} ${l.level!.levelNumber}',
+                            excludeSemantics: true,
+                            child: KLevelBadge(
+                              category: l.category,
+                              levelNumber: l.level!.levelNumber,
+                              iconKey: l.level!.iconKey,
+                            ),
+                          ),
+                    ],
+                  ),
+                ),
+              if (profile.bio case final bio? when bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    bio,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: text.body.copyWith(color: _Card.ink),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  stat(profile.followerCount, l10n.profileFollowers),
+                  stat(profile.followingCount, l10n.profileFollowingCount),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: Color(0xFFEDEEF2)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  action(
+                    key: giftKey,
+                    asset: 'assets/live_bar/gift.png',
+                    label: l10n.liveGifts,
+                    onTap: () =>
+                        close(() => unawaited(KGiftPreviewSheet.show(context))),
+                  ),
+                  if (onInvite != null)
+                    action(
+                      key: inviteKey,
+                      asset: 'assets/live_bar/seat.png',
+                      label: l10n.liveSeatInviteSend,
+                      onTap: () => close(onInvite),
+                    )
+                  else
+                    Semantics(
+                      button: true,
+                      label: l10n.liveUserViewProfile,
+                      excludeSemantics: true,
+                      child: InkResponse(
+                        key: profileKey,
+                        radius: 32,
+                        onTap: () => close(
+                          () => unawaited(
+                            context.push(AppRoutes.userProfile(username)),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: 70,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.account_circle_rounded,
+                                size: 32,
+                                color: Color(0xFF5B8DEF),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                l10n.liveUserViewProfile,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.caption.copyWith(color: _Card.ink),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  if (profile.canFollow)
+                    Expanded(
+                      child: _FollowButton(
                         following: profile.isFollowing,
                         onPressed: () => unawaited(
                           setHostFollowing(
@@ -973,16 +1162,92 @@ class _HostSheet extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
+              ),
+            ],
+          );
+
+    return Stack(
+      key: const Key('room.hostSheet'),
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        // Attached to the bottom (not a floating card), with a gold edge.
+        Container(
+          margin: const EdgeInsets.only(top: _Card.avatar / 2),
+          padding: const EdgeInsets.only(top: 3),
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            gradient: LinearGradient(colors: _Card.gold),
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: body,
+              ),
+            ),
+          ),
         ),
-      ),
+        if (onManage != null)
+          PositionedDirectional(
+            top: _Card.avatar / 2 + 8,
+            end: 8,
+            child: IconButton(
+              key: manageKey,
+              tooltip: l10n.liveUserManage,
+              onPressed: () => close(onManage),
+              icon: const Icon(Icons.more_horiz_rounded, color: _Card.soft),
+            ),
+          ),
+        // The picture in a gold ring, the charm level on a plate under it.
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: _Card.gold,
+                ),
+                boxShadow: [
+                  BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
+                ],
+              ),
+              child: ClipOval(
+                child: SizedBox.square(
+                  dimension: _Card.avatar,
+                  child: KAvatar(
+                    name: profile?.displayName ?? username,
+                    image: _networkImage(profile?.avatarUrl),
+                    size: _Card.avatar,
+                  ),
+                ),
+              ),
+            ),
+            if (charm != null)
+              Transform.translate(
+                offset: const Offset(0, -10),
+                child: IntrinsicWidth(
+                  child: CharmLevelBadge(level: charm.levelNumber, height: 18),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-/// Follow / Following toggle button (ended overlay, host sheet).
 class _FollowButton extends StatelessWidget {
   const new({required this.following, required this.onPressed});
 

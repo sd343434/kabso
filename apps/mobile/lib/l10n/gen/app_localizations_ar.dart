@@ -3835,6 +3835,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveSeatInviteFriends => 'ادعُ أصدقاءك';
 
   @override
+  String get liveUserManage => 'إدارة';
+
+  @override
+  String get liveUserViewProfile => 'عرض الملف';
+
+  @override
   String liveSeatNumberLabel(int number) {
     return 'المقعد $number';
   }

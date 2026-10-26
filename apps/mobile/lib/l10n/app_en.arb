@@ -1254,6 +1254,8 @@
   "liveSeatGuestsTab": "Guests",
   "liveSeatGuestsEmpty": "Nobody is on a seat right now",
   "liveSeatInviteFriends": "Invite friends",
+  "liveUserManage": "Manage",
+  "liveUserViewProfile": "View profile",
   "liveSeatNumberLabel": "Seat {number}",
   "liveEditRoom": "Edit room",
   "liveEditRoomName": "Room name",

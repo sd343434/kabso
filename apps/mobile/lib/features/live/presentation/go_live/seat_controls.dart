@@ -193,6 +193,13 @@ Future<void> showSeatActions(
   );
 }
 
+/// Opens a person's card in a live ([onManage] and [onInvite] for the host).
+typedef LivePersonCard = Future<void> Function(
+  UserSummary user, {
+  VoidCallback? onManage,
+  VoidCallback? onInvite,
+});
+
 /// The pending requests, oldest first, with Accept and Decline.
 Future<void> showSeatRequests(
   BuildContext context, {
@@ -350,6 +357,7 @@ Future<void> showInviteViewers(
   onModerator,
   List<LiveSeat> seated = const [],
   int initialTab = 0,
+  LivePersonCard? onPerson,
   Future<void> Function(LiveSeatRequest request)? onAccept,
   Future<void> Function(LiveSeatRequest request)? onDecline,
 }) => showModalBottomSheet<void>(
@@ -364,6 +372,7 @@ Future<void> showInviteViewers(
     onInvite: onInvite,
     onModerator: onModerator,
     initialTab: initialTab,
+    onPerson: onPerson,
     onAccept: onAccept,
     onDecline: onDecline,
     seated: [
@@ -412,9 +421,14 @@ class _ViewersPanel extends ConsumerStatefulWidget {
     required this.onModerator,
     required this.seated,
     this.initialTab = 0,
+    this.onPerson,
     this.onAccept,
     this.onDecline,
   });
+
+  /// Tapping a person: their card, with Manage (the moderator choice) and
+  /// Invite to a seat when they are not on one.
+  final LivePersonCard? onPerson;
 
   /// 0 viewers, 1 guests (the seat button), 2 contribution.
   final int initialTab;
@@ -610,8 +624,24 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                 imageUrl: u.avatarUrl,
                 size: 40,
               ),
-              // Tapping the person: make or remove a moderator.
-              onTap: () => unawaited(_moderatorMenu(context, u)),
+              // Tapping the person: their card (Manage = make or remove a
+              // moderator), else the moderator choice directly.
+              onTap: () => unawaited(switch (widget.onPerson) {
+                final card? => card(
+                  u,
+                  onManage: () => unawaited(_moderatorMenu(context, u)),
+                  onInvite: seatedIds.contains(u.id)
+                      ? null
+                      : () => unawaited(
+                          runSeatAction(
+                            context,
+                            () => widget.onInvite(u.username),
+                            success: context.l10n.liveSeatInvited,
+                          ),
+                        ),
+                ),
+                null => _moderatorMenu(context, u),
+              }),
               actions: [
                 if (!seatedIds.contains(u.id))
                   _round(

@@ -6758,6 +6758,18 @@ abstract class AppLocalizations {
   /// **'ادعُ أصدقاءك'**
   String get liveSeatInviteFriends;
 
+  /// Person card in a live (host): opens the moderator choice.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة'**
+  String get liveUserManage;
+
+  /// Person card in a live: opens their full profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الملف'**
+  String get liveUserViewProfile;
+
   /// Viewers sheet, Guests tab: the person's seat.
   ///
   /// In ar, this message translates to:

@@ -505,13 +505,18 @@ void main() {
       expect(find.text('Arabic music every evening'), findsOneWidget);
       _expectNoDimming(tester);
 
-      await tester.tap(
-        find.descendant(of: sheet, matching: find.text(l10n.liveFollowing)),
+      // The card shows following and followers counts too, so the button
+      // is found by its key.
+      final follow = find.byKey(const Key('room.follow'));
+      expect(
+        find.descendant(of: follow, matching: find.text(l10n.liveFollowing)),
+        findsOneWidget,
       );
+      await tester.tap(follow);
       await tester.pumpAndSettle();
       expect(profiles.calls.last, 'DELETE host0');
       expect(
-        find.descendant(of: sheet, matching: find.text(l10n.liveFollow)),
+        find.descendant(of: follow, matching: find.text(l10n.liveFollow)),
         findsOneWidget,
       );
       // The pill offers Follow again.
@@ -982,6 +987,49 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(repo.tapBatches, hasLength(1));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('audio room: a viewer taps someone on a seat and sees their '
+        'card (owner, 2026-10-26)', (tester) async {
+      final repo =
+          FakeLiveRepository(
+              room: (id) =>
+                  apiRoom(id: id)
+                      .copyWith(mode: LiveRoomMode.audio, seatCount: 10),
+            )
+            ..seatState = seats(
+              mode: LiveRoomMode.audio,
+              count: 10,
+              list: [
+                const LiveSeat(
+                  index: 1,
+                  state: LiveSeatState.taken,
+                  user: UserSummary(
+                    id: 'u-huda',
+                    username: 'huda',
+                    displayName: 'Huda',
+                    avatarUrl: null,
+                  ),
+                ),
+                for (var i = 2; i < 10; i++)
+                  LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+              ],
+            );
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine()..present.add('user-0'),
+        user: testUser(),
+      );
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      // Not the host: no Manage, no Invite; their full profile instead.
+      expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
+      expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
+      expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
+      // Nobody asked for a seat.
+      expect(repo.seatCalls, isNot(contains(startsWith('requestSeat'))));
     });
 
     testWidgets("the host's video while they are in the session", (
