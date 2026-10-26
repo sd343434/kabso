@@ -83,11 +83,6 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final reels = _tab == HomeTab.reels;
-    final dark = buildAppTheme(
-      brightness: Brightness.dark,
-      locale: Localizations.localeOf(context),
-    );
     final belowHeader = EdgeInsets.only(
       top: MediaQuery.paddingOf(context).top + KMetrics.topBarHeight,
     );
@@ -104,32 +99,18 @@ class _FeedScreenState extends State<FeedScreen> {
         },
       ),
     );
-    final header = reels
-        ? Theme(
-            data: dark,
-            child: DecoratedBox(
-              key: FeedScreen.headerKey,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0x80000000), Color(0x00000000)],
-                ),
-              ),
-              child: bar,
-            ),
-          )
-        : ColoredBox(
-            key: FeedScreen.headerKey,
-            color: p.background,
-            child: bar,
-          );
+    // Reels follow the app theme like Posts (owner, 2026-10-26).
+    final header = ColoredBox(
+      key: FeedScreen.headerKey,
+      color: p.background,
+      child: bar,
+    );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: reels || Theme.of(context).brightness == Brightness.dark
+      value: Theme.of(context).brightness == Brightness.dark
           ? SystemUiOverlayStyle.light
           : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: reels ? KPalette.dark.background : p.background,
+        backgroundColor: p.background,
         body: Stack(
           children: [
             Positioned.fill(
@@ -146,15 +127,9 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                   KeyedSubtree(
                     key: FeedScreen.pageKey(HomeTab.reels),
-                    child: Theme(
-                      data: dark,
-                      child: ColoredBox(
-                        color: KPalette.dark.background,
-                        child: _feeds(
-                          HomeTab.reels,
-                          (f) => _ReelsPage(feed: f),
-                        ),
-                      ),
+                    child: Padding(
+                      padding: belowHeader,
+                      child: _feeds(HomeTab.reels, (f) => _ReelsPage(feed: f)),
                     ),
                   ),
                 ],
