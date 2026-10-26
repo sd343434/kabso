@@ -5317,4 +5317,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorCpPrivilegeLocked => 'لم يفتح هذا الثنائي هذه الميزة بعد.';
+
+  @override
+  String liveCpEntranceCouple(String name, String partner) {
+    return '$name و$partner';
+  }
+
+  @override
+  String liveCpEntranceLevel(String level) {
+    return 'دخول الثنائي · $level';
+  }
 }

@@ -67,6 +67,11 @@ abstract class LiveChatEntry with _$LiveChatEntry {
 
     /// VOICE and IMAGE: sent + 60 s, when the app hides it (§10.19).
     DateTime? expiresAt,
+
+    /// v1.24-live (CP-021, §10.24): the author's couple had the Exclusive
+    /// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
+    /// the CP bubble. Older servers send nothing (false).
+    @Default(false) bool cpBubble,
   }) = _LiveChatEntry;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
@@ -113,6 +118,7 @@ sealed class LiveChatEvent {
         'chat-delete' => LiveChatDeleted(json['id']! as String),
         'join' => LiveChatJoined(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+          cp: LiveJoinCp.tryParse(json['cp']),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
         'bullet' => LiveBulletReceived(
@@ -145,9 +151,44 @@ final class LiveChatDeleted extends LiveChatEvent {
 }
 
 final class LiveChatJoined extends LiveChatEvent {
-  const new(this.user);
+  const new(this.user, {this.cp});
 
   final UserSummary user;
+
+  /// v1.24-live (CP-021, §10.24): the joiner's couple, when it unlocked the
+  /// Entrance Effect; null for a normal join.
+  final LiveJoinCp? cp;
+}
+
+/// The `cp` of a live `join` data message (v1.24-live, CP-021, §10.24):
+/// the joiner's couple, sent only when it unlocked `ENTRANCE_EFFECT`.
+final class LiveJoinCp {
+  const new({
+    required this.coupleId,
+    required this.partner,
+    required this.level,
+  });
+
+  final String coupleId;
+  final UserSummary partner;
+
+  /// The CP level (1–6).
+  final int level;
+
+  /// Reads [json]; null when absent or malformed (the join still counts,
+  /// as a normal one).
+  static LiveJoinCp? tryParse(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    try {
+      return LiveJoinCp(
+        coupleId: json['coupleId']! as String,
+        partner: UserSummary.fromJson(json['partner']! as Map<String, dynamic>),
+        level: (json['level']! as num).toInt(),
+      );
+    } on Object {
+      return null;
+    }
+  }
 }
 
 final class LiveChatStateChanged extends LiveChatEvent {

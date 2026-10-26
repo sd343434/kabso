@@ -11,6 +11,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -177,6 +178,7 @@ class _OwnHeader extends ConsumerWidget {
         levels: ProfileLevels(onOpen: () => context.push(AppRoutes.levels)),
         profile: stats,
       ),
+      cpFrame: cpWearsSpecialFrame(stats?.cp),
       actions: SizedBox(
         height: KProfile.buttonHeight,
         child: OutlinedButton(
@@ -222,6 +224,7 @@ class ProfileHeaderView extends StatelessWidget {
     this.live = false,
     this.onOpenLive,
     this.levels,
+    this.cpFrame = false,
   });
 
   final String displayName;
@@ -237,7 +240,13 @@ class ProfileHeaderView extends StatelessWidget {
   /// D72: the level badges under the name and bio (`ProfileLevels`).
   final Widget? levels;
 
+  /// CP-021 (D112): the person's couple unlocked the Special Frame
+  /// (`PublicProfile.cp.privileges`); the picture is drawn in the owner's
+  /// heart frame. While [live], the live ring (which opens the live) wins.
+  final bool cpFrame;
+
   static const avatarKey = Key('profile.avatar');
+  static const cpFrameKey = Key('profile.avatar.cpFrame');
 
   @override
   Widget build(BuildContext context) {
@@ -265,12 +274,20 @@ class ProfileHeaderView extends StatelessWidget {
         ],
       ),
     );
-    final avatar = KAvatar(
-      name: displayName,
-      imageUrl: avatarUrl,
-      size: KProfile.avatar,
-      ring: live ? KAvatarRing.live : KAvatarRing.none,
-    );
+    final avatar = cpFrame && !live
+        ? CpSpecialFrameAvatar(
+            key: cpFrameKey,
+            // The picture keeps its usual width inside the heart.
+            width: CpSpecialFrameAvatar.widthForPicture(KProfile.avatar),
+            name: displayName,
+            imageUrl: avatarUrl,
+          )
+        : KAvatar(
+            name: displayName,
+            imageUrl: avatarUrl,
+            size: KProfile.avatar,
+            ring: live ? KAvatarRing.live : KAvatarRing.none,
+          );
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(
         KProfile.inset,

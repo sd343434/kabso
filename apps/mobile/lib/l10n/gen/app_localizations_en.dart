@@ -5291,4 +5291,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorCpPrivilegeLocked => 'This couple hasn\'t unlocked this yet.';
+
+  @override
+  String liveCpEntranceCouple(String name, String partner) {
+    return '$name and $partner';
+  }
+
+  @override
+  String liveCpEntranceLevel(String level) {
+    return 'Couple entrance · $level';
+  }
 }

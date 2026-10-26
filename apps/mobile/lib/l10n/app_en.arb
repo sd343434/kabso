@@ -1658,5 +1658,7 @@
   "cpSpaceGoneTitle": "This couple's space isn't available",
   "cpSpaceGoneBody": "The couple may have ended, or it can't be shown to you.",
   "errorCpTaskNotCompleted": "This task isn't done yet today.",
-  "errorCpPrivilegeLocked": "This couple hasn't unlocked this yet."
+  "errorCpPrivilegeLocked": "This couple hasn't unlocked this yet.",
+  "liveCpEntranceCouple": "{name} and {partner}",
+  "liveCpEntranceLevel": "Couple entrance · {level}"
 }

@@ -34,6 +34,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
@@ -1163,6 +1164,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 // CP-020: gift banners and effects over the live.
                 if (onAir && room != null)
                   LiveGiftEffectsLayer(roomId: room.id),
+                // CP-021 (D112): the CP Entrance Effect.
+                if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
                 if (_countdown case final n?)
                   // The countdown (sized from the owner's recording).
                   IgnorePointer(

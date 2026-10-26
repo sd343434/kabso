@@ -6657,5 +6657,26 @@
   "errorCpPrivilegeLocked": "لم يفتح هذا الثنائي هذه الميزة بعد.",
   "@errorCpPrivilegeLocked": {
     "description": "Error CP_PRIVILEGE_LOCKED (CP-021). (CP-021 (D112))"
+  },
+  "liveCpEntranceCouple": "{name} و{partner}",
+  "@liveCpEntranceCouple": {
+    "description": "CP Entrance Effect banner in a live: the joiner and their CP partner. (CP-021 (D112))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "partner": {
+        "type": "String"
+      }
+    }
+  },
+  "liveCpEntranceLevel": "دخول الثنائي · {level}",
+  "@liveCpEntranceLevel": {
+    "description": "CP Entrance Effect banner: second line with the CP level name. (CP-021 (D112))",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
   }
 }

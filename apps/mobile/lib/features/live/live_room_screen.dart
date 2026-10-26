@@ -12,6 +12,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
@@ -31,6 +32,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
@@ -558,6 +560,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           // CP-020: gift banners and effects over the room.
           if (room.status == LiveRoomStatus.live)
             LiveGiftEffectsLayer(roomId: room.id),
+          // CP-021 (D112): the CP Entrance Effect.
+          if (room.status == LiveRoomStatus.live)
+            LiveCpEntranceLayer(roomId: room.id),
         ],
       ),
     );
@@ -1111,6 +1116,10 @@ abstract final class _Card {
   static const soft = Color(0xFF9A9BA5);
   static const avatar = 92.0;
 
+  /// CP-021 (D112): the picture's width inside the Special Frame (a little
+  /// narrower, so the winged heart keeps the card's height in bounds).
+  static const framedPicture = 84.0;
+
   /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
   static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
 }
@@ -1135,6 +1144,7 @@ class _HostSheet extends ConsumerWidget {
   static const giftKey = Key('room.userCard.gift');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
+  static const cpFrameKey = Key('room.userCard.cpFrame');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1157,6 +1167,13 @@ class _HostSheet extends ConsumerWidget {
         ? BondTap.none
         : cpTap(profile, signedIn: ref.watch(currentUserProvider) != null);
     final scope = this.scope;
+    // CP-021 (D112): the couple's Special Frame around the picture.
+    final framed = cpWearsSpecialFrame(profile?.cp);
+    final frameWidth = CpSpecialFrameAvatar.widthForPicture(
+      _Card.framedPicture,
+    );
+    final frameTop = CpSpecialFrameAvatar.pictureCentreY(frameWidth);
+    final frameBelow = CpSpecialFrameAvatar.heightFor(frameWidth) - frameTop;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
       then();
@@ -1230,8 +1247,8 @@ class _HostSheet extends ConsumerWidget {
         : Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Room for the picture.
-              const SizedBox(height: _Card.avatar / 2 + 2),
+              // Room for the picture (or the frame's lower half).
+              SizedBox(height: (framed ? frameBelow : _Card.avatar / 2) + 2),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1477,9 +1494,11 @@ class _HostSheet extends ConsumerWidget {
       builder: (context, box) {
         // The card's top edge: under the middle of the picture, or lower when
         // the header decoration rises higher than the picture.
+        // The frame's upper half rises above the picture.
+        final half = framed ? frameTop : _Card.avatar / 2;
         final edge = header == null
-            ? _Card.avatar / 2
-            : math.max(_Card.avatar / 2, header.overhang(box.maxWidth));
+            ? half
+            : math.max(half, header.overhang(box.maxWidth));
         return Stack(
           key: const Key('room.hostSheet'),
           clipBehavior: Clip.none,
@@ -1534,14 +1553,14 @@ class _HostSheet extends ConsumerWidget {
                     name: profile.displayName,
                   ),
                   self: profile.isSelf,
-                  middle: _Card.avatar + 16,
+                  middle: framed ? frameWidth : _Card.avatar + 16,
                 ),
               ),
             // The picture in a gold ring, the charm level on a plate under it.
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: edge - _Card.avatar / 2),
+                SizedBox(height: edge - half),
                 Semantics(
                   button: true,
                   label: l10n.liveUserViewProfile,
@@ -1552,30 +1571,40 @@ class _HostSheet extends ConsumerWidget {
                         context.push(AppRoutes.userProfile(username)),
                       ),
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: _Card.gold,
-                        ),
-                        boxShadow: [
-                          BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: SizedBox.square(
-                          dimension: _Card.avatar,
-                          child: KAvatar(
+                    child: framed
+                        ? CpSpecialFrameAvatar(
+                            key: cpFrameKey,
+                            width: frameWidth,
                             name: profile?.displayName ?? username,
                             image: _networkImage(profile?.avatarUrl),
-                            size: _Card.avatar,
+                          )
+                        : Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: _Card.gold,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x55F2B84B),
+                                  blurRadius: 14,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: SizedBox.square(
+                                dimension: _Card.avatar,
+                                child: KAvatar(
+                                  name: profile?.displayName ?? username,
+                                  image: _networkImage(profile?.avatarUrl),
+                                  size: _Card.avatar,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ],

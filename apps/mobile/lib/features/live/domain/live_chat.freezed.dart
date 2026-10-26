@@ -304,7 +304,10 @@ mixin _$LiveChatEntry {
  String get id; String get roomId; UserSummary get author;@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole get authorRole; String get text; DateTime get createdAt;@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind get kind;/// The clip or picture of a VOICE / IMAGE message; null for TEXT and
 /// once it expired.
  LiveChatMedia? get media;/// VOICE and IMAGE: sent + 60 s, when the app hides it (§10.19).
- DateTime? get expiresAt;
+ DateTime? get expiresAt;/// v1.24-live (CP-021, §10.24): the author's couple had the Exclusive
+/// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
+/// the CP bubble. Older servers send nothing (false).
+ bool get cpBubble;
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -318,20 +321,20 @@ $LiveChatEntryCopyWith<LiveChatEntry> get copyWith => _$LiveChatEntryCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as LiveChatEntry;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveChatEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorRole, _this.authorRole) || other.authorRole == _this.authorRole)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.kind, _this.kind) || other.kind == _this.kind)&&(identical(other.media, _this.media) || other.media == _this.media)&&(identical(other.expiresAt, _this.expiresAt) || other.expiresAt == _this.expiresAt)&&(identical(other.cpBubble, _this.cpBubble) || other.cpBubble == _this.cpBubble));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveChatEntry;
-  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt);
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.author,_this.authorRole,_this.text,_this.createdAt,_this.kind,_this.media,_this.expiresAt,_this.cpBubble);
 }
 
 @override
 String toString() {
   final _this = this as LiveChatEntry;
-  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt})';
+  return 'LiveChatEntry(id: ${_this.id}, roomId: ${_this.roomId}, author: ${_this.author}, authorRole: ${_this.authorRole}, text: ${_this.text}, createdAt: ${_this.createdAt}, kind: ${_this.kind}, media: ${_this.media}, expiresAt: ${_this.expiresAt}, cpBubble: ${_this.cpBubble})';
 }
 
 
@@ -342,7 +345,7 @@ abstract mixin class $LiveChatEntryCopyWith<$Res>  {
   factory $LiveChatEntryCopyWith(LiveChatEntry value, $Res Function(LiveChatEntry) _then) = _$LiveChatEntryCopyWithImpl;
 @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble
 });
 
 
@@ -359,7 +362,7 @@ class _$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,}) {
   return _then(LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -370,7 +373,8 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as DateTime,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 /// Create a copy of LiveChatEntry
@@ -476,10 +480,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
   return orElse();
 
 }
@@ -497,10 +501,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry():
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -517,10 +521,10 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  UserSummary author, @JsonKey(unknownEnumValue: LiveChatRole.viewer)  LiveChatRole authorRole,  String text,  DateTime createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text)  LiveChatKind kind,  LiveChatMedia? media,  DateTime? expiresAt,  bool cpBubble)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveChatEntry() when $default != null:
-return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt);case _:
+return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_that.createdAt,_that.kind,_that.media,_that.expiresAt,_that.cpBubble);case _:
   return null;
 
 }
@@ -532,7 +536,7 @@ return $default(_that.id,_that.roomId,_that.author,_that.authorRole,_that.text,_
 @JsonSerializable()
 
 class _LiveChatEntry implements LiveChatEntry {
-  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt});
+  const _LiveChatEntry({required this.id, required this.roomId, required this.author, @JsonKey(unknownEnumValue: LiveChatRole.viewer) required this.authorRole, required this.text, required this.createdAt, @JsonKey(unknownEnumValue: LiveChatKind.text) this.kind = LiveChatKind.text, this.media, this.expiresAt, this.cpBubble = false});
   factory _LiveChatEntry.fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
 
 @override final  String id;
@@ -547,6 +551,10 @@ class _LiveChatEntry implements LiveChatEntry {
 @override final  LiveChatMedia? media;
 /// VOICE and IMAGE: sent + 60 s, when the app hides it (§10.19).
 @override final  DateTime? expiresAt;
+/// v1.24-live (CP-021, §10.24): the author's couple had the Exclusive
+/// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
+/// the CP bubble. Older servers send nothing (false).
+@override@JsonKey() final  bool cpBubble;
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -561,18 +569,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveChatEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorRole, authorRole) || other.authorRole == authorRole)&&(identical(other.text, text) || other.text == text)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.media, media) || other.media == media)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt)&&(identical(other.cpBubble, cpBubble) || other.cpBubble == cpBubble));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt);
+    return Object.hash(runtimeType,id,roomId,author,authorRole,text,createdAt,kind,media,expiresAt,cpBubble);
 }
 
 @override
 String toString() {
-    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt)';
+    return 'LiveChatEntry(id: $id, roomId: $roomId, author: $author, authorRole: $authorRole, text: $text, createdAt: $createdAt, kind: $kind, media: $media, expiresAt: $expiresAt, cpBubble: $cpBubble)';
 }
 
 
@@ -583,7 +591,7 @@ abstract mixin class _$LiveChatEntryCopyWith<$Res> implements $LiveChatEntryCopy
   factory _$LiveChatEntryCopyWith(_LiveChatEntry value, $Res Function(_LiveChatEntry) _then) = __$LiveChatEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt
+ String id, String roomId, UserSummary author,@JsonKey(unknownEnumValue: LiveChatRole.viewer) LiveChatRole authorRole, String text, DateTime createdAt,@JsonKey(unknownEnumValue: LiveChatKind.text) LiveChatKind kind, LiveChatMedia? media, DateTime? expiresAt, bool cpBubble
 });
 
 
@@ -600,7 +608,7 @@ class __$LiveChatEntryCopyWithImpl<$Res>
 
 /// Create a copy of LiveChatEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? author = null,Object? authorRole = null,Object? text = null,Object? createdAt = null,Object? kind = null,Object? media = freezed,Object? expiresAt = freezed,Object? cpBubble = null,}) {
   return _then(_LiveChatEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -611,7 +619,8 @@ as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: 
 as DateTime,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as LiveChatKind,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
 as LiveChatMedia?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,cpBubble: null == cpBubble ? _self.cpBubble : cpBubble // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

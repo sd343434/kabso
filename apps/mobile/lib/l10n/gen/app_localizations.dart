@@ -9187,6 +9187,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يفتح هذا الثنائي هذه الميزة بعد.'**
   String get errorCpPrivilegeLocked;
+
+  /// CP Entrance Effect banner in a live: the joiner and their CP partner. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} و{partner}'**
+  String liveCpEntranceCouple(String name, String partner);
+
+  /// CP Entrance Effect banner: second line with the CP level name. (CP-021 (D112))
+  ///
+  /// In ar, this message translates to:
+  /// **'دخول الثنائي · {level}'**
+  String liveCpEntranceLevel(String level);
 }
 
 class _AppLocalizationsDelegate
