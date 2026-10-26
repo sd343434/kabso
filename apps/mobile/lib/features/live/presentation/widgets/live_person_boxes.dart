@@ -1,18 +1,17 @@
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The three boxes of a person's card in a live (owner, 2026-10-26): small
-/// rectangles side by side under the stats, like the reference's tiles — the
-/// family (cream with a gold rim), the relationship (CP, lilac) and the gift
-/// wall (light grey). Medals are not a box: up to six chosen medals sit in a
-/// row under the levels (CP-018).
+/// cards side by side under the stats — the family (gold), the relationship
+/// (CP, rose) and the gift wall (lilac), each with a 3D icon from Kabso's own
+/// art (the leaderboard's gold shield and heart, D84; the owner's gift box,
+/// D74). Medals are not a box: up to six chosen medals sit in a row under the
+/// levels (CP-018).
 ///
 /// None of these exists on the server yet, so every box shows its empty
 /// state; nothing is counted or named that does not exist. A tap says it is
-/// coming. The art is Kabso's own (owner): Dubi's hug for the family, a
-/// heart for CP, the gift box for the gift wall.
+/// coming.
 class LivePersonBoxes extends StatelessWidget {
   const new({super.key});
 
@@ -32,14 +31,10 @@ class LivePersonBoxes extends StatelessWidget {
               key: boxKey(0),
               title: l10n.liveUserFamily,
               value: l10n.liveUserNone,
-              colors: const [Color(0xFFFFFBF2), Color(0xFFFFF3DC)],
-              border: const Color(0xFFEFCF8E),
-              titleColor: const Color(0xFF8A5A12),
-              art: KabiEmoji(
-                EmojiPack.dubi.emojis.firstWhere((e) => e.id == 'hug'),
-                size: 30,
-                animate: false,
-              ),
+              icon: 'assets/leaderboard/rank_shield_1.webp',
+              tint: const Color(0xFFFFF4DA),
+              rim: const Color(0xFFF1D08A),
+              accent: const Color(0xFFA8670A),
             ),
           ),
           const SizedBox(width: 8),
@@ -48,14 +43,10 @@ class LivePersonBoxes extends StatelessWidget {
               key: boxKey(1),
               title: l10n.liveUserCp,
               value: l10n.liveUserNone,
-              colors: const [Color(0xFFFBF6FF), Color(0xFFF3E6FF)],
-              border: const Color(0xFFD4B2FF),
-              titleColor: const Color(0xFF8B3FD9),
-              art: const Icon(
-                Icons.favorite_rounded,
-                size: 24,
-                color: Color(0xFFE7A6CF),
-              ),
+              icon: 'assets/leaderboard/heart.webp',
+              tint: const Color(0xFFFFE8F0),
+              rim: const Color(0xFFF6B7CB),
+              accent: const Color(0xFFD03468),
             ),
           ),
           const SizedBox(width: 8),
@@ -64,12 +55,10 @@ class LivePersonBoxes extends StatelessWidget {
               key: boxKey(2),
               title: l10n.liveUserGiftWall,
               value: l10n.liveUserSoon,
-              art: Image.asset(
-                'assets/live_bar/gift.png',
-                width: 28,
-                height: 28,
-                fit: BoxFit.contain,
-              ),
+              icon: 'assets/art/kabso_gift_box.webp',
+              tint: const Color(0xFFF0EAFF),
+              rim: const Color(0xFFCDBBFF),
+              accent: const Color(0xFF7448DC),
             ),
           ),
         ],
@@ -80,7 +69,6 @@ class LivePersonBoxes extends StatelessWidget {
 
 // Measured on the owner's design file.
 abstract final class _Ink {
-  static const ink = Color(0xFF2A2233);
   static const mute = Color(0xFF9A93A6);
 }
 
@@ -126,47 +114,71 @@ class _SoonTapState extends State<_SoonTap> {
   }
 }
 
-/// One small box: its picture at the start, the title over a short value.
+/// One small box: a 3D icon on a soft glow at the start, the title in the
+/// box's colour over a short value, on a tint that fades to white with a
+/// thin rim and a coloured shadow.
 class _Box extends StatelessWidget {
   const new({
     required this.title,
     required this.value,
-    required this.art,
+    required this.icon,
+    required this.tint,
+    required this.rim,
+    required this.accent,
     super.key,
-    this.colors = const [Color(0xFFF7F6FA), Color(0xFFF7F6FA)],
-    this.border,
-    this.titleColor = _Ink.mute,
   });
 
   final String title;
   final String value;
-  final Widget art;
-  final List<Color> colors;
-  final Color? border;
-  final Color titleColor;
+  final String icon;
+  final Color tint;
+  final Color rim;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    final border = this.border;
     return _SoonTap(
       label: title,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 56),
-        padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 6, 6),
+        constraints: const BoxConstraints(minHeight: 60),
+        padding: const EdgeInsetsDirectional.fromSTEB(7, 7, 6, 7),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: colors,
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: [tint, const Color(0xFFFFFFFF)],
           ),
-          border: border == null ? null : Border.all(color: border),
+          border: Border.all(color: rim.withValues(alpha: 0.75)),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            SizedBox.square(dimension: 30, child: Center(child: art)),
-            const SizedBox(width: 6),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [const Color(0xFFFFFFFF), tint.withValues(alpha: 0)],
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Image.asset(
+                icon,
+                width: 30,
+                height: 30,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 5),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,10 +189,10 @@ class _Box extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: text.caption.copyWith(
-                      color: titleColor,
+                      color: accent,
                       fontSize: 11.5,
                       height: 1.2,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -188,11 +200,11 @@ class _Box extends StatelessWidget {
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.bodyStrong.copyWith(
-                      color: _Ink.ink,
-                      fontSize: 13,
+                    style: text.caption.copyWith(
+                      color: _Ink.mute,
+                      fontSize: 11.5,
                       height: 1.2,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
