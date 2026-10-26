@@ -1086,7 +1086,13 @@ class _HostSheet extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              glyph ?? Image.asset(asset!, width: 32, height: 32),
+              // One 36 dp box for every icon: the gift art has a clear margin,
+              // so its drawing comes out about 28 dp, like the Message
+              // bubble (owner: same size, on one line).
+              SizedBox.square(
+                dimension: 36,
+                child: glyph ?? Image.asset(asset!, width: 36, height: 36),
+              ),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -1471,7 +1477,7 @@ class _MessageGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-    dimension: 32,
+    dimension: 36,
     child: Stack(
       alignment: Alignment.center,
       children: [
@@ -1482,12 +1488,12 @@ class _MessageGlyph extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [Color(0xFF6FB6FF), Color(0xFF6A5CFF)],
           ).createShader(r),
-          child: const Icon(Icons.mode_comment_rounded, size: 32),
+          child: const Icon(Icons.mode_comment_rounded, size: 33),
         ),
         // A soft shine on the upper part.
         Positioned(
-          top: 5,
-          left: 7,
+          top: 7,
+          left: 9,
           child: Container(
             width: 10,
             height: 4,
