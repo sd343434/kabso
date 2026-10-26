@@ -557,27 +557,30 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip(_l10n(tester).liveClose).last);
       await tester.pumpAndSettle();
-      // Seats (D103): 5 / 10 / 15 / 20 / 25 in the sheet; a pick closes it.
+      // Seats (D103, D123): 5 / 10 / 15 / 20 in the sheet (25 is gone); a
+      // pick closes it.
       await tester.tap(find.byKey(GoLiveAudioSetup.seatsKey));
       await tester.pumpAndSettle();
-      for (final c in [5, 10, 15, 20, 25]) {
+      for (final c in [5, 10, 15, 20]) {
         expect(find.byKey(GoLiveKeys.seatCount(c)), findsOneWidget);
       }
       expect(find.byKey(GoLiveKeys.seatCount(6)), findsNothing);
       expect(find.byKey(GoLiveKeys.seatCount(9)), findsNothing);
-      await tester.tap(find.byKey(GoLiveKeys.seatCount(25)));
-      await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.seatCount(25)), findsNothing);
+      await tester.tap(find.byKey(GoLiveKeys.seatCount(20)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.seatCount(20)), findsNothing);
 
       await _startAudio(tester);
       final request = repo.startRequests.single;
       expect(request.mode, LiveRoomMode.audio);
-      expect(request.seatCount, 25);
+      expect(request.seatCount, 20);
       expect(request.theme, LiveThemes.classic);
       expect(request.categorySlug, 'music');
       expect(request.allowGuests, isFalse);
-      // On air: the host and 24 seats in rows.
-      expect(find.byKey(AudioSeatRing.seatKey(24)), findsOneWidget);
+      // On air: the host and 19 seats in rows.
+      expect(find.byKey(AudioSeatRing.seatKey(19)), findsOneWidget);
+      expect(find.byKey(AudioSeatRing.seatKey(20)), findsNothing);
       await _leave(tester);
     });
 

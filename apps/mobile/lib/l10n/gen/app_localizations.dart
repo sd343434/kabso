@@ -6428,6 +6428,48 @@ abstract class AppLocalizations {
   /// **'تصغير البث'**
   String get goLiveMinimize;
 
+  /// Android notification channel name for the ongoing live notification (D123)
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get liveBgChannel;
+
+  /// Ongoing notification title while the host's live runs in the background
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مستمر'**
+  String get liveBgHostTitle;
+
+  /// Ongoing notification title for a seated guest
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت على مقعد في البث'**
+  String get liveBgGuestTitle;
+
+  /// Ongoing notification title for a listener of an audio room
+  ///
+  /// In ar, this message translates to:
+  /// **'تستمع إلى بث مباشر'**
+  String get liveBgListenerTitle;
+
+  /// Ongoing notification text
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط للعودة إلى الغرفة'**
+  String get liveBgBody;
+
+  /// Ongoing notification action: end the live
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء البث'**
+  String get liveBgEnd;
+
+  /// Ongoing notification action: leave the seat or the room
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة'**
+  String get liveBgLeave;
+
   /// Floating window: open the live full screen
   ///
   /// In ar, this message translates to:

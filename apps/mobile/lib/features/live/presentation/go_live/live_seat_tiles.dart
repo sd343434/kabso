@@ -280,7 +280,8 @@ class AudioSeatRing extends StatelessWidget {
   final VoidCallback? onHost;
   final String? hostTapLabel;
 
-  /// Seats, the host's included (owner D103: 5, 10, 15, 20 or 25), in rows
+  /// Seats, the host's included (owner D103, D123: 5, 10, 15 or 20; a room
+  /// started with 25 before D123 shows 25), in rows
   /// of [rowSize], the host's tile first (D118).
   final int count;
 
@@ -387,9 +388,11 @@ class AudioSeatRing extends StatelessWidget {
 
   /// Owner D100, D118: every size in rows of [rowSize] — the host is the
   /// first tile, then seats 1 … count-1, in reading order (start to end, so
-  /// mirrored in Arabic). A narrow screen scales the tiles down instead of
-  /// wrapping them, and a short one (owner, 2026-10-26: 25 seats hid under
-  /// the chat) scales every row down so all of them show.
+  /// mirrored in Arabic). D123 (owner: avatar frames show on the seats and
+  /// must look the same in every room): a seat has one size whatever the
+  /// count — a 360 pt phone fits five 70 pt tiles at full size; only a
+  /// narrower screen scales the tiles down (the same for every count). The
+  /// rows never shrink to fit the height: the room's stage scrolls instead.
   Widget _rows() => LayoutBuilder(
     builder: (context, box) {
       final cell = box.maxWidth / rowSize;
@@ -455,7 +458,7 @@ class AudioSeatRing extends StatelessWidget {
         );
       }
 
-      final rows = Column(
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var first = 0; first < count; first += rowSize) ...[
@@ -464,30 +467,11 @@ class AudioSeatRing extends StatelessWidget {
           ],
         ],
       );
-      final height = AudioStageBounds.of(context);
-      if (height == null || !height.isFinite) return rows;
-      return Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: math.max(height, minRowsHeight),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.topCenter,
-            child: SizedBox(width: box.maxWidth, child: rows),
-          ),
-        ),
-      );
     },
   );
 
-  /// The rows never shrink below this height (with the keyboard up, the
-  /// stage scrolls instead).
-  static const minRowsHeight = 240.0;
-
-  /// The ornament's width (owner D113: 62 pt; the rows scale it with the
-  /// tiles).
+  /// The ornament's width (owner D113: 62 pt; a narrow screen scales it
+  /// with the tiles).
   static const cpOrnamentSize = 62.0;
 
   /// D113: how far above a picture's centre its ring may show (the crown
@@ -876,8 +860,9 @@ class _Seat extends StatelessWidget {
   final bool speaking;
   final VoidCallback? onTap;
 
-  /// The seat's box (labels may be wider than the chair).
-  static const width = 72.0;
+  /// The seat's box (labels may be wider than the chair). D123: 70 pt, so
+  /// five fit a 360 pt phone at full size (one seat size in every room).
+  static const width = 70.0;
   static const avatar = 50.0;
 
   @override

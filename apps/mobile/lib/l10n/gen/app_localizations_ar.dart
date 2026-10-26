@@ -3641,6 +3641,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveMinimize => 'تصغير البث';
 
   @override
+  String get liveBgChannel => 'البث المباشر';
+
+  @override
+  String get liveBgHostTitle => 'البث مستمر';
+
+  @override
+  String get liveBgGuestTitle => 'أنت على مقعد في البث';
+
+  @override
+  String get liveBgListenerTitle => 'تستمع إلى بث مباشر';
+
+  @override
+  String get liveBgBody => 'اضغط للعودة إلى الغرفة';
+
+  @override
+  String get liveBgEnd => 'إنهاء البث';
+
+  @override
+  String get liveBgLeave => 'مغادرة';
+
+  @override
   String get goLiveBackToLive => 'العودة إلى البث';
 
   @override

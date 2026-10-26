@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
@@ -53,7 +55,7 @@ import 'package:material_ui/material_ui.dart';
 /// - **Multi-guest:** the room theme behind a grid of 4, 6, 9 or 12 tiles,
 ///   the host's camera in the first.
 /// - **Audio:** the room theme behind the host's crowned circle and rows of
-///   seats (5, 10, 15, 20 or 25 with the host, D103).
+///   seats (5, 10, 15 or 20 with the host, D103, D123).
 ///
 /// Above: the glass title card (picture, title, guests, `#` categories,
 /// Kabi). Below: the seat count, the tools (flip, beauty, microphone,
@@ -176,9 +178,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// Minimizes the live into the floating window (owner D94); it goes on.
+  /// D123: back to where the person was — never to Create, which opened
+  /// the go-live screen: the tab they came from (the Live hub by default).
   void _minimize() {
     ref.read(liveMinimizedProvider.notifier).minimize();
-    _close();
+    final router = GoRouter.maybeOf(context);
+    if (router == null) {
+      Navigator.of(context).maybePop();
+    } else {
+      leaveToShell(router, ref);
+    }
   }
 
   Future<void> _guard(Future<void> Function() action) async {
@@ -210,7 +219,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       setState(() => _countdown = null);
     }
-    await _guard(() => _host.goLive(title: title, categorySlug: _category));
+    final background = liveBackgroundTexts(l10n);
+    await _guard(
+      () => _host.goLive(
+        title: title,
+        categorySlug: _category,
+        background: background,
+      ),
+    );
   }
 
   /// 3, 2, 1 while an audio live is about to start; null otherwise.
@@ -372,7 +388,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       final c? => fitSeatCount(
         c,
         state.mode == LiveRoomMode.audio
-            ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
+            ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
             : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
       ),
       null => null,
@@ -567,7 +583,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   showSeatCountSheet(
                     context,
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: seatCount!,
                     accent: art.accent,
@@ -673,7 +689,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               )
             : null,
-        seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25],
+        seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20],
         seatCount: setupSeats!,
         onSeatCount: previewing
             ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
@@ -1132,7 +1148,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   padding: const EdgeInsets.only(bottom: KSpacing.md),
                   child: GoLiveSeatCountPicker(
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: setupSeats!,
                     accent: art.accent,
@@ -1196,12 +1212,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     }
 
     return PopScope(
-      // Back while live minimizes; the live goes on (owner D94).
-      canPop: !busy,
+      // Back while live minimizes; the live goes on (owner D94), and the
+      // person returns where they came from, not to Create (D123).
+      canPop: !busy && state.phase != GoLivePhase.live,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop && state.phase == GoLivePhase.live) {
-          ref.read(liveMinimizedProvider.notifier).minimize();
-        }
+        if (!didPop && state.phase == GoLivePhase.live) _minimize();
       },
       child: KLiveSurface(
         child: AnnotatedRegion<SystemUiOverlayStyle>(

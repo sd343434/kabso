@@ -65,6 +65,11 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   Future<void> setMicEnabled({required bool enabled});
 
+  /// D123: pauses the published camera while the app is in the background
+  /// (Android blocks the camera there; the microphone goes on) and resumes
+  /// it on return. Nothing without a camera.
+  Future<void> setVideoPaused({required bool paused});
+
   /// Joins the room's media session with [access] and publishes what is
   /// running (camera and microphone, or the microphone alone).
   Future<void> publish(LiveMediaAccess access);
@@ -274,6 +279,20 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     } else {
       await audio.mute();
     }
+  }
+
+  @override
+  Future<void> setVideoPaused({required bool paused}) async {
+    final video = _video;
+    if (video == null || video.muted == paused) return;
+    // Muting stops the capture (the others see the camera off); unmuting
+    // starts it again.
+    if (paused) {
+      await video.mute();
+    } else {
+      await video.unmute();
+    }
+    _changes.ping();
   }
 
   @override

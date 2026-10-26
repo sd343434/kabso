@@ -3,8 +3,8 @@
 // between them — rows of 5 (consecutive tiles of a row, the host tile 0;
 // every room size since D118). Partners apart, one partner seated
 // (the API lists no couple) or no couple: nothing drawn. Arabic mirrors the
-// layout; at 360 × 800 with 25 seats nothing overflows and the ornaments
-// never cover a picture or a name.
+// layout; at 360 × 800 with 20 seats (D123: full size) nothing overflows and
+// the ornaments never cover a picture or a name.
 //
 // Owner D113: the couple's level frame (levels 1–6) is cut into a left ring,
 // a right ring and a centre piece: each ring's hole sits exactly on its
@@ -827,10 +827,11 @@ void main() {
         expect(find.byType(CpBand), findsNothing);
       });
 
-      testWidgets('360 × 800, 25 seats, every adjacent pair joined, mics off: '
-          'no overflow, ornaments clear of pictures and names', (tester) async {
+      testWidgets('360 × 800, 20 seats (the most since D123), every adjacent '
+          'pair joined, mics off: no overflow, ornaments clear of pictures '
+          'and names', (tester) async {
         final pairs = [
-          for (var first = 0; first < 25; first += 5) ...[
+          for (var first = 0; first < 20; first += 5) ...[
             CpSeatPair(first, first + 1),
             CpSeatPair(first + 2, first + 3),
           ],
@@ -843,12 +844,12 @@ void main() {
               header: const SizedBox(height: 48),
               chips: const SizedBox(height: 32),
               stage: AudioSeatRing(
-                count: 25,
+                count: 20,
                 host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
                 hostName: 'Layla',
                 hostPoints: '0',
                 hostMicOn: false,
-                seats: _full(25),
+                seats: _full(20),
                 cpPairs: pairs,
                 micOff: const {1, 3, 6, 8},
                 onSeat: (_) {},
@@ -875,11 +876,11 @@ void main() {
           final ornament = _ornament(p.a, p.b);
           if (ornament.evaluate().isEmpty) continue;
           expect(screen.contains(tester.getRect(ornament).center), isTrue);
-          widths.add(_expectOrnamentClear(tester, p.a, p.b, 25));
+          widths.add(_expectOrnamentClear(tester, p.a, p.b, 20));
         }
         for (final p in pairs) {
           _expectRings(tester, p.a, p.b);
-          _expectFxClear(tester, p.a, p.b, 25);
+          _expectFxClear(tester, p.a, p.b, 20);
           final parts = _fxParts(tester, p.a, p.b);
           // Many pairs: each keeps a small budget.
           expect(parts.length, lessThanOrEqualTo(CpPairFx.crowdedParts));
@@ -897,7 +898,7 @@ void main() {
         // Reports the sizes reached (owner D113 feedback asks for them).
         // ignore: avoid_print
         print(
-          'D113 ornament widths at 360 x 800, 25 seats ($language): '
+          'D113 ornament widths at 360 x 800, 20 seats ($language): '
           '${widths.map((w) => w.toStringAsFixed(1)).join(', ')}',
         );
       });

@@ -229,17 +229,18 @@ void main() {
       await expectScreenGolden('go_live.audio_chat', language: language);
     });
 
-    testWidgets('go live: audio on air, 25 seats in rows ($language)', (
+    testWidgets('go live: audio on air, 20 seats in rows ($language)', (
       tester,
     ) async {
       final ar = language == AppLanguage.ar;
       // Owner D100: above 11 tiles the seats sit in rows of 5, the host the
-      // first tile. D101: the room level (25, the kitty tier) after the name.
+      // first tile; D123: 20 is the largest room, every seat at full size.
+      // D101: the room level (25, the kitty tier) after the name.
       await _pump(
         tester,
         language: language,
         mode: LiveRoomMode.audio,
-        seats: 25,
+        seats: 20,
         roomLevel: 25,
         onAir: [
           LiveSeat(
@@ -255,7 +256,7 @@ void main() {
           const LiveSeat(index: 7, state: LiveSeatState.locked, user: null),
         ],
       );
-      await expectScreenGolden('go_live.audio_rows25', language: language);
+      await expectScreenGolden('go_live.audio_rows20', language: language);
     });
 
     testWidgets('go live: audio on air at 360 dp ($language)', (tester) async {

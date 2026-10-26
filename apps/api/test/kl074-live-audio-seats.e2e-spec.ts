@@ -1,6 +1,7 @@
 /**
- * KL-074 / owner D100, amended by D103: AUDIO rooms have 5, 10, 15, 20 or 25 tiles, the host
- * included (openapi v1.18-live DRAFT, CONVENTIONS §10.9), end to end against PostgreSQL + Redis with the API as the
+ * KL-074 / owner D100, amended by D103 and D123: AUDIO rooms have 5, 10, 15 or 20 tiles, the host
+ * included (openapi v1.25.4-live DRAFT, CONVENTIONS §10.9); a room already LIVE with 25 (before
+ * D123) keeps working until it ends. End to end against PostgreSQL + Redis with the API as the
  * DML-only runtime role and the in-memory media server.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -15,7 +16,7 @@ interface TestUser {
   readonly token: string;
 }
 
-describe('D100 / D103 audio room sizes', () => {
+describe('D100 / D103 / D123 audio room sizes', () => {
   let ctx: TestContext;
   const auth = (u: TestUser) => ({ Authorization: `Bearer ${u.token}` });
   const signup = async (): Promise<TestUser> => {
@@ -44,13 +45,13 @@ describe('D100 / D103 audio room sizes', () => {
   });
   afterAll(async () => ctx?.close());
 
-  it('the config lists 5, 10, 15, 20 and 25; 6, 9 and 13 are refused; 5 and 10 start', async () => {
+  it('the config lists 5, 10, 15 and 20; 6, 9, 13 and 25 are refused; 5 and 10 start', async () => {
     const h = await host();
     const cfg = await ctx.http.get('/api/v1/live/config').set(auth(h));
     expect(cfg.status).toBe(200);
     expectContract(cfg, 'getLiveConfig');
-    expect(cfg.body.seatCounts).toEqual({ MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] });
-    for (const old of [6, 9, 13]) {
+    expect(cfg.body.seatCounts).toEqual({ MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] });
+    for (const old of [6, 9, 13, 25]) {
       const res = await start(h, old);
       expect(res.status).toBe(400);
       expect(res.body.error.details).toEqual([{ field: 'seatCount', issue: 'invalid_value' }]);
@@ -69,13 +70,17 @@ describe('D100 / D103 audio room sizes', () => {
     }
   });
 
-  it('25 tiles: seats 1 … 24, the last one can be taken, and the room resizes within the set', async () => {
+  it('a room LIVE with 25 tiles before D123: seats 1 … 24 keep working; it cannot move back to 25', async () => {
     const [h, guest] = [await host(), await signup()];
-    const started = await start(h, 25);
+    const started = await start(h, 20);
     expect(started.status).toBe(201);
-    expectContract(started, 'startLiveRoom');
     const roomId = started.body.id as string;
-    expect(started.body.seatCount).toBe(25);
+    // A room started with 25 before D123 (the database still admits it; no migration).
+    await ctx.prisma.liveRoom.update({ where: { id: roomId }, data: { seatCount: 25 } });
+    const room = await ctx.http.get(live(roomId)).set(auth(h));
+    expect(room.status).toBe(200);
+    expectContract(room, 'getLiveRoom');
+    expect(room.body.seatCount).toBe(25);
 
     const read = await ctx.http.get(`${live(roomId)}/seats`).set(auth(h));
     expect(read.status).toBe(200);
@@ -101,10 +106,21 @@ describe('D100 / D103 audio room sizes', () => {
     const shrink = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: 20 });
     expect(shrink.status).toBe(409);
     expect(shrink.body.error.code).toBe('LIVE_SEAT_UNAVAILABLE');
-    for (const old of [6, 9, 13]) {
+    for (const old of [6, 9, 13, 25]) {
       const bad = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: old });
       expect(bad.status).toBe(400);
     }
+    // Freed, seat 24 lets the legacy room shrink to an allowed size; it cannot grow back to 25.
+    const freed = await ctx.http
+      .post(`${live(roomId)}/seats/24/remove`)
+      .set(auth(h))
+      .send({});
+    expect(freed.status).toBe(200);
+    const shrunk = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: 20 });
+    expect(shrunk.status).toBe(200);
+    expect(shrunk.body.seatCount).toBe(20);
+    const back = await ctx.http.patch(live(roomId)).set(auth(h)).send({ seatCount: 25 });
+    expect(back.status).toBe(400);
     await end(roomId, h);
 
     const second = await start(h, 15);

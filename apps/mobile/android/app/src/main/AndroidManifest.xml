@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- D123: a live keeps running in the background. A foreground service
+         (flutter_foreground_task) of type microphone (host and seated guests)
+         and mediaPlayback (listeners of audio rooms) with an ongoing
+         notification; Android 13+ asks for POST_NOTIFICATIONS to show it. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!-- KL-060 Create: the in-app photo gallery (photo_manager). Android 13+
          reads images only; Android 14+ may grant a user-selected subset.
@@ -53,6 +62,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- D123: the live's foreground service (the plugin's class; the name
+             must not change). Not exported; stops with the app's task. The
+             camera is paused in the background, so no camera type. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="microphone|mediaPlayback"
+            android:stopWithTask="true"
+            android:exported="false"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

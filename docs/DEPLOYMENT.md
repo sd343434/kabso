@@ -519,6 +519,11 @@ a `CONNECTION LIMIT`.
   also needs the hosting permission (`PUT /api/v1/admin/live/hosts/{username}`, admin permission
   `LIVE_HOSTS`); keep `LIVE_HOSTING_ENABLED=false` in production until L1b (agencies and identity
   checks) is done. Locally: `livekit-server --dev --bind 127.0.0.1` with the `.env.example` values.
+  *(D123)* A live keeps running in the background through an Android foreground service (types
+  `microphone` and `mediaPlayback`): the Play Console's foreground-service declaration must list
+  both, with a short video of going live, leaving the app and the ongoing notification. Keep
+  `LIVE_HEARTBEAT_STALE_SECONDS` (45) at least 2 × `LIVE_HEARTBEAT_INTERVAL_SECONDS` (15) as
+  enforced: the backgrounded app keeps beating at the interval.
 - **Notifications retention (CP-009):** the in-process sweeper
   (`NOTIFICATIONS_SWEEP_INTERVAL_SECONDS`, 3600 s, refused at 0 in production) deletes
   notifications whose latest activity is older than 30 days. `POST /notifications/read` is

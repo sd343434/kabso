@@ -4156,6 +4156,34 @@
   "@goLiveMinimize": {
     "description": "Minimize the live into a floating window"
   },
+  "liveBgChannel": "البث المباشر",
+  "@liveBgChannel": {
+    "description": "Android notification channel name for the ongoing live notification (D123)"
+  },
+  "liveBgHostTitle": "البث مستمر",
+  "@liveBgHostTitle": {
+    "description": "Ongoing notification title while the host's live runs in the background"
+  },
+  "liveBgGuestTitle": "أنت على مقعد في البث",
+  "@liveBgGuestTitle": {
+    "description": "Ongoing notification title for a seated guest"
+  },
+  "liveBgListenerTitle": "تستمع إلى بث مباشر",
+  "@liveBgListenerTitle": {
+    "description": "Ongoing notification title for a listener of an audio room"
+  },
+  "liveBgBody": "اضغط للعودة إلى الغرفة",
+  "@liveBgBody": {
+    "description": "Ongoing notification text"
+  },
+  "liveBgEnd": "إنهاء البث",
+  "@liveBgEnd": {
+    "description": "Ongoing notification action: end the live"
+  },
+  "liveBgLeave": "مغادرة",
+  "@liveBgLeave": {
+    "description": "Ongoing notification action: leave the seat or the room"
+  },
   "goLiveBackToLive": "العودة إلى البث",
   "@goLiveBackToLive": {
     "description": "Floating window: open the live full screen"

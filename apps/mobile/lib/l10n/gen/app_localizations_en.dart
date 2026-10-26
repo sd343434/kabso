@@ -3615,6 +3615,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goLiveMinimize => 'Minimize live';
 
   @override
+  String get liveBgChannel => 'Live';
+
+  @override
+  String get liveBgHostTitle => 'Your live is on';
+
+  @override
+  String get liveBgGuestTitle => 'You\'re on a seat in a live';
+
+  @override
+  String get liveBgListenerTitle => 'You\'re listening to a live';
+
+  @override
+  String get liveBgBody => 'Tap to return to the room';
+
+  @override
+  String get liveBgEnd => 'End live';
+
+  @override
+  String get liveBgLeave => 'Leave';
+
+  @override
   String get goLiveBackToLive => 'Back to your live';
 
   @override
