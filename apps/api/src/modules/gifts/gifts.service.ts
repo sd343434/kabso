@@ -3,6 +3,7 @@ import type { ContentLanguage } from '../../common/http/content-language.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { Gift, GiftBadge, GiftCategory } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { giftArtUrl } from './gift-art.js';
 import { catalogueVersion, GIFT_CATEGORIES } from './gift-catalogue.js';
 
 /**
@@ -19,8 +20,16 @@ export interface GiftTagDto {
   name: string;
 }
 
-/** `Gift` (openapi v1.23-live; `tag` v1.24.3-live). */
-export interface GiftDto {
+/** The hosted art of a gift (v1.26.2-live, D126): public URLs, null when there is none. */
+export interface GiftArtDto {
+  imageUrl: string | null;
+  animationUrl: string | null;
+  /** The SVGA's size in bytes when `animationUrl` is set (the app decides whether to prefetch). */
+  animationBytes: number | null;
+}
+
+/** `Gift` (openapi v1.23-live; `tag` v1.24.3-live; hosted art v1.26.2-live). */
+export interface GiftDto extends GiftArtDto {
   code: string;
   category: GiftCategory;
   name: string;
@@ -66,7 +75,23 @@ export function giftTagDto(
   return { code: gift.tagCode, name };
 }
 
-export function giftDto(gift: Gift, lang: ContentLanguage): GiftDto {
+/**
+ * A gift's hosted art as public URLs under `MEDIA_PUBLIC_BASE_URL` (all null without that setting:
+ * the app then uses its bundled files). `animationBytes` only with an `animationUrl`.
+ */
+export function giftArtDto(
+  gift: Pick<Gift, 'imageObjectKey' | 'animationObjectKey' | 'animationBytes'>,
+  publicBaseUrl: string | undefined,
+): GiftArtDto {
+  const animationUrl = giftArtUrl(publicBaseUrl, gift.animationObjectKey);
+  return {
+    imageUrl: giftArtUrl(publicBaseUrl, gift.imageObjectKey),
+    animationUrl,
+    animationBytes: animationUrl === null ? null : gift.animationBytes,
+  };
+}
+
+export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string | undefined): GiftDto {
   return {
     code: gift.code,
     category: gift.category,
@@ -74,6 +99,7 @@ export function giftDto(gift: Gift, lang: ContentLanguage): GiftDto {
     priceCoins: gift.priceCoins,
     assetKey: gift.assetKey,
     animationKey: gift.animationKey,
+    ...giftArtDto(gift, publicBaseUrl),
     sortOrder: gift.sortOrder,
     badge: gift.badge,
     tag: giftTagDto(gift, lang),
@@ -94,6 +120,11 @@ export class GiftsService {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
+  /** Where the hosted gift art is served (`MEDIA_PUBLIC_BASE_URL`), or undefined. */
+  get publicBaseUrl(): string | undefined {
+    return this.config.media.publicBaseUrl;
+  }
+
   /** The quantities a send may use (`LIVE_GIFT_QUANTITIES`), ascending. */
   get quantities(): readonly number[] {
     return this.config.gifts.quantities;
@@ -112,7 +143,7 @@ export class GiftsService {
       quantities,
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
-      data: gifts.map((g) => giftDto(g, lang)),
+      data: gifts.map((g) => giftDto(g, lang, this.publicBaseUrl)),
     };
   }
 
@@ -123,6 +154,8 @@ export class GiftsService {
       include: { gift: true },
       orderBy: [{ gift: { category: 'asc' } }, { gift: { sortOrder: 'asc' } }, { giftCode: 'asc' }],
     });
-    return { data: rows.map((r) => ({ ...giftDto(r.gift, lang), quantity: r.quantity })) };
+    return {
+      data: rows.map((r) => ({ ...giftDto(r.gift, lang, this.publicBaseUrl), quantity: r.quantity })),
+    };
   }
 }

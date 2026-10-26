@@ -121,6 +121,10 @@ info:
     display name) and an order (`order=newest|oldest`) to both follow lists, and
     `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval`): the caller removes
     one of their followers (CONVENTIONS §10.6, §7).
+    **D126 (DRAFT v1.26.2-live)** hosts gift art on the server: `Gift`, `GiftBagItem` and `LiveGift`
+    gain `imageUrl` (PNG/WebP), `animationUrl` (SVGA 2.x) and `animationBytes`, public immutable URLs
+    the app downloads on demand and caches (the bundled `assetKey` / `animationKey` stay the
+    fallback), uploaded by `gift-admin --image` / `--animation-file` (CONVENTIONS §10.23).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1595,6 +1599,9 @@ paths:
                   giftCode: rose
                   assetKey: gift_rose
                   animationKey: null
+                  imageUrl: null
+                  animationUrl: null
+                  animationBytes: null
                   unitPrice: 1
                   quantity: 10
                   source: COINS
@@ -4056,8 +4063,9 @@ paths:
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب } }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, sortOrder: 20, badge: NEW, tag: null }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب } }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 20, badge: NEW, tag: null }
+                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة } }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/gifts/bag:
@@ -4077,7 +4085,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quantity: 99 }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quantity: 99 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -7943,7 +7951,7 @@ components:
       description: The corner badge of a gift in the panel; unknown values show as NONE.
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, sortOrder, badge, tag]
+      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
@@ -7954,6 +7962,28 @@ components:
           type: [string, 'null']
           maxLength: 80
           description: "The app's SVGA / full-screen effect, or null (the image only)."
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+          description: |
+            v1.26.2-live (D126): the gift's static image (PNG or WebP, about square, at most 1 MB) hosted
+            under the media public URL (`…/media/gifts/<code>/<sha256 prefix>.png|webp`), or null. The URL
+            is content-addressed and immutable (a new file gets a new URL), so the app caches it for good.
+            Fallback order in the app: `imageUrl`, else the bundled `assetKey`, else Kabso's gift box.
+            Always present in responses; older apps ignore it.
+        animationUrl:
+          type: [string, 'null']
+          format: uri
+          description: |
+            v1.26.2-live (D126): the gift's SVGA 2.x effect (at most 25 MB) hosted like `imageUrl`, or null.
+            The app downloads it on demand into a disk cache (prefetching only small ones) and plays it
+            from the bytes, with the sound embedded in the SVGA; while it downloads the image pops instead.
+            Takes precedence over the bundled `animationKey`.
+        animationBytes:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 26214400
+          description: v1.26.2-live (D126). The size of `animationUrl`'s file in bytes (null exactly when `animationUrl` is), so the app can decide whether to prefetch it.
         sortOrder: { type: integer, minimum: 0 }
         badge: { $ref: '#/components/schemas/GiftBadge' }
         tag:
@@ -8053,13 +8083,16 @@ components:
     LiveGift:
       type: object
       description: One send, as the response and the `gift` data message carry it (no name; the app takes it from its catalogue).
-      required: [id, roomId, giftCode, assetKey, animationKey, unitPrice, quantity, source, totalCoins, sender, recipients, combo, createdAt]
+      required: [id, roomId, giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, unitPrice, quantity, source, totalCoins, sender, recipients, combo, createdAt]
       properties:
         id: { type: string, format: uuid }
         roomId: { type: string, format: uuid }
         giftCode: { type: string, maxLength: 40 }
         assetKey: { type: string, maxLength: 80 }
         animationKey: { type: [string, 'null'], maxLength: 80 }
+        imageUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted image now, as `Gift.imageUrl`." }
+        animationUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted SVGA now, as `Gift.animationUrl` (viewers who never opened the panel download it from here)." }
+        animationBytes: { type: [integer, 'null'], minimum: 1, maximum: 26214400, description: v1.26.2-live (D126). As `Gift.animationBytes`. }
         unitPrice: { type: integer, minimum: 1, description: The gift's price in coins when it was sent. }
         quantity: { type: integer, minimum: 1, description: Gifts each recipient received. }
         source: { $ref: '#/components/schemas/LiveGiftSource' }

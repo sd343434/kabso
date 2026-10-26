@@ -44,6 +44,13 @@ export interface GiftFields {
   readonly tagCode: string | null;
   readonly tagNameAr: string | null;
   readonly tagNameEn: string | null;
+  /**
+   * v1.26.2-live (D126): the art in object storage (keys from `gift-art.ts`), or null / absent: the
+   * bundled `assetKey` / `animationKey` only. `animationBytes` goes with `animationObjectKey`.
+   */
+  readonly imageObjectKey?: string | null;
+  readonly animationObjectKey?: string | null;
+  readonly animationBytes?: number | null;
 }
 
 /** Thrown when a change would leave a gift's fields invalid (e.g. a tag without its names). */
@@ -142,6 +149,9 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         tagCode: fields.tagCode,
         tagNameAr: fields.tagNameAr?.trim() ?? null,
         tagNameEn: fields.tagNameEn?.trim() ?? null,
+        imageObjectKey: fields.imageObjectKey ?? null,
+        animationObjectKey: fields.animationObjectKey ?? null,
+        animationBytes: fields.animationBytes ?? null,
       },
     ],
     skipDuplicates: true,
@@ -251,7 +261,7 @@ export function compareGifts(
 
 /**
  * `GiftCatalogue.version`: changes whenever anything the app shows or caches changes (any enabled
- * gift's fields in both languages, its tag, the order, the quantities, the combo window), and never with the
+ * gift's fields in both languages, its tag, its hosted art, the order, the quantities, the combo window), and never with the
  * reader's language. 16 hex characters of SHA-256.
  */
 export function catalogueVersion(
@@ -269,6 +279,8 @@ export function catalogueVersion(
     | 'tagCode'
     | 'tagNameAr'
     | 'tagNameEn'
+    | 'imageObjectKey'
+    | 'animationObjectKey'
   >[],
   quantities: readonly number[],
   comboWindowSeconds: number,
@@ -288,6 +300,10 @@ export function catalogueVersion(
       g.badge,
       // v1.24.3-live: the sub-category (appended, so a gift without one keeps its old hash part).
       ...(g.tagCode === null ? [] : [g.tagCode, g.tagNameAr, g.tagNameEn]),
+      // v1.26.2-live: the hosted art (appended only when set, so other gifts keep their hash part).
+      ...(g.imageObjectKey === null && g.animationObjectKey === null
+        ? []
+        : ['art', g.imageObjectKey, g.animationObjectKey]),
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);

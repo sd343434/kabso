@@ -46,6 +46,8 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                         key: bannerKey(gift.combo.id),
                         gift: gift,
                         name: catalogue?.byCode(gift.giftCode)?.name,
+                        imageUrl:
+                            gift.imageUrl ?? _art(catalogue, gift)?.imageUrl,
                       ),
                     ),
                 ],
@@ -53,12 +55,22 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
             ),
           ),
           if (big != null)
-            Center(
+            Positioned.fill(
+              key: effectKey,
               child: KGiftEffect(
                 key: ValueKey(big.id),
                 assetKey: big.assetKey,
                 animationKey: big.animationKey,
+                imageUrl: big.imageUrl ?? _art(catalogue, big)?.imageUrl,
+                animationUrl:
+                    big.animationUrl ?? _art(catalogue, big)?.animationUrl,
                 duration: LiveGiftEffects.bigTime,
+                onHold: () => ref
+                    .read(liveGiftEffectsProvider(roomId).notifier)
+                    .bigHold(big.id),
+                onDone: () => ref
+                    .read(liveGiftEffectsProvider(roomId).notifier)
+                    .bigDone(big.id),
               ),
             ),
         ],
@@ -66,6 +78,11 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
     );
   }
 }
+
+/// The catalogue's gift of [gift] (its hosted art when an older server's
+/// message has none), or null.
+Gift? _art(GiftCatalogue? catalogue, LiveGift gift) =>
+    catalogue?.byCode(gift.giftCode);
 
 /// [recipients] as a short phrase: one name, two names, or the first and
 /// how many more.
@@ -85,9 +102,12 @@ String giftRecipientsText(AppLocalizations l10n, List<UserSummary> recipients) {
 /// One gift banner: the sender's picture and name, "sent ‹gift› to ‹who›",
 /// the gift, ×quantity and, from the second send of a combo, ×count.
 class LiveGiftBanner extends StatelessWidget {
-  const new({required this.gift, required this.name, super.key});
+  const new({required this.gift, required this.name, super.key, this.imageUrl});
 
   final LiveGift gift;
+
+  /// The gift's hosted image (D126), or null: the bundled one.
+  final String? imageUrl;
 
   /// The gift's name from the catalogue; null: "a gift".
   final String? name;
@@ -161,7 +181,7 @@ class LiveGiftBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: KSpacing.xs),
-          KGiftImage(gift.assetKey, size: 40),
+          KGiftImage(gift.assetKey, imageUrl: imageUrl, size: 40),
           const SizedBox(width: KSpacing.xxs),
           Text(
             quantity,

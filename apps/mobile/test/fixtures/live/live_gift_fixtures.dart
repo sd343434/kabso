@@ -69,6 +69,10 @@ Map<String, Object?> giftJson(String code, {bool ar = true}) {
       final t? => {'code': t.$1, 'name': ar ? t.$2 : t.$3},
       null => null,
     },
+    // v1.26.2-live (D126): no hosted art in the test catalogue.
+    'imageUrl': null,
+    'animationUrl': null,
+    'animationBytes': null,
   };
 }
 
@@ -115,6 +119,7 @@ Map<String, Object?> liveGiftJson({
   List<Map<String, Object?>>? recipients,
   String? comboId,
   int comboCount = 1,
+  Map<String, Object?> art = const {},
 }) {
   final to =
       recipients ?? [giftUserJson('sara', 'سارة'), giftUserJson('omar', 'عمر')];
@@ -137,6 +142,11 @@ Map<String, Object?> liveGiftJson({
       'quantity': quantity * comboCount,
     },
     'createdAt': '2026-10-26T18:30:00.000Z',
+    // v1.26.2-live (D126): the hosted art (none unless given).
+    'imageUrl': null,
+    'animationUrl': null,
+    'animationBytes': null,
+    ...art,
   };
 }
 

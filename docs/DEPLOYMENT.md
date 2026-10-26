@@ -635,6 +635,43 @@ a `CONNECTION LIMIT`.
   Locally: `pnpm gift:admin …`. Runs as the migration role; every change writes an audit row
   (`gift.add`, `gift.update`, `gift.disable`, `gift.enable`, `gift.grant`). Gifts are never deleted
   (sends and bag stock keep them): disable instead.
+- **Hosted gift art (migration `20261119090000_gift_art`; D126, contract v1.26.2-live draft):**
+  apply it with the usual `migrate` job (nullable columns and CHECKs on `gifts`; no backfill, no
+  GRANT). Gift images and SVGA effects are no longer bundled in the app: `gift-admin add|update …
+  --image <file.png|webp> --animation-file <file.svga>` checks each file (image ≤ 1 MB, 64–2048 px,
+  about square; SVGA 2.x ≤ 25 MB) and uploads it to the media bucket at
+  `media/gifts/<code>/<sha256 prefix>.<ext>` (public through `MEDIA_PUBLIC_BASE_URL` like the rest of
+  `media/`, §5.3; `Cache-Control: public, max-age=31536000, immutable`); the app downloads and caches
+  it. `--image none` / `--animation-file none` remove them (the old objects stay in the bucket).
+  The job therefore needs the API's `S3_*` settings and `MEDIA_PUBLIC_BASE_URL` besides
+  `MIGRATION_DATABASE_URL`, and **the files must be inside the job container**: copy them to the
+  host, mount the folder read-only with `-v`, and pass the storage settings with `-e` (the server's
+  compose file is not in this repository: if its `migrate` service already receives the `S3_*`
+  variables, drop the `-e` flags; never put the keys in git). From the operator's Mac, then on the
+  server in `/opt/kabso/infra/deploy`:
+
+  ```bash
+  # on the Mac (the files the owner supplied)
+  ssh root@<server> mkdir -p /root/gifts
+  scp ~/Downloads/angel_warrior.png ~/Downloads/angel_warrior.svga root@<server>:/root/gifts/
+  # on the server, after the API image with D126 is deployed and the migrate job has run
+  cd /opt/kabso/infra/deploy
+  set -a; . ./<the env file the api service uses>; set +a   # S3_* and MEDIA_PUBLIC_BASE_URL
+  GIFT="docker compose --profile jobs run --rm -v /root/gifts:/gifts:ro \
+    -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID -e S3_SECRET_ACCESS_KEY \
+    -e S3_FORCE_PATH_STYLE -e MEDIA_PUBLIC_BASE_URL migrate node dist/cli/gift-admin.js"
+  $GIFT add angel_warrior --category FUN --name-ar "الملاك المحارب" --name-en "Angel Warrior" \
+    --price 50 --asset gift_angel_warrior --tag luxury --tag-ar "فخامة" --tag-en "Luxury" \
+    --badge NEW --sort 10 --image /gifts/angel_warrior.png --animation-file /gifts/angel_warrior.svga
+  $GIFT list            # … image=media/gifts/angel_warrior/1eaf….png animation-file=…svga (16830815 bytes)
+  curl -sI "$MEDIA_PUBLIC_BASE_URL/media/gifts/angel_warrior/<key from list>.svga" | head -5   # 200, immutable
+  # later: replace a file, or take the art away
+  $GIFT update angel_warrior --animation-file /gifts/angel_warrior_v2.svga
+  $GIFT update angel_warrior --image none --animation-file none
+  ```
+
+  The CLI prints each uploaded URL. Apps from before D126 ignore the URLs and show the bundled
+  `--asset` image if the release has it, else Kabso's gift box.
 - **New optional server config:** `LIVE_GIFT_QUANTITIES` (default `1,10,66,99,188,520,1314`; 1–12
   strictly ascending whole numbers 1–9999; the API refuses to start otherwise) and
   `RATE_LIMIT_LIVE_GIFT_USER` (default `120/60`). Changing the quantities changes the catalogue

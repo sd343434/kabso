@@ -482,6 +482,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
 | v1.26.1-live (draft) | 2026-10-26 | **D125 (owner: follow lists like the reference):** `listUserFollowers` / `listUserFollowing` take `q` (a case-insensitive prefix of the username or display name, trimmed, 1–30 characters) and `order` (`newest`, the default, or `oldest`); the cursor is bound to both. `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval` `{followsMe: false, followerCount}`): the caller removes a follower, idempotent, withdraws that follow's notification. §7 row, §10.6. | **Additive** (optional parameters, a new operation). Cursors of the default list stay valid. |
 | v1.26-live (draft) | 2026-10-26 | **D124 (owner: a 2-column live grid and promo banners):** `listHomeBanners` (`GET /home/banners`, tag `home`, `HomeBannerList` of `HomeBanner` `{id, imageUrl, width, height, blurhash, title, titleSide, link}`): the enabled banners inside their window now, ordered, at most 10, signed-in, `Cache-Control: private, max-age=60`; `MediaKind.HOME_BANNER` (cover-cropped to 3:1: 1 500 × 500 and 320 × 107 WebP). Banners are written only by the `banner-admin` CLI (migration role, audited). Migration `20261118090000_home_banners`. §10.26, §11.1. | **Additive** (a new operation, schemas and enum value). |
 | v1.25.4-live (draft) | 2026-10-26 | **D123 (owner: one seat size in every audio room; 25 seats removed):** `AUDIO` seat counts 5, 10, 15, 20 (`LiveConfig.seatCounts.AUDIO`); `startLiveRoom` / `updateLiveRoom` with `seatCount` 25 → 400 `invalid_value`. A room already LIVE with 25 keeps working (seats 1 … 24, `seatCount` 25 in responses) until it ends; no data migration (the database CHECK still admits 25 for those rows). App: every seat the same size whatever the count; a live keeps running in the background (Android foreground service, no API change). §10.9. | **Breaking for `AUDIO` starts / changes with 25** (400); apps read the counts from `LiveConfig.seatCounts`. |
@@ -1447,10 +1448,34 @@ locale (§10.1).
   chip keeps only that tag's gifts; no chip row when the open tab has no tagged gift. A tab whose
   gifts have tags shows a small caret (▲ when it is the open tab). Tags never change what a send
   does.
+- **Hosted art** *(v1.26.2-live, DRAFT — D126, owner: animated gifts are large, e.g. a 16.8 MB
+  SVGA, so they are not bundled and a new gift needs no app update)*: a gift may have its art in
+  object storage — a static **image** (PNG or WebP, ≤ 1 MB, 64–2048 px a side, about square: at
+  most 5:4) and an **animation** (SVGA 2.x, i.e. a zlib stream; ≤ 25 MB; SVGA 1.x zip files are
+  refused because the app's player cannot read them). Uploaded only by the CLI: `add|update <code>
+  --image <file> --animation-file <file>` (`update … --image none` / `--animation-file none` remove
+  them; audited as `gift.add` / `gift.update`). Every file is checked by its bytes before anything
+  is uploaded or changed, then stored at a **content-addressed, immutable** key
+  `media/gifts/<code>/<first 32 hex of SHA-256>.<png|webp|svga>` (`Content-Type` `image/png`,
+  `image/webp` or `application/octet-stream`; `Cache-Control: public, max-age=31536000,
+  immutable`): new bytes get a new key and URL, so caches never go stale; replaced files stay in
+  the bucket. The rows keep the object keys (`image_object_key`, `animation_object_key`,
+  `animation_bytes`); responses carry `imageUrl` / `animationUrl` = `MEDIA_PUBLIC_BASE_URL/<key>`
+  (null without that setting) and `animationBytes` (the SVGA's size, null exactly when
+  `animationUrl` is). The bundled `assetKey` / `animationKey` stay as the fallback. **App:** the
+  panel, the banner and the effect show `imageUrl` (downloaded once into a disk cache keyed by the
+  URL), else the bundled `assetKey`, else Kabso's gift box; the effect plays `animationUrl` from the
+  disk cache (else the bundled `animationKey`), full screen, once, **with the sound embedded in the
+  SVGA** (its audio clips at their frames, media volume, never while the app is in the background,
+  stopped when the effect ends); while it downloads the image pops; a download that fails or takes
+  longer than 6 s skips the animation for that send (the download goes on, so the next send plays
+  it). When the panel opens the app prefetches the animations of ≤ 2 MB; larger ones download when
+  first sent or received. Decoded SVGA frames are released when the effect ends.
 - **`GET /gifts/catalogue`** → `{version, categories, quantities, maxRecipients,
   comboWindowSeconds, data: [Gift]}`: the **enabled** gifts by tab (in `categories` order), then
   `sortOrder`, then `code`, whole (not paged). `Gift` = `{code, category, name, priceCoins,
-  assetKey, animationKey, sortOrder, badge, tag}` (`tag` v1.24.3-live). `version` (16 hex characters) changes whenever
+  assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag}` (`tag`
+  v1.24.3-live; `imageUrl`, `animationUrl`, `animationBytes` v1.26.2-live). `version` (16 hex characters) changes whenever
   anything in the response except `name`'s language changes; the app caches the catalogue per
   language and `version` and redraws the panel only when it moves (responses stay `no-store`, §1).
   `quantities` are the quantities a send may use (server config `LIVE_GIFT_QUANTITIES`, default
@@ -1489,7 +1514,8 @@ locale (§10.1).
     per sender and plays the role of the §3 `Idempotency-Key` (no header): the same sender and
     `clientId` → 200 with the first send and the current balance and bag quantity; nothing is
     charged, taken, credited or sent again (even if the body differs).
-  - **`LiveGift`** = `{id, roomId, giftCode, assetKey, animationKey, unitPrice, quantity, source,
+  - **`LiveGift`** = `{id, roomId, giftCode, assetKey, animationKey, imageUrl, animationUrl,
+    animationBytes (v1.26.2-live: the gift's hosted art now), unitPrice, quantity, source,
     totalCoins, sender: UserSummary, recipients: [UserSummary] (in the order sent), combo: {id,
     count, quantity}, createdAt}`. `unitPrice` is the price when it was sent; `totalCoins` =
     `unitPrice × quantity × recipients` (the value, also for BAG). No `name`: one message serves
@@ -1519,7 +1545,7 @@ locale (§10.1).
   | ------ | ------- |
   | `gift` | `{"type":"gift","gift":LiveGift}` |
 
-  Every viewer plays the effect (`animationKey`, else the image) with the sender, the recipients,
+  Every viewer plays the effect (`animationUrl`, else `animationKey`, else the image) with the sender, the recipients,
   the quantity and the combo count. A send is a broadcast: the app may hide sends from people the
   reader blocked (`GET /me/blocks`). Gifts are not chat lines (§10.11) and no read lists them yet.
 - **Rate limit:** 120 sends / min per user (§7); there is no other counting rule.

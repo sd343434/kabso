@@ -33,6 +33,8 @@ const rose = {
   tagCode: null,
   tagNameAr: null,
   tagNameEn: null,
+  imageObjectKey: null,
+  animationObjectKey: null,
 };
 
 describe('gift catalogue (CP-020)', () => {
@@ -113,5 +115,9 @@ describe('gift catalogue (CP-020)', () => {
     expect(catalogueVersion([{ ...tagged, tagNameEn: 'Glory!' }], [1, 10], 5)).not.toBe(
       catalogueVersion([tagged], [1, 10], 5),
     );
+    // v1.26.2-live: hosted art moves the version; a gift without it keeps its old hash part.
+    const key = `media/gifts/rose/${'a'.repeat(32)}`;
+    expect(catalogueVersion([{ ...rose, imageObjectKey: `${key}.png` }], [1, 10], 5)).not.toBe(v);
+    expect(catalogueVersion([{ ...rose, animationObjectKey: `${key}.svga` }], [1, 10], 5)).not.toBe(v);
   });
 });

@@ -30,6 +30,9 @@ _Gift _$GiftFromJson(Map<String, dynamic> json) => _Gift(
   tag: json['tag'] == null
       ? null
       : GiftTag.fromJson(json['tag'] as Map<String, dynamic>),
+  imageUrl: json['imageUrl'] as String?,
+  animationUrl: json['animationUrl'] as String?,
+  animationBytes: (json['animationBytes'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
@@ -42,6 +45,9 @@ Map<String, dynamic> _$GiftToJson(_Gift instance) => <String, dynamic>{
   'sortOrder': instance.sortOrder,
   'badge': _$GiftBadgeEnumMap[instance.badge]!,
   'tag': instance.tag,
+  'imageUrl': instance.imageUrl,
+  'animationUrl': instance.animationUrl,
+  'animationBytes': instance.animationBytes,
 };
 
 const _$GiftCategoryEnumMap = {
@@ -126,6 +132,9 @@ _LiveGift _$LiveGiftFromJson(Map<String, dynamic> json) => _LiveGift(
       .toList(),
   combo: LiveGiftCombo.fromJson(json['combo'] as Map<String, dynamic>),
   createdAt: DateTime.parse(json['createdAt'] as String),
+  imageUrl: json['imageUrl'] as String?,
+  animationUrl: json['animationUrl'] as String?,
+  animationBytes: (json['animationBytes'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
@@ -142,6 +151,9 @@ Map<String, dynamic> _$LiveGiftToJson(_LiveGift instance) => <String, dynamic>{
   'recipients': instance.recipients,
   'combo': instance.combo,
   'createdAt': instance.createdAt.toIso8601String(),
+  'imageUrl': instance.imageUrl,
+  'animationUrl': instance.animationUrl,
+  'animationBytes': instance.animationBytes,
 };
 
 const _$LiveGiftSourceEnumMap = {

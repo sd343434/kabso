@@ -9,23 +9,45 @@
  *   pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>
  *                   --price <coins> --asset <assetKey> [--animation <animationKey>] [--sort <n>]
  *                   [--badge NONE|NEW|EVENT] [--tag <tagCode> --tag-ar <text> --tag-en <text>]
+ *                   [--image <file.png|webp>] [--animation-file <file.svga>]
  *   pnpm gift:admin update <code> [any of the add options; --animation none removes the effect,
- *                   --tag none removes the sub-category]
+ *                   --tag none removes the sub-category, --image none / --animation-file none
+ *                   remove the hosted art]
  *   pnpm gift:admin disable <code>     # hidden from the catalogue and the bag; cannot be sent
  *   pnpm gift:admin enable <code>
  *   pnpm gift:admin list               # every gift, disabled ones marked `-`
  *   pnpm gift:admin grant <email> <code> <quantity>   # adds to the user's gift bag
  *   pnpm gift:admin bag <email>        # the user's gift bag
  *
+ * `--image` / `--animation-file` (v1.26.2-live, D126) upload the gift's art to object storage, from
+ * where the app downloads it on demand (no app release for a new gift): a PNG or WebP image (≤ 1 MB,
+ * 64–2048 px, about square) and an SVGA 2.x effect (≤ 25 MB), at content-addressed, immutable keys
+ * `media/gifts/<code>/<sha256 prefix>.<ext>` (Cache-Control immutable, one year). They need the
+ * API's `S3_*` settings (and `MEDIA_PUBLIC_BASE_URL` for the app to see the URLs); the files must be
+ * readable where the CLI runs (on the server: mounted into the job container, DEPLOYMENT §5.7).
+ * The bundled `--asset` / `--animation` stay the fallback. Replaced files stay in the bucket.
+ *
  * Every change writes an audit_logs row in the same transaction (`gift.add`, `gift.update`,
  * `gift.disable`, `gift.enable`, `gift.grant`). A command that changes nothing exits 0 and says so;
  * a bad argument or an unknown gift or user exits 1.
  */
 import 'dotenv/config';
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type GiftBadge, type GiftCategory } from '../generated/prisma/client.js';
 import { AuditAction } from '../common/audit/audit.service.js';
+import type { AppConfig } from '../config/app-config.js';
+import type { ObjectStorage } from '../modules/media/object-storage.js';
+import { S3ObjectStorage } from '../modules/media/s3-object-storage.js';
+import {
+  GiftArtError,
+  giftAnimationFile,
+  giftArtUrl,
+  giftImageFile,
+  uploadGiftArt,
+  type GiftArtFile,
+} from '../modules/gifts/gift-art.js';
 import {
   addGiftIn,
   compareGifts,
@@ -49,7 +71,9 @@ const USAGE = [
   'Usage: pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>',
   '         --price <coins> --asset <assetKey> [--animation <key>] [--sort <n>] [--badge NONE|NEW|EVENT]',
   '         [--tag <tagCode> --tag-ar <text> --tag-en <text>]',
-  '       pnpm gift:admin update <code> [options of add; --animation none / --tag none remove them]',
+  '         [--image <file.png|webp>] [--animation-file <file.svga>]',
+  '       pnpm gift:admin update <code> [options of add; --animation none / --tag none /',
+  '         --image none / --animation-file none remove them]',
   '       pnpm gift:admin disable|enable <code>',
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
@@ -72,15 +96,109 @@ const OPTIONS = {
   tag: { type: 'string' },
   'tag-ar': { type: 'string' },
   'tag-en': { type: 'string' },
+  image: { type: 'string' },
+  'animation-file': { type: 'string' },
 } as const;
+
+/** The hosted-art options given (`none`: remove), checked and uploaded by {@link uploadArt}. */
+interface ArtOptions {
+  readonly image?: string;
+  readonly animationFile?: string;
+}
+
+/** Object storage from the API's own settings, or null when they are not all set. */
+function storageFromEnv(): ObjectStorage | null {
+  const e = process.env;
+  if (!e.S3_BUCKET || !e.S3_ACCESS_KEY_ID || !e.S3_SECRET_ACCESS_KEY) return null;
+  const media = {
+    s3: {
+      endpoint: e.S3_ENDPOINT || undefined,
+      region: e.S3_REGION || 'auto',
+      bucket: e.S3_BUCKET,
+      accessKeyId: e.S3_ACCESS_KEY_ID,
+      secretAccessKey: e.S3_SECRET_ACCESS_KEY,
+      forcePathStyle: e.S3_FORCE_PATH_STYLE === 'true',
+    },
+  };
+  return new S3ObjectStorage({ media } as unknown as AppConfig);
+}
+
+async function readArt(path: string, what: string): Promise<Buffer> {
+  try {
+    return await readFile(path);
+  } catch (err) {
+    const reason = err instanceof Error && 'code' in err ? String(err.code) : 'unreadable';
+    return fail(
+      `Cannot read the ${what} ${path} (${reason}). On the server the file must be inside the job ` +
+        'container: mount its folder with -v (DEPLOYMENT §5.7).',
+    );
+  }
+}
+
+/**
+ * Checks and uploads the files named by `--image` / `--animation-file` and returns the gift fields
+ * they set (`none` clears them). Nothing is uploaded unless every given file passes its checks.
+ */
+async function uploadArt(code: string, art: ArtOptions): Promise<Partial<GiftFields>> {
+  const fields: { -readonly [K in keyof GiftFields]?: GiftFields[K] } = {};
+  const files: { file: GiftArtFile; what: string }[] = [];
+  try {
+    if (art.image === 'none') {
+      fields.imageObjectKey = null;
+    } else if (art.image !== undefined) {
+      const file = await giftImageFile(code, await readArt(art.image, 'image'));
+      files.push({ file, what: 'image' });
+      fields.imageObjectKey = file.key;
+    }
+    if (art.animationFile === 'none') {
+      fields.animationObjectKey = null;
+      fields.animationBytes = null;
+    } else if (art.animationFile !== undefined) {
+      const file = giftAnimationFile(code, await readArt(art.animationFile, 'animation'));
+      files.push({ file, what: 'animation' });
+      fields.animationObjectKey = file.key;
+      fields.animationBytes = file.size;
+    }
+  } catch (err) {
+    if (err instanceof GiftArtError) fail(err.message);
+    throw err;
+  }
+  if (files.length === 0) return fields;
+  const storage = storageFromEnv();
+  if (!storage) {
+    fail(
+      '--image / --animation-file need S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY ' +
+        '(and S3_ENDPOINT for R2/MinIO), as the API has them.',
+    );
+  }
+  const base = process.env.MEDIA_PUBLIC_BASE_URL;
+  for (const { file, what } of files) {
+    try {
+      await uploadGiftArt(storage, file);
+    } catch (err) {
+      fail(
+        `Uploading the ${what} failed; nothing changed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    process.stdout.write(
+      `uploaded ${what} ${giftArtUrl(base, file.key) ?? file.key} (${file.contentType}, ${String(file.size)} bytes)\n`,
+    );
+  }
+  if (!base) {
+    process.stdout.write(
+      'MEDIA_PUBLIC_BASE_URL is not set here; the API serves the URLs from its own setting.\n',
+    );
+  }
+  return fields;
+}
 
 function wholeNumber(raw: string, what: string): number {
   if (!/^(0|[1-9][0-9]{0,9})$/.test(raw)) fail(`${what} must be a whole number.`);
   return Number(raw);
 }
 
-/** The gift fields given on the command line (only those present). */
-function fieldsFrom(args: readonly string[]): Partial<GiftFields> {
+/** The gift fields given on the command line (only those present) and the hosted-art options. */
+function optionsFrom(args: readonly string[]): { fields: Partial<GiftFields>; art: ArtOptions } {
   let values: Record<string, string | undefined>;
   try {
     ({ values } = parseArgs({ args: [...args], options: OPTIONS, strict: true, allowPositionals: false }));
@@ -111,8 +229,11 @@ function fieldsFrom(args: readonly string[]): Partial<GiftFields> {
     if (values['tag-en'] !== undefined) fields.tagNameEn = values['tag-en'];
   }
   const problems = giftFieldProblems(fields);
+  for (const option of ['image', 'animation-file'] as const) {
+    if (values[option] === '') problems.push(`--${option} needs a file (or none)`);
+  }
   if (problems.length > 0) fail(problems.join('\n'));
-  return fields;
+  return { fields, art: { image: values.image, animationFile: values['animation-file'] } };
 }
 
 function giftCode(raw: string | undefined): string {
@@ -131,26 +252,31 @@ async function user(email: string): Promise<string> {
 }
 
 async function add(code: string, args: readonly string[]): Promise<void> {
-  const given = fieldsFrom(args);
+  const { fields: options, art } = optionsFrom(args);
   const missing = (['category', 'nameAr', 'nameEn', 'priceCoins', 'assetKey'] as const).filter(
-    (k) => given[k] === undefined,
+    (k) => options[k] === undefined,
   );
   if (missing.length > 0) fail(`Missing: ${missing.join(', ')}.\n${USAGE}`);
+  if (art.image === 'none' || art.animationFile === 'none') fail(`none is for update.\n${USAGE}`);
   const fields: GiftFields = {
-    category: given.category!,
-    nameAr: given.nameAr!,
-    nameEn: given.nameEn!,
-    priceCoins: given.priceCoins!,
-    assetKey: given.assetKey!,
-    animationKey: given.animationKey ?? null,
-    sortOrder: given.sortOrder ?? 0,
-    badge: given.badge ?? 'NONE',
-    tagCode: given.tagCode ?? null,
-    tagNameAr: given.tagNameAr ?? null,
-    tagNameEn: given.tagNameEn ?? null,
+    category: options.category!,
+    nameAr: options.nameAr!,
+    nameEn: options.nameEn!,
+    priceCoins: options.priceCoins!,
+    assetKey: options.assetKey!,
+    animationKey: options.animationKey ?? null,
+    sortOrder: options.sortOrder ?? 0,
+    badge: options.badge ?? 'NONE',
+    tagCode: options.tagCode ?? null,
+    tagNameAr: options.tagNameAr ?? null,
+    tagNameEn: options.tagNameEn ?? null,
   };
   const tagProblem = giftTagProblem(fields);
   if (tagProblem !== null) fail(`${tagProblem}.\n${USAGE}`);
+  if (await prisma.gift.findUnique({ where: { code }, select: { code: true } })) {
+    fail(`A gift ${code} exists already; use update.`);
+  }
+  Object.assign(fields, await uploadArt(code, art));
   const added = await prisma.$transaction(async (tx) => {
     const created = await addGiftIn(tx, code, fields);
     if (created) {
@@ -170,8 +296,12 @@ async function add(code: string, args: readonly string[]): Promise<void> {
 }
 
 async function update(code: string, args: readonly string[]): Promise<void> {
-  const fields = fieldsFrom(args);
-  if (Object.keys(fields).length === 0) fail(`Nothing to update.\n${USAGE}`);
+  const { fields: options, art } = optionsFrom(args);
+  if (Object.keys(options).length === 0 && art.image === undefined && art.animationFile === undefined) {
+    fail(`Nothing to update.\n${USAGE}`);
+  }
+  if (!(await prisma.gift.findUnique({ where: { code }, select: { code: true } }))) fail(`No gift ${code}.`);
+  const fields = { ...options, ...(await uploadArt(code, art)) };
   const changed = await prisma.$transaction(async (tx) => {
     let result: Awaited<ReturnType<typeof updateGiftIn>>;
     try {
@@ -235,7 +365,9 @@ async function list(): Promise<void> {
       `${g.enabled ? ' ' : '-'} ${g.category} ${String(g.sortOrder)} ${g.code} ${String(g.priceCoins)} coins ` +
         `asset=${g.assetKey} animation=${g.animationKey ?? 'none'} badge=${g.badge} ` +
         `"${g.nameAr}" / "${g.nameEn}" ` +
-        `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`}\n`,
+        `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`} ` +
+        `image=${g.imageObjectKey ?? 'none'} ` +
+        `animation-file=${g.animationObjectKey === null ? 'none' : `${g.animationObjectKey} (${String(g.animationBytes)} bytes)`}\n`,
     );
   }
 }

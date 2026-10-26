@@ -13,6 +13,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
+import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
@@ -163,6 +164,22 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   Timer? _comboTimer;
 
   LiveGiftRoom get room => widget.room;
+
+  /// The catalogue version whose small animations were prefetched (D126).
+  String? _prefetched;
+
+  @override
+  void initState() {
+    super.initState();
+    // The panel opened: fetch the small hosted animations now, so they
+    // play at once when sent; big ones wait until a gift is sent.
+    ref.listenManual(giftCatalogueProvider, (_, next) {
+      final catalogue = next.value;
+      if (catalogue == null || catalogue.version == _prefetched) return;
+      _prefetched = catalogue.version;
+      GiftArtCache.instance.prefetchSmallAnimations(catalogue);
+    }, fireImmediately: true);
+  }
 
   @override
   void dispose() {
@@ -1125,7 +1142,11 @@ class _GiftTile extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(2, 10, 2, 0),
                   child: Column(
                     children: [
-                      KGiftImage(gift.assetKey, size: 52),
+                      KGiftImage(
+                        gift.assetKey,
+                        imageUrl: gift.imageUrl,
+                        size: 52,
+                      ),
                       const SizedBox(height: 3.7),
                       Text(
                         gift.name,

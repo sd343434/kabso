@@ -8,7 +8,7 @@ import type { LevelCategoryCode, LiveGiftSource, Prisma } from '../../generated/
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { consumeStockIn, stockOf } from '../gifts/gift-catalogue.js';
-import { GiftsService, LIVE_GIFT_COMBO_WINDOW_SECONDS } from '../gifts/gifts.service.js';
+import { giftArtDto, GiftsService, LIVE_GIFT_COMBO_WINDOW_SECONDS } from '../gifts/gifts.service.js';
 import { isAvailable, loadCategory, type LoadedCategory } from '../levels/level-catalog.js';
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { qualify, type Credit } from '../levels/level-qualification.js';
@@ -47,6 +47,10 @@ export interface LiveGiftDto {
   giftCode: string;
   assetKey: string;
   animationKey: string | null;
+  /** v1.26.2-live (D126): the gift's hosted art now (as in the catalogue). */
+  imageUrl: string | null;
+  animationUrl: string | null;
+  animationBytes: number | null;
   /** The gift's price in coins when it was sent. */
   unitPrice: number;
   /** Gifts each recipient received. */
@@ -76,18 +80,27 @@ export interface LiveGiftData {
 
 const GIFT_INCLUDE = {
   sender: { select: USER_SUMMARY_SELECT },
-  gift: { select: { assetKey: true, animationKey: true } },
+  gift: {
+    select: {
+      assetKey: true,
+      animationKey: true,
+      imageObjectKey: true,
+      animationObjectKey: true,
+      animationBytes: true,
+    },
+  },
   recipients: { orderBy: { position: 'asc' }, include: { user: { select: USER_SUMMARY_SELECT } } },
 } as const satisfies Prisma.LiveGiftInclude;
 type GiftRow = Prisma.LiveGiftGetPayload<{ include: typeof GIFT_INCLUDE }>;
 
-function toDto(row: GiftRow, originRoomId: string): LiveGiftDto {
+function toDto(row: GiftRow, originRoomId: string, publicBaseUrl: string | undefined): LiveGiftDto {
   return {
     id: row.id,
     roomId: row.roomId ?? originRoomId,
     giftCode: row.giftCode,
     assetKey: row.gift.assetKey,
     animationKey: row.gift.animationKey,
+    ...giftArtDto(row.gift, publicBaseUrl),
     unitPrice: row.unitPrice,
     quantity: row.quantity,
     source: row.source,
@@ -330,7 +343,7 @@ export class LiveGiftsService {
       throw err;
     }
 
-    const dto = toDto(created.row, row.id);
+    const dto = toDto(created.row, row.id, this.gifts.publicBaseUrl);
     this.background.run('live gift data message', async () => {
       await this.broadcast(row.id, { type: 'gift', gift: dto });
     });
@@ -469,7 +482,7 @@ export class LiveGiftsService {
 
   private async replay(userId: string, row: GiftRow, roomId: string): Promise<LiveGiftResultDto> {
     return {
-      gift: toDto(row, roomId),
+      gift: toDto(row, roomId, this.gifts.publicBaseUrl),
       coins: (await this.wallet.mine(userId)).coins,
       bagQuantity: await stockOf(this.prisma, userId, row.giftCode),
     };

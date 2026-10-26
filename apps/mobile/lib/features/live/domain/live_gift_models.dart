@@ -1,6 +1,6 @@
 // Wire models of live gifts (docs/contracts/openapi.yaml v1.23-live DRAFT,
 // tag `gifts` and `sendLiveGift`, CP-020; `Gift.tag` v1.24.3-live, D117;
-// CONVENTIONS §10.23).
+// hosted art v1.26.2-live, D126; CONVENTIONS §10.23).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -59,7 +59,8 @@ abstract class GiftTag with _$GiftTag {
 }
 
 /// `Gift`: one gift of the catalogue. [name] follows the app language;
-/// [assetKey] / [animationKey] name the app's bundled files.
+/// [assetKey] / [animationKey] name the app's bundled files, [imageUrl] /
+/// [animationUrl] the art hosted on the server (D126), which wins.
 @freezed
 abstract class Gift with _$Gift {
   const factory({
@@ -74,6 +75,15 @@ abstract class Gift with _$Gift {
 
     /// The sub-category (v1.24.3-live), or null: none, or an older API.
     GiftTag? tag,
+
+    /// The hosted static image (v1.26.2-live), or null: the bundled one.
+    String? imageUrl,
+
+    /// The hosted SVGA effect (v1.26.2-live), or null: the bundled one.
+    String? animationUrl,
+
+    /// [animationUrl]'s size in bytes (whether to prefetch it), or null.
+    int? animationBytes,
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
@@ -164,6 +174,11 @@ abstract class LiveGift with _$LiveGift {
     required List<UserSummary> recipients,
     required LiveGiftCombo combo,
     required DateTime createdAt,
+
+    /// The gift's hosted art now (v1.26.2-live, D126), as in [Gift].
+    String? imageUrl,
+    String? animationUrl,
+    int? animationBytes,
   }) = _LiveGift;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveGiftFromJson(json);

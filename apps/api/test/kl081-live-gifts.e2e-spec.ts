@@ -350,6 +350,10 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
           giftCode: code,
           assetKey: 'gift_heart',
           animationKey: 'fx_heart',
+          // v1.26.2-live (D126): no hosted art for this gift (kl089 covers the URLs).
+          imageUrl: null,
+          animationUrl: null,
+          animationBytes: null,
           unitPrice: 5,
           quantity: 10,
           source: 'COINS',
@@ -844,7 +848,7 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect(listed.out).toContain(
         `- EVENT 7 ${code} 120 coins asset=gift_cake animation=none badge=NEW "كعكة" / "Cake"`,
       );
-      expect(listed.out).toContain(`"كعكة" / "Cake" tag=none\n`);
+      expect(listed.out).toContain(`"كعكة" / "Cake" tag=none image=none animation-file=none\n`);
       expect(giftAdmin('enable', code)).toEqual({ status: 0, out: `${code}: enabled.\n` });
       expect(giftAdmin('disable', 'no_such_gift').status).toBe(1);
 
@@ -864,7 +868,9 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         status: 0,
         out: `${code}: tagNameEn updated.\n`,
       });
-      expect(giftAdmin('list').out).toContain(`"كعكة" / "Cake" tag=glory "مجد" / "Glory Hall"\n`);
+      expect(giftAdmin('list').out).toContain(
+        `"كعكة" / "Cake" tag=glory "مجد" / "Glory Hall" image=none animation-file=none\n`,
+      );
       expect(giftAdmin('update', code, '--tag', 'none')).toEqual({
         status: 0,
         out: `${code}: tagCode, tagNameAr, tagNameEn updated.\n`,

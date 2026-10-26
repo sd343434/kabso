@@ -290,7 +290,10 @@ as String,
 mixin _$Gift {
 
  String get code; GiftCategory get category; String get name; int get priceCoins; String get assetKey; String? get animationKey; int get sortOrder;@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge get badge;/// The sub-category (v1.24.3-live), or null: none, or an older API.
- GiftTag? get tag;
+ GiftTag? get tag;/// The hosted static image (v1.26.2-live), or null: the bundled one.
+ String? get imageUrl;/// The hosted SVGA effect (v1.26.2-live), or null: the bundled one.
+ String? get animationUrl;/// [animationUrl]'s size in bytes (whether to prefetch it), or null.
+ int? get animationBytes;
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -304,20 +307,20 @@ $GiftCopyWith<Gift> get copyWith => _$GiftCopyWithImpl<Gift>(this as Gift, _$ide
 @override
 bool operator ==(Object other) {
   final _this = this as Gift;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&(identical(other.tag, _this.tag) || other.tag == _this.tag));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Gift&&(identical(other.code, _this.code) || other.code == _this.code)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder)&&(identical(other.badge, _this.badge) || other.badge == _this.badge)&&(identical(other.tag, _this.tag) || other.tag == _this.tag)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Gift;
-  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,_this.tag);
+  return Object.hash(runtimeType,_this.code,_this.category,_this.name,_this.priceCoins,_this.assetKey,_this.animationKey,_this.sortOrder,_this.badge,_this.tag,_this.imageUrl,_this.animationUrl,_this.animationBytes);
 }
 
 @override
 String toString() {
   final _this = this as Gift;
-  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, tag: ${_this.tag})';
+  return 'Gift(code: ${_this.code}, category: ${_this.category}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, sortOrder: ${_this.sortOrder}, badge: ${_this.badge}, tag: ${_this.tag}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes})';
 }
 
 
@@ -328,7 +331,7 @@ abstract mixin class $GiftCopyWith<$Res>  {
   factory $GiftCopyWith(Gift value, $Res Function(Gift) _then) = _$GiftCopyWithImpl;
 @useResult
 $Res call({
- String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag
+ String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes
 });
 
 
@@ -345,7 +348,7 @@ class _$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
   return _then(Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -356,7 +359,10 @@ as String,animationKey: freezed == animationKey ? _self.animationKey : animation
 as String?,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,badge: null == badge ? _self.badge : badge // ignore: cast_nullable_to_non_nullable
 as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
-as GiftTag?,
+as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 /// Create a copy of Gift
@@ -453,10 +459,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   return orElse();
 
 }
@@ -474,10 +480,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)  $default,) {final _that = this;
 switch (_that) {
 case _Gift():
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -494,10 +500,10 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String code,  GiftCategory category,  String name,  int priceCoins,  String assetKey,  String? animationKey,  int sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none)  GiftBadge badge,  GiftTag? tag,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,) {final _that = this;
 switch (_that) {
 case _Gift() when $default != null:
-return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag);case _:
+return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.assetKey,_that.animationKey,_that.sortOrder,_that.badge,_that.tag,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   return null;
 
 }
@@ -509,7 +515,7 @@ return $default(_that.code,_that.category,_that.name,_that.priceCoins,_that.asse
 @JsonSerializable()
 
 class _Gift implements Gift {
-  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, this.tag});
+  const _Gift({required this.code, required this.category, required this.name, required this.priceCoins, required this.assetKey, required this.animationKey, required this.sortOrder, @JsonKey(unknownEnumValue: GiftBadge.none) required this.badge, this.tag, this.imageUrl, this.animationUrl, this.animationBytes});
   factory _Gift.fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
 
 @override final  String code;
@@ -522,6 +528,12 @@ class _Gift implements Gift {
 @override@JsonKey(unknownEnumValue: GiftBadge.none) final  GiftBadge badge;
 /// The sub-category (v1.24.3-live), or null: none, or an older API.
 @override final  GiftTag? tag;
+/// The hosted static image (v1.26.2-live), or null: the bundled one.
+@override final  String? imageUrl;
+/// The hosted SVGA effect (v1.26.2-live), or null: the bundled one.
+@override final  String? animationUrl;
+/// [animationUrl]'s size in bytes (whether to prefetch it), or null.
+@override final  int? animationBytes;
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
@@ -536,18 +548,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&(identical(other.tag, tag) || other.tag == tag));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Gift&&(identical(other.code, code) || other.code == code)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.badge, badge) || other.badge == badge)&&(identical(other.tag, tag) || other.tag == tag)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,tag);
+    return Object.hash(runtimeType,code,category,name,priceCoins,assetKey,animationKey,sortOrder,badge,tag,imageUrl,animationUrl,animationBytes);
 }
 
 @override
 String toString() {
-    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, tag: $tag)';
+    return 'Gift(code: $code, category: $category, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, animationKey: $animationKey, sortOrder: $sortOrder, badge: $badge, tag: $tag, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes)';
 }
 
 
@@ -558,7 +570,7 @@ abstract mixin class _$GiftCopyWith<$Res> implements $GiftCopyWith<$Res> {
   factory _$GiftCopyWith(_Gift value, $Res Function(_Gift) _then) = __$GiftCopyWithImpl;
 @override @useResult
 $Res call({
- String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag
+ String code, GiftCategory category, String name, int priceCoins, String assetKey, String? animationKey, int sortOrder,@JsonKey(unknownEnumValue: GiftBadge.none) GiftBadge badge, GiftTag? tag, String? imageUrl, String? animationUrl, int? animationBytes
 });
 
 
@@ -575,7 +587,7 @@ class __$GiftCopyWithImpl<$Res>
 
 /// Create a copy of Gift
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? code = null,Object? category = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? animationKey = freezed,Object? sortOrder = null,Object? badge = null,Object? tag = freezed,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
   return _then(_Gift(
 code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -586,7 +598,10 @@ as String,animationKey: freezed == animationKey ? _self.animationKey : animation
 as String?,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
 as int,badge: null == badge ? _self.badge : badge // ignore: cast_nullable_to_non_nullable
 as GiftBadge,tag: freezed == tag ? _self.tag : tag // ignore: cast_nullable_to_non_nullable
-as GiftTag?,
+as GiftTag?,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
@@ -1479,7 +1494,8 @@ as int,
 /// @nodoc
 mixin _$LiveGift {
 
- String get id; String get roomId; String get giftCode; String get assetKey; String? get animationKey; int get unitPrice; int get quantity;@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource get source; int get totalCoins; UserSummary get sender; List<UserSummary> get recipients; LiveGiftCombo get combo; DateTime get createdAt;
+ String get id; String get roomId; String get giftCode; String get assetKey; String? get animationKey; int get unitPrice; int get quantity;@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource get source; int get totalCoins; UserSummary get sender; List<UserSummary> get recipients; LiveGiftCombo get combo; DateTime get createdAt;/// The gift's hosted art now (v1.26.2-live, D126), as in [Gift].
+ String? get imageUrl; String? get animationUrl; int? get animationBytes;
 /// Create a copy of LiveGift
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1493,20 +1509,20 @@ $LiveGiftCopyWith<LiveGift> get copyWith => _$LiveGiftCopyWithImpl<LiveGift>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveGift;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveGift&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.giftCode, _this.giftCode) || other.giftCode == _this.giftCode)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.unitPrice, _this.unitPrice) || other.unitPrice == _this.unitPrice)&&(identical(other.quantity, _this.quantity) || other.quantity == _this.quantity)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.totalCoins, _this.totalCoins) || other.totalCoins == _this.totalCoins)&&(identical(other.sender, _this.sender) || other.sender == _this.sender)&&const DeepCollectionEquality().equals(other.recipients, _this.recipients)&&(identical(other.combo, _this.combo) || other.combo == _this.combo)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveGift&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.roomId, _this.roomId) || other.roomId == _this.roomId)&&(identical(other.giftCode, _this.giftCode) || other.giftCode == _this.giftCode)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.animationKey, _this.animationKey) || other.animationKey == _this.animationKey)&&(identical(other.unitPrice, _this.unitPrice) || other.unitPrice == _this.unitPrice)&&(identical(other.quantity, _this.quantity) || other.quantity == _this.quantity)&&(identical(other.source, _this.source) || other.source == _this.source)&&(identical(other.totalCoins, _this.totalCoins) || other.totalCoins == _this.totalCoins)&&(identical(other.sender, _this.sender) || other.sender == _this.sender)&&const DeepCollectionEquality().equals(other.recipients, _this.recipients)&&(identical(other.combo, _this.combo) || other.combo == _this.combo)&&(identical(other.createdAt, _this.createdAt) || other.createdAt == _this.createdAt)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.animationUrl, _this.animationUrl) || other.animationUrl == _this.animationUrl)&&(identical(other.animationBytes, _this.animationBytes) || other.animationBytes == _this.animationBytes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveGift;
-  return Object.hash(runtimeType,_this.id,_this.roomId,_this.giftCode,_this.assetKey,_this.animationKey,_this.unitPrice,_this.quantity,_this.source,_this.totalCoins,_this.sender,const DeepCollectionEquality().hash(_this.recipients),_this.combo,_this.createdAt);
+  return Object.hash(runtimeType,_this.id,_this.roomId,_this.giftCode,_this.assetKey,_this.animationKey,_this.unitPrice,_this.quantity,_this.source,_this.totalCoins,_this.sender,const DeepCollectionEquality().hash(_this.recipients),_this.combo,_this.createdAt,_this.imageUrl,_this.animationUrl,_this.animationBytes);
 }
 
 @override
 String toString() {
   final _this = this as LiveGift;
-  return 'LiveGift(id: ${_this.id}, roomId: ${_this.roomId}, giftCode: ${_this.giftCode}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, unitPrice: ${_this.unitPrice}, quantity: ${_this.quantity}, source: ${_this.source}, totalCoins: ${_this.totalCoins}, sender: ${_this.sender}, recipients: ${_this.recipients}, combo: ${_this.combo}, createdAt: ${_this.createdAt})';
+  return 'LiveGift(id: ${_this.id}, roomId: ${_this.roomId}, giftCode: ${_this.giftCode}, assetKey: ${_this.assetKey}, animationKey: ${_this.animationKey}, unitPrice: ${_this.unitPrice}, quantity: ${_this.quantity}, source: ${_this.source}, totalCoins: ${_this.totalCoins}, sender: ${_this.sender}, recipients: ${_this.recipients}, combo: ${_this.combo}, createdAt: ${_this.createdAt}, imageUrl: ${_this.imageUrl}, animationUrl: ${_this.animationUrl}, animationBytes: ${_this.animationBytes})';
 }
 
 
@@ -1517,7 +1533,7 @@ abstract mixin class $LiveGiftCopyWith<$Res>  {
   factory $LiveGiftCopyWith(LiveGift value, $Res Function(LiveGift) _then) = _$LiveGiftCopyWithImpl;
 @useResult
 $Res call({
- String id, String roomId, String giftCode, String assetKey, String? animationKey, int unitPrice, int quantity,@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource source, int totalCoins, UserSummary sender, List<UserSummary> recipients, LiveGiftCombo combo, DateTime createdAt
+ String id, String roomId, String giftCode, String assetKey, String? animationKey, int unitPrice, int quantity,@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource source, int totalCoins, UserSummary sender, List<UserSummary> recipients, LiveGiftCombo combo, DateTime createdAt, String? imageUrl, String? animationUrl, int? animationBytes
 });
 
 
@@ -1534,7 +1550,7 @@ class _$LiveGiftCopyWithImpl<$Res>
 
 /// Create a copy of LiveGift
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? giftCode = null,Object? assetKey = null,Object? animationKey = freezed,Object? unitPrice = null,Object? quantity = null,Object? source = null,Object? totalCoins = null,Object? sender = null,Object? recipients = null,Object? combo = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? roomId = null,Object? giftCode = null,Object? assetKey = null,Object? animationKey = freezed,Object? unitPrice = null,Object? quantity = null,Object? source = null,Object? totalCoins = null,Object? sender = null,Object? recipients = null,Object? combo = null,Object? createdAt = null,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
   return _then(LiveGift(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -1549,7 +1565,10 @@ as int,sender: null == sender ? _self.sender : sender // ignore: cast_nullable_t
 as UserSummary,recipients: null == recipients ? _self.recipients : recipients // ignore: cast_nullable_to_non_nullable
 as List<UserSummary>,combo: null == combo ? _self.combo : combo // ignore: cast_nullable_to_non_nullable
 as LiveGiftCombo,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 /// Create a copy of LiveGift
@@ -1652,10 +1671,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveGift() when $default != null:
-return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   return orElse();
 
 }
@@ -1673,10 +1692,10 @@ return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animat
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt,  String? imageUrl,  String? animationUrl,  int? animationBytes)  $default,) {final _that = this;
 switch (_that) {
 case _LiveGift():
-return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1693,10 +1712,10 @@ return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animat
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String roomId,  String giftCode,  String assetKey,  String? animationKey,  int unitPrice,  int quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins)  LiveGiftSource source,  int totalCoins,  UserSummary sender,  List<UserSummary> recipients,  LiveGiftCombo combo,  DateTime createdAt,  String? imageUrl,  String? animationUrl,  int? animationBytes)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveGift() when $default != null:
-return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt);case _:
+return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animationKey,_that.unitPrice,_that.quantity,_that.source,_that.totalCoins,_that.sender,_that.recipients,_that.combo,_that.createdAt,_that.imageUrl,_that.animationUrl,_that.animationBytes);case _:
   return null;
 
 }
@@ -1708,7 +1727,7 @@ return $default(_that.id,_that.roomId,_that.giftCode,_that.assetKey,_that.animat
 @JsonSerializable()
 
 class _LiveGift implements LiveGift {
-  const _LiveGift({required this.id, required this.roomId, required this.giftCode, required this.assetKey, required this.animationKey, required this.unitPrice, required this.quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins) required this.source, required this.totalCoins, required this.sender, required  List<UserSummary> recipients, required this.combo, required this.createdAt}): _recipients = recipients;
+  const _LiveGift({required this.id, required this.roomId, required this.giftCode, required this.assetKey, required this.animationKey, required this.unitPrice, required this.quantity, @JsonKey(unknownEnumValue: LiveGiftSource.coins) required this.source, required this.totalCoins, required this.sender, required  List<UserSummary> recipients, required this.combo, required this.createdAt, this.imageUrl, this.animationUrl, this.animationBytes}): _recipients = recipients;
   factory _LiveGift.fromJson(Map<String, dynamic> json) => _$LiveGiftFromJson(json);
 
 @override final  String id;
@@ -1730,6 +1749,10 @@ class _LiveGift implements LiveGift {
 
 @override final  LiveGiftCombo combo;
 @override final  DateTime createdAt;
+/// The gift's hosted art now (v1.26.2-live, D126), as in [Gift].
+@override final  String? imageUrl;
+@override final  String? animationUrl;
+@override final  int? animationBytes;
 
 /// Create a copy of LiveGift
 /// with the given fields replaced by the non-null parameter values.
@@ -1744,18 +1767,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveGift&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.giftCode, giftCode) || other.giftCode == giftCode)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.source, source) || other.source == source)&&(identical(other.totalCoins, totalCoins) || other.totalCoins == totalCoins)&&(identical(other.sender, sender) || other.sender == sender)&&const DeepCollectionEquality().equals(other.recipients, _recipients)&&(identical(other.combo, combo) || other.combo == combo)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveGift&&(identical(other.id, id) || other.id == id)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.giftCode, giftCode) || other.giftCode == giftCode)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.animationKey, animationKey) || other.animationKey == animationKey)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.source, source) || other.source == source)&&(identical(other.totalCoins, totalCoins) || other.totalCoins == totalCoins)&&(identical(other.sender, sender) || other.sender == sender)&&const DeepCollectionEquality().equals(other.recipients, _recipients)&&(identical(other.combo, combo) || other.combo == combo)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.animationUrl, animationUrl) || other.animationUrl == animationUrl)&&(identical(other.animationBytes, animationBytes) || other.animationBytes == animationBytes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,roomId,giftCode,assetKey,animationKey,unitPrice,quantity,source,totalCoins,sender,const DeepCollectionEquality().hash(_recipients),combo,createdAt);
+    return Object.hash(runtimeType,id,roomId,giftCode,assetKey,animationKey,unitPrice,quantity,source,totalCoins,sender,const DeepCollectionEquality().hash(_recipients),combo,createdAt,imageUrl,animationUrl,animationBytes);
 }
 
 @override
 String toString() {
-    return 'LiveGift(id: $id, roomId: $roomId, giftCode: $giftCode, assetKey: $assetKey, animationKey: $animationKey, unitPrice: $unitPrice, quantity: $quantity, source: $source, totalCoins: $totalCoins, sender: $sender, recipients: $recipients, combo: $combo, createdAt: $createdAt)';
+    return 'LiveGift(id: $id, roomId: $roomId, giftCode: $giftCode, assetKey: $assetKey, animationKey: $animationKey, unitPrice: $unitPrice, quantity: $quantity, source: $source, totalCoins: $totalCoins, sender: $sender, recipients: $recipients, combo: $combo, createdAt: $createdAt, imageUrl: $imageUrl, animationUrl: $animationUrl, animationBytes: $animationBytes)';
 }
 
 
@@ -1766,7 +1789,7 @@ abstract mixin class _$LiveGiftCopyWith<$Res> implements $LiveGiftCopyWith<$Res>
   factory _$LiveGiftCopyWith(_LiveGift value, $Res Function(_LiveGift) _then) = __$LiveGiftCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String roomId, String giftCode, String assetKey, String? animationKey, int unitPrice, int quantity,@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource source, int totalCoins, UserSummary sender, List<UserSummary> recipients, LiveGiftCombo combo, DateTime createdAt
+ String id, String roomId, String giftCode, String assetKey, String? animationKey, int unitPrice, int quantity,@JsonKey(unknownEnumValue: LiveGiftSource.coins) LiveGiftSource source, int totalCoins, UserSummary sender, List<UserSummary> recipients, LiveGiftCombo combo, DateTime createdAt, String? imageUrl, String? animationUrl, int? animationBytes
 });
 
 
@@ -1783,7 +1806,7 @@ class __$LiveGiftCopyWithImpl<$Res>
 
 /// Create a copy of LiveGift
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? giftCode = null,Object? assetKey = null,Object? animationKey = freezed,Object? unitPrice = null,Object? quantity = null,Object? source = null,Object? totalCoins = null,Object? sender = null,Object? recipients = null,Object? combo = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? roomId = null,Object? giftCode = null,Object? assetKey = null,Object? animationKey = freezed,Object? unitPrice = null,Object? quantity = null,Object? source = null,Object? totalCoins = null,Object? sender = null,Object? recipients = null,Object? combo = null,Object? createdAt = null,Object? imageUrl = freezed,Object? animationUrl = freezed,Object? animationBytes = freezed,}) {
   return _then(_LiveGift(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,roomId: null == roomId ? _self.roomId : roomId // ignore: cast_nullable_to_non_nullable
@@ -1798,7 +1821,10 @@ as int,sender: null == sender ? _self.sender : sender // ignore: cast_nullable_t
 as UserSummary,recipients: null == recipients ? _self._recipients : recipients // ignore: cast_nullable_to_non_nullable
 as List<UserSummary>,combo: null == combo ? _self.combo : combo // ignore: cast_nullable_to_non_nullable
 as LiveGiftCombo,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,
+as DateTime,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationUrl: freezed == animationUrl ? _self.animationUrl : animationUrl // ignore: cast_nullable_to_non_nullable
+as String?,animationBytes: freezed == animationBytes ? _self.animationBytes : animationBytes // ignore: cast_nullable_to_non_nullable
+as int?,
   ));
 }
 
