@@ -36,14 +36,18 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_live_blocked_words_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_live_schedule_repository.dart';
+import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -107,6 +111,10 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
       ),
       liveScheduleRepositoryProvider.overrideWithValue(
         FakeLiveScheduleRepository(),
+      ),
+      // A person's card reads their profile.
+      profileRepositoryProvider.overrideWithValue(
+        FakeProfileRepository(apiProfile()),
       ),
     ],
   );
@@ -531,14 +539,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip(_l10n(tester).liveClose).last);
       await tester.pumpAndSettle();
-      // Seats (D100): 6 / 9 / 15 / 20 / 25 in the sheet; a pick closes it.
+      // Seats (D103): 5 / 10 / 15 / 20 / 25 in the sheet; a pick closes it.
       await tester.tap(find.byKey(GoLiveAudioSetup.seatsKey));
       await tester.pumpAndSettle();
-      for (final c in [6, 9, 15, 20, 25]) {
+      for (final c in [5, 10, 15, 20, 25]) {
         expect(find.byKey(GoLiveKeys.seatCount(c)), findsOneWidget);
       }
-      expect(find.byKey(GoLiveKeys.seatCount(5)), findsNothing);
-      expect(find.byKey(GoLiveKeys.seatCount(13)), findsNothing);
+      expect(find.byKey(GoLiveKeys.seatCount(6)), findsNothing);
+      expect(find.byKey(GoLiveKeys.seatCount(9)), findsNothing);
       await tester.tap(find.byKey(GoLiveKeys.seatCount(25)));
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.seatCount(25)), findsNothing);
@@ -611,6 +619,40 @@ void main() {
       await tester.tap(invite);
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveSeatInvited), findsOneWidget);
+      // Tapping the person: their card, with the host's tools (points,
+      // kick, chat mute, make moderator, ⋯) and Invite.
+      await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.manage')), findsNothing);
+      for (final key in [
+        LivePersonToolKeys.points,
+        LivePersonToolKeys.kick,
+        LivePersonToolKeys.mute,
+        LivePersonToolKeys.admin,
+        LivePersonToolKeys.more,
+      ]) {
+        expect(find.byKey(key), findsOneWidget, reason: '$key');
+      }
+      // Make moderator from the card: the API, then the button flips.
+      await tester.tap(find.byKey(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('addModerator:huda'));
+      expect(find.byTooltip(l10n.liveSeatRemoveModerator), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.userCard.invite')), findsOneWidget);
+      // The card is at most half the screen: scroll to the button.
+      await tester.ensureVisible(find.byKey(const Key('room.userCard.invite')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('room.userCard.invite')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
+      expect(
+        repo.seatCalls.where((c) => c.startsWith('inviteToSeat')),
+        hasLength(2),
+      );
       await tester.tap(find.byKey(SeatControlKeys.guestsTab));
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveSeatGuestsEmpty), findsOneWidget);
@@ -622,12 +664,25 @@ void main() {
       // The host's seat ("Host"), then numbered empty seats with +.
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
-      // The round mic button mutes and unmutes.
-      expect(find.bySemanticsLabel(l10n.goLiveMuteMic), findsOneWidget);
-      await tester.tap(find.byKey(GoLiveScreen.micKey));
+      // Owner (2026-10-26): no mic button in the bar; the host mutes and
+      // unmutes on their own picture. The toolbox and gift box show.
+      expect(find.byKey(GoLiveScreen.micKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
+      expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(l10n.goLiveMuteMic)), findsOneWidget);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
-      expect(find.bySemanticsLabel(l10n.goLiveUnmuteMic), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp(l10n.goLiveUnmuteMic)),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      await tester.pumpAndSettle();
+      expect(camera.micEnabled, isTrue);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      await tester.pumpAndSettle();
+      expect(camera.micEnabled, isFalse);
       // Share copies the live's invite (no public link exists yet).
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -652,7 +707,8 @@ void main() {
       ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
           .removeCurrentSnackBar();
       await tester.pumpAndSettle();
-      // The last request accepted: the sheet closes by itself (real run).
+      // The seat button (owner, 2026-10-26): the room's people on the Guests
+      // tab, the request first with Accept; accepting it takes it away.
       repo.pendingSeatRequests = [
         LiveSeatRequest(
           id: 'req-1',
@@ -668,11 +724,20 @@ void main() {
       ];
       await tester.tap(find.byKey(GoLiveKeys.tool('requests')));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.liveSeatRequestsTitle), findsOneWidget);
+      expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);
+      expect(find.textContaining('Huda'), findsOneWidget);
+      // Full width (it showed as a small box, owner 2026-10-26).
+      expect(
+        tester.getSize(find.byType(BottomSheet)).width,
+        tester.view.physicalSize.width / tester.view.devicePixelRatio,
+      );
       await tester.tap(find.byKey(SeatControlKeys.accept('req-1')));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.liveSeatRequestsTitle), findsNothing);
-      expect(find.text(l10n.liveSeatRequestsEmpty), findsNothing);
+      expect(repo.seatCalls, contains('acceptSeatRequest:req-1:'));
+      expect(find.byKey(SeatControlKeys.accept('req-1')), findsNothing);
+      await tester.tap(find.byTooltip(l10n.liveClose).last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(SeatControlKeys.guestsTab), findsNothing);
       // CP-012: the score replaces @username once there are points; the
       // room bar opens the breakdown.
       expect(find.byKey(LiveAudioRoomHeader.scoreKey), findsNothing);
@@ -771,7 +836,9 @@ void main() {
       // room button: each offers the tap action (regression, real web run).
       final handle = tester.ensureSemantics();
       for (final key in [
-        GoLiveScreen.micKey,
+        AudioSeatRing.seatKey(0),
+        GoLiveScreen.audioToolboxKey,
+        GoLiveScreen.audioGiftKey,
         GoLiveScreen.closeKey,
         GoLiveScreen.minimizeKey,
         GoLiveScreen.shareKey,

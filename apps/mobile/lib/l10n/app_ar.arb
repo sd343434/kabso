@@ -364,6 +364,10 @@
   "liveClose": "إغلاق",
   "liveCommentHint": "قل شيئًا…",
   "liveGifts": "الهدايا",
+  "liveToolbox": "صندوق الأدوات",
+  "@liveToolbox": {
+    "description": "The audio room bar's toolbox button (owner pack): opens the room tools."
+  },
   "liveShare": "مشاركة",
   "liveVideoPlaceholder": "فيديو البث",
   "@liveVideoPlaceholder": {
@@ -4353,6 +4357,42 @@
       }
     }
   },
+  "liveSeatMuteUser": "كتم مايك {name}",
+  "@liveSeatMuteUser": {
+    "description": "Person card: mute this seated person's or guest's microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUnmuteUser": "إلغاء كتم مايك {name}",
+  "@liveSeatUnmuteUser": {
+    "description": "Person card: unmute this seated person's or guest's microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUserMuted": "كُتم مايك {name}",
+  "@liveSeatUserMuted": {
+    "description": "Snack after muting someone's seat microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveSeatUserUnmuted": "أُلغي كتم مايك {name}",
+  "@liveSeatUserUnmuted": {
+    "description": "Snack after unmuting someone's seat microphone.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "liveChatReport": "الإبلاغ عن الرسالة",
   "@liveChatReport": {
     "description": "Chat line action."
@@ -4416,6 +4456,43 @@
   "liveSeatGuestsEmpty": "لا أحد على المقاعد الآن",
   "@liveSeatGuestsEmpty": {
     "description": "Viewers sheet, Guests tab empty."
+  },
+  "liveSeatInviteFriends": "ادعُ أصدقاءك",
+  "liveUserManage": "إدارة",
+  "@liveUserManage": {
+    "description": "Person card in a live (host): opens the moderator choice."
+  },
+  "liveUserViewProfile": "عرض الملف",
+  "@liveUserViewProfile": {
+    "description": "Person card in a live: opens their full profile."
+  },
+  "liveUserFamily": "العائلة",
+  "@liveUserFamily": {
+    "description": "Person card in a live: the family box (no families yet: says soon)."
+  },
+  "liveUserGiftWall": "حائط الهدايا",
+  "@liveUserGiftWall": {
+    "description": "Person card in a live: the gifts they received (no gifts API yet: says soon)."
+  },
+  "liveUserMedals": "الميداليات",
+  "@liveUserMedals": {
+    "description": "Person card in a live: their medals (no medals yet: says soon)."
+  },
+  "liveUserSoon": "قريباً",
+  "@liveUserSoon": {
+    "description": "Tag on a person-card box whose feature is not built yet."
+  },
+  "liveUserBoxSoon": "{box}: قريباً",
+  "@liveUserBoxSoon": {
+    "description": "Snack when a not-yet-built person-card box is tapped.",
+    "placeholders": {
+      "box": {
+        "type": "String"
+      }
+    }
+  },
+  "@liveSeatInviteFriends": {
+    "description": "Guests tab with nobody on a seat: opens the Viewers tab to invite people onto a seat."
   },
   "liveSeatNumberLabel": "المقعد {number}",
   "@liveSeatNumberLabel": {
@@ -4815,5 +4892,1207 @@
   "liveToolLiveTime": "وقت البث",
   "@liveToolLiveTime": {
     "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "errorInsufficientCoins": "تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
+  "@errorInsufficientCoins": {
+    "description": "INSUFFICIENT_COINS (409, CP-017): a bullet costs 15 coins; no purchase flow exists yet."
+  },
+  "liveBulletToggle": "رسالة عامة",
+  "@liveBulletToggle": {
+    "description": "Live chat tool: bullet mode on/off (CP-017)."
+  },
+  "liveBulletHint": "رسالة عامة بـ 15 عملة · رصيدك {coins}",
+  "@liveBulletHint": {
+    "description": "Chat field hint while bullet mode is on, with the coin balance (CP-017).",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "liveBulletHintNoBalance": "رسالة عامة بـ 15 عملة",
+  "@liveBulletHintNoBalance": {
+    "description": "Chat field hint in bullet mode before the balance is known (CP-017)."
+  },
+  "liveBulletSent": "أُرسلت رسالتك العامة إلى كل البثوث",
+  "@liveBulletSent": {
+    "description": "Snack after a bullet was sent (CP-017)."
+  },
+  "liveBulletLabel": "رسالة عامة من {name}: {text}",
+  "@liveBulletLabel": {
+    "description": "Screen reader label of a flying bullet (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "liveVoiceRecord": "مقطع صوتي",
+  "@liveVoiceRecord": {
+    "description": "Live chat tool: record a voice clip (CP-017)."
+  },
+  "liveVoiceSend": "إرسال المقطع الصوتي",
+  "@liveVoiceSend": {
+    "description": "Stops recording and sends the voice clip (CP-017)."
+  },
+  "liveVoiceCancel": "إلغاء التسجيل",
+  "@liveVoiceCancel": {
+    "description": "Throws the voice clip away (CP-017)."
+  },
+  "liveVoiceRecording": "جارٍ التسجيل {time} من 0:30",
+  "@liveVoiceRecording": {
+    "description": "Recording timer in the chat box (CP-017).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "liveVoiceDenied": "اسمح باستخدام الميكروفون من الإعدادات لإرسال مقاطع صوتية.",
+  "@liveVoiceDenied": {
+    "description": "Microphone permission refused (CP-017)."
+  },
+  "liveVoiceUnavailable": "الميكروفون غير متاح الآن.",
+  "@liveVoiceUnavailable": {
+    "description": "The microphone could not start (CP-017)."
+  },
+  "liveVoiceTooLarge": "المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.",
+  "@liveVoiceTooLarge": {
+    "description": "A voice clip over 1 MiB (CP-017)."
+  },
+  "liveChatPrivateMessages": "الرسائل الخاصة",
+  "@liveChatPrivateMessages": {
+    "description": "Live chat tool: opens the Messages tab (CP-017)."
+  },
+  "liveChatPicture": "صورة",
+  "@liveChatPicture": {
+    "description": "Live chat tool: send a picture (CP-017)."
+  },
+  "liveChatSending": "جارٍ الإرسال…",
+  "@liveChatSending": {
+    "description": "The chat box while a clip or picture uploads (CP-017)."
+  },
+  "liveChatVoiceLine": "{name}: مقطع صوتي، {duration}",
+  "@liveChatVoiceLine": {
+    "description": "Screen reader label of a voice clip line (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatPictureLine": "{name}: صورة",
+  "@liveChatPictureLine": {
+    "description": "Screen reader label of a picture line (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatPlay": "تشغيل",
+  "@liveChatPlay": {
+    "description": "Plays a voice clip in the live chat (CP-017)."
+  },
+  "liveChatPause": "إيقاف مؤقت",
+  "@liveChatPause": {
+    "description": "Pauses a voice clip in the live chat (CP-017)."
+  },
+  "errorLiveKicked": "تم إخراجك من هذا البث. يمكنك مشاهدة البث التالي للمضيف.",
+  "@errorLiveKicked": {
+    "description": "LIVE_KICKED (403, v1.20-live, D105): the host or a moderator kicked the caller out of this live."
+  },
+  "liveKickedTitle": "تم إخراجك من هذا البث",
+  "@liveKickedTitle": {
+    "description": "Shown instead of the room when the host or a moderator kicked this person out (D105)."
+  },
+  "liveKickedBody": "أخرجك المضيف أو أحد المشرفين، ولا يمكنك العودة إليه حتى ينتهي. يمكنك مشاهدة البث التالي للمضيف.",
+  "@liveKickedBody": {
+    "description": "Body of the removed-from-live message (D105)."
+  },
+  "liveUserPoints": "النقاط في هذا البث",
+  "@liveUserPoints": {
+    "description": "Person card in a live: the points button (tooltip) and the title of the points popover (D105)."
+  },
+  "liveUserRank": "المركز {rank} في هذا البث",
+  "@liveUserRank": {
+    "description": "Points popover: the person's place in this live's Contribution list.",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserNoPoints": "لا نقاط في هذا البث بعد",
+  "@liveUserNoPoints": {
+    "description": "Points popover: the person gave this live no points."
+  },
+  "liveUserKick": "إخراج من البث",
+  "@liveUserKick": {
+    "description": "Person card (host, moderators): kicks the person out of this live (D105)."
+  },
+  "liveUserKickTitle": "إخراج {name} من هذا البث؟",
+  "@liveUserKickTitle": {
+    "description": "Confirm dialog title before kicking someone out of a live.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserKickBody": "سيخرج من البث الآن ولن يستطيع العودة حتى ينتهي.",
+  "@liveUserKickBody": {
+    "description": "Confirm dialog body before kicking someone out of a live."
+  },
+  "liveUserKickConfirm": "إخراج",
+  "@liveUserKickConfirm": {
+    "description": "Confirm button: kick someone out of a live."
+  },
+  "liveUserKicked": "تم إخراج {name} من هذا البث",
+  "@liveUserKicked": {
+    "description": "Snack after kicking someone out of a live.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserModeratorAdded": "{name} أصبح مشرفاً",
+  "@liveUserModeratorAdded": {
+    "description": "Snack after the host makes someone a moderator from their card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserModeratorRemoved": "{name} لم يعد مشرفاً",
+  "@liveUserModeratorRemoved": {
+    "description": "Snack after the host removes a moderator from their card.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveUserMore": "المزيد",
+  "@liveUserMore": {
+    "description": "Person card in a live: the more button (report, block)."
+  },
+  "liveUserCp": "العلاقة",
+  "@liveUserCp": {
+    "description": "Person card in a live: the relationship (CP) box (not built yet)."
+  },
+  "liveUserNone": "لا يوجد",
+  "@liveUserNone": {
+    "description": "Person card in a live: a small box with nothing in it yet (family, CP)."
+  },
+  "liveUserFamilyNone": "ليس في عائلة بعد",
+  "@liveUserFamilyNone": {
+    "description": "Family box on someone else's card: families do not exist yet, so nobody is in one."
+  },
+  "liveUserFamilyNoneSelf": "لست في عائلة بعد",
+  "@liveUserFamilyNoneSelf": {
+    "description": "Family box on your own card (owner's copy): families do not exist yet."
+  },
+  "liveUserFamilyHint": "انضم لعائلة أو أنشئ عائلتك",
+  "@liveUserFamilyHint": {
+    "description": "Family box: second line (owner's copy); joining is not built yet."
+  },
+  "liveUserCpNone": "لا يوجد شريك بعد",
+  "@liveUserCpNone": {
+    "description": "Relationship box: nobody is linked (CP does not exist yet)."
+  },
+  "liveUserCpBar": "هدايا CP قريباً: أرسلها لشخص مميّز لتصبحا ثنائياً",
+  "@liveUserCpBar": {
+    "description": "Relationship box: the bottom bar; CP gifts are not built yet."
+  },
+  "liveUserCpPartner": "مكان الشريك فارغ",
+  "@liveUserCpPartner": {
+    "description": "Screen reader label of the empty partner slot in the relationship box."
+  },
+  "liveBulletTag": "رسالة عامة",
+  "@liveBulletTag": {
+    "description": "Tag on a public message (bullet, CP-017) shown as a box in the room chat (owner, 2026-10-26)."
+  },
+  "errorAlreadyInFamily": "أنت في عائلة بالفعل. يمكنك أن تكون في عائلة واحدة فقط.",
+  "@errorAlreadyInFamily": {
+    "description": "ALREADY_IN_FAMILY (409, CP-018)."
+  },
+  "errorFamilyFull": "هذه العائلة ممتلئة ولا تقبل أعضاء جدداً.",
+  "@errorFamilyFull": {
+    "description": "FAMILY_FULL (409, CP-018)."
+  },
+  "errorFamilyNameTaken": "هذا الاسم مستخدم لعائلة أخرى. لم تُخصم أي عملات.",
+  "@errorFamilyNameTaken": {
+    "description": "FAMILY_NAME_TAKEN (409, CP-018)."
+  },
+  "errorFamilyRequestPending": "لديك طلب انضمام معلّق لعائلة أخرى. ألغِه أولاً.",
+  "@errorFamilyRequestPending": {
+    "description": "FAMILY_REQUEST_PENDING (409, CP-018)."
+  },
+  "errorFamilyRequestNotPending": "تمت معالجة هذا الطلب أو أُلغي أو انتهت صلاحيته.",
+  "@errorFamilyRequestNotPending": {
+    "description": "FAMILY_REQUEST_NOT_PENDING (409, CP-018)."
+  },
+  "errorFamilyNotEmpty": "يمكنك حلّ العائلة فقط عندما تكون العضو الوحيد فيها.",
+  "@errorFamilyNotEmpty": {
+    "description": "FAMILY_NOT_EMPTY (409, CP-018)."
+  },
+  "errorFamilyLeaderCannotLeave": "القائد لا يغادر العائلة: سلّمها لعضو آخر أو حلّها.",
+  "@errorFamilyLeaderCannotLeave": {
+    "description": "FAMILY_LEADER_CANNOT_LEAVE (409, CP-018)."
+  },
+  "errorCpAlreadyPaired": "أنت أو هذا الشخص لديه شريك بالفعل. لم تُخصم أي عملات.",
+  "@errorCpAlreadyPaired": {
+    "description": "CP_ALREADY_PAIRED (409, CP-018)."
+  },
+  "errorCpRequestPending": "لديك طلب علاقة معلّق. ألغِه من صفحة العلاقة أولاً.",
+  "@errorCpRequestPending": {
+    "description": "CP_REQUEST_PENDING (409, CP-018)."
+  },
+  "errorCpRequestNotPending": "تمت معالجة طلب العلاقة هذا أو أُلغي أو انتهت صلاحيته.",
+  "@errorCpRequestNotPending": {
+    "description": "CP_REQUEST_NOT_PENDING (409, CP-018)."
+  },
+  "errorCpNotPaired": "ليس لديك شريك الآن. لم تُخصم أي عملات.",
+  "@errorCpNotPaired": {
+    "description": "CP_NOT_PAIRED (409, CP-018)."
+  },
+  "errorMedalNotUnlocked": "اختر فقط الميداليات التي حصلت عليها.",
+  "@errorMedalNotUnlocked": {
+    "description": "MEDAL_NOT_UNLOCKED (409, CP-018)."
+  },
+  "bondsCoins": "{count, plural, =1{عملة واحدة} =2{عملتان} few{{count} عملات} many{{count} عملة} other{{count} عملة}}",
+  "@bondsCoins": {
+    "description": "An amount of coins (CP-018 prices and balances).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bondsDays": "{count, plural, =1{يوم واحد} =2{يومين} few{{count} أيام} many{{count} يوماً} other{{count} يوم}}",
+  "@bondsDays": {
+    "description": "A number of days (CP-018 request lifetime).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bondsBalance": "رصيدك: {coins}",
+  "@bondsBalance": {
+    "description": "The coin balance on a spending screen (CP-018); coins is bondsCoins.",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "bondsConfirm": "تأكيد",
+  "@bondsConfirm": {
+    "description": "Confirm button of a CP-018 dialog."
+  },
+  "bondsCancel": "إلغاء",
+  "@bondsCancel": {
+    "description": "Cancel button of a CP-018 dialog."
+  },
+  "familiesTitle": "العائلات",
+  "@familiesTitle": {
+    "description": "Families screen title (CP-018)."
+  },
+  "familiesSearchHint": "ابحث بالاسم أو الرقم",
+  "@familiesSearchHint": {
+    "description": "Families search field hint. (CP-018 (D106))"
+  },
+  "familiesMine": "عائلتي",
+  "@familiesMine": {
+    "description": "Families screen: your family section. (CP-018 (D106))"
+  },
+  "familiesCreate": "أنشئ عائلة",
+  "@familiesCreate": {
+    "description": "Button: create a family (costs coins). (CP-018 (D106))"
+  },
+  "familiesTop": "أفضل العائلات",
+  "@familiesTop": {
+    "description": "Families list header without a search. (CP-018 (D106))"
+  },
+  "familiesResults": "نتائج البحث",
+  "@familiesResults": {
+    "description": "Families list header with a search. (CP-018 (D106))"
+  },
+  "familiesEmpty": "لا توجد عائلات بعد",
+  "@familiesEmpty": {
+    "description": "Families list is empty. (CP-018 (D106))"
+  },
+  "familiesEmptyBody": "كن أول من ينشئ عائلة.",
+  "@familiesEmptyBody": {
+    "description": "Families list is empty: hint. (CP-018 (D106))"
+  },
+  "familiesNoMatch": "لا توجد عائلة مطابقة",
+  "@familiesNoMatch": {
+    "description": "Families search found nothing. (CP-018 (D106))"
+  },
+  "familiesNoMatchBody": "جرّب اسماً آخر أو رقم العائلة المكوّن من 8 أرقام.",
+  "@familiesNoMatchBody": {
+    "description": "Families search found nothing: hint. (CP-018 (D106))"
+  },
+  "familiesLoadError": "تعذّر تحميل العائلات",
+  "@familiesLoadError": {
+    "description": "Families list failed to load. (CP-018 (D106))"
+  },
+  "familiesNumberNotFound": "لا توجد عائلة بهذا الرقم",
+  "@familiesNumberNotFound": {
+    "description": "Search by an 8-digit number found nothing (404). (CP-018 (D106))"
+  },
+  "familyNumber": "رقم العائلة {number}",
+  "@familyNumber": {
+    "description": "A family number (8 digits). (CP-018 (D106))",
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "familyLevel": "مستوى {level}",
+  "@familyLevel": {
+    "description": "A family level badge. (CP-018 (D106))",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "familyMembersCount": "الأعضاء {count} / {capacity}",
+  "@familyMembersCount": {
+    "description": "Member count of a family. (CP-018 (D106))",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "capacity": {
+        "type": "int"
+      }
+    }
+  },
+  "familyPendingRequest": "طلبك للانضمام إلى {name} قيد الانتظار",
+  "@familyPendingRequest": {
+    "description": "Banner: your pending join request. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCancelRequest": "إلغاء الطلب",
+  "@familyCancelRequest": {
+    "description": "Cancel your join request. (CP-018 (D106))"
+  },
+  "familyRequestCancelled": "تم إلغاء طلب الانضمام",
+  "@familyRequestCancelled": {
+    "description": "Snack: join request cancelled. (CP-018 (D106))"
+  },
+  "familyNotFoundTitle": "العائلة غير موجودة",
+  "@familyNotFoundTitle": {
+    "description": "Family page: 404. (CP-018 (D106))"
+  },
+  "familyNotFoundBody": "ربما تم حلّ هذه العائلة.",
+  "@familyNotFoundBody": {
+    "description": "Family page: 404 body. (CP-018 (D106))"
+  },
+  "familyLoadError": "تعذّر تحميل العائلة",
+  "@familyLoadError": {
+    "description": "Family page failed to load. (CP-018 (D106))"
+  },
+  "familyPoints": "النقاط: {points}",
+  "@familyPoints": {
+    "description": "Family or member points (pre-formatted digits). (CP-018 (D106))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "familyProgress": "{points} / {next} للوصول إلى المستوى {level}",
+  "@familyProgress": {
+    "description": "Family progress to the next level (pre-formatted numbers). (CP-018 (D106))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "familyTopLevel": "وصلت العائلة إلى أعلى مستوى",
+  "@familyTopLevel": {
+    "description": "Family at the top level. (CP-018 (D106))"
+  },
+  "familyLeader": "القائد: {name}",
+  "@familyLeader": {
+    "description": "The family leader. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyJoin": "اطلب الانضمام",
+  "@familyJoin": {
+    "description": "Button: ask to join a family. (CP-018 (D106))"
+  },
+  "familyJoinSent": "تم إرسال طلب الانضمام. يرد عليه القائد أو النواب.",
+  "@familyJoinSent": {
+    "description": "Snack: join request sent. (CP-018 (D106))"
+  },
+  "familyRequested": "تم إرسال الطلب",
+  "@familyRequested": {
+    "description": "Family page: your request is pending. (CP-018 (D106))"
+  },
+  "familyFullLabel": "العائلة ممتلئة",
+  "@familyFullLabel": {
+    "description": "Family page: full, cannot ask to join. (CP-018 (D106))"
+  },
+  "familyInOther": "أنت عضو في عائلة أخرى",
+  "@familyInOther": {
+    "description": "Family page: you are in another family. (CP-018 (D106))"
+  },
+  "familyLeave": "مغادرة العائلة",
+  "@familyLeave": {
+    "description": "Button: leave the family. (CP-018 (D106))"
+  },
+  "familyLeaveTitle": "مغادرة {name}؟",
+  "@familyLeaveTitle": {
+    "description": "Leave confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyLeaveBody": "تبقى النقاط التي قدّمتها مع العائلة.",
+  "@familyLeaveBody": {
+    "description": "Leave confirm body. (CP-018 (D106))"
+  },
+  "familyLeft": "غادرت العائلة",
+  "@familyLeft": {
+    "description": "Snack: left the family. (CP-018 (D106))"
+  },
+  "familyManage": "إدارة العائلة",
+  "@familyManage": {
+    "description": "Leader menu tooltip. (CP-018 (D106))"
+  },
+  "familyChangeEmblem": "تغيير الشعار",
+  "@familyChangeEmblem": {
+    "description": "Leader: change the emblem. (CP-018 (D106))"
+  },
+  "familyRemoveEmblem": "إزالة الشعار",
+  "@familyRemoveEmblem": {
+    "description": "Leader: remove the emblem. (CP-018 (D106))"
+  },
+  "familyEmblemUpdated": "تم تحديث الشعار",
+  "@familyEmblemUpdated": {
+    "description": "Snack: emblem updated. (CP-018 (D106))"
+  },
+  "familyEmblemRemoved": "تمت إزالة الشعار",
+  "@familyEmblemRemoved": {
+    "description": "Snack: emblem removed. (CP-018 (D106))"
+  },
+  "familyDisband": "حلّ العائلة",
+  "@familyDisband": {
+    "description": "Leader: disband (only when alone). (CP-018 (D106))"
+  },
+  "familyDisbandTitle": "حلّ {name}؟",
+  "@familyDisbandTitle": {
+    "description": "Disband confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDisbandBody": "يصبح الاسم متاحاً لغيرك ولا تُسترد العملات.",
+  "@familyDisbandBody": {
+    "description": "Disband confirm body. (CP-018 (D106))"
+  },
+  "familyDisbanded": "تم حلّ العائلة",
+  "@familyDisbanded": {
+    "description": "Snack: disbanded. (CP-018 (D106))"
+  },
+  "familyDisbandOnlyAlone": "يمكنك الحلّ عندما تكون العضو الوحيد",
+  "@familyDisbandOnlyAlone": {
+    "description": "Disband is unavailable: other members. (CP-018 (D106))"
+  },
+  "familyRequestsTitle": "طلبات الانضمام",
+  "@familyRequestsTitle": {
+    "description": "Family page: pending join requests (leader, deputies). (CP-018 (D106))"
+  },
+  "familyRequestsEmpty": "لا توجد طلبات حالياً",
+  "@familyRequestsEmpty": {
+    "description": "No pending join requests. (CP-018 (D106))"
+  },
+  "familyAccept": "قبول",
+  "@familyAccept": {
+    "description": "Accept a join request. (CP-018 (D106))"
+  },
+  "familyDecline": "رفض",
+  "@familyDecline": {
+    "description": "Decline a join request. (CP-018 (D106))"
+  },
+  "familyAccepted": "انضم {name} إلى العائلة",
+  "@familyAccepted": {
+    "description": "Snack: join request accepted. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyDeclined": "تم رفض الطلب",
+  "@familyDeclined": {
+    "description": "Snack: join request declined. (CP-018 (D106))"
+  },
+  "familyMembersTitle": "الأعضاء",
+  "@familyMembersTitle": {
+    "description": "Family page: members section. (CP-018 (D106))"
+  },
+  "familyRoleLeader": "القائد",
+  "@familyRoleLeader": {
+    "description": "Family role. (CP-018 (D106))"
+  },
+  "familyRoleDeputy": "نائب",
+  "@familyRoleDeputy": {
+    "description": "Family role. (CP-018 (D106))"
+  },
+  "familyRoleMember": "عضو",
+  "@familyRoleMember": {
+    "description": "Family role. (CP-018 (D106))"
+  },
+  "familyMakeDeputy": "تعيين نائباً",
+  "@familyMakeDeputy": {
+    "description": "Leader: make a member a deputy. (CP-018 (D106))"
+  },
+  "familyMakeMember": "إعادة إلى عضو",
+  "@familyMakeMember": {
+    "description": "Leader: make a deputy a member. (CP-018 (D106))"
+  },
+  "familyTransfer": "تسليم القيادة",
+  "@familyTransfer": {
+    "description": "Leader: transfer leadership. (CP-018 (D106))"
+  },
+  "familyTransferTitle": "تسليم القيادة إلى {name}؟",
+  "@familyTransferTitle": {
+    "description": "Transfer confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTransferBody": "يصبح {name} القائد وتصبح أنت نائباً.",
+  "@familyTransferBody": {
+    "description": "Transfer confirm body. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyTransferred": "أصبح {name} القائد",
+  "@familyTransferred": {
+    "description": "Snack: transferred. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyRemove": "إزالة من العائلة",
+  "@familyRemove": {
+    "description": "Leader: remove a member. (CP-018 (D106))"
+  },
+  "familyRemoveTitle": "إزالة {name} من العائلة؟",
+  "@familyRemoveTitle": {
+    "description": "Remove confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyRemoved": "تمت إزالة {name}",
+  "@familyRemoved": {
+    "description": "Snack: member removed. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyRoleChanged": "تم تغيير دور {name}",
+  "@familyRoleChanged": {
+    "description": "Snack: role changed. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "familyMemberActions": "خيارات العضو",
+  "@familyMemberActions": {
+    "description": "Leader: member menu tooltip. (CP-018 (D106))"
+  },
+  "familyCreateTitle": "عائلة جديدة",
+  "@familyCreateTitle": {
+    "description": "Create family screen title. (CP-018 (D106))"
+  },
+  "familyNameLabel": "اسم العائلة",
+  "@familyNameLabel": {
+    "description": "Create family: name field. (CP-018 (D106))"
+  },
+  "familyNameHelp": "من 2 إلى 20 حرفاً، ولا يتكرر بين العائلات.",
+  "@familyNameHelp": {
+    "description": "Create family: name help. (CP-018 (D106))"
+  },
+  "familyNameInvalid": "استخدم من 2 إلى 20 حرفاً بدون رموز غير مسموحة.",
+  "@familyNameInvalid": {
+    "description": "Create family: invalid name (VALIDATION_FAILED on name). (CP-018 (D106))"
+  },
+  "familyEmblemLabel": "الشعار (اختياري)",
+  "@familyEmblemLabel": {
+    "description": "Create family: emblem picker. (CP-018 (D106))"
+  },
+  "familyEmblemChoose": "اختر صورة للشعار",
+  "@familyEmblemChoose": {
+    "description": "Create family: emblem picker button. (CP-018 (D106))"
+  },
+  "familyCreateCost": "إنشاء العائلة يكلّف {coins}",
+  "@familyCreateCost": {
+    "description": "Create family: price (coins is bondsCoins). (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCreateSubmit": "أنشئ مقابل {coins}",
+  "@familyCreateSubmit": {
+    "description": "Create family: submit (coins is bondsCoins). (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCreateNotEnough": "تحتاج {coins} لإنشاء عائلة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
+  "@familyCreateNotEnough": {
+    "description": "Create family: INSUFFICIENT_COINS. (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "familyCreated": "تم إنشاء {name}",
+  "@familyCreated": {
+    "description": "Snack: family created. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpTitle": "العلاقة",
+  "@cpTitle": {
+    "description": "CP page title (CP-018)."
+  },
+  "cpDay": "اليوم {days} معاً",
+  "@cpDay": {
+    "description": "CP: days together (the first day is day 1). (CP-018 (D106))",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "cpPoints": "نقاط العلاقة: {points}",
+  "@cpPoints": {
+    "description": "CP points (pre-formatted). (CP-018 (D106))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "cpToNext": "باقي {points} للوصول إلى {name}",
+  "@cpToNext": {
+    "description": "CP: points to the next tier. (CP-018 (D106))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpTopTier": "وصلتما إلى أعلى مستوى",
+  "@cpTopTier": {
+    "description": "CP at the top tier. (CP-018 (D106))"
+  },
+  "cpSince": "منذ {date}",
+  "@cpSince": {
+    "description": "CP: formed on. (CP-018 (D106))",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cpGiftTitle": "أرسل هدية علاقة",
+  "@cpGiftTitle": {
+    "description": "CP: gift section title. (CP-018 (D106))"
+  },
+  "cpGiftBody": "تضيف الهدية نقاطاً لعلاقتكما، ولا يحصل شريكك على عملات.",
+  "@cpGiftBody": {
+    "description": "CP: gift section explanation. (CP-018 (D106))"
+  },
+  "cpGiftConfirmTitle": "إرسال {coins} كهدية علاقة؟",
+  "@cpGiftConfirmTitle": {
+    "description": "CP gift confirm (coins is bondsCoins). (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "cpGiftSent": "تم إرسال الهدية: +{points} نقطة",
+  "@cpGiftSent": {
+    "description": "Snack: CP gift sent. (CP-018 (D106))",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "cpGiftNotEnough": "ليس لديك عملات كافية لهذه الهدية. يضيف الفريق العملات حالياً.",
+  "@cpGiftNotEnough": {
+    "description": "CP gift: INSUFFICIENT_COINS. (CP-018 (D106))"
+  },
+  "cpEnd": "إنهاء العلاقة",
+  "@cpEnd": {
+    "description": "CP: end the couple. (CP-018 (D106))"
+  },
+  "cpEndTitle": "إنهاء العلاقة مع {name}؟",
+  "@cpEndTitle": {
+    "description": "End confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpEndBody": "لا تُسترد أي عملات.",
+  "@cpEndBody": {
+    "description": "End confirm body. (CP-018 (D106))"
+  },
+  "cpEnded": "انتهت العلاقة",
+  "@cpEnded": {
+    "description": "Snack: ended. (CP-018 (D106))"
+  },
+  "cpNoneTitle": "لا يوجد شريك بعد",
+  "@cpNoneTitle": {
+    "description": "CP page: no couple. (CP-018 (D106))"
+  },
+  "cpNoneBody": "أرسل طلب علاقة من الملف الشخصي لشخص ما أو من بطاقته في البث.",
+  "@cpNoneBody": {
+    "description": "CP page: no couple, hint. (CP-018 (D106))"
+  },
+  "cpRequestsTitle": "طلبات العلاقة",
+  "@cpRequestsTitle": {
+    "description": "CP page: requests section. (CP-018 (D106))"
+  },
+  "cpIncoming": "الواردة",
+  "@cpIncoming": {
+    "description": "CP requests: incoming tab. (CP-018 (D106))"
+  },
+  "cpOutgoing": "المرسلة",
+  "@cpOutgoing": {
+    "description": "CP requests: outgoing tab. (CP-018 (D106))"
+  },
+  "cpIncomingEmpty": "لا توجد طلبات واردة",
+  "@cpIncomingEmpty": {
+    "description": "CP: no incoming requests. (CP-018 (D106))"
+  },
+  "cpOutgoingEmpty": "لا توجد طلبات مرسلة",
+  "@cpOutgoingEmpty": {
+    "description": "CP: no outgoing requests. (CP-018 (D106))"
+  },
+  "cpRequestFrom": "{name} يريد أن تكونا ثنائياً",
+  "@cpRequestFrom": {
+    "description": "Incoming CP request. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpRequestTo": "بانتظار رد {name}",
+  "@cpRequestTo": {
+    "description": "Outgoing CP request. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpExpires": "ينتهي في {date}",
+  "@cpExpires": {
+    "description": "CP request expiry. (CP-018 (D106))",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cpAccept": "قبول",
+  "@cpAccept": {
+    "description": "Accept a CP request. (CP-018 (D106))"
+  },
+  "cpDecline": "رفض",
+  "@cpDecline": {
+    "description": "Decline a CP request. (CP-018 (D106))"
+  },
+  "cpCancel": "إلغاء الطلب",
+  "@cpCancel": {
+    "description": "Cancel your CP request (coins come back). (CP-018 (D106))"
+  },
+  "cpAccepted": "أنت و{name} ثنائي الآن",
+  "@cpAccepted": {
+    "description": "Snack: CP request accepted. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpDeclined": "تم رفض الطلب",
+  "@cpDeclined": {
+    "description": "Snack: CP request declined. (CP-018 (D106))"
+  },
+  "cpCancelled": "تم إلغاء الطلب وأُعيدت العملات",
+  "@cpCancelled": {
+    "description": "Snack: CP request cancelled (refunded). (CP-018 (D106))"
+  },
+  "cpSendRequest": "أرسل طلب علاقة",
+  "@cpSendRequest": {
+    "description": "Button: send a CP request. (CP-018 (D106))"
+  },
+  "cpSendShort": "أرسل طلباً",
+  "@cpSendShort": {
+    "description": "CP box on someone else's card when you can send a request. (CP-018 (D106))"
+  },
+  "cpSendTitle": "إرسال طلب علاقة إلى {name}؟",
+  "@cpSendTitle": {
+    "description": "CP request confirm title. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSendBody": "يكلّف الطلب {coins}. تعود إليك العملات إذا رُفض أو أُلغي أو لم يُرد عليه خلال {days}.",
+  "@cpSendBody": {
+    "description": "CP request confirm body (coins bondsCoins, days bondsDays). (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSent": "تم إرسال طلب العلاقة إلى {name}",
+  "@cpSent": {
+    "description": "Snack: CP request sent. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cpSendNotEnough": "تحتاج {coins} لإرسال طلب علاقة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
+  "@cpSendNotEnough": {
+    "description": "CP request: INSUFFICIENT_COINS. (CP-018 (D106))",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "cpLoadError": "تعذّر تحميل العلاقة",
+  "@cpLoadError": {
+    "description": "CP page failed to load. (CP-018 (D106))"
+  },
+  "cpBoxValue": "{name} · {tier}",
+  "@cpBoxValue": {
+    "description": "CP box value: partner and tier name. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tier": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBoxValue": "{name} · مستوى {level}",
+  "@familyBoxValue": {
+    "description": "Family box value: name and level. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsTitle": "الميداليات",
+  "@medalsTitle": {
+    "description": "Medals screen title (CP-018)."
+  },
+  "medalsOwned": "{owned} من {total}",
+  "@medalsOwned": {
+    "description": "Medals owned of the catalogue. (CP-018 (D106))",
+    "placeholders": {
+      "owned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsChoose": "اختر الميداليات المعروضة",
+  "@medalsChoose": {
+    "description": "Button: open the showcase picker. (CP-018 (D106))"
+  },
+  "medalsLocked": "مقفلة",
+  "@medalsLocked": {
+    "description": "A medal not earned yet. (CP-018 (D106))"
+  },
+  "medalsEarnedOn": "حصلت عليها في {date}",
+  "@medalsEarnedOn": {
+    "description": "When a medal was earned. (CP-018 (D106))",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "medalsEmptyTitle": "لا توجد ميداليات بعد",
+  "@medalsEmptyTitle": {
+    "description": "No medals earned. (CP-018 (D106))"
+  },
+  "medalsEmptyBody": "تُمنح الميداليات تلقائياً عند البث ومستويات الجاذبية والعائلات والعلاقات.",
+  "@medalsEmptyBody": {
+    "description": "Explains how medals are earned. (CP-018 (D106))"
+  },
+  "medalsLoadError": "تعذّر تحميل الميداليات",
+  "@medalsLoadError": {
+    "description": "Medals failed to load. (CP-018 (D106))"
+  },
+  "medalsShowcaseTitle": "ميداليات ملفك",
+  "@medalsShowcaseTitle": {
+    "description": "Showcase picker title. (CP-018 (D106))"
+  },
+  "medalsShowcaseHint": "اختر حتى {max} ميداليات بالترتيب الذي تريده.",
+  "@medalsShowcaseHint": {
+    "description": "Showcase picker hint. (CP-018 (D106))",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsShowcaseCount": "{count} / {max}",
+  "@medalsShowcaseCount": {
+    "description": "Showcase picker: chosen of the maximum. (CP-018 (D106))",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsShowcaseLimit": "يمكنك عرض {max} ميداليات كحد أقصى",
+  "@medalsShowcaseLimit": {
+    "description": "Snack: showcase full. (CP-018 (D106))",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsShowcaseSave": "حفظ",
+  "@medalsShowcaseSave": {
+    "description": "Showcase picker: save. (CP-018 (D106))"
+  },
+  "medalsShowcaseSaved": "تم حفظ ميداليات ملفك",
+  "@medalsShowcaseSaved": {
+    "description": "Snack: showcase saved. (CP-018 (D106))"
+  },
+  "medalsShowcaseEmptyPreview": "لا شيء معروض. اختر ميداليات من الأسفل.",
+  "@medalsShowcaseEmptyPreview": {
+    "description": "Showcase picker: nothing chosen. (CP-018 (D106))"
+  },
+  "medalsShowcaseNoneEarned": "لم تحصل على ميداليات بعد، لذا لا يوجد ما تعرضه.",
+  "@medalsShowcaseNoneEarned": {
+    "description": "Showcase picker: nothing unlocked. (CP-018 (D106))"
+  },
+  "medalsRowLabel": "الميداليات: {names}",
+  "@medalsRowLabel": {
+    "description": "Screen reader label of the medal row on a profile or card. (CP-018 (D106))",
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "medalsPosition": "{name}، الترتيب {position}",
+  "@medalsPosition": {
+    "description": "Screen reader: a chosen medal and its place. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "position": {
+        "type": "int"
+      }
+    }
+  },
+  "medalsDiscard": "تجاهل التغييرات؟",
+  "@medalsDiscard": {
+    "description": "Showcase picker: leaving with unsaved changes. (CP-018 (D106))"
+  },
+  "medalsDiscardConfirm": "تجاهل",
+  "@medalsDiscardConfirm": {
+    "description": "Showcase picker: discard. (CP-018 (D106))"
+  },
+  "notifCpRequest": "{who} أرسل لك طلب علاقة",
+  "@notifCpRequest": {
+    "description": "Notification CP_REQUEST. (CP-018 (D106))",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifCpAccepted": "{who} قبل طلب العلاقة، أصبحتما ثنائياً",
+  "@notifCpAccepted": {
+    "description": "Notification CP_ACCEPTED. (CP-018 (D106))",
+    "placeholders": {
+      "who": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFamilyJoinAccepted": "تم قبولك في عائلة {family}",
+  "@notifFamilyJoinAccepted": {
+    "description": "Notification FAMILY_JOIN_ACCEPTED. (CP-018 (D106))",
+    "placeholders": {
+      "family": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFamilyJoinDeclined": "تم رفض طلبك للانضمام إلى {family}",
+  "@notifFamilyJoinDeclined": {
+    "description": "Notification FAMILY_JOIN_DECLINED. (CP-018 (D106))",
+    "placeholders": {
+      "family": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMedalAwarded": "حصلت على ميدالية جديدة: {name}",
+  "@notifMedalAwarded": {
+    "description": "Notification MEDAL_AWARDED with the name from GET /medals. (CP-018 (D106))",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "notifMedalAwardedUnnamed": "حصلت على ميدالية جديدة",
+  "@notifMedalAwardedUnnamed": {
+    "description": "Notification MEDAL_AWARDED before the name is known. (CP-018 (D106))"
+  },
+  "errorBagItemNotOwned": "هذا العنصر ليس في حقيبتك.",
+  "@errorBagItemNotOwned": {
+    "description": "BAG_ITEM_NOT_OWNED (409, CP-019)."
+  },
+  "bagTitle": "الحقيبة",
+  "@bagTitle": {
+    "description": "The bag screen title and the Me tab tile. (CP-019 (D107))"
+  },
+  "bagTileValue": "زيّن بطاقتك",
+  "@bagTileValue": {
+    "description": "The bag tile's line on your own profile. (CP-019 (D107))"
+  },
+  "bagCategoryProfileCard": "بطاقة الملف الشخصي",
+  "@bagCategoryProfileCard": {
+    "description": "Bag category PROFILE_CARD (tab). (CP-019 (D107))"
+  },
+  "bagLoadError": "تعذّر تحميل الحقيبة",
+  "@bagLoadError": {
+    "description": "Bag screen error title. (CP-019 (D107))"
+  },
+  "bagWorn": "قيد الارتداء",
+  "@bagWorn": {
+    "description": "Badge on the item worn now. (CP-019 (D107))"
+  },
+  "bagWear": "ارتداء",
+  "@bagWear": {
+    "description": "Button: wear this item. (CP-019 (D107))"
+  },
+  "bagTakeOff": "خلع",
+  "@bagTakeOff": {
+    "description": "Button: stop wearing this item. (CP-019 (D107))"
+  },
+  "bagLocked": "لم تمتلكه بعد",
+  "@bagLocked": {
+    "description": "A catalogue item the user does not own (no store yet). (CP-019 (D107))"
+  },
+  "bagEmptyTitle": "حقيبتك فارغة",
+  "@bagEmptyTitle": {
+    "description": "Bag empty state title. (CP-019 (D107))"
+  },
+  "bagEmptyMessage": "ستظهر هنا العناصر التي تحصل عليها.",
+  "@bagEmptyMessage": {
+    "description": "Bag empty state message. (CP-019 (D107))"
+  },
+  "bagOwnedSection": "عناصرك",
+  "@bagOwnedSection": {
+    "description": "Bag section: items the user owns. (CP-019 (D107))"
+  },
+  "bagLockedSection": "عناصر أخرى",
+  "@bagLockedSection": {
+    "description": "Bag section: catalogue items not owned. (CP-019 (D107))"
   }
 }

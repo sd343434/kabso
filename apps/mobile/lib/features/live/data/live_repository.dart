@@ -140,6 +140,24 @@ abstract interface class LiveRepository {
   /// `GET /live/rooms/{roomId}/contributors` (CP-014): the top 50.
   Future<List<LiveContributor>> contributors(String roomId);
 
+  /// `GET /live/rooms/{roomId}/contributors/{username}` (v1.20-live, D105):
+  /// one person's points in this live and their rank (null with 0 points).
+  Future<LiveContributorStanding> contributor(String roomId, String username);
+
+  // ---- v1.20-live kicks (CONVENTIONS §10.20, D105) ---------------------
+
+  /// `POST /live/rooms/{roomId}/kicks` (host, moderator): [username] leaves
+  /// this live and cannot come back until it ends. Already kicked → the
+  /// first kick.
+  Future<LiveKick> kick(String roomId, String username);
+
+  /// `GET /live/rooms/{roomId}/kicks` (host, moderator), newest first.
+  Future<List<LiveKick>> kicks(String roomId);
+
+  /// `DELETE /live/rooms/{roomId}/kicks/{username}` (host, moderator;
+  /// idempotent): lets them back in.
+  Future<void> unkick(String roomId, String username);
+
   // ---- CP-013 chat (CONVENTIONS §10.11) ---------------------------------
 
   /// `GET /live/rooms/{roomId}/chat`: the last 50 messages, oldest first.
@@ -172,6 +190,30 @@ abstract interface class LiveRepository {
 
   /// `POST /reports` with `targetType: LIVE_CHAT_MESSAGE`.
   Future<void> reportChatMessage(String messageId, ReportReason reason);
+
+  // ---- CP-017 voice clips, pictures, bullets and coins (§10.19) ---------
+
+  /// `POST /live/rooms/{roomId}/chat` with [kind] VOICE or IMAGE and the
+  /// caller's completed `LIVE_CHAT_VOICE` / `LIVE_CHAT_IMAGE` upload
+  /// [mediaId]; a retry with the same [clientId] returns the first message.
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  });
+
+  /// `POST /live/rooms/{roomId}/bullets` (15 coins): the bullet and the
+  /// balance after it. A retry with the same [clientId] is never charged
+  /// again.
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  });
+
+  /// `GET /wallet/me`: the caller's coin balance.
+  Future<int> myCoins();
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -306,6 +348,39 @@ class LiveRepositoryImpl implements LiveRepository {
             LiveContributor.fromJson(c as Map<String, dynamic>),
         ];
       });
+
+  @override
+  Future<LiveContributorStanding> contributor(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '${_room(roomId)}/contributors/${pathSegment(username)}',
+        );
+        return LiveContributorStanding.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveKick> kick(String roomId, String username) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/kicks',
+          data: {'username': username},
+        );
+        return LiveKick.fromJson(res.data!);
+      });
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/kicks');
+    return [
+      for (final k in res.data!['data']! as List<dynamic>)
+        LiveKick.fromJson(k as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<void> unkick(String roomId, String username) => guardApiCall(() async {
+    await _dio.delete<void>('${_room(roomId)}/kicks/${pathSegment(username)}');
+  });
 
   @override
   Future<({List<LiveViewer> items, String? next})> viewers(
@@ -555,6 +630,47 @@ class LiveRepositoryImpl implements LiveRepository {
           },
         );
       });
+
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/chat',
+      data: {
+        'kind': kind == LiveChatKind.voice ? 'VOICE' : 'IMAGE',
+        'mediaId': mediaId,
+        'clientId': clientId,
+      },
+    );
+    return LiveChatEntry.fromJson(res.data!);
+  });
+
+  @override
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/bullets',
+      data: {'text': text, 'clientId': clientId},
+    );
+    final data = res.data!;
+    return (
+      bullet: LiveBullet.fromJson(data['bullet']! as Map<String, dynamic>),
+      coins: (data['coins']! as num).toInt(),
+    );
+  });
+
+  @override
+  Future<int> myCoins() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/wallet/me');
+    return (res.data!['coins']! as num).toInt();
+  });
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

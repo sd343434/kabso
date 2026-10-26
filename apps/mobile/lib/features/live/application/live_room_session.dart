@@ -8,6 +8,7 @@ import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 
 /// What a viewer's room session knows (CP-010 video, CP-011 seats).
@@ -21,7 +22,14 @@ class LiveRoomSessionState {
     this.score,
     this.disconnected = false,
     this.room,
+    this.kicked = false,
   });
+
+  /// v1.20-live (D105, §10.20): the host or a moderator kicked this person
+  /// out of the live (`LiveRoom.kicked`, the kick data message naming them,
+  /// the media server's "participant removed", or `LIVE_KICKED`). The
+  /// session has left; the screen says why.
+  final bool kicked;
 
   /// CP-014: the room read again after its title, category or topic
   /// changed (`roomInfoVersion`); the screen shows it over the one it
@@ -66,6 +74,7 @@ class LiveRoomSessionState {
     int? score,
     bool? disconnected,
     LiveRoom? room,
+    bool? kicked,
   }) => LiveRoomSessionState(
     joined: joined ?? this.joined,
     joinFailure: joinFailure ?? this.joinFailure,
@@ -75,6 +84,7 @@ class LiveRoomSessionState {
     score: score ?? this.score,
     disconnected: disconnected ?? this.disconnected,
     room: room ?? this.room,
+    kicked: kicked ?? this.kicked,
   );
 }
 
@@ -106,6 +116,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   Timer? _tapFlush;
   int _pendingTaps = 0;
   StreamSubscription<String>? _invites;
+  StreamSubscription<LiveChatEvent>? _kicks;
   bool _refreshing = false;
   bool _syncing = false;
   int? _infoSeen;
@@ -120,10 +131,20 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     _invites = _engine.seatInvites.listen((id) {
       if (id == roomId) unawaited(refreshSeats());
     });
+    _kicks = _engine.chatEvents.listen((event) {
+      if (event is! LiveKickReceived) return;
+      if (event.user.id == ref.read(currentUserProvider)?.id) {
+        markKicked();
+      } else {
+        // Someone else left: their seat and lists change.
+        unawaited(refreshSeats());
+      }
+    });
     ref.onDispose(() {
       _poll?.cancel();
       _tapFlush?.cancel();
       unawaited(_invites?.cancel());
+      unawaited(_kicks?.cancel());
       _engine.changes.removeListener(_onChanges);
       unawaited(_engine.stop().then((_) {}, onError: (_) {}));
     });
@@ -146,8 +167,9 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     try {
       final result = await _repo.tap(roomId, count);
       if (ref.mounted) state = state.copyWith(score: result.score.total);
-    } on Object {
+    } on Object catch (e) {
       // Best effort: a lost batch only loses points, never the room.
+      if (toAppFailure(e).code == ErrorCode.liveKicked) markKicked();
     }
     if (ref.mounted && _pendingTaps > 0) {
       _tapFlush ??= Timer(const Duration(seconds: 1), _flushTaps);
@@ -157,6 +179,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   /// Joins the media session of [room] (once).
   Future<void> start(LiveRoom room) async {
     if (state.joined || room.status != LiveRoomStatus.live) return;
+    if (room.kicked || state.kicked) {
+      if (!state.kicked) state = state.copyWith(kicked: true);
+      return;
+    }
     _mode = room.mode;
     try {
       final user = ref.read(currentUserProvider);
@@ -175,11 +201,33 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
         );
       }
     } on Object catch (e) {
-      if (ref.mounted) state = state.copyWith(joinFailure: toAppFailure(e));
+      final failure = toAppFailure(e);
+      if (failure.code == ErrorCode.liveKicked) {
+        markKicked();
+      } else if (ref.mounted) {
+        state = state.copyWith(joinFailure: failure);
+      }
     }
   }
 
+  /// v1.20-live: this person was kicked out of the live. Leaves the media
+  /// session (camera and microphone off) once; the screen says why.
+  void markKicked() {
+    if (!ref.mounted || state.kicked) return;
+    state = state.copyWith(kicked: true, publishing: false);
+    _poll?.cancel();
+    _tapFlush?.cancel();
+    _pendingTaps = 0;
+    unawaited(_engine.stop().then((_) {}, onError: (_) {}));
+  }
+
   void _onChanges() {
+    if (state.kicked) return;
+    if (_engine.removed) {
+      // The media server removed this participant: a kick (§10.20).
+      markKicked();
+      return;
+    }
     if (state.joined && !state.disconnected && !_engine.connected) {
       state = state.copyWith(disconnected: true);
       return;
@@ -264,7 +312,12 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   // ---- the viewer's seat actions (each throws an AppFailure) ----------
 
   Future<void> requestSeat({int? seatIndex}) async {
-    await _repo.requestSeat(roomId, seatIndex: seatIndex);
+    try {
+      await _repo.requestSeat(roomId, seatIndex: seatIndex);
+    } on AppFailure catch (e) {
+      if (e.code == ErrorCode.liveKicked) markKicked();
+      rethrow;
+    }
     await refreshSeats();
   }
 

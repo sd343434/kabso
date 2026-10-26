@@ -30,9 +30,11 @@ import { AdminGuard, RequireAdminPermission } from '../levels/admin.guard.js';
 import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
+import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
+import { LiveKicksService, type LiveKickDto } from './live-kicks.service.js';
 import { LiveMediaService, type LiveMediaAccessDto, type LiveViewerDto } from './live-media.service.js';
 import {
   LiveRoomsService,
@@ -50,7 +52,12 @@ import {
 } from './live-seats.service.js';
 import { LiveRankingsService, type LiveRankingsDto } from './live-rankings.service.js';
 import { LiveScheduleService, type LiveScheduleSlotDto } from './live-schedule.service.js';
-import { LiveTapsService, type LiveContributorDto, type LiveTapsResultDto } from './live-taps.service.js';
+import {
+  LiveTapsService,
+  type LiveContributorDto,
+  type LiveContributorStandingDto,
+  type LiveTapsResultDto,
+} from './live-taps.service.js';
 import { listLiveRoomsQuerySchema, type ListLiveRoomsQuery } from './live.schemas.js';
 
 /** The caller's user id; a guest has none (CP-010 `@OptionalAuth()` routes). */
@@ -107,6 +114,8 @@ export class LiveController {
     private readonly seats: LiveSeatsService,
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
+    private readonly bullets: LiveBulletsService,
+    private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
@@ -417,6 +426,21 @@ export class LiveController {
   }
 
   /**
+   * v1.20-live (D105, §10.12): one person's points and rank in this live; the same access and rate
+   * limits as the list.
+   */
+  @Get('rooms/:roomId/contributors/:username')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getContributor(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('username') username: string,
+  ): Promise<LiveContributorStandingDto> {
+    return this.taps.contributor(callerOf(req), roomId, username);
+  }
+
+  /**
    * CP-016 A (§10.15): the popularity board of the current hour, day or week; guests too (per IP),
    * the per-user default for signed-in readers (§7).
    */
@@ -454,6 +478,24 @@ export class LiveController {
     return message;
   }
 
+  /**
+   * CP-017: a bullet message to every live, 15 coins. 201 new, 200 a retry with the same
+   * `clientId`. 20 / min per user, replacing the default (§7); one every 5 s is a counting rule
+   * checked before the charge (§10.19).
+   */
+  @Post('rooms/:roomId/bullets')
+  @RateLimit({ bucket: 'live:bullet', rule: 'liveChatUser', key: byUserId, replacesDefault: true })
+  async sendBullet(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveBulletResultDto> {
+    const { created, result } = await this.bullets.send(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
   /** Host and moderators: the muted users of this live, newest first. */
   @Get('rooms/:roomId/chat/mutes')
   listChatMutes(
@@ -483,6 +525,39 @@ export class LiveController {
     @Param('username') username: string,
   ): Promise<void> {
     await this.chat.setMuted(requireCaller(req), roomId, username, false);
+  }
+
+  // ---- v1.20-live (D105): kicking someone out of a live (CONVENTIONS §10.20) ---------------------
+
+  /** Host and moderators: 201 kicked, 200 already kicked (the first kick). */
+  @Post('rooms/:roomId/kicks')
+  @RateLimit(SEAT_ACTION)
+  async kick(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveKickDto> {
+    const { created, kick } = await this.kicks.kick(requireCaller(req), roomId, body, meta(req));
+    res.status(created ? 201 : 200);
+    return kick;
+  }
+
+  /** Host and moderators: the kicked users of this live, newest first. */
+  @Get('rooms/:roomId/kicks')
+  listKicks(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<{ data: LiveKickDto[] }> {
+    return this.kicks.list(requireCaller(req), roomId);
+  }
+
+  @Delete('rooms/:roomId/kicks/:username')
+  @HttpCode(204)
+  @RateLimit(SEAT_ACTION)
+  async unkick(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('username') username: string,
+  ): Promise<void> {
+    await this.kicks.unkick(requireCaller(req), roomId, username, meta(req));
   }
 
   /** The author, the host or a moderator; deleting one's own message counts there too (§7). */

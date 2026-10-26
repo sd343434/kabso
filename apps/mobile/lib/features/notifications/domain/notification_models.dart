@@ -22,6 +22,23 @@ enum NotificationType {
   /// v1.14-live (CP-016 C): a host you follow goes live in about 15
   /// minutes (target: the host as a user, with the title and the start).
   liveScheduledSoon('LIVE_SCHEDULED_SOON'),
+
+  /// v1.21-live (CP-018): someone sent you a CP request (target: them as a
+  /// user).
+  cpRequest('CP_REQUEST'),
+
+  /// v1.21-live (CP-018): your CP request was accepted (target: the
+  /// partner as a user).
+  cpAccepted('CP_ACCEPTED'),
+
+  /// v1.21-live (CP-018): your join request was accepted or declined
+  /// (target: the family, its name as `text`; actor: who answered).
+  familyJoinAccepted('FAMILY_JOIN_ACCEPTED'),
+  familyJoinDeclined('FAMILY_JOIN_DECLINED'),
+
+  /// v1.21-live (CP-018, system): you earned a medal (target: the medal
+  /// code; its name and icon come from `GET /medals`).
+  medalAwarded('MEDAL_AWARDED'),
   unknown('');
 
   new(this.wire);
@@ -34,7 +51,8 @@ enum NotificationType {
   final String wire;
 
   /// No actor: the app or moderation told you (always on).
-  bool get isSystem => this == postPublished || this == contentRemoved;
+  bool get isSystem =>
+      this == postPublished || this == contentRemoved || this == medalAwarded;
 }
 
 /// `NotificationTarget.type`.
@@ -42,7 +60,13 @@ enum NotificationTargetType {
   post('POST'),
   comment('COMMENT'),
   story('STORY'),
-  user('USER');
+  user('USER'),
+
+  /// v1.21-live (CP-018): a family (id; `text` its name).
+  family('FAMILY'),
+
+  /// v1.21-live (CP-018): a medal (its code as the id).
+  medal('MEDAL');
 
   new(this.wire);
 
@@ -81,8 +105,8 @@ class NotificationTarget {
 
   final NotificationTargetType type;
 
-  /// A post, comment or story id, or a username for a
-  /// [NotificationTargetType.user] target.
+  /// A post, comment or story id, a username for a
+  /// [NotificationTargetType.user] target, a family id or a medal code.
   final String id;
 
   /// For a comment: its post.

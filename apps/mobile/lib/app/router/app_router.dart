@@ -15,6 +15,9 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_intro.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/bag/presentation/bag_screen.dart';
+import 'package:kabso_live/features/cp/domain/cp_models.dart';
+import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/debug/component_gallery_screen.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
@@ -29,6 +32,9 @@ import 'package:kabso_live/features/debug/previews_hub_screen.dart';
 import 'package:kabso_live/features/debug/profile_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/discover/hashtag_screen.dart';
+import 'package:kabso_live/features/families/presentation/create_family_screen.dart';
+import 'package:kabso_live/features/families/presentation/families_screen.dart';
+import 'package:kabso_live/features/families/presentation/family_screen.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
@@ -37,6 +43,8 @@ import 'package:kabso_live/features/levels/presentation/levels_screen.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/medals/presentation/medals_screen.dart';
+import 'package:kabso_live/features/medals/presentation/showcase_picker_screen.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
@@ -216,6 +224,39 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             PublicProfileScreen(username: state.pathParameters['username']!),
       ),
+      // CP-018: families, the relationship (CP) and medals.
+      GoRoute(
+        path: AppRoutes.userMedalsPattern,
+        builder: (_, state) =>
+            MedalsScreen(username: state.pathParameters['username']),
+      ),
+      GoRoute(
+        path: AppRoutes.families,
+        builder: (_, _) => const FamiliesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.newFamily,
+        builder: (_, _) => const CreateFamilyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.familyPattern,
+        builder: (_, state) =>
+            FamilyScreen(familyId: state.pathParameters['familyId']!),
+      ),
+      GoRoute(
+        path: AppRoutes.cp,
+        builder: (_, state) => CpScreen(
+          initial: state.uri.queryParameters['tab'] == 'outgoing'
+              ? CpDirection.outgoing
+              : CpDirection.incoming,
+        ),
+      ),
+      GoRoute(path: AppRoutes.medals, builder: (_, _) => const MedalsScreen()),
+      GoRoute(
+        path: AppRoutes.medalShowcase,
+        builder: (_, _) => const ShowcasePickerScreen(),
+      ),
+      GoRoute(path: AppRoutes.bag, builder: (_, _) => const BagScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)

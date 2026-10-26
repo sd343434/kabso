@@ -35,6 +35,8 @@ dependencies:
   lottie: ^3.3.1
   material_ui: ^1.7.0
   photo_manager: ^3.12.0
+  # CP-017 voice clips in the live chat (AAC in .m4a). Pinned exactly.
+  record: 7.1.2
   shared_preferences: ^2.5.6
   video_player: ^2.14.1
   visibility_detector: ^0.4.0+2
@@ -98,6 +100,10 @@ flutter:
     # D73 Kabi on the PK score bar (owner-supplied Lottie, markers idle,
     # push, fire, tense, win, cheer; not edited).
     - assets/pk/
+    # Owner's profile-card header decorations (SVGA 750×280 + still).
+    - assets/profile_card/
+    # Owner's person-card box icons (family, CP, gift wall).
+    - assets/card_boxes/
   fonts:
     # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
     - family: Fredoka

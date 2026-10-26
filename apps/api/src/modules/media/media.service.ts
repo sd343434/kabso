@@ -19,18 +19,23 @@ import {
   COVER_SIDE,
   type ImageContentType,
 } from './media-image.js';
+import { AUDIO_CONTENT_TYPES, InvalidAudioError, MAX_VOICE_BYTES, verifyVoiceClip } from './media-audio.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
 
-/** `MediaAsset` (openapi v1.5-social). */
+/** `MediaAsset` (openapi v1.5-social; `AUDIO` and `durationMs`, CP-017). */
 export interface MediaAssetDto {
   id: string;
-  type: 'IMAGE';
+  type: 'IMAGE' | 'AUDIO';
   status: 'READY';
+  /** 0 for AUDIO. */
   width: number;
   height: number;
   blurhash: string | null;
   url: string;
+  /** AUDIO: the same as `url`. */
   thumbUrl: string;
+  /** AUDIO only: the clip's length (≤ 30 000). */
+  durationMs?: number;
 }
 
 /** `MediaUpload` (openapi v1.5-social). */
@@ -42,16 +47,40 @@ export interface MediaUploadDto {
   expiresAt: string;
 }
 
-/** `MediaKind`: what an asset may be attached to (CP-008; `LIVE_COVER`, CP-015). */
-export const MEDIA_KINDS = ['POST_IMAGE', 'STORY_IMAGE', 'LIVE_COVER'] as const;
+/**
+ * `MediaKind`: what an asset may be attached to (CP-008; `LIVE_COVER`, CP-015; `LIVE_CHAT_IMAGE`
+ * and `LIVE_CHAT_VOICE`, CP-017).
+ */
+export const MEDIA_KINDS = [
+  'POST_IMAGE',
+  'STORY_IMAGE',
+  'LIVE_COVER',
+  'LIVE_CHAT_IMAGE',
+  'LIVE_CHAT_VOICE',
+  // v1.21-live (CP-018): a family's emblem (a centre-cropped square, like the live cover).
+  'FAMILY_EMBLEM',
+] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
-/** `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). */
-export const createMediaUploadSchema = z.strictObject({
-  kind: z.enum(MEDIA_KINDS),
-  contentType: z.enum(IMAGE_CONTENT_TYPES),
-  byteSize: z.number().int().min(1).max(MAX_IMAGE_BYTES),
-});
+/**
+ * `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). CP-017: a
+ * `LIVE_CHAT_VOICE` upload is `audio/mp4` of at most 1 MiB; every other kind is an image type.
+ */
+export const createMediaUploadSchema = z
+  .strictObject({
+    kind: z.enum(MEDIA_KINDS),
+    contentType: z.enum([...IMAGE_CONTENT_TYPES, ...AUDIO_CONTENT_TYPES]),
+    byteSize: z.number().int().min(1).max(MAX_IMAGE_BYTES),
+  })
+  .superRefine((value, ctx) => {
+    const voice = value.kind === 'LIVE_CHAT_VOICE';
+    const audio = (AUDIO_CONTENT_TYPES as readonly string[]).includes(value.contentType);
+    if (voice !== audio) {
+      ctx.addIssue({ code: 'custom', path: ['contentType'], params: { issue: 'invalid_value' } });
+    } else if (voice && value.byteSize > MAX_VOICE_BYTES) {
+      ctx.addIssue({ code: 'custom', path: ['byteSize'], params: { issue: 'too_big' } });
+    }
+  });
 
 /** A presigned URL lives 10 minutes (§11.1). */
 export const UPLOAD_URL_TTL_SECONDS = 600;
@@ -96,11 +125,14 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   }
 
   toDto(
-    asset: Pick<MediaAsset, 'id' | 'width' | 'height' | 'blurhash' | 'largeKey' | 'thumbKey'>,
+    asset: Pick<
+      MediaAsset,
+      'id' | 'kind' | 'width' | 'height' | 'blurhash' | 'largeKey' | 'thumbKey' | 'durationMs'
+    >,
   ): MediaAssetDto {
-    return {
+    const dto: MediaAssetDto = {
       id: asset.id,
-      type: 'IMAGE',
+      type: asset.kind === 'LIVE_CHAT_VOICE' ? 'AUDIO' : 'IMAGE',
       status: 'READY',
       width: asset.width,
       height: asset.height,
@@ -108,6 +140,8 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       url: this.publicUrl(asset.largeKey),
       thumbUrl: this.publicUrl(asset.thumbKey),
     };
+    if (asset.durationMs !== null) dto.durationMs = asset.durationMs;
+    return dto;
   }
 
   /** The public URL of an asset's large variant (a live cover's 640 px square, CP-015). */
@@ -124,6 +158,21 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     await this.storage.delete(keys).catch((err: unknown) => {
       this.logger.warn({ count: keys.length, error: safeErrorLog(err) }, 'Media objects not deleted');
     });
+  }
+
+  /**
+   * CP-017: deletes assets whose rows nothing else needs any more (expired voice clips and images
+   * of the live chat): their objects first — a storage failure throws, so the rows stay and the
+   * next sweep retries — then the rows (an FK sets the referencing chat message's `media_id` to
+   * NULL). Returns the number of rows deleted.
+   */
+  async purgeAssets(assets: readonly { id: string; largeKey: string; thumbKey: string }[]): Promise<number> {
+    if (assets.length === 0) return 0;
+    await this.storage.delete([...new Set(assets.flatMap((a) => [a.largeKey, a.thumbKey]))]);
+    const deleted = await this.prisma.mediaAsset.deleteMany({
+      where: { id: { in: assets.map((a) => a.id) } },
+    });
+    return deleted.count;
   }
 
   /** `POST /media/uploads` (the rate limit was counted by the guard, before this check). */
@@ -178,7 +227,17 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     if (!bytes || bytes.length !== upload.byteSize) return fail('size mismatch');
 
     const kind = MEDIA_KINDS.find((k) => k === upload.kind) ?? 'POST_IMAGE';
-    const cover = kind === 'LIVE_COVER';
+    if (kind === 'LIVE_CHAT_VOICE') {
+      let clip: { durationMs: number };
+      try {
+        clip = verifyVoiceClip(bytes);
+      } catch (err) {
+        if (err instanceof InvalidAudioError) return fail(err.message);
+        throw err;
+      }
+      return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs));
+    }
+    const cover = kind === 'LIVE_COVER' || kind === 'FAMILY_EMBLEM';
     const side = kind === 'STORY_IMAGE' ? STORY_LARGE_SIDE : cover ? COVER_SIDE : LARGE_SIDE;
     let image;
     try {
@@ -219,6 +278,48 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn({ uploadId: upload.id, error: safeErrorLog(err) }, 'Upload object not deleted');
     });
     return this.toDto(asset);
+  }
+
+  /**
+   * CP-017: a verified voice clip is stored unchanged (`media/{mediaId}/voice.m4a`, `audio/mp4`);
+   * the asset has no size (0 × 0) and its one object serves as both variants.
+   */
+  private async storeVoice(
+    userId: string,
+    upload: { id: string; objectKey: string },
+    bytes: Buffer,
+    durationMs: number,
+  ): Promise<MediaAsset> {
+    const key = `media/${upload.id}/voice.m4a`;
+    await this.storage.put(key, bytes, 'audio/mp4', IMMUTABLE_CACHE);
+    const asset = await this.prisma.$transaction(async (tx) => {
+      await tx.mediaAsset.createMany({
+        data: [
+          {
+            id: upload.id,
+            ownerId: userId,
+            kind: 'LIVE_CHAT_VOICE',
+            width: 0,
+            height: 0,
+            blurhash: null,
+            largeKey: key,
+            thumbKey: key,
+            byteSize: bytes.length,
+            durationMs,
+          },
+        ],
+        skipDuplicates: true,
+      });
+      await tx.mediaUpload.updateMany({
+        where: { id: upload.id, status: 'PENDING' },
+        data: { status: 'COMPLETED', completedAt: new Date(), mediaAssetId: upload.id },
+      });
+      return tx.mediaAsset.findUniqueOrThrow({ where: { id: upload.id } });
+    });
+    await this.storage.delete([upload.objectKey]).catch((err: unknown) => {
+      this.logger.warn({ uploadId: upload.id, error: safeErrorLog(err) }, 'Upload object not deleted');
+    });
+    return asset;
   }
 
   /** `GET /media/{mediaId}`: the caller's own assets only (else 404). */

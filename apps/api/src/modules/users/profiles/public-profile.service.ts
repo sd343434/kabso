@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { AppException } from '../../../common/errors/app-exception.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { ErrorCode } from '../../../common/errors/error-codes.js';
+import type { ContentLanguage } from '../../../common/http/content-language.js';
+import { BagService, type ProfileCardDto } from '../../bag/bag.service.js';
+import { CouplesService, type ProfileCpDto } from '../../couples/couples.service.js';
+import { FamiliesService, type ProfileFamilyDto } from '../../families/families.service.js';
+import { MedalsService, type ProfileMedalsDto } from '../../medals/medals.service.js';
 import { LiveRoomsService } from '../../live/live-rooms.service.js';
 import { FollowsService } from '../../social/follows.service.js';
 import { UsersService } from '../users.service.js';
@@ -21,11 +26,20 @@ export interface PublicProfileDto {
   isMuted: boolean;
   isSelf: boolean;
   liveRoomId: string | null;
+  /** v1.21-live (CP-018): the user's family and role, or null. */
+  family: ProfileFamilyDto | null;
+  /** v1.21-live (CP-018): the user's CP couple, or null. */
+  cp: ProfileCpDto | null;
+  /** v1.21-live (CP-018): medals owned, the catalogue size and the newest three. */
+  medals: ProfileMedalsDto;
+  /** v1.22-live (CP-019): the PROFILE_CARD the user wears, or null. */
+  profileCard: ProfileCardDto | null;
 }
 
 /**
  * `GET /users/{username}` (CONVENTIONS §10.5). Composes the users module (identity), social
- * (counts, isFollowing) and live (`liveRoomId`) through their services. Lives in its own module so
+ * (counts, isFollowing), live (`liveRoomId`) and, v1.21-live (CP-018), families, couples and
+ * medals, and v1.22-live (CP-019) the bag, through their services. Lives in its own module so
  * that `live` and `social` can depend on `users` without a cycle.
  */
 @Injectable()
@@ -35,6 +49,10 @@ export class PublicProfileService {
     private readonly follows: FollowsService,
     private readonly live: LiveRoomsService,
     private readonly prisma: PrismaService,
+    private readonly families: FamiliesService,
+    private readonly couples: CouplesService,
+    private readonly medals: MedalsService,
+    private readonly bag: BagService,
   ) {}
 
   /** Whether [callerId] muted [targetId] (primary-key lookup). */
@@ -46,16 +64,20 @@ export class PublicProfileService {
     return row !== null;
   }
 
-  async get(callerId: string, username: string): Promise<PublicProfileDto> {
+  async get(callerId: string, username: string, lang: ContentLanguage): Promise<PublicProfileDto> {
     const user = await this.users.findActivePublicUser(username);
     // Malformed, unknown, pending-only, SUSPENDED and DELETED: the same 404 body.
     if (!user) throw new AppException(ErrorCode.NOT_FOUND);
     const isSelf = user.id === callerId;
-    const [counts, isFollowing, isMuted, liveRoomId] = await Promise.all([
+    const [counts, isFollowing, isMuted, liveRoomId, family, cp, medals, profileCard] = await Promise.all([
       this.follows.counts(user.id),
       isSelf ? Promise.resolve(false) : this.follows.isFollowing(callerId, user.id),
       isSelf ? Promise.resolve(false) : this.isMuted(callerId, user.id),
       this.live.freshLiveRoomIdOf(user.id),
+      this.families.profileFamily(user.id),
+      this.couples.profileCp(user.id, lang),
+      this.medals.profileMedals(user.id, lang),
+      this.bag.profileCard(user.id),
     ]);
     return {
       id: user.id,
@@ -70,6 +92,10 @@ export class PublicProfileService {
       isMuted,
       isSelf,
       liveRoomId,
+      family,
+      cp,
+      medals,
+      profileCard,
     };
   }
 }

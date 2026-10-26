@@ -12,6 +12,7 @@ import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_actions.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -392,11 +393,14 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               onOpenLive: room == null
                   ? null
                   : () => context.push(AppRoutes.liveRoom(room)),
-              levels: ProfileLevels(
-                username: profile.isSelf ? null : profile.username,
-                onOpen: profile.isSelf
-                    ? () => context.push(AppRoutes.levels)
-                    : null,
+              levels: ProfileBondsBlock(
+                levels: ProfileLevels(
+                  username: profile.isSelf ? null : profile.username,
+                  onOpen: profile.isSelf
+                      ? () => context.push(AppRoutes.levels)
+                      : null,
+                ),
+                profile: profile,
               ),
               actions: _actions(profile),
             ),

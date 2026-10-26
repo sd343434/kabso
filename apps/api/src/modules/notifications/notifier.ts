@@ -8,6 +8,8 @@ export interface NotificationTargetRef {
   readonly postId?: string;
   readonly commentId?: string;
   readonly storyId?: string;
+  /** v1.21-live (CP-018): the family of FAMILY_JOIN_ACCEPTED / FAMILY_JOIN_DECLINED. */
+  readonly familyId?: string;
 }
 
 /** Types without an actor: always on, never grouped, never hidden with their target. */
@@ -109,6 +111,7 @@ export class Notifier {
         recipientId,
         type,
         ...target,
+        familyId: input.familyId ?? null,
         createdAt: now,
         updatedAt: now,
         actors: { create: [{ actorId, createdAt: now }] },

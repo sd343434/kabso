@@ -227,6 +227,11 @@ export const envSchema = z
     // CP-013 (CONVENTIONS §7): chat messages per user, replacing the default authenticated bucket
     // (the 1-a-second-per-room counting rule is separate, §10.11).
     RATE_LIMIT_LIVE_CHAT_USER: rateLimit('20/60'),
+    // v1.21-live (CP-018, CONVENTIONS §7): family and CP writes and CP gifts, per user, each
+    // replacing the default authenticated bucket.
+    RATE_LIMIT_FAMILY_WRITE_USER: rateLimit('60/3600'),
+    RATE_LIMIT_CP_WRITE_USER: rateLimit('30/3600'),
+    RATE_LIMIT_CP_GIFT_USER: rateLimit('30/60'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -341,6 +346,11 @@ export const envSchema = z
     POSTS_PUBLISH_INTERVAL_SECONDS: intSetting(30, 0, 3600),
     /** Period of the notifications retention sweeper (30 days, CP-009); 0 disables it (not in production). */
     NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86400),
+    /**
+     * v1.21-live (CP-018): period of the sweeper that expires family join requests and CP requests
+     * after 7 days (and refunds the CP request's coins); 0 disables it (not in production).
+     */
+    BONDS_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86400),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
@@ -484,6 +494,13 @@ export const envSchema = z
           code: 'custom',
           path: ['POSTS_PUBLISH_INTERVAL_SECONDS'],
           message: 'the scheduled-post publisher cannot be disabled in production',
+        });
+      }
+      if (env.BONDS_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['BONDS_SWEEP_INTERVAL_SECONDS'],
+          message: 'the family and CP request sweeper cannot be disabled in production',
         });
       }
       if (env.NOTIFICATIONS_SWEEP_INTERVAL_SECONDS === 0) {

@@ -44,7 +44,7 @@ class KGiftPanel extends StatelessWidget {
     isScrollControlled: true,
     backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
     barrierColor: KMetrics.roomSheetBarrier,
-    constraints: BoxConstraints(
+    constraints: KMetrics.sheetConstraints(
       maxHeight:
           MediaQuery.sizeOf(context).height * KMetrics.giftSheetMaxHeightFactor,
     ),
@@ -387,4 +387,28 @@ class _GiftPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GiftPainter oldDelegate) => oldDelegate.shape != shape;
+}
+
+/// The gift panel with [KGiftPanel.preview] items: a gift can be picked, and
+/// the footer says why it can't be sent yet (the viewer's and the host's gift
+/// buttons).
+class KGiftPreviewSheet extends StatefulWidget {
+  const new({super.key});
+
+  static Future<void> show(BuildContext context) =>
+      KGiftPanel.show(context, builder: (_) => const KGiftPreviewSheet());
+
+  @override
+  State<KGiftPreviewSheet> createState() => _KGiftPreviewSheetState();
+}
+
+class _KGiftPreviewSheetState extends State<KGiftPreviewSheet> {
+  String? _selected;
+
+  @override
+  Widget build(BuildContext context) => KGiftPanel(
+    gifts: KGiftPanel.preview(context.l10n),
+    selectedId: _selected,
+    onSelected: (gift) => setState(() => _selected = gift.id),
+  );
 }

@@ -13,6 +13,7 @@ import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -170,7 +171,12 @@ class _OwnHeader extends ConsumerWidget {
       // A failed count shows a dash, not a number, and not an endless
       // skeleton; pull to refresh retries.
       statsFailed: statsLoad.hasError && stats == null,
-      levels: ProfileLevels(onOpen: () => context.push(AppRoutes.levels)),
+      // CP-018: the chosen medals and the family, relationship and medals
+      // tiles come with the counts (`GET /users/{username}`).
+      levels: ProfileBondsBlock(
+        levels: ProfileLevels(onOpen: () => context.push(AppRoutes.levels)),
+        profile: stats,
+      ),
       actions: SizedBox(
         height: KProfile.buttonHeight,
         child: OutlinedButton(

@@ -10,6 +10,9 @@ import 'package:kabso_live/features/posts/domain/post_models.dart';
 /// The largest photo the server accepts (`CreateMediaUploadRequest.byteSize`).
 const int maxPhotoBytes = 15 * 1024 * 1024;
 
+/// The largest voice clip the server accepts (`LIVE_CHAT_VOICE`, §11.1).
+const int maxVoiceBytes = 1024 * 1024;
+
 /// The image type of [bytes] from its signature (CONVENTIONS §11.1: the
 /// bytes decide, never the picker's MIME type): `image/jpeg`, `image/png`,
 /// `image/webp`, or `null` for anything else (HEIC, GIF, …).
@@ -48,6 +51,18 @@ abstract interface class MediaRepository {
     bool forLiveCover = false,
     void Function(double progress)? onProgress,
   });
+
+  /// CP-017: a voice clip ([voice], `LIVE_CHAT_VOICE`, `audio/mp4`, at most
+  /// [maxVoiceBytes]) or a picture (`LIVE_CHAT_IMAGE`) for the live chat.
+  Future<MediaAsset> uploadLiveChatMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  });
+
+  /// CP-018: a family's emblem (`FAMILY_EMBLEM`, a centre-cropped square
+  /// like the live cover).
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType);
 }
 
 class MediaRepositoryImpl implements MediaRepository {
@@ -66,15 +81,43 @@ class MediaRepositoryImpl implements MediaRepository {
     bool forStory = false,
     bool forLiveCover = false,
     void Function(double progress)? onProgress,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: forLiveCover
+        ? 'LIVE_COVER'
+        : forStory
+        ? 'STORY_IMAGE'
+        : 'POST_IMAGE',
+    onProgress: onProgress,
+  );
+
+  @override
+  Future<MediaAsset> uploadLiveChatMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) => _upload(
+    bytes,
+    contentType,
+    kind: voice ? 'LIVE_CHAT_VOICE' : 'LIVE_CHAT_IMAGE',
+  );
+
+  @override
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'FAMILY_EMBLEM');
+
+  /// Slot, PUT, complete.
+  Future<MediaAsset> _upload(
+    Uint8List bytes,
+    String contentType, {
+    required String kind,
+    void Function(double progress)? onProgress,
   }) => guardApiCall(() async {
     final slot = (await _api.post<Map<String, dynamic>>(
       '/media/uploads',
       data: {
-        'kind': forLiveCover
-            ? 'LIVE_COVER'
-            : forStory
-            ? 'STORY_IMAGE'
-            : 'POST_IMAGE',
+        'kind': kind,
         'contentType': contentType,
         'byteSize': bytes.length,
       },

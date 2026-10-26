@@ -18,6 +18,32 @@ enum LiveChatRole {
   viewer,
 }
 
+/// `LiveChatMessageKind` (CP-017): a text line, a voice clip or a picture.
+enum LiveChatKind {
+  @JsonValue('TEXT')
+  text,
+  @JsonValue('VOICE')
+  voice,
+  @JsonValue('IMAGE')
+  image,
+}
+
+/// The `MediaAsset` of a VOICE or IMAGE message (CP-017, §11.1): a voice
+/// clip (`type: AUDIO`, with [durationMs]) or a picture.
+@freezed
+abstract class LiveChatMedia with _$LiveChatMedia {
+  const factory({
+    required String id,
+    required String url,
+    required String thumbUrl,
+    @Default(0) int width,
+    @Default(0) int height,
+    int? durationMs,
+  }) = _LiveChatMedia;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveChatMediaFromJson(json);
+}
+
 /// `LiveChatMessage`: one stored chat message.
 @freezed
 abstract class LiveChatEntry with _$LiveChatEntry {
@@ -29,6 +55,17 @@ abstract class LiveChatEntry with _$LiveChatEntry {
     required LiveChatRole authorRole,
     required String text,
     required DateTime createdAt,
+    // CP-017: older servers send no kind (a text line).
+    @JsonKey(unknownEnumValue: LiveChatKind.text)
+    @Default(LiveChatKind.text)
+    LiveChatKind kind,
+
+    /// The clip or picture of a VOICE / IMAGE message; null for TEXT and
+    /// once it expired.
+    LiveChatMedia? media,
+
+    /// VOICE and IMAGE: sent + 60 s, when the app hides it (§10.19).
+    DateTime? expiresAt,
   }) = _LiveChatEntry;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
@@ -43,7 +80,22 @@ abstract class LiveChatMute with _$LiveChatMute {
   factory fromJson(Map<String, dynamic> json) => _$LiveChatMuteFromJson(json);
 }
 
-/// The server's chat data messages in the media room (topic `chat`).
+/// `LiveBullet` (CP-017, §10.19): a paid line shown over every live.
+@freezed
+abstract class LiveBullet with _$LiveBullet {
+  const factory({
+    required String id,
+    required String text,
+    required UserSummary sender,
+    required String roomId,
+    required DateTime createdAt,
+  }) = _LiveBullet;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveBulletFromJson(json);
+}
+
+/// The server's chat data messages in the media room (topic `chat`),
+/// bullets (topic `bullet`, CP-017) and kicks (topic `kick`, v1.20-live).
 sealed class LiveChatEvent {
   const new();
 
@@ -61,6 +113,12 @@ sealed class LiveChatEvent {
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
+        'bullet' => LiveBulletReceived(
+          LiveBullet.fromJson(json['bullet']! as Map<String, dynamic>),
+        ),
+        'kick' => LiveKickReceived(
+          UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -91,4 +149,20 @@ final class LiveChatStateChanged extends LiveChatEvent {
   const new({required this.enabled});
 
   final bool enabled;
+}
+
+/// v1.20-live (D105, §10.20): the host or a moderator kicked [user] out of
+/// this live (topic `kick`). The kicked person's app leaves; the others
+/// drop them from their lists.
+final class LiveKickReceived extends LiveChatEvent {
+  const new(this.user);
+
+  final UserSummary user;
+}
+
+/// CP-017: a bullet sent in any live (topic `bullet`).
+final class LiveBulletReceived extends LiveChatEvent {
+  const new(this.bullet);
+
+  final LiveBullet bullet;
 }

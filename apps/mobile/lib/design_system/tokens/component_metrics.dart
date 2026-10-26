@@ -1,5 +1,5 @@
 import 'package:kabso_live/design_system/tokens/tokens.dart';
-import 'package:material_ui/material_ui.dart' show Color;
+import 'package:material_ui/material_ui.dart' show BoxConstraints, Color;
 
 /// Component dimensions fixed by DESIGN_SYSTEM §9 (and REFERENCE_INVENTORY
 /// §7) that have no entry in `design-tokens.json` v1.1.
@@ -56,6 +56,21 @@ abstract final class KMetrics {
 
   /// Max sheet height as a fraction of the screen.
   static const double sheetMaxHeightFactor = 0.9;
+
+  /// A sheet spans the screen's width, up to this on a tablet. Flutter
+  /// centres a width-limited sheet at its content's width, so the minimum
+  /// is set too (owner, 2026-10-26: sheets showed as a small box).
+  static const double sheetMaxWidth = 640;
+
+  /// Sheet constraints: the full width (at most [sheetMaxWidth]) and at
+  /// most [maxHeight] tall.
+  static BoxConstraints sheetConstraints({
+    double maxHeight = double.infinity,
+  }) => BoxConstraints(
+    minWidth: sheetMaxWidth,
+    maxWidth: sheetMaxWidth,
+    maxHeight: maxHeight,
+  );
 
   /// Gift artwork in a grid cell.
   static const double giftArt = KSizes.avatarMd;

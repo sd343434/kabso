@@ -378,6 +378,24 @@ class DemoLiveRepository implements LiveRepository {
   @override
   Future<List<LiveContributor>> contributors(String roomId) async => const [];
 
+  @override
+  Future<LiveContributorStanding> contributor(
+    String roomId,
+    String username,
+  ) async => throw _serverOnly;
+
+  // v1.20-live: kicking needs the server.
+  @override
+  Future<LiveKick> kick(String roomId, String username) async =>
+      throw _serverOnly;
+
+  @override
+  Future<List<LiveKick>> kicks(String roomId) async => const [];
+
+  @override
+  Future<void> unkick(String roomId, String username) async =>
+      throw _serverOnly;
+
   // CP-013: the demo hub has no server, so no chat.
   @override
   Future<List<LiveChatEntry>> chatMessages(String roomId) async => const [];
@@ -412,4 +430,23 @@ class DemoLiveRepository implements LiveRepository {
   @override
   Future<void> reportChatMessage(String messageId, ReportReason reason) async =>
       throw _serverOnly;
+
+  // CP-017: no server, so no clips, pictures, bullets or coins.
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<int> myCoins() async => 0;
 }

@@ -15,7 +15,7 @@ import { markReadSchema, updateNotificationSettingsSchema } from './notification
 
 /** `NotificationTarget` (openapi v1.5-social, CP-009). */
 export interface NotificationTargetDto {
-  type: 'POST' | 'COMMENT' | 'STORY' | 'USER';
+  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
@@ -71,7 +71,14 @@ const ACTOR_TYPES: NotificationType[] = [
   'REPOST',
   // CP-016 C: actor the host; target the scheduled live (no post, comment or story).
   'LIVE_SCHEDULED_SOON',
+  // v1.21-live (CP-018): actor the other person (CP) or the leader / deputy who answered (family).
+  'CP_REQUEST',
+  'CP_ACCEPTED',
+  'FAMILY_JOIN_ACCEPTED',
+  'FAMILY_JOIN_DECLINED',
 ];
+/** v1.21-live (CP-018): the actor types whose target is the actor (USER), like FOLLOW. */
+const USER_TARGET_TYPES: ReadonlySet<NotificationType> = new Set(['FOLLOW', 'CP_REQUEST', 'CP_ACCEPTED']);
 
 /** Actors the recipient may see: ACTIVE, no block either way, not muted by the recipient (§11.10). */
 function visibleActorWhere(me: string): Prisma.NotificationActorWhereInput {
@@ -95,6 +102,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
     recipientId: me,
     OR: [
       { type: 'CONTENT_REMOVED' },
+      // v1.21-live (CP-018): a medal the caller earned (system, no actor).
+      { type: 'MEDAL_AWARDED' },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -128,6 +137,7 @@ function include(me: string) {
     comment: { select: { text: true } },
     story: { select: { text: true, mediaAsset: true } },
     liveSchedule: { select: { title: true, startsAt: true } },
+    family: { select: { name: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -229,8 +239,22 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         startsAt: row.liveSchedule.startsAt.toISOString(),
       };
     }
+    // v1.21-live (CP-018): the family that answered a join request, with its name.
+    if (row.familyId !== null) {
+      return {
+        type: 'FAMILY',
+        id: row.familyId,
+        postId: null,
+        thumbUrl: null,
+        text: excerpt(row.family?.name),
+      };
+    }
+    // v1.21-live (CP-018): the medal earned (the app reads its name and icon from GET /medals).
+    if (row.medalCode !== null) {
+      return { type: 'MEDAL', id: row.medalCode, postId: null, thumbUrl: null, text: null };
+    }
     const follower = actors[0];
-    return row.type === 'FOLLOW' && follower
+    return USER_TARGET_TYPES.has(row.type) && follower
       ? { type: 'USER', id: follower.username, postId: null, thumbUrl: null, text: null }
       : null;
   }

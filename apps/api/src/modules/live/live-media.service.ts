@@ -143,6 +143,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     }
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    // v1.20-live (D105, §10.20): a signed-in caller kicked out of this live gets no token for it.
+    if (callerId !== null && row.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     if (guestId !== undefined && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
 
     const isHost = callerId !== null && callerId === row.host_user_id;
@@ -389,7 +391,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
   /**
    * `POST /internal/livekit/webhook`: a signed media-server event. A join is recorded only for a
    * LIVE room and an allowed identity (a guest while guests are allowed, an ACTIVE user with no
-   * block); anyone else is disconnected. Leaves and finished rooms remove rows. Idempotent.
+   * block and, v1.20-live, not kicked out of this live); anyone else is disconnected. Leaves and finished rooms remove rows. Idempotent.
    */
   async webhook(rawBody: string, authorization: string | undefined): Promise<void> {
     let event;
@@ -439,6 +441,8 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (userId !== null) {
       const [allowed] = await this.prisma.$queryRaw<{ ok: boolean }[]>`
         SELECT EXISTS (SELECT 1 FROM users WHERE id = ${userId}::uuid AND status = 'ACTIVE'::user_status)
+           AND NOT EXISTS (SELECT 1 FROM live_room_kicks k
+                            WHERE k.room_id = ${roomId}::uuid AND k.user_id = ${userId}::uuid)
            AND NOT EXISTS (SELECT 1 FROM user_blocks b
                             WHERE (b.blocker_id = ${userId}::uuid AND b.blocked_id = ${room.hostUserId}::uuid)
                                OR (b.blocker_id = ${room.hostUserId}::uuid AND b.blocked_id = ${userId}::uuid)) AS ok`;

@@ -607,6 +607,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGifts => 'الهدايا';
 
   @override
+  String get liveToolbox => 'صندوق الأدوات';
+
+  @override
   String get liveShare => 'مشاركة';
 
   @override
@@ -3785,6 +3788,26 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String liveSeatMuteUser(String name) {
+    return 'كتم مايك $name';
+  }
+
+  @override
+  String liveSeatUnmuteUser(String name) {
+    return 'إلغاء كتم مايك $name';
+  }
+
+  @override
+  String liveSeatUserMuted(String name) {
+    return 'كُتم مايك $name';
+  }
+
+  @override
+  String liveSeatUserUnmuted(String name) {
+    return 'أُلغي كتم مايك $name';
+  }
+
+  @override
   String get liveChatReport => 'الإبلاغ عن الرسالة';
 
   @override
@@ -3827,6 +3850,32 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveSeatGuestsEmpty => 'لا أحد على المقاعد الآن';
+
+  @override
+  String get liveSeatInviteFriends => 'ادعُ أصدقاءك';
+
+  @override
+  String get liveUserManage => 'إدارة';
+
+  @override
+  String get liveUserViewProfile => 'عرض الملف';
+
+  @override
+  String get liveUserFamily => 'العائلة';
+
+  @override
+  String get liveUserGiftWall => 'حائط الهدايا';
+
+  @override
+  String get liveUserMedals => 'الميداليات';
+
+  @override
+  String get liveUserSoon => 'قريباً';
+
+  @override
+  String liveUserBoxSoon(String box) {
+    return '$box: قريباً';
+  }
 
   @override
   String liveSeatNumberLabel(int number) {
@@ -4092,4 +4141,812 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolLiveTime => 'وقت البث';
+
+  @override
+  String get errorInsufficientCoins =>
+      'تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
+
+  @override
+  String get liveBulletToggle => 'رسالة عامة';
+
+  @override
+  String liveBulletHint(String coins) {
+    return 'رسالة عامة بـ 15 عملة · رصيدك $coins';
+  }
+
+  @override
+  String get liveBulletHintNoBalance => 'رسالة عامة بـ 15 عملة';
+
+  @override
+  String get liveBulletSent => 'أُرسلت رسالتك العامة إلى كل البثوث';
+
+  @override
+  String liveBulletLabel(String name, String text) {
+    return 'رسالة عامة من $name: $text';
+  }
+
+  @override
+  String get liveVoiceRecord => 'مقطع صوتي';
+
+  @override
+  String get liveVoiceSend => 'إرسال المقطع الصوتي';
+
+  @override
+  String get liveVoiceCancel => 'إلغاء التسجيل';
+
+  @override
+  String liveVoiceRecording(String time) {
+    return 'جارٍ التسجيل $time من 0:30';
+  }
+
+  @override
+  String get liveVoiceDenied =>
+      'اسمح باستخدام الميكروفون من الإعدادات لإرسال مقاطع صوتية.';
+
+  @override
+  String get liveVoiceUnavailable => 'الميكروفون غير متاح الآن.';
+
+  @override
+  String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';
+
+  @override
+  String get liveChatPrivateMessages => 'الرسائل الخاصة';
+
+  @override
+  String get liveChatPicture => 'صورة';
+
+  @override
+  String get liveChatSending => 'جارٍ الإرسال…';
+
+  @override
+  String liveChatVoiceLine(String name, String duration) {
+    return '$name: مقطع صوتي، $duration';
+  }
+
+  @override
+  String liveChatPictureLine(String name) {
+    return '$name: صورة';
+  }
+
+  @override
+  String get liveChatPlay => 'تشغيل';
+
+  @override
+  String get liveChatPause => 'إيقاف مؤقت';
+
+  @override
+  String get errorLiveKicked =>
+      'تم إخراجك من هذا البث. يمكنك مشاهدة البث التالي للمضيف.';
+
+  @override
+  String get liveKickedTitle => 'تم إخراجك من هذا البث';
+
+  @override
+  String get liveKickedBody =>
+      'أخرجك المضيف أو أحد المشرفين، ولا يمكنك العودة إليه حتى ينتهي. يمكنك مشاهدة البث التالي للمضيف.';
+
+  @override
+  String get liveUserPoints => 'النقاط في هذا البث';
+
+  @override
+  String liveUserRank(String rank) {
+    return 'المركز $rank في هذا البث';
+  }
+
+  @override
+  String get liveUserNoPoints => 'لا نقاط في هذا البث بعد';
+
+  @override
+  String get liveUserKick => 'إخراج من البث';
+
+  @override
+  String liveUserKickTitle(String name) {
+    return 'إخراج $name من هذا البث؟';
+  }
+
+  @override
+  String get liveUserKickBody =>
+      'سيخرج من البث الآن ولن يستطيع العودة حتى ينتهي.';
+
+  @override
+  String get liveUserKickConfirm => 'إخراج';
+
+  @override
+  String liveUserKicked(String name) {
+    return 'تم إخراج $name من هذا البث';
+  }
+
+  @override
+  String liveUserModeratorAdded(String name) {
+    return '$name أصبح مشرفاً';
+  }
+
+  @override
+  String liveUserModeratorRemoved(String name) {
+    return '$name لم يعد مشرفاً';
+  }
+
+  @override
+  String get liveUserMore => 'المزيد';
+
+  @override
+  String get liveUserCp => 'العلاقة';
+
+  @override
+  String get liveUserNone => 'لا يوجد';
+
+  @override
+  String get liveUserFamilyNone => 'ليس في عائلة بعد';
+
+  @override
+  String get liveUserFamilyNoneSelf => 'لست في عائلة بعد';
+
+  @override
+  String get liveUserFamilyHint => 'انضم لعائلة أو أنشئ عائلتك';
+
+  @override
+  String get liveUserCpNone => 'لا يوجد شريك بعد';
+
+  @override
+  String get liveUserCpBar =>
+      'هدايا CP قريباً: أرسلها لشخص مميّز لتصبحا ثنائياً';
+
+  @override
+  String get liveUserCpPartner => 'مكان الشريك فارغ';
+
+  @override
+  String get liveBulletTag => 'رسالة عامة';
+
+  @override
+  String get errorAlreadyInFamily =>
+      'أنت في عائلة بالفعل. يمكنك أن تكون في عائلة واحدة فقط.';
+
+  @override
+  String get errorFamilyFull => 'هذه العائلة ممتلئة ولا تقبل أعضاء جدداً.';
+
+  @override
+  String get errorFamilyNameTaken =>
+      'هذا الاسم مستخدم لعائلة أخرى. لم تُخصم أي عملات.';
+
+  @override
+  String get errorFamilyRequestPending =>
+      'لديك طلب انضمام معلّق لعائلة أخرى. ألغِه أولاً.';
+
+  @override
+  String get errorFamilyRequestNotPending =>
+      'تمت معالجة هذا الطلب أو أُلغي أو انتهت صلاحيته.';
+
+  @override
+  String get errorFamilyNotEmpty =>
+      'يمكنك حلّ العائلة فقط عندما تكون العضو الوحيد فيها.';
+
+  @override
+  String get errorFamilyLeaderCannotLeave =>
+      'القائد لا يغادر العائلة: سلّمها لعضو آخر أو حلّها.';
+
+  @override
+  String get errorCpAlreadyPaired =>
+      'أنت أو هذا الشخص لديه شريك بالفعل. لم تُخصم أي عملات.';
+
+  @override
+  String get errorCpRequestPending =>
+      'لديك طلب علاقة معلّق. ألغِه من صفحة العلاقة أولاً.';
+
+  @override
+  String get errorCpRequestNotPending =>
+      'تمت معالجة طلب العلاقة هذا أو أُلغي أو انتهت صلاحيته.';
+
+  @override
+  String get errorCpNotPaired => 'ليس لديك شريك الآن. لم تُخصم أي عملات.';
+
+  @override
+  String get errorMedalNotUnlocked => 'اختر فقط الميداليات التي حصلت عليها.';
+
+  @override
+  String bondsCoins(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عملة',
+      many: '$count عملة',
+      few: '$count عملات',
+      two: 'عملتان',
+      one: 'عملة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bondsDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count يوم',
+      many: '$count يوماً',
+      few: '$count أيام',
+      two: 'يومين',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bondsBalance(String coins) {
+    return 'رصيدك: $coins';
+  }
+
+  @override
+  String get bondsConfirm => 'تأكيد';
+
+  @override
+  String get bondsCancel => 'إلغاء';
+
+  @override
+  String get familiesTitle => 'العائلات';
+
+  @override
+  String get familiesSearchHint => 'ابحث بالاسم أو الرقم';
+
+  @override
+  String get familiesMine => 'عائلتي';
+
+  @override
+  String get familiesCreate => 'أنشئ عائلة';
+
+  @override
+  String get familiesTop => 'أفضل العائلات';
+
+  @override
+  String get familiesResults => 'نتائج البحث';
+
+  @override
+  String get familiesEmpty => 'لا توجد عائلات بعد';
+
+  @override
+  String get familiesEmptyBody => 'كن أول من ينشئ عائلة.';
+
+  @override
+  String get familiesNoMatch => 'لا توجد عائلة مطابقة';
+
+  @override
+  String get familiesNoMatchBody =>
+      'جرّب اسماً آخر أو رقم العائلة المكوّن من 8 أرقام.';
+
+  @override
+  String get familiesLoadError => 'تعذّر تحميل العائلات';
+
+  @override
+  String get familiesNumberNotFound => 'لا توجد عائلة بهذا الرقم';
+
+  @override
+  String familyNumber(String number) {
+    return 'رقم العائلة $number';
+  }
+
+  @override
+  String familyLevel(int level) {
+    return 'مستوى $level';
+  }
+
+  @override
+  String familyMembersCount(int count, int capacity) {
+    return 'الأعضاء $count / $capacity';
+  }
+
+  @override
+  String familyPendingRequest(String name) {
+    return 'طلبك للانضمام إلى $name قيد الانتظار';
+  }
+
+  @override
+  String get familyCancelRequest => 'إلغاء الطلب';
+
+  @override
+  String get familyRequestCancelled => 'تم إلغاء طلب الانضمام';
+
+  @override
+  String get familyNotFoundTitle => 'العائلة غير موجودة';
+
+  @override
+  String get familyNotFoundBody => 'ربما تم حلّ هذه العائلة.';
+
+  @override
+  String get familyLoadError => 'تعذّر تحميل العائلة';
+
+  @override
+  String familyPoints(String points) {
+    return 'النقاط: $points';
+  }
+
+  @override
+  String familyProgress(String points, String next, int level) {
+    return '$points / $next للوصول إلى المستوى $level';
+  }
+
+  @override
+  String get familyTopLevel => 'وصلت العائلة إلى أعلى مستوى';
+
+  @override
+  String familyLeader(String name) {
+    return 'القائد: $name';
+  }
+
+  @override
+  String get familyJoin => 'اطلب الانضمام';
+
+  @override
+  String get familyJoinSent =>
+      'تم إرسال طلب الانضمام. يرد عليه القائد أو النواب.';
+
+  @override
+  String get familyRequested => 'تم إرسال الطلب';
+
+  @override
+  String get familyFullLabel => 'العائلة ممتلئة';
+
+  @override
+  String get familyInOther => 'أنت عضو في عائلة أخرى';
+
+  @override
+  String get familyLeave => 'مغادرة العائلة';
+
+  @override
+  String familyLeaveTitle(String name) {
+    return 'مغادرة $name؟';
+  }
+
+  @override
+  String get familyLeaveBody => 'تبقى النقاط التي قدّمتها مع العائلة.';
+
+  @override
+  String get familyLeft => 'غادرت العائلة';
+
+  @override
+  String get familyManage => 'إدارة العائلة';
+
+  @override
+  String get familyChangeEmblem => 'تغيير الشعار';
+
+  @override
+  String get familyRemoveEmblem => 'إزالة الشعار';
+
+  @override
+  String get familyEmblemUpdated => 'تم تحديث الشعار';
+
+  @override
+  String get familyEmblemRemoved => 'تمت إزالة الشعار';
+
+  @override
+  String get familyDisband => 'حلّ العائلة';
+
+  @override
+  String familyDisbandTitle(String name) {
+    return 'حلّ $name؟';
+  }
+
+  @override
+  String get familyDisbandBody => 'يصبح الاسم متاحاً لغيرك ولا تُسترد العملات.';
+
+  @override
+  String get familyDisbanded => 'تم حلّ العائلة';
+
+  @override
+  String get familyDisbandOnlyAlone => 'يمكنك الحلّ عندما تكون العضو الوحيد';
+
+  @override
+  String get familyRequestsTitle => 'طلبات الانضمام';
+
+  @override
+  String get familyRequestsEmpty => 'لا توجد طلبات حالياً';
+
+  @override
+  String get familyAccept => 'قبول';
+
+  @override
+  String get familyDecline => 'رفض';
+
+  @override
+  String familyAccepted(String name) {
+    return 'انضم $name إلى العائلة';
+  }
+
+  @override
+  String get familyDeclined => 'تم رفض الطلب';
+
+  @override
+  String get familyMembersTitle => 'الأعضاء';
+
+  @override
+  String get familyRoleLeader => 'القائد';
+
+  @override
+  String get familyRoleDeputy => 'نائب';
+
+  @override
+  String get familyRoleMember => 'عضو';
+
+  @override
+  String get familyMakeDeputy => 'تعيين نائباً';
+
+  @override
+  String get familyMakeMember => 'إعادة إلى عضو';
+
+  @override
+  String get familyTransfer => 'تسليم القيادة';
+
+  @override
+  String familyTransferTitle(String name) {
+    return 'تسليم القيادة إلى $name؟';
+  }
+
+  @override
+  String familyTransferBody(String name) {
+    return 'يصبح $name القائد وتصبح أنت نائباً.';
+  }
+
+  @override
+  String familyTransferred(String name) {
+    return 'أصبح $name القائد';
+  }
+
+  @override
+  String get familyRemove => 'إزالة من العائلة';
+
+  @override
+  String familyRemoveTitle(String name) {
+    return 'إزالة $name من العائلة؟';
+  }
+
+  @override
+  String familyRemoved(String name) {
+    return 'تمت إزالة $name';
+  }
+
+  @override
+  String familyRoleChanged(String name) {
+    return 'تم تغيير دور $name';
+  }
+
+  @override
+  String get familyMemberActions => 'خيارات العضو';
+
+  @override
+  String get familyCreateTitle => 'عائلة جديدة';
+
+  @override
+  String get familyNameLabel => 'اسم العائلة';
+
+  @override
+  String get familyNameHelp => 'من 2 إلى 20 حرفاً، ولا يتكرر بين العائلات.';
+
+  @override
+  String get familyNameInvalid =>
+      'استخدم من 2 إلى 20 حرفاً بدون رموز غير مسموحة.';
+
+  @override
+  String get familyEmblemLabel => 'الشعار (اختياري)';
+
+  @override
+  String get familyEmblemChoose => 'اختر صورة للشعار';
+
+  @override
+  String familyCreateCost(String coins) {
+    return 'إنشاء العائلة يكلّف $coins';
+  }
+
+  @override
+  String familyCreateSubmit(String coins) {
+    return 'أنشئ مقابل $coins';
+  }
+
+  @override
+  String familyCreateNotEnough(String coins) {
+    return 'تحتاج $coins لإنشاء عائلة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
+  }
+
+  @override
+  String familyCreated(String name) {
+    return 'تم إنشاء $name';
+  }
+
+  @override
+  String get cpTitle => 'العلاقة';
+
+  @override
+  String cpDay(int days) {
+    return 'اليوم $days معاً';
+  }
+
+  @override
+  String cpPoints(String points) {
+    return 'نقاط العلاقة: $points';
+  }
+
+  @override
+  String cpToNext(String points, String name) {
+    return 'باقي $points للوصول إلى $name';
+  }
+
+  @override
+  String get cpTopTier => 'وصلتما إلى أعلى مستوى';
+
+  @override
+  String cpSince(String date) {
+    return 'منذ $date';
+  }
+
+  @override
+  String get cpGiftTitle => 'أرسل هدية علاقة';
+
+  @override
+  String get cpGiftBody =>
+      'تضيف الهدية نقاطاً لعلاقتكما، ولا يحصل شريكك على عملات.';
+
+  @override
+  String cpGiftConfirmTitle(String coins) {
+    return 'إرسال $coins كهدية علاقة؟';
+  }
+
+  @override
+  String cpGiftSent(String points) {
+    return 'تم إرسال الهدية: +$points نقطة';
+  }
+
+  @override
+  String get cpGiftNotEnough =>
+      'ليس لديك عملات كافية لهذه الهدية. يضيف الفريق العملات حالياً.';
+
+  @override
+  String get cpEnd => 'إنهاء العلاقة';
+
+  @override
+  String cpEndTitle(String name) {
+    return 'إنهاء العلاقة مع $name؟';
+  }
+
+  @override
+  String get cpEndBody => 'لا تُسترد أي عملات.';
+
+  @override
+  String get cpEnded => 'انتهت العلاقة';
+
+  @override
+  String get cpNoneTitle => 'لا يوجد شريك بعد';
+
+  @override
+  String get cpNoneBody =>
+      'أرسل طلب علاقة من الملف الشخصي لشخص ما أو من بطاقته في البث.';
+
+  @override
+  String get cpRequestsTitle => 'طلبات العلاقة';
+
+  @override
+  String get cpIncoming => 'الواردة';
+
+  @override
+  String get cpOutgoing => 'المرسلة';
+
+  @override
+  String get cpIncomingEmpty => 'لا توجد طلبات واردة';
+
+  @override
+  String get cpOutgoingEmpty => 'لا توجد طلبات مرسلة';
+
+  @override
+  String cpRequestFrom(String name) {
+    return '$name يريد أن تكونا ثنائياً';
+  }
+
+  @override
+  String cpRequestTo(String name) {
+    return 'بانتظار رد $name';
+  }
+
+  @override
+  String cpExpires(String date) {
+    return 'ينتهي في $date';
+  }
+
+  @override
+  String get cpAccept => 'قبول';
+
+  @override
+  String get cpDecline => 'رفض';
+
+  @override
+  String get cpCancel => 'إلغاء الطلب';
+
+  @override
+  String cpAccepted(String name) {
+    return 'أنت و$name ثنائي الآن';
+  }
+
+  @override
+  String get cpDeclined => 'تم رفض الطلب';
+
+  @override
+  String get cpCancelled => 'تم إلغاء الطلب وأُعيدت العملات';
+
+  @override
+  String get cpSendRequest => 'أرسل طلب علاقة';
+
+  @override
+  String get cpSendShort => 'أرسل طلباً';
+
+  @override
+  String cpSendTitle(String name) {
+    return 'إرسال طلب علاقة إلى $name؟';
+  }
+
+  @override
+  String cpSendBody(String coins, String days) {
+    return 'يكلّف الطلب $coins. تعود إليك العملات إذا رُفض أو أُلغي أو لم يُرد عليه خلال $days.';
+  }
+
+  @override
+  String cpSent(String name) {
+    return 'تم إرسال طلب العلاقة إلى $name';
+  }
+
+  @override
+  String cpSendNotEnough(String coins) {
+    return 'تحتاج $coins لإرسال طلب علاقة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
+  }
+
+  @override
+  String get cpLoadError => 'تعذّر تحميل العلاقة';
+
+  @override
+  String cpBoxValue(String name, String tier) {
+    return '$name · $tier';
+  }
+
+  @override
+  String familyBoxValue(String name, int level) {
+    return '$name · مستوى $level';
+  }
+
+  @override
+  String get medalsTitle => 'الميداليات';
+
+  @override
+  String medalsOwned(int owned, int total) {
+    return '$owned من $total';
+  }
+
+  @override
+  String get medalsChoose => 'اختر الميداليات المعروضة';
+
+  @override
+  String get medalsLocked => 'مقفلة';
+
+  @override
+  String medalsEarnedOn(String date) {
+    return 'حصلت عليها في $date';
+  }
+
+  @override
+  String get medalsEmptyTitle => 'لا توجد ميداليات بعد';
+
+  @override
+  String get medalsEmptyBody =>
+      'تُمنح الميداليات تلقائياً عند البث ومستويات الجاذبية والعائلات والعلاقات.';
+
+  @override
+  String get medalsLoadError => 'تعذّر تحميل الميداليات';
+
+  @override
+  String get medalsShowcaseTitle => 'ميداليات ملفك';
+
+  @override
+  String medalsShowcaseHint(int max) {
+    return 'اختر حتى $max ميداليات بالترتيب الذي تريده.';
+  }
+
+  @override
+  String medalsShowcaseCount(int count, int max) {
+    return '$count / $max';
+  }
+
+  @override
+  String medalsShowcaseLimit(int max) {
+    return 'يمكنك عرض $max ميداليات كحد أقصى';
+  }
+
+  @override
+  String get medalsShowcaseSave => 'حفظ';
+
+  @override
+  String get medalsShowcaseSaved => 'تم حفظ ميداليات ملفك';
+
+  @override
+  String get medalsShowcaseEmptyPreview =>
+      'لا شيء معروض. اختر ميداليات من الأسفل.';
+
+  @override
+  String get medalsShowcaseNoneEarned =>
+      'لم تحصل على ميداليات بعد، لذا لا يوجد ما تعرضه.';
+
+  @override
+  String medalsRowLabel(String names) {
+    return 'الميداليات: $names';
+  }
+
+  @override
+  String medalsPosition(String name, int position) {
+    return '$name، الترتيب $position';
+  }
+
+  @override
+  String get medalsDiscard => 'تجاهل التغييرات؟';
+
+  @override
+  String get medalsDiscardConfirm => 'تجاهل';
+
+  @override
+  String notifCpRequest(String who) {
+    return '$who أرسل لك طلب علاقة';
+  }
+
+  @override
+  String notifCpAccepted(String who) {
+    return '$who قبل طلب العلاقة، أصبحتما ثنائياً';
+  }
+
+  @override
+  String notifFamilyJoinAccepted(String family) {
+    return 'تم قبولك في عائلة $family';
+  }
+
+  @override
+  String notifFamilyJoinDeclined(String family) {
+    return 'تم رفض طلبك للانضمام إلى $family';
+  }
+
+  @override
+  String notifMedalAwarded(String name) {
+    return 'حصلت على ميدالية جديدة: $name';
+  }
+
+  @override
+  String get notifMedalAwardedUnnamed => 'حصلت على ميدالية جديدة';
+
+  @override
+  String get errorBagItemNotOwned => 'هذا العنصر ليس في حقيبتك.';
+
+  @override
+  String get bagTitle => 'الحقيبة';
+
+  @override
+  String get bagTileValue => 'زيّن بطاقتك';
+
+  @override
+  String get bagCategoryProfileCard => 'بطاقة الملف الشخصي';
+
+  @override
+  String get bagLoadError => 'تعذّر تحميل الحقيبة';
+
+  @override
+  String get bagWorn => 'قيد الارتداء';
+
+  @override
+  String get bagWear => 'ارتداء';
+
+  @override
+  String get bagTakeOff => 'خلع';
+
+  @override
+  String get bagLocked => 'لم تمتلكه بعد';
+
+  @override
+  String get bagEmptyTitle => 'حقيبتك فارغة';
+
+  @override
+  String get bagEmptyMessage => 'ستظهر هنا العناصر التي تحصل عليها.';
+
+  @override
+  String get bagOwnedSection => 'عناصرك';
+
+  @override
+  String get bagLockedSection => 'عناصر أخرى';
 }

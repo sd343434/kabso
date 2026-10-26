@@ -30,7 +30,7 @@ abstract class LiveConfig with _$LiveConfig {
 abstract class LiveSeatCounts with _$LiveSeatCounts {
   const factory({
     @JsonKey(name: 'MULTI') @Default(<int>[4, 6, 9, 12]) List<int> multi,
-    @JsonKey(name: 'AUDIO') @Default(<int>[6, 9, 15, 20, 25]) List<int> audio,
+    @JsonKey(name: 'AUDIO') @Default(<int>[5, 10, 15, 20, 25]) List<int> audio,
   }) = _LiveSeatCounts;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);
@@ -171,6 +171,10 @@ abstract class LiveRoom with _$LiveRoom {
     /// CP-016 D (D101): the host's charm level, shown next to the room name;
     /// null while the charm levels are unavailable.
     int? roomLevel,
+
+    /// v1.20-live (D105, §10.20): the host or a moderator kicked the caller
+    /// out of this live; the app shows why instead of the room.
+    @Default(false) bool kicked,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
@@ -206,6 +210,30 @@ abstract class LiveContributor with _$LiveContributor {
 
   factory fromJson(Map<String, dynamic> json) =>
       _$LiveContributorFromJson(json);
+}
+
+/// `LiveContributorStanding` (v1.20-live, D105, §10.12): one person's
+/// points in a live and their place in the Contribution list (`rank` is
+/// null when `points` is 0).
+@freezed
+abstract class LiveContributorStanding with _$LiveContributorStanding {
+  const factory({
+    required UserSummary user,
+    required int points,
+    required int? rank,
+  }) = _LiveContributorStanding;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LiveContributorStandingFromJson(json);
+}
+
+/// `LiveKick` (v1.20-live, D105, §10.20): someone kicked out of a live.
+@freezed
+abstract class LiveKick with _$LiveKick {
+  const factory({required UserSummary user, required DateTime kickedAt}) =
+      _LiveKick;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveKickFromJson(json);
 }
 
 /// `LiveRoomPage`: one cursor page of `GET /live/rooms`.

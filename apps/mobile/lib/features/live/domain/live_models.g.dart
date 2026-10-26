@@ -39,7 +39,7 @@ _LiveSeatCounts _$LiveSeatCountsFromJson(Map<String, dynamic> json) =>
           (json['AUDIO'] as List<dynamic>?)
               ?.map((e) => (e as num).toInt())
               .toList() ??
-          const <int>[6, 9, 15, 20, 25],
+          const <int>[5, 10, 15, 20, 25],
     );
 
 Map<String, dynamic> _$LiveSeatCountsToJson(_LiveSeatCounts instance) =>
@@ -135,6 +135,7 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   topic: json['topic'] as String?,
   roomNumber: (json['roomNumber'] as num?)?.toInt(),
   roomLevel: (json['roomLevel'] as num?)?.toInt(),
+  kicked: json['kicked'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -160,6 +161,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'topic': instance.topic,
   'roomNumber': instance.roomNumber,
   'roomLevel': instance.roomLevel,
+  'kicked': instance.kicked,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -205,6 +207,32 @@ _LiveContributor _$LiveContributorFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$LiveContributorToJson(_LiveContributor instance) =>
     <String, dynamic>{'user': instance.user, 'points': instance.points};
+
+_LiveContributorStanding _$LiveContributorStandingFromJson(
+  Map<String, dynamic> json,
+) => _LiveContributorStanding(
+  user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+  points: (json['points'] as num).toInt(),
+  rank: (json['rank'] as num?)?.toInt(),
+);
+
+Map<String, dynamic> _$LiveContributorStandingToJson(
+  _LiveContributorStanding instance,
+) => <String, dynamic>{
+  'user': instance.user,
+  'points': instance.points,
+  'rank': instance.rank,
+};
+
+_LiveKick _$LiveKickFromJson(Map<String, dynamic> json) => _LiveKick(
+  user: UserSummary.fromJson(json['user'] as Map<String, dynamic>),
+  kickedAt: DateTime.parse(json['kickedAt'] as String),
+);
+
+Map<String, dynamic> _$LiveKickToJson(_LiveKick instance) => <String, dynamic>{
+  'user': instance.user,
+  'kickedAt': instance.kickedAt.toIso8601String(),
+};
 
 _LiveRoomPage _$LiveRoomPageFromJson(Map<String, dynamic> json) =>
     _LiveRoomPage(

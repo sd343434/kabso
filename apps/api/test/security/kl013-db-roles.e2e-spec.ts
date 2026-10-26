@@ -217,7 +217,15 @@ describe('KL-013 runtime role DML', () => {
     );
     for (const row of rows) {
       // KL-058: the points ledger and level history are append-only like the audit log.
-      const appendOnly = ['audit_logs', 'points_ledger', 'level_history'].includes(row.table);
+      // CP-017: wallet_ledger is append-only too (migration 20261108090000_wallet_and_bullets);
+      // CP-018: so is family_points_ledger (migration 20261110100000_families_cp_medals).
+      const appendOnly = [
+        'audit_logs',
+        'points_ledger',
+        'level_history',
+        'wallet_ledger',
+        'family_points_ledger',
+      ].includes(row.table);
       // KL-058: admin permissions are granted by the migration role only.
       const readOnly = row.table === 'user_admin_permissions';
       expect({ table: row.table, owner: row.owner, s: row.s, i: row.i, u: row.u, d: row.d }).toEqual({
@@ -498,6 +506,8 @@ describe('CP-013 chat tables (live_chat_messages, live_chat_mutes) under the KL-
        ORDER BY 1`);
     expect(checks.map((c) => c.name)).toEqual([
       'live_chat_messages_deleted_state',
+      // CP-017 (20261108100000_live_chat_media): TEXT / VOICE / IMAGE shape.
+      'live_chat_messages_kind_shape',
       'live_chat_messages_text_length',
       'live_chat_mutes_not_self',
     ]);

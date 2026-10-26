@@ -46,6 +46,56 @@ class FakeMediaRepository implements MediaRepository {
       height: 1080,
     );
   }
+
+  /// CP-018: how many family emblems were uploaded.
+  int emblemUploads = 0;
+
+  @override
+  Future<MediaAsset> uploadFamilyEmblem(
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    emblemUploads++;
+    final id = 'e$emblemUploads';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/640.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 640,
+      height: 640,
+    );
+  }
+
+  /// CP-017: every live chat upload, e.g. `voice:audio/mp4:1234`.
+  final List<String> liveChatUploads = [];
+
+  @override
+  Future<MediaAsset> uploadLiveChatMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) async {
+    if (gate case final g?) await g.future;
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    liveChatUploads.add(
+      '${voice ? 'voice' : 'image'}:$contentType:${bytes.length}',
+    );
+    final id = 'c${liveChatUploads.length}';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/x',
+      thumbUrl: 'https://media.example.test/media/$id/x',
+      width: voice ? 0 : 1080,
+      height: voice ? 0 : 1080,
+    );
+  }
 }
 
 /// A [PhotoPicker] that returns [next] (tests only).

@@ -80,6 +80,10 @@ export interface AppConfig {
     readonly liveTapsUser: RateLimitRule;
     /** CP-013: chat messages (per user). */
     readonly liveChatUser: RateLimitRule;
+    /** CP-018: family writes; CP requests, answers and ending; CP gifts (per user). */
+    readonly familyWriteUser: RateLimitRule;
+    readonly cpWriteUser: RateLimitRule;
+    readonly cpGiftUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -121,6 +125,8 @@ export interface AppConfig {
     readonly publishIntervalSeconds: number;
     /** CP-009 notifications retention sweeper; 0 = disabled (tests; refused in production). */
     readonly notificationsSweepIntervalSeconds: number;
+    /** CP-018: family join request and CP request expiry sweeper; 0 = disabled (tests). */
+    readonly bondsSweepIntervalSeconds: number;
     readonly cursorKey: string;
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
@@ -249,6 +255,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       liveSeatsReadUser: e.RATE_LIMIT_LIVE_SEATS_READ_USER,
       liveTapsUser: e.RATE_LIMIT_LIVE_TAPS_USER,
       liveChatUser: e.RATE_LIMIT_LIVE_CHAT_USER,
+      familyWriteUser: e.RATE_LIMIT_FAMILY_WRITE_USER,
+      cpWriteUser: e.RATE_LIMIT_CP_WRITE_USER,
+      cpGiftUser: e.RATE_LIMIT_CP_GIFT_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -285,6 +294,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
     social: {
       publishIntervalSeconds: e.POSTS_PUBLISH_INTERVAL_SECONDS,
       notificationsSweepIntervalSeconds: e.NOTIFICATIONS_SWEEP_INTERVAL_SECONDS,
+      bondsSweepIntervalSeconds: e.BONDS_SWEEP_INTERVAL_SECONDS,
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     live: {

@@ -24,6 +24,7 @@ import {
   TAPS_PER_CHARM_POINT,
 } from './live-taps.js';
 import { liveTapsRequestSchema } from './live.schemas.js';
+import { UsersService } from '../users/users.service.js';
 
 /** `LiveTapsResult` (CP-012). */
 export interface LiveTapsResultDto {
@@ -35,6 +36,14 @@ export interface LiveTapsResultDto {
 export interface LiveContributorDto {
   user: UserSummaryDto;
   points: number;
+}
+
+/** `LiveContributorStanding` (v1.20-live, D105): one person's points and place in a live. */
+export interface LiveContributorStandingDto {
+  user: UserSummaryDto;
+  points: number;
+  /** Place in the Contribution list as the reader sees it; null with 0 points. */
+  rank: number | null;
 }
 
 /**
@@ -59,9 +68,13 @@ export class LiveTapsService {
     private readonly clock: Clock,
     private readonly metadata: LiveRoomMetadataService,
     private readonly levels: LevelProgressService,
+    private readonly users: UsersService,
   ) {}
 
-  /** `POST /live/rooms/{roomId}/taps`: body (400) → visible room (404) → LIVE (409). */
+  /**
+   * `POST /live/rooms/{roomId}/taps`: body (400) → visible room (404) → LIVE (409) → not kicked out
+   * of this live (403 LIVE_KICKED, v1.20-live).
+   */
   async tap(callerId: string, roomId: string, body: unknown): Promise<LiveTapsResultDto> {
     const parsed = liveTapsRequestSchema.safeParse(body ?? {}, { reportInput: true });
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
@@ -70,6 +83,8 @@ export class LiveTapsService {
     // Blocks, an inactive host and a stale room (ended here) are handled like every room read.
     const visible = await this.rooms.visibleRow(roomId, callerId);
     if (visible.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+    // v1.20-live (D105, §10.20): nobody kicked out of this live taps in it.
+    if (visible.kicked) throw new AppException(ErrorCode.LIVE_KICKED);
     const id = visible.id;
 
     const now = this.clock.now();
@@ -201,20 +216,7 @@ export class LiveTapsService {
     const row = await this.rooms.visibleRow(roomId, callerId);
     if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
     const rows = await this.prisma.liveRoomTapper.findMany({
-      where: {
-        roomId: row.id,
-        counted: { gt: 0 },
-        userId: { not: row.host_user_id },
-        user: {
-          status: 'ACTIVE',
-          ...(callerId === null
-            ? {}
-            : {
-                blocking: { none: { blockedId: callerId } },
-                blockedBy: { none: { blockerId: callerId } },
-              }),
-        },
-      },
+      where: contributorsWhere(row.id, row.host_user_id, callerId),
       orderBy: [{ counted: 'desc' }, { lastBatchAt: 'asc' }, { userId: 'asc' }],
       take: LIVE_CONTRIBUTORS_MAX,
       include: { user: { select: USER_SUMMARY_SELECT } },
@@ -223,4 +225,85 @@ export class LiveTapsService {
       data: rows.map((r) => ({ user: userSummary(r.user), points: r.counted * POINTS_PER_TAP })),
     };
   }
+
+  /**
+   * `GET /live/rooms/{roomId}/contributors/{username}` (v1.20-live, D105, §10.12): one person's
+   * points in this live and their place in the Contribution list as {@link contributors} computes
+   * it for this reader (the same rows, order and exclusions, without the top-50 cut), so ranks
+   * 1 … 50 match the list. 0 points (nothing counted, or the host) → rank null. Same access as the
+   * list; an unknown or inactive user, or one blocked either way with a signed-in reader → 404.
+   */
+  async contributor(
+    callerId: string | null,
+    roomId: string,
+    username: string,
+  ): Promise<LiveContributorStandingDto> {
+    const row = await this.rooms.visibleRow(roomId, callerId);
+    if (callerId === null && !row.allow_guests) throw new AppException(ErrorCode.LIVE_GUESTS_NOT_ALLOWED);
+    const target = await this.users.findActivePublicUser(username);
+    if (!target) throw new AppException(ErrorCode.NOT_FOUND);
+    if (callerId !== null && callerId !== target.id) {
+      const blocks = await this.prisma.userBlock.count({
+        where: {
+          OR: [
+            { blockerId: callerId, blockedId: target.id },
+            { blockerId: target.id, blockedId: callerId },
+          ],
+        },
+      });
+      if (blocks > 0) throw new AppException(ErrorCode.NOT_FOUND);
+    }
+    const user: UserSummaryDto = {
+      id: target.id,
+      username: target.username,
+      displayName: target.displayName,
+      avatarUrl: target.avatarUrl,
+    };
+    const where = contributorsWhere(row.id, row.host_user_id, callerId);
+    const mine = await this.prisma.liveRoomTapper.findFirst({
+      where: { AND: [where, { userId: target.id }] },
+      select: { counted: true, lastBatchAt: true },
+    });
+    if (!mine) return { user, points: 0, rank: null };
+    const ahead = await this.prisma.liveRoomTapper.count({
+      where: {
+        AND: [
+          where,
+          {
+            OR: [
+              { counted: { gt: mine.counted } },
+              { counted: mine.counted, lastBatchAt: { lt: mine.lastBatchAt } },
+              { counted: mine.counted, lastBatchAt: mine.lastBatchAt, userId: { lt: target.id } },
+            ],
+          },
+        ],
+      },
+    });
+    return { user, points: mine.counted * POINTS_PER_TAP, rank: ahead + 1 };
+  }
+}
+
+/**
+ * The rows of the Contribution list (CP-014, §10.12) for a reader: counted taps, not the host,
+ * ACTIVE accounts and, for a signed-in reader, no block either way.
+ */
+function contributorsWhere(
+  roomId: string,
+  hostUserId: string,
+  callerId: string | null,
+): Prisma.LiveRoomTapperWhereInput {
+  return {
+    roomId,
+    counted: { gt: 0 },
+    userId: { not: hostUserId },
+    user: {
+      status: 'ACTIVE',
+      ...(callerId === null
+        ? {}
+        : {
+            blocking: { none: { blockedId: callerId } },
+            blockedBy: { none: { blockerId: callerId } },
+          }),
+    },
+  };
 }

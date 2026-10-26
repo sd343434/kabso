@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,9 +8,13 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/levels/application/levels_providers.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
@@ -22,12 +27,18 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
+import 'package:kabso_live/features/profile/profile_bonds.dart';
+import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -56,6 +67,9 @@ class LiveRoomScreen extends ConsumerWidget {
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
 
+  /// v1.20-live (D105): this person was kicked out of the live.
+  static const kickedKey = Key('room.kicked');
+
   final String roomId;
 
   @override
@@ -68,7 +82,10 @@ class LiveRoomScreen extends ConsumerWidget {
 
     final room = async.value;
     final Widget body;
-    if (room != null && !async.isLoading) {
+    if (room != null && !async.isLoading && room.kicked) {
+      // Kicked out of this live (§10.20): opening it again says so.
+      body = kickedMessage(l10n, close);
+    } else if (room != null && !async.isLoading) {
       body = _RoomView(room: room, onClose: close);
     } else if (async.hasError && !async.isLoading) {
       body = _failure(l10n, toAppFailure(async.error!), close, retry);
@@ -77,6 +94,18 @@ class LiveRoomScreen extends ConsumerWidget {
     }
     return Scaffold(backgroundColor: KPalette.dark.background, body: body);
   }
+
+  /// "You were removed from this live" (v1.20-live, D105), in place of the
+  /// room.
+  static Widget kickedMessage(AppLocalizations l10n, VoidCallback close) =>
+      KRoomMessage(
+        key: kickedKey,
+        icon: Icons.logout_rounded,
+        iconColor: KPalette.dark.textSecondary,
+        title: l10n.liveKickedTitle,
+        message: l10n.liveKickedBody,
+        onClose: close,
+      );
 
   static Widget _failure(
     AppLocalizations l10n,
@@ -213,6 +242,51 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     });
   }
 
+  /// Opens [username]'s card with what this person may do in the room
+  /// (owner, 2026-10-26): points for everyone; kick and chat mute for the
+  /// host and moderators; the moderator choice for the host.
+  void _person(String username) {
+    final room = widget.room;
+    final session = ref.read(liveRoomSessionProvider(room.id));
+    final me = ref.read(currentUserProvider);
+    final mine = session.mine?.role;
+    final viewer = me != null && me.id == room.host.id
+        ? LivePersonRole.host
+        : switch (mine) {
+            LiveSeatRole.host => LivePersonRole.host,
+            LiveSeatRole.moderator => LivePersonRole.moderator,
+            _ => LivePersonRole.viewer,
+          };
+    final moderators = session.seats?.moderators ?? const <UserSummary>[];
+    final target = username == room.host.username
+        ? LivePersonRole.host
+        : moderators.any((m) => m.username == username)
+        ? LivePersonRole.moderator
+        : LivePersonRole.viewer;
+    unawaited(
+      showHostSheet(
+        context,
+        username,
+        scope: LivePersonScope(
+          roomId: room.id,
+          viewer: viewer,
+          target: target,
+          onModerator: viewer == LivePersonRole.host
+              ? (username, {required moderator}) => moderator
+                    ? _session.addModerator(username)
+                    : _session.removeModerator(username)
+              : null,
+          onKicked: () => unawaited(_session.refreshSeats()),
+          seat: session.seats?.seats
+              .where((s) => s.user?.username == username)
+              .firstOrNull,
+          onSeatMute: (index, {required muted}) =>
+              _session.mute(index, muted: muted),
+        ),
+      ),
+    );
+  }
+
   /// CP-013: what the chat offers this person.
   LiveChatViewerRole _chatRole(LiveRoomSessionState session) {
     final me = ref.read(currentUserProvider);
@@ -254,7 +328,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         roomId: widget.room.id,
         role: _chatRole(session),
         bubble: bubble ?? KAudioRoom.bubble,
-        onProfile: (username) => unawaited(showHostSheet(context, username)),
+        onProfile: _person,
       );
 
   /// The chat box while writing; it closes by itself when this person may
@@ -275,12 +349,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _writing = false;
               _chatFocus.unfocus();
             }),
-            child: LiveChatComposer(
+            child: LiveRoomComposer(
+              roomId: widget.room.id,
               controller: _chat,
               focusNode: _chatFocus,
-              hint: context.l10n.goLiveChatHint,
-              sendLabel: context.l10n.goLiveChatSend,
               onSend: _sendChat,
+              // CP-017: private messages (the Messages tab; this live
+              // closes).
+              onMessages: () =>
+                  GoRouter.maybeOf(context)?.go(AppRoutes.messages),
               onEmoji: (emoji) => unawaited(
                 sendLiveChatText(
                   context,
@@ -344,6 +421,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       );
       return;
     }
+    // A viewer taps someone on a seat: their card (owner, 2026-10-26).
+    if (seat.user case final user? when seat.state == LiveSeatState.taken) {
+      _person(user.username);
+      return;
+    }
     final signedIn = ref.read(currentUserProvider) != null;
     if (signedIn &&
         !session.seated &&
@@ -364,6 +446,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final room = widget.room;
     _start();
     final session = ref.watch(liveRoomSessionProvider(room.id));
+    // v1.20-live (D105): kicked out (the kick message, the media server's
+    // removal, LiveRoom.kicked or LIVE_KICKED): leave and say so.
+    final chatKicked = ref.watch(
+      liveChatProvider(room.id).select((c) => c.kicked),
+    );
+    if (chatKicked && !session.kicked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _session.markKicked();
+      });
+    }
     ref.listen(liveRoomSessionProvider(room.id), (previous, next) {
       // The media session dropped (the host ended the live): re-read the
       // room so the ended state shows.
@@ -383,7 +475,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (muted && !_mutedShown) KSnack.info(context, l10n.liveSeatMutedByHost);
       _mutedShown = muted;
     });
+    if (session.kicked || chatKicked) {
+      return LiveRoomScreen.kickedMessage(l10n, widget.onClose);
+    }
     final engine = _session.engine;
+    // CP-017: bullets from every live show in the chat (owner, 2026-10-26).
     return ListenableBuilder(
       listenable: engine.changes,
       builder: (context, _) => _scaffold(context, session, engine),
@@ -449,9 +545,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onFollow: canFollow
             ? () => unawaited(_setFollowing(follow: true))
             : null,
-        onTap: profile == null
-            ? null
-            : () => unawaited(showHostSheet(context, _username)),
+        onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
       viewers: room.viewerCount > 0 || score > 0
@@ -573,6 +667,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           key: AudioRoomViewKeys.request,
           icon: Icons.weekend_rounded,
           asset: 'assets/live_bar/seat.png',
+          bare: true,
           label: l10n.liveSeatRequest,
           onTap: () =>
               unawaited(runSeatAction(context, () => _session.requestSeat())),
@@ -606,7 +701,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     final n? => l10n.liveRoomNumber('$n'),
                     null => '@${host.username}',
                   },
-                  onTap: () => unawaited(showHostSheet(context, _username)),
+                  onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
                           key: AudioRoomViewKeys.follow,
@@ -674,12 +769,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     key: AudioRoomViewKeys.chat,
                     icon: Icons.chat_bubble_outline_rounded,
                     asset: 'assets/live_bar/chat.png',
+                    bare: true,
                     label: composer.hint,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
                   LiveRoundButton(
                     icon: Icons.emoji_emotions_rounded,
                     asset: 'assets/live_bar/emoji.png',
+                    bare: true,
                     label: l10n.livePreviewEmoji,
                     onTap: () => unawaited(_openChat(composer)),
                   ),
@@ -705,26 +802,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
                     asset: 'assets/live_bar/gift.png',
+                    bare: true,
                     label: l10n.liveGifts,
                     onTap: () => unawaited(_openGifts(context)),
                   ),
-                  if (session.seated)
-                    LiveRoundButton(
-                      key: AudioRoomViewKeys.mic,
-                      icon: engine.micEnabled
-                          ? Icons.mic_rounded
-                          : Icons.mic_off_rounded,
-                      asset: engine.micEnabled
-                          ? 'assets/live_room_icons/mic.png'
-                          : 'assets/live_room_icons/mic_off.png',
-                      tintAsset: true,
-                      label: engine.micEnabled
-                          ? l10n.goLiveMuteMic
-                          : l10n.goLiveUnmuteMic,
-                      onTap: () => unawaited(
-                        engine.setMicEnabled(enabled: !engine.micEnabled),
-                      ),
-                    ),
                 ],
               ),
             ],
@@ -798,6 +879,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         orElse: () =>
             LiveSeat(index: index, state: LiveSeatState.empty, user: null),
       );
+      // Owner (2026-10-26): on my own seat, a tap mutes or unmutes me.
+      if (seat != null && me != null && seat.user?.id == me) {
+        unawaited(engine.setMicEnabled(enabled: !engine.micEnabled));
+        return;
+      }
       if (seat != null) _onSeat(session, seat);
     }
 
@@ -823,28 +909,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         if (seat.user != null && engine.speaking.contains(seat.user!.id))
           seat.index,
     };
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: height * 0.55),
-      child: SingleChildScrollView(
-        child: AudioSeatRing(
-          count: count,
-          seats: seats?.seats ?? const [],
-          host: KAvatar(
-            name: host.displayName,
-            imageUrl: host.avatarUrl,
-            size: AudioSeatRing.hostSize,
-          ),
-          hostName: host.displayName,
-          hostPoints: KFormat.compact(score, context.l10n),
-          speaking: speaking,
-          onSeat: onSeat,
-        ),
+    // The room's stage scrolls, and rows of seats shrink to fit it
+    // (AudioStageBounds).
+    return AudioSeatRing(
+      count: count,
+      seats: seats?.seats ?? const [],
+      host: KAvatar(
+        name: host.displayName,
+        imageUrl: host.avatarUrl,
+        size: AudioSeatRing.hostSize,
       ),
+      hostName: host.displayName,
+      hostPoints: KFormat.compact(score, context.l10n),
+      speaking: speaking,
+      micOff: {
+        if (session.mine?.seatIndex case final mine? when !engine.micEnabled)
+          mine,
+      },
+      onSeat: onSeat,
     );
   }
 
   static Future<void> _openGifts(BuildContext context) =>
-      KGiftPanel.show(context, builder: (_) => const _GiftSheet());
+      KGiftPreviewSheet.show(context);
 }
 
 /// The localized end reason (HL-L10).
@@ -877,99 +964,381 @@ Future<void> setHostFollowing(
   }
 }
 
-/// The host's profile as a non-dimming room sheet (HL-L2 "tap opens the
-/// host mini-profile"): avatar, name, @username, followers, bio and the
-/// follow toggle, all from `GET /users/{username}`.
-Future<void> showHostSheet(BuildContext context, String username) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: KPalette.dark.surfaceRaised.withValues(alpha: 0),
-      barrierColor: KMetrics.roomSheetBarrier,
-      constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.sizeOf(context).height * KMetrics.sheetMaxHeightFactor,
-      ),
-      builder: (_) => KLiveSurface(child: _HostSheet(username: username)),
-    );
+/// A person's card in a live (owner, 2026-10-26; the host's mini-profile of
+/// HL-L2 too): a white sheet with the picture over its top edge, the name
+/// with their charm level, @username, their public levels and the medals
+/// they chose to show (CP-018), the family, relationship and gift wall boxes
+/// (the family and couple from the profile; the gift wall is coming),
+/// followers and following, Follow, and Invite to a seat (the host,
+/// [onInvite]) or their full profile. All from `GET /users/{username}` and
+/// `GET /users/{username}/levels`.
+///
+/// In a room ([scope]) the top row adds the person's points in this live
+/// (everyone), kick and chat mute (the host and moderators), make or remove
+/// moderator (the host) and ⋯ with report and block (LivePersonTools).
+Future<void> showHostSheet(
+  BuildContext context,
+  String username, {
+  LivePersonScope? scope,
+  VoidCallback? onInvite,
+  KabsoProfileHeader? header,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: const Color(0x00000000),
+  barrierColor: KMetrics.roomSheetBarrier,
+  // Owner (2026-10-26): the card never goes above the middle of the
+  // screen; the rest scrolls.
+  constraints: KMetrics.sheetConstraints(
+    maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+  ),
+  builder: (_) => _HostSheet(
+    username: username,
+    scope: scope,
+    onInvite: onInvite,
+    header: header,
+  ),
+);
+
+abstract final class _Card {
+  static const ink = Color(0xFF2E3130);
+  static const soft = Color(0xFF9A9BA5);
+  static const avatar = 92.0;
+
+  /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
+  static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
+}
 
 class _HostSheet extends ConsumerWidget {
-  const new({required this.username});
+  const new({required this.username, this.scope, this.onInvite, this.header});
 
   final String username;
+  final LivePersonScope? scope;
+  final VoidCallback? onInvite;
+
+  /// The person's header decoration on the card's top edge (owner,
+  /// 2026-10-26); null: the profile card they wear (`PublicProfile.
+  /// profileCard`, CP-019), or the plain gold edge when none.
+  final KabsoProfileHeader? header;
+
+  static const inviteKey = Key('room.userCard.invite');
+
+  /// The picture: opens the person's full profile (owner, 2026-10-26).
+  static const profileKey = Key('room.userCard.profile');
+  static const messageKey = Key('room.userCard.message');
+  static const giftKey = Key('room.userCard.gift');
+  static const copyKey = Key('room.userCard.copy');
+  static const medalsKey = Key('room.userCard.medals');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final p = context.palette;
     final text = context.textStyles;
-    final profile = ref.watch(publicProfileProvider(username)).value;
-    final bio = profile?.bio;
-    return Container(
-      key: const Key('room.hostSheet'),
-      decoration: BoxDecoration(
-        color: p.surfaceRaised,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(KRadius.xl),
+    final loaded = ref.watch(publicProfileProvider(username));
+    final profile = loaded.value;
+    final levels = ref.watch(profileLevelsProvider(username)).value ?? const [];
+    final shown = [
+      for (final l in levels)
+        if (l.level != null) l,
+    ];
+    final charm = shown
+        .where((l) => l.category == LevelCategory.attractiveness)
+        .firstOrNull
+        ?.level;
+    final onInvite = this.onInvite;
+    // CP-018: what the relationship box does for this viewer.
+    final cpAction = profile == null
+        ? BondTap.none
+        : cpTap(profile, signedIn: ref.watch(currentUserProvider) != null);
+    final scope = this.scope;
+    void close(VoidCallback then) {
+      Navigator.of(context).pop();
+      then();
+    }
+
+    Widget stat(int value, String label) => Expanded(
+      child: Column(
+        children: [
+          Text(
+            KFormat.compact(value, l10n),
+            style: text.title.copyWith(color: _Card.ink, fontSize: 20),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: text.caption.copyWith(color: _Card.soft)),
+        ],
+      ),
+    );
+    Widget action({
+      required Key key,
+      required String label,
+      required VoidCallback onTap,
+      String? asset,
+      Widget? glyph,
+    }) => Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkResponse(
+        key: key,
+        onTap: onTap,
+        radius: 32,
+        child: SizedBox(
+          width: 70,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // One 36 dp box for every icon: the gift art has a clear margin,
+              // so its drawing comes out about 28 dp, like the Message
+              // bubble (owner: same size, on one line).
+              SizedBox.square(
+                dimension: 36,
+                child: glyph ?? Image.asset(asset!, width: 36, height: 36),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.caption.copyWith(color: _Card.ink),
+              ),
+            ],
+          ),
         ),
       ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            KSpacing.xl,
-            KSpacing.sm,
-            KSpacing.xl,
-            KSpacing.xl,
-          ),
-          child: profile == null
-              ? const SizedBox(height: KSizes.avatarLg)
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: KMetrics.sheetHandleWidth,
-                      height: KMetrics.sheetHandleHeight,
-                      decoration: BoxDecoration(
-                        color: p.border,
-                        borderRadius: BorderRadius.circular(KRadius.pill),
-                      ),
-                    ),
-                    const SizedBox(height: KSpacing.lg),
-                    KAvatar(
-                      name: profile.displayName,
-                      image: _networkImage(profile.avatarUrl),
-                      size: KSizes.avatarLg,
-                    ),
-                    const SizedBox(height: KSpacing.md),
-                    Semantics(
+    );
+
+    final body = profile == null
+        ? SizedBox(
+            height: 200,
+            child: Center(
+              child: switch (loaded.error) {
+                final error? => Text(
+                  failureMessage(l10n, toAppFailure(error)),
+                  textAlign: TextAlign.center,
+                  style: text.body.copyWith(color: _Card.soft),
+                ),
+                null => const CircularProgressIndicator(),
+              },
+            ),
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Room for the picture.
+              const SizedBox(height: _Card.avatar / 2 + 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Semantics(
                       header: true,
                       child: Text(
                         profile.displayName,
-                        textAlign: TextAlign.center,
-                        style: text.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.title.copyWith(
+                          color: _Card.ink,
+                          fontSize: 20,
+                        ),
                       ),
                     ),
-                    Text(
-                      l10n.liveRoomUsername(profile.username),
-                      textDirection: TextDirection.ltr,
-                      style: text.caption,
+                  ),
+                  // Owner (2026-10-26): everyone sees that the person is the
+                  // host or a moderator of this live.
+                  if (scope?.target case final role?
+                      when role != LivePersonRole.viewer) ...[
+                    const SizedBox(width: 6),
+                    _RoleBadge(host: role == LivePersonRole.host),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              // @username, copied with one tap (the reference's ID line).
+              InkWell(
+                key: copyKey,
+                borderRadius: BorderRadius.circular(KRadius.pill),
+                onTap: () {
+                  unawaited(
+                    Clipboard.setData(
+                      ClipboardData(text: '@${profile.username}'),
                     ),
-                    const SizedBox(height: KSpacing.sm),
-                    Text(
-                      l10n.liveRoomFollowers(
-                        profile.followerCount,
-                        KFormat.compact(profile.followerCount, l10n),
+                  );
+                  KSnack.info(context, l10n.profileCopied);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.liveRoomUsername(profile.username),
+                        textDirection: TextDirection.ltr,
+                        style: text.body.copyWith(color: _Card.soft),
                       ),
-                      style: text.body.copyWith(color: p.textSecondary),
-                    ),
-                    if (bio != null && bio.isNotEmpty) ...[
-                      const SizedBox(height: KSpacing.sm),
-                      Text(bio, textAlign: TextAlign.center, style: text.body),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: _Card.soft,
+                      ),
                     ],
-                    if (profile.canFollow) ...[
-                      const SizedBox(height: KSpacing.lg),
-                      _FollowButton(
+                  ),
+                ),
+              ),
+              // Owner (2026-10-26): every level in one row, the charm level
+              // first; a long row scrolls sideways.
+              if (shown.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (charm != null)
+                          CharmLevelBadge(level: charm.levelNumber, height: 18),
+                        for (final l in shown)
+                          if (l.category != LevelCategory.attractiveness) ...[
+                            const SizedBox(width: 8),
+                            Semantics(
+                              label: '${l.name} ${l.level!.levelNumber}',
+                              excludeSemantics: true,
+                              child: KLevelBadge(
+                                category: l.category,
+                                levelNumber: l.level!.levelNumber,
+                                iconKey: l.level!.iconKey,
+                              ),
+                            ),
+                          ],
+                      ],
+                    ),
+                  ),
+                ),
+              // CP-018 (owner): the medals the person chose to show, up to
+              // six in one row under the levels; nothing when none are
+              // chosen.
+              if (profile.medals.showcase.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: MedalShowcaseRow(
+                    key: medalsKey,
+                    medals: profile.medals.showcase,
+                    size: 24,
+                    onTap: () => close(
+                      () => unawaited(
+                        context.push(
+                          profile.isSelf
+                              ? AppRoutes.medals
+                              : AppRoutes.userMedals(username),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (profile.bio case final bio? when bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    bio,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: text.body.copyWith(color: _Card.ink),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  stat(profile.followerCount, l10n.profileFollowers),
+                  stat(profile.followingCount, l10n.profileFollowingCount),
+                ],
+              ),
+              // Owner (2026-10-26; under the stats): family, relationship
+              // and gift wall as three small boxes side by side. CP-018: the
+              // family and the couple come from the profile and open what
+              // exists; the gift wall has no API yet.
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: LivePersonBoxes(
+                  familyValue: switch (profile.family) {
+                    // The box is narrow: the name only (the level is on
+                    // the family page).
+                    final f? => KFormat.bidiIsolate(f.name),
+                    null => null,
+                  },
+                  cpValue: profile.cp == null && cpAction == BondTap.sendCp
+                      ? l10n.cpSendShort
+                      : null,
+                  // Owner: the partner's picture, name and a heart.
+                  cpPartner: switch (profile.cp) {
+                    final cp? => (
+                      name: KFormat.bidiIsolate(
+                        cp.partner.displayName.isEmpty
+                            ? cp.partner.username
+                            : cp.partner.displayName,
+                      ),
+                      avatar: _networkImage(cp.partner.avatarUrl),
+                    ),
+                    null => null,
+                  },
+                  onFamily: bondAction(
+                    context,
+                    ref,
+                    profile,
+                    familyTap(profile),
+                    before: Navigator.of(context).pop,
+                  ),
+                  onCp: bondAction(
+                    context,
+                    ref,
+                    profile,
+                    cpAction,
+                    before: Navigator.of(context).pop,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: Color(0xFFEDEEF2)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  action(
+                    key: giftKey,
+                    asset: 'assets/live_bar/gift.png',
+                    label: l10n.liveGifts,
+                    onTap: () =>
+                        close(() => unawaited(KGiftPreviewSheet.show(context))),
+                  ),
+                  if (onInvite != null)
+                    action(
+                      key: inviteKey,
+                      asset: 'assets/live_bar/seat.png',
+                      label: l10n.liveSeatInviteSend,
+                      onTap: () => close(onInvite),
+                    )
+                  else if (!profile.isSelf)
+                    // Owner (2026-10-26): Message here; the picture opens
+                    // the profile.
+                    action(
+                      key: messageKey,
+                      glyph: const _MessageGlyph(),
+                      label: l10n.profileMessage,
+                      onTap: () => close(
+                        () => unawaited(
+                          context.push(
+                            AppRoutes.chat(profile.username),
+                            extra: profile.displayName,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  if (profile.canFollow)
+                    Expanded(
+                      child: _FollowButton(
                         following: profile.isFollowing,
                         onPressed: () => unawaited(
                           setHostFollowing(
@@ -980,16 +1349,246 @@ class _HostSheet extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    ],
-                  ],
+                    ),
+                ],
+              ),
+            ],
+          );
+
+    // CP-019: an explicit header wins; otherwise the profile card the person
+    // wears, once the profile is loaded (nothing is reserved before). A code
+    // this app does not know shows the plain edge.
+    final header =
+        this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
+    return LayoutBuilder(
+      builder: (context, box) {
+        // The card's top edge: under the middle of the picture, or lower when
+        // the header decoration rises higher than the picture.
+        final edge = header == null
+            ? _Card.avatar / 2
+            : math.max(_Card.avatar / 2, header.overhang(box.maxWidth));
+        return Stack(
+          key: const Key('room.hostSheet'),
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            // Attached to the bottom (not a floating card), with a gold edge.
+            Container(
+              margin: EdgeInsets.only(top: edge),
+              // The header's own bar is the edge: no gold line under it.
+              padding: EdgeInsets.only(top: header == null ? 3 : 0),
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                gradient: LinearGradient(colors: _Card.gold),
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFFFFF),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
                 ),
+                child: SafeArea(
+                  top: false,
+                  // Large text: the card scrolls instead of overflowing.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: body,
+                  ),
+                ),
+              ),
+            ),
+            if (header != null)
+              Positioned(
+                top: edge - header.overhang(box.maxWidth),
+                left: 0,
+                child: KabsoProfileHeaderArt(
+                  header,
+                  key: const Key('room.userCard.header'),
+                  width: box.maxWidth,
+                ),
+              ),
+            // The top row: points, kick, mute, moderator at the start; ⋯ at
+            // the end (owner's reference), either side of the picture.
+            if (scope != null && profile != null)
+              PositionedDirectional(
+                top: edge + 8,
+                start: 10,
+                end: 10,
+                child: LivePersonTools(
+                  scope: scope,
+                  person: (
+                    id: profile.id,
+                    username: username,
+                    name: profile.displayName,
+                  ),
+                  self: profile.isSelf,
+                  middle: _Card.avatar + 16,
+                ),
+              ),
+            // The picture in a gold ring, the charm level on a plate under it.
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: edge - _Card.avatar / 2),
+                Semantics(
+                  button: true,
+                  label: l10n.liveUserViewProfile,
+                  child: GestureDetector(
+                    key: profileKey,
+                    onTap: () => close(
+                      () => unawaited(
+                        context.push(AppRoutes.userProfile(username)),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: _Card.gold,
+                        ),
+                        boxShadow: [
+                          BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: SizedBox.square(
+                          dimension: _Card.avatar,
+                          child: KAvatar(
+                            name: profile?.displayName ?? username,
+                            image: _networkImage(profile?.avatarUrl),
+                            size: _Card.avatar,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// The card's Message button art (owner, 2026-10-26: the flat bubble looked
+/// poor): a glossy bubble in a blue-to-violet gradient with a soft shine and
+/// three white dots, sized like the gift icon beside it.
+class _MessageGlyph extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 36,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (r) => const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF6FB6FF), Color(0xFF6A5CFF)],
+          ).createShader(r),
+          child: const Icon(Icons.mode_comment_rounded, size: 33),
+        ),
+        // A soft shine on the upper part.
+        Positioned(
+          top: 7,
+          left: 9,
+          child: Container(
+            width: 10,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0x66FFFFFF),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) const SizedBox(width: 2.5),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// The host's or a moderator's badge next to the name on a person's card.
+class _RoleBadge extends StatelessWidget {
+  const new({required this.host});
+
+  final bool host;
+
+  static const badgeKey = Key('room.userCard.roleBadge');
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = host ? l10n.goLiveHostTag : l10n.liveSeatModeratorTag;
+    final colors = host
+        ? const [Color(0xFFFFC94D), Color(0xFFF29A1F)]
+        : const [Color(0xFF6FA8FF), Color(0xFF3B6FE0)];
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Container(
+        key: badgeKey,
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          gradient: LinearGradient(colors: colors),
+          boxShadow: [
+            BoxShadow(
+              color: colors.last.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              host ? Icons.mic_rounded : Icons.shield_rounded,
+              size: 13,
+              color: const Color(0xFFFFFFFF),
+            ),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: context.textStyles.caption.copyWith(
+                color: const Color(0xFFFFFFFF),
+                fontSize: 11,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Follow / Following toggle button (ended overlay, host sheet).
 class _FollowButton extends StatelessWidget {
   const new({required this.following, required this.onPressed});
 
@@ -1011,24 +1610,6 @@ class _FollowButton extends StatelessWidget {
 }
 
 /// The gift sheet's selection (sending is disabled; no combo counter).
-class _GiftSheet extends StatefulWidget {
-  const new();
-
-  @override
-  State<_GiftSheet> createState() => _GiftSheetState();
-}
-
-class _GiftSheetState extends State<_GiftSheet> {
-  String? _selected;
-
-  @override
-  Widget build(BuildContext context) => KGiftPanel(
-    gifts: KGiftPanel.preview(context.l10n),
-    selectedId: _selected,
-    onSelected: (gift) => setState(() => _selected = gift.id),
-  );
-}
-
 class _StageNote extends StatelessWidget {
   const new({required this.icon, required this.text, super.key});
 

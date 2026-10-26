@@ -11,6 +11,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -104,6 +105,11 @@ class LiveRoomChatLines extends ConsumerWidget {
   Widget _line(BuildContext context, WidgetRef ref, LiveChatItem item) {
     final l10n = context.l10n;
     return switch (item) {
+      // CP-017: a voice clip or a picture (the controller drops them at
+      // `expiresAt` and when the media is gone).
+      LiveChatPosted(:final entry)
+          when entry.kind != LiveChatKind.text && entry.media != null =>
+        _mediaLine(context, ref, entry, entry.media!),
       LiveChatPosted(:final entry) => _Tappable(
         label: l10n.liveChatLineLabel(
           entry.author.displayName,
@@ -160,6 +166,11 @@ class LiveRoomChatLines extends ConsumerWidget {
             ),
           ),
         ),
+      // CP-017 (owner, 2026-10-26): a public message, in a box of its own.
+      LiveChatBulletLine(:final bullet) => LiveChatBulletBox(
+        bullet: bullet,
+        onTap: () => onProfile(bullet.sender.username),
+      ),
       LiveChatJoinLine(:final user) => Opacity(
         opacity: 0.85,
         child: _Bubble(
@@ -171,6 +182,53 @@ class LiveRoomChatLines extends ConsumerWidget {
         ),
       ),
     };
+  }
+
+  Widget _mediaLine(
+    BuildContext context,
+    WidgetRef ref,
+    LiveChatEntry entry,
+    LiveChatMedia media,
+  ) {
+    final l10n = context.l10n;
+    final name = entry.author.displayName;
+    final voice = entry.kind == LiveChatKind.voice;
+    return _Bubble(
+      color: bubble,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The name opens the message's actions, like a text line.
+          _Tappable(
+            label: voice
+                ? l10n.liveChatVoiceLine(
+                    name,
+                    KFormat.countdown(
+                      Duration(milliseconds: media.durationMs ?? 0),
+                    ),
+                  )
+                : l10n.liveChatPictureLine(name),
+            onTap: () => unawaited(
+              showLiveChatActions(
+                context,
+                ref,
+                roomId: roomId,
+                entry: entry,
+                role: role,
+                onProfile: onProfile,
+              ),
+            ),
+            child: _message(context, name, '', entry.authorRole),
+          ),
+          const SizedBox(height: 4),
+          if (voice)
+            LiveVoiceClipPill(key: ValueKey(media.id), media: media)
+          else
+            LiveChatPictureThumb(media: media),
+        ],
+      ),
+    );
   }
 
   Widget _plain(BuildContext context, String text) => Text(
@@ -376,7 +434,11 @@ Future<void> showLiveChatActions(
         children: [
           ListTile(
             title: Text(
-              KFormat.bidiIsolate(kabiSpokenText(entry.text, l10n)),
+              KFormat.bidiIsolate(switch (entry.kind) {
+                LiveChatKind.voice => l10n.liveVoiceRecord,
+                LiveChatKind.image => l10n.liveChatPicture,
+                LiveChatKind.text => kabiSpokenText(entry.text, l10n),
+              }),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -495,5 +557,166 @@ Future<void> sendLiveChatText(
   final failure = await ref.read(liveChatProvider(roomId).notifier).send(text);
   if (failure != null && context.mounted) {
     KSnack.error(context, failureMessage(l10n, failure));
+  }
+}
+
+/// A bullet ("public message", CP-017) in the room chat (owner,
+/// 2026-10-26): a rounded purple-to-pink card with a gold rim and a soft
+/// glow, a megaphone and the "Public message" tag, the sender's picture and
+/// name, and the text. It grows in once (still with reduced motion) and
+/// then stays like a message. A tap opens the sender's card.
+class LiveChatBulletBox extends StatelessWidget {
+  const new({required this.bullet, this.onTap, super.key});
+
+  final LiveBullet bullet;
+  final VoidCallback? onTap;
+
+  static Key keyFor(String id) => Key('liveChat.bullet.$id');
+
+  static const _gold = Color(0xFFFFD66B);
+  static const _white = Color(0xFFFFFFFF);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final styles = context.textStyles;
+    final name = bullet.sender.displayName;
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final box = Container(
+      key: keyFor(bullet.id),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 7, 12, 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [Color(0xF27B4DFF), Color(0xF2C04BEA), Color(0xF2FF5FA2)],
+        ),
+        border: Border.all(color: _gold.withValues(alpha: 0.85), width: 1.2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x66C04BEA), blurRadius: 14),
+          BoxShadow(color: Color(0x33FFD66B), blurRadius: 4, spreadRadius: 1),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 2, 7, 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFE28A), Color(0xFFF2B544)],
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.campaign_rounded,
+                      size: 13,
+                      color: Color(0xFF6A3A00),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      l10n.liveBulletTag,
+                      textScaler: scaler,
+                      style: styles.caption.copyWith(
+                        fontSize: 10.5,
+                        height: 1.2,
+                        color: const Color(0xFF6A3A00),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _gold,
+                ),
+                child: KAvatar(
+                  name: name,
+                  imageUrl: bullet.sender.avatarUrl,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      KFormat.bidiIsolate(name),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: scaler,
+                      style: styles.caption.copyWith(
+                        fontSize: 12,
+                        height: 1.25,
+                        color: _gold,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      KFormat.bidiIsolate(bullet.text),
+                      textScaler: scaler,
+                      style: styles.bodyStrong.copyWith(
+                        fontSize: 14,
+                        height: 1.3,
+                        color: _white,
+                        fontWeight: FontWeight.w700,
+                        shadows: const [
+                          Shadow(color: Color(0x55000000), blurRadius: 2),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    return Semantics(
+      button: onTap != null,
+      label: l10n.liveBulletLabel(name, bullet.text),
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: reduced ? 1 : 0, end: 1),
+          duration: reduced ? Duration.zero : const Duration(milliseconds: 380),
+          curve: Curves.easeOutBack,
+          builder: (context, t, child) => Opacity(
+            opacity: t.clamp(0, 1),
+            child: Transform.scale(
+              scale: 0.85 + 0.15 * t,
+              alignment: AlignmentDirectional.centerStart,
+              child: child,
+            ),
+          ),
+          child: box,
+        ),
+      ),
+    );
   }
 }

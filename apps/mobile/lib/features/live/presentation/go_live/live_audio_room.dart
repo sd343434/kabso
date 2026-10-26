@@ -143,10 +143,15 @@ class LiveAudioRoomLayout extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: SingleChildScrollView(
-                        // The seat circle's centre 373 pt from the top.
-                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
-                        child: stage,
+                      child: LayoutBuilder(
+                        builder: (context, stageBox) => SingleChildScrollView(
+                          // The seat circle's centre 373 pt from the top.
+                          padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                          child: AudioStageBounds(
+                            height: stageBox.maxHeight - 66,
+                            child: stage,
+                          ),
+                        ),
                       ),
                     ),
                     if (chat.isNotEmpty)
@@ -211,6 +216,21 @@ class LiveAudioRoomLayout extends StatelessWidget {
   }
 }
 
+/// The height the seats have on screen (above the chat), so rows of seats
+/// can shrink to fit instead of hiding under the chat (owner, 2026-10-26).
+class AudioStageBounds extends InheritedWidget {
+  const new({required this.height, required super.child, super.key});
+
+  final double height;
+
+  static double? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AudioStageBounds>()?.height;
+
+  @override
+  bool updateShouldNotify(AudioStageBounds oldWidget) =>
+      height != oldWidget.height;
+}
+
 /// The chat box (owner's reference): a white panel across the bottom with
 /// a light rounded field, the send arrow, and a row of quick emoji that go
 /// into the field. System emoji only (no third-party stickers).
@@ -223,7 +243,24 @@ class LiveChatComposer extends StatefulWidget {
     required this.onSend,
     required this.onEmoji,
     super.key,
+    this.tools,
+    this.replaceField,
+    this.maxLength = 200,
+    this.accent = false,
   });
+
+  /// CP-017: a row of small buttons above the field (bullet, voice,
+  /// messages, picture).
+  final Widget? tools;
+
+  /// CP-017: shown instead of the field (e.g. while recording a clip).
+  final Widget? replaceField;
+
+  /// Code points the field takes (200 for chat, 60 for a bullet).
+  final int maxLength;
+
+  /// The field is outlined in the accent colour (bullet mode).
+  final bool accent;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -275,16 +312,24 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    final hasText = widget.controller.text.trim().isNotEmpty;
+    final hasText =
+        widget.replaceField != null || widget.controller.text.trim().isNotEmpty;
     return Container(
       decoration: const BoxDecoration(
         color: LiveChatComposer.panel,
         borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
       ),
-      padding: const EdgeInsets.only(top: 12, bottom: 1.4),
+      padding: EdgeInsets.only(top: widget.tools == null ? 12 : 8, bottom: 1.4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.tools case final tools?) ...[
+            Padding(
+              padding: const EdgeInsetsDirectional.symmetric(horizontal: 12.6),
+              child: tools,
+            ),
+            const SizedBox(height: 6),
+          ],
           Row(
             children: [
               const SizedBox(width: 12.6),
@@ -298,31 +343,36 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
                   decoration: BoxDecoration(
                     color: LiveChatComposer.field,
                     borderRadius: BorderRadius.circular(20.5),
+                    border: widget.accent
+                        ? Border.all(color: LiveChatComposer.sendOn, width: 1.2)
+                        : null,
                   ),
                   alignment: Alignment.center,
-                  child: TextField(
-                    key: LiveChatComposer.fieldKey,
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    maxLength: 200,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => widget.onSend(),
-                    cursorColor: LiveChatComposer.sendOn,
-                    style: text.body.copyWith(color: LiveChatComposer.ink),
-                    decoration: InputDecoration(
-                      isCollapsed: true,
-                      contentPadding: EdgeInsets.zero,
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      counterText: '',
-                      hintText: widget.hint,
-                      hintStyle: text.body.copyWith(
-                        color: LiveChatComposer.hintInk,
+                  child:
+                      widget.replaceField ??
+                      TextField(
+                        key: LiveChatComposer.fieldKey,
+                        controller: widget.controller,
+                        focusNode: widget.focusNode,
+                        maxLength: widget.maxLength,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => widget.onSend(),
+                        cursorColor: LiveChatComposer.sendOn,
+                        style: text.body.copyWith(color: LiveChatComposer.ink),
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          contentPadding: EdgeInsets.zero,
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          counterText: '',
+                          hintText: widget.hint,
+                          hintStyle: text.body.copyWith(
+                            color: LiveChatComposer.hintInk,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                 ),
               ),
               Semantics(
@@ -684,7 +734,12 @@ class LiveRoundButton extends StatelessWidget {
     this.gradient,
     this.asset,
     this.tintAsset = false,
+    this.bare = false,
   });
+
+  /// Only [asset], at the button's full size, with no circle behind it (the
+  /// owner's live bar pack, 2026-10-26).
+  final bool bare;
 
   /// A picture icon (`assets/live_room_icons/`) instead of [icon].
   final String? asset;
@@ -725,29 +780,34 @@ class LiveRoundButton extends StatelessWidget {
               isLabelVisible: badge > 0,
               backgroundColor: KAudioRoom.badge,
               label: Text(badge > 99 ? '99+' : badge.toString()),
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: Border.all(
-                    color: const Color(0x2EFFFFFF),
-                    width: size < 40 ? 1 : 1.4,
-                  ),
-                  // Coloured buttons glow in their colour; the rest lift.
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradient != null && onTap != null
-                          ? gradient!.first.withValues(alpha: 0.45)
-                          : const Color(0x59000000),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+              child: bare && asset != null
+                  ? Opacity(
+                      opacity: onTap == null ? 0.45 : 1,
+                      child: Image.asset(asset!, width: size, height: size),
+                    )
+                  : Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                        border: Border.all(
+                          color: const Color(0x2EFFFFFF),
+                          width: size < 40 ? 1 : 1.4,
+                        ),
+                        // Coloured buttons glow in their colour; the rest lift.
+                        boxShadow: [
+                          BoxShadow(
+                            color: gradient != null && onTap != null
+                                ? gradient!.first.withValues(alpha: 0.45)
+                                : const Color(0x59000000),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _icon(),
                     ),
-                  ],
-                ),
-                child: _icon(),
-              ),
             ),
           ),
         ),

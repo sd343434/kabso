@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -30,6 +31,9 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -42,7 +46,7 @@ import 'package:material_ui/material_ui.dart';
 /// - **Multi-guest:** the room theme behind a grid of 4, 6, 9 or 12 tiles,
 ///   the host's camera in the first.
 /// - **Audio:** the room theme behind the host's crowned circle and rows of
-///   seats (6, 9, 15, 20 or 25 with the host, D100).
+///   seats (5, 10, 15, 20 or 25 with the host, D103).
 ///
 /// Above: the glass title card (picture, title, guests, `#` categories,
 /// Kabi). Below: the seat count, the tools (flip, beauty, microphone,
@@ -73,6 +77,8 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
   static const audioPkKey = Key('goLive.audio.pk');
+  static const audioToolboxKey = Key('goLive.audio.toolbox');
+  static const audioGiftKey = Key('goLive.audio.gift');
   static const endConfirmKey = Key('goLive.endConfirm');
   static const doneKey = Key('goLive.done');
   static const retryKey = Key('goLive.retry');
@@ -349,8 +355,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         : LiveRoomChatLines(
             roomId: room.id,
             role: LiveChatViewerRole.host,
-            onProfile: (username) =>
-                unawaited(showHostSheet(context, username)),
+            onProfile: (username) => _person(room.id, username),
           );
     final chatComposer = _writing
         ? TapRegion(
@@ -358,12 +363,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               _writing = false;
               _chatFocus.unfocus();
             }),
-            child: LiveChatComposer(
+            child: LiveRoomComposer(
+              roomId: room?.id ?? '',
               controller: _chat,
               focusNode: _chatFocus,
-              hint: l10n.goLiveChatHint,
-              sendLabel: l10n.goLiveChatSend,
               onSend: send,
+              // CP-017: private messages; the live goes on minimized.
+              onMessages: () {
+                final router = GoRouter.maybeOf(context);
+                if (router == null) return;
+                ref.read(liveMinimizedProvider.notifier).minimize();
+                router.go(AppRoutes.messages);
+              },
               onEmoji: (emoji) {
                 if (room == null) return;
                 unawaited(
@@ -506,7 +517,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   showSeatCountSheet(
                     context,
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: seatCount!,
                     accent: art.accent,
@@ -612,7 +623,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               )
             : null,
-        seatCounts: cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25],
+        seatCounts: cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25],
         seatCount: state.seatCount!,
         onSeatCount: previewing
             ? (c) => unawaited(_guard(() => _host.setSeatCount(c)))
@@ -660,6 +671,96 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ),
               ),
             );
+      // ≡ and the toolbox open the room tools (owner, 2026-10-26).
+      void openTools() => unawaited(
+        showLiveRoomTools(
+          context,
+          // Ref 84's tools in its order: ours where they exist (the
+          // voice in the mixer's place, viewers as users, chat as
+          // comments), the rest greyed with "Soon" (owner D99).
+          room: [
+            ?byId['voice'],
+            GoLiveTool.soon(
+              id: 'music',
+              icon: Icons.music_note_rounded,
+              label: l10n.liveToolMusic,
+            ),
+            GoLiveTool.soon(
+              id: 'sounds',
+              icon: Icons.graphic_eq_rounded,
+              label: l10n.liveToolSounds,
+            ),
+            GoLiveTool.soon(
+              id: 'fluent',
+              icon: Icons.speed_rounded,
+              label: l10n.liveToolFluent,
+            ),
+            GoLiveTool.soon(
+              id: 'program',
+              icon: Icons.movie_creation_outlined,
+              label: l10n.liveToolProgramList,
+            ),
+            GoLiveTool.soon(
+              id: 'screen',
+              icon: Icons.screen_share_outlined,
+              label: l10n.liveToolShareScreen,
+            ),
+            GoLiveTool.soon(
+              id: 'youtube',
+              icon: Icons.smart_display_outlined,
+              label: l10n.liveToolYoutube,
+            ),
+            GoLiveTool.soon(
+              id: 'singing',
+              icon: Icons.mic_external_on_outlined,
+              label: l10n.liveToolSinging,
+            ),
+            GoLiveTool(
+              id: 'topic',
+              icon: Icons.forum_outlined,
+              label: l10n.liveToolTopic,
+              onTap: openRoomInfo,
+            ),
+            byId['seats']!,
+            byId['theme']!,
+          ],
+          other: [
+            ?byId['viewers'],
+            ?byId['chat'],
+            GoLiveTool.soon(
+              id: 'management',
+              icon: Icons.manage_accounts_outlined,
+              label: l10n.liveToolManagement,
+            ),
+            GoLiveTool.soon(
+              id: 'assistance',
+              icon: Icons.support_agent_rounded,
+              label: l10n.liveToolAssistance,
+            ),
+            GoLiveTool.soon(
+              id: 'recorder',
+              icon: Icons.videocam_outlined,
+              label: l10n.liveToolRecorder,
+            ),
+            GoLiveTool.soon(
+              id: 'newcomers',
+              icon: Icons.fiber_new_outlined,
+              label: l10n.liveToolNewcomers,
+            ),
+            GoLiveTool.soon(
+              id: 'data',
+              icon: Icons.insights_outlined,
+              label: l10n.liveToolDataCenter,
+            ),
+            GoLiveTool.soon(
+              id: 'time',
+              icon: Icons.alarm_rounded,
+              label: l10n.liveToolLiveTime,
+            ),
+            byId['guests']!,
+          ],
+        ),
+      );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
         header: LiveAudioRoomHeader(
@@ -753,6 +854,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           hostName: hostName,
           hostMicOn: state.micEnabled,
+          // Owner (2026-10-26): the host mutes themselves on their picture.
+          onHost: byId['mic']!.onTap,
+          hostTapLabel: state.micEnabled
+              ? l10n.goLiveMuteMic
+              : l10n.goLiveUnmuteMic,
           hostPoints: KFormat.compact(score, l10n),
           speaking: speaking,
           onSeat: onSeat,
@@ -766,12 +872,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             key: GoLiveScreen.audioChatKey,
             icon: Icons.chat_bubble_outline_rounded,
             asset: 'assets/live_bar/chat.png',
+            bare: true,
             label: l10n.goLiveChatPill,
             onTap: openChat,
           ),
           LiveRoundButton(
             icon: Icons.emoji_emotions_rounded,
             asset: 'assets/live_bar/emoji.png',
+            bare: true,
             label: l10n.livePreviewEmoji,
             onTap: openChat,
           ),
@@ -779,96 +887,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             key: GoLiveScreen.audioMoreKey,
             icon: Icons.menu_rounded,
             asset: 'assets/live_bar/menu.png',
+            bare: true,
             label: l10n.livePreviewMore,
-            onTap: () => unawaited(
-              showLiveRoomTools(
-                context,
-                // Ref 84's tools in its order: ours where they exist (the
-                // voice in the mixer's place, viewers as users, chat as
-                // comments), the rest greyed with "Soon" (owner D99).
-                room: [
-                  ?byId['voice'],
-                  GoLiveTool.soon(
-                    id: 'music',
-                    icon: Icons.music_note_rounded,
-                    label: l10n.liveToolMusic,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'sounds',
-                    icon: Icons.graphic_eq_rounded,
-                    label: l10n.liveToolSounds,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'fluent',
-                    icon: Icons.speed_rounded,
-                    label: l10n.liveToolFluent,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'program',
-                    icon: Icons.movie_creation_outlined,
-                    label: l10n.liveToolProgramList,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'screen',
-                    icon: Icons.screen_share_outlined,
-                    label: l10n.liveToolShareScreen,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'youtube',
-                    icon: Icons.smart_display_outlined,
-                    label: l10n.liveToolYoutube,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'singing',
-                    icon: Icons.mic_external_on_outlined,
-                    label: l10n.liveToolSinging,
-                  ),
-                  GoLiveTool(
-                    id: 'topic',
-                    icon: Icons.forum_outlined,
-                    label: l10n.liveToolTopic,
-                    onTap: openRoomInfo,
-                  ),
-                  byId['seats']!,
-                  byId['theme']!,
-                ],
-                other: [
-                  ?byId['viewers'],
-                  ?byId['chat'],
-                  GoLiveTool.soon(
-                    id: 'management',
-                    icon: Icons.manage_accounts_outlined,
-                    label: l10n.liveToolManagement,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'assistance',
-                    icon: Icons.support_agent_rounded,
-                    label: l10n.liveToolAssistance,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'recorder',
-                    icon: Icons.videocam_outlined,
-                    label: l10n.liveToolRecorder,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'newcomers',
-                    icon: Icons.fiber_new_outlined,
-                    label: l10n.liveToolNewcomers,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'data',
-                    icon: Icons.insights_outlined,
-                    label: l10n.liveToolDataCenter,
-                  ),
-                  GoLiveTool.soon(
-                    id: 'time',
-                    icon: Icons.alarm_rounded,
-                    label: l10n.liveToolLiveTime,
-                  ),
-                  byId['guests']!,
-                ],
-              ),
-            ),
+            onTap: openTools,
           ),
         ],
         barEnd: [
@@ -876,8 +897,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             key: GoLiveKeys.tool('requests'),
             icon: Icons.weekend_rounded,
             asset: 'assets/live_bar/seat.png',
+            bare: true,
             label: byId['requests']!.label,
-            onTap: byId['requests']!.onTap,
+            // Owner (2026-10-26): the seat button opens the room's people on
+            // the Guests tab — the requests, then who is on a seat.
+            onTap: switch ((room, byId['requests']!.onTap)) {
+              (final r?, _?) => () => unawaited(
+                _openViewers(r.id, liveSeats, guests: true),
+              ),
+              _ => null,
+            },
             badge: liveSeats?.pendingRequests ?? 0,
           ),
           // PK is not in the contract yet: the button says so.
@@ -885,18 +914,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             key: GoLiveScreen.audioPkKey,
             icon: Icons.sports_mma_rounded,
             asset: 'assets/live_bar/pk.png',
+            bare: true,
             label: l10n.goLivePk,
             onTap: () => KSnack.info(context, l10n.goLivePkSoon),
           ),
+          // Owner (2026-10-26): the toolbox and the gift box always show.
           LiveRoundButton(
-            key: GoLiveScreen.micKey,
-            icon: byId['mic']!.icon,
-            asset: state.micEnabled
-                ? 'assets/live_room_icons/mic.png'
-                : 'assets/live_room_icons/mic_off.png',
-            tintAsset: true,
-            label: state.micEnabled ? l10n.goLiveMuteMic : l10n.goLiveUnmuteMic,
-            onTap: byId['mic']!.onTap,
+            key: GoLiveScreen.audioToolboxKey,
+            icon: Icons.work_rounded,
+            asset: 'assets/live_bar/toolbox.png',
+            bare: true,
+            label: l10n.liveToolbox,
+            onTap: openTools,
+          ),
+          LiveRoundButton(
+            key: GoLiveScreen.audioGiftKey,
+            icon: Icons.card_giftcard_rounded,
+            asset: 'assets/live_bar/gift.png',
+            bare: true,
+            label: l10n.liveGifts,
+            onTap: () => unawaited(KGiftPreviewSheet.show(context)),
           ),
         ],
       );
@@ -1000,7 +1037,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                               role: LiveChatViewerRole.host,
                               bubble: KLiveColors.chatScrim,
                               onProfile: (username) =>
-                                  unawaited(showHostSheet(context, username)),
+                                  _person(room.id, username),
                             ),
                           ),
                         ],
@@ -1014,7 +1051,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   padding: const EdgeInsets.only(bottom: KSpacing.md),
                   child: GoLiveSeatCountPicker(
                     counts: state.mode == LiveRoomMode.audio
-                        ? (cfg?.seatCounts.audio ?? const [6, 9, 15, 20, 25])
+                        ? (cfg?.seatCounts.audio ?? const [5, 10, 15, 20, 25])
                         : (cfg?.seatCounts.multi ?? const [4, 6, 9, 12]),
                     selected: state.seatCount!,
                     accent: art.accent,
@@ -1148,6 +1185,53 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   Future<void> _afterSeatChange(String roomId) async =>
       ref.invalidate(liveSeatsProvider(roomId));
 
+  /// [username]'s card, seen by the host (owner, 2026-10-26): points, kick,
+  /// chat mute, make or remove moderator, report and block; Invite to a
+  /// seat when [onInvite] is given.
+  Future<void> _person(
+    String roomId,
+    String username, {
+    bool? moderator,
+    VoidCallback? onInvite,
+    ValueChanged<bool>? onModeratorChanged,
+  }) {
+    // Seat rooms know their moderators; a SOLO live reads no seats.
+    final seats = liveSeatsProvider(roomId);
+    final current = ref.exists(seats) ? ref.read(seats).value : null;
+    final moderators = current?.moderators ?? const <UserSummary>[];
+    final seat = current?.seats
+        .where((s) => s.user?.username == username)
+        .firstOrNull;
+    final isModerator =
+        moderator ?? moderators.any((m) => m.username == username);
+    final repo = ref.read(liveRepositoryProvider);
+    return showHostSheet(
+      context,
+      username,
+      onInvite: onInvite,
+      scope: LivePersonScope(
+        roomId: roomId,
+        viewer: LivePersonRole.host,
+        target: isModerator ? LivePersonRole.moderator : LivePersonRole.viewer,
+        onModerator: (username, {required moderator}) async {
+          if (moderator) {
+            await repo.addModerator(roomId, username);
+          } else {
+            await repo.removeModerator(roomId, username);
+          }
+          onModeratorChanged?.call(moderator);
+          await _afterSeatChange(roomId);
+        },
+        onKicked: () => unawaited(_afterSeatChange(roomId)),
+        seat: seat,
+        onSeatMute: (index, {required muted}) async {
+          await repo.muteSeat(roomId, index, muted: muted);
+          await _afterSeatChange(roomId);
+        },
+      ),
+    );
+  }
+
   Future<void> _seatActions(String roomId, LiveSeats seats, int index) {
     final repo = ref.read(liveRepositoryProvider);
     final seat = seats.seats.firstWhere(
@@ -1202,26 +1286,49 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// Who is watching: invite to a seat, make or remove moderators.
-  Future<void> _openViewers(String roomId, LiveSeats? seats) =>
-      showInviteViewers(
-        context,
-        roomId: roomId,
-        moderators: seats?.moderators ?? const [],
-        seated: seats?.seats ?? const [],
-        onInvite: (username) async {
-          await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
-          await _afterSeatChange(roomId);
-        },
-        onModerator: (username, {required moderator}) async {
-          final repo = ref.read(liveRepositoryProvider);
-          if (moderator) {
-            await repo.addModerator(roomId, username);
-          } else {
-            await repo.removeModerator(roomId, username);
-          }
-          await _afterSeatChange(roomId);
-        },
-      );
+  Future<void> _openViewers(
+    String roomId,
+    LiveSeats? seats, {
+    bool guests = false,
+  }) {
+    final repo = ref.read(liveRepositoryProvider);
+    return showInviteViewers(
+      context,
+      roomId: roomId,
+      moderators: seats?.moderators ?? const [],
+      seated: seats?.seats ?? const [],
+      initialTab: guests ? 1 : 0,
+      onPerson: (u, {required moderator, onInvite, onModeratorChanged}) =>
+          _person(
+            roomId,
+            u.username,
+            moderator: moderator,
+            onInvite: onInvite,
+            onModeratorChanged: onModeratorChanged,
+          ),
+      onAccept: (r) async {
+        await repo.acceptSeatRequest(roomId, r.id);
+        await _afterSeatChange(roomId);
+      },
+      onDecline: (r) async {
+        await repo.declineSeatRequest(roomId, r.id);
+        await _afterSeatChange(roomId);
+      },
+      onInvite: (username) async {
+        await ref.read(liveRepositoryProvider).inviteToSeat(roomId, username);
+        await _afterSeatChange(roomId);
+      },
+      onModerator: (username, {required moderator}) async {
+        final repo = ref.read(liveRepositoryProvider);
+        if (moderator) {
+          await repo.addModerator(roomId, username);
+        } else {
+          await repo.removeModerator(roomId, username);
+        }
+        await _afterSeatChange(roomId);
+      },
+    );
+  }
 
   Future<void> _openRequests(String roomId) {
     final repo = ref.read(liveRepositoryProvider);

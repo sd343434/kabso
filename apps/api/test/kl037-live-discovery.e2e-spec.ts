@@ -114,13 +114,18 @@ describe('KL-037 contract coverage', () => {
             'tapLiveRoom',
             // CP-016 A (v1.13-live draft): the popularity board; kl071-live-rankings covers it.
             'listLiveRankings',
+            // CP-017 (v1.19-live draft): bullet messages; kl077-wallet-bullets-chat-media covers it.
+            'sendLiveBullet',
+            // CP-018 (v1.21-live draft): a user's medals; kl079-families-cp-medals covers it.
+            'listUserMedals',
           ].includes(o.operationId),
       )
       .filter(
         (o) =>
           // CP-013 (v1.9-live draft) adds the chat operations; kl067-live-chat covers them.
           // CP-014 (v1.10-live draft) adds listLiveContributors; kl068-live-room-edit covers it.
-          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors)(\/|$)/.test(
+          // v1.20-live (D105) adds kicks and one person's contribution; kl078-live-kicks covers them.
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors|kicks)(\/|$)/.test(
             o.path,
           ),
       )
@@ -232,7 +237,7 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
           'heart-garden',
           'galaxy',
         ],
-        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [6, 9, 15, 20, 25] },
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] },
       });
     });
 
@@ -312,6 +317,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         roomNumber: expect.any(Number),
         // CP-016 D (§10.18): no charm category in this database → no level.
         roomLevel: null,
+        // v1.20-live (D105): the host is never kicked (kl078 covers kicks).
+        kicked: false,
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },
@@ -852,6 +859,12 @@ describe('KL-037 public profile and follow', () => {
       isMuted: false,
       isSelf: false,
       liveRoomId: null,
+      // v1.21-live (CP-018): no family or couple; the catalogue is empty in this database.
+      family: null,
+      cp: null,
+      medals: { owned: 0, total: 0, latest: [], showcase: [] },
+      // v1.22-live (CP-019): the bag catalogue is empty in this database, so nothing is worn.
+      profileCard: null,
     });
     const self = await profile(target, target.username);
     expectContract(self, 'getPublicProfile');

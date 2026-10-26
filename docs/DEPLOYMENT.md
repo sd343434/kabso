@@ -532,6 +532,73 @@ a `CONNECTION LIMIT`.
   custom domain and API token (B12), and an image-moderation provider (B13; until then photo
   posts are visible only to their author, CONVENTIONS §11.2).
 
+### 5.4 Coins (migration `20261108090000_wallet_and_bullets`, CP-017, D104) — [IMPLEMENTED, draft contract]
+
+- Additive: `wallets` (one balance per user, 0 without a row), `wallet_ledger` (every change;
+  append-only for the runtime group, like `points_ledger`) and `live_bullets`. Bullet messages
+  cost 15 coins (CONVENTIONS §10.19). There is no purchase yet (B5): coins are granted only by an
+  admin with the migration role.
+- `pnpm wallet:admin grant <email> <coins>` adds coins (a positive whole number, at most 10^9 per
+  command); `revoke <email> <coins>` takes them back (refused if the balance is smaller);
+  `balance <email>` prints it. Every grant and revoke writes a ledger row and an audit log row
+  (`wallet.grant` / `wallet.revoke`) in one transaction. The tool is built into the API image as
+  `dist/cli/wallet-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/wallet-admin.js grant someone@example.com 100
+  docker compose --profile jobs run --rm migrate node dist/cli/wallet-admin.js balance someone@example.com
+  ```
+- Voice clips and images of the live chat (migration `20261108100000_live_chat_media`) are
+  deleted by the live sweeper 60 s after they were sent (`LIVE_SWEEP_INTERVAL_SECONDS` cadence);
+  they need `MEDIA_UPLOADS_ENABLED` like every upload.
+
+### 5.5 Families, CP couples and medals (migrations `20261110090000_families_cp_medals_enums`, `20261110100000_families_cp_medals`, `20261110110000_medal_showcase`; CP-018, D106) — [IMPLEMENTED, draft contract]
+
+- Additive. The first migration only adds enum values (`wallet_ledger_reason`: `FAMILY_CREATE`,
+  `CP_REQUEST`, `CP_REFUND`, `CP_GIFT`; `notification_type`: five CP-018 types), because PostgreSQL
+  cannot use a value added in the same transaction; the second creates the family, CP and medal
+  tables, replaces the `wallet_ledger_reason_sign` and `media_assets_kind_known` CHECKs, seeds the
+  medal catalogue (9 medals) and makes `family_points_ledger` append-only for the runtime group;
+  the third adds `user_medals.showcase_position`. Apply them in order with the usual
+  `migrate` job (§5); no data is rewritten.
+- New server config `BONDS_SWEEP_INTERVAL_SECONDS` (default 300; `0` disables it and is refused in
+  production): the sweeper that expires family join requests and CP requests after 7 days and gives
+  the CP request's 99 coins back. New rate-limit settings `RATE_LIMIT_FAMILY_WRITE_USER` (60/3600),
+  `RATE_LIMIT_CP_WRITE_USER` (30/3600), `RATE_LIMIT_CP_GIFT_USER` (30/60), all optional.
+- **Medals backfill, once after the deploy** (medals are awarded automatically from then on):
+  `pnpm medals:admin backfill [--notify]` awards every medal earned by past events (hosted lives
+  and hours, charm levels, family members, couples, bullet senders). Idempotent (a second run
+  awards nothing); writes one `medals.backfill` audit row; without `--notify` it sends no
+  notifications (recommended for the first run, so old events do not flood inboxes). Built into
+  the API image as `dist/cli/medals-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/medals-admin.js backfill
+  ```
+
+### 5.6 The bag (migration `20261111090000_bag`; CP-019, D107) — [IMPLEMENTED, draft contract]
+
+- Additive: creates `bag_items` (the catalogue, seeded with `bunny_royal` (free), `kabi_royal`,
+  `golden_stags`, `emerald_wings`) and `user_bag_items` (owned items, at most one worn per user and
+  category), with the enums `bag_category` and `bag_item_source`. Apply it with the usual
+  `migrate` job (§5); no new server config, no new rate-limit setting (`PUT /me/bag/equipped`
+  uses `RATE_LIMIT_FAMILY_WRITE_USER`).
+- **Backfill inside the migration (no separate step):** every account that exists when it runs
+  and is not deleted receives `bunny_royal` (source `BACKFILL`) and wears it (owner D107: those
+  users never chose to take it off). It is one `INSERT … SELECT` over `users` in the migration's
+  transaction; it skips accounts that already own the item, so it never puts back an item someone
+  took off. Accounts created afterwards receive and wear it at signup, in the account's
+  transaction.
+- **Granting the other items** (no store yet): `pnpm bag:admin grant <email> <code>`,
+  `revoke <email> <code>`, `list <email>`. Runs as the migration role; granting does not change
+  what the user wears; each change writes a `bag.grant` / `bag.revoke` audit row. Built into the
+  API image as `dist/cli/bag-admin.js`; on the server, from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js grant someone@example.com emerald_wings
+  docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js list someone@example.com
+  ```
+
 ## 6. Observability baseline
 
 | Item | Status |

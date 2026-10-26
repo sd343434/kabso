@@ -42,6 +42,9 @@ export enum AuditAction {
   // v1.14-live (DRAFT, CP-016 C): the host announced or cancelled a scheduled live.
   LIVE_SCHEDULE_CREATE = 'live.schedule.create',
   LIVE_SCHEDULE_DELETE = 'live.schedule.delete',
+  // v1.20-live (DRAFT, D105): the host or a moderator kicked someone out of a live, or undid it.
+  LIVE_KICK = 'live.kick',
+  LIVE_KICK_UNDO = 'live.kick.undo',
   // v1.4-levels (DRAFT, CP-005): every admin mutation of the level systems.
   LEVELS_CATEGORY_UPDATE = 'levels.category.update',
   LEVELS_VERSION_CREATE = 'levels.version.create',
@@ -55,6 +58,19 @@ export enum AuditAction {
   LEVELS_PERMISSION_REVOKE = 'levels.permission.revoke',
   // v1.5-social (CP-006 M1): moderation of reports (CONVENTIONS §11.7).
   MODERATION_REPORT_ACTION = 'moderation.report.action',
+  // v1.19-live (DRAFT, CP-017): coins granted or taken back by an admin (`wallet-admin`).
+  WALLET_GRANT = 'wallet.grant',
+  WALLET_REVOKE = 'wallet.revoke',
+  /** v1.21-live (CP-018): a family was created, handed over, disbanded, or a member removed. */
+  FAMILY_CREATE = 'family.create',
+  FAMILY_TRANSFER = 'family.transfer',
+  FAMILY_DISBAND = 'family.disband',
+  FAMILY_MEMBER_REMOVE = 'family.member.remove',
+  /** v1.21-live (CP-018): `medals-admin backfill` ran. */
+  MEDALS_BACKFILL = 'medals.backfill',
+  /** v1.22-live (CP-019): a bag item granted or taken back by an admin (`bag-admin`). */
+  BAG_GRANT = 'bag.grant',
+  BAG_REVOKE = 'bag.revoke',
 }
 
 export interface AuditEntry {
