@@ -42,7 +42,7 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
     nameEn: '10 live hours',
     descriptionAr: 'استضفت 10 ساعات من البث المباشر.',
     descriptionEn: 'Hosted 10 hours of lives.',
-    iconKey: 'medal_live_hours_10',
+    iconKey: 'medal_live_hours_10', // gitleaks:allow (an asset name)
     sortOrder: 20,
   },
   {
@@ -51,7 +51,7 @@ export const MEDAL_CATALOGUE: readonly MedalDef[] = [
     nameEn: '100 live hours',
     descriptionAr: 'استضفت 100 ساعة من البث المباشر.',
     descriptionEn: 'Hosted 100 hours of lives.',
-    iconKey: 'medal_live_hours_100',
+    iconKey: 'medal_live_hours_100', // gitleaks:allow (an asset name)
     sortOrder: 30,
   },
   {
