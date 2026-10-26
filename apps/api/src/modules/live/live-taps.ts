@@ -4,7 +4,8 @@
  * Per caller and room: a batch adds at most `10 × seconds since the caller's last counted batch`
  * (whole and part seconds, millisecond precision), at most 10 for the caller's first batch in the
  * room, never more than the batch's `count`, and the caller's counted taps in the room never go
- * above 10 000. The host's own taps count 0. Taps past a limit are dropped (not an error).
+ * above 10 000. Taps past a limit are dropped (not an error). D120 (owner, 2026-10-26): the
+ * host's own taps count like anyone's, under the same limits (they counted 0 before).
  */
 
 /** Taps a caller may add per second. */
@@ -27,8 +28,6 @@ export interface TapperState {
 export interface TapBatch {
   /** Taps in the batch (1–50, validated by the request schema). */
   readonly count: number;
-  /** The caller hosts the room: their taps count 0. */
-  readonly isHost: boolean;
   readonly tapper: TapperState | null;
   readonly now: Date;
 }
@@ -38,7 +37,6 @@ export interface TapBatch {
  * counts as no time passed.
  */
 export function acceptedTaps(batch: TapBatch): number {
-  if (batch.isHost) return 0;
   const count = Math.max(0, Math.floor(batch.count));
   let allowance: number;
   let counted = 0;
@@ -53,7 +51,10 @@ export function acceptedTaps(batch: TapBatch): number {
   return Math.min(count, allowance, left);
 }
 
-/** CP-016 D (D101, §10.18): counted taps of one viewer in one live per charm point of the host. */
+/**
+ * CP-016 D (D101, §10.18): counted taps of one person in one live per charm point of the host
+ * (D120: the host's own taps too).
+ */
 export const TAPS_PER_CHARM_POINT = 10;
 
 /**

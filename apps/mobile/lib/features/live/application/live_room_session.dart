@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -113,8 +114,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   late LiveRepository _repo;
   LiveRoomMode _mode = LiveRoomMode.solo;
   Timer? _poll;
-  Timer? _tapFlush;
-  int _pendingTaps = 0;
+  LiveTapBatcher? _taps;
   StreamSubscription<String>? _invites;
   StreamSubscription<LiveChatEvent>? _kicks;
   bool _refreshing = false;
@@ -142,7 +142,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     });
     ref.onDispose(() {
       _poll?.cancel();
-      _tapFlush?.cancel();
+      _taps?.close();
       unawaited(_invites?.cancel());
       unawaited(_kicks?.cancel());
       _engine.changes.removeListener(_onChanges);
@@ -152,29 +152,19 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   }
 
   /// CP-012: one tap to cheer the host. Taps are sent in batches, at most
-  /// one request a second and 50 taps a batch; the server counts at most 10
-  /// a second and 10 000 a live and answers with the room's score.
-  void tap() {
-    _pendingTaps++;
-    _tapFlush ??= Timer(const Duration(seconds: 1), _flushTaps);
-  }
-
-  Future<void> _flushTaps() async {
-    _tapFlush = null;
-    final count = _pendingTaps < 50 ? _pendingTaps : 50;
-    if (count == 0) return;
-    _pendingTaps -= count;
-    try {
-      final result = await _repo.tap(roomId, count);
-      if (ref.mounted) state = state.copyWith(score: result.score.total);
-    } on Object catch (e) {
-      // Best effort: a lost batch only loses points, never the room.
+  /// one request a second and 50 taps a batch ([LiveTapBatcher]); the server
+  /// counts at most 10 a second and 10 000 a live and answers with the
+  /// room's score.
+  void tap() => (_taps ??= LiveTapBatcher(
+    send: (count) => _repo.tap(roomId, count),
+    onScore: (total) {
+      if (ref.mounted) state = state.copyWith(score: total);
+    },
+    // Best effort: a lost batch only loses points, never the room.
+    onError: (e) {
       if (toAppFailure(e).code == ErrorCode.liveKicked) markKicked();
-    }
-    if (ref.mounted && _pendingTaps > 0) {
-      _tapFlush ??= Timer(const Duration(seconds: 1), _flushTaps);
-    }
-  }
+    },
+  )).tap();
 
   /// Joins the media session of [room] (once).
   Future<void> start(LiveRoom room) async {
@@ -216,8 +206,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
     if (!ref.mounted || state.kicked) return;
     state = state.copyWith(kicked: true, publishing: false);
     _poll?.cancel();
-    _tapFlush?.cancel();
-    _pendingTaps = 0;
+    _taps?.close();
     unawaited(_engine.stop().then((_) {}, onError: (_) {}));
   }
 

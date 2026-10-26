@@ -104,6 +104,9 @@ info:
     (`FAMILY_COVER`) and tagline, `Family.pendingRequestCount`, and the family chat (members
     only, polled; delete, mute, report target `FAMILY_CHAT_MESSAGE`, code `FAMILY_CHAT_MUTED`)
     (CONVENTIONS §10.25).
+    **D120 (DRAFT v1.25.1-live)** counts the host's own taps on their live like a viewer's (the
+    score, the popularity board and the host's charm points, under the same per-person limits);
+    no shape changes (CONVENTIONS §10.10, §10.18).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1098,8 +1101,9 @@ paths:
         CONVENTIONS §10.10. Signed-in callers only (a guest → 401). The app batches taps and
         sends at most one request a second. Counted per caller and room: at most 10 a second
         (a batch adds at most 10 × the seconds since the caller's last counted batch, and at
-        most 10 for the first one) and at most 10 000 in the live. The host's own taps count 0;
-        seated guests and moderators count like any viewer. Taps past a limit are dropped and
+        most 10 for the first one) and at most 10 000 in the live. *(v1.25.1-live, D120)* The
+        host's own taps count like a viewer's, under the same limits (before: 0); seated guests
+        and moderators count like any viewer. Taps past a limit are dropped and
         the answer is still 200, with `accepted` below `count`. Ended room → 409
         `LIVE_ROOM_ENDED`; a room the caller may not see → 404. v1.20-live (D105): a caller
         kicked out of this live → 403 `LIVE_KICKED` (after the 409).
@@ -6063,7 +6067,7 @@ components:
       type: string
       enum: [EARN, REVERSAL, ADJUSTMENT]
     PointsSourceType:
-      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; LIVE_TAPS for a viewer's taps in a live (v1.17-live, CONVENTIONS §10.18); ADMIN for manual adjustments; CONFIG for recalculations.
+      description: GIFT_RECEIVED/GIFT_SENT/LUCKY_GIFT_SENT/GAME_SPEND for activity; LIVE_TAPS for a viewer's taps in a live (v1.17-live; v1.25.1-live, D120, the host's own taps too; CONVENTIONS §10.18); ADMIN for manual adjustments; CONFIG for recalculations.
       type: string
       enum: [GIFT_RECEIVED, GIFT_SENT, LUCKY_GIFT_SENT, GAME_SPEND, LIVE_TAPS, ADMIN, CONFIG]
     PointsEntry:

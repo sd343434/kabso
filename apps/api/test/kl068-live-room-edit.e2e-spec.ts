@@ -402,7 +402,8 @@ describe('CP-014 editing a live and the Contribution list', () => {
         ctx.http.post(`/api/v1/live/rooms/${roomId}/taps`).set(auth(u)).send({ count });
       expect((await tap(a, 4)).body.accepted).toBe(4);
       expect((await tap(b, 9)).body.accepted).toBe(9);
-      expect((await tap(owner, 10)).body.accepted).toBe(0); // the host's taps count 0
+      // D120: the host's own taps count (the score), but the host is not their own supporter.
+      expect((await tap(owner, 10)).body.accepted).toBe(10);
       clock.advance(1);
       expect((await tap(a, 7)).body.accepted).toBe(7);
 

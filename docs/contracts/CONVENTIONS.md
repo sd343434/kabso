@@ -480,6 +480,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.25.1-live (draft) | 2026-10-26 | **D120 (owner):** `tapLiveRoom` counts the host's own taps like a viewer's (before: 0): the room score, the popularity board, and 1 charm point (`LIVE_TAPS`) for every 10 counted taps, under the same per-person limits (10 a second, 10 000 a live); the host is still not in their own Contribution list. App: every tap pops one of all ten tap characters at random (D101's reached-tiers rule withdrawn), and the host's screen has the tap layer. §10.10, §10.18. | **Behaviour only** (no shape change): a host's batch now answers `accepted` > 0, and a host's score and charm level can move from their own taps. |
 | v1.25-live (draft) | 2026-10-26 | **CP-022 (D116, owner 2026-10-26: "the look + the missing basics"):** families v2. Tag `families`: `listFamilyRankings` (`GET /families/rankings?board=PRESTIGE\|ACTIVE`, `FamilyRankings`, `FamilyRankingEntry`, `FamilyRankingBoard`), `getFamilyStanding` (`GET /families/{familyId}/rankings`, `FamilyStanding`, `FamilyBoardStanding`), `listFamilyContributions` (`GET /families/{familyId}/contributions`, `FamilyContributions`, `FamilyContribution`), `listFamilyChat` / `sendFamilyChatMessage` (`GET` / `POST /families/{familyId}/chat`, `FamilyChatPage`, `FamilyChatMessage`, `FamilyChatSendRequest`), `deleteFamilyChatMessage`, `muteFamilyChatMember` / `unmuteFamilyChatMember` (`PUT` / `DELETE …/chat/mutes/{username}`); `listFamilyMembers` gains `sort=ROLE\|POINTS` and `q`; `FamilyMember.monthPoints`, `presence` (`FamilyPresence`), `chatMuted` (required) and `rank` (with `sort=POINTS`); `Family.coverUrl`, `tagline`, `pendingRequestCount` (required); `UpdateFamilyRequest` fields all optional (at least one) with `coverMediaId`, `tagline`; `PrivacySettings.showActivityStatus` (required) / `UpdatePrivacyRequest.showActivityStatus`; `MediaKind.FAMILY_COVER`; report `targetType: FAMILY_CHAT_MESSAGE`; code `FAMILY_CHAT_MUTED` (403). Server config `RATE_LIMIT_FAMILY_CHAT_USER`. §4, §7, §8, §10.21, §10.25, §11.1, §11.7. | **Additive** (new operations, schemas, fields, codes and enum values; `UpdateFamilyRequest` relaxes `emblemMediaId` from required to optional; new required response fields: strict clients update their models in the same change set). |
 | v1.24.4-live (draft) | 2026-10-26 | **D119 (owner: "make the chat text like this"):** `LiveChatMessage.authorBadges` (`LiveChatAuthorBadges` `{charmLevel, supportLevel, family}`, `LiveChatAuthorFamily` `{name, level}`; required in responses and in the `chat` data message) on `sendLiveChatMessage`, `listLiveChatMessages` and topic `chat`: the author's charm (`ATTRACTIVENESS`) and `SUPPORT` level numbers (null while a category is unavailable) and family (null when none), as they are now, cached up to 30 s per API instance. §10.11. | **Additive** (a new response field; older apps ignore it, the app reads a missing one as no badges). |
 | v1.24.3-live (draft) | 2026-10-26 | **D117 (owner: the gift panel exactly like the reference):** `Gift.tag` (`GiftTag` `{code, name}` or null, required in responses) on `getGiftCatalogue` and `getMyGiftBag`: a gift's optional sub-category, Arabic and English names, shown as chips under the panel's tabs; `gift-admin add|update … --tag <code> --tag-ar <text> --tag-en <text>`, `--tag none`; `GiftCatalogue.version` moves with a tag. Migration `20261116090000_gift_tags` (nullable columns, CHECKs `gifts_tag_complete`, `gifts_tag_code_format`, `gifts_tag_names_present`). §10.23. | **Additive** (a new response field older apps ignore; existing gifts have no tag). |
@@ -871,8 +872,10 @@ until a media provider is wired in.
   else changes the score. `LiveScore.total` = `tapPoints` + `supportPoints`. The score
   belongs to one room: a new live starts at 0 and an ended room keeps its score.
 - **Who may tap:** signed-in callers who may see the room. Guests without an account → 401
-  (owner D95). The host's own taps count 0. Seated guests and moderators count like any
-  viewer (owner D95).
+  (owner D95). Seated guests and moderators count like any viewer (owner D95). *(v1.25.1-live,
+  owner D120: the host's own taps count like a viewer's — the score, the popularity board
+  (§10.15) and the host's charm points (§10.18) — under the same counting rules below; before,
+  they counted 0. The host is still never listed in their own Contribution list, §10.12.)*
 - **Counting (per caller and room, in the same transaction as the score update):**
   - **10 a second:** a batch adds at most `10 × seconds since the caller's last counted
     batch` (whole and part seconds), at most 10 for the caller's first batch in the room,
@@ -885,7 +888,8 @@ until a media provider is wired in.
 - **Hub:** `LiveRoomSummary.score` is on every card; `popular` orders by it (§10.4) so rooms
   compete to rise (owner D95).
 - **Levels:** the score itself counts towards no level. *(v1.17-live, owner D101: a viewer's
-  counted taps also give the host charm points, §10.18; the score is unchanged.)*
+  counted taps also give the host charm points, §10.18; the score is unchanged. v1.25.1-live,
+  D120: the host's own counted taps too.)*
 - **Abuse watch:** each caller's counted taps per room are kept (`live_room_tappers`) for
   admins looking into a suspicious room. *(v1.10-live, owner D97: the top 50 are public as the
   Contribution list, §10.12.)*
@@ -1076,7 +1080,9 @@ until a media provider is wired in.
   is unavailable, and taps lost that way are not credited later.
 - **Limit (owner D101):** **10 000 taps per viewer in each live** — the counting limit of §10.10.
   One viewer therefore gives a host at most 1 000 charm points per live; there is no daily cap
-  across lives. The host's own taps give nothing (they count 0, §10.10).
+  across lives. *(v1.25.1-live, owner D120: the host's own taps count like a viewer's — 10
+  counted taps = 1 charm point, at most 10 000 taps, so 1 000 points, a live; before, they gave
+  nothing.)*
 - **Gifts** (L3) add charm points by the CP-005 rules (`GIFT_RECEIVED`); *built in v1.23-live
   (§10.23): when the host receives a gift, their charm level (the room level) may move, and the
   room's info version goes up as for taps.*
@@ -1084,6 +1090,16 @@ until a media provider is wired in.
   (§10.12), so apps read the room again and show the new level.
 - Apps draw the level with the owner's ten charm tiers (levels 1–10, 11–20 … 91–100); a level
   above 100 uses the last tier.
+- *(owner D120, app only)* **Tap characters:** every tap on a live (a viewer's or the host's)
+  pops one of **all ten** tap characters of the owner's tap pack (`assets/taps/tap_01…tap_10`)
+  at random, whatever the room level (D101's "only the tiers the host has reached" is
+  withdrawn); every 10th tap of a combo is still a big pop. The host's screen has the same tap
+  layer as a viewer's: a tap on an empty part of the stage cheers, and seats, buttons, the chat
+  and person cards keep their own taps. Wherever the finger taps, the characters do not fly
+  over the live: they rise in one narrow lane (72 pt wide, 12 pt from the **physical right**
+  edge in Arabic and English) that starts just above the bottom bar or chat input, 200–260 pt
+  high, with a small sway, and fade; they are drawn over the chat without taking its taps. A
+  character is 19 pt (half the first 38 pt), the big pop 1.7 × that.
 
 ### 10.19 Coins, bullet messages, voice clips and images *(v1.19-live, DRAFT — CP-017, D104)*
 

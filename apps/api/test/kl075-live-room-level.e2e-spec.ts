@@ -159,7 +159,7 @@ describe('CP-016 D room level and charm points from taps', () => {
       ]);
     });
 
-    it("the level is the host's: it carries over to the next live, and the host's own taps give nothing", async () => {
+    it("the level is the host's: it carries over to the next live; D120: the host's own taps count", async () => {
       const [h, viewer] = [await host(), await signup()];
       const first = await goLive(h);
       await tap(first, viewer, 10); // a first batch counts at most 10 (§10.10)
@@ -171,8 +171,34 @@ describe('CP-016 D room level and charm points from taps', () => {
       const read = await room(second, viewer);
       expect(read.roomLevel).toBe(3);
       expect(read.score).toBe(0);
-      expect((await tap(second, h, 50)).accepted).toBe(0);
-      expect((await charmEntries(h)).length).toBe(2);
+      // D120 (owner): the host's own taps count like a viewer's: a first batch counts at most 10,
+      // and every 10 counted taps of the host give the host 1 charm point.
+      expect((await tap(second, h, 50)).accepted).toBe(10);
+      expect((await tap(second, h, 10)).accepted).toBe(10);
+      const entries = await charmEntries(h);
+      expect(entries.map((e) => e.sourceTransactionId)).toEqual([
+        `taps:${first}:${viewer.id}:1`,
+        `taps:${first}:${viewer.id}:5`,
+        `taps:${second}:${h.id}:1`,
+        `taps:${second}:${h.id}:2`,
+      ]);
+      expect((await room(second, viewer)).score).toBe(20);
+    });
+
+    it('D120: the host has the same 10 000 a live as a viewer (1 000 points)', async () => {
+      const h = await host();
+      const roomId = await goLive(h);
+      await tap(roomId, h, 10);
+      await ctx.prisma.liveRoomTapper.update({
+        where: { roomId_userId: { roomId, userId: h.id } },
+        data: { counted: MAX_TAPS_PER_ROOM - 5, points: MAX_TAPS_PER_ROOM - 5 },
+      });
+      expect((await tap(roomId, h, 50)).accepted).toBe(5); // 1 point at 10 000
+      expect((await tap(roomId, h, 50)).accepted).toBe(0);
+      expect((await charmEntries(h)).map((e) => e.sourceTransactionId)).toEqual([
+        `taps:${roomId}:${h.id}:1`,
+        `taps:${roomId}:${h.id}:1000`,
+      ]);
     });
 
     it('the owner limit: a viewer gives at most 10 000 taps a live, so 1 000 points', async () => {

@@ -584,9 +584,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final ended = room.status == LiveRoomStatus.ended;
     if (ended && canFollow && !following) _endedOfferedFollow = true;
 
-    // CP-012: signed-in viewers other than the host tap to cheer (D95).
+    // CP-012: signed-in people tap to cheer (D95); D120 (owner): the host's
+    // own taps count too.
     final me = ref.watch(currentUserProvider);
-    final canTap = !ended && me != null && me.id != host.id;
+    final canTap = !ended && me != null;
     final score = engine.score ?? session.score ?? room.score;
     final composer = liveChatComposerHint(
       l10n,
@@ -610,8 +611,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
           : LiveTapLayer(
               onTap: canTap ? _session.tap : null,
-              // D101: only the charm tiers the host has reached.
-              maxTier: CharmTier.of(room.roomLevel ?? 1).number,
+              // D120: the lane starts just above the chat input.
+              laneBottomInset: 120,
               child: _video(session, engine),
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
@@ -769,8 +770,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         // would never be hit); seats, buttons and the chat keep their taps.
         child: LiveTapLayer(
           onTap: canTap ? _session.tap : null,
-          // D101: only the charm tiers the host has reached.
-          maxTier: CharmTier.of(room.roomLevel ?? 1).number,
+          // D120: the lane starts just above the room's bar.
+          laneBottomInset: 56,
           child: Stack(
             fit: StackFit.expand,
             children: [

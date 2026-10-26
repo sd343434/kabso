@@ -1120,9 +1120,8 @@ void main() {
       expect(find.byType(KRoomEndedOverlay), findsOneWidget);
     });
 
-    testWidgets('guests without an account and the host do not tap', (
-      tester,
-    ) async {
+    testWidgets('guests without an account do not tap; D120: the host '
+        'does, and it counts', (tester) async {
       await _pumpRoom(tester, engine: FakeLiveMediaEngine());
       expect(find.byKey(LiveTapLayer.tapKey), findsNothing);
       final host = testUser().copyWith(id: 'user-0');
@@ -1131,8 +1130,10 @@ void main() {
         engine: FakeLiveMediaEngine(),
         user: host,
       );
-      expect(find.byKey(LiveTapLayer.tapKey), findsNothing);
-      expect(repo.tapBatches, isEmpty);
+      await tester.tap(find.byKey(LiveTapLayer.tapKey));
+      await tester.pump(const Duration(seconds: 1));
+      expect(repo.tapBatches.single, (roomId: 'room-0', count: 1));
+      await tester.pumpAndSettle();
     });
   });
 
