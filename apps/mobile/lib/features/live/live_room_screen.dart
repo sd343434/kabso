@@ -1006,7 +1006,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       host: KAvatar(
         name: host.displayName,
         imageUrl: host.avatarUrl,
-        size: AudioSeatRing.hostSize,
+        size: AudioSeatRing.picture,
       ),
       hostName: host.displayName,
       hostPoints: KFormat.compact(score, context.l10n),

@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,12 +16,14 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_mode_bar.dart';
+import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -36,6 +39,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -86,6 +90,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   AppLanguage language = AppLanguage.en,
   FakeLiveMediaEngine? engine,
   FakeLiveRepository? repo,
+  GoldenViewport viewport = GoldenViewport.phone,
 }) async {
   final live =
       repo ??
@@ -94,7 +99,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
         categories: _categories,
       );
   final camera = engine ?? FakeLiveMediaEngine();
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   await tester.pumpWidget(const SizedBox.shrink());
   await pumpScreen(
     tester,
@@ -334,7 +339,19 @@ void main() {
       expect(repo.heartbeats, ['room-host']);
       await tester.pump(const Duration(seconds: 15));
       expect(repo.heartbeats, hasLength(2));
-      expect(find.bySemanticsLabel(l10n.goLiveElapsed('0:30')), findsOneWidget);
+      // The label is the (fake) time since going live, read when the last
+      // frame was drawn. Not a fixed "0:30": how many frames pumpAndSettle
+      // drew after going live depends on asynchronous work outside the fake
+      // clock (image decoding), so the label could read 0:30 or 0:31.
+      final since = ProviderScope.containerOf(
+        tester.element(find.byType(GoLiveScreen)),
+      ).read(liveHostControllerProvider).liveSince!;
+      final onAir = clock.now().difference(since);
+      expect(onAir, greaterThanOrEqualTo(const Duration(seconds: 30)));
+      expect(
+        find.bySemanticsLabel(l10n.goLiveElapsed(formatLiveDuration(onAir))),
+        findsOneWidget,
+      );
       await _leave(tester);
     });
 
@@ -1205,6 +1222,181 @@ void main() {
     });
   });
 
+  group('host taps (owner, 2026-10-26: "the host cannot tap")', () {
+    const huda = UserSummary(
+      id: 'u-huda',
+      username: 'huda',
+      displayName: 'Huda',
+      avatarUrl: null,
+    );
+
+    /// Audio on [theme] (the default 10 seats), Huda on seat 2.
+    Future<(FakeLiveRepository, FakeLiveMediaEngine)> hostRoom(
+      WidgetTester tester, {
+      String theme = LiveThemes.classic,
+      AppLanguage language = AppLanguage.en,
+      GoldenViewport viewport = GoldenViewport.phone,
+    }) async {
+      final (repo, camera) = await _pump(
+        tester,
+        language: language,
+        viewport: viewport,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await ProviderScope.containerOf(tester.element(find.byType(GoLiveScreen)))
+          .read(liveHostControllerProvider.notifier)
+          .setTheme(theme);
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      final seats = repo.seatState!;
+      repo.seatState = seats.copyWith(
+        version: seats.version + 1,
+        seats: [
+          for (final s in seats.seats)
+            if (s.index == 2)
+              const LiveSeat(index: 2, state: LiveSeatState.taken, user: huda)
+            else
+              s,
+        ],
+      );
+      camera
+        ..version = 1
+        ..ping();
+      await tester.pumpAndSettle();
+      return (repo, camera);
+    }
+
+    Future<void> closeSheet(WidgetTester tester) async {
+      await tester.tapAt(const Offset(200, 60));
+      await tester.pumpAndSettle();
+    }
+
+    // The owner's phone: 360 × 800, Arabic, the ice palace.
+    for (final (theme, language, viewport) in [
+      (LiveThemes.classic, AppLanguage.en, GoldenViewport.phone),
+      ('ice-palace', AppLanguage.ar, GoldenViewport.android),
+      ('galaxy', AppLanguage.en, GoldenViewport.android),
+    ]) {
+      testWidgets('$theme, ${language.name}, ${viewport.name}: the host taps '
+          'their picture, a guest, an empty seat and every bottom button', (
+        tester,
+      ) async {
+        final (repo, camera) = await hostRoom(
+          tester,
+          theme: theme,
+          language: language,
+          viewport: viewport,
+        );
+        final l10n = _l10n(tester);
+        // The default room (D118): 10 tiles, so seats 1 … 9.
+        expect(repo.startRequests.single.seatCount, 10);
+        expect(find.byKey(AudioSeatRing.seatKey(9)), findsOneWidget);
+        expect(find.byKey(AudioSeatRing.seatKey(10)), findsNothing);
+        // Nothing over the room takes the taps: each tile is the widget hit
+        // at its centre.
+        for (final i in [0, 1, 2, 5, 9]) {
+          final seat = find.byKey(AudioSeatRing.seatKey(i));
+          final hit = tester.hitTestOnBinding(tester.getCenter(seat));
+          // The first render object hit is inside the seat.
+          final first = hit.path
+              .map((e) => e.target)
+              .whereType<RenderObject>()
+              .first;
+          expect(
+            _isDescendant(tester.renderObject(seat), first),
+            isTrue,
+            reason: 'seat $i is hit first',
+          );
+        }
+        // The host's own picture: their card with the mic.
+        await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+        await tester.tap(find.byKey(LivePersonToolKeys.selfMic));
+        await tester.pumpAndSettle();
+        expect(camera.micEnabled, isFalse);
+        await closeSheet(tester);
+        // A guest: the seat's actions (mute, remove, moderator).
+        await tester.tap(find.byKey(AudioSeatRing.seatKey(2)));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveSeatRemove), findsOneWidget);
+        await tester.tap(find.byKey(SeatControlKeys.cancel));
+        await tester.pumpAndSettle();
+        // An empty seat: invite and lock.
+        await tester.tap(find.byKey(AudioSeatRing.seatKey(5)));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveSeatLock), findsOneWidget);
+        expect(find.text(l10n.liveSeatInvite), findsOneWidget);
+        await tester.tap(find.byKey(SeatControlKeys.cancel));
+        await tester.pumpAndSettle();
+        // With the chat box open, a seat still answers (and the box
+        // closes).
+        await tester.tap(find.byKey(GoLiveScreen.audioChatKey));
+        await tester.pumpAndSettle();
+        expect(find.byType(LiveRoomComposer), findsOneWidget);
+        await tester.tap(find.byKey(AudioSeatRing.seatKey(9)));
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.liveSeatLock), findsOneWidget);
+        await tester.tap(find.byKey(SeatControlKeys.cancel));
+        await tester.pumpAndSettle();
+        expect(find.byType(LiveRoomComposer), findsNothing);
+        // The bottom bar.
+        await tester.tap(find.byKey(GoLiveKeys.tool('requests')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(SeatControlKeys.guestsTab), findsOneWidget);
+        await tester.tap(find.byTooltip(l10n.liveClose).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(GoLiveScreen.audioGiftKey));
+        await tester.pumpAndSettle();
+        expect(find.byType(KLiveGiftSheet), findsOneWidget);
+        await closeSheet(tester);
+        for (final key in [
+          GoLiveScreen.audioMoreKey,
+          GoLiveScreen.audioToolboxKey,
+        ]) {
+          await tester.tap(find.byKey(key));
+          await tester.pumpAndSettle();
+          expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
+          await closeSheet(tester);
+        }
+        await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
+        await tester.pump();
+        expect(find.text(l10n.goLivePkSoon), findsOneWidget);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('the seats could not be read: a tap on a seat reads them '
+        'again and opens its actions, or says why (never nothing)', (
+      tester,
+    ) async {
+      final (repo, _) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      repo.seatFailure = _internal;
+      await _startAudio(tester);
+      // The room still shows its 10 tiles (from the room itself).
+      expect(find.byKey(AudioSeatRing.seatKey(9)), findsOneWidget);
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(5)));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatLock), findsNothing);
+      expect(find.text(failureMessage(l10n, _internal)), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      repo.seatFailure = null;
+      await tester.tap(find.byKey(AudioSeatRing.seatKey(5)));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveSeatLock), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.cancel));
+      await tester.pumpAndSettle();
+      await _leave(tester);
+    });
+  });
+
   group('owner refs 71–75', () {
     Future<void> audioLive(WidgetTester tester, FakeLiveRepository repo) async {
       await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
@@ -1378,4 +1570,12 @@ void main() {
       await _leave(tester);
     });
   });
+}
+
+/// Whether [target] is [ancestor] or inside it.
+bool _isDescendant(RenderObject ancestor, RenderObject? target) {
+  for (var o = target; o != null; o = o.parent) {
+    if (identical(o, ancestor)) return true;
+  }
+  return false;
 }

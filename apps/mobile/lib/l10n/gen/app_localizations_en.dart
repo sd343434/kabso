@@ -4160,6 +4160,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The microphone isn\'t available right now.';
 
   @override
+  String get liveVoiceUploadsUnavailable =>
+      'Voice messages aren\'t available right now.';
+
+  @override
   String get liveVoiceTooLarge =>
       'This voice clip is too large. Record a shorter one.';
 

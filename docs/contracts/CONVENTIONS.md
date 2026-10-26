@@ -841,7 +841,8 @@ until a media provider is wired in.
   (`endCp`), its level moved by a CP gift, a block between the partners added or removed —
   raises the seat `version` of every `LIVE` room where both sit, in the same transaction; the
   media room metadata follows with the sweeper's reconciliation. Apps draw the two seats joined
-  when they are next to each other (same row of 5, or neighbours on the circle); where they sit
+  when they are next to each other (consecutive tiles of a row of 5; *D118:* audio seats are always
+  shown in rows of 5, the host the first tile, for every room size); where they sit
   apart, nothing is drawn. *(D113, app only:)* the app draws the couple's level frame from the
   owner's art (`assets/live_cp_seats/`, one per level 1–6): a ring around each partner's
   picture and the frame's centre piece between them, with a light animation of the owner's

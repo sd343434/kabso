@@ -7376,6 +7376,12 @@ abstract class AppLocalizations {
   /// **'الميكروفون غير متاح الآن.'**
   String get liveVoiceUnavailable;
 
+  /// Live chat: a voice clip could not be sent because uploads are off on the server (503 MEDIA_UPLOADS_UNAVAILABLE). D118.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرسائل الصوتية غير متاح حالياً.'**
+  String get liveVoiceUploadsUnavailable;
+
   /// A voice clip over 1 MiB (CP-017).
   ///
   /// In ar, this message translates to:

@@ -1357,6 +1357,7 @@
   "liveVoiceRecording": "Recording {time} of 0:30",
   "liveVoiceDenied": "Allow the microphone in Settings to send voice clips.",
   "liveVoiceUnavailable": "The microphone isn't available right now.",
+  "liveVoiceUploadsUnavailable": "Voice messages aren't available right now.",
   "liveVoiceTooLarge": "This voice clip is too large. Record a shorter one.",
   "liveChatPrivateMessages": "Private messages",
   "liveChatPicture": "Picture",

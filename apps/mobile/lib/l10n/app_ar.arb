@@ -4959,6 +4959,10 @@
   "@liveVoiceUnavailable": {
     "description": "The microphone could not start (CP-017)."
   },
+  "liveVoiceUploadsUnavailable": "إرسال الرسائل الصوتية غير متاح حالياً.",
+  "@liveVoiceUploadsUnavailable": {
+    "description": "Live chat: a voice clip could not be sent because uploads are off on the server (503 MEDIA_UPLOADS_UNAVAILABLE). D118."
+  },
   "liveVoiceTooLarge": "المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.",
   "@liveVoiceTooLarge": {
     "description": "A voice clip over 1 MiB (CP-017)."

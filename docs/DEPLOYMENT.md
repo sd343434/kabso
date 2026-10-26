@@ -550,7 +550,11 @@ a `CONNECTION LIMIT`.
   ```
 - Voice clips and images of the live chat (migration `20261108100000_live_chat_media`) are
   deleted by the live sweeper 60 s after they were sent (`LIVE_SWEEP_INTERVAL_SECONDS` cadence);
-  they need `MEDIA_UPLOADS_ENABLED` like every upload.
+  they need `MEDIA_UPLOADS_ENABLED` like every upload. While it is off, every live-chat picture and
+  voice clip is refused with 503 `MEDIA_UPLOADS_UNAVAILABLE` (the app says photo uploads / voice
+  messages are unavailable, D118); turning them on needs `MEDIA_UPLOADS_ENABLED=true` plus
+  `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `MEDIA_PUBLIC_BASE_URL` (required, or
+  the API refuses to start), `S3_ENDPOINT` and `S3_REGION` (`auto`) for R2, as in §5.3.
 
 ### 5.5 Families, CP couples and medals (migrations `20261110090000_families_cp_medals_enums`, `20261110100000_families_cp_medals`, `20261110110000_medal_showcase`; CP-018, D106) — [IMPLEMENTED, draft contract]
 

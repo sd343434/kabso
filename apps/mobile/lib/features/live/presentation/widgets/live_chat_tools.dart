@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -247,7 +248,15 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
     final l10n = context.l10n;
     final failure = await _chat.uploadAndSend(bytes, contentType, kind: kind);
     if (failure != null && mounted) {
-      KSnack.error(context, failureMessage(l10n, failure));
+      // Uploads off on the server (503 MEDIA_UPLOADS_UNAVAILABLE): a voice
+      // clip says voice messages, not "photo uploads".
+      KSnack.error(
+        context,
+        kind == LiveChatKind.voice &&
+                failure.code == ErrorCode.mediaUploadsUnavailable
+            ? l10n.liveVoiceUploadsUnavailable
+            : failureMessage(l10n, failure),
+      );
     }
   }
 

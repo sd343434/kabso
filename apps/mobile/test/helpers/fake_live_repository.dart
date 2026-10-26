@@ -180,6 +180,22 @@ class FakeLiveRepository implements LiveRepository {
       theme: theme,
     ));
     if (startFailure case final failure?) throw failure;
+    // Like the server (CONVENTIONS §10.9): a count the mode does not allow
+    // is refused (the app's old audio default 9 was).
+    const counts = LiveSeatCounts();
+    final allowed = switch (mode) {
+      LiveRoomMode.audio => counts.audio,
+      LiveRoomMode.multi => counts.multi,
+      LiveRoomMode.solo || LiveRoomMode.pk => const <int>[],
+    };
+    if (seatCount != null && !allowed.contains(seatCount)) {
+      throw const ServerFailure(
+        code: ErrorCode.validationFailed,
+        rawCode: 'VALIDATION_FAILED',
+        debugMessage: 'seatCount invalid_value',
+        statusCode: 400,
+      );
+    }
     final room = apiRoom(id: 'room-host').copyWith(
       title: title,
       allowGuests: allowGuests,

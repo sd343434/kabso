@@ -1,7 +1,7 @@
 // Owner D111 ("CP pair on seats"): two CP partners on adjacent audio seats
 // are joined by a translucent band behind their pictures with an ornament
-// between them — rows of 5 (consecutive tiles of a row, the host tile 0)
-// and the circle (neighbouring guests). Partners apart, one partner seated
+// between them — rows of 5 (consecutive tiles of a row, the host tile 0;
+// every room size since D118). Partners apart, one partner seated
 // (the API lists no couple) or no couple: nothing drawn. Arabic mirrors the
 // layout; at 360 × 800 with 25 seats nothing overflows and the ornaments
 // never cover a picture or a name.
@@ -68,7 +68,7 @@ Future<void> _ring(
       body: SingleChildScrollView(
         child: AudioSeatRing(
           count: count,
-          host: const KAvatar(name: 'Layla', size: AudioSeatRing.hostSize),
+          host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
           hostName: 'Layla',
           hostPoints: '0',
           seats: _full(count),
@@ -90,7 +90,7 @@ Finder _micOn(int i) => find.descendant(
   matching: find.byType(CpMicEffect),
 );
 
-/// A 10-seat circle without settling (the animation may run).
+/// A 10-seat room (two rows) without settling (the animation may run).
 Future<void> _ringNoSettle(
   WidgetTester tester,
   List<CpSeatPair> pairs,
@@ -102,7 +102,7 @@ Future<void> _ringNoSettle(
     Scaffold(
       body: AudioSeatRing(
         count: 10,
-        host: const KAvatar(name: 'Layla', size: AudioSeatRing.hostSize),
+        host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
         hostName: 'Layla',
         seats: _full(10),
         cpPairs: pairs,
@@ -129,19 +129,12 @@ String _assetUnder(WidgetTester tester, Finder f) {
 /// D113: the rings of (a, b) — the left one on the visually left picture,
 /// each hole exactly on its picture, the art shown only within the tile
 /// (a tile wide) and above the name, from the [level] frame.
-void _expectRings(
-  WidgetTester tester,
-  int a,
-  int b, {
-  int level = 1,
-  bool rows = true,
-  int count = 10,
-}) {
+void _expectRings(WidgetTester tester, int a, int b, {int level = 1}) {
   final frame = CpSeatFrames.forLevel(level);
   final pa = _picture(tester, a);
   final pb = _picture(tester, b);
-  // Rows: a tile is the distance between neighbours; the circle: the seat.
-  final cell = rows ? (pa.center - pb.center).distance / (pa.width / 50) : 72.0;
+  // A tile is the distance between neighbours (D118: always rows).
+  final cell = (pa.center - pb.center).distance / (pa.width / 50);
   final leftTile = pa.center.dx <= pb.center.dx ? a : b;
   for (final left in [true, false]) {
     final tile = left == (leftTile == a) ? a : b;
@@ -159,34 +152,6 @@ void _expectRings(
     expect(hole.dx, closeTo(picture.center.dx, 0.5));
     expect(hole.dy, closeTo(picture.center.dy, 0.5));
     expect(piece.holeDiameter * scale, closeTo(picture.width, 0.5));
-    if (!rows) {
-      // The circle: the ring is whole (never cut by a rectangle); its art
-      // shows within a radius clear of every other seat's picture and name.
-      final art = tester.widget<CpRingArt>(
-        find.descendant(of: ring, matching: find.byType(CpRingArt)),
-      );
-      final radius = art.radius * picture.width / 50;
-      expect(radius, greaterThan(picture.width / 2 * 1.25));
-      for (var i = 0; i < count; i++) {
-        if (i == tile) continue;
-        final other = _picture(tester, i);
-        expect(
-          (other.center - picture.center).distance,
-          greaterThanOrEqualTo(radius + other.width / 2 - 0.5),
-          reason: 'ring of $tile reaches the picture of $i',
-        );
-        final name = _name(tester, i).deflate(0.5);
-        final c = picture.center;
-        final nx = c.dx.clamp(name.left, name.right);
-        final ny = c.dy.clamp(name.top, name.bottom);
-        expect(
-          (Offset(nx, ny) - c).distance,
-          greaterThanOrEqualTo(radius - 0.5),
-          reason: 'ring of $tile reaches the name of $i',
-        );
-      }
-      continue;
-    }
     // Rows: what shows stays within the tile, above the name.
     final shown = tester.getRect(ring);
     final s = picture.width / 50;
@@ -471,8 +436,8 @@ void main() {
       expect(cpSeatPairs(null, hostId: 'host'), isEmpty);
     });
 
-    test('adjacency: rows of 5 (same row, consecutive) and the circle '
-        '(neighbours, last–first, never the host)', () {
+    test('adjacency (D118: rows of 5 for every size): the same row, '
+        'consecutive; no ring closing any more', () {
       bool rows(int a, int b, [int count = 25]) =>
           cpRowsAdjacent(CpSeatPair(a, b), count: count);
       expect(rows(0, 1), isTrue);
@@ -482,14 +447,12 @@ void main() {
       expect(rows(23, 24), isTrue);
       expect(rows(14, 15, 15), isFalse, reason: 'tile 15 does not exist');
 
-      bool circle(int a, int b, [int count = 10]) =>
-          cpCircleAdjacent(CpSeatPair(a, b), count: count);
-      expect(circle(1, 2), isTrue);
-      expect(circle(8, 9), isTrue);
-      expect(circle(1, 9), isTrue, reason: 'the ring closes');
-      expect(circle(1, 3), isFalse);
-      expect(circle(0, 1), isFalse, reason: 'the host is in the middle');
-      expect(circle(1, 4, 5), isTrue);
+      // 5 and 10 tiles are rows too (they were a circle before D118).
+      expect(rows(0, 1, 5), isTrue, reason: 'the host is a tile of the row');
+      expect(rows(3, 4, 5), isTrue);
+      expect(rows(4, 5, 10), isFalse, reason: 'two rows');
+      expect(rows(8, 9, 10), isTrue);
+      expect(rows(1, 9, 10), isFalse, reason: 'no ring closing');
     });
 
     test('the ornament box: the exact midpoint, its width, the art aspect', () {
@@ -592,32 +555,44 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('circle (10): neighbours joined, the ring closes, the host '
-          'and seats apart are not', (tester) async {
-        await _ring(tester, 10, const [
-          CpSeatPair(2, 3),
-          CpSeatPair(5, 6),
-          CpSeatPair(0, 7), // the host in the middle
-          CpSeatPair(1, 8), // apart
-        ], language: language);
-        expect(find.byType(CpBand), findsNWidgets(2));
-        for (final (a, b) in [(2, 3), (5, 6)]) {
-          expect(_band(a, b), findsOneWidget);
-          expect(_ornament(a, b), findsOneWidget);
-          _expectOrnamentClear(tester, a, b, 10);
-          _expectRings(tester, a, b, rows: false);
-        }
-        expect(_band(0, 7), findsNothing);
-        expect(_band(1, 8), findsNothing);
+      for (final count in [5, 10]) {
+        testWidgets('rows ($count, D118: no circle): neighbours in a row '
+            'joined (the host too); pairs apart or across rows not', (
+          tester,
+        ) async {
+          await _ring(tester, count, [
+            const CpSeatPair(0, 1),
+            const CpSeatPair(2, 3),
+            if (count == 10) ...const [
+              CpSeatPair(5, 6),
+              CpSeatPair(4, 5), // the end of row 1 and the start of row 2
+              CpSeatPair(1, 9), // no ring closing any more
+            ],
+          ], language: language);
+          final joined = [(0, 1), (2, 3), if (count == 10) (5, 6)];
+          expect(find.byType(CpBand), findsNWidgets(joined.length));
+          for (final (a, b) in joined) {
+            expect(_band(a, b), findsOneWidget);
+            expect(_ornament(a, b), findsOneWidget);
+            _expectOrnamentClear(tester, a, b, count);
+            _expectRings(tester, a, b);
+          }
+          expect(_band(4, 5), findsNothing);
+          expect(_band(1, 9), findsNothing);
+          // Every tile of a row on one line, the host first.
+          final top = _picture(tester, 0).center.dy;
+          for (var i = 1; i < 5; i++) {
+            expect(_picture(tester, i).center.dy, closeTo(top, 0.5));
+          }
+          if (count == 10) {
+            expect(_picture(tester, 5).center.dy, greaterThan(top + 50));
+          }
+          expect(tester.takeException(), isNull);
+        });
+      }
 
-        await _ring(tester, 10, const [CpSeatPair(1, 9)], language: language);
-        expect(_band(1, 9), findsOneWidget);
-        _expectOrnamentClear(tester, 1, 9, 10);
-        _expectRings(tester, 1, 9, rows: false);
-      });
-
-      testWidgets('D113: every CP level 1–6 draws its own frame, rows and '
-          'circle', (tester) async {
+      testWidgets('D113: every CP level 1–6 draws its own frame, in rooms of '
+          '15 and 10', (tester) async {
         await _ring(tester, 15, const [
           CpSeatPair(0, 1, level: 6, levelName: 'Eternal couple'),
           CpSeatPair(2, 3, level: 2),
@@ -657,15 +632,16 @@ void main() {
         for (final level in CpSeatFrames.levels) {
           await _ring(tester, 10, [
             CpSeatPair(3, 4, level: level),
-            CpSeatPair(1, 9, level: level),
+            CpSeatPair(6, 7, level: level),
           ], language: language);
-          for (final (a, b) in [(3, 4), (1, 9)]) {
-            _expectRings(tester, a, b, level: level, rows: false);
+          for (final (a, b) in [(3, 4), (6, 7)]) {
+            _expectRings(tester, a, b, level: level);
             final w = _expectOrnamentClear(tester, a, b, 10);
             // Reports the sizes reached (owner D113 feedback asks for them).
             // ignore: avoid_print
             print(
-              'D113 circle ornament L$level ($a, $b): ${w.toStringAsFixed(1)}',
+              'D113 10-seat ornament L$level ($a, $b): '
+              '${w.toStringAsFixed(1)}',
             );
             _expectFxClear(tester, a, b, 10);
             fxCounts[level] =
@@ -816,10 +792,7 @@ void main() {
             Scaffold(
               body: AudioSeatRing(
                 count: 10,
-                host: const KAvatar(
-                  name: 'Layla',
-                  size: AudioSeatRing.hostSize,
-                ),
+                host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
                 hostName: 'Layla',
                 seats: _full(10),
                 speaking: const {2},
@@ -871,10 +844,7 @@ void main() {
               chips: const SizedBox(height: 32),
               stage: AudioSeatRing(
                 count: 25,
-                host: const KAvatar(
-                  name: 'Layla',
-                  size: AudioSeatRing.hostSize,
-                ),
+                host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
                 hostName: 'Layla',
                 hostPoints: '0',
                 hostMicOn: false,

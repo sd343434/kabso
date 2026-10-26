@@ -4187,6 +4187,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceUnavailable => 'الميكروفون غير متاح الآن.';
 
   @override
+  String get liveVoiceUploadsUnavailable =>
+      'إرسال الرسائل الصوتية غير متاح حالياً.';
+
+  @override
   String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';
 
   @override
