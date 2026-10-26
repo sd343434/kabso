@@ -102,6 +102,8 @@ flutter:
     - assets/pk/
     # Owner's profile-card header decorations (SVGA 750×280 + still).
     - assets/profile_card/
+    # Owner's person-card box icons (family, CP, gift wall).
+    - assets/card_boxes/
   fonts:
     # D63 splash and D64 welcome wordmark (OFL, assets/fonts/OFL-Fredoka.txt).
     - family: Fredoka

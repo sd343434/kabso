@@ -1253,17 +1253,24 @@ class _HostSheet extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 14),
                 child: LivePersonBoxes(
                   familyValue: switch (profile.family) {
-                    final f? => l10n.familyBoxValue(f.name, f.level),
+                    // The box is narrow: the name only (the level is on
+                    // the family page).
+                    final f? => KFormat.bidiIsolate(f.name),
                     null => null,
                   },
-                  cpValue: switch (profile.cp) {
-                    final cp? => l10n.cpBoxValue(
-                      cp.partner.displayName.isEmpty
-                          ? cp.partner.username
-                          : cp.partner.displayName,
-                      cp.levelName,
+                  cpValue: profile.cp == null && cpAction == BondTap.sendCp
+                      ? l10n.cpSendShort
+                      : null,
+                  // Owner: the partner's picture, name and a heart.
+                  cpPartner: switch (profile.cp) {
+                    final cp? => (
+                      name: KFormat.bidiIsolate(
+                        cp.partner.displayName.isEmpty
+                            ? cp.partner.username
+                            : cp.partner.displayName,
+                      ),
+                      avatar: _networkImage(cp.partner.avatarUrl),
                     ),
-                    null when cpAction == BondTap.sendCp => l10n.cpSendShort,
                     null => null,
                   },
                   onFamily: bondAction(

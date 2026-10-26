@@ -5,6 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
@@ -128,8 +129,18 @@ void main() {
       tester,
     ) async {
       await _card(tester, _profile());
-      expect(find.text(en.familyBoxValue('Stars', 3)), findsOneWidget);
-      expect(find.text(en.cpBoxValue('Omar', 'Silver couple')), findsOneWidget);
+      // The narrow box shows the family's name only.
+      expect(find.text(KFormat.bidiIsolate('Stars')), findsOneWidget);
+      expect(find.text(en.familyBoxValue('Stars', 3)), findsNothing);
+      // Owner: the partner's picture, name and a heart.
+      expect(find.text(KFormat.bidiIsolate('Omar')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(LivePersonBoxes.boxKey(1)),
+          matching: find.byIcon(Icons.favorite_rounded),
+        ),
+        findsOneWidget,
+      );
       // The gift wall still says it is coming.
       expect(find.text(en.liveUserSoon), findsOneWidget);
       expect(find.text(en.liveUserNone), findsNothing);
