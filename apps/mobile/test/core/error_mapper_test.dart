@@ -57,6 +57,7 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.cpRequestNotPending: 409,
   ErrorCode.cpNotPaired: 409,
   ErrorCode.medalNotUnlocked: 409,
+  ErrorCode.bagItemNotOwned: 409,
 };
 
 DioException _badResponse(
@@ -132,6 +133,8 @@ void main() {
           'CP_REQUEST_NOT_PENDING',
           'CP_NOT_PAIRED',
           'MEDAL_NOT_UNLOCKED',
+          // v1.22-live (CP-019)
+          'BAG_ITEM_NOT_OWNED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

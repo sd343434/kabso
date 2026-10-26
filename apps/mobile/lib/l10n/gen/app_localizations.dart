@@ -8509,6 +8509,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حصلت على ميدالية جديدة'**
   String get notifMedalAwardedUnnamed;
+
+  /// BAG_ITEM_NOT_OWNED (409, CP-019).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العنصر ليس في حقيبتك.'**
+  String get errorBagItemNotOwned;
+
+  /// The bag screen title and the Me tab tile. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'الحقيبة'**
+  String get bagTitle;
+
+  /// The bag tile's line on your own profile. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'زيّن بطاقتك'**
+  String get bagTileValue;
+
+  /// Bag category PROFILE_CARD (tab). (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الملف الشخصي'**
+  String get bagCategoryProfileCard;
+
+  /// Bag screen error title. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الحقيبة'**
+  String get bagLoadError;
+
+  /// Badge on the item worn now. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الارتداء'**
+  String get bagWorn;
+
+  /// Button: wear this item. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'ارتداء'**
+  String get bagWear;
+
+  /// Button: stop wearing this item. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'خلع'**
+  String get bagTakeOff;
+
+  /// A catalogue item the user does not own (no store yet). (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تمتلكه بعد'**
+  String get bagLocked;
+
+  /// Bag empty state title. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'حقيبتك فارغة'**
+  String get bagEmptyTitle;
+
+  /// Bag empty state message. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا العناصر التي تحصل عليها.'**
+  String get bagEmptyMessage;
+
+  /// Bag section: items the user owns. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'عناصرك'**
+  String get bagOwnedSection;
+
+  /// Bag section: catalogue items not owned. (CP-019 (D107))
+  ///
+  /// In ar, this message translates to:
+  /// **'عناصر أخرى'**
+  String get bagLockedSection;
 }
 
 class _AppLocalizationsDelegate

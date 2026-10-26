@@ -52,6 +52,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.cpRequestNotPending => l10n.errorCpRequestNotPending,
     ErrorCode.cpNotPaired => l10n.errorCpNotPaired,
     ErrorCode.medalNotUnlocked => l10n.errorMedalNotUnlocked,
+    ErrorCode.bagItemNotOwned => l10n.errorBagItemNotOwned,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

@@ -1545,5 +1545,18 @@
   "notifFamilyJoinAccepted": "You're now a member of {family}",
   "notifFamilyJoinDeclined": "Your request to join {family} was declined",
   "notifMedalAwarded": "You earned a new medal: {name}",
-  "notifMedalAwardedUnnamed": "You earned a new medal"
+  "notifMedalAwardedUnnamed": "You earned a new medal",
+  "errorBagItemNotOwned": "This item isn't in your bag.",
+  "bagTitle": "Bag",
+  "bagTileValue": "Decorate your card",
+  "bagCategoryProfileCard": "Profile card",
+  "bagLoadError": "Couldn't load your bag",
+  "bagWorn": "Worn",
+  "bagWear": "Wear",
+  "bagTakeOff": "Take off",
+  "bagLocked": "Not owned yet",
+  "bagEmptyTitle": "Your bag is empty",
+  "bagEmptyMessage": "Items you get will appear here.",
+  "bagOwnedSection": "Your items",
+  "bagLockedSection": "More items"
 }

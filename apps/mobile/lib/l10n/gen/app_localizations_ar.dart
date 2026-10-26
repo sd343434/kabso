@@ -4910,4 +4910,43 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notifMedalAwardedUnnamed => 'حصلت على ميدالية جديدة';
+
+  @override
+  String get errorBagItemNotOwned => 'هذا العنصر ليس في حقيبتك.';
+
+  @override
+  String get bagTitle => 'الحقيبة';
+
+  @override
+  String get bagTileValue => 'زيّن بطاقتك';
+
+  @override
+  String get bagCategoryProfileCard => 'بطاقة الملف الشخصي';
+
+  @override
+  String get bagLoadError => 'تعذّر تحميل الحقيبة';
+
+  @override
+  String get bagWorn => 'قيد الارتداء';
+
+  @override
+  String get bagWear => 'ارتداء';
+
+  @override
+  String get bagTakeOff => 'خلع';
+
+  @override
+  String get bagLocked => 'لم تمتلكه بعد';
+
+  @override
+  String get bagEmptyTitle => 'حقيبتك فارغة';
+
+  @override
+  String get bagEmptyMessage => 'ستظهر هنا العناصر التي تحصل عليها.';
+
+  @override
+  String get bagOwnedSection => 'عناصرك';
+
+  @override
+  String get bagLockedSection => 'عناصر أخرى';
 }

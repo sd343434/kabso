@@ -136,6 +136,9 @@ abstract final class AppRoutes {
   static const medals = '/medals';
   static const medalShowcase = '/medals/showcase';
 
+  /// CP-019: the bag (owned items by category; the one worn).
+  static const bag = '/bag';
+
   /// CP-018: another user's medals.
   static const userMedalsPattern = '/users/:username/medals';
 

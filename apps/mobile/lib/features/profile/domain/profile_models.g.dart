@@ -29,6 +29,9 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       medals: json['medals'] == null
           ? const ProfileMedals()
           : ProfileMedals.fromJson(json['medals'] as Map<String, dynamic>),
+      profileCard: json['profileCard'] == null
+          ? null
+          : ProfileCard.fromJson(json['profileCard'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -48,6 +51,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'family': instance.family,
       'cp': instance.cp,
       'medals': instance.medals,
+      'profileCard': instance.profileCard,
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(

@@ -242,13 +242,16 @@ class _Tile extends StatelessWidget {
 
 /// The profile header's block under the name (D72, CP-018): the level
 /// badges ([levels]), the medals [profile] chose to show (nothing when none
-/// are chosen) and the family, relationship and medals tiles. Only the
-/// levels while [profile] is not loaded.
+/// are chosen), the family, relationship and medals tiles and, on your own
+/// profile, the bag. Only the levels while [profile] is not loaded.
 class ProfileBondsBlock extends StatelessWidget {
   const new({required this.levels, required this.profile, super.key});
 
   final Widget levels;
   final PublicProfile? profile;
+
+  /// The bag tile (own profile only, CP-019).
+  static const bagKey = Key('profile.bonds.bag');
 
   @override
   Widget build(BuildContext context) {
@@ -272,6 +275,19 @@ class ProfileBondsBlock extends StatelessWidget {
               ),
             ),
           ProfileBondsRow(profile: profile),
+          // CP-019: your own bag (the profile card you wear, and more
+          // categories later).
+          if (profile.isSelf)
+            Padding(
+              padding: const EdgeInsets.only(top: KSpacing.sm),
+              child: _Tile(
+                key: bagKey,
+                iconData: Icons.backpack_rounded,
+                title: context.l10n.bagTitle,
+                value: context.l10n.bagTileValue,
+                onTap: () => context.push(AppRoutes.bag),
+              ),
+            ),
         ],
       ],
     );

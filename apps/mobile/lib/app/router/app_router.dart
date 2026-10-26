@@ -15,6 +15,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_intro.dart';
 import 'package:kabso_live/features/auth/presentation/splash_screen.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
+import 'package:kabso_live/features/bag/presentation/bag_screen.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/cp/presentation/cp_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
@@ -255,6 +256,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.medalShowcase,
         builder: (_, _) => const ShowcasePickerScreen(),
       ),
+      GoRoute(path: AppRoutes.bag, builder: (_, _) => const BagScreen()),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)

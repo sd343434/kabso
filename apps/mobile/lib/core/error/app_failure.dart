@@ -116,6 +116,10 @@ enum ErrorCode {
   /// has not earned.
   medalNotUnlocked('MEDAL_NOT_UNLOCKED'),
 
+  /// v1.22-live (CP-019, §10.22, 409): wearing an item the caller does not
+  /// own (or an unknown code).
+  bagItemNotOwned('BAG_ITEM_NOT_OWNED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

@@ -4882,4 +4882,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifMedalAwardedUnnamed => 'You earned a new medal';
+
+  @override
+  String get errorBagItemNotOwned => 'This item isn\'t in your bag.';
+
+  @override
+  String get bagTitle => 'Bag';
+
+  @override
+  String get bagTileValue => 'Decorate your card';
+
+  @override
+  String get bagCategoryProfileCard => 'Profile card';
+
+  @override
+  String get bagLoadError => 'Couldn\'t load your bag';
+
+  @override
+  String get bagWorn => 'Worn';
+
+  @override
+  String get bagWear => 'Wear';
+
+  @override
+  String get bagTakeOff => 'Take off';
+
+  @override
+  String get bagLocked => 'Not owned yet';
+
+  @override
+  String get bagEmptyTitle => 'Your bag is empty';
+
+  @override
+  String get bagEmptyMessage => 'Items you get will appear here.';
+
+  @override
+  String get bagOwnedSection => 'Your items';
+
+  @override
+  String get bagLockedSection => 'More items';
 }

@@ -1017,7 +1017,8 @@ class _HostSheet extends ConsumerWidget {
   final VoidCallback? onInvite;
 
   /// The person's header decoration on the card's top edge (owner,
-  /// 2026-10-26); null: the plain gold edge.
+  /// 2026-10-26); null: the profile card they wear (`PublicProfile.
+  /// profileCard`, CP-019), or the plain gold edge when none.
   final KabsoProfileHeader? header;
 
   static const inviteKey = Key('room.userCard.invite');
@@ -1354,7 +1355,11 @@ class _HostSheet extends ConsumerWidget {
             ],
           );
 
-    final header = this.header;
+    // CP-019: an explicit header wins; otherwise the profile card the person
+    // wears, once the profile is loaded (nothing is reserved before). A code
+    // this app does not know shows the plain edge.
+    final header =
+        this.header ?? KabsoProfileHeader.byCode(profile?.profileCard?.code);
     return LayoutBuilder(
       builder: (context, box) {
         // The card's top edge: under the middle of the picture, or lower when

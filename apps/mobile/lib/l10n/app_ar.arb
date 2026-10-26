@@ -6042,5 +6042,57 @@
   "notifMedalAwardedUnnamed": "حصلت على ميدالية جديدة",
   "@notifMedalAwardedUnnamed": {
     "description": "Notification MEDAL_AWARDED before the name is known. (CP-018 (D106))"
+  },
+  "errorBagItemNotOwned": "هذا العنصر ليس في حقيبتك.",
+  "@errorBagItemNotOwned": {
+    "description": "BAG_ITEM_NOT_OWNED (409, CP-019)."
+  },
+  "bagTitle": "الحقيبة",
+  "@bagTitle": {
+    "description": "The bag screen title and the Me tab tile. (CP-019 (D107))"
+  },
+  "bagTileValue": "زيّن بطاقتك",
+  "@bagTileValue": {
+    "description": "The bag tile's line on your own profile. (CP-019 (D107))"
+  },
+  "bagCategoryProfileCard": "بطاقة الملف الشخصي",
+  "@bagCategoryProfileCard": {
+    "description": "Bag category PROFILE_CARD (tab). (CP-019 (D107))"
+  },
+  "bagLoadError": "تعذّر تحميل الحقيبة",
+  "@bagLoadError": {
+    "description": "Bag screen error title. (CP-019 (D107))"
+  },
+  "bagWorn": "قيد الارتداء",
+  "@bagWorn": {
+    "description": "Badge on the item worn now. (CP-019 (D107))"
+  },
+  "bagWear": "ارتداء",
+  "@bagWear": {
+    "description": "Button: wear this item. (CP-019 (D107))"
+  },
+  "bagTakeOff": "خلع",
+  "@bagTakeOff": {
+    "description": "Button: stop wearing this item. (CP-019 (D107))"
+  },
+  "bagLocked": "لم تمتلكه بعد",
+  "@bagLocked": {
+    "description": "A catalogue item the user does not own (no store yet). (CP-019 (D107))"
+  },
+  "bagEmptyTitle": "حقيبتك فارغة",
+  "@bagEmptyTitle": {
+    "description": "Bag empty state title. (CP-019 (D107))"
+  },
+  "bagEmptyMessage": "ستظهر هنا العناصر التي تحصل عليها.",
+  "@bagEmptyMessage": {
+    "description": "Bag empty state message. (CP-019 (D107))"
+  },
+  "bagOwnedSection": "عناصرك",
+  "@bagOwnedSection": {
+    "description": "Bag section: items the user owns. (CP-019 (D107))"
+  },
+  "bagLockedSection": "عناصر أخرى",
+  "@bagLockedSection": {
+    "description": "Bag section: catalogue items not owned. (CP-019 (D107))"
   }
 }

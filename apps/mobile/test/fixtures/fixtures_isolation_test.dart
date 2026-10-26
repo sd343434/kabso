@@ -66,6 +66,12 @@ void main() {
       'FakeCpRepository',
       'FakeMedalsRepository',
       'testMedals(',
+      // CP-019 (test/fixtures/bag/bag_api_fixtures.dart,
+      // test/helpers/fake_bag_repository.dart).
+      'bagCatalogueItemJson(',
+      'bagItemJson(',
+      'bagEquippedJson(',
+      'FakeBagRepository',
       'pkSides(',
       'pkSupporterNames',
       'guestSeats(',
