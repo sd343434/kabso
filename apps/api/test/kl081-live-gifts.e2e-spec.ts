@@ -134,6 +134,9 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         animationKey: null,
         sortOrder: seq,
         badge: 'NONE',
+        tagCode: null,
+        tagNameAr: null,
+        tagNameEn: null,
         ...fields,
       }),
     );
@@ -249,6 +252,55 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
 
       await ctx.prisma.gift.update({ where: { code: pop }, data: { priceCoins: 100 } });
       expect((await read('en')).version).not.toBe(en.version);
+    });
+
+    it('v1.24.3-live: each gift carries its optional tag {code, name} by language, else null', async () => {
+      const u = await signup();
+      const tagged = await gift({
+        tagCode: 'treasure_box',
+        tagNameAr: 'صندوق الكنز',
+        tagNameEn: 'Treasure Box',
+      });
+      const plain = await gift();
+      const read = async (lang: string) => {
+        const res = await ctx.http.get('/api/v1/gifts/catalogue').set(auth(u)).set('Accept-Language', lang);
+        expect(res.status).toBe(200);
+        expectContract(res, 'getGiftCatalogue');
+        return res.body as { version: string; data: { code: string; tag: unknown }[] };
+      };
+      const en = await read('en');
+      const ar = await read('ar');
+      expect(en.data.find((g) => g.code === tagged)?.tag).toEqual({
+        code: 'treasure_box',
+        name: 'Treasure Box',
+      });
+      expect(ar.data.find((g) => g.code === tagged)?.tag).toEqual({
+        code: 'treasure_box',
+        name: 'صندوق الكنز',
+      });
+      expect(en.data.find((g) => g.code === plain)?.tag).toBeNull();
+      expect(ar.version).toBe(en.version);
+
+      await ctx.prisma.gift.update({ where: { code: tagged }, data: { tagNameEn: 'Treasure' } });
+      expect((await read('en')).version).not.toBe(en.version);
+
+      // The bag carries the tag too.
+      await stock(u, tagged, 2);
+      const bag = await ctx.http.get('/api/v1/me/gifts/bag').set(auth(u)).set('Accept-Language', 'ar');
+      expect(bag.status).toBe(200);
+      expectContract(bag, 'getMyGiftBag');
+      expect(bag.body.data).toEqual([
+        expect.objectContaining({
+          code: tagged,
+          quantity: 2,
+          tag: { code: 'treasure_box', name: 'صندوق الكنز' },
+        }),
+      ]);
+
+      // The database refuses a half tag (CHECK gifts_tag_complete).
+      await expect(
+        ctx.prisma.gift.update({ where: { code: plain }, data: { tagCode: 'glory' } }),
+      ).rejects.toThrow();
     });
   });
 
@@ -792,8 +844,82 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect(listed.out).toContain(
         `- EVENT 7 ${code} 120 coins asset=gift_cake animation=none badge=NEW "كعكة" / "Cake"`,
       );
+      expect(listed.out).toContain(`"كعكة" / "Cake" tag=none\n`);
       expect(giftAdmin('enable', code)).toEqual({ status: 0, out: `${code}: enabled.\n` });
       expect(giftAdmin('disable', 'no_such_gift').status).toBe(1);
+
+      // v1.24.3-live: the optional tag (sub-category).
+      expect(giftAdmin('update', code, '--tag', 'glory').out).toContain(
+        'a tag needs its code and both names',
+      );
+      expect(
+        giftAdmin('update', code, '--tag', 'Bad-Tag', '--tag-ar', 'مجد', '--tag-en', 'Glory').status,
+      ).toBe(1);
+      expect(giftAdmin('update', code, '--tag', 'none', '--tag-ar', 'مجد').status).toBe(1);
+      expect(giftAdmin('update', code, '--tag', 'glory', '--tag-ar', 'مجد', '--tag-en', 'Glory')).toEqual({
+        status: 0,
+        out: `${code}: tagCode, tagNameAr, tagNameEn updated.\n`,
+      });
+      expect(giftAdmin('update', code, '--tag-en', 'Glory Hall')).toEqual({
+        status: 0,
+        out: `${code}: tagNameEn updated.\n`,
+      });
+      expect(giftAdmin('list').out).toContain(`"كعكة" / "Cake" tag=glory "مجد" / "Glory Hall"\n`);
+      expect(giftAdmin('update', code, '--tag', 'none')).toEqual({
+        status: 0,
+        out: `${code}: tagCode, tagNameAr, tagNameEn updated.\n`,
+      });
+      expect(await ctx.prisma.gift.findUniqueOrThrow({ where: { code } })).toMatchObject({
+        tagCode: null,
+        tagNameAr: null,
+        tagNameEn: null,
+      });
+      const tagged = `${code}t`;
+      expect(
+        giftAdmin(
+          'add',
+          tagged,
+          '--category',
+          'POPULAR',
+          '--name-ar',
+          'صندوق',
+          '--name-en',
+          'Box',
+          '--price',
+          '5',
+          '--asset',
+          'gift_box',
+          '--tag',
+          'treasure_box',
+          '--tag-ar',
+          'صندوق الكنز',
+          '--tag-en',
+          'Treasure Box',
+        ),
+      ).toEqual({ status: 0, out: `+${tagged} (POPULAR, 5 coins).\n` });
+      expect(await ctx.prisma.gift.findUniqueOrThrow({ where: { code: tagged } })).toMatchObject({
+        tagCode: 'treasure_box',
+        tagNameAr: 'صندوق الكنز',
+        tagNameEn: 'Treasure Box',
+      });
+      expect(
+        giftAdmin(
+          'add',
+          `${code}u`,
+          '--category',
+          'POPULAR',
+          '--name-ar',
+          'x',
+          '--name-en',
+          'x',
+          '--price',
+          '5',
+          '--asset',
+          'a',
+          '--tag-ar',
+          'مجد',
+        ).out,
+      ).toContain('a tag needs its code and both names');
 
       const u = await signup();
       expect(giftAdmin('grant', u.email, code, '30')).toEqual({
@@ -818,6 +944,9 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         'gift.update',
         'gift.disable',
         'gift.enable',
+        'gift.update',
+        'gift.update',
+        'gift.update',
         'gift.grant',
         'gift.grant',
       ]);
@@ -825,7 +954,11 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
         changes: { priceCoins: { from: 99, to: 120 }, animationKey: { from: 'fx_cake', to: null } },
         via: 'cli',
       });
-      expect(audits[4]!.metadata).toEqual({ gift: code, quantity: 30, total: 30, via: 'cli' });
+      expect(audits[5]!.metadata).toEqual({
+        changes: { tagNameEn: { from: 'Glory', to: 'Glory Hall' } },
+        via: 'cli',
+      });
+      expect(audits[7]!.metadata).toEqual({ gift: code, quantity: 30, total: 30, via: 'cli' });
     });
   });
 });

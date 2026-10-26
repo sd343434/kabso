@@ -23,6 +23,10 @@ export const GIFT_MAX_PRICE = 1_000_000;
 export const GIFT_STOCK_MAX = 1_000_000_000;
 /** Names: 1–60 characters after trimming. */
 export const GIFT_NAME_MAX = 60;
+/** `gifts_tag_code_format` (v1.24.3-live): a sub-category code, same shape as a gift code. */
+export const GIFT_TAG_CODE_PATTERN = /^[a-z0-9][a-z0-9_]{0,39}$/;
+/** A sub-category name (the panel's chip): 1–30 characters after trimming. */
+export const GIFT_TAG_NAME_MAX = 30;
 
 export interface GiftFields {
   readonly category: GiftCategory;
@@ -33,6 +37,23 @@ export interface GiftFields {
   readonly animationKey: string | null;
   readonly sortOrder: number;
   readonly badge: GiftBadge;
+  /**
+   * The optional sub-category (v1.24.3-live: the panel's chips under the tabs). The three are all
+   * null (none) or all set (`gifts_tag_complete`).
+   */
+  readonly tagCode: string | null;
+  readonly tagNameAr: string | null;
+  readonly tagNameEn: string | null;
+}
+
+/** Thrown when a change would leave a gift's fields invalid (e.g. a tag without its names). */
+export class GiftFieldsError extends Error {}
+
+/** The problem with a whole gift's tag (code and both names all set, or all null), or null. */
+export function giftTagProblem(tag: Pick<GiftFields, 'tagCode' | 'tagNameAr' | 'tagNameEn'>): string | null {
+  const set = [tag.tagCode, tag.tagNameAr, tag.tagNameEn].filter((v) => v !== null).length;
+  if (set === 0 || set === 3) return null;
+  return 'a tag needs its code and both names (--tag, --tag-ar, --tag-en), or --tag none';
 }
 
 /** Every problem with a gift's fields (empty: valid). Partial input checks only what is given. */
@@ -73,6 +94,25 @@ export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
     problems.push('animationKey must be 1–80 characters: letters, digits, _ - . /');
   }
   if (
+    fields.tagCode !== undefined &&
+    fields.tagCode !== null &&
+    !GIFT_TAG_CODE_PATTERN.test(fields.tagCode)
+  ) {
+    problems.push('tag must be 1–40 characters: a-z, 0-9 and _ (not first)');
+  }
+  for (const [key, value] of [
+    ['tagNameAr', fields.tagNameAr],
+    ['tagNameEn', fields.tagNameEn],
+  ] as const) {
+    if (
+      value !== undefined &&
+      value !== null &&
+      (value.trim().length === 0 || value.trim().length > GIFT_TAG_NAME_MAX)
+    ) {
+      problems.push(`${key} must be 1–${String(GIFT_TAG_NAME_MAX)} characters`);
+    }
+  }
+  if (
     fields.sortOrder !== undefined &&
     (!Number.isInteger(fields.sortOrder) || fields.sortOrder < 0 || fields.sortOrder > 1_000_000)
   ) {
@@ -85,6 +125,8 @@ type Tx = Prisma.TransactionClient;
 
 /** Adds a gift (enabled). Returns false when the code exists (nothing changes). */
 export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promise<boolean> {
+  const tagProblem = giftTagProblem(fields);
+  if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
   const inserted = await tx.gift.createMany({
     data: [
       {
@@ -97,6 +139,9 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         animationKey: fields.animationKey,
         sortOrder: fields.sortOrder,
         badge: fields.badge,
+        tagCode: fields.tagCode,
+        tagNameAr: fields.tagNameAr?.trim() ?? null,
+        tagNameEn: fields.tagNameEn?.trim() ?? null,
       },
     ],
     skipDuplicates: true,
@@ -104,7 +149,10 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
   return inserted.count === 1;
 }
 
-/** Changes some fields of a gift; returns the gift before and after, or null when it does not exist. */
+/**
+ * Changes some fields of a gift; returns the gift before and after, or null when it does not exist.
+ * Throws {@link GiftFieldsError} (nothing changes) when the gift's tag would be incomplete.
+ */
 export async function updateGiftIn(
   tx: Tx,
   code: string,
@@ -112,12 +160,20 @@ export async function updateGiftIn(
 ): Promise<{ before: Gift; after: Gift } | null> {
   const before = await tx.gift.findUnique({ where: { code } });
   if (!before) return null;
+  const tagProblem = giftTagProblem({
+    tagCode: fields.tagCode !== undefined ? fields.tagCode : before.tagCode,
+    tagNameAr: fields.tagNameAr !== undefined ? fields.tagNameAr : before.tagNameAr,
+    tagNameEn: fields.tagNameEn !== undefined ? fields.tagNameEn : before.tagNameEn,
+  });
+  if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
   const after = await tx.gift.update({
     where: { code },
     data: {
       ...fields,
       ...(fields.nameAr !== undefined ? { nameAr: fields.nameAr.trim() } : {}),
       ...(fields.nameEn !== undefined ? { nameEn: fields.nameEn.trim() } : {}),
+      ...(typeof fields.tagNameAr === 'string' ? { tagNameAr: fields.tagNameAr.trim() } : {}),
+      ...(typeof fields.tagNameEn === 'string' ? { tagNameEn: fields.tagNameEn.trim() } : {}),
     },
   });
   return { before, after };
@@ -195,7 +251,7 @@ export function compareGifts(
 
 /**
  * `GiftCatalogue.version`: changes whenever anything the app shows or caches changes (any enabled
- * gift's fields in both languages, the order, the quantities, the combo window), and never with the
+ * gift's fields in both languages, its tag, the order, the quantities, the combo window), and never with the
  * reader's language. 16 hex characters of SHA-256.
  */
 export function catalogueVersion(
@@ -210,6 +266,9 @@ export function catalogueVersion(
     | 'animationKey'
     | 'sortOrder'
     | 'badge'
+    | 'tagCode'
+    | 'tagNameAr'
+    | 'tagNameEn'
   >[],
   quantities: readonly number[],
   comboWindowSeconds: number,
@@ -227,6 +286,8 @@ export function catalogueVersion(
       g.animationKey,
       g.sortOrder,
       g.badge,
+      // v1.24.3-live: the sub-category (appended, so a gift without one keeps its old hash part).
+      ...(g.tagCode === null ? [] : [g.tagCode, g.tagNameAr, g.tagNameEn]),
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);

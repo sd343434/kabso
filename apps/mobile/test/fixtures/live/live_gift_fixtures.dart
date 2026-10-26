@@ -1,5 +1,6 @@
 // CP-020 payloads shaped exactly like docs/contracts/openapi.yaml
-// v1.23-live (tag `gifts`, `sendLiveGift`; the examples where given). Test
+// v1.23-live (tag `gifts`, `sendLiveGift`; the examples where given;
+// `Gift.tag` v1.24.3-live, D117). Test
 // data only: production starts with an empty catalogue.
 
 /// The test catalogue's gifts, by tab, in catalogue order.
@@ -33,6 +34,15 @@ const _gifts = <String, (String, int, String, String?, String, String)>{
   'kabi_dance': ('FUN', 66, 'NEW', null, 'رقصة كابي', 'Kabi dance'),
 };
 
+/// The test sub-categories (D117): only POPULAR gifts carry one, so the
+/// other tabs show no chip row. code: (tagCode, ar, en).
+const _tags = <String, (String, String, String)>{
+  'rose': ('love', 'حب', 'Love'),
+  'heart_balloon': ('love', 'حب', 'Love'),
+  'crown': ('luxury', 'فخامة', 'Luxury'),
+  'sports_car': ('luxury', 'فخامة', 'Luxury'),
+};
+
 /// The name of [code] as the server sends it.
 String giftFixtureName(String code, {bool ar = true}) {
   final g = _gifts[code];
@@ -55,6 +65,10 @@ Map<String, Object?> giftJson(String code, {bool ar = true}) {
     'animationKey': g.$4,
     'sortOrder': (giftFixtureCodes.indexOf(code) + 1) * 10,
     'badge': g.$3,
+    'tag': switch (_tags[code]) {
+      final t? => {'code': t.$1, 'name': ar ? t.$2 : t.$3},
+      null => null,
+    },
   };
 }
 

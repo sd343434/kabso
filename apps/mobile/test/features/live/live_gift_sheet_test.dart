@@ -1,7 +1,7 @@
 // CP-020: the live gift panel — tabs, gifts, recipients, quantity, sending
 // with coins and from the bag, combos, the clientId retry, refusals, the
-// empty catalogue, missing art, guests and the host; Arabic RTL and
-// English at 360×800 with text scale 2.
+// empty catalogue, missing art, guests and the host; D117: the
+// sub-category chips; Arabic RTL and English at 360×800 with text scale 2.
 
 import 'dart:async';
 import 'dart:ui' show Tristate;
@@ -16,6 +16,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_gift_fixtures.dart';
@@ -142,6 +143,17 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+/// Why Send is off, as screen readers hear it (null: no hint).
+String? _sendHint(WidgetTester tester) {
+  final hint = tester
+      .getSemantics(find.bySemanticsLabel(en.giftSend))
+      .getSemanticsData()
+      .hint;
+  return hint == '' ? null : hint;
+}
+
+final AppLocalizations en = l10nFor(AppLanguage.en);
+
 String? _reason(WidgetTester tester) {
   final f = find.byKey(KLiveGiftSheet.reasonKey);
   if (f.evaluate().isEmpty) return null;
@@ -149,7 +161,6 @@ String? _reason(WidgetTester tester) {
 }
 
 void main() {
-  final en = l10nFor(AppLanguage.en);
   final ar = l10nFor(AppLanguage.ar);
 
   testWidgets('tabs from the catalogue plus the bag; 4-column grid with '
@@ -160,19 +171,20 @@ void main() {
       en.liveGiftTabPopular,
       en.liveGiftTabEvent,
       en.liveGiftTabFun,
-      en.liveGiftTabBag,
     ]) {
       expect(find.text(tab), findsOneWidget);
     }
+    // D117: the bag is an icon at the end, named for screen readers.
+    expect(find.bySemanticsLabel(en.liveGiftTabBag), findsOneWidget);
     for (final code in ['rose', 'heart_balloon', 'crown', 'sports_car']) {
       expect(_cell(code), findsOneWidget, reason: code);
       expect(find.text(giftFixtureName(code, ar: false)), findsOneWidget);
     }
     expect(_cell('lantern'), findsNothing);
-    // Prices with the coin, NEW badges.
-    expect(find.text('5,000'), findsOneWidget);
+    // Prices with the coin (digits as in the reference, D117), NEW badges.
+    expect(find.text('5000'), findsOneWidget);
     expect(find.text('299'), findsOneWidget);
-    expect(find.text(en.liveGiftBadgeNew), findsNWidgets(2));
+    expect(find.text(en.liveGiftBadgeNew.toUpperCase()), findsNWidgets(2));
     // Four in a row.
     final y = tester.getCenter(_cell('rose')).dy;
     for (final code in ['heart_balloon', 'crown', 'sports_car']) {
@@ -199,9 +211,11 @@ void main() {
     expect(find.text(en.liveGiftHost), findsOneWidget);
     expect(_selected(tester, host), isTrue);
     expect(_selected(tester, omar), isFalse);
-    // Nothing chosen to send yet.
+    // Nothing chosen to send yet: Send is dimmed and says why (the
+    // reference's own state shows no line, D117).
     expect(_sendEnabled(tester), isFalse);
-    expect(_reason(tester), en.liveGiftPickGift);
+    expect(_reason(tester), isNull);
+    expect(_sendHint(tester), en.liveGiftPickGift);
 
     await _tap(tester, _cell('rose'));
     expect(_sendEnabled(tester), isTrue);
@@ -242,7 +256,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(KLiveGiftSheet.quantityKey),
-        matching: find.text(en.giftCombo(10)),
+        matching: find.text('10'),
       ),
       findsOneWidget,
     );
@@ -479,6 +493,44 @@ void main() {
     expect(_sendEnabled(tester), isFalse);
   });
 
+  testWidgets('D117: chips "All" plus the open tab\'s tags filter the grid; '
+      'no chip row for a tab without tags', (tester) async {
+    await _pump(tester);
+    final all = find.byKey(KLiveGiftSheet.tagKey(null));
+    final love = find.byKey(KLiveGiftSheet.tagKey('love'));
+    final luxury = find.byKey(KLiveGiftSheet.tagKey('luxury'));
+    expect(all, findsOneWidget);
+    expect(find.text(en.liveGiftTagAll), findsWidgets);
+    expect(find.text('Love'), findsOneWidget);
+    expect(find.text('Luxury'), findsOneWidget);
+    expect(_selected(tester, all), isTrue);
+    // Love first: the order the tags first appear.
+    expect(tester.getCenter(love).dx < tester.getCenter(luxury).dx, isTrue);
+
+    await _tap(tester, _cell('rose'));
+    await _tap(tester, luxury);
+    expect(_selected(tester, luxury), isTrue);
+    expect(_cell('crown'), findsOneWidget);
+    expect(_cell('sports_car'), findsOneWidget);
+    expect(_cell('rose'), findsNothing);
+    expect(_cell('heart_balloon'), findsNothing);
+    // The gift picked under another chip is no longer picked.
+    expect(_sendEnabled(tester), isFalse);
+
+    await _tap(tester, all);
+    expect(_cell('rose'), findsOneWidget);
+    expect(_cell('crown'), findsOneWidget);
+
+    await _tap(tester, luxury);
+    await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('EVENT')));
+    expect(all, findsNothing);
+    expect(_cell('lantern'), findsOneWidget);
+    // Back on the tab, the chips start at All again.
+    await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('POPULAR')));
+    expect(_selected(tester, all), isTrue);
+    expect(_cell('rose'), findsOneWidget);
+  });
+
   testWidgets('guests are asked to log in; nothing is read', (tester) async {
     final h = await _pump(tester, signedIn: false);
     expect(find.text(en.liveGiftSignIn), findsOneWidget);
@@ -495,7 +547,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: language.name);
       final l10n = language == AppLanguage.ar ? ar : en;
       expect(find.text(l10n.liveGiftTabPopular), findsOneWidget);
-      expect(find.text(l10n.liveGiftTabBag), findsOneWidget);
+      expect(find.bySemanticsLabel(l10n.liveGiftTabBag), findsOneWidget);
       expect(
         find.text(giftFixtureName('rose', ar: language == AppLanguage.ar)),
         findsOneWidget,

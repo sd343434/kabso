@@ -5063,6 +5063,12 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get liveGiftTagAll => 'الكل';
+
+  @override
+  String get liveGiftTagsSemantics => 'تصنيفات الهدايا';
+
+  @override
   String get cpSpaceTitle => 'مساحة الثنائي';
 
   @override

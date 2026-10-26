@@ -1590,6 +1590,8 @@
   "liveGiftGeneric": "a gift",
   "liveGiftNotOnMic": "{name} isn't on the mic. Gifts go to the host and people on the mic.",
   "liveGiftBagCount": "You have {count}",
+  "liveGiftTagAll": "All",
+  "liveGiftTagsSemantics": "Gift categories",
   "cpSpaceTitle": "CP space",
   "cpSpaceOpen": "Open CP space",
   "cpSpaceHelpTitle": "How the CP space works",

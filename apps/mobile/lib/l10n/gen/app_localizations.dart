@@ -8774,6 +8774,18 @@ abstract class AppLocalizations {
   /// **'لديك {count}'**
   String liveGiftBagCount(String count);
 
+  /// Gift panel: the first sub-category chip, every gift of the open tab. (D117)
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get liveGiftTagAll;
+
+  /// Screen reader label of the gift panel's sub-category chip row. (D117)
+  ///
+  /// In ar, this message translates to:
+  /// **'تصنيفات الهدايا'**
+  String get liveGiftTagsSemantics;
+
   /// CP space: page title. (CP-021 (D112))
   ///
   /// In ar, this message translates to:

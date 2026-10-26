@@ -5036,6 +5036,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get liveGiftTagAll => 'All';
+
+  @override
+  String get liveGiftTagsSemantics => 'Gift categories';
+
+  @override
   String get cpSpaceTitle => 'CP space';
 
   @override

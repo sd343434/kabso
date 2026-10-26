@@ -2166,6 +2166,11 @@ model Gift {
   animationKey String?      @map("animation_key") @db.VarChar(80)
   sortOrder    Int          @default(0) @map("sort_order")
   badge        GiftBadge    @default(NONE)
+  /// v1.24.3-live (D117): the optional sub-category (the panel's chips): all three null or all set
+  /// (CHECK `gifts_tag_complete`; `gifts_tag_code_format`).
+  tagCode      String?      @map("tag_code") @db.VarChar(40)
+  tagNameAr    String?      @map("tag_name_ar") @db.VarChar(30)
+  tagNameEn    String?      @map("tag_name_en") @db.VarChar(30)
   enabled      Boolean      @default(true)
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)

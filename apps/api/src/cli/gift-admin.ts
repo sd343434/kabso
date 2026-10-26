@@ -8,8 +8,9 @@
  *
  *   pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>
  *                   --price <coins> --asset <assetKey> [--animation <animationKey>] [--sort <n>]
- *                   [--badge NONE|NEW|EVENT]
- *   pnpm gift:admin update <code> [any of the add options; --animation none removes the effect]
+ *                   [--badge NONE|NEW|EVENT] [--tag <tagCode> --tag-ar <text> --tag-en <text>]
+ *   pnpm gift:admin update <code> [any of the add options; --animation none removes the effect,
+ *                   --tag none removes the sub-category]
  *   pnpm gift:admin disable <code>     # hidden from the catalogue and the bag; cannot be sent
  *   pnpm gift:admin enable <code>
  *   pnpm gift:admin list               # every gift, disabled ones marked `-`
@@ -31,6 +32,8 @@ import {
   GIFT_CODE_PATTERN,
   GIFT_STOCK_MAX,
   giftFieldProblems,
+  GiftFieldsError,
+  giftTagProblem,
   grantStockIn,
   setGiftEnabledIn,
   updateGiftIn,
@@ -45,7 +48,8 @@ function fail(message: string): never {
 const USAGE = [
   'Usage: pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>',
   '         --price <coins> --asset <assetKey> [--animation <key>] [--sort <n>] [--badge NONE|NEW|EVENT]',
-  '       pnpm gift:admin update <code> [options of add; --animation none removes it]',
+  '         [--tag <tagCode> --tag-ar <text> --tag-en <text>]',
+  '       pnpm gift:admin update <code> [options of add; --animation none / --tag none remove them]',
   '       pnpm gift:admin disable|enable <code>',
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
@@ -65,6 +69,9 @@ const OPTIONS = {
   animation: { type: 'string' },
   sort: { type: 'string' },
   badge: { type: 'string' },
+  tag: { type: 'string' },
+  'tag-ar': { type: 'string' },
+  'tag-en': { type: 'string' },
 } as const;
 
 function wholeNumber(raw: string, what: string): number {
@@ -91,6 +98,18 @@ function fieldsFrom(args: readonly string[]): Partial<GiftFields> {
   }
   if (values.sort !== undefined) fields.sortOrder = wholeNumber(values.sort, 'The sort order');
   if (values.badge !== undefined) fields.badge = values.badge as GiftBadge;
+  if (values.tag === 'none') {
+    if (values['tag-ar'] !== undefined || values['tag-en'] !== undefined) {
+      fail('--tag none removes the tag; it takes no --tag-ar / --tag-en.');
+    }
+    fields.tagCode = null;
+    fields.tagNameAr = null;
+    fields.tagNameEn = null;
+  } else {
+    if (values.tag !== undefined) fields.tagCode = values.tag;
+    if (values['tag-ar'] !== undefined) fields.tagNameAr = values['tag-ar'];
+    if (values['tag-en'] !== undefined) fields.tagNameEn = values['tag-en'];
+  }
   const problems = giftFieldProblems(fields);
   if (problems.length > 0) fail(problems.join('\n'));
   return fields;
@@ -126,7 +145,12 @@ async function add(code: string, args: readonly string[]): Promise<void> {
     animationKey: given.animationKey ?? null,
     sortOrder: given.sortOrder ?? 0,
     badge: given.badge ?? 'NONE',
+    tagCode: given.tagCode ?? null,
+    tagNameAr: given.tagNameAr ?? null,
+    tagNameEn: given.tagNameEn ?? null,
   };
+  const tagProblem = giftTagProblem(fields);
+  if (tagProblem !== null) fail(`${tagProblem}.\n${USAGE}`);
   const added = await prisma.$transaction(async (tx) => {
     const created = await addGiftIn(tx, code, fields);
     if (created) {
@@ -149,7 +173,13 @@ async function update(code: string, args: readonly string[]): Promise<void> {
   const fields = fieldsFrom(args);
   if (Object.keys(fields).length === 0) fail(`Nothing to update.\n${USAGE}`);
   const changed = await prisma.$transaction(async (tx) => {
-    const result = await updateGiftIn(tx, code, fields);
+    let result: Awaited<ReturnType<typeof updateGiftIn>>;
+    try {
+      result = await updateGiftIn(tx, code, fields);
+    } catch (err) {
+      if (err instanceof GiftFieldsError) fail(`${err.message}.\n${USAGE}`);
+      throw err;
+    }
     if (!result) fail(`No gift ${code}.`);
     const changes: Record<string, { from: string | number | null; to: string | number | null }> = {};
     for (const key of Object.keys(fields) as (keyof GiftFields)[]) {
@@ -204,7 +234,8 @@ async function list(): Promise<void> {
     process.stdout.write(
       `${g.enabled ? ' ' : '-'} ${g.category} ${String(g.sortOrder)} ${g.code} ${String(g.priceCoins)} coins ` +
         `asset=${g.assetKey} animation=${g.animationKey ?? 'none'} badge=${g.badge} ` +
-        `"${g.nameAr}" / "${g.nameEn}"\n`,
+        `"${g.nameAr}" / "${g.nameEn}" ` +
+        `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`}\n`,
     );
   }
 }

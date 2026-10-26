@@ -6263,6 +6263,14 @@
       }
     }
   },
+  "liveGiftTagAll": "الكل",
+  "@liveGiftTagAll": {
+    "description": "Gift panel: the first sub-category chip, every gift of the open tab. (D117)"
+  },
+  "liveGiftTagsSemantics": "تصنيفات الهدايا",
+  "@liveGiftTagsSemantics": {
+    "description": "Screen reader label of the gift panel's sub-category chip row. (D117)"
+  },
   "cpSpaceTitle": "مساحة الثنائي",
   "@cpSpaceTitle": {
     "description": "CP space: page title. (CP-021 (D112))"

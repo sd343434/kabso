@@ -1,5 +1,6 @@
 // Wire models of live gifts (docs/contracts/openapi.yaml v1.23-live DRAFT,
-// tag `gifts` and `sendLiveGift`, CP-020; CONVENTIONS §10.23).
+// tag `gifts` and `sendLiveGift`, CP-020; `Gift.tag` v1.24.3-live, D117;
+// CONVENTIONS §10.23).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -48,6 +49,15 @@ enum LiveGiftSource {
   bag,
 }
 
+/// `GiftTag` (v1.24.3-live, D117): a gift's optional sub-category, shown as
+/// a chip under the gift panel's tabs; [name] follows the app language.
+@freezed
+abstract class GiftTag with _$GiftTag {
+  const factory({required String code, required String name}) = _GiftTag;
+
+  factory fromJson(Map<String, dynamic> json) => _$GiftTagFromJson(json);
+}
+
 /// `Gift`: one gift of the catalogue. [name] follows the app language;
 /// [assetKey] / [animationKey] name the app's bundled files.
 @freezed
@@ -61,6 +71,9 @@ abstract class Gift with _$Gift {
     required String? animationKey,
     required int sortOrder,
     @JsonKey(unknownEnumValue: GiftBadge.none) required GiftBadge badge,
+
+    /// The sub-category (v1.24.3-live), or null: none, or an older API.
+    GiftTag? tag,
   }) = _Gift;
 
   factory fromJson(Map<String, dynamic> json) => _$GiftFromJson(json);
@@ -86,10 +99,23 @@ extension GiftCatalogueLookup on GiftCatalogue {
   /// The gift with [code], or null (unknown or disabled).
   Gift? byCode(String code) => data.where((g) => g.code == code).firstOrNull;
 
+  /// The distinct tags of [category]'s gifts, in the order they first
+  /// appear (the panel's chips after "All"; empty: no chip row).
+  List<GiftTag> tagsOf(GiftCategory category) => giftTags(of(category));
+
   /// The catalogue's gifts of [category], in order.
   List<Gift> of(GiftCategory category) => [
     for (final g in data)
       if (g.category == category) g,
+  ];
+}
+
+/// The distinct tags of [gifts] (by code), in the order they first appear.
+List<GiftTag> giftTags(Iterable<Gift> gifts) {
+  final seen = <String>{};
+  return [
+    for (final g in gifts)
+      if (g.tag case final tag? when seen.add(tag.code)) tag,
   ];
 }
 

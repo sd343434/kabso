@@ -92,6 +92,8 @@ info:
     points: every CP `level` is 1–6 (privileges still unlock at 1–5; CONVENTIONS §10.21).
     **D115 (DRAFT v1.24.2-live)** adds `LiveSeatCouple.privileges`, so apps play the Couple Mic
     Effect (`MIC_EFFECT`, CP level 3) on a speaking partner's seat (CONVENTIONS §10.9).
+    **D117 (DRAFT v1.24.3-live)** adds `Gift.tag` (`GiftTag` `{code, name}` or null): a gift's
+    optional sub-category, shown as chips under the gift panel's tabs (CONVENTIONS §10.23).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -3668,8 +3670,8 @@ paths:
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, sortOrder: 20, badge: NEW }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب } }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, sortOrder: 20, badge: NEW, tag: null }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/gifts/bag:
@@ -3689,7 +3691,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, quantity: 99 }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quantity: 99 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -7305,7 +7307,7 @@ components:
       description: The corner badge of a gift in the panel; unknown values show as NONE.
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, sortOrder, badge]
+      required: [code, category, name, priceCoins, assetKey, animationKey, sortOrder, badge, tag]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
@@ -7318,6 +7320,26 @@ components:
           description: "The app's SVGA / full-screen effect, or null (the image only)."
         sortOrder: { type: integer, minimum: 0 }
         badge: { $ref: '#/components/schemas/GiftBadge' }
+        tag:
+          description: |
+            v1.24.3-live (CP-020, D117): the gift's optional sub-category, shown as a chip under the panel's
+            tabs ("All" plus the distinct tags of the open tab), or null (none). Always present in
+            responses; clients that do not know the field ignore it.
+          oneOf:
+            - $ref: '#/components/schemas/GiftTag'
+            - type: 'null'
+    GiftTag:
+      type: object
+      description: v1.24.3-live (CP-020, D117). A gift sub-category, managed with the `gift-admin` CLI.
+      required: [code, name]
+      properties:
+        code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: treasure_box }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: "Localized by `Accept-Language`, else the caller's locale."
+          example: Treasure Box
     GiftCatalogue:
       type: object
       required: [version, categories, quantities, maxRecipients, comboWindowSeconds, data]
