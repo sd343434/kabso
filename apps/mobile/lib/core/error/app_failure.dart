@@ -70,6 +70,52 @@ enum ErrorCode {
   /// this live (403); the app leaves the room and says so.
   liveKicked('LIVE_KICKED'),
 
+  /// v1.21-live (CP-018, §10.21, 409): the caller already belongs to a family.
+  alreadyInFamily('ALREADY_IN_FAMILY'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the family has 500 members.
+  familyFull('FAMILY_FULL'),
+
+  /// v1.21-live (CP-018, §10.21, 409): a family already has this name (nothing
+  /// charged).
+  familyNameTaken('FAMILY_NAME_TAKEN'),
+
+  /// v1.21-live (CP-018, §10.21, 409): a pending join request to another family
+  /// exists.
+  familyRequestPending('FAMILY_REQUEST_PENDING'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the join request was already answered,
+  /// cancelled or expired.
+  familyRequestNotPending('FAMILY_REQUEST_NOT_PENDING'),
+
+  /// v1.21-live (CP-018, §10.21, 409): only a family with the leader alone can
+  /// be disbanded.
+  familyNotEmpty('FAMILY_NOT_EMPTY'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the leader hands the family over or
+  /// disbands it instead.
+  familyLeaderCannotLeave('FAMILY_LEADER_CANNOT_LEAVE'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the caller or the other person already
+  /// has a CP partner.
+  cpAlreadyPaired('CP_ALREADY_PAIRED'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the caller already has a pending CP
+  /// request.
+  cpRequestPending('CP_REQUEST_PENDING'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the CP request was already answered,
+  /// cancelled or expired.
+  cpRequestNotPending('CP_REQUEST_NOT_PENDING'),
+
+  /// v1.21-live (CP-018, §10.21, 409): a CP gift from a caller who has no
+  /// partner.
+  cpNotPaired('CP_NOT_PAIRED'),
+
+  /// v1.21-live (CP-018, §10.21, 409): the showcase named a medal the caller
+  /// has not earned.
+  medalNotUnlocked('MEDAL_NOT_UNLOCKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

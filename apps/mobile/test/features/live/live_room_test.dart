@@ -1956,39 +1956,50 @@ void main() {
       expect(find.byKey(const Key('room.hostSheet')), findsNothing);
     });
 
-    testWidgets('the three boxes show their empty states and say soon', (
-      tester,
-    ) async {
-      await card(tester, viewer: LivePersonRole.viewer);
-      expect(find.text(l10n.liveUserNone), findsNWidgets(2));
-      expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
-      // Medals are not a box (owner): they sit in a row under the levels.
-      expect(find.text(l10n.liveUserMedals), findsNothing);
-      expect(find.byKey(LivePersonBoxes.boxKey(3)), findsNothing);
-      // The three boxes sit side by side.
-      final family = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
-      final gifts = tester.getRect(find.byKey(LivePersonBoxes.boxKey(2)));
-      expect(family.center.dy, closeTo(gifts.center.dy, 0.5));
-      // No counts anywhere.
-      expect(find.textContaining('/'), findsNothing);
-      for (final (i, label) in [
-        l10n.liveUserFamily,
-        l10n.liveUserCp,
-        l10n.liveUserGiftWall,
-      ].indexed) {
-        final box = find.byKey(LivePersonBoxes.boxKey(i));
-        // The card is at most half the screen: scroll the box to the middle
-        // (the picture and the top buttons sit over the scroll's top).
+    testWidgets(
+      'the three boxes: no family, a CP request offer, the gift wall soon',
+      (tester) async {
+        // CP-018: Sara has no family and no partner; the signed-in viewer
+        // (not Sara) may send her a CP request; the gift wall is coming.
+        await card(tester, viewer: LivePersonRole.viewer);
+        expect(find.text(l10n.liveUserNone), findsOneWidget);
+        expect(find.text(l10n.cpSendShort), findsOneWidget);
+        expect(find.text(l10n.liveUserGiftWall), findsOneWidget);
+        // Medals are not a box (owner): they sit in a row under the levels,
+        // and only when chosen (none here).
+        expect(find.text(l10n.liveUserMedals), findsNothing);
+        expect(find.byKey(LivePersonBoxes.boxKey(3)), findsNothing);
+        expect(find.byKey(const Key('room.userCard.medals')), findsNothing);
+        // The three boxes sit side by side.
+        final family = tester.getRect(find.byKey(LivePersonBoxes.boxKey(0)));
+        final gifts = tester.getRect(find.byKey(LivePersonBoxes.boxKey(2)));
+        expect(family.center.dy, closeTo(gifts.center.dy, 0.5));
+        // No counts anywhere.
+        expect(find.textContaining('/'), findsNothing);
+        // Someone else's empty family is not a button.
+        final familyBox = find.byKey(LivePersonBoxes.boxKey(0));
+        await Scrollable.ensureVisible(
+          tester.element(familyBox),
+          alignment: 0.5,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(familyBox);
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byType(SnackBar), findsNothing);
+        expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+        // The gift wall says it is coming.
+        final box = find.byKey(LivePersonBoxes.boxKey(2));
         await Scrollable.ensureVisible(tester.element(box), alignment: 0.5);
         await tester.pumpAndSettle();
         await tester.tap(box);
         await tester.pump();
-        expect(find.text(l10n.liveUserBoxSoon(label)), findsOneWidget);
-        ScaffoldMessenger.of(tester.element(find.text('open')))
-            .removeCurrentSnackBar();
-        await tester.pumpAndSettle();
-      }
-    });
+        expect(
+          find.text(l10n.liveUserBoxSoon(l10n.liveUserGiftWall)),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('fits at 360 dp with text scale 2 (the card scrolls)', (
       tester,

@@ -120,6 +120,29 @@ abstract final class AppRoutes {
   static String level(String category) =>
       '/levels/${Uri.encodeComponent(category)}';
 
+  /// CP-018: families (browse and search), a new family, one family.
+  static const families = '/families';
+  static const newFamily = '/families/new';
+  static const familyPattern = '/families/:familyId';
+
+  /// The page of family [familyId].
+  static String family(String familyId) =>
+      '/families/${Uri.encodeComponent(familyId)}';
+
+  /// CP-018: your relationship (CP) and its requests.
+  static const cp = '/cp';
+
+  /// CP-018: the medal catalogue (yours) and the showcase picker.
+  static const medals = '/medals';
+  static const medalShowcase = '/medals/showcase';
+
+  /// CP-018: another user's medals.
+  static const userMedalsPattern = '/users/:username/medals';
+
+  /// The medals of [username].
+  static String userMedals(String username) =>
+      '${userProfile(username)}/medals';
+
   /// Prefix of every debug-only route (`!kReleaseMode`).
   static const debugPrefix = '/debug/';
 

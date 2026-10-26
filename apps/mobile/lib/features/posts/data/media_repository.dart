@@ -59,6 +59,10 @@ abstract interface class MediaRepository {
     String contentType, {
     required bool voice,
   });
+
+  /// CP-018: a family's emblem (`FAMILY_EMBLEM`, a centre-cropped square
+  /// like the live cover).
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType);
 }
 
 class MediaRepositoryImpl implements MediaRepository {
@@ -98,6 +102,10 @@ class MediaRepositoryImpl implements MediaRepository {
     contentType,
     kind: voice ? 'LIVE_CHAT_VOICE' : 'LIVE_CHAT_IMAGE',
   );
+
+  @override
+  Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType) =>
+      _upload(bytes, contentType, kind: 'FAMILY_EMBLEM');
 
   /// Slot, PUT, complete.
   Future<MediaAsset> _upload(

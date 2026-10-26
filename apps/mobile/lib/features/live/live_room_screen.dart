@@ -35,7 +35,9 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
+import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -964,8 +966,9 @@ Future<void> setHostFollowing(
 
 /// A person's card in a live (owner, 2026-10-26; the host's mini-profile of
 /// HL-L2 too): a white sheet with the picture over its top edge, the name
-/// with their charm level, @username, their public levels, the family,
-/// relationship, gift wall and medals boxes (empty states: none exists yet),
+/// with their charm level, @username, their public levels and the medals
+/// they chose to show (CP-018), the family, relationship and gift wall boxes
+/// (the family and couple from the profile; the gift wall is coming),
 /// followers and following, Follow, and Invite to a seat (the host,
 /// [onInvite]) or their full profile. All from `GET /users/{username}` and
 /// `GET /users/{username}/levels`.
@@ -1021,6 +1024,7 @@ class _HostSheet extends ConsumerWidget {
   static const profileKey = Key('room.userCard.profile');
   static const giftKey = Key('room.userCard.gift');
   static const copyKey = Key('room.userCard.copy');
+  static const medalsKey = Key('room.userCard.medals');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1038,6 +1042,10 @@ class _HostSheet extends ConsumerWidget {
         .firstOrNull
         ?.level;
     final onInvite = this.onInvite;
+    // CP-018: what the relationship box does for this viewer.
+    final cpAction = profile == null
+        ? BondTap.none
+        : cpTap(profile, signedIn: ref.watch(currentUserProvider) != null);
     final scope = this.scope;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
@@ -1198,6 +1206,27 @@ class _HostSheet extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // CP-018 (owner): the medals the person chose to show, up to
+              // six in one row under the levels; nothing when none are
+              // chosen.
+              if (profile.medals.showcase.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: MedalShowcaseRow(
+                    key: medalsKey,
+                    medals: profile.medals.showcase,
+                    size: 24,
+                    onTap: () => close(
+                      () => unawaited(
+                        context.push(
+                          profile.isSelf
+                              ? AppRoutes.medals
+                              : AppRoutes.userMedals(username),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (profile.bio case final bio? when bio.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -1217,11 +1246,41 @@ class _HostSheet extends ConsumerWidget {
                 ],
               ),
               // Owner (2026-10-26; under the stats): family, relationship
-              // and gift wall as three small boxes side by side. None exists
-              // on the server yet, so each shows its empty state.
-              const Padding(
-                padding: EdgeInsets.only(top: 14),
-                child: LivePersonBoxes(),
+              // and gift wall as three small boxes side by side. CP-018: the
+              // family and the couple come from the profile and open what
+              // exists; the gift wall has no API yet.
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: LivePersonBoxes(
+                  familyValue: switch (profile.family) {
+                    final f? => l10n.familyBoxValue(f.name, f.level),
+                    null => null,
+                  },
+                  cpValue: switch (profile.cp) {
+                    final cp? => l10n.cpBoxValue(
+                      cp.partner.displayName.isEmpty
+                          ? cp.partner.username
+                          : cp.partner.displayName,
+                      cp.levelName,
+                    ),
+                    null when cpAction == BondTap.sendCp => l10n.cpSendShort,
+                    null => null,
+                  },
+                  onFamily: bondAction(
+                    context,
+                    ref,
+                    profile,
+                    familyTap(profile),
+                    before: Navigator.of(context).pop,
+                  ),
+                  onCp: bondAction(
+                    context,
+                    ref,
+                    profile,
+                    cpAction,
+                    before: Navigator.of(context).pop,
+                  ),
+                ),
               ),
               const SizedBox(height: 14),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
@@ -1304,10 +1363,7 @@ class _HostSheet extends ConsumerWidget {
         // the header decoration rises higher than the picture.
         final edge = header == null
             ? _Card.avatar / 2
-            : math.max(
-                _Card.avatar / 2,
-                header.overhang(box.maxWidth),
-              );
+            : math.max(_Card.avatar / 2, header.overhang(box.maxWidth));
         return Stack(
           key: const Key('room.hostSheet'),
           clipBehavior: Clip.none,

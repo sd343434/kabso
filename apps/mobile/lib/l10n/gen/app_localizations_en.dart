@@ -4270,4 +4270,616 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveBulletTag => 'Public message';
+
+  @override
+  String get errorAlreadyInFamily =>
+      'You\'re already in a family. You can be in one family at a time.';
+
+  @override
+  String get errorFamilyFull =>
+      'This family is full and cannot take new members.';
+
+  @override
+  String get errorFamilyNameTaken =>
+      'Another family has this name. No coins were taken.';
+
+  @override
+  String get errorFamilyRequestPending =>
+      'You already asked another family to join. Cancel that request first.';
+
+  @override
+  String get errorFamilyRequestNotPending =>
+      'This request was already answered, cancelled or expired.';
+
+  @override
+  String get errorFamilyNotEmpty =>
+      'You can disband the family only when you\'re its only member.';
+
+  @override
+  String get errorFamilyLeaderCannotLeave =>
+      'The leader can\'t leave: hand the family over or disband it.';
+
+  @override
+  String get errorCpAlreadyPaired =>
+      'You or this person already has a partner. No coins were taken.';
+
+  @override
+  String get errorCpRequestPending =>
+      'You already have a pending CP request. Cancel it on the Relationship page first.';
+
+  @override
+  String get errorCpRequestNotPending =>
+      'This CP request was already answered, cancelled or expired.';
+
+  @override
+  String get errorCpNotPaired =>
+      'You don\'t have a partner now. No coins were taken.';
+
+  @override
+  String get errorMedalNotUnlocked => 'Choose only medals you\'ve earned.';
+
+  @override
+  String bondsCoins(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count coins',
+      one: '$count coin',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bondsDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '$count day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bondsBalance(String coins) {
+    return 'Your balance: $coins';
+  }
+
+  @override
+  String get bondsConfirm => 'Confirm';
+
+  @override
+  String get bondsCancel => 'Cancel';
+
+  @override
+  String get familiesTitle => 'Families';
+
+  @override
+  String get familiesSearchHint => 'Search by name or number';
+
+  @override
+  String get familiesMine => 'My family';
+
+  @override
+  String get familiesCreate => 'Create a family';
+
+  @override
+  String get familiesTop => 'Top families';
+
+  @override
+  String get familiesResults => 'Search results';
+
+  @override
+  String get familiesEmpty => 'No families yet';
+
+  @override
+  String get familiesEmptyBody => 'Be the first to create one.';
+
+  @override
+  String get familiesNoMatch => 'No family matches';
+
+  @override
+  String get familiesNoMatchBody =>
+      'Try another name or the 8-digit family number.';
+
+  @override
+  String get familiesLoadError => 'Couldn\'t load families';
+
+  @override
+  String get familiesNumberNotFound => 'No family has this number';
+
+  @override
+  String familyNumber(String number) {
+    return 'Family No. $number';
+  }
+
+  @override
+  String familyLevel(int level) {
+    return 'Lv $level';
+  }
+
+  @override
+  String familyMembersCount(int count, int capacity) {
+    return 'Members $count / $capacity';
+  }
+
+  @override
+  String familyPendingRequest(String name) {
+    return 'Your request to join $name is waiting';
+  }
+
+  @override
+  String get familyCancelRequest => 'Cancel request';
+
+  @override
+  String get familyRequestCancelled => 'Join request cancelled';
+
+  @override
+  String get familyNotFoundTitle => 'Family not found';
+
+  @override
+  String get familyNotFoundBody => 'This family may have been disbanded.';
+
+  @override
+  String get familyLoadError => 'Couldn\'t load the family';
+
+  @override
+  String familyPoints(String points) {
+    return 'Points: $points';
+  }
+
+  @override
+  String familyProgress(String points, String next, int level) {
+    return '$points / $next to reach level $level';
+  }
+
+  @override
+  String get familyTopLevel => 'The family reached the top level';
+
+  @override
+  String familyLeader(String name) {
+    return 'Leader: $name';
+  }
+
+  @override
+  String get familyJoin => 'Ask to join';
+
+  @override
+  String get familyJoinSent =>
+      'Request sent. The leader or a deputy will answer.';
+
+  @override
+  String get familyRequested => 'Request sent';
+
+  @override
+  String get familyFullLabel => 'Family is full';
+
+  @override
+  String get familyInOther => 'You\'re in another family';
+
+  @override
+  String get familyLeave => 'Leave family';
+
+  @override
+  String familyLeaveTitle(String name) {
+    return 'Leave $name?';
+  }
+
+  @override
+  String get familyLeaveBody => 'The points you gave stay with the family.';
+
+  @override
+  String get familyLeft => 'You left the family';
+
+  @override
+  String get familyManage => 'Manage family';
+
+  @override
+  String get familyChangeEmblem => 'Change emblem';
+
+  @override
+  String get familyRemoveEmblem => 'Remove emblem';
+
+  @override
+  String get familyEmblemUpdated => 'Emblem updated';
+
+  @override
+  String get familyEmblemRemoved => 'Emblem removed';
+
+  @override
+  String get familyDisband => 'Disband family';
+
+  @override
+  String familyDisbandTitle(String name) {
+    return 'Disband $name?';
+  }
+
+  @override
+  String get familyDisbandBody =>
+      'The name becomes free and no coins come back.';
+
+  @override
+  String get familyDisbanded => 'Family disbanded';
+
+  @override
+  String get familyDisbandOnlyAlone =>
+      'You can disband when you\'re the only member';
+
+  @override
+  String get familyRequestsTitle => 'Join requests';
+
+  @override
+  String get familyRequestsEmpty => 'No requests right now';
+
+  @override
+  String get familyAccept => 'Accept';
+
+  @override
+  String get familyDecline => 'Decline';
+
+  @override
+  String familyAccepted(String name) {
+    return '$name joined the family';
+  }
+
+  @override
+  String get familyDeclined => 'Request declined';
+
+  @override
+  String get familyMembersTitle => 'Members';
+
+  @override
+  String get familyRoleLeader => 'Leader';
+
+  @override
+  String get familyRoleDeputy => 'Deputy';
+
+  @override
+  String get familyRoleMember => 'Member';
+
+  @override
+  String get familyMakeDeputy => 'Make deputy';
+
+  @override
+  String get familyMakeMember => 'Make member';
+
+  @override
+  String get familyTransfer => 'Hand over the family';
+
+  @override
+  String familyTransferTitle(String name) {
+    return 'Hand the family over to $name?';
+  }
+
+  @override
+  String familyTransferBody(String name) {
+    return '$name becomes the leader and you become a deputy.';
+  }
+
+  @override
+  String familyTransferred(String name) {
+    return '$name is now the leader';
+  }
+
+  @override
+  String get familyRemove => 'Remove from family';
+
+  @override
+  String familyRemoveTitle(String name) {
+    return 'Remove $name from the family?';
+  }
+
+  @override
+  String familyRemoved(String name) {
+    return '$name was removed';
+  }
+
+  @override
+  String familyRoleChanged(String name) {
+    return '$name\'s role changed';
+  }
+
+  @override
+  String get familyMemberActions => 'Member options';
+
+  @override
+  String get familyCreateTitle => 'New family';
+
+  @override
+  String get familyNameLabel => 'Family name';
+
+  @override
+  String get familyNameHelp => '2 to 20 characters, unique among families.';
+
+  @override
+  String get familyNameInvalid =>
+      'Use 2 to 20 characters without disallowed symbols.';
+
+  @override
+  String get familyEmblemLabel => 'Emblem (optional)';
+
+  @override
+  String get familyEmblemChoose => 'Choose an emblem photo';
+
+  @override
+  String familyCreateCost(String coins) {
+    return 'Creating a family costs $coins';
+  }
+
+  @override
+  String familyCreateSubmit(String coins) {
+    return 'Create for $coins';
+  }
+
+  @override
+  String familyCreateNotEnough(String coins) {
+    return 'You need $coins to create a family. For now the team adds coins; there is no purchase yet.';
+  }
+
+  @override
+  String familyCreated(String name) {
+    return '$name was created';
+  }
+
+  @override
+  String get cpTitle => 'Relationship';
+
+  @override
+  String cpDay(int days) {
+    return 'Day $days together';
+  }
+
+  @override
+  String cpPoints(String points) {
+    return 'CP points: $points';
+  }
+
+  @override
+  String cpToNext(String points, String name) {
+    return '$points more to $name';
+  }
+
+  @override
+  String get cpTopTier => 'You reached the highest tier';
+
+  @override
+  String cpSince(String date) {
+    return 'Since $date';
+  }
+
+  @override
+  String get cpGiftTitle => 'Send a CP gift';
+
+  @override
+  String get cpGiftBody =>
+      'A gift adds CP points to your couple; your partner gets no coins.';
+
+  @override
+  String cpGiftConfirmTitle(String coins) {
+    return 'Send $coins as a CP gift?';
+  }
+
+  @override
+  String cpGiftSent(String points) {
+    return 'Gift sent: +$points CP points';
+  }
+
+  @override
+  String get cpGiftNotEnough =>
+      'You don\'t have enough coins for this gift. For now the team adds coins.';
+
+  @override
+  String get cpEnd => 'End relationship';
+
+  @override
+  String cpEndTitle(String name) {
+    return 'End your relationship with $name?';
+  }
+
+  @override
+  String get cpEndBody => 'No coins come back.';
+
+  @override
+  String get cpEnded => 'Relationship ended';
+
+  @override
+  String get cpNoneTitle => 'No partner yet';
+
+  @override
+  String get cpNoneBody =>
+      'Send a CP request from someone\'s profile or their card in a live.';
+
+  @override
+  String get cpRequestsTitle => 'CP requests';
+
+  @override
+  String get cpIncoming => 'Received';
+
+  @override
+  String get cpOutgoing => 'Sent';
+
+  @override
+  String get cpIncomingEmpty => 'No requests received';
+
+  @override
+  String get cpOutgoingEmpty => 'No requests sent';
+
+  @override
+  String cpRequestFrom(String name) {
+    return '$name wants to be your CP';
+  }
+
+  @override
+  String cpRequestTo(String name) {
+    return 'Waiting for $name';
+  }
+
+  @override
+  String cpExpires(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String get cpAccept => 'Accept';
+
+  @override
+  String get cpDecline => 'Decline';
+
+  @override
+  String get cpCancel => 'Cancel request';
+
+  @override
+  String cpAccepted(String name) {
+    return 'You and $name are a couple now';
+  }
+
+  @override
+  String get cpDeclined => 'Request declined';
+
+  @override
+  String get cpCancelled => 'Request cancelled; your coins came back';
+
+  @override
+  String get cpSendRequest => 'Send CP request';
+
+  @override
+  String get cpSendShort => 'Send request';
+
+  @override
+  String cpSendTitle(String name) {
+    return 'Send a CP request to $name?';
+  }
+
+  @override
+  String cpSendBody(String coins, String days) {
+    return 'It costs $coins. They come back if it\'s declined, cancelled or not answered within $days.';
+  }
+
+  @override
+  String cpSent(String name) {
+    return 'CP request sent to $name';
+  }
+
+  @override
+  String cpSendNotEnough(String coins) {
+    return 'You need $coins to send a CP request. For now the team adds coins; there is no purchase yet.';
+  }
+
+  @override
+  String get cpLoadError => 'Couldn\'t load your relationship';
+
+  @override
+  String cpBoxValue(String name, String tier) {
+    return '$name · $tier';
+  }
+
+  @override
+  String familyBoxValue(String name, int level) {
+    return '$name · Lv $level';
+  }
+
+  @override
+  String get medalsTitle => 'Medals';
+
+  @override
+  String medalsOwned(int owned, int total) {
+    return '$owned of $total';
+  }
+
+  @override
+  String get medalsChoose => 'Choose medals to show';
+
+  @override
+  String get medalsLocked => 'Locked';
+
+  @override
+  String medalsEarnedOn(String date) {
+    return 'Earned on $date';
+  }
+
+  @override
+  String get medalsEmptyTitle => 'No medals yet';
+
+  @override
+  String get medalsEmptyBody =>
+      'Medals come automatically from hosting lives, charm levels, families and couples.';
+
+  @override
+  String get medalsLoadError => 'Couldn\'t load medals';
+
+  @override
+  String get medalsShowcaseTitle => 'Medals on your profile';
+
+  @override
+  String medalsShowcaseHint(int max) {
+    return 'Choose up to $max medals, in the order you want.';
+  }
+
+  @override
+  String medalsShowcaseCount(int count, int max) {
+    return '$count / $max';
+  }
+
+  @override
+  String medalsShowcaseLimit(int max) {
+    return 'You can show up to $max medals';
+  }
+
+  @override
+  String get medalsShowcaseSave => 'Save';
+
+  @override
+  String get medalsShowcaseSaved => 'Your profile medals were saved';
+
+  @override
+  String get medalsShowcaseEmptyPreview =>
+      'Nothing shown. Choose medals below.';
+
+  @override
+  String get medalsShowcaseNoneEarned =>
+      'You haven\'t earned a medal yet, so there is nothing to show.';
+
+  @override
+  String medalsRowLabel(String names) {
+    return 'Medals: $names';
+  }
+
+  @override
+  String medalsPosition(String name, int position) {
+    return '$name, position $position';
+  }
+
+  @override
+  String get medalsDiscard => 'Discard changes?';
+
+  @override
+  String get medalsDiscardConfirm => 'Discard';
+
+  @override
+  String notifCpRequest(String who) {
+    return '$who sent you a CP request';
+  }
+
+  @override
+  String notifCpAccepted(String who) {
+    return '$who accepted your CP request';
+  }
+
+  @override
+  String notifFamilyJoinAccepted(String family) {
+    return 'You\'re now a member of $family';
+  }
+
+  @override
+  String notifFamilyJoinDeclined(String family) {
+    return 'Your request to join $family was declined';
+  }
+
+  @override
+  String notifMedalAwarded(String name) {
+    return 'You earned a new medal: $name';
+  }
+
+  @override
+  String get notifMedalAwardedUnnamed => 'You earned a new medal';
 }

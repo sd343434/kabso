@@ -11,6 +11,9 @@ import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/medals/application/medals_providers.dart';
+import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/notifications/application/notifications_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
@@ -266,6 +269,13 @@ class NotificationRow extends StatelessWidget {
     if (target == null || item.type == NotificationType.contentRemoved) {
       return null;
     }
+    // CP-018: requests and the couple live on the relationship page; a
+    // medal on the medals page.
+    if (item.type == NotificationType.cpRequest ||
+        item.type == NotificationType.cpAccepted) {
+      return AppRoutes.cp;
+    }
+    if (item.type == NotificationType.medalAwarded) return AppRoutes.medals;
     return switch (target.type) {
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
@@ -275,12 +285,18 @@ class NotificationRow extends StatelessWidget {
         AppRoutes.stories(item.actors.first.username),
       NotificationTargetType.story => null,
       NotificationTargetType.user => AppRoutes.userProfile(target.id),
+      NotificationTargetType.family => AppRoutes.family(target.id),
+      NotificationTargetType.medal => AppRoutes.medals,
     };
   }
 
   /// The sentence, the "who" phrase in it and the latest actor's name
   /// (which starts that phrase and is shown bold).
-  (String, String?, String) _sentence(AppLocalizations l10n, String localeTag) {
+  (String, String?, String) _sentence(
+    AppLocalizations l10n,
+    String localeTag, {
+    String? medalName,
+  }) {
     final first = item.actors.firstOrNull;
     // Isolated, so a name in the other script never mixes with the
     // sentence around it (a Latin name in Arabic, or the reverse).
@@ -316,19 +332,65 @@ class NotificationRow extends StatelessWidget {
         NotificationTargetType.story => l10n.notifRemovedStory,
         _ => l10n.notifRemovedPost,
       },
+      NotificationType.cpRequest => l10n.notifCpRequest(who),
+      NotificationType.cpAccepted => l10n.notifCpAccepted(who),
+      NotificationType.familyJoinAccepted => l10n.notifFamilyJoinAccepted(
+        _familyName(l10n),
+      ),
+      NotificationType.familyJoinDeclined => l10n.notifFamilyJoinDeclined(
+        _familyName(l10n),
+      ),
+      NotificationType.medalAwarded => switch (medalName) {
+        final name? => l10n.notifMedalAwarded(KFormat.bidiIsolate(name)),
+        null => l10n.notifMedalAwardedUnnamed,
+      },
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
   }
 
+  /// The family of a join answer (its name is the target's `text`).
+  String _familyName(AppLocalizations l10n) =>
+      KFormat.bidiIsolate(switch (item.target?.text) {
+        final name? when name.isNotEmpty => name,
+        _ => l10n.liveUserFamily,
+      });
+
+  /// Whether the target's `text` is already in the sentence (a family's
+  /// name), so it is not repeated under it.
+  bool get _textInSentence =>
+      item.type == NotificationType.familyJoinAccepted ||
+      item.type == NotificationType.familyJoinDeclined;
+
   @override
   Widget build(BuildContext context) {
+    if (item.type != NotificationType.medalAwarded) {
+      return _build(context, null);
+    }
+    // MEDAL_AWARDED carries only the code: the name and icon come from the
+    // catalogue (`GET /medals`), when it loads.
+    return Consumer(
+      builder: (context, ref, _) {
+        final code = item.target?.id;
+        final medal = ref
+            .watch(medalCatalogueProvider)
+            .value
+            ?.data
+            .where((m) => m.code == code)
+            .firstOrNull;
+        return _build(context, medal);
+      },
+    );
+  }
+
+  Widget _build(BuildContext context, Medal? medal) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
     final (sentence, who, name) = _sentence(
       l10n,
       Localizations.localeOf(context).toLanguageTag(),
+      medalName: medal?.name,
     );
     final when =
         KFormat.relative(
@@ -357,7 +419,9 @@ class NotificationRow extends StatelessWidget {
         )
         ..add(TextSpan(text: sentence.substring(at + name.length)));
     }
-    if (excerpt != null && item.type != NotificationType.follow) {
+    if (excerpt != null &&
+        item.type != NotificationType.follow &&
+        !_textInSentence) {
       spans.add(
         TextSpan(
           text: '\n${isolateHandles(excerpt)}',
@@ -367,7 +431,9 @@ class NotificationRow extends StatelessWidget {
     }
     final target = routeTo();
     final first = item.actors.firstOrNull;
-    final leading = first == null
+    final leading = item.type == NotificationType.medalAwarded
+        ? MedalIcon(iconKey: medal?.iconKey ?? '', size: avatar)
+        : first == null
         ? Container(
             width: avatar,
             height: avatar,

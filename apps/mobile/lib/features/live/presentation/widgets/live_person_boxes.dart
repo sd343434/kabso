@@ -9,11 +9,28 @@ import 'package:material_ui/material_ui.dart';
 /// D74). Medals are not a box: up to six chosen medals sit in a row under the
 /// levels (CP-018).
 ///
-/// None of these exists on the server yet, so every box shows its empty
-/// state; nothing is counted or named that does not exist. A tap says it is
-/// coming.
+/// CP-018 (§10.21): the family and relationship boxes show the person's
+/// real family ([familyValue], e.g. its name and level) and couple
+/// ([cpValue], the partner and tier) from `GET /users/{username}`, and open
+/// what exists through [onFamily] / [onCp] (null: nothing to open, the box
+/// is not a button). The gift wall has no API yet: it says it is coming.
 class LivePersonBoxes extends StatelessWidget {
-  const new({super.key});
+  const new({
+    super.key,
+    this.familyValue,
+    this.cpValue,
+    this.onFamily,
+    this.onCp,
+  });
+
+  /// The family box's line; null = "None yet".
+  final String? familyValue;
+
+  /// The relationship box's line; null = "None yet".
+  final String? cpValue;
+
+  final VoidCallback? onFamily;
+  final VoidCallback? onCp;
 
   /// Family, relationship, gift wall.
   static Key boxKey(int index) => Key('room.userCard.box$index');
@@ -30,7 +47,9 @@ class LivePersonBoxes extends StatelessWidget {
             child: _Box(
               key: boxKey(0),
               title: l10n.liveUserFamily,
-              value: l10n.liveUserNone,
+              value: familyValue ?? l10n.liveUserNone,
+              filled: familyValue != null,
+              onTap: onFamily,
               icon: 'assets/leaderboard/rank_shield_1.webp',
               tint: const Color(0xFFFFF4DA),
               rim: const Color(0xFFF1D08A),
@@ -42,7 +61,9 @@ class LivePersonBoxes extends StatelessWidget {
             child: _Box(
               key: boxKey(1),
               title: l10n.liveUserCp,
-              value: l10n.liveUserNone,
+              value: cpValue ?? l10n.liveUserNone,
+              filled: cpValue != null,
+              onTap: onCp,
               icon: 'assets/leaderboard/heart.webp',
               tint: const Color(0xFFFFE8F0),
               rim: const Color(0xFFF6B7CB),
@@ -55,6 +76,7 @@ class LivePersonBoxes extends StatelessWidget {
               key: boxKey(2),
               title: l10n.liveUserGiftWall,
               value: l10n.liveUserSoon,
+              soon: true,
               icon: 'assets/art/kabso_gift_box.webp',
               tint: const Color(0xFFF0EAFF),
               rim: const Color(0xFFCDBBFF),
@@ -70,21 +92,32 @@ class LivePersonBoxes extends StatelessWidget {
 // Measured on the owner's design file.
 abstract final class _Ink {
   static const mute = Color(0xFF9A93A6);
+  static const ink = Color(0xFF2E3130);
 }
 
-/// A box: a button that says its feature is coming, and sinks a little
-/// while pressed (the design's `_Press`).
-class _SoonTap extends StatefulWidget {
-  const new({required this.label, required this.child});
+/// A box as a button: it opens [onTap], or with [soon] says its feature is
+/// coming, and sinks a little while pressed (the design's `_Press`).
+/// Neither: not a button.
+class _BoxTap extends StatefulWidget {
+  const new({
+    required this.label,
+    required this.value,
+    required this.child,
+    this.onTap,
+    this.soon = false,
+  });
 
   final String label;
+  final String value;
   final Widget child;
+  final VoidCallback? onTap;
+  final bool soon;
 
   @override
-  State<_SoonTap> createState() => _SoonTapState();
+  State<_BoxTap> createState() => _BoxTapState();
 }
 
-class _SoonTapState extends State<_SoonTap> {
+class _BoxTapState extends State<_BoxTap> {
   bool _down = false;
 
   void _set(bool down) {
@@ -94,16 +127,26 @@ class _SoonTapState extends State<_SoonTap> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final tap = widget.soon
+        ? () => KSnack.info(context, l10n.liveUserBoxSoon(widget.label))
+        : widget.onTap;
+    if (tap == null) {
+      return Semantics(
+        label: '${widget.label}, ${widget.value}',
+        excludeSemantics: true,
+        child: widget.child,
+      );
+    }
     return Semantics(
       button: true,
-      label: '${widget.label}, ${l10n.liveUserSoon}',
+      label: '${widget.label}, ${widget.value}',
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _set(true),
         onTapCancel: () => _set(false),
         onTapUp: (_) => _set(false),
-        onTap: () => KSnack.info(context, l10n.liveUserBoxSoon(widget.label)),
+        onTap: tap,
         child: AnimatedScale(
           scale: _down ? 0.97 : 1,
           duration: const Duration(milliseconds: 110),
@@ -126,10 +169,18 @@ class _Box extends StatelessWidget {
     required this.rim,
     required this.accent,
     super.key,
+    this.filled = false,
+    this.soon = false,
+    this.onTap,
   });
 
   final String title;
   final String value;
+
+  /// The value is real data (darker, like the title's ink).
+  final bool filled;
+  final bool soon;
+  final VoidCallback? onTap;
   final String icon;
   final Color tint;
   final Color rim;
@@ -138,8 +189,11 @@ class _Box extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    return _SoonTap(
+    return _BoxTap(
       label: title,
+      value: value,
+      soon: soon,
+      onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 60),
         padding: const EdgeInsetsDirectional.fromSTEB(7, 7, 6, 7),
@@ -201,7 +255,7 @@ class _Box extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: text.caption.copyWith(
-                      color: _Ink.mute,
+                      color: filled ? _Ink.ink : _Ink.mute,
                       fontSize: 11.5,
                       height: 1.2,
                       fontWeight: FontWeight.w600,

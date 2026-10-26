@@ -1,8 +1,12 @@
 // Public profile and follow models matching docs/contracts/openapi.yaml
 // v1.3 (`getPublicProfile`, `followUser`, `unfollowUser`; CONVENTIONS
-// §10.5–10.6).
+// §10.5–10.6), with the family, couple and medals of v1.21-live (CP-018,
+// §10.21).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/features/cp/domain/cp_models.dart';
+import 'package:kabso_live/features/families/domain/family_models.dart';
+import 'package:kabso_live/features/medals/domain/medal_models.dart';
 
 part 'profile_models.freezed.dart';
 part 'profile_models.g.dart';
@@ -26,6 +30,16 @@ abstract class PublicProfile with _$PublicProfile {
     /// CP-007: the caller muted this user (never shown to them). Defaults
     /// to false for previews built without it.
     @Default(false) bool isMuted,
+
+    /// v1.21-live (CP-018): the user's family and role, or null.
+    ProfileFamily? family,
+
+    /// v1.21-live (CP-018): the user's couple, or null.
+    ProfileCp? cp,
+
+    /// v1.21-live (CP-018): medals owned, the newest and the chosen
+    /// showcase (empty for previews built without it).
+    @Default(ProfileMedals()) ProfileMedals medals,
   }) = _PublicProfile;
 
   const new _();

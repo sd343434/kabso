@@ -44,6 +44,19 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.insufficientCoins: 409,
   // v1.20-live (D105)
   ErrorCode.liveKicked: 403,
+  // v1.21-live (CP-018)
+  ErrorCode.alreadyInFamily: 409,
+  ErrorCode.familyFull: 409,
+  ErrorCode.familyNameTaken: 409,
+  ErrorCode.familyRequestPending: 409,
+  ErrorCode.familyRequestNotPending: 409,
+  ErrorCode.familyNotEmpty: 409,
+  ErrorCode.familyLeaderCannotLeave: 409,
+  ErrorCode.cpAlreadyPaired: 409,
+  ErrorCode.cpRequestPending: 409,
+  ErrorCode.cpRequestNotPending: 409,
+  ErrorCode.cpNotPaired: 409,
+  ErrorCode.medalNotUnlocked: 409,
 };
 
 DioException _badResponse(
@@ -106,6 +119,19 @@ void main() {
           'INSUFFICIENT_COINS',
           // v1.20-live (D105)
           'LIVE_KICKED',
+          // v1.21-live (CP-018)
+          'ALREADY_IN_FAMILY',
+          'FAMILY_FULL',
+          'FAMILY_NAME_TAKEN',
+          'FAMILY_REQUEST_PENDING',
+          'FAMILY_REQUEST_NOT_PENDING',
+          'FAMILY_NOT_EMPTY',
+          'FAMILY_LEADER_CANNOT_LEAVE',
+          'CP_ALREADY_PAIRED',
+          'CP_REQUEST_PENDING',
+          'CP_REQUEST_NOT_PENDING',
+          'CP_NOT_PAIRED',
+          'MEDAL_NOT_UNLOCKED',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

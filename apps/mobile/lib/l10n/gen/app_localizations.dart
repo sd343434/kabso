@@ -7561,6 +7561,954 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رسالة عامة'**
   String get liveBulletTag;
+
+  /// ALREADY_IN_FAMILY (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت في عائلة بالفعل. يمكنك أن تكون في عائلة واحدة فقط.'**
+  String get errorAlreadyInFamily;
+
+  /// FAMILY_FULL (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه العائلة ممتلئة ولا تقبل أعضاء جدداً.'**
+  String get errorFamilyFull;
+
+  /// FAMILY_NAME_TAKEN (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الاسم مستخدم لعائلة أخرى. لم تُخصم أي عملات.'**
+  String get errorFamilyNameTaken;
+
+  /// FAMILY_REQUEST_PENDING (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب انضمام معلّق لعائلة أخرى. ألغِه أولاً.'**
+  String get errorFamilyRequestPending;
+
+  /// FAMILY_REQUEST_NOT_PENDING (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة هذا الطلب أو أُلغي أو انتهت صلاحيته.'**
+  String get errorFamilyRequestNotPending;
+
+  /// FAMILY_NOT_EMPTY (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك حلّ العائلة فقط عندما تكون العضو الوحيد فيها.'**
+  String get errorFamilyNotEmpty;
+
+  /// FAMILY_LEADER_CANNOT_LEAVE (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'القائد لا يغادر العائلة: سلّمها لعضو آخر أو حلّها.'**
+  String get errorFamilyLeaderCannotLeave;
+
+  /// CP_ALREADY_PAIRED (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت أو هذا الشخص لديه شريك بالفعل. لم تُخصم أي عملات.'**
+  String get errorCpAlreadyPaired;
+
+  /// CP_REQUEST_PENDING (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك طلب علاقة معلّق. ألغِه من صفحة العلاقة أولاً.'**
+  String get errorCpRequestPending;
+
+  /// CP_REQUEST_NOT_PENDING (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة طلب العلاقة هذا أو أُلغي أو انتهت صلاحيته.'**
+  String get errorCpRequestNotPending;
+
+  /// CP_NOT_PAIRED (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك شريك الآن. لم تُخصم أي عملات.'**
+  String get errorCpNotPaired;
+
+  /// MEDAL_NOT_UNLOCKED (409, CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر فقط الميداليات التي حصلت عليها.'**
+  String get errorMedalNotUnlocked;
+
+  /// An amount of coins (CP-018 prices and balances).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{عملة واحدة} =2{عملتان} few{{count} عملات} many{{count} عملة} other{{count} عملة}}'**
+  String bondsCoins(int count);
+
+  /// A number of days (CP-018 request lifetime).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{يوم واحد} =2{يومين} few{{count} أيام} many{{count} يوماً} other{{count} يوم}}'**
+  String bondsDays(int count);
+
+  /// The coin balance on a spending screen (CP-018); coins is bondsCoins.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك: {coins}'**
+  String bondsBalance(String coins);
+
+  /// Confirm button of a CP-018 dialog.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get bondsConfirm;
+
+  /// Cancel button of a CP-018 dialog.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get bondsCancel;
+
+  /// Families screen title (CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلات'**
+  String get familiesTitle;
+
+  /// Families search field hint. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث بالاسم أو الرقم'**
+  String get familiesSearchHint;
+
+  /// Families screen: your family section. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'عائلتي'**
+  String get familiesMine;
+
+  /// Button: create a family (costs coins). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ عائلة'**
+  String get familiesCreate;
+
+  /// Families list header without a search. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل العائلات'**
+  String get familiesTop;
+
+  /// Families list header with a search. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'نتائج البحث'**
+  String get familiesResults;
+
+  /// Families list is empty. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عائلات بعد'**
+  String get familiesEmpty;
+
+  /// Families list is empty: hint. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'كن أول من ينشئ عائلة.'**
+  String get familiesEmptyBody;
+
+  /// Families search found nothing. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عائلة مطابقة'**
+  String get familiesNoMatch;
+
+  /// Families search found nothing: hint. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب اسماً آخر أو رقم العائلة المكوّن من 8 أرقام.'**
+  String get familiesNoMatchBody;
+
+  /// Families list failed to load. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل العائلات'**
+  String get familiesLoadError;
+
+  /// Search by an 8-digit number found nothing (404). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عائلة بهذا الرقم'**
+  String get familiesNumberNotFound;
+
+  /// A family number (8 digits). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم العائلة {number}'**
+  String familyNumber(String number);
+
+  /// A family level badge. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى {level}'**
+  String familyLevel(int level);
+
+  /// Member count of a family. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء {count} / {capacity}'**
+  String familyMembersCount(int count, int capacity);
+
+  /// Banner: your pending join request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبك للانضمام إلى {name} قيد الانتظار'**
+  String familyPendingRequest(String name);
+
+  /// Cancel your join request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get familyCancelRequest;
+
+  /// Snack: join request cancelled. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء طلب الانضمام'**
+  String get familyRequestCancelled;
+
+  /// Family page: 404. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة غير موجودة'**
+  String get familyNotFoundTitle;
+
+  /// Family page: 404 body. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'ربما تم حلّ هذه العائلة.'**
+  String get familyNotFoundBody;
+
+  /// Family page failed to load. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل العائلة'**
+  String get familyLoadError;
+
+  /// Family or member points (pre-formatted digits). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط: {points}'**
+  String familyPoints(String points);
+
+  /// Family progress to the next level (pre-formatted numbers). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} / {next} للوصول إلى المستوى {level}'**
+  String familyProgress(String points, String next, int level);
+
+  /// Family at the top level. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلت العائلة إلى أعلى مستوى'**
+  String get familyTopLevel;
+
+  /// The family leader. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'القائد: {name}'**
+  String familyLeader(String name);
+
+  /// Button: ask to join a family. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اطلب الانضمام'**
+  String get familyJoin;
+
+  /// Snack: join request sent. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلب الانضمام. يرد عليه القائد أو النواب.'**
+  String get familyJoinSent;
+
+  /// Family page: your request is pending. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال الطلب'**
+  String get familyRequested;
+
+  /// Family page: full, cannot ask to join. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'العائلة ممتلئة'**
+  String get familyFullLabel;
+
+  /// Family page: you are in another family. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت عضو في عائلة أخرى'**
+  String get familyInOther;
+
+  /// Button: leave the family. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة العائلة'**
+  String get familyLeave;
+
+  /// Leave confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'مغادرة {name}؟'**
+  String familyLeaveTitle(String name);
+
+  /// Leave confirm body. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تبقى النقاط التي قدّمتها مع العائلة.'**
+  String get familyLeaveBody;
+
+  /// Snack: left the family. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'غادرت العائلة'**
+  String get familyLeft;
+
+  /// Leader menu tooltip. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة العائلة'**
+  String get familyManage;
+
+  /// Leader: change the emblem. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الشعار'**
+  String get familyChangeEmblem;
+
+  /// Leader: remove the emblem. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة الشعار'**
+  String get familyRemoveEmblem;
+
+  /// Snack: emblem updated. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث الشعار'**
+  String get familyEmblemUpdated;
+
+  /// Snack: emblem removed. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالة الشعار'**
+  String get familyEmblemRemoved;
+
+  /// Leader: disband (only when alone). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حلّ العائلة'**
+  String get familyDisband;
+
+  /// Disband confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حلّ {name}؟'**
+  String familyDisbandTitle(String name);
+
+  /// Disband confirm body. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح الاسم متاحاً لغيرك ولا تُسترد العملات.'**
+  String get familyDisbandBody;
+
+  /// Snack: disbanded. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حلّ العائلة'**
+  String get familyDisbanded;
+
+  /// Disband is unavailable: other members. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك الحلّ عندما تكون العضو الوحيد'**
+  String get familyDisbandOnlyAlone;
+
+  /// Family page: pending join requests (leader, deputies). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات الانضمام'**
+  String get familyRequestsTitle;
+
+  /// No pending join requests. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات حالياً'**
+  String get familyRequestsEmpty;
+
+  /// Accept a join request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get familyAccept;
+
+  /// Decline a join request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get familyDecline;
+
+  /// Snack: join request accepted. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'انضم {name} إلى العائلة'**
+  String familyAccepted(String name);
+
+  /// Snack: join request declined. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب'**
+  String get familyDeclined;
+
+  /// Family page: members section. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء'**
+  String get familyMembersTitle;
+
+  /// Family role. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'القائد'**
+  String get familyRoleLeader;
+
+  /// Family role. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'نائب'**
+  String get familyRoleDeputy;
+
+  /// Family role. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'عضو'**
+  String get familyRoleMember;
+
+  /// Leader: make a member a deputy. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعيين نائباً'**
+  String get familyMakeDeputy;
+
+  /// Leader: make a deputy a member. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة إلى عضو'**
+  String get familyMakeMember;
+
+  /// Leader: transfer leadership. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تسليم القيادة'**
+  String get familyTransfer;
+
+  /// Transfer confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تسليم القيادة إلى {name}؟'**
+  String familyTransferTitle(String name);
+
+  /// Transfer confirm body. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح {name} القائد وتصبح أنت نائباً.'**
+  String familyTransferBody(String name);
+
+  /// Snack: transferred. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبح {name} القائد'**
+  String familyTransferred(String name);
+
+  /// Leader: remove a member. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة من العائلة'**
+  String get familyRemove;
+
+  /// Remove confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {name} من العائلة؟'**
+  String familyRemoveTitle(String name);
+
+  /// Snack: member removed. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت إزالة {name}'**
+  String familyRemoved(String name);
+
+  /// Snack: role changed. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تغيير دور {name}'**
+  String familyRoleChanged(String name);
+
+  /// Leader: member menu tooltip. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات العضو'**
+  String get familyMemberActions;
+
+  /// Create family screen title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'عائلة جديدة'**
+  String get familyCreateTitle;
+
+  /// Create family: name field. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم العائلة'**
+  String get familyNameLabel;
+
+  /// Create family: name help. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'من 2 إلى 20 حرفاً، ولا يتكرر بين العائلات.'**
+  String get familyNameHelp;
+
+  /// Create family: invalid name (VALIDATION_FAILED on name). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم من 2 إلى 20 حرفاً بدون رموز غير مسموحة.'**
+  String get familyNameInvalid;
+
+  /// Create family: emblem picker. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'الشعار (اختياري)'**
+  String get familyEmblemLabel;
+
+  /// Create family: emblem picker button. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر صورة للشعار'**
+  String get familyEmblemChoose;
+
+  /// Create family: price (coins is bondsCoins). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء العائلة يكلّف {coins}'**
+  String familyCreateCost(String coins);
+
+  /// Create family: submit (coins is bondsCoins). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ مقابل {coins}'**
+  String familyCreateSubmit(String coins);
+
+  /// Create family: INSUFFICIENT_COINS. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {coins} لإنشاء عائلة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.'**
+  String familyCreateNotEnough(String coins);
+
+  /// Snack: family created. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء {name}'**
+  String familyCreated(String name);
+
+  /// CP page title (CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'العلاقة'**
+  String get cpTitle;
+
+  /// CP: days together (the first day is day 1). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم {days} معاً'**
+  String cpDay(int days);
+
+  /// CP points (pre-formatted). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط العلاقة: {points}'**
+  String cpPoints(String points);
+
+  /// CP: points to the next tier. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'باقي {points} للوصول إلى {name}'**
+  String cpToNext(String points, String name);
+
+  /// CP at the top tier. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'وصلتما إلى أعلى مستوى'**
+  String get cpTopTier;
+
+  /// CP: formed on. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ {date}'**
+  String cpSince(String date);
+
+  /// CP: gift section title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل هدية علاقة'**
+  String get cpGiftTitle;
+
+  /// CP: gift section explanation. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تضيف الهدية نقاطاً لعلاقتكما، ولا يحصل شريكك على عملات.'**
+  String get cpGiftBody;
+
+  /// CP gift confirm (coins is bondsCoins). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال {coins} كهدية علاقة؟'**
+  String cpGiftConfirmTitle(String coins);
+
+  /// Snack: CP gift sent. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال الهدية: +{points} نقطة'**
+  String cpGiftSent(String points);
+
+  /// CP gift: INSUFFICIENT_COINS. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك عملات كافية لهذه الهدية. يضيف الفريق العملات حالياً.'**
+  String get cpGiftNotEnough;
+
+  /// CP: end the couple. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء العلاقة'**
+  String get cpEnd;
+
+  /// End confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء العلاقة مع {name}؟'**
+  String cpEndTitle(String name);
+
+  /// End confirm body. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تُسترد أي عملات.'**
+  String get cpEndBody;
+
+  /// Snack: ended. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت العلاقة'**
+  String get cpEnded;
+
+  /// CP page: no couple. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد شريك بعد'**
+  String get cpNoneTitle;
+
+  /// CP page: no couple, hint. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل طلب علاقة من الملف الشخصي لشخص ما أو من بطاقته في البث.'**
+  String get cpNoneBody;
+
+  /// CP page: requests section. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات العلاقة'**
+  String get cpRequestsTitle;
+
+  /// CP requests: incoming tab. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'الواردة'**
+  String get cpIncoming;
+
+  /// CP requests: outgoing tab. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'المرسلة'**
+  String get cpOutgoing;
+
+  /// CP: no incoming requests. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات واردة'**
+  String get cpIncomingEmpty;
+
+  /// CP: no outgoing requests. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات مرسلة'**
+  String get cpOutgoingEmpty;
+
+  /// Incoming CP request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يريد أن تكونا ثنائياً'**
+  String cpRequestFrom(String name);
+
+  /// Outgoing CP request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'بانتظار رد {name}'**
+  String cpRequestTo(String name);
+
+  /// CP request expiry. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي في {date}'**
+  String cpExpires(String date);
+
+  /// Accept a CP request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get cpAccept;
+
+  /// Decline a CP request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'رفض'**
+  String get cpDecline;
+
+  /// Cancel your CP request (coins come back). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الطلب'**
+  String get cpCancel;
+
+  /// Snack: CP request accepted. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت و{name} ثنائي الآن'**
+  String cpAccepted(String name);
+
+  /// Snack: CP request declined. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض الطلب'**
+  String get cpDeclined;
+
+  /// Snack: CP request cancelled (refunded). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء الطلب وأُعيدت العملات'**
+  String get cpCancelled;
+
+  /// Button: send a CP request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل طلب علاقة'**
+  String get cpSendRequest;
+
+  /// CP box on someone else's card when you can send a request. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل طلباً'**
+  String get cpSendShort;
+
+  /// CP request confirm title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال طلب علاقة إلى {name}؟'**
+  String cpSendTitle(String name);
+
+  /// CP request confirm body (coins bondsCoins, days bondsDays). (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'يكلّف الطلب {coins}. تعود إليك العملات إذا رُفض أو أُلغي أو لم يُرد عليه خلال {days}.'**
+  String cpSendBody(String coins, String days);
+
+  /// Snack: CP request sent. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلب العلاقة إلى {name}'**
+  String cpSent(String name);
+
+  /// CP request: INSUFFICIENT_COINS. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج {coins} لإرسال طلب علاقة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.'**
+  String cpSendNotEnough(String coins);
+
+  /// CP page failed to load. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل العلاقة'**
+  String get cpLoadError;
+
+  /// CP box value: partner and tier name. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} · {tier}'**
+  String cpBoxValue(String name, String tier);
+
+  /// Family box value: name and level. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} · مستوى {level}'**
+  String familyBoxValue(String name, int level);
+
+  /// Medals screen title (CP-018).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميداليات'**
+  String get medalsTitle;
+
+  /// Medals owned of the catalogue. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{owned} من {total}'**
+  String medalsOwned(int owned, int total);
+
+  /// Button: open the showcase picker. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر الميداليات المعروضة'**
+  String get medalsChoose;
+
+  /// A medal not earned yet. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'مقفلة'**
+  String get medalsLocked;
+
+  /// When a medal was earned. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت عليها في {date}'**
+  String medalsEarnedOn(String date);
+
+  /// No medals earned. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد ميداليات بعد'**
+  String get medalsEmptyTitle;
+
+  /// Explains how medals are earned. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تُمنح الميداليات تلقائياً عند البث ومستويات الجاذبية والعائلات والعلاقات.'**
+  String get medalsEmptyBody;
+
+  /// Medals failed to load. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الميداليات'**
+  String get medalsLoadError;
+
+  /// Showcase picker title. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'ميداليات ملفك'**
+  String get medalsShowcaseTitle;
+
+  /// Showcase picker hint. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر حتى {max} ميداليات بالترتيب الذي تريده.'**
+  String medalsShowcaseHint(int max);
+
+  /// Showcase picker: chosen of the maximum. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} / {max}'**
+  String medalsShowcaseCount(int count, int max);
+
+  /// Snack: showcase full. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك عرض {max} ميداليات كحد أقصى'**
+  String medalsShowcaseLimit(int max);
+
+  /// Showcase picker: save. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get medalsShowcaseSave;
+
+  /// Snack: showcase saved. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ ميداليات ملفك'**
+  String get medalsShowcaseSaved;
+
+  /// Showcase picker: nothing chosen. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لا شيء معروض. اختر ميداليات من الأسفل.'**
+  String get medalsShowcaseEmptyPreview;
+
+  /// Showcase picker: nothing unlocked. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تحصل على ميداليات بعد، لذا لا يوجد ما تعرضه.'**
+  String get medalsShowcaseNoneEarned;
+
+  /// Screen reader label of the medal row on a profile or card. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'الميداليات: {names}'**
+  String medalsRowLabel(String names);
+
+  /// Screen reader: a chosen medal and its place. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، الترتيب {position}'**
+  String medalsPosition(String name, int position);
+
+  /// Showcase picker: leaving with unsaved changes. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل التغييرات؟'**
+  String get medalsDiscard;
+
+  /// Showcase picker: discard. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get medalsDiscardConfirm;
+
+  /// Notification CP_REQUEST. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{who} أرسل لك طلب علاقة'**
+  String notifCpRequest(String who);
+
+  /// Notification CP_ACCEPTED. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'{who} قبل طلب العلاقة، أصبحتما ثنائياً'**
+  String notifCpAccepted(String who);
+
+  /// Notification FAMILY_JOIN_ACCEPTED. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم قبولك في عائلة {family}'**
+  String notifFamilyJoinAccepted(String family);
+
+  /// Notification FAMILY_JOIN_DECLINED. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'تم رفض طلبك للانضمام إلى {family}'**
+  String notifFamilyJoinDeclined(String family);
+
+  /// Notification MEDAL_AWARDED with the name from GET /medals. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على ميدالية جديدة: {name}'**
+  String notifMedalAwarded(String name);
+
+  /// Notification MEDAL_AWARDED before the name is known. (CP-018 (D106))
+  ///
+  /// In ar, this message translates to:
+  /// **'حصلت على ميدالية جديدة'**
+  String get notifMedalAwardedUnnamed;
 }
 
 class _AppLocalizationsDelegate

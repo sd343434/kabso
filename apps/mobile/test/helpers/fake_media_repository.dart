@@ -47,6 +47,29 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// CP-018: how many family emblems were uploaded.
+  int emblemUploads = 0;
+
+  @override
+  Future<MediaAsset> uploadFamilyEmblem(
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    emblemUploads++;
+    final id = 'e$emblemUploads';
+    return MediaAsset(
+      id: id,
+      url: 'https://media.example.test/media/$id/640.webp',
+      thumbUrl: 'https://media.example.test/media/$id/320.webp',
+      width: 640,
+      height: 640,
+    );
+  }
+
   /// CP-017: every live chat upload, e.g. `voice:audio/mp4:1234`.
   final List<String> liveChatUploads = [];
 

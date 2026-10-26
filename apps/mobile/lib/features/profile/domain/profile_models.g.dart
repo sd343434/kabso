@@ -20,6 +20,15 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       isSelf: json['isSelf'] as bool,
       liveRoomId: json['liveRoomId'] as String?,
       isMuted: json['isMuted'] as bool? ?? false,
+      family: json['family'] == null
+          ? null
+          : ProfileFamily.fromJson(json['family'] as Map<String, dynamic>),
+      cp: json['cp'] == null
+          ? null
+          : ProfileCp.fromJson(json['cp'] as Map<String, dynamic>),
+      medals: json['medals'] == null
+          ? const ProfileMedals()
+          : ProfileMedals.fromJson(json['medals'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
@@ -36,6 +45,9 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'isSelf': instance.isSelf,
       'liveRoomId': instance.liveRoomId,
       'isMuted': instance.isMuted,
+      'family': instance.family,
+      'cp': instance.cp,
+      'medals': instance.medals,
     };
 
 _FollowState _$FollowStateFromJson(Map<String, dynamic> json) => _FollowState(
