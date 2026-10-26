@@ -23,6 +23,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart'
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
@@ -853,6 +854,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         stage: AudioSeatRing(
           count: seatCount!,
           seats: liveSeats?.seats ?? const [],
+          // D111: CP partners on adjacent seats are drawn joined.
+          cpPairs: room == null
+              ? const []
+              : cpSeatPairs(liveSeats, hostId: room.host.id),
           host: KAvatar(
             name: hostName,
             imageUrl: user?.avatarUrl,

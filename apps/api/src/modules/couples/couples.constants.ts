@@ -70,13 +70,14 @@ export interface CpTier {
   readonly nameEn: string;
 }
 
-/** The CP tiers (CTO default, D106). */
+/** The CP tiers (CTO default, D106; level 6 owner D113, its name a CTO default). */
 export const CP_TIERS: readonly CpTier[] = [
   { level: 1, minPoints: 0, nameAr: 'ثنائي متحمّس', nameEn: 'Eager couple' },
   { level: 2, minPoints: 520, nameAr: 'ثنائي فضّي', nameEn: 'Silver couple' },
   { level: 3, minPoints: 1314, nameAr: 'ثنائي ذهبي', nameEn: 'Gold couple' },
   { level: 4, minPoints: 5200, nameAr: 'ثنائي ماسي', nameEn: 'Diamond couple' },
   { level: 5, minPoints: 13140, nameAr: 'ثنائي أسطوري', nameEn: 'Legendary couple' },
+  { level: 6, minPoints: 52000, nameAr: 'ثنائي أبدي', nameEn: 'Eternal couple' },
 ];
 
 /** The CP level for `points`. */

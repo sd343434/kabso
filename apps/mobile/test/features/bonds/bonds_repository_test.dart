@@ -461,7 +461,8 @@ void main() {
       final config = await repo().config();
       expect(config.requestCost, 99);
       expect(config.giftAmounts, [10, 52, 99, 520, 1314]);
-      expect(config.tiers.last.name, 'Legendary couple');
+      expect(config.tiers.last.name, 'Eternal couple');
+      expect(config.tiers, hasLength(6));
       final sent = await repo().sendRequest(username: 'layla.k', clientId: 'k');
       expect(sent.coins, 401);
       expect(sent.request.cost, 99);

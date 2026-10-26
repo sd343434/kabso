@@ -4,6 +4,9 @@ import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -259,7 +262,14 @@ class AudioSeatRing extends StatelessWidget {
     this.micOff = const {},
     this.onHost,
     this.hostTapLabel,
+    this.cpPairs = const [],
   });
+
+  /// Owner D111: CP partners' tiles (0 is the host, see [cpSeatPairs]). Two
+  /// partners next to each other — consecutive tiles of a row, or
+  /// neighbouring guests on the circle — are joined by a band behind their
+  /// pictures with an ornament between them; partners apart show nothing.
+  final List<CpSeatPair> cpPairs;
 
   /// Seat indexes whose own mic is off (the guest muted themselves): the
   /// mic-off badge, as when the host mutes them.
@@ -293,6 +303,31 @@ class AudioSeatRing extends StatelessWidget {
 
   static Key seatKey(int index) => Key('audioSeat.$index');
 
+  /// D111: the band and the ornament of the CP pair on tiles [a] < [b].
+  static Key cpBandKey(int a, int b) => Key('audioSeat.cp.$a.$b.band');
+  static Key cpOrnamentKey(int a, int b) => Key('audioSeat.cp.$a.$b.ornament');
+
+  /// D113: the rings of the couple's level frame around the visually left
+  /// and right partner of the pair on tiles [a] < [b].
+  static Key cpRingKey(int a, int b, {required bool left}) =>
+      Key('audioSeat.cp.$a.$b.ring.${left ? 'l' : 'r'}');
+
+  /// D115: the tiles of partners whose couple has the Couple Mic Effect
+  /// (adjacent or not).
+  Set<int> get cpMicTiles => {
+    for (final p in cpPairs)
+      if (p.micEffect) ...[p.a, p.b],
+  };
+
+  /// The CP pairs drawn joined in the current layout.
+  List<CpSeatPair> get joinedPairs => [
+    for (final p in cpPairs)
+      if (count > circleMax
+          ? cpRowsAdjacent(p, count: count)
+          : cpCircleAdjacent(p, count: count))
+        p,
+  ];
+
   /// The largest room drawn as a circle (owner D100: "a circle of at most 11").
   static const circleMax = 11;
 
@@ -319,17 +354,28 @@ class AudioSeatRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) => count > circleMax ? _rows() : _circle();
 
-  Widget _hostSeat({bool compact = false}) => _HostSeat(
-    key: seatKey(0),
-    onTap: onHost,
-    tapLabel: hostTapLabel,
-    circle: host,
-    name: hostName,
-    muted: hostMicOn == false,
-    speaking: speaking.contains(0),
-    points: hostPoints,
-    compact: compact,
-  );
+  Widget _hostSeat({bool compact = false, bool ghost = false}) {
+    final seat = _HostSeat(
+      key: ghost ? null : seatKey(0),
+      onTap: ghost ? null : onHost,
+      tapLabel: hostTapLabel,
+      circle: ghost ? const SizedBox.shrink() : host,
+      name: hostName,
+      muted: hostMicOn == false,
+      speaking: !ghost && speaking.contains(0),
+      points: hostPoints,
+      compact: compact,
+      cpMic: !ghost && cpMicTiles.contains(0),
+    );
+    return ghost ? _ghost(seat) : seat;
+  }
+
+  /// D113 (owner: the ornament exactly in the middle): a partner's tile
+  /// again, without its picture, painted above the ornament layer so its
+  /// name, mic-off badge and "Host" tag stay on top of the ornament. Never
+  /// tapped, never read twice.
+  static Widget _ghost(Widget tile) =>
+      IgnorePointer(child: ExcludeSemantics(child: tile));
 
   /// Under a guest seat in the rows, the invisible space the host tile's
   /// taller name gap and points pill take, so every row has the same height
@@ -364,7 +410,7 @@ class AudioSeatRing extends StatelessWidget {
   Widget _rows() => LayoutBuilder(
     builder: (context, box) {
       final cell = box.maxWidth / rowSize;
-      Widget tile(int i) => SizedBox(
+      Widget tile(int i, {bool ghost = false}) => SizedBox(
         width: cell,
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -372,27 +418,66 @@ class AudioSeatRing extends StatelessWidget {
           child: SizedBox(
             width: _Seat.width,
             child: i == 0
-                ? _hostSeat(compact: true)
+                ? _hostSeat(compact: true, ghost: ghost)
                 : Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: [_guest(i), _hostExtra()],
+                    children: [
+                      _guest(i, ghost: ghost),
+                      _hostExtra(),
+                    ],
                   ),
           ),
         ),
       );
+      final joined = joinedPairs;
+      final labelHeight = MediaQuery.textScalerOf(context).scale(11.5) * 1.2;
+      Widget row(int first) {
+        final row = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = first; i < first + rowSize && i < count; i++) tile(i),
+          ],
+        );
+        final pairs = [
+          for (final p in joined)
+            if (p.a >= first && p.b < first + rowSize) p,
+        ];
+        if (pairs.isEmpty) return row;
+        final partners = {
+          for (final p in pairs) ...[p.a, p.b],
+        };
+        // The partners' tiles again (names, badges, tag) above the ornaments.
+        final ghosts = Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = first; i < first + rowSize && i < count; i++)
+              if (partners.contains(i))
+                tile(i, ghost: true)
+              else
+                SizedBox(width: cell),
+          ],
+        );
+        return _cpRow(
+          ghosts: ghosts,
+          rtl: Directionality.of(context) == TextDirection.rtl,
+          joined: joined.length,
+          first: first,
+          width: box.maxWidth,
+          cell: cell,
+          labelHeight: labelHeight,
+          pairs: pairs,
+          row: row,
+        );
+      }
+
       final rows = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var first = 0; first < count; first += rowSize) ...[
             if (first > 0) const SizedBox(height: rowGap),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = first; i < first + rowSize && i < count; i++)
-                  tile(i),
-              ],
-            ),
+            row(first),
           ],
         ],
       );
@@ -429,11 +514,65 @@ class AudioSeatRing extends StatelessWidget {
       final rtl = Directionality.of(context) == TextDirection.rtl;
       final guests = count - 1;
       final children = <Widget>[];
+      final centres = <int, Offset>{};
       for (var i = 1; i <= guests; i++) {
         final angle =
             -math.pi / 2 + math.pi / guests + (i - 1) * 2 * math.pi / guests;
         final dx = r * math.cos(angle) * (rtl ? -1 : 1);
         final dy = r * math.sin(angle);
+        centres[i] = Offset(cx + dx, cy + dy);
+      }
+      final joined = joinedPairs;
+      final ornaments = <Widget>[];
+      if (joined.isNotEmpty) {
+        final labelHeight = MediaQuery.textScalerOf(context).scale(11.5) * 1.2;
+        final obstacles = <CpObstacle>[
+          // The host's circle, name and points in the middle.
+          CpRectObstacle(
+            Rect.fromLTRB(
+              cx - hostSize / 2 - 4,
+              cy - hostSize / 2 - 4,
+              cx + hostSize / 2 + 4,
+              cy + hostSize / 2 + 12 + 2 * labelHeight + 4,
+            ),
+          ),
+          for (final MapEntry(key: i, value: c) in centres.entries)
+            ..._seatObstacles(i, c, labelHeight, rtl: rtl),
+        ];
+        for (final p in joined) {
+          final a = centres[p.a]!;
+          final b = centres[p.b]!;
+          children.add(
+            cpBandBetween(a, b, _Seat.avatar, key: cpBandKey(p.a, p.b)),
+          );
+        }
+        for (final p in joined) {
+          children.addAll(
+            _cpCircleRings(
+              p,
+              centres,
+              labelHeight,
+              hostRect: obstacles.first,
+              rtl: rtl,
+              stage: Rect.fromLTRB(0, -cpRingTop + chair / 2, width, height),
+            ),
+          );
+        }
+        for (final p in joined) {
+          ornaments.add(
+            _cpFx(
+              p,
+              centres[p.a]!,
+              centres[p.b]!,
+              obstacles: obstacles,
+              pairs: joined.length,
+            ),
+          );
+        }
+      }
+      for (var i = 1; i <= guests; i++) {
+        final dx = centres[i]!.dx - cx;
+        final dy = centres[i]!.dy - cy;
         children.add(
           Positioned(
             left: cx + dx - _Seat.width / 2,
@@ -443,14 +582,28 @@ class AudioSeatRing extends StatelessWidget {
           ),
         );
       }
-      children.add(
-        Positioned(
-          left: cx - _HostSeat.width / 2,
-          top: cy + hostDrop - hostSize / 2,
-          width: _HostSeat.width,
-          child: _hostSeat(),
-        ),
-      );
+      children
+        ..add(
+          Positioned(
+            left: cx - _HostSeat.width / 2,
+            top: cy + hostDrop - hostSize / 2,
+            width: _HostSeat.width,
+            child: _hostSeat(),
+          ),
+        )
+        ..addAll(ornaments)
+        // The partners' names and badges above the ornaments (owner D113).
+        ..addAll([
+          for (final i in {
+            for (final p in joined) ...[p.a, p.b],
+          })
+            Positioned(
+              left: centres[i]!.dx - _Seat.width / 2,
+              top: centres[i]!.dy - chair / 2,
+              width: _Seat.width,
+              child: _guest(i, ghost: true),
+            ),
+        ]);
       return SizedBox(
         height: height,
         child: Stack(clipBehavior: Clip.none, children: children),
@@ -458,7 +611,307 @@ class AudioSeatRing extends StatelessWidget {
     },
   );
 
-  Widget _guest(int i) {
+  /// The ornament's width (owner D113: 62 pt in rows and circle; rows
+  /// scale it with the tiles).
+  static const cpOrnamentSize = 62.0;
+
+  /// D113: how far above a picture's centre its ring may show (the crown
+  /// of the frame), in the tile's points; below, it stops above the name.
+  static const double cpRingTop = chair / 2 + rowGap;
+
+  /// The two rings of [p]'s level frame around pictures centred at [a] and
+  /// [b] (visual coordinates, [scale] the tiles' scale): the visually left
+  /// partner gets the left ring. Each shows only within its tile ([cell]
+  /// wide) and above the name.
+  List<Widget> _cpRings(
+    CpSeatPair p,
+    Offset a,
+    Offset b,
+    double labelHeight, {
+    double scale = 1,
+    double? cell,
+  }) {
+    final frame = CpSeatFrames.forLevel(p.level);
+    final aLeft = a.dx <= b.dx;
+    final half = (cell ?? _Seat.width) / 2;
+    Widget ring(Offset c, {required bool left}) {
+      final piece = left ? frame.left : frame.right;
+      return cpRingAt(
+        key: cpRingKey(p.a, p.b, left: left),
+        piece: piece,
+        ring: piece.rectFor(c, _Seat.avatar * scale),
+        clip: Rect.fromLTRB(
+          c.dx - half,
+          c.dy - cpRingTop * scale,
+          c.dx + half,
+          c.dy + (chair / 2 + 2) * scale,
+        ),
+      );
+    }
+
+    return [ring(a, left: aLeft), ring(b, left: !aLeft)];
+  }
+
+  /// D113 review, the circle: each partner's ring drawn whole, shrunk
+  /// (never cut) where it would reach another seat's picture or name, the
+  /// host or the [stage]'s edges. The partner's own name is drawn on top.
+  List<Widget> _cpCircleRings(
+    CpSeatPair p,
+    Map<int, Offset> centres,
+    double labelHeight, {
+    required CpObstacle hostRect,
+    required bool rtl,
+    required Rect stage,
+  }) {
+    final frame = CpSeatFrames.forLevel(p.level);
+    final a = centres[p.a]!;
+    final b = centres[p.b]!;
+    final aLeft = a.dx <= b.dx;
+    Widget ring(int tile, {required bool left}) {
+      final c = centres[tile]!;
+      return cpRingAround(
+        key: cpRingKey(p.a, p.b, left: left),
+        piece: left ? frame.left : frame.right,
+        centre: c,
+        picture: _Seat.avatar,
+        bounds: stage,
+        obstacles: [
+          hostRect,
+          for (final MapEntry(key: i, value: o) in centres.entries)
+            if (i != tile) ..._seatObstacles(i, o, labelHeight, rtl: rtl),
+        ],
+      );
+    }
+
+    return [ring(p.a, left: aLeft), ring(p.b, left: !aLeft)];
+  }
+
+  /// Where a pair's animation may show: both partners' tiles ([cell] wide),
+  /// from the crown down to the names.
+  Rect _cpArea(Offset a, Offset b, {double scale = 1, double? cell}) {
+    final half = (cell ?? _Seat.width) / 2;
+    Rect tile(Offset c) => Rect.fromLTRB(
+      c.dx - half,
+      c.dy - cpRingTop * scale,
+      c.dx + half,
+      c.dy + (chair / 2 + 2) * scale,
+    );
+    return tile(a).expandToInclude(tile(b));
+  }
+
+  /// D113 amendment: the light animation around [p] (visual coordinates),
+  /// clear of [obstacles]; fewer parts when the room shows many [pairs].
+  Widget _cpFx(
+    CpSeatPair p,
+    Offset a,
+    Offset b, {
+    required List<CpObstacle> obstacles,
+    required int pairs,
+    double scale = 1,
+    double? cell,
+    double? ornamentTop,
+  }) {
+    final area = _cpArea(a, b, scale: scale, cell: cell);
+    // What the ornament lets out may rise above the rings' area, into the
+    // empty space between rows ([ornamentTop]), never over the row above's
+    // names.
+    final bounds = ornamentTop == null
+        ? area
+        : Rect.fromLTRB(area.left, ornamentTop, area.right, area.bottom);
+    // Owner D113: the ornament sits exactly in the middle of the two
+    // pictures, always upright, at its fixed size (62 pt at the room's
+    // full size): it covers the inner edges of both pictures, and the
+    // partners' names, mic-off badges and "Host" tag are painted above it.
+    final rect = cpOrnamentRect(
+      a,
+      b,
+      size: cpOrnamentSize * scale,
+      aspect: CpSeatFrames.forLevel(p.level).centerAspect,
+    );
+    return CpPairFx(
+      key: CpPairFx.keyFor(p.a, p.b),
+      level: p.level,
+      a: a,
+      b: b,
+      picture: _Seat.avatar * scale,
+      area: area,
+      obstacles: obstacles,
+      budget: pairs > CpPairFx.crowdedPairs
+          ? CpPairFx.crowdedParts
+          : CpPairFx.maxParts,
+      ornament: rect,
+      ornamentBounds: bounds,
+      ornamentKey: cpOrnamentKey(p.a, p.b),
+      ornamentChild: _cpOrnament(p, rect.width),
+    ).positioned();
+  }
+
+  bool _muted(int i) {
+    if (i == 0) return hostMicOn == false;
+    if (micOff.contains(i)) return true;
+    for (final s in seats) {
+      if (s.index == i) return s.state == LiveSeatState.taken && s.mutedByHost;
+    }
+    return false;
+  }
+
+  /// A seat's picture, name and mic badge as obstacles for the ornament: [c]
+  /// is the picture's centre, [scale] the tile's scale. With [rtl] false the
+  /// x axis may also be the row's start-to-end axis (the badge sits at the
+  /// end).
+  List<CpObstacle> _seatObstacles(
+    int i,
+    Offset c,
+    double labelHeight, {
+    required bool rtl,
+    double scale = 1,
+  }) {
+    final half = _Seat.width / 2 * scale;
+    final labelTop = c.dy + (AudioSeatRing.chair / 2 + 2) * scale;
+    final picture = _Seat.avatar / 2 * scale;
+    return [
+      CpCircleObstacle(c, picture + 2 * scale),
+      // The compact host's "Host" tag under its picture (rows).
+      if (i == 0)
+        CpRectObstacle(
+          Rect.fromLTRB(
+            c.dx - 24 * scale,
+            c.dy + 16 * scale,
+            c.dx + 24 * scale,
+            c.dy + 32 * scale,
+          ),
+        ),
+      CpRectObstacle(
+        Rect.fromLTRB(
+          c.dx - half + 2 * scale,
+          labelTop,
+          c.dx + half - 2 * scale,
+          labelTop + labelHeight * scale,
+        ),
+      ),
+      if (_muted(i))
+        CpRectObstacle(
+          // The mic-off badge at the picture's bottom end corner (the
+          // compact host's is larger and further out).
+          i == 0
+              ? Rect.fromLTRB(
+                  c.dx + (rtl ? -37 : 17) * scale,
+                  c.dy + 11 * scale,
+                  c.dx + (rtl ? -17 : 37) * scale,
+                  c.dy + 31 * scale,
+                )
+              : Rect.fromLTRB(
+                  c.dx + (rtl ? -26 : 10) * scale,
+                  c.dy + 10 * scale,
+                  c.dx + (rtl ? -10 : 26) * scale,
+                  c.dy + 26 * scale,
+                ),
+        ),
+    ];
+  }
+
+  Widget _cpOrnament(CpSeatPair p, double size) {
+    final ornament = CpOrnament(level: p.level, size: size);
+    return p.levelName.isEmpty
+        ? ExcludeSemantics(child: ornament)
+        : Semantics(label: p.levelName, child: ornament);
+  }
+
+  /// D111 in the rows: the bands behind the row's joined pairs and their
+  /// ornaments over it. Positions run from the row's start (so they mirror
+  /// with the row in Arabic); every tile is [cell] wide and scaled like
+  /// [_rows] scales it.
+  Widget _cpRow({
+    required int first,
+    required double width,
+    required double cell,
+    required double labelHeight,
+    required List<CpSeatPair> pairs,
+    required Widget row,
+    required Widget ghosts,
+    required bool rtl,
+    required int joined,
+  }) {
+    final n = math.min(rowSize, count - first);
+    final scale = math.min(1, cell / _Seat.width).toDouble();
+    final offset = (width - n * cell) / 2;
+    final y = AudioSeatRing.chair / 2 * scale;
+    Offset centre(int i) => Offset(offset + (i - first + 0.5) * cell, y);
+    // The rings are placed in visual coordinates (the art is never mirrored).
+    Offset visual(Offset c) => rtl ? Offset(width - c.dx, c.dy) : c;
+    final picture = _Seat.avatar * scale;
+    final thickness = picture + 2 * cpBandPad * scale;
+    // Pictures, names and badges where they show (visual coordinates), and
+    // for the second row the host's points pill above it (host column).
+    final hostColumn = visual(Offset(offset + 0.5 * cell, y)).dx;
+    final shown = <CpObstacle>[
+      if (first == rowSize && hostPoints != null)
+        CpRectObstacle(
+          Rect.fromLTRB(
+            hostColumn - 30 * scale,
+            y - (chair / 2 + rowGap + 40) * scale,
+            hostColumn + 30 * scale,
+            y - (chair / 2 + rowGap - 2) * scale,
+          ),
+        ),
+      for (var i = first; i < first + n; i++)
+        ..._seatObstacles(
+          i,
+          visual(centre(i)),
+          labelHeight,
+          rtl: rtl,
+          scale: scale,
+        ),
+    ];
+    final bands = <Widget>[];
+    final rings = <Widget>[];
+    final fx = <Widget>[];
+    for (final p in pairs) {
+      final a = centre(p.a);
+      final b = centre(p.b);
+      rings.addAll(
+        _cpRings(
+          p,
+          visual(a),
+          visual(b),
+          labelHeight,
+          scale: scale,
+          cell: cell,
+        ),
+      );
+      fx.add(
+        _cpFx(
+          p,
+          visual(a),
+          visual(b),
+          obstacles: shown,
+          pairs: joined,
+          scale: scale,
+          cell: cell,
+          // Above a row: the row gap and the (empty) space under the row
+          // above's names that the host's points take in its column.
+          ornamentTop:
+              y - (chair / 2 + rowGap + (hostPoints == null ? 2 : 19)) * scale,
+        ),
+      );
+      bands.add(
+        PositionedDirectional(
+          key: cpBandKey(p.a, p.b),
+          start: a.dx - thickness / 2,
+          top: y - thickness / 2,
+          width: b.dx - a.dx + thickness,
+          height: thickness,
+          child: CpBand(length: b.dx - a.dx + thickness, thickness: thickness),
+        ),
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [...bands, ...rings, row, ...fx, ghosts],
+    );
+  }
+
+  Widget _guest(int i, {bool ghost = false}) {
     final seat = seats.firstWhere(
       (s) => s.index == i,
       orElse: () => LiveSeat(index: i, state: LiveSeatState.empty, user: null),
@@ -466,6 +919,19 @@ class AudioSeatRing extends StatelessWidget {
     final user = seat.user;
     final onTap = onSeat == null ? null : () => onSeat!(i);
     if (seat.state == LiveSeatState.taken && user != null) {
+      if (ghost) {
+        return _ghost(
+          _Seat(
+            label: user.displayName,
+            semantics: user.displayName,
+            muted: seat.mutedByHost || micOff.contains(i),
+            framed:
+                count <= circleMax &&
+                joinedPairs.any((p) => p.a == i || p.b == i),
+            child: const SizedBox.shrink(),
+          ),
+        );
+      }
       return _Seat(
         key: seatKey(i),
         label: user.displayName,
@@ -473,6 +939,11 @@ class AudioSeatRing extends StatelessWidget {
         muted: seat.mutedByHost || micOff.contains(i),
         speaking: speaking.contains(i),
         onTap: onTap,
+        // D113 review: in the circle a partner's ring is whole, so its own
+        // name sits on the art; a soft shadow keeps it readable.
+        framed:
+            count <= circleMax && joinedPairs.any((p) => p.a == i || p.b == i),
+        cpMic: cpMicTiles.contains(i),
         child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
@@ -480,6 +951,7 @@ class AudioSeatRing extends StatelessWidget {
         ),
       );
     }
+    if (ghost) return const SizedBox.shrink();
     final locked = seat.state == LiveSeatState.locked;
     return _Seat(
       key: seatKey(i),
@@ -532,7 +1004,15 @@ class _Seat extends StatelessWidget {
     this.muted = false,
     this.speaking = false,
     this.onTap,
+    this.framed = false,
+    this.cpMic = false,
   });
+
+  /// D113: the seat wears a CP ring drawn whole under its name.
+  final bool framed;
+
+  /// D115: the seat's partner couple has the Couple Mic Effect.
+  final bool cpMic;
 
   final Widget child;
   final String label;
@@ -566,11 +1046,11 @@ class _Seat extends StatelessWidget {
                   if (child is _Chair)
                     child
                   else
-                    _Glow(
-                      on: speaking,
-                      child: ClipOval(
-                        child: SizedBox.square(dimension: avatar, child: child),
-                      ),
+                    _speakingPicture(
+                      speaking: speaking,
+                      cpMic: cpMic,
+                      size: avatar,
+                      picture: child,
                     ),
                   if (muted)
                     const PositionedDirectional(
@@ -584,7 +1064,7 @@ class _Seat extends StatelessWidget {
           ),
           // The label's centre 39 pt below the seat's (ref 83).
           const SizedBox(height: 2),
-          _SeatLabel(label),
+          _SeatLabel(label, shadow: framed),
         ],
       ),
     ),
@@ -604,7 +1084,11 @@ class _HostSeat extends StatelessWidget {
     this.compact = false,
     this.onTap,
     this.tapLabel,
+    this.cpMic = false,
   });
+
+  /// D115: the host's couple has the Couple Mic Effect.
+  final bool cpMic;
 
   final VoidCallback? onTap;
   final String? tapLabel;
@@ -647,16 +1131,11 @@ class _HostSeat extends StatelessWidget {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    _Glow(
-                      on: speaking,
-                      child: ClipOval(
-                        child: SizedBox.square(
-                          dimension: compact
-                              ? _Seat.avatar
-                              : AudioSeatRing.hostSize,
-                          child: circle,
-                        ),
-                      ),
+                    _speakingPicture(
+                      speaking: speaking,
+                      cpMic: cpMic,
+                      size: compact ? _Seat.avatar : AudioSeatRing.hostSize,
+                      picture: circle,
                     ),
                     Positioned(
                       bottom: compact ? -2 : 3,
@@ -743,14 +1222,17 @@ class _PointsPill extends StatelessWidget {
 }
 
 class _SeatLabel extends StatelessWidget {
-  const new(this.text);
+  const new(this.text, {this.shadow = false});
 
   final String text;
 
+  /// A name on top of CP ring art (D113): a soft dark pill behind it keeps
+  /// it readable.
+  final bool shadow;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 2),
-    child: Text(
+  Widget build(BuildContext context) {
+    final label = Text(
       text,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -758,11 +1240,58 @@ class _SeatLabel extends StatelessWidget {
       style: context.textStyles.caption.copyWith(
         fontSize: 11.5,
         height: 1.2,
-        color: KAudioRoom.textSoft,
+        color: shadow ? KAudioRoom.text : KAudioRoom.textSoft,
         fontWeight: FontWeight.w500,
       ),
-    ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: shadow
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0x99000000),
+                borderRadius: BorderRadius.circular(KRadius.pill),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: label,
+              ),
+            )
+          : label,
+    );
+  }
+}
+
+/// A seat's round picture of [size]: while [speaking], the glowing ring, or
+/// for a couple with the Couple Mic Effect ([cpMic], D115) the CP mic effect.
+Widget _speakingPicture({
+  required bool speaking,
+  required bool cpMic,
+  required double size,
+  required Widget picture,
+}) {
+  final clipped = ClipOval(
+    child: SizedBox.square(dimension: size, child: picture),
   );
+  if (speaking && cpMic) {
+    // The effect stays in the seat's tile, from the crown space down to the
+    // name's top (the large host in the circle: its own column).
+    final area = size == AudioSeatRing.hostSize
+        ? Rect.fromLTRB(
+            -_HostSeat.width / 2 + 20,
+            -size / 2 - 12,
+            _HostSeat.width / 2 - 20,
+            size / 2 + 5,
+          )
+        : const Rect.fromLTRB(
+            -_Seat.width / 2,
+            -AudioSeatRing.cpRingTop,
+            _Seat.width / 2,
+            AudioSeatRing.chair / 2 + 2,
+          );
+    return CpMicEffect(size: size, area: area, child: clipped);
+  }
+  return _Glow(on: speaking, child: clipped);
 }
 
 /// A speaker's glowing ring.

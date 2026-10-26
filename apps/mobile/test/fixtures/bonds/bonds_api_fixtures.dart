@@ -91,7 +91,7 @@ Map<String, Object?> pageJson(
   'page': {'nextCursor': nextCursor, 'hasMore': nextCursor != null},
 };
 
-/// The `getCpConfig` example (all five tiers).
+/// The `getCpConfig` example (all six tiers; the sixth since D113).
 Map<String, Object?> cpConfigJson({int requestCost = 99}) => {
   'requestCost': requestCost,
   'requestTtlDays': 7,
@@ -102,6 +102,7 @@ Map<String, Object?> cpConfigJson({int requestCost = 99}) => {
     {'level': 3, 'minPoints': 1314, 'name': 'Gold couple'},
     {'level': 4, 'minPoints': 5200, 'name': 'Diamond couple'},
     {'level': 5, 'minPoints': 13140, 'name': 'Legendary couple'},
+    {'level': 6, 'minPoints': 52000, 'name': 'Eternal couple'},
   ],
   // v1.24-live (CP-021): the named gift cards.
   'gifts': [

@@ -13,3 +13,7 @@ clamped), trimmed to the art, centred on a square with 2 % margin, resized to
 | `family.webp` | Family: crowned gold shield with a family |
 | `cp.webp` | Relationship (CP): two hearts linked by a gold ring |
 | `gift_wall.webp` | Gift wall: three gift boxes, the top one open |
+
+Also used (D111) as the ornament between two CP partners on adjacent audio
+seats, for every CP level until per-tier ornaments arrive
+(`assets/live_cp_seats/PROVENANCE.md`).

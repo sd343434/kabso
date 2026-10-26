@@ -380,6 +380,22 @@ abstract class LiveSeatsMine with _$LiveSeatsMine {
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatsMineFromJson(json);
 }
 
+/// `LiveSeatCouple` (v1.23.3-live, D111): two CP partners who both sit in
+/// the room now (the host's seat included), [userIds] in seat order.
+/// v1.24.2-live (D115): [privileges] are the CP privilege codes the level
+/// unlocked (empty from an older API).
+@freezed
+abstract class LiveSeatCouple with _$LiveSeatCouple {
+  const factory({
+    required List<String> userIds,
+    required int level,
+    @Default('') String levelName,
+    @Default(<String>[]) List<String> privileges,
+  }) = _LiveSeatCouple;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveSeatCoupleFromJson(json);
+}
+
 /// `LiveSeats` (CP-011): who is on which seat; [version] moves on every
 /// change.
 @freezed
@@ -391,6 +407,10 @@ abstract class LiveSeats with _$LiveSeats {
     required int seatCount,
     required List<LiveSeat> seats,
     required List<UserSummary> moderators,
+
+    /// v1.23.3-live (D111): CP couples whose partners both sit now; empty
+    /// from an older API.
+    @Default(<LiveSeatCouple>[]) List<LiveSeatCouple> couples,
 
     /// Host and moderators only.
     int? pendingRequests,

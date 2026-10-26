@@ -7,6 +7,8 @@ import 'dart:async';
 
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
@@ -19,6 +21,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   KGiftEffect.animate = false;
   KabsoProfileHeaderArt.animate = false;
   CpRisingHearts.animate = false;
+  CpPairFx.animate = false;
+  CpMicEffect.animate = false;
   KabsoPkBar.enabled = false;
   // Visibility (post views) is reported at once instead of on a timer, so
   // no timer is left pending at the end of a test (the package's advice).

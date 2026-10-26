@@ -61,7 +61,7 @@ info:
     **CP-018 (D106, DRAFT v1.21-live)** adds families (500 coins to create, up to 500 members,
     join requests, leader / deputies / members, a family number and a level from the coins its
     members spend; tag `families`), CP couples (a 99-coin request refunded unless accepted, CP
-    gifts, five tiers; tag `cp`) and automatic medals (tag `medals`); `PublicProfile.family`,
+    gifts, five tiers — six since v1.24.1-live, D113; tag `cp`) and automatic medals (tag `medals`); `PublicProfile.family`,
     `cp` and `medals`; notification types `CP_REQUEST`, `CP_ACCEPTED`, `FAMILY_JOIN_ACCEPTED`,
     `FAMILY_JOIN_DECLINED`, `MEDAL_AWARDED`; a profile medal showcase (`PUT /me/medals/showcase`, code
     `MEDAL_NOT_UNLOCKED`); media kind `FAMILY_EMBLEM` (CONVENTIONS §10.21).
@@ -88,6 +88,10 @@ info:
     data message), a couple's public page, its CP gift wall and confession wall, the couples
     ranking (this CP week or all time), named CP gift cards in `CpConfig.gifts`, report target
     `CP_CONFESSION`, codes `CP_TASK_NOT_COMPLETED` and `CP_PRIVILEGE_LOCKED` (CONVENTIONS §10.24).
+    **D113 (DRAFT v1.24.1-live)** adds a sixth CP tier, ثنائي أبدي / Eternal couple at 52 000 CP
+    points: every CP `level` is 1–6 (privileges still unlock at 1–5; CONVENTIONS §10.21).
+    **D115 (DRAFT v1.24.2-live)** adds `LiveSeatCouple.privileges`, so apps play the Couple Mic
+    Effect (`MIC_EFFECT`, CP level 3) on a speaking partner's seat (CONVENTIONS §10.9).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -5372,8 +5376,8 @@ components:
             - type: 'null'
     LiveSeatCouple:
       type: object
-      description: v1.23.3-live (D111). Two seated CP partners.
-      required: [userIds, level, levelName]
+      description: v1.23.3-live (D111). Two seated CP partners. (v1.24.2-live, D115) `privileges` are the ones their CP level unlocked; the app plays the Couple Mic Effect on a partner's seat while they speak when it lists `MIC_EFFECT`.
+      required: [userIds, level, levelName, privileges]
       properties:
         userIds:
           type: array
@@ -5381,10 +5385,14 @@ components:
           maxItems: 2
           description: The two partners' user ids, in seat order (the host first, then by seat index).
           items: { type: string, format: uuid }
-        level: { type: integer, minimum: 1, maximum: 5, description: The couple's CP level (`CpCouple.level`). }
+        level: { type: integer, minimum: 1, maximum: 6, description: The couple's CP level (`CpCouple.level`). }
         levelName:
           type: string
           description: The level's tier name, localized by `Accept-Language`, else the caller's locale.
+        privileges:
+          type: array
+          description: (v1.24.2-live, D115) The CP privileges the couple's level unlocked, in catalogue order (as `ProfileCp.privileges`).
+          items: { $ref: '#/components/schemas/CpPrivilegeCode' }
     LiveSeats:
       type: object
       required: [roomId, mode, version, seatCount, seats, moderators, couples]
@@ -6853,7 +6861,7 @@ components:
             type: object
             required: [level, minPoints, name]
             properties:
-              level: { type: integer, minimum: 1 }
+              level: { type: integer, minimum: 1, maximum: 6 }
               minPoints: { type: integer, minimum: 0 }
               name: { type: string }
     CpRequestSendRequest:
@@ -6897,7 +6905,7 @@ components:
         since: { type: string, format: date-time }
         days: { type: integer, minimum: 1, description: Days together; the day the couple was formed is day 1. }
         points: { type: integer, minimum: 0, description: CP points (the coins of every CP gift). }
-        level: { type: integer, minimum: 1, maximum: 5 }
+        level: { type: integer, minimum: 1, maximum: 6 }
         levelName: { type: string }
         nextLevelName: { type: [string, 'null'] }
         pointsToNext: { type: [integer, 'null'], minimum: 0 }
@@ -6937,7 +6945,7 @@ components:
         id: { type: string, format: uuid }
         partner: { $ref: '#/components/schemas/UserSummary' }
         since: { type: string, format: date-time }
-        level: { type: integer, minimum: 1, maximum: 5 }
+        level: { type: integer, minimum: 1, maximum: 6 }
         levelName: { type: string }
         points: { type: integer, minimum: 0 }
         privileges:

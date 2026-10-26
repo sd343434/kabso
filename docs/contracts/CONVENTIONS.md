@@ -476,6 +476,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.24.2-live (draft) | 2026-10-26 | **D115 (owner):** `LiveSeatCouple.privileges` (`CpPrivilegeCode[]`, required in responses) on every operation that answers `LiveSeats`; the app plays the Couple Mic Effect (`MIC_EFFECT`) on a speaking partner's seat. §10.9. | **Additive** (a new response field older apps ignore; apps read a missing list as none). |
+| v1.24.1-live (draft) | 2026-10-26 | **D113 (owner):** a sixth CP tier, 6 ثنائي أبدي / Eternal couple at 52 000 CP points; the `level` of `CpCouple`, `ProfileCp`, `CpPrivileges`, `CpCouplePublic`, `CpRankingEntry`, `LiveSeatCouple` and `CpConfig.tiers[]` is 1–6 (`CpPrivilege.unlockLevel` stays 1–5). Migration `20261114090000_cp_level_6` widens the check and moves couples already at 52 000+ points (raising their rooms' seat version). §10.9, §10.21, §10.24. | **Additive** for apps that read the level as a number and the tiers from `GET /cp/config`; an app that maps levels to art keeps a fallback for an unknown level. |
 | v1.24-live (draft) | 2026-10-26 | **CP-021 (D112, owner 2026-10-26):** the CP space. Tag `cp`: `getMyCpTasks` (`GET /cp/me/tasks`, `CpTasks`, `CpTask`, `CpTaskCode` `CHECK_IN`/`SEND_GIFT`/`CHAT_TOGETHER`), `checkInCp` (`POST /cp/me/check-in`), `claimCpTask` (`POST /cp/me/tasks/{code}/claim`, `CpTaskClaimResult`), `getMyCpPrivileges` (`GET /cp/me/privileges`, `CpPrivileges`, `CpPrivilege`, `CpPrivilegeCode`), `listMyCpConfessions` / `createCpConfession` (`GET` / `POST /cp/me/confessions`, `CpConfessionCreateRequest`, `CpConfession`, `CpConfessionPage`), `deleteCpConfession` (`DELETE /cp/me/confessions/{confessionId}`), `listCpRankings` (`GET /cp/rankings?period=WEEK\|ALL`, `CpRankings`, `CpRankingEntry`, `CpRankingPeriod`), `getCpCouple` (`GET /cp/couples/{coupleId}`, `CpCouplePublic`), `getCpGiftWall` (`GET /cp/couples/{coupleId}/gift-wall`, `CpGiftWall`, `CpGiftWallEntry`), `listCpCoupleConfessions` (`GET /cp/couples/{coupleId}/confessions`); `CpConfig.gifts` (`CpGiftPreset`); `ProfileCp.id`, `ProfileCp.privileges`; `LiveChatMessage.cpBubble`; the live `join` data message gains `cp`; report `targetType: CP_CONFESSION`; codes `CP_TASK_NOT_COMPLETED` (409), `CP_PRIVILEGE_LOCKED` (403). CP gifts now also write `cp_points_ledger`. Server config `RATE_LIMIT_CP_SPACE_WRITE_USER`, `RATE_LIMIT_CP_CONFESSION_USER`. §4, §7, §8, §10.5, §10.11, §10.21, §10.24, §11.7. | **Additive** (new operations, schemas, fields, codes and an enum value; `POST /cp/me/gifts` unchanged; apps ignore unknown fields). |
 | v1.23.3-live (draft) | 2026-10-26 | **D111 (owner: "CP pair on seats"):** `LiveSeats.couples` (`LiveSeatCouple` `{userIds, level, levelName}`) on `getLiveRoomSeats` and every operation that answers `LiveSeats`: the CP couples whose partners both sit in the room now (host included), ACTIVE accounts, no block between them; a couple formed, ended, levelled up or a block between the partners raises the seat `version` of the rooms where both sit. The seat responses now read `Accept-Language` (for `levelName`). §10.9. | **Additive** (a new response field older apps ignore). |
 | v1.23.2-live (draft) | 2026-10-26 | **D109 (owner: "viewers don't show for the other viewer"):** `listLiveRoomViewers` (`GET /live/rooms/{roomId}/viewers`) is no longer host only: anyone who may watch the room lists who is watching now, newest first, same `LiveViewerPage` (guests too when the room allows guests, `security: [{}, bearerAuth]`); a non-host signed-in caller never sees users with a block either way; 403 `LIVE_GUESTS_NOT_ALLOWED` / `LIVE_KICKED`. The host's answer is unchanged. §7 row and §10.8. | **Relaxing** (an operation that answered 404 to non-hosts now answers 200; it also accepts no token). No shape change. |
@@ -840,7 +842,18 @@ until a media provider is wired in.
   raises the seat `version` of every `LIVE` room where both sit, in the same transaction; the
   media room metadata follows with the sweeper's reconciliation. Apps draw the two seats joined
   when they are next to each other (same row of 5, or neighbours on the circle); where they sit
-  apart, nothing is drawn.
+  apart, nothing is drawn. *(D113, app only:)* the app draws the couple's level frame from the
+  owner's art (`assets/live_cp_seats/`, one per level 1–6): a ring around each partner's
+  picture and the frame's centre piece between them, with a light animation of the owner's
+  small parts around the pair (still with reduced motion). A couple reaching level 6 raises the seat
+  `version` like any level change (the D113 migration did the same for couples already past
+  52 000 points).
+- **Couple Mic Effect on seats** *(v1.24.2-live, DRAFT — D115)*: each `LiveSeats.couples` entry
+  carries `privileges` (`cpPrivilegesFor(level)`, as `ProfileCp.privileges`). When it lists
+  `MIC_EFFECT` (CP level 3+), the app replaces the speaking ripple on either partner's seat with
+  the couple mic effect (heart ripples and small rising hearts) while that partner speaks, on any
+  seat (the partners need not be adjacent). The level already moves the seat `version`, so no new
+  trigger is needed.
 
 ### 10.10 Live taps and the room score *(v1.8-live, DRAFT — CP-012, D95)*
 
@@ -1240,7 +1253,9 @@ in place of the `Idempotency-Key` header, the ledger append-only.
 - **Tiers** (CTO default; names localized by `Accept-Language`, else the caller's locale):
   1 ثنائي متحمّس / Eager couple (0), 2 ثنائي فضّي / Silver couple (520), 3 ثنائي ذهبي / Gold
   couple (1 314), 4 ثنائي ماسي / Diamond couple (5 200), 5 ثنائي أسطوري / Legendary couple
-  (13 140). `GET /cp/config` → price, lifetime, gift amounts and tiers.
+  (13 140), *(v1.24.1-live, owner D113)* 6 ثنائي أبدي / Eternal couple (52 000; the name a CTO
+  default). Every CP `level` in the contract is 1–6. `GET /cp/config` → price, lifetime, gift
+  amounts and tiers.
 
 **Medals (الميداليات)** *(owner: automatic achievements)*.
 - The catalogue (`medals`, seeded by migration): `FIRST_LIVE` (first live hosted, awarded when it

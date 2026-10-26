@@ -13,6 +13,7 @@ import { UsersService } from '../users/users.service.js';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import type { ContentLanguage } from '../../common/http/content-language.js';
 import { cpTierName } from '../couples/couples.constants.js';
+import { cpPrivilegesFor, type CpPrivilegeCode } from '../cp-space/cp-privileges.js';
 import {
   LiveRoomsService,
   LIVE_TX_OPTIONS,
@@ -73,6 +74,8 @@ export interface LiveSeatCoupleDto {
   userIds: [string, string];
   level: number;
   levelName: string;
+  /** v1.24.2-live (D115): the CP privileges the couple's level unlocked (the app plays the Couple Mic Effect from `MIC_EFFECT`). */
+  privileges: CpPrivilegeCode[];
 }
 
 export interface LiveSeatsDto {
@@ -518,6 +521,7 @@ export class LiveSeatsService {
         userIds: [first, second],
         level: pair.couple.level,
         levelName: cpTierName(pair.couple.level, lang),
+        privileges: cpPrivilegesFor(pair.couple.level),
       });
     }
     return couples.sort((x, y) => order.get(x.userIds[0])! - order.get(y.userIds[0])!);

@@ -26,6 +26,7 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
@@ -1000,6 +1001,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return AudioSeatRing(
       count: count,
       seats: seats?.seats ?? const [],
+      // D111: CP partners on adjacent seats are drawn joined.
+      cpPairs: cpSeatPairs(seats, hostId: host.id),
       host: KAvatar(
         name: host.displayName,
         imageUrl: host.avatarUrl,
