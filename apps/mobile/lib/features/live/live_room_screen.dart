@@ -1021,7 +1021,10 @@ class _HostSheet extends ConsumerWidget {
   final KabsoProfileHeader? header;
 
   static const inviteKey = Key('room.userCard.invite');
+
+  /// The picture: opens the person's full profile (owner, 2026-10-26).
   static const profileKey = Key('room.userCard.profile');
+  static const messageKey = Key('room.userCard.message');
   static const giftKey = Key('room.userCard.gift');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
@@ -1066,9 +1069,10 @@ class _HostSheet extends ConsumerWidget {
     );
     Widget action({
       required Key key,
-      required String asset,
       required String label,
       required VoidCallback onTap,
+      String? asset,
+      Widget? glyph,
     }) => Semantics(
       button: true,
       label: label,
@@ -1082,7 +1086,7 @@ class _HostSheet extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(asset, width: 32, height: 32),
+              glyph ?? Image.asset(asset!, width: 32, height: 32),
               const SizedBox(height: 4),
               Text(
                 label,
@@ -1308,37 +1312,22 @@ class _HostSheet extends ConsumerWidget {
                       label: l10n.liveSeatInviteSend,
                       onTap: () => close(onInvite),
                     )
-                  else
-                    Semantics(
-                      button: true,
-                      label: l10n.liveUserViewProfile,
-                      excludeSemantics: true,
-                      child: InkResponse(
-                        key: profileKey,
-                        radius: 32,
-                        onTap: () => close(
-                          () => unawaited(
-                            context.push(AppRoutes.userProfile(username)),
-                          ),
-                        ),
-                        child: SizedBox(
-                          width: 70,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.account_circle_rounded,
-                                size: 32,
-                                color: Color(0xFF5B8DEF),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                l10n.liveUserViewProfile,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.caption.copyWith(color: _Card.ink),
-                              ),
-                            ],
+                  else if (!profile.isSelf)
+                    // Owner (2026-10-26): Message here; the picture opens
+                    // the profile.
+                    action(
+                      key: messageKey,
+                      glyph: const Icon(
+                        Icons.chat_bubble_rounded,
+                        size: 30,
+                        color: Color(0xFF5B8DEF),
+                      ),
+                      label: l10n.profileMessage,
+                      onTap: () => close(
+                        () => unawaited(
+                          context.push(
+                            AppRoutes.chat(profile.username),
+                            extra: profile.displayName,
                           ),
                         ),
                       ),
@@ -1433,26 +1422,38 @@ class _HostSheet extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: edge - _Card.avatar / 2),
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: _Card.gold,
+                Semantics(
+                  button: true,
+                  label: l10n.liveUserViewProfile,
+                  child: GestureDetector(
+                    key: profileKey,
+                    onTap: () => close(
+                      () => unawaited(
+                        context.push(AppRoutes.userProfile(username)),
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: SizedBox.square(
-                      dimension: _Card.avatar,
-                      child: KAvatar(
-                        name: profile?.displayName ?? username,
-                        image: _networkImage(profile?.avatarUrl),
-                        size: _Card.avatar,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: _Card.gold,
+                        ),
+                        boxShadow: [
+                          BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: SizedBox.square(
+                          dimension: _Card.avatar,
+                          child: KAvatar(
+                            name: profile?.displayName ?? username,
+                            image: _networkImage(profile?.avatarUrl),
+                            size: _Card.avatar,
+                          ),
+                        ),
                       ),
                     ),
                   ),

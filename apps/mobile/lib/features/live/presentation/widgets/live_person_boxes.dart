@@ -3,9 +3,9 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The three boxes of a person's card in a live (owner, 2026-10-26): small
-/// cards side by side under the stats — the family (gold), the relationship
-/// (CP, rose) and the gift wall (lilac), each with the owner's 3D icon
-/// (`assets/card_boxes/`) on top and its name and value centred under it.
+/// light grey cards side by side under the stats — the family (gold title),
+/// the relationship (CP, rose) and the gift wall (lilac), each with the
+/// owner's 3D icon (`assets/card_boxes/`).
 /// Medals are not a box: up to six chosen medals sit in a row under the
 /// levels (CP-018).
 ///
@@ -57,8 +57,6 @@ class LivePersonBoxes extends StatelessWidget {
               filled: familyValue != null,
               onTap: onFamily,
               icon: 'assets/card_boxes/family.webp',
-              tint: const Color(0xFFFFE3A3),
-              rim: const Color(0xFFEDB94E),
               accent: const Color(0xFFB0670A),
             ),
           ),
@@ -72,8 +70,6 @@ class LivePersonBoxes extends StatelessWidget {
               partner: cpPartner,
               onTap: onCp,
               icon: 'assets/card_boxes/cp.webp',
-              tint: const Color(0xFFFFC8DC),
-              rim: const Color(0xFFF58AB0),
               accent: const Color(0xFFD62A66),
             ),
           ),
@@ -85,8 +81,6 @@ class LivePersonBoxes extends StatelessWidget {
               value: l10n.liveUserSoon,
               soon: true,
               icon: 'assets/card_boxes/gift_wall.webp',
-              tint: const Color(0xFFDCCBFF),
-              rim: const Color(0xFFAE8CFF),
               accent: const Color(0xFF6E3FE0),
             ),
           ),
@@ -158,18 +152,15 @@ class _BoxTapState extends State<_BoxTap> {
   }
 }
 
-/// One small box (owner, 2026-10-26): the 3D icon inside at the top, the
-/// name in the box's colour, and a coloured band along the bottom with the
-/// value (for the relationship: the partner's picture, name and a heart).
-/// The box is a rich tint fading to white, framed twice (a coloured rim and
-/// a thin white line inside it), with a coloured shadow.
+/// One small box (owner, 2026-10-26: simple, like the medal wall row): a
+/// light grey rounded rectangle, the name in the box's colour over the value
+/// at the start, the 3D icon at the end. For the relationship the value is
+/// the partner's small picture, name and a heart.
 class _Box extends StatelessWidget {
   const new({
     required this.title,
     required this.value,
     required this.icon,
-    required this.tint,
-    required this.rim,
     required this.accent,
     super.key,
     this.filled = false,
@@ -181,54 +172,46 @@ class _Box extends StatelessWidget {
   final String title;
   final String value;
 
-  /// The value is real data.
+  /// The value is real data (dark ink; otherwise grey).
   final bool filled;
   final bool soon;
   final ({String name, ImageProvider? avatar})? partner;
   final VoidCallback? onTap;
   final String icon;
-  final Color tint;
-  final Color rim;
+
+  /// The title's colour (gold, rose, lilac).
   final Color accent;
 
-  static const _radius = 18.0;
+  static const _grey = Color(0xFFF4F4F7);
+  static const _ink = Color(0xFF2E3130);
+  static const _soft = Color(0xFF9A9BA5);
 
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    const white = Color(0xFFFFFFFF);
     final partner = this.partner;
     final valueStyle = text.caption.copyWith(
-      color: filled ? white : white.withValues(alpha: 0.9),
+      color: filled ? _ink : _soft,
       fontSize: 11.5,
-      height: 1.2,
-      fontWeight: FontWeight.w800,
+      height: 1.25,
+      fontWeight: filled ? FontWeight.w700 : FontWeight.w500,
     );
-    final band = partner == null
+    final line = partner == null
         ? Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
             style: valueStyle,
           )
         : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: white,
-                ),
-                child: KAvatar(
-                  // Initials from the name without its direction marks.
-                  name: partner.name.replaceAll(RegExp('[\u2066-\u2069]'), ''),
-                  image: partner.avatar,
-                  size: 20,
-                ),
+              KAvatar(
+                // Initials from the name without its direction marks.
+                name: partner.name.replaceAll(RegExp('[\u2066-\u2069]'), ''),
+                image: partner.avatar,
+                size: 16,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Flexible(
                 child: Text(
                   partner.name,
@@ -237,8 +220,8 @@ class _Box extends StatelessWidget {
                   style: valueStyle,
                 ),
               ),
-              const SizedBox(width: 3),
-              const Icon(Icons.favorite_rounded, size: 13, color: white),
+              const SizedBox(width: 2),
+              Icon(Icons.favorite_rounded, size: 11, color: accent),
             ],
           );
     return _BoxTap(
@@ -247,92 +230,42 @@ class _Box extends StatelessWidget {
       soon: soon,
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minHeight: 58),
+        padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 5, 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_radius),
-          border: Border.all(color: rim, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: 0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: _grey,
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(_radius - 1.5),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color.lerp(tint, white, 0.6)!, tint],
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // A long name shrinks a little to stay on one line.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      style: text.bodyStrong.copyWith(
+                        color: accent,
+                        fontSize: 13,
+                        height: 1.25,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  line,
+                ],
               ),
             ),
-            child: Column(
-              children: [
-                // The inner white line.
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(3, 3, 3, 0),
-                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(_radius - 4),
-                        bottom: Radius.circular(8),
-                      ),
-                      border: Border.all(color: white.withValues(alpha: 0.85)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox.square(
-                          dimension: 48,
-                          child: Image.asset(icon),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: text.bodyStrong.copyWith(
-                            color: accent,
-                            fontSize: 13.5,
-                            height: 1.25,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                // The band along the bottom.
-                Container(
-                  width: double.infinity,
-                  // One height for every band (with or without a picture).
-                  constraints: const BoxConstraints(minHeight: 30),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: AlignmentDirectional.centerStart,
-                      end: AlignmentDirectional.centerEnd,
-                      colors: [
-                        Color.lerp(accent, white, 0.15)!,
-                        Color.lerp(accent, rim, 0.45)!,
-                      ],
-                    ),
-                  ),
-                  child: band,
-                ),
-              ],
-            ),
-          ),
+            const SizedBox(width: 3),
+            SizedBox.square(dimension: 32, child: Image.asset(icon)),
+          ],
         ),
       ),
     );

@@ -1039,6 +1039,8 @@ void main() {
       expect(find.byKey(LivePersonToolKeys.mute), findsNothing);
       expect(find.byKey(LivePersonToolKeys.admin), findsNothing);
       expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
+      // Message instead of View profile; the picture opens the profile.
+      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
       expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
       // Family, relationship, gift wall and medals do not exist yet: each
       // says so.
