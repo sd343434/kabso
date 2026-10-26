@@ -65,6 +65,14 @@ class CpSpecialFrameAvatar extends StatelessWidget {
   /// The frame [width] whose heart opening is [picture] wide.
   static double widthForPicture(double picture) => picture * _art / _holeWidth;
 
+  /// Owner (2026-10-26): the frame in place of an `avatar`-wide picture is
+  /// `scale` times the avatar, not sized to keep the picture whole (that made
+  /// it about 1.9 times as wide). The picture inside shrinks to fit the heart.
+  static const scale = 1.45;
+
+  /// The frame width that replaces an `avatar`-wide picture.
+  static double widthForAvatar(double avatar) => avatar * scale;
+
   @override
   Widget build(BuildContext context) => SizedBox(
     width: width,

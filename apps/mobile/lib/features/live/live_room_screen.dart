@@ -1119,10 +1119,6 @@ abstract final class _Card {
   static const soft = Color(0xFF9A9BA5);
   static const avatar = 92.0;
 
-  /// CP-021 (D112): the picture's width inside the Special Frame (a little
-  /// narrower, so the winged heart keeps the card's height in bounds).
-  static const framedPicture = 84.0;
-
   /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
   static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
 }
@@ -1172,9 +1168,7 @@ class _HostSheet extends ConsumerWidget {
     final scope = this.scope;
     // CP-021 (D112): the couple's Special Frame around the picture.
     final framed = cpWearsSpecialFrame(profile?.cp);
-    final frameWidth = CpSpecialFrameAvatar.widthForPicture(
-      _Card.framedPicture,
-    );
+    final frameWidth = CpSpecialFrameAvatar.widthForAvatar(_Card.avatar);
     final frameTop = CpSpecialFrameAvatar.pictureCentreY(frameWidth);
     final frameBelow = CpSpecialFrameAvatar.heightFor(frameWidth) - frameTop;
     void close(VoidCallback then) {

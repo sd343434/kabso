@@ -277,8 +277,7 @@ class ProfileHeaderView extends StatelessWidget {
     final avatar = cpFrame && !live
         ? CpSpecialFrameAvatar(
             key: cpFrameKey,
-            // The picture keeps its usual width inside the heart.
-            width: CpSpecialFrameAvatar.widthForPicture(KProfile.avatar),
+            width: CpSpecialFrameAvatar.widthForAvatar(KProfile.avatar),
             name: displayName,
             imageUrl: avatarUrl,
           )
