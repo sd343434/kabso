@@ -636,7 +636,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String giftCombo(int count) {
-    return '×$count';
+    return '⁦×$count⁩';
   }
 
   @override
@@ -4949,4 +4949,382 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bagLockedSection => 'عناصر أخرى';
+
+  @override
+  String get errorGiftUnavailable => 'هذه الهدية لم تعد متاحة.';
+
+  @override
+  String get errorGiftBagInsufficient =>
+      'لا يوجد في حقيبتك ما يكفي من هذه الهدية.';
+
+  @override
+  String get errorLiveGiftRecipientUnavailable =>
+      'أحد المستلمين لم يعد على المايك.';
+
+  @override
+  String get liveGiftTabPopular => 'شائعة';
+
+  @override
+  String get liveGiftTabEvent => 'مناسبات';
+
+  @override
+  String get liveGiftTabFun => 'مرح';
+
+  @override
+  String get liveGiftTabBag => 'الحقيبة';
+
+  @override
+  String get liveGiftHost => 'المضيف';
+
+  @override
+  String get liveGiftAllOnMic => 'الكل';
+
+  @override
+  String get liveGiftAllOnMicSemantics => 'الإهداء لكل من على المايك';
+
+  @override
+  String get liveGiftEmptyTitle => 'لا توجد هدايا بعد';
+
+  @override
+  String get liveGiftEmptyMessage =>
+      'ستظهر الهدايا هنا عندما يضيفها فريق Kabso Live.';
+
+  @override
+  String get liveGiftBagEmptyTitle => 'حقيبة الهدايا فارغة';
+
+  @override
+  String get liveGiftBagEmptyMessage =>
+      'الهدايا التي تحصل عليها تظهر هنا، وترسلها دون عملات.';
+
+  @override
+  String get liveGiftLoadError => 'تعذّر تحميل الهدايا';
+
+  @override
+  String get liveGiftPickGift => 'اختر هدية';
+
+  @override
+  String get liveGiftPickRecipient => 'اختر من سيستلم الهدية';
+
+  @override
+  String get liveGiftNoRecipients => 'لا يوجد أحد على المايك لإهدائه';
+
+  @override
+  String get liveGiftSignIn => 'سجّل الدخول لإرسال الهدايا';
+
+  @override
+  String get liveGiftNotEnoughCoins => 'رصيدك من العملات لا يكفي لهذه الهدية.';
+
+  @override
+  String liveGiftBalance(String coins) {
+    return 'رصيدك: $coins';
+  }
+
+  @override
+  String liveGiftQuantity(String count) {
+    return 'الكمية $count';
+  }
+
+  @override
+  String get liveGiftBadgeNew => 'جديد';
+
+  @override
+  String get liveGiftBadgeEvent => 'مناسبة';
+
+  @override
+  String liveGiftBannerSent(String gift, String recipients) {
+    return 'أهدى $gift إلى $recipients';
+  }
+
+  @override
+  String liveGiftRecipientsTwo(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String liveGiftRecipientsMore(String name, int count) {
+    return '$name +$count';
+  }
+
+  @override
+  String get liveGiftGeneric => 'هدية';
+
+  @override
+  String liveGiftNotOnMic(String name) {
+    return '$name ليس على المايك. تُرسل الهدايا للمضيف ولمن على المايك.';
+  }
+
+  @override
+  String liveGiftBagCount(String count) {
+    return 'لديك $count';
+  }
+
+  @override
+  String get cpSpaceTitle => 'مساحة الثنائي';
+
+  @override
+  String get cpSpaceOpen => 'فتح مساحة الثنائي';
+
+  @override
+  String get cpSpaceHelpTitle => 'كيف تعمل مساحة الثنائي';
+
+  @override
+  String cpSpaceHelpBody(String zone) {
+    return 'القرب هو نقاط علاقتكما: تزيده هدايا الثنائي ومكافآت المهام اليومية، وكل مستوى أعلى يفتح امتيازات أكثر. تبدأ المهام اليومية من جديد كل يوم عند 00:00 ($zone).';
+  }
+
+  @override
+  String cpSpaceDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يومًا',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cpSpaceActionTasks => 'المهام اليومية';
+
+  @override
+  String get cpSpaceActionPrivileges => 'امتيازات الثنائي';
+
+  @override
+  String get cpSpaceActionGifts => 'هدايا الثنائي';
+
+  @override
+  String get cpSpaceActionRanking => 'الترتيب';
+
+  @override
+  String get cpSpaceLevelTitle => 'مستوى الثنائي';
+
+  @override
+  String cpSpaceLevel(int level) {
+    return 'Lv.$level';
+  }
+
+  @override
+  String cpSpaceProgress(String points, String target) {
+    return '$points / $target';
+  }
+
+  @override
+  String cpSpaceIntimacy(String points) {
+    return 'القرب $points';
+  }
+
+  @override
+  String cpSpaceToNext(String points, String name) {
+    return '$points قرب إضافي للوصول إلى $name';
+  }
+
+  @override
+  String cpSpaceTasksResets(String time) {
+    return 'تبدأ من جديد عند $time';
+  }
+
+  @override
+  String cpSpaceTaskReward(String points) {
+    return '+$points';
+  }
+
+  @override
+  String cpSpaceTaskProgress(int progress, int target) {
+    return '$progress/$target';
+  }
+
+  @override
+  String get cpSpaceClaim => 'استلام';
+
+  @override
+  String get cpSpaceClaimed => 'تم الاستلام';
+
+  @override
+  String get cpSpaceNotDone => 'لم تكتمل';
+
+  @override
+  String cpSpaceClaimedToast(String points) {
+    return '+$points قرب';
+  }
+
+  @override
+  String get cpSpaceClaimedBefore => 'تم استلامها اليوم';
+
+  @override
+  String get cpSpaceTasksError => 'تعذّر تحميل مهام اليوم';
+
+  @override
+  String get cpPrivSpecialFrame => 'إطار مميز';
+
+  @override
+  String get cpPrivChatBubble => 'فقاعة حصرية';
+
+  @override
+  String get cpPrivMicEffect => 'تأثير مايك الثنائي';
+
+  @override
+  String get cpPrivEntranceEffect => 'تأثير الدخول';
+
+  @override
+  String get cpPrivGiftWall => 'جدار هدايا الثنائي';
+
+  @override
+  String get cpPrivSpecialFrameAbout => 'إطار على شكل قلب حول صورتيكما.';
+
+  @override
+  String get cpPrivChatBubbleAbout =>
+      'تظهر رسائلكما في دردشة البث داخل فقاعة الثنائي.';
+
+  @override
+  String get cpPrivMicEffectAbout =>
+      'تأثير الثنائي على مقعديكما عندما تكونان على المايك.';
+
+  @override
+  String get cpPrivEntranceEffectAbout =>
+      'عندما تدخل بثًا، ترى الغرفة دخولك كثنائي.';
+
+  @override
+  String get cpPrivGiftWallAbout => 'يرى الجميع هدايا الثنائي التي تبادلتماها.';
+
+  @override
+  String cpSpaceUnlocksAt(int level) {
+    return 'يُفتح عند Lv.$level';
+  }
+
+  @override
+  String get cpSpaceUnlocked => 'مفتوح';
+
+  @override
+  String get cpSpaceLocked => 'مقفل';
+
+  @override
+  String get cpSpaceGiftWall => 'جدار الهدايا';
+
+  @override
+  String cpSpaceGiftWallTotals(String gifts, String coins) {
+    return 'الهدايا $gifts · العملات $coins';
+  }
+
+  @override
+  String cpSpaceGiftWallEntry(String from, String to) {
+    return 'من $from إلى $to';
+  }
+
+  @override
+  String get cpSpaceGiftWallEmpty => 'لا توجد هدايا ثنائي بعد';
+
+  @override
+  String cpSpaceGiftWallLocked(int level) {
+    return 'يُفتح جدار هدايا هذا الثنائي عند Lv.$level.';
+  }
+
+  @override
+  String get cpSpaceGiftWallError => 'تعذّر تحميل جدار الهدايا';
+
+  @override
+  String cpSpaceGiftConfirm(String gift, String coins) {
+    return 'إرسال $gift مقابل $coins؟';
+  }
+
+  @override
+  String get cpSpaceConfessionsTitle => 'جدار الاعترافات';
+
+  @override
+  String get cpSpaceConfessionsEmpty => 'كن أول من يترك اعترافًا لشريكك';
+
+  @override
+  String get cpSpaceConfessionsEmptyPublic => 'لا توجد اعترافات بعد';
+
+  @override
+  String cpSpaceConfessionHint(String name) {
+    return 'اكتب إلى $name';
+  }
+
+  @override
+  String get cpSpaceConfessionSend => 'إرسال';
+
+  @override
+  String get cpSpaceConfessionSent => 'تم ترك الاعتراف';
+
+  @override
+  String cpSpaceConfessionTo(String from, String to) {
+    return 'من $from إلى $to';
+  }
+
+  @override
+  String get cpSpaceConfessionMenu => 'خيارات الاعتراف';
+
+  @override
+  String get cpSpaceConfessionDelete => 'حذف';
+
+  @override
+  String get cpSpaceConfessionDeleteTitle => 'حذف هذا الاعتراف؟';
+
+  @override
+  String get cpSpaceConfessionDeleted => 'تم حذف الاعتراف';
+
+  @override
+  String get cpSpaceConfessionReport => 'إبلاغ';
+
+  @override
+  String get cpSpaceConfessionReportTitle => 'لماذا تبلّغ عن هذا الاعتراف؟';
+
+  @override
+  String get cpSpaceConfessionsError => 'تعذّر تحميل الاعترافات';
+
+  @override
+  String get cpSpaceRankingTitle => 'ترتيب الثنائيات';
+
+  @override
+  String get cpSpaceRankingWeek => 'هذا الأسبوع';
+
+  @override
+  String get cpSpaceRankingAll => 'كل الأوقات';
+
+  @override
+  String get cpSpaceRankingEmpty => 'لا توجد ثنائيات هنا بعد';
+
+  @override
+  String get cpSpaceRankingError => 'تعذّر تحميل الترتيب';
+
+  @override
+  String cpSpaceRankingMe(String rank) {
+    return 'ثنائيكما: #$rank';
+  }
+
+  @override
+  String get cpSpaceRankingMeUnranked => 'ثنائيكما غير مرتّب بعد';
+
+  @override
+  String cpSpacePair(String first, String second) {
+    return '$first و$second';
+  }
+
+  @override
+  String get cpSpaceLoadError => 'تعذّر تحميل مساحة الثنائي';
+
+  @override
+  String get cpSpaceGoneTitle => 'مساحة هذا الثنائي غير متاحة';
+
+  @override
+  String get cpSpaceGoneBody => 'ربما انتهت العلاقة، أو لا يمكن عرضها لك.';
+
+  @override
+  String get errorCpTaskNotCompleted => 'لم تكتمل هذه المهمة اليوم بعد.';
+
+  @override
+  String get errorCpPrivilegeLocked => 'لم يفتح هذا الثنائي هذه الميزة بعد.';
+
+  @override
+  String liveCpEntranceCouple(String name, String partner) {
+    return '$name و$partner';
+  }
+
+  @override
+  String liveCpEntranceLevel(String level) {
+    return 'دخول الثنائي · $level';
+  }
 }

@@ -394,6 +394,28 @@ const _$LiveSeatRoleEnumMap = {
   LiveSeatRole.viewer: 'VIEWER',
 };
 
+_LiveSeatCouple _$LiveSeatCoupleFromJson(Map<String, dynamic> json) =>
+    _LiveSeatCouple(
+      userIds: (json['userIds'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
+      level: (json['level'] as num).toInt(),
+      levelName: json['levelName'] as String? ?? '',
+      privileges:
+          (json['privileges'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
+    );
+
+Map<String, dynamic> _$LiveSeatCoupleToJson(_LiveSeatCouple instance) =>
+    <String, dynamic>{
+      'userIds': instance.userIds,
+      'level': instance.level,
+      'levelName': instance.levelName,
+      'privileges': instance.privileges,
+    };
+
 _LiveSeats _$LiveSeatsFromJson(Map<String, dynamic> json) => _LiveSeats(
   roomId: json['roomId'] as String,
   mode: $enumDecode(
@@ -409,6 +431,11 @@ _LiveSeats _$LiveSeatsFromJson(Map<String, dynamic> json) => _LiveSeats(
   moderators: (json['moderators'] as List<dynamic>)
       .map((e) => UserSummary.fromJson(e as Map<String, dynamic>))
       .toList(),
+  couples:
+      (json['couples'] as List<dynamic>?)
+          ?.map((e) => LiveSeatCouple.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <LiveSeatCouple>[],
   pendingRequests: (json['pendingRequests'] as num?)?.toInt(),
   mine: json['mine'] == null
       ? null
@@ -423,6 +450,7 @@ Map<String, dynamic> _$LiveSeatsToJson(_LiveSeats instance) =>
       'seatCount': instance.seatCount,
       'seats': instance.seats,
       'moderators': instance.moderators,
+      'couples': instance.couples,
       'pendingRequests': instance.pendingRequests,
       'mine': instance.mine,
     };

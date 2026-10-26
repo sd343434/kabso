@@ -257,7 +257,10 @@ void main() {
       expect(fakes.cp.calls, contains('accept:r1'));
       expect(find.byKey(CpScreen.coupleKey), findsOneWidget);
       expect(find.text('Silver couple'), findsOneWidget);
+      // CP-021 added "Open CP space" to the couple: the list is further down.
+      await tester.scrollUntilVisible(find.text(en.cpIncomingEmpty), 200);
       expect(find.text(en.cpIncomingEmpty), findsOneWidget);
+      expect(find.byKey(CpScreen.spaceKey), findsOneWidget);
     });
 
     testWidgets('cancel a sent request (refund) and decline one', (

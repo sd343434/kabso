@@ -695,6 +695,9 @@ describe('CP-018 families, CP couples and medals', { timeout: 120_000 }, () => {
       const config = await ctx.http.get('/api/v1/cp/config').set(auth(a)).set('Accept-Language', 'en');
       expectContract(config, 'getCpConfig');
       expect(config.body).toMatchObject({ requestCost: 99, giftAmounts: [10, 52, 99, 520, 1314] });
+      // D113: six tiers, the sixth at 52 000 points.
+      expect(config.body.tiers).toHaveLength(6);
+      expect(config.body.tiers[5]).toEqual({ level: 6, minPoints: 52000, name: 'Eternal couple' });
 
       // The couple on both profiles.
       expect((await profile(c, a)).cp).toMatchObject({

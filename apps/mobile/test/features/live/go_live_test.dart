@@ -36,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -669,20 +670,38 @@ void main() {
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
-      expect(find.bySemanticsLabel(RegExp(l10n.goLiveMuteMic)), findsOneWidget);
+      // CP-020: the host's gift panel (to people on the mic; the catalogue
+      // is empty here, as in production today).
+      await tester.tap(find.byKey(GoLiveScreen.audioGiftKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsOneWidget);
+      expect(find.text(l10n.liveGiftEmptyTitle), findsOneWidget);
+      await tester.tapAt(const Offset(200, 60));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsNothing);
+      // Owner (2026-10-26): a tap on the host's own picture opens their
+      // card (no mute); the mic button on that card mutes and unmutes.
       await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      expect(camera.micEnabled, isTrue);
+      final selfMic = find.byKey(LivePersonToolKeys.selfMic);
+      expect(selfMic, findsOneWidget);
+      expect(find.byTooltip(l10n.goLiveMuteMic), findsOneWidget);
+      await tester.tap(selfMic);
+      await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
-      expect(
-        find.bySemanticsLabel(RegExp(l10n.goLiveUnmuteMic)),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      expect(find.byTooltip(l10n.goLiveUnmuteMic), findsOneWidget);
+      await tester.tap(selfMic);
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isTrue);
-      await tester.tap(find.byKey(AudioSeatRing.seatKey(0)));
+      await tester.tap(selfMic);
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
+      // Close the card (a tap outside it).
+      await tester.tapAt(const Offset(200, 60));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
       // Share copies the live's invite (no public link exists yet).
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -827,8 +846,9 @@ void main() {
             .text,
         isEmpty,
       );
-      // A tap outside closes it; the buttons are back.
-      await tester.tapAt(const Offset(200, 300));
+      // A tap outside closes it (an empty spot: the host's picture in the
+      // middle opens their card); the buttons are back.
+      await tester.tapAt(const Offset(4, 300));
       await tester.pumpAndSettle();
       expect(find.byKey(LiveChatComposer.fieldKey), findsNothing);
       expect(find.byKey(GoLiveScreen.audioChatKey), findsOneWidget);

@@ -120,6 +120,26 @@ enum ErrorCode {
   /// own (or an unknown code).
   bagItemNotOwned('BAG_ITEM_NOT_OWNED'),
 
+  /// v1.23-live (CP-020, §10.23, 409): the gift is not in the catalogue or
+  /// was disabled; the app reloads the catalogue.
+  giftUnavailable('GIFT_UNAVAILABLE'),
+
+  /// v1.23-live (CP-020, §10.23, 409): the gift bag holds too few of that
+  /// gift; the app reloads the bag.
+  giftBagInsufficient('GIFT_BAG_INSUFFICIENT'),
+
+  /// v1.23-live (CP-020, §10.23, 409): a recipient is no longer the host or
+  /// on a seat (or a block); the app reloads the seats.
+  liveGiftRecipientUnavailable('LIVE_GIFT_RECIPIENT_UNAVAILABLE'),
+
+  /// v1.24-live (CP-021, §10.24, 409): a daily CP task claimed before it is
+  /// done today; nothing was added.
+  cpTaskNotCompleted('CP_TASK_NOT_COMPLETED'),
+
+  /// v1.24-live (CP-021, §10.24, 403): another couple's gift wall before it
+  /// unlocked `GIFT_WALL`.
+  cpPrivilegeLocked('CP_PRIVILEGE_LOCKED'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

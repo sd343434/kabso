@@ -11,10 +11,11 @@ import 'package:material_ui/material_ui.dart';
 /// `size.giftGridColumns` (4) grid with `sm` gaps, a selected cell with a
 /// 1.5 dp `gold` outline on `surfaceOverlay`, and the ×N combo counter.
 ///
-/// Sending is **disabled**: there is no gift catalogue, wallet or send API
-/// (purchases are blocked on B5), so the footer shows a disabled Send button
-/// with the reason. Production shows [preview] items (Kabso's own art, no
-/// prices); prices and balances exist only in test fixtures.
+/// Sending is **disabled** here: this shell serves the private-message gift
+/// preview and the debug gallery. Live rooms use the real panel,
+/// `KLiveGiftSheet` (CP-020), which reuses [show] and [KGiftComboCounter].
+/// Production shows [preview] items (Kabso's own art, no prices); prices
+/// and balances exist only in test fixtures.
 class KGiftPanel extends StatelessWidget {
   const new({
     required this.gifts,
@@ -387,28 +388,4 @@ class _GiftPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GiftPainter oldDelegate) => oldDelegate.shape != shape;
-}
-
-/// The gift panel with [KGiftPanel.preview] items: a gift can be picked, and
-/// the footer says why it can't be sent yet (the viewer's and the host's gift
-/// buttons).
-class KGiftPreviewSheet extends StatefulWidget {
-  const new({super.key});
-
-  static Future<void> show(BuildContext context) =>
-      KGiftPanel.show(context, builder: (_) => const KGiftPreviewSheet());
-
-  @override
-  State<KGiftPreviewSheet> createState() => _KGiftPreviewSheetState();
-}
-
-class _KGiftPreviewSheetState extends State<KGiftPreviewSheet> {
-  String? _selected;
-
-  @override
-  Widget build(BuildContext context) => KGiftPanel(
-    gifts: KGiftPanel.preview(context.l10n),
-    selectedId: _selected,
-    onSelected: (gift) => setState(() => _selected = gift.id),
-  );
 }

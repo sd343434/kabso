@@ -2,6 +2,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -66,6 +67,11 @@ abstract class LiveChatEntry with _$LiveChatEntry {
 
     /// VOICE and IMAGE: sent + 60 s, when the app hides it (§10.19).
     DateTime? expiresAt,
+
+    /// v1.24-live (CP-021, §10.24): the author's couple had the Exclusive
+    /// Chat Bubble (`CHAT_BUBBLE`) when it was sent; the line is drawn in
+    /// the CP bubble. Older servers send nothing (false).
+    @Default(false) bool cpBubble,
   }) = _LiveChatEntry;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveChatEntryFromJson(json);
@@ -95,7 +101,8 @@ abstract class LiveBullet with _$LiveBullet {
 }
 
 /// The server's chat data messages in the media room (topic `chat`),
-/// bullets (topic `bullet`, CP-017) and kicks (topic `kick`, v1.20-live).
+/// bullets (topic `bullet`, CP-017), kicks (topic `kick`, v1.20-live) and
+/// gifts (topic `gift`, CP-020).
 sealed class LiveChatEvent {
   const new();
 
@@ -111,6 +118,7 @@ sealed class LiveChatEvent {
         'chat-delete' => LiveChatDeleted(json['id']! as String),
         'join' => LiveChatJoined(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+          cp: LiveJoinCp.tryParse(json['cp']),
         ),
         'chat-state' => LiveChatStateChanged(enabled: json['enabled']! as bool),
         'bullet' => LiveBulletReceived(
@@ -118,6 +126,9 @@ sealed class LiveChatEvent {
         ),
         'kick' => LiveKickReceived(
           UserSummary.fromJson(json['user']! as Map<String, dynamic>),
+        ),
+        'gift' => LiveGiftReceived(
+          LiveGift.fromJson(json['gift']! as Map<String, dynamic>),
         ),
         _ => null,
       };
@@ -140,9 +151,44 @@ final class LiveChatDeleted extends LiveChatEvent {
 }
 
 final class LiveChatJoined extends LiveChatEvent {
-  const new(this.user);
+  const new(this.user, {this.cp});
 
   final UserSummary user;
+
+  /// v1.24-live (CP-021, §10.24): the joiner's couple, when it unlocked the
+  /// Entrance Effect; null for a normal join.
+  final LiveJoinCp? cp;
+}
+
+/// The `cp` of a live `join` data message (v1.24-live, CP-021, §10.24):
+/// the joiner's couple, sent only when it unlocked `ENTRANCE_EFFECT`.
+final class LiveJoinCp {
+  const new({
+    required this.coupleId,
+    required this.partner,
+    required this.level,
+  });
+
+  final String coupleId;
+  final UserSummary partner;
+
+  /// The CP level (1–6).
+  final int level;
+
+  /// Reads [json]; null when absent or malformed (the join still counts,
+  /// as a normal one).
+  static LiveJoinCp? tryParse(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    try {
+      return LiveJoinCp(
+        coupleId: json['coupleId']! as String,
+        partner: UserSummary.fromJson(json['partner']! as Map<String, dynamic>),
+        level: (json['level']! as num).toInt(),
+      );
+    } on Object {
+      return null;
+    }
+  }
 }
 
 final class LiveChatStateChanged extends LiveChatEvent {
@@ -165,4 +211,12 @@ final class LiveBulletReceived extends LiveChatEvent {
   const new(this.bullet);
 
   final LiveBullet bullet;
+}
+
+/// CP-020 (§10.23): a gift sent in this live (topic `gift`); every viewer
+/// plays its effect.
+final class LiveGiftReceived extends LiveChatEvent {
+  const new(this.gift);
+
+  final LiveGift gift;
 }

@@ -5,10 +5,12 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { readableCpConfession, removeCpConfessionIn } from '../cp-space/cp-confessions.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
 import { LiveSeatsService } from '../live/live-seats.service.js';
+import { bumpRoomsSeatingBothIn } from '../live/live-seats.store.js';
 import { Notifier } from '../notifications/notifier.js';
 import type { UserSummaryDto } from '../live/live-rooms.service.js';
 import { isUuid } from '../live/live.schemas.js';
@@ -33,7 +35,7 @@ type Tx = Prisma.TransactionClient;
 /** `Report` (openapi v1.5-social); `reporter` in admin views only. */
 export interface ReportDto {
   id: string;
-  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM' | 'LIVE_CHAT_MESSAGE';
+  targetType: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'LIVE_ROOM' | 'LIVE_CHAT_MESSAGE' | 'CP_CONFESSION';
   targetId: string;
   reason: string;
   note: string | null;
@@ -110,6 +112,9 @@ export class SafetyService {
       } else {
         await tx.userBlock.deleteMany({ where: { blockerId: callerId, blockedId: targetId } });
       }
+      // v1.23.3-live (D111): a block between CP partners hides their joined seats (§10.9).
+      const partners = await tx.cpPartner.count({ where: { userId: callerId, partnerId: targetId } });
+      if (partners > 0) await bumpRoomsSeatingBothIn(tx, callerId, targetId);
       return targetId;
     });
     // CP-011 (§10.9): a block with a live host ends the other user's seat, request, invitation and
@@ -263,6 +268,7 @@ export class SafetyService {
     | { targetStoryId: string }
     | { targetLiveRoomId: string }
     | { targetLiveChatMessageId: string }
+    | { targetCpConfessionId: string }
   > {
     const invalid = () => AppException.validation([{ field: 'targetId', issue: 'invalid_value' }]);
     if (input.targetType === 'USER') {
@@ -284,6 +290,12 @@ export class SafetyService {
       const message = await this.liveChat.readableMessage(id, reporterId);
       if (message.userId === reporterId) throw invalid();
       return { targetLiveChatMessageId: message.id };
+    }
+    if (input.targetType === 'CP_CONFESSION') {
+      // CP-021: a confession the reporter could read (§10.24), not their own.
+      const confession = await readableCpConfession(this.prisma, id, reporterId);
+      if (confession.authorId === reporterId) throw invalid();
+      return { targetCpConfessionId: confession.id };
     }
     if (input.targetType === 'STORY') {
       // CP-008: an active story the reporter may see (expired stories can no longer be seen).
@@ -423,6 +435,10 @@ export class SafetyService {
           const roomId = await this.liveChat.removeIn(tx, report.targetLiveChatMessageId, actor.userId);
           if (roomId) removedChat = { roomId, messageId: report.targetLiveChatMessageId };
         }
+        if (report.targetCpConfessionId) {
+          // CP-021: the confession leaves the couple's page (soft).
+          await removeCpConfessionIn(tx, report.targetCpConfessionId, actor.userId, new Date());
+        }
         if (report.targetLiveRoomId) {
           // CP-010: the room ends with ADMIN; its media session closes after the commit.
           endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
@@ -439,7 +455,9 @@ export class SafetyService {
               ? { targetLiveRoomId: report.targetLiveRoomId }
               : report.targetLiveChatMessageId
                 ? { targetLiveChatMessageId: report.targetLiveChatMessageId }
-                : { targetUserId: report.targetUserId };
+                : report.targetCpConfessionId
+                  ? { targetCpConfessionId: report.targetCpConfessionId }
+                  : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -459,6 +477,7 @@ export class SafetyService {
           report.targetStoryId ??
           report.targetLiveRoomId ??
           report.targetLiveChatMessageId ??
+          report.targetCpConfessionId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -485,6 +504,7 @@ export class SafetyService {
         row.targetStoryId ??
         row.targetLiveRoomId ??
         row.targetLiveChatMessageId ??
+        row.targetCpConfessionId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',

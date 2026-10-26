@@ -116,6 +116,8 @@ describe('KL-037 contract coverage', () => {
             'listLiveRankings',
             // CP-017 (v1.19-live draft): bullet messages; kl077-wallet-bullets-chat-media covers it.
             'sendLiveBullet',
+            // CP-020 (v1.23-live draft): live gifts; kl081-live-gifts covers it.
+            'sendLiveGift',
             // CP-018 (v1.21-live draft): a user's medals; kl079-families-cp-medals covers it.
             'listUserMedals',
           ].includes(o.operationId),

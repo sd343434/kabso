@@ -26,13 +26,17 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
-import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_full_page.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -49,7 +53,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
+import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/component_harness.dart';
+import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
@@ -84,6 +90,7 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
   FakeLiveMediaEngine? engine,
   FakeLiveRepository? repo,
   User? user,
+  FakeLiveGiftRepository? gifts,
 }) async {
   final ar = language == AppLanguage.ar;
   final live =
@@ -97,6 +104,7 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
     const LiveRoomScreen(roomId: 'room-0'),
     language: language,
     liveMediaEngine: engine,
+    liveGiftRepository: gifts,
     overrides: [
       liveRepositoryProvider.overrideWithValue(live),
       profileRepositoryProvider.overrideWithValue(profiles),
@@ -534,60 +542,257 @@ void main() {
     });
   });
 
-  group('gifts (HL-L6, B5)', () {
-    testWidgets('the sheet does not dim the stream; items show, no prices, '
-        'Send disabled with the reason', (tester) async {
-      await _pumpRoom(tester);
+  group('gifts (CP-020)', () {
+    testWidgets('the sheet does not dim the stream; an empty catalogue says '
+        '"No gifts yet" and invents nothing', (tester) async {
+      await _pumpRoom(tester, user: testUser());
       await tester.tap(_label(l10n.liveGifts));
       await tester.pumpAndSettle();
-      expect(find.byType(KGiftPanel), findsOneWidget);
+      expect(find.byType(KLiveGiftSheet), findsOneWidget);
       _expectNoDimming(tester);
-      for (final name in [
-        l10n.giftNameHeart,
-        l10n.giftNameStar,
-        l10n.giftNameDiamond,
-        l10n.giftNameCrown,
-      ]) {
-        expect(find.text(name), findsOneWidget);
-      }
-      // No invented prices or balance.
-      expect(find.byIcon(Icons.monetization_on), findsNothing);
-      expect(find.textContaining(RegExp(r'\d')), findsWidgets); // followers
-      expect(
-        find.descendant(
-          of: find.byType(KGiftPanel),
-          matching: find.textContaining(RegExp(r'\d')),
-        ),
-        findsNothing,
+      expect(find.text(l10n.liveGiftEmptyTitle), findsOneWidget);
+      expect(find.byType(KGiftImage), findsNothing);
+      // The host is the default recipient.
+      expect(find.byKey(KLiveGiftSheet.recipientKey('host0')), findsOneWidget);
+      expect(find.text(l10n.liveGiftHost), findsOneWidget);
+      final send = tester.widget<GestureDetector>(
+        find.byKey(KLiveGiftSheet.sendKey),
       );
-      final send = tester.widget<KButton>(
-        find.ancestor(
-          of: find.text(l10n.giftSend),
-          matching: find.byType(KButton),
-        ),
-      );
-      expect(send.onPressed, isNull);
-      expect(find.text(l10n.giftSendComingSoon), findsOneWidget);
+      expect(send.onTap, isNull);
 
-      // Selecting works; there is no combo without sending.
-      await tester.tap(find.text(l10n.giftNameStar));
-      await tester.pump();
-      await tester.tap(find.text(l10n.giftNameStar));
+      // A tap on the visible stream closes it.
+      await tester.tapAt(const Offset(200, 150));
       await tester.pumpAndSettle();
-      expect(find.text(l10n.giftCombo(2)), findsNothing);
+      expect(find.byType(KLiveGiftSheet), findsNothing);
+    });
+
+    testWidgets("sending to the host plays the banner at once; the room's "
+        'message for the same send plays nothing more', (tester) async {
+      final engine = FakeLiveMediaEngine();
+      final gifts = FakeLiveGiftRepository(codes: giftFixtureCodes);
+      await _pumpRoom(tester, user: testUser(), engine: engine, gifts: gifts);
+      await tester.tap(_label(l10n.liveGifts));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(KLiveGiftSheet.cellKey('rose')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(KLiveGiftSheet.sendKey));
+      await tester.pumpAndSettle();
+      final sent = gifts.sends.single;
+      expect(sent.roomId, 'room-0');
+      expect(sent.recipients, ['host0']);
+      expect(find.byType(LiveGiftBanner), findsOneWidget);
+      // The same send comes back as a data message.
+      engine.chat.add(
+        LiveGiftReceived(
+          LiveGift.fromJson(
+            liveGiftJson(
+              id: 'gift-0',
+              quantity: 1,
+              recipients: [giftUserJson('host0', 'Sara')],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(LiveGiftBanner), findsOneWidget);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(find.byType(LiveGiftBanner), findsNothing);
+    });
+
+    testWidgets("a person's card opens the panel with that person chosen", (
+      tester,
+    ) async {
+      await _pumpRoom(tester, user: testUser());
+      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('room.userCard.gift')));
+      await tester.tap(find.byKey(const Key('room.userCard.gift')));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsOneWidget);
       expect(
         tester
-            .getSemantics(_label(l10n.giftNameStar))
+            .getSemantics(
+              find
+                  .descendant(
+                    of: find.byKey(KLiveGiftSheet.recipientKey('host0')),
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
             .getSemanticsData()
             .flagsCollection
             .isSelected,
         Tristate.isTrue,
       );
+    });
 
-      // A tap on the visible stream closes it.
-      await tester.tapAt(const Offset(200, 150));
+    testWidgets('a gift data message in the room: the banner with the '
+        'sender, the gift name from the catalogue and the quantity', (
+      tester,
+    ) async {
+      final engine = FakeLiveMediaEngine();
+      await _pumpRoom(
+        tester,
+        user: testUser(),
+        engine: engine,
+        gifts: FakeLiveGiftRepository(codes: giftFixtureCodes),
+      );
+      engine.chat.add(
+        LiveGiftReceived(
+          LiveGift.fromJson(
+            liveGiftJson(
+              sender: giftUserJson('lina', 'Lina'),
+              recipients: [giftUserJson('host0', 'Sara')],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(LiveGiftBanner), findsOneWidget);
+      expect(find.textContaining('Lina'), findsOneWidget);
+      expect(find.textContaining('Rose'), findsOneWidget);
+      expect(find.text(l10n.giftCombo(10)), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
-      expect(find.byType(KGiftPanel), findsNothing);
+      expect(find.byType(LiveGiftBanner), findsNothing);
+    });
+  });
+
+  group('D109: viewers see who else is watching', () {
+    const huda = UserSummary(
+      id: 'u-huda',
+      username: 'huda',
+      displayName: 'Huda',
+      avatarUrl: null,
+    );
+    const omar = UserSummary(
+      id: 'u-omar',
+      username: 'omar',
+      displayName: 'Omar',
+      avatarUrl: null,
+    );
+    List<LiveViewer> watching() => [
+      LiveViewer(
+        kind: LiveViewerKind.user,
+        user: huda,
+        guestNumber: null,
+        joinedAt: DateTime.utc(2026, 10, 26, 12, 2),
+      ),
+      LiveViewer(
+        kind: LiveViewerKind.guest,
+        user: null,
+        guestNumber: 4821,
+        joinedAt: DateTime.utc(2026, 10, 26, 12, 1),
+      ),
+      LiveViewer(
+        kind: LiveViewerKind.user,
+        user: omar,
+        guestNumber: null,
+        joinedAt: DateTime.utc(2026, 10, 26, 12),
+      ),
+    ];
+
+    for (final mode in [LiveRoomMode.solo, LiveRoomMode.audio]) {
+      for (final language in AppLanguage.values) {
+        testWidgets('${mode.name} room (${language.name}): the faces and the '
+            'count from the viewer list; a tap opens it read-only and a '
+            'person opens their card', (tester) async {
+          final l = l10nFor(language);
+          final repo = FakeLiveRepository(
+            room: (id) => apiRoom(
+              id: id,
+              ar: language == AppLanguage.ar,
+              viewerCount: 1,
+            ).copyWith(mode: mode, seatCount: mode.hasSeats ? 10 : null),
+          )..viewerList = watching();
+          if (mode.hasSeats) {
+            repo.seatState = LiveSeats(
+              roomId: 'room-0',
+              mode: mode,
+              seatCount: 10,
+              version: 1,
+              moderators: const [],
+              seats: [
+                for (var i = 1; i < 10; i++)
+                  LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+              ],
+            );
+          }
+          await _pumpRoom(
+            tester,
+            repo: repo,
+            language: language,
+            engine: FakeLiveMediaEngine()..present.add('user-0'),
+            user: testUser(),
+          );
+          final stack = find.byKey(LiveRoomScreen.viewersKey);
+          expect(stack, findsOneWidget);
+          // Two people (the guest has no face) and the list's count, not
+          // the room's stale 1.
+          expect(
+            find.descendant(of: stack, matching: find.byType(KAvatar)),
+            findsNWidgets(2),
+          );
+          expect(
+            find.descendant(of: stack, matching: find.text('3')),
+            findsOneWidget,
+          );
+          expect(find.bySemanticsLabel(l.liveViewers(3, '3')), findsOneWidget);
+
+          await tester.tap(stack);
+          await tester.pumpAndSettle();
+          expect(find.text(l.liveViewersTab('3')), findsOneWidget);
+          expect(find.textContaining('Huda'), findsOneWidget);
+          expect(find.textContaining('Omar'), findsOneWidget);
+          expect(find.textContaining('4821'), findsOneWidget);
+          // Read-only: no invite to a seat, no moderator choice.
+          expect(find.byKey(SeatControlKeys.inviteUser('huda')), findsNothing);
+          expect(find.byKey(SeatControlKeys.inviteUser('omar')), findsNothing);
+          // A person: their card (not the moderator menu).
+          await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+          await tester.pumpAndSettle();
+          final card = find.byKey(const Key('room.hostSheet'));
+          expect(card, findsOneWidget);
+          expect(find.byKey(SeatControlKeys.moderatorAction), findsNothing);
+          expect(find.byKey(LivePersonToolKeys.kick), findsNothing);
+          Navigator.of(tester.element(card)).pop();
+          await tester.pumpAndSettle();
+
+          // Nobody seated: no "Invite friends" for a viewer either.
+          await tester.tap(find.byKey(SeatControlKeys.guestsTab));
+          await tester.pumpAndSettle();
+          expect(find.byKey(SeatControlKeys.inviteFriends), findsNothing);
+        });
+      }
+    }
+
+    testWidgets('the list refreshes every 10 s, as the host does', (
+      tester,
+    ) async {
+      final repo = FakeLiveRepository(room: (id) => apiRoom(id: id))
+        ..viewerList = watching().take(1).toList();
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine()..present.add('user-0'),
+        user: testUser(),
+      );
+      final stack = find.byKey(LiveRoomScreen.viewersKey);
+      expect(find.descendant(of: stack, matching: find.text('1')), findsOne);
+      repo.viewerList = watching();
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pumpAndSettle();
+      expect(find.descendant(of: stack, matching: find.text('3')), findsOne);
+    });
+
+    testWidgets('an ended room shows no viewers', (tester) async {
+      final repo = FakeLiveRepository(
+        room: (id) => apiRoom(id: id, status: LiveRoomStatus.ended),
+      )..viewerList = watching();
+      await _pumpRoom(tester, repo: repo);
+      expect(find.byKey(LiveRoomScreen.viewersKey), findsNothing);
     });
   });
 
@@ -604,15 +809,19 @@ void main() {
     testWidgets('a real viewer count from the API is shown as is', (
       tester,
     ) async {
+      // No one in the viewer list (yet): the room's count, no faces, no list.
       await _pumpRoom(tester, room: (id) => apiRoom(id: id, viewerCount: 3));
-      expect(find.byType(KViewerCountChip), findsOneWidget);
+      final stack = find.byKey(LiveRoomScreen.viewersKey);
+      expect(stack, findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(KViewerStrip),
-          matching: find.byType(KAvatar),
-        ),
+        find.descendant(of: stack, matching: find.text('3')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: stack, matching: find.byType(KAvatar)),
         findsNothing,
       );
+      expect(tester.widget<LiveViewersStack>(stack).onTap, isNull);
     });
 
     testWidgets('no decorative controls: every room button acts', (
@@ -785,11 +994,11 @@ void main() {
         );
         await tester.tap(_label(l.liveGifts));
         await tester.pumpAndSettle();
-        expect(find.byType(KGiftPanel), findsOneWidget);
+        expect(find.byType(KLiveGiftSheet), findsOneWidget);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.byTooltip(l.liveClose));
+        await tester.tapAt(const Offset(180, 100));
         await tester.pumpAndSettle();
-        expect(find.byType(KGiftPanel), findsNothing);
+        expect(find.byType(KLiveGiftSheet), findsNothing);
         await tester.tap(_hostPill(l, 'سارة'));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
@@ -1194,15 +1403,22 @@ void main() {
         ..ping();
       await tester.pumpAndSettle();
       expect(find.byKey(AudioRoomViewKeys.leave), findsOneWidget);
-      // Owner (2026-10-26): no mic button; a tap on my own seat mutes me
-      // (the mic-off badge shows) and another unmutes me.
+      // Owner (2026-10-26): no mic button; a tap on my own seat opens my
+      // card (no mute) and its mic button mutes and unmutes me.
       expect(find.byKey(AudioRoomViewKeys.mic), findsNothing);
       await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
+      expect(engine.micEnabled, isTrue);
+      final selfMic = find.byKey(LivePersonToolKeys.selfMic);
+      await tester.tap(selfMic);
+      await tester.pumpAndSettle();
       expect(engine.micEnabled, isFalse);
-      await tester.tap(find.byKey(AudioSeatRing.seatKey(1)));
+      await tester.tap(selfMic);
       await tester.pumpAndSettle();
       expect(engine.micEnabled, isTrue);
+      await tester.tapAt(const Offset(200, 60));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(AudioRoomViewKeys.close));
       await tester.pumpAndSettle();
     });

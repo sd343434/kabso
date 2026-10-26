@@ -71,6 +71,12 @@ export enum AuditAction {
   /** v1.22-live (CP-019): a bag item granted or taken back by an admin (`bag-admin`). */
   BAG_GRANT = 'bag.grant',
   BAG_REVOKE = 'bag.revoke',
+  /** v1.23-live (CP-020, D108): the gift catalogue and gift-bag grants (`gift-admin` CLI). */
+  GIFT_ADD = 'gift.add',
+  GIFT_UPDATE = 'gift.update',
+  GIFT_DISABLE = 'gift.disable',
+  GIFT_ENABLE = 'gift.enable',
+  GIFT_GRANT = 'gift.grant',
 }
 
 export interface AuditEntry {

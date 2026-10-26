@@ -5,10 +5,12 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/cp/data/cp_repository.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
+import 'package:kabso_live/features/cp/domain/cp_space_models.dart';
 import 'package:kabso_live/features/families/data/families_repository.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
 import 'package:kabso_live/features/medals/data/medals_repository.dart';
 import 'package:kabso_live/features/medals/domain/medal_models.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 
 import '../fixtures/bonds/bonds_api_fixtures.dart';
 
@@ -272,6 +274,131 @@ class FakeCpRepository with _Recorder implements CpRepository {
       cp: c,
       coins: coins,
     );
+  }
+
+  // ---- CP-021 ------------------------------------------------------------
+
+  CpTasks tasksValue = CpTasks.fromJson(cpTasksJson());
+  CpPrivileges privilegesValue = CpPrivileges.fromJson(cpPrivilegesJson());
+  List<CpConfession> confessions = [];
+  Map<CpRankingPeriod, CpRankings> rankingsValue = {
+    for (final p in CpRankingPeriod.values)
+      p: CpRankings.fromJson(cpRankingsJson(p.wire)),
+  };
+  Map<String, CpCouplePublic> couples = {};
+  CpGiftWall giftWallValue = CpGiftWall.fromJson(cpGiftWallJson());
+
+  /// The claim answers 200 (claimed already by the partner) when true.
+  bool claimAlready = false;
+  int _confessionSeq = 0;
+
+  @override
+  Future<CpTasks> tasks() async {
+    record('tasks');
+    return tasksValue;
+  }
+
+  @override
+  Future<CpTasks> checkIn() async {
+    record('checkIn');
+    return tasksValue;
+  }
+
+  @override
+  Future<CpTaskClaim> claimTask(String code) async {
+    record('claim:$code');
+    final task = tasksValue.tasks.firstWhere((t) => t.code == code);
+    if (!task.completed) {
+      throw bondFailure(ErrorCode.cpTaskNotCompleted);
+    }
+    final claimed = CpTask(
+      code: task.code,
+      name: task.name,
+      description: task.description,
+      reward: task.reward,
+      progress: task.progress,
+      target: task.target,
+      completed: true,
+      claimed: true,
+    );
+    tasksValue = tasksValue.withTask(claimed);
+    final added = !task.claimed && !claimAlready;
+    if (added) {
+      couple = couple!.copyWith(points: couple!.points + task.reward);
+    }
+    return (task: claimed, cp: couple!, added: added);
+  }
+
+  @override
+  Future<CpPrivileges> privileges() async {
+    record('privileges');
+    return privilegesValue;
+  }
+
+  @override
+  Future<CpConfessionPage> myConfessions({String? cursor}) async {
+    record('confessions');
+    return CpConfessionPage(data: confessions, page: _page);
+  }
+
+  @override
+  Future<CpConfession> createConfession({
+    required String text,
+    required String clientId,
+  }) async {
+    record('confess:$clientId');
+    final c = CpConfession.fromJson(
+      cpConfessionJson(
+        id: 'new-${_confessionSeq++}',
+        author: cpMeJson(),
+        recipient: cpPartnerJson(),
+        text: text,
+      ),
+    );
+    confessions = [c, ...confessions];
+    return c;
+  }
+
+  @override
+  Future<void> deleteConfession(String confessionId) async {
+    record('deleteConfession:$confessionId');
+    confessions = [...confessions]..removeWhere((c) => c.id == confessionId);
+  }
+
+  @override
+  Future<void> reportConfession(
+    String confessionId,
+    ReportReason reason,
+  ) async {
+    record('reportConfession:$confessionId:${reason.wire}');
+  }
+
+  @override
+  Future<CpRankings> rankings(CpRankingPeriod period, {String? cursor}) async {
+    record('rankings:${period.wire}');
+    return rankingsValue[period]!;
+  }
+
+  @override
+  Future<CpCouplePublic> publicCouple(String coupleId) async {
+    record('couple:$coupleId');
+    return couples[coupleId] ??
+        (throw bondFailure(ErrorCode.notFound, status: 404));
+  }
+
+  @override
+  Future<CpGiftWall> giftWall(String coupleId, {String? cursor}) async {
+    record('giftWall:$coupleId');
+    return giftWallValue;
+  }
+
+  @override
+  Future<CpConfessionPage> coupleConfessions(
+    String coupleId, {
+    String? cursor,
+  }) async {
+    record('coupleConfessions:$coupleId');
+    return CpConfessionPage(data: confessions, page: _page);
   }
 }
 

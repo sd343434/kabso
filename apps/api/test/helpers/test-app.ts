@@ -170,6 +170,8 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     RATE_LIMIT_FAMILY_WRITE_USER: GENEROUS,
     RATE_LIMIT_CP_WRITE_USER: GENEROUS,
     RATE_LIMIT_CP_GIFT_USER: GENEROUS,
+    RATE_LIMIT_CP_SPACE_WRITE_USER: GENEROUS,
+    RATE_LIMIT_CP_CONFESSION_USER: GENEROUS,
     // A LiveKit identity for signing tokens; the media server itself is the in-memory fake
     // (createTestApp) unless a spec passes the real adapter.
     LIVEKIT_URL: 'ws://127.0.0.1:7880',

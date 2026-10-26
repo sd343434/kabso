@@ -15,11 +15,14 @@ import { awardMedalsIn } from '../medals/medal-awards.js';
 import { Notifier } from '../notifications/notifier.js';
 import { USER_SUMMARY_SELECT, userSummary, type PageDto } from '../posts/post-views.js';
 import { SocialCursorCodec } from '../posts/social-cursor.js';
+import { bumpRoomsSeatingBothIn } from '../live/live-seats.store.js';
 import { blockedEitherWayIn, lockUserPairIn } from '../social/pair-lock.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
+import { cpPrivilegesFor, type CpPrivilegeCode } from '../cp-space/cp-privileges.js';
 import {
   CP_GIFT_AMOUNTS,
+  CP_GIFT_PRESETS,
   CP_REQUEST_COST_COINS,
   CP_REQUEST_TTL_MS,
   CP_TIERS,
@@ -28,6 +31,7 @@ import {
   cpTierName,
 } from './couples.constants.js';
 import { cpGiftSendSchema, cpRequestSendSchema, type CpRequestListQuery } from './couples.schemas.js';
+import { recordCpPointsIn } from './cp-points.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -74,11 +78,15 @@ export interface CpGiftResultDto {
 
 /** `ProfileCp`: a user's couple on their public profile (§10.5, §10.21). */
 export interface ProfileCpDto {
+  /** v1.24-live (CP-021): the couple, for `GET /cp/couples/{coupleId}`. */
+  id: string;
   partner: UserSummaryDto;
   since: string;
   level: number;
   levelName: string;
   points: number;
+  /** v1.24-live (CP-021): the CP privileges the couple has unlocked (§10.24). */
+  privileges: CpPrivilegeCode[];
 }
 
 /** `CpConfig`. */
@@ -86,6 +94,8 @@ export interface CpConfigDto {
   requestCost: number;
   requestTtlDays: number;
   giftAmounts: number[];
+  /** v1.24-live (CP-021): the named gift card of each amount, ascending. */
+  gifts: { code: string; amount: number; name: string; assetKey: string }[];
   tiers: { level: number; minPoints: number; name: string }[];
 }
 
@@ -151,6 +161,12 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
       requestCost: CP_REQUEST_COST_COINS,
       requestTtlDays: CP_REQUEST_TTL_MS / DAY_MS,
       giftAmounts: [...CP_GIFT_AMOUNTS],
+      gifts: CP_GIFT_PRESETS.map((g) => ({
+        code: g.code,
+        amount: g.amount,
+        name: lang === 'ar' ? g.nameAr : g.nameEn,
+        assetKey: g.assetKey,
+      })),
       tiers: CP_TIERS.map((t) => ({
         level: t.level,
         minPoints: t.minPoints,
@@ -429,6 +445,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         await this.closeOthersIn(tx, [a, b], request.id);
         await awardMedalsIn(tx, a, ['FIRST_CP'], { at: now });
         await awardMedalsIn(tx, b, ['FIRST_CP'], { at: now });
+        // v1.23.3-live (D111): rooms where both sit now show the pair joined (§10.9).
+        await bumpRoomsSeatingBothIn(tx, a, b);
         await this.notifier.notify(tx, {
           type: 'CP_ACCEPTED',
           recipientId: request.sender_id,
@@ -508,11 +526,13 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
     });
     if (!row) return null;
     return {
+      id: row.coupleId,
       partner: userSummary(row.partner),
       since: row.couple.since.toISOString(),
       level: row.couple.level,
       levelName: cpTierName(row.couple.level, lang),
       points: Number(row.couple.points),
+      privileges: cpPrivilegesFor(row.couple.level),
     };
   }
 
@@ -523,11 +543,18 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         SELECT couple_id::text AS couple_id FROM cp_partners WHERE user_id = ${callerId}::uuid`;
       if (!row) return;
       await tx.$queryRaw`SELECT id FROM cp_couples WHERE id = ${row.couple_id}::uuid FOR UPDATE`;
+      const partners = await tx.cpPartner.findMany({
+        where: { coupleId: row.couple_id },
+        select: { userId: true },
+      });
       await tx.cpPartner.deleteMany({ where: { coupleId: row.couple_id } });
-      await tx.cpCouple.update({
+      const ended = await tx.cpCouple.update({
         where: { id: row.couple_id },
         data: { endedAt: this.clock.now(), endedById: callerId },
+        select: { userAId: true, userBId: true },
       });
+      // v1.23.3-live (D111): rooms where both sit now stop showing the pair joined (§10.9).
+      if (partners.length > 0) await bumpRoomsSeatingBothIn(tx, ended.userAId, ended.userBId);
     });
   }
 
@@ -556,8 +583,8 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
           SELECT couple_id::text AS couple_id, partner_id::text AS partner_id
             FROM cp_partners WHERE user_id = ${callerId}::uuid`;
         if (!partner) throw new AppException(ErrorCode.CP_NOT_PAIRED);
-        const [couple] = await tx.$queryRaw<{ points: bigint }[]>`
-          SELECT points FROM cp_couples WHERE id = ${partner.couple_id}::uuid AND ended_at IS NULL FOR UPDATE`;
+        const [couple] = await tx.$queryRaw<{ points: bigint; level: number }[]>`
+          SELECT points, level FROM cp_couples WHERE id = ${partner.couple_id}::uuid AND ended_at IS NULL FOR UPDATE`;
         if (!couple) throw new AppException(ErrorCode.CP_NOT_PAIRED);
         const gift = await tx.cpGift.create({
           data: {
@@ -573,10 +600,21 @@ export class CouplesService implements OnModuleInit, OnModuleDestroy {
         const charged = await this.wallet.debitIn(tx, callerId, amount, 'CP_GIFT', gift.id);
         if (!charged) throw new AppException(ErrorCode.INSUFFICIENT_COINS);
         const points = couple.points + BigInt(amount);
+        const level = cpLevelFor(points);
         await tx.cpCouple.update({
           where: { id: partner.couple_id },
-          data: { points, level: cpLevelFor(points) },
+          data: { points, level },
         });
+        // v1.24-live (CP-021): the gain feeds the couples ranking (§10.24).
+        await recordCpPointsIn(tx, {
+          coupleId: partner.couple_id,
+          points: amount,
+          source: 'GIFT',
+          referenceId: gift.id,
+          at: now,
+        });
+        // v1.23.3-live (D111): `LiveSeats.couples` carries the level (§10.9).
+        if (level !== couple.level) await bumpRoomsSeatingBothIn(tx, callerId, partner.partner_id);
         return { id: gift.id, coins: charged.coins };
       });
     } catch (err) {

@@ -31,7 +31,8 @@ export const REPORT_REASONS = [
 
 /** `CreateReportRequest`. */
 export const createReportSchema = z.strictObject({
-  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'USER', 'LIVE_ROOM', 'LIVE_CHAT_MESSAGE']),
+  // v1.24-live (CP-021): CP_CONFESSION, a confession on a CP couple's page (§10.24).
+  targetType: z.enum(['POST', 'COMMENT', 'STORY', 'USER', 'LIVE_ROOM', 'LIVE_CHAT_MESSAGE', 'CP_CONFESSION']),
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
   note: noteSchema.optional(),

@@ -18,6 +18,22 @@ Map<String, dynamic> _$CpTierToJson(_CpTier instance) => <String, dynamic>{
   'name': instance.name,
 };
 
+_CpGiftPreset _$CpGiftPresetFromJson(Map<String, dynamic> json) =>
+    _CpGiftPreset(
+      code: json['code'] as String,
+      amount: (json['amount'] as num).toInt(),
+      name: json['name'] as String,
+      assetKey: json['assetKey'] as String,
+    );
+
+Map<String, dynamic> _$CpGiftPresetToJson(_CpGiftPreset instance) =>
+    <String, dynamic>{
+      'code': instance.code,
+      'amount': instance.amount,
+      'name': instance.name,
+      'assetKey': instance.assetKey,
+    };
+
 _CpConfig _$CpConfigFromJson(Map<String, dynamic> json) => _CpConfig(
   requestCost: (json['requestCost'] as num).toInt(),
   requestTtlDays: (json['requestTtlDays'] as num).toInt(),
@@ -27,6 +43,11 @@ _CpConfig _$CpConfigFromJson(Map<String, dynamic> json) => _CpConfig(
   tiers: (json['tiers'] as List<dynamic>)
       .map((e) => CpTier.fromJson(e as Map<String, dynamic>))
       .toList(),
+  gifts:
+      (json['gifts'] as List<dynamic>?)
+          ?.map((e) => CpGiftPreset.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <CpGiftPreset>[],
 );
 
 Map<String, dynamic> _$CpConfigToJson(_CpConfig instance) => <String, dynamic>{
@@ -34,6 +55,7 @@ Map<String, dynamic> _$CpConfigToJson(_CpConfig instance) => <String, dynamic>{
   'requestTtlDays': instance.requestTtlDays,
   'giftAmounts': instance.giftAmounts,
   'tiers': instance.tiers,
+  'gifts': instance.gifts,
 };
 
 _CpRequest _$CpRequestFromJson(Map<String, dynamic> json) => _CpRequest(
@@ -118,6 +140,12 @@ _ProfileCp _$ProfileCpFromJson(Map<String, dynamic> json) => _ProfileCp(
   level: (json['level'] as num).toInt(),
   levelName: json['levelName'] as String,
   points: (json['points'] as num).toInt(),
+  id: json['id'] as String?,
+  privileges:
+      (json['privileges'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const <String>[],
 );
 
 Map<String, dynamic> _$ProfileCpToJson(_ProfileCp instance) =>
@@ -127,4 +155,6 @@ Map<String, dynamic> _$ProfileCpToJson(_ProfileCp instance) =>
       'level': instance.level,
       'levelName': instance.levelName,
       'points': instance.points,
+      'id': instance.id,
+      'privileges': instance.privileges,
     };

@@ -59,10 +59,14 @@ final class LiveChatPending extends LiveChatItem {
 
 /// "X joined" (signed-in viewers, at most one a second per room).
 final class LiveChatJoinLine extends LiveChatItem {
-  const new(this.user, this.serial);
+  const new(this.user, this.serial, {this.cp});
 
   final UserSummary user;
   final int serial;
+
+  /// v1.24-live (CP-021, §10.24): the joiner's couple when it unlocked the
+  /// Entrance Effect (the room plays the CP entrance); null otherwise.
+  final LiveJoinCp? cp;
 
   @override
   String get key => 'j:$serial';
@@ -284,10 +288,18 @@ class LiveChatController extends Notifier<LiveChatState> {
               if (it is! LiveChatPosted || it.entry.id != id) it,
           ],
         );
-      case LiveChatJoined(:final user):
+      case LiveChatJoined(:final user, :final cp):
         if (_blocked.contains(user.id) || user.id == me?.id) return;
         state = state.copyWith(
-          items: _trim([...state.items, LiveChatJoinLine(user, _serial++)]),
+          items: _trim([
+            ...state.items,
+            // A partner this person blocked: a normal join.
+            LiveChatJoinLine(
+              user,
+              _serial++,
+              cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
+            ),
+          ]),
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);
@@ -297,6 +309,10 @@ class LiveChatController extends Notifier<LiveChatState> {
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
         _addBullet(bullet);
+      case LiveGiftReceived():
+        // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
+        // them.
+        break;
     }
   }
 

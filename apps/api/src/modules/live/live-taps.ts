@@ -15,7 +15,7 @@ export const MAX_TAPS_PER_ROOM = 10_000;
 export const POINTS_PER_TAP = 1;
 /** CP-014 (§10.12): the Contribution list shows at most this many people. */
 export const LIVE_CONTRIBUTORS_MAX = 50;
-/** Points per support coin (L3 writes them; nothing does yet). */
+/** Points per support coin: the coin value of a gift (v1.23-live, CP-020, §10.23). */
 export const POINTS_PER_SUPPORT_COIN = 100;
 
 /** What the caller has already counted in the room (null: never counted there). */

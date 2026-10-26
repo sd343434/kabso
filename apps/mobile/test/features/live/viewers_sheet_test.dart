@@ -106,4 +106,104 @@ void main() {
     expect(find.textContaining('Omar'), findsOneWidget);
     expect(find.text(l10n.liveSeatNumberLabel(2)), findsOneWidget);
   });
+
+  for (final language in AppLanguage.values) {
+    testWidgets(
+      'D109 (${language.name}): the sheet for a viewer is read-only — '
+      'everyone watching, no invite or moderator choice, no seat requests '
+      'or "Invite friends"; a person (watching or seated) opens their '
+      'card',
+      (tester) async {
+        final l = l10nFor(language);
+        final repo = FakeLiveRepository()
+          ..viewerList = [
+            LiveViewer(
+              kind: LiveViewerKind.user,
+              user: _huda,
+              guestNumber: null,
+              joinedAt: DateTime.utc(2026, 10, 26),
+            ),
+            LiveViewer(
+              kind: LiveViewerKind.guest,
+              user: null,
+              guestNumber: 4821,
+              joinedAt: DateTime.utc(2026, 10, 26),
+            ),
+          ];
+        final opened = <String>[];
+        await pumpScreen(
+          tester,
+          Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: TextButton(
+                  onPressed: () => showLiveViewers(
+                    context,
+                    roomId: 'room-0',
+                    seated: const [
+                      LiveSeat(
+                        index: 2,
+                        state: LiveSeatState.taken,
+                        user: _omar,
+                      ),
+                    ],
+                    onPerson: (u) => opened.add(u.username),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+          language: language,
+          overrides: [liveRepositoryProvider.overrideWithValue(repo)],
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        expect(find.text(l.liveViewersTab('2')), findsOneWidget);
+        expect(find.textContaining('Huda'), findsOneWidget);
+        expect(find.textContaining('4821'), findsOneWidget);
+        expect(find.byKey(SeatControlKeys.inviteUser('huda')), findsNothing);
+        await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(SeatControlKeys.moderatorAction), findsNothing);
+        expect(opened, ['huda']);
+
+        await tester.tap(find.byKey(SeatControlKeys.guestsTab));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Omar'), findsOneWidget);
+        expect(find.byKey(SeatControlKeys.accept('r')), findsNothing);
+        expect(repo.seatCalls, isNot(contains('seatRequests')));
+        await tester.tap(find.textContaining('Omar'));
+        await tester.pumpAndSettle();
+        expect(opened, ['huda', 'omar']);
+      },
+    );
+  }
+
+  testWidgets('D109: nobody seated — a viewer gets no "Invite friends"', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      Scaffold(
+        body: Builder(
+          builder: (context) => Center(
+            child: TextButton(
+              onPressed: () =>
+                  showLiveViewers(context, roomId: 'room-0', initialTab: 1),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+      overrides: [
+        liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
+      ],
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.liveSeatGuestsEmpty), findsOneWidget);
+    expect(find.byKey(SeatControlKeys.inviteFriends), findsNothing);
+  });
 }

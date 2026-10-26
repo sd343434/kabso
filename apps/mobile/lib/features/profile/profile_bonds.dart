@@ -20,10 +20,12 @@ enum BondTap {
   /// Your own empty family: browse families or create one.
   browseFamilies,
 
-  /// Your own relationship page (the couple, or requests).
+  /// Your own relationship: the CP space when you have a partner (CP-021),
+  /// else the CP page (requests).
   openCp,
 
-  /// Someone else's partner: their profile.
+  /// Someone else's couple: its CP space, read-only (CP-021); the partner's
+  /// profile when the server did not send the couple's id.
   openPartner,
 
   /// Someone else without a partner: send them a CP request.
@@ -68,10 +70,13 @@ VoidCallback? bondAction(
   return switch (tap) {
     BondTap.openFamily => () => go(AppRoutes.family(profile.family!.id)),
     BondTap.browseFamilies => () => go(AppRoutes.families),
-    BondTap.openCp => () => go(AppRoutes.cp),
-    BondTap.openPartner => () => go(
-      AppRoutes.userProfile(profile.cp!.partner.username),
+    BondTap.openCp => () => go(
+      profile.cp != null ? AppRoutes.cpSpace : AppRoutes.cp,
     ),
+    BondTap.openPartner => () => go(switch (profile.cp!.id) {
+      final id? => AppRoutes.cpCouple(id),
+      null => AppRoutes.userProfile(profile.cp!.partner.username),
+    }),
     BondTap.sendCp => () => unawaited(
       sendCpRequest(
         context,

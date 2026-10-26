@@ -269,6 +269,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
         seatCount: 5,
         seats: [1, 2, 3, 4].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
         moderators: [],
+        couples: [],
         pendingRequests: 0,
         mine: { role: 'HOST', seatIndex: null, request: null, invite: null },
       });

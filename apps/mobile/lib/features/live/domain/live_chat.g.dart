@@ -51,6 +51,7 @@ _LiveChatEntry _$LiveChatEntryFromJson(Map<String, dynamic> json) =>
       expiresAt: json['expiresAt'] == null
           ? null
           : DateTime.parse(json['expiresAt'] as String),
+      cpBubble: json['cpBubble'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
@@ -64,6 +65,7 @@ Map<String, dynamic> _$LiveChatEntryToJson(_LiveChatEntry instance) =>
       'kind': _$LiveChatKindEnumMap[instance.kind]!,
       'media': instance.media,
       'expiresAt': instance.expiresAt?.toIso8601String(),
+      'cpBubble': instance.cpBubble,
     };
 
 const _$LiveChatRoleEnumMap = {

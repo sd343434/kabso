@@ -218,13 +218,15 @@ describe('KL-013 runtime role DML', () => {
     for (const row of rows) {
       // KL-058: the points ledger and level history are append-only like the audit log.
       // CP-017: wallet_ledger is append-only too (migration 20261108090000_wallet_and_bullets);
-      // CP-018: so is family_points_ledger (migration 20261110100000_families_cp_medals).
+      // CP-018: so is family_points_ledger (migration 20261110100000_families_cp_medals);
+      // CP-021: and cp_points_ledger (migration 20261113100000_cp_space).
       const appendOnly = [
         'audit_logs',
         'points_ledger',
         'level_history',
         'wallet_ledger',
         'family_points_ledger',
+        'cp_points_ledger',
       ].includes(row.table);
       // KL-058: admin permissions are granted by the migration role only.
       const readOnly = row.table === 'user_admin_permissions';
@@ -389,11 +391,12 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_rooms_topic_length',
       'live_rooms_viewer_count_nonneg',
     ]);
-    // CP-014: the Contribution list of a room reads the tappers in rank order.
+    // CP-014: the Contribution list of a room reads the tappers in rank order (v1.23-live: points,
+    // taps and gifts, then who reached them first).
     const rank = await runtime.$queryRawUnsafe<{ def: string }[]>(`
       SELECT indexdef AS def FROM pg_indexes
        WHERE schemaname = 'public' AND indexname = 'live_room_tappers_room_rank_idx'`);
-    expect(rank[0]?.def).toContain('(room_id, counted DESC, last_batch_at, user_id)');
+    expect(rank[0]?.def).toContain('(room_id, points DESC, points_at, user_id)');
   });
 });
 
@@ -424,7 +427,12 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
       SELECT conname::text AS name FROM pg_constraint
        WHERE contype = 'c' AND conrelid IN ('live_room_scores'::regclass, 'live_room_tappers'::regclass)
        ORDER BY 1`);
-    expect(checks.map((c) => c.name)).toEqual(['live_room_scores_nonneg', 'live_room_tappers_counted']);
+    // v1.23-live (CP-020): the Contribution points are taps + 100 a gift coin.
+    expect(checks.map((c) => c.name)).toEqual([
+      'live_room_scores_nonneg',
+      'live_room_tappers_counted',
+      'live_room_tappers_points',
+    ]);
   });
 
   it('the runtime role has DML on both; the CHECKs hold; DDL and TRUNCATE are refused', async () => {
@@ -436,7 +444,7 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
     );
     await runtimeExec(`INSERT INTO live_room_scores (room_id, tap_points) VALUES ('${ids.room}', 3)`);
     await runtimeExec(
-      `INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at) VALUES ('${ids.room}', '${ids.user}', 3, now())`,
+      `INSERT INTO live_room_tappers (room_id, user_id, counted, last_batch_at, points, points_at) VALUES ('${ids.room}', '${ids.user}', 3, now(), 3, now())`,
     );
     expect(await runtimeExec(`UPDATE live_rooms SET score = score + 3 WHERE id = '${ids.room}'`)).toBe(1);
     expect(
@@ -451,8 +459,13 @@ describe('CP-012 score tables (live_room_scores, live_room_tappers) under the KL
       runtimeExec(`UPDATE live_room_scores SET support_points = -1 WHERE room_id = '${ids.room}'`),
     ).rejects.toThrow(/live_room_scores_nonneg/);
     await expect(
-      runtimeExec(`UPDATE live_room_tappers SET counted = 10001 WHERE room_id = '${ids.room}'`),
+      runtimeExec(
+        `UPDATE live_room_tappers SET counted = 10001, points = 10001 WHERE room_id = '${ids.room}'`,
+      ),
     ).rejects.toThrow(/live_room_tappers_counted/);
+    await expect(
+      runtimeExec(`UPDATE live_room_tappers SET support_coins = 1 WHERE room_id = '${ids.room}'`),
+    ).rejects.toThrow(/live_room_tappers_points/);
     for (const sql of [
       'TRUNCATE TABLE live_room_scores',
       'TRUNCATE TABLE live_room_tappers',

@@ -12,9 +12,11 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/features/cp/data/cp_repository.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
+import 'package:kabso_live/features/cp/domain/cp_space_models.dart';
 import 'package:kabso_live/features/families/data/families_repository.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
 import 'package:kabso_live/features/medals/data/medals_repository.dart';
+import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 
 import '../../fixtures/bonds/bonds_api_fixtures.dart';
@@ -225,6 +227,209 @@ void main() {
     });
   });
 
+  group('CpRepository: the CP space (CP-021, v1.24-live)', () {
+    CpRepository repo() => container.read(cpRepositoryProvider);
+
+    test('check-in, tasks, claim (201 added, 200 not) and 409', () async {
+      var claimStatus = 201;
+      http
+        ..on(
+          'POST',
+          '$_base/cp/me/check-in',
+          (_) => FakeResponse(201, body: cpTasksJson()),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/me/tasks',
+          (_) => FakeResponse(200, body: cpTasksJson(checkInDone: true)),
+        )
+        ..on(
+          'POST',
+          '$_base/cp/me/tasks/SEND_GIFT/claim',
+          (_) => FakeResponse(
+            claimStatus,
+            body: {
+              'task': cpTaskJson(
+                'SEND_GIFT',
+                reward: 20,
+                progress: 1,
+                completed: true,
+                claimed: true,
+              ),
+              'cp': cpCoupleJson(points: 640),
+            },
+          ),
+        )
+        ..on(
+          'POST',
+          '$_base/cp/me/tasks/CHAT_TOGETHER/claim',
+          (_) => FakeResponse(
+            409,
+            body: errorEnvelope('CP_TASK_NOT_COMPLETED', 'x'),
+          ),
+        );
+      final day = await repo().checkIn();
+      expect(day.timeZone, 'UTC');
+      expect(day.checkedInMe, isTrue);
+      expect(day.checkedInPartner, isFalse);
+      expect(day.tasks.map((t) => t.code), [
+        'CHECK_IN',
+        'SEND_GIFT',
+        'CHAT_TOGETHER',
+      ]);
+      expect(day.resetsAt, DateTime.utc(2026, 10, 27));
+      expect((await repo().tasks()).tasks.first.completed, isTrue);
+      final claim = await repo().claimTask('SEND_GIFT');
+      expect(claim.added, isTrue);
+      expect(claim.task.claimed, isTrue);
+      expect(claim.cp.points, 640);
+      claimStatus = 200;
+      expect((await repo().claimTask('SEND_GIFT')).added, isFalse);
+      await expectLater(
+        repo().claimTask('CHAT_TOGETHER'),
+        throwsA(
+          isA<ServerFailure>().having(
+            (f) => f.code,
+            'code',
+            ErrorCode.cpTaskNotCompleted,
+          ),
+        ),
+      );
+    });
+
+    test('privileges, config gifts and the profile couple id', () async {
+      http
+        ..on(
+          'GET',
+          '$_base/cp/me/privileges',
+          (_) => FakeResponse(200, body: cpPrivilegesJson()),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/config',
+          (_) => FakeResponse(200, body: cpConfigJson()),
+        );
+      final p = await repo().privileges();
+      expect(p.level, 2);
+      expect(p.privileges.where((x) => x.unlocked).map((x) => x.code), [
+        CpPrivilegeCode.specialFrame,
+        CpPrivilegeCode.chatBubble,
+      ]);
+      final config = await repo().config();
+      expect(config.gifts.map((g) => g.code), [
+        'rose_love',
+        'angel_heart',
+        'love_carriage',
+        'swan_love',
+        'eternal_heart',
+      ]);
+      final cp = ProfileCp.fromJson({
+        'id': 'c1',
+        'partner': bondUserJson(),
+        'since': '2026-10-20T18:30:00.000Z',
+        'level': 2,
+        'levelName': 'x',
+        'points': 620,
+        'privileges': ['SPECIAL_FRAME', 'CHAT_BUBBLE'],
+      });
+      expect(cp.id, 'c1');
+      expect(cp.privileges, ['SPECIAL_FRAME', 'CHAT_BUBBLE']);
+    });
+
+    test('confessions: write, list, delete, report CP_CONFESSION', () async {
+      http
+        ..on(
+          'POST',
+          '$_base/cp/me/confessions',
+          (_) => FakeResponse(201, body: cpConfessionJson()),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/me/confessions',
+          (_) => FakeResponse(200, body: pageJson([cpConfessionJson()])),
+        )
+        ..on(
+          'DELETE',
+          '$_base/cp/me/confessions/c-9',
+          (_) => const FakeResponse(204),
+        )
+        ..on('POST', '$_base/reports', (_) => const FakeResponse(201));
+      final c = await repo().createConfession(text: 'hi', clientId: 'id-1');
+      expect(c.text, 'أحبك أكثر كل يوم');
+      expect(http.requests.last.data, {'text': 'hi', 'clientId': 'id-1'});
+      expect((await repo().myConfessions(cursor: 'k')).data, hasLength(1));
+      expect(http.requests.last.uri.queryParameters, {'cursor': 'k'});
+      await repo().deleteConfession('c-9');
+      await repo().reportConfession('c-9', ReportReason.harassment);
+      expect(http.requests.last.data, {
+        'targetType': 'CP_CONFESSION',
+        'targetId': 'c-9',
+        'reason': 'HARASSMENT',
+      });
+    });
+
+    test('ranking, couple page, gift wall (403) and confessions', () async {
+      http
+        ..on(
+          'GET',
+          '$_base/cp/rankings',
+          (_) => FakeResponse(
+            200,
+            body: cpRankingsJson(
+              'ALL',
+              me: {'coupleId': 'c1', 'rank': null, 'points': 0},
+            ),
+          ),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/couples/c2',
+          (_) => FakeResponse(200, body: cpCouplePublicJson(id: 'c2')),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/couples/c2/gift-wall',
+          (_) => FakeResponse(
+            403,
+            body: errorEnvelope('CP_PRIVILEGE_LOCKED', 'x'),
+          ),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/couples/c3/gift-wall',
+          (_) => FakeResponse(200, body: cpGiftWallJson()),
+        )
+        ..on(
+          'GET',
+          '$_base/cp/couples/c2/confessions',
+          (_) => FakeResponse(200, body: pageJson([])),
+        );
+      final r = await repo().rankings(CpRankingPeriod.all);
+      expect(http.requests.last.uri.queryParameters, {'period': 'ALL'});
+      expect(r.data.first.rank, 1);
+      expect(r.me?.rank, isNull);
+      expect(r.startsAt, isNull);
+      final couple = await repo().publicCouple('c2');
+      expect(couple.mine, isFalse);
+      expect(couple.partners, hasLength(2));
+      expect(couple.privileges, contains(CpPrivilegeCode.micEffect));
+      await expectLater(
+        repo().giftWall('c2'),
+        throwsA(
+          isA<ServerFailure>().having(
+            (f) => f.code,
+            'code',
+            ErrorCode.cpPrivilegeLocked,
+          ),
+        ),
+      );
+      final wall = await repo().giftWall('c3');
+      expect(wall.totalCoins, 104);
+      expect(wall.data.first.giftCode, 'angel_heart');
+      expect((await repo().coupleConfessions('c2')).data, isEmpty);
+    });
+  });
+
   group('CpRepository', () {
     CpRepository repo() => container.read(cpRepositoryProvider);
 
@@ -256,7 +461,8 @@ void main() {
       final config = await repo().config();
       expect(config.requestCost, 99);
       expect(config.giftAmounts, [10, 52, 99, 520, 1314]);
-      expect(config.tiers.last.name, 'Legendary couple');
+      expect(config.tiers.last.name, 'Eternal couple');
+      expect(config.tiers, hasLength(6));
       final sent = await repo().sendRequest(username: 'layla.k', clientId: 'k');
       expect(sent.coins, 401);
       expect(sent.request.cost, 99);

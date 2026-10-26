@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { AdminGuard, AdminPermissions } from '../levels/admin.guard.js';
+import { GiftsModule } from '../gifts/gifts.module.js';
 import { LevelProgressService } from '../levels/level-progress.service.js';
 import { MediaModule } from '../media/media.module.js';
 import { UsersModule } from '../users/users.module.js';
@@ -10,6 +11,7 @@ import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatService } from './live-chat.service.js';
 import { LiveBlockedWordsService } from './live-blocked-words.service.js';
 import { LiveCoverService } from './live-cover.service.js';
+import { LiveGiftsService } from './live-gifts.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
@@ -37,12 +39,13 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
  * CP-013 chat tables `live_chat_messages` and `live_chat_mutes`, and the CP-015 live cover
  * (`live_hosts.cover_*`, through the media module's `LIVE_COVER` assets), and the CP-016 tables
  * `live_host_points_hourly` and `live_schedule_slots`, and the CP-017 `live_bullets` (charged through
- * the wallet module), and the v1.20-live `live_room_kicks`. Runs the in-process
+ * the wallet module), and the v1.20-live `live_room_kicks`. v1.23-live (CP-020): sends gifts
+ * (`LiveGiftsService`) into the gifts module's `live_gifts` tables. Runs the in-process
  * stale-room sweeper and the media reconciliation; talks to the media server through
  * {@link LIVE_MEDIA_PROVIDER} (LiveKit, D3).
  */
 @Module({
-  imports: [MediaModule, UsersModule, WalletModule],
+  imports: [MediaModule, UsersModule, WalletModule, GiftsModule],
   controllers: [
     LiveController,
     LiveCoverController,
@@ -67,6 +70,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBulletsService,
     // v1.20-live (D105): kicking someone out of a live (§10.20).
     LiveKicksService,
+    // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).
+    LiveGiftsService,
     // CP-016 D: taps credit the host's charm level inside the taps transaction (§10.18).
     LevelProgressService,
     AdminGuard,

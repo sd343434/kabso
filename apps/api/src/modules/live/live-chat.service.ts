@@ -7,6 +7,7 @@ import { Clock } from '../../common/time/clock.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { cpChatBubbleOf, cpEntranceOf, type LiveJoinCpDto } from '../cp-space/cp-privileges.js';
 import { MediaService, type MediaAssetDto, type MediaKind } from '../media/media.service.js';
 import { USER_SUMMARY_SELECT, userSummary } from '../posts/post-views.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
@@ -34,6 +35,8 @@ export interface LiveChatMessageDto {
   /** VOICE and IMAGE: 60 s after sending, when apps hide it; null for TEXT. */
   expiresAt: string | null;
   createdAt: string;
+  /** v1.24-live (CP-021): the author's couple had the Exclusive Chat Bubble when it was sent. */
+  cpBubble: boolean;
 }
 
 /** `LiveChatMute`. */
@@ -65,7 +68,7 @@ const MEDIA_SWEEP_MAX_BATCHES = 20;
 export type LiveChatData =
   | { readonly type: 'chat'; readonly message: LiveChatMessageDto }
   | { readonly type: 'chat-delete'; readonly id: string }
-  | { readonly type: 'join'; readonly user: UserSummaryDto }
+  | { readonly type: 'join'; readonly user: UserSummaryDto; readonly cp: LiveJoinCpDto | null }
   | { readonly type: 'chat-state'; readonly enabled: boolean };
 
 const MESSAGE_INCLUDE = { user: { select: USER_SUMMARY_SELECT }, media: true } as const;
@@ -153,6 +156,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       media: row.media ? this.assets.toDto(row.media) : null,
       expiresAt: row.expiresAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
+      cpBubble: row.cpBubble,
     };
   }
 
@@ -256,13 +260,23 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
     }
 
     const authorRole = await this.roleOf(row, callerId);
+    // v1.24-live (CP-021, §10.24): the Exclusive Chat Bubble of the author's couple.
+    const cpBubble = await cpChatBubbleOf(this.prisma, callerId);
     let created: MessageRow;
     try {
       if (input.kind === 'TEXT') {
         // CP-016 B: the host's blocked words are masked before the message is stored or sent.
         const shown = maskBlockedWords(input.text, await this.blockedWords.wordsOf(row.host_user_id));
         created = await this.prisma.liveChatMessage.create({
-          data: { roomId: row.id, userId: callerId, clientId, text: shown, authorRole, createdAt: now },
+          data: {
+            roomId: row.id,
+            userId: callerId,
+            clientId,
+            text: shown,
+            authorRole,
+            cpBubble,
+            createdAt: now,
+          },
           include: MESSAGE_INCLUDE,
         });
       } else {
@@ -280,6 +294,7 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
               mediaId: mediaId.toLowerCase(),
               expiresAt: new Date(now.getTime() + LIVE_CHAT_MEDIA_TTL_MS),
               authorRole,
+              cpBubble,
               createdAt: now,
             },
             include: MESSAGE_INCLUDE,
@@ -430,7 +445,9 @@ export class LiveChatService implements OnModuleInit, OnModuleDestroy {
       if (waitMs > 0) return;
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: USER_SUMMARY_SELECT });
       if (!user) return;
-      await this.broadcast(roomId, { type: 'join', user: userSummary(user) });
+      // v1.24-live (CP-021, §10.24): the couple's Entrance Effect ("X ❤ Y entered").
+      const cp = await cpEntranceOf(this.prisma, userId);
+      await this.broadcast(roomId, { type: 'join', user: userSummary(user), cp });
     } catch (err) {
       this.logger.warn({ error: safeErrorLog(err) }, 'Could not announce a join in the live chat');
     }

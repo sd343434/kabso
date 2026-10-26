@@ -885,7 +885,7 @@ describe('CP-013 live room chat', () => {
 
       await join(roomId, a);
       expect(joins()).toEqual([
-        { type: 'join', user: expect.objectContaining({ id: a.id, username: a.username }) },
+        { type: 'join', user: expect.objectContaining({ id: a.id, username: a.username }), cp: null },
       ]);
       expect(media.broadcasts.filter((x) => x.room === roomId).every((x) => x.topic === 'chat')).toBe(true);
       await join(roomId, b); // same second: dropped
@@ -1003,7 +1003,11 @@ describe.skipIf(!url)('CP-013 chat delivery on a real LiveKit server', () => {
       expect(received.map((r) => r.topic)).toEqual(['chat', 'chat', 'chat', 'chat', 'chat']);
       expect(received.every((r) => r.kind === rtc.DataPacketKind.KIND_RELIABLE)).toBe(true);
       expect(received.map((r) => r.data)).toEqual([
-        { type: 'join', user: expect.objectContaining({ id: viewer.id, username: viewer.username }) },
+        {
+          type: 'join',
+          user: expect.objectContaining({ id: viewer.id, username: viewer.username }),
+          cp: null,
+        },
         { type: 'chat', message },
         { type: 'chat', message: own },
         { type: 'chat-delete', id: own.id },

@@ -77,6 +77,8 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rooms/:roomId/contributors/:username',
   // CP-016 A: the public popularity board (guests read it like the hub, per IP).
   'GET /api/v1/live/rankings',
+  // v1.23.2-live (D109): who is watching (guests read it when the room allows guests).
+  'GET /api/v1/live/rooms/:roomId/viewers',
 ].sort();
 
 interface RouteInfo {

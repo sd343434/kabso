@@ -12,22 +12,30 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
+import 'package:kabso_live/features/live/application/live_gift_effects.dart';
+import 'package:kabso_live/features/live/application/live_host_controller.dart'
+    show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
-import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_boxes.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
@@ -57,6 +65,8 @@ import 'package:material_ui/material_ui.dart';
 /// - gifts: the sheet opens with Kabso's preview art, no prices, and Send
 ///   disabled with the reason (no catalogue or wallet, B5);
 /// - viewers: no presence → nothing (`viewerCount` is 0), never a count;
+///   D109: who is watching (`GET /live/rooms/{id}/viewers`, every 10 s):
+///   the first faces and the count, opening the list read-only;
 /// - share: no room link domain (B7) → no share button.
 ///
 /// States (HL-L10): loading, live (video unavailable), ended (host ended /
@@ -69,6 +79,9 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
+
+  /// D109: who is watching (faces and count); opens the list.
+  static const viewersKey = Key('room.viewers');
 
   final String roomId;
 
@@ -229,6 +242,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (!mounted) return;
       final room = widget.room;
       unawaited(_session.start(room));
+      // CP-020: the room's gifts, on the same media session.
+      ref
+          .read(liveGiftEffectsProvider(room.id).notifier)
+          .attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -245,7 +262,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// Opens [username]'s card with what this person may do in the room
   /// (owner, 2026-10-26): points for everyone; kick and chat mute for the
   /// host and moderators; the moderator choice for the host.
-  void _person(String username) {
+  void _person(
+    String username, {
+    ({bool enabled, Future<void> Function({required bool enabled}) set})?
+    selfMic,
+  }) {
     final room = widget.room;
     final session = ref.read(liveRoomSessionProvider(room.id));
     final me = ref.read(currentUserProvider);
@@ -282,6 +303,57 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               .firstOrNull,
           onSeatMute: (index, {required muted}) =>
               _session.mute(index, muted: muted),
+          selfMic: selfMic,
+          onGift: (person) => unawaited(_openGifts(preselect: person)),
+        ),
+      ),
+    );
+  }
+
+  /// D109: who is watching — the first faces and the count from
+  /// `GET /live/rooms/{id}/viewers` (refreshed every 10 s, as the host's),
+  /// opening the list read-only. Until the list arrives (or when it cannot
+  /// be read or shows nobody) the room's own `viewerCount`, without faces or
+  /// a list.
+  Widget? _viewers(LiveRoomSessionState session) {
+    final l10n = context.l10n;
+    final room = widget.room;
+    if (room.status != LiveRoomStatus.live) return null;
+    final preview = ref.watch(liveViewersPreviewProvider(room.id)).value;
+    if (preview == null || preview.items.isEmpty) {
+      if (room.viewerCount < 1) return null;
+      return LiveViewersStack(
+        key: LiveRoomScreen.viewersKey,
+        avatars: const [],
+        count: KFormat.compact(room.viewerCount, l10n),
+        label: l10n.liveViewers(
+          room.viewerCount,
+          KFormat.grouped(room.viewerCount),
+        ),
+      );
+    }
+    final n = preview.items.length;
+    final more = preview.next == null ? '' : '+';
+    return LiveViewersStack(
+      key: LiveRoomScreen.viewersKey,
+      avatars: [
+        for (final v in preview.items)
+          if (v.user case final u?)
+            KAvatar(
+              name: u.displayName,
+              imageUrl: u.avatarUrl,
+              size: LiveViewersStack.size,
+            ),
+      ],
+      count: '${KFormat.compact(n, l10n)}$more',
+      label: l10n.liveViewers(n, '${KFormat.grouped(n)}$more'),
+      onTap: () => unawaited(
+        showLiveViewers(
+          context,
+          roomId: room.id,
+          moderators: session.seats?.moderators ?? const [],
+          seated: session.seats?.seats ?? const [],
+          onPerson: (u) => _person(u.username),
         ),
       ),
     );
@@ -482,7 +554,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // CP-017: bullets from every live show in the chat (owner, 2026-10-26).
     return ListenableBuilder(
       listenable: engine.changes,
-      builder: (context, _) => _scaffold(context, session, engine),
+      builder: (context, _) => Stack(
+        fit: StackFit.expand,
+        children: [
+          _scaffold(context, session, engine),
+          // CP-020: gift banners and effects over the room.
+          if (room.status == LiveRoomStatus.live)
+            LiveGiftEffectsLayer(roomId: room.id),
+          // CP-021 (D112): the CP Entrance Effect.
+          if (room.status == LiveRoomStatus.live)
+            LiveCpEntranceLayer(roomId: room.id),
+        ],
+      ),
     );
   }
 
@@ -548,18 +631,23 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
-      viewers: room.viewerCount > 0 || score > 0
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (score > 0)
-                  KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
-                if (score > 0 && room.viewerCount > 0)
-                  const SizedBox(width: KSpacing.xs),
-                if (room.viewerCount > 0) KViewerStrip(count: room.viewerCount),
-              ],
-            )
-          : null,
+      viewers: switch (ended ? null : _viewers(session)) {
+        final watching? => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (score > 0) ...[
+              KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
+              const SizedBox(width: KSpacing.xs),
+            ],
+            watching,
+          ],
+        ),
+        null when score > 0 => KScoreChip(
+          key: LiveRoomScreen.scoreKey,
+          score: score,
+        ),
+        null => null,
+      },
       onClose: widget.onClose,
       roomInfo: KRoomInfoRow(
         title: room.title,
@@ -603,7 +691,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       onTap: () => unawaited(_openChat(composer)),
                     ),
                 const SizedBox(height: KSpacing.sm),
-                KRoomActionBar(onGift: () => unawaited(_openGifts(context))),
+                KRoomActionBar(onGift: () => unawaited(_openGifts())),
               ],
             ),
       cover: ended
@@ -748,15 +836,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (room.viewerCount > 0)
-                      LiveViewersStack(
-                        avatars: const [],
-                        count: KFormat.compact(room.viewerCount, l10n),
-                        label: l10n.liveViewers(
-                          room.viewerCount,
-                          KFormat.grouped(room.viewerCount),
-                        ),
-                      ),
+                    ?_viewers(session),
                   ],
                 ),
                 stage: _stage(session, engine),
@@ -804,7 +884,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     asset: 'assets/live_bar/gift.png',
                     bare: true,
                     label: l10n.liveGifts,
-                    onTap: () => unawaited(_openGifts(context)),
+                    onTap: () => unawaited(_openGifts()),
                   ),
                 ],
               ),
@@ -879,9 +959,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         orElse: () =>
             LiveSeat(index: index, state: LiveSeatState.empty, user: null),
       );
-      // Owner (2026-10-26): on my own seat, a tap mutes or unmutes me.
+      // Owner (2026-10-26): a tap on my own seat opens my card (not a
+      // mute); I turn my mic on or off from there.
       if (seat != null && me != null && seat.user?.id == me) {
-        unawaited(engine.setMicEnabled(enabled: !engine.micEnabled));
+        _person(
+          seat.user!.username,
+          selfMic: (
+            enabled: engine.micEnabled,
+            set: ({required enabled}) => engine.setMicEnabled(enabled: enabled),
+          ),
+        );
         return;
       }
       if (seat != null) _onSeat(session, seat);
@@ -914,6 +1001,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return AudioSeatRing(
       count: count,
       seats: seats?.seats ?? const [],
+      // D111: CP partners on adjacent seats are drawn joined.
+      cpPairs: cpSeatPairs(seats, hostId: host.id),
       host: KAvatar(
         name: host.displayName,
         imageUrl: host.avatarUrl,
@@ -930,8 +1019,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     );
   }
 
-  static Future<void> _openGifts(BuildContext context) =>
-      KGiftPreviewSheet.show(context);
+  /// CP-020: the gift panel for this live (the host and the people on a
+  /// seat now), [preselect] chosen when they can receive.
+  Future<void> _openGifts({LiveGiftPreselect? preselect}) =>
+      KLiveGiftSheet.show(
+        context,
+        preselect: preselect,
+        room: LiveGiftRoom(
+          roomId: widget.room.id,
+          host: widget.room.host,
+          seated: (ref) => [
+            for (final seat
+                in ref
+                        .watch(liveRoomSessionProvider(widget.room.id))
+                        .seats
+                        ?.seats ??
+                    const <LiveSeat>[])
+              ?seat.user,
+          ],
+          onSeatsStale: () {
+            if (mounted) unawaited(_session.refreshSeats());
+          },
+        ),
+      );
 }
 
 /// The localized end reason (HL-L10).
@@ -985,12 +1095,16 @@ Future<void> showHostSheet(
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
+  // Owner (2026-10-26): the card stays still; no swipe moves it.
+  enableDrag: false,
   backgroundColor: const Color(0x00000000),
   barrierColor: KMetrics.roomSheetBarrier,
-  // Owner (2026-10-26): the card never goes above the middle of the
-  // screen; the rest scrolls.
+  // Owner (2026-10-26): the card is as tall as its content, laid out to
+  // stay under the middle of a common phone (393×852); a small phone lets
+  // it grow a little rather than scroll (the card must not move). Only
+  // very large text scrolls.
   constraints: KMetrics.sheetConstraints(
-    maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+    maxHeight: MediaQuery.sizeOf(context).height * 0.62,
   ),
   builder: (_) => _HostSheet(
     username: username,
@@ -1004,6 +1118,10 @@ abstract final class _Card {
   static const ink = Color(0xFF2E3130);
   static const soft = Color(0xFF9A9BA5);
   static const avatar = 92.0;
+
+  /// CP-021 (D112): the picture's width inside the Special Frame (a little
+  /// narrower, so the winged heart keeps the card's height in bounds).
+  static const framedPicture = 84.0;
 
   /// The gold edge and the picture's ring (owner's reference, 2026-10-26).
   static const gold = [Color(0xFFFFE58A), Color(0xFFF2B84B), Color(0xFFD9922E)];
@@ -1029,6 +1147,7 @@ class _HostSheet extends ConsumerWidget {
   static const giftKey = Key('room.userCard.gift');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
+  static const cpFrameKey = Key('room.userCard.cpFrame');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1051,6 +1170,13 @@ class _HostSheet extends ConsumerWidget {
         ? BondTap.none
         : cpTap(profile, signedIn: ref.watch(currentUserProvider) != null);
     final scope = this.scope;
+    // CP-021 (D112): the couple's Special Frame around the picture.
+    final framed = cpWearsSpecialFrame(profile?.cp);
+    final frameWidth = CpSpecialFrameAvatar.widthForPicture(
+      _Card.framedPicture,
+    );
+    final frameTop = CpSpecialFrameAvatar.pictureCentreY(frameWidth);
+    final frameBelow = CpSpecialFrameAvatar.heightFor(frameWidth) - frameTop;
     void close(VoidCallback then) {
       Navigator.of(context).pop();
       then();
@@ -1124,8 +1250,8 @@ class _HostSheet extends ConsumerWidget {
         : Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Room for the picture.
-              const SizedBox(height: _Card.avatar / 2 + 8),
+              // Room for the picture (or the frame's lower half).
+              SizedBox(height: (framed ? frameBelow : _Card.avatar / 2) + 2),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1192,7 +1318,7 @@ class _HostSheet extends ConsumerWidget {
               // first; a long row scrolls sideways.
               if (shown.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 6),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -1240,7 +1366,7 @@ class _HostSheet extends ConsumerWidget {
                 ),
               if (profile.bio case final bio? when bio.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     bio,
                     maxLines: 2,
@@ -1249,7 +1375,7 @@ class _HostSheet extends ConsumerWidget {
                     style: text.body.copyWith(color: _Card.ink),
                   ),
                 ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   stat(profile.followerCount, l10n.profileFollowers),
@@ -1261,7 +1387,7 @@ class _HostSheet extends ConsumerWidget {
               // family and the couple come from the profile and open what
               // exists; the gift wall has no API yet.
               Padding(
-                padding: const EdgeInsets.only(top: 14),
+                padding: const EdgeInsets.only(top: 10),
                 child: LivePersonBoxes(
                   familyValue: switch (profile.family) {
                     // The box is narrow: the name only (the level is on
@@ -1300,18 +1426,25 @@ class _HostSheet extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  action(
-                    key: giftKey,
-                    asset: 'assets/live_bar/gift.png',
-                    label: l10n.liveGifts,
-                    onTap: () =>
-                        close(() => unawaited(KGiftPreviewSheet.show(context))),
-                  ),
+                  // CP-020: the gift panel with this person chosen (never
+                  // to oneself).
+                  if (scope?.onGift case final onGift? when !profile.isSelf)
+                    action(
+                      key: giftKey,
+                      asset: 'assets/live_bar/gift.png',
+                      label: l10n.liveGifts,
+                      onTap: () => close(
+                        () => onGift((
+                          username: profile.username,
+                          name: profile.displayName,
+                        )),
+                      ),
+                    ),
                   if (onInvite != null)
                     action(
                       key: inviteKey,
@@ -1364,9 +1497,11 @@ class _HostSheet extends ConsumerWidget {
       builder: (context, box) {
         // The card's top edge: under the middle of the picture, or lower when
         // the header decoration rises higher than the picture.
+        // The frame's upper half rises above the picture.
+        final half = framed ? frameTop : _Card.avatar / 2;
         final edge = header == null
-            ? _Card.avatar / 2
-            : math.max(_Card.avatar / 2, header.overhang(box.maxWidth));
+            ? half
+            : math.max(half, header.overhang(box.maxWidth));
         return Stack(
           key: const Key('room.hostSheet'),
           clipBehavior: Clip.none,
@@ -1390,7 +1525,7 @@ class _HostSheet extends ConsumerWidget {
                   top: false,
                   // Large text: the card scrolls instead of overflowing.
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: body,
                   ),
                 ),
@@ -1421,14 +1556,14 @@ class _HostSheet extends ConsumerWidget {
                     name: profile.displayName,
                   ),
                   self: profile.isSelf,
-                  middle: _Card.avatar + 16,
+                  middle: framed ? frameWidth : _Card.avatar + 16,
                 ),
               ),
             // The picture in a gold ring, the charm level on a plate under it.
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: edge - _Card.avatar / 2),
+                SizedBox(height: edge - half),
                 Semantics(
                   button: true,
                   label: l10n.liveUserViewProfile,
@@ -1439,30 +1574,40 @@ class _HostSheet extends ConsumerWidget {
                         context.push(AppRoutes.userProfile(username)),
                       ),
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: _Card.gold,
-                        ),
-                        boxShadow: [
-                          BoxShadow(color: Color(0x55F2B84B), blurRadius: 14),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: SizedBox.square(
-                          dimension: _Card.avatar,
-                          child: KAvatar(
+                    child: framed
+                        ? CpSpecialFrameAvatar(
+                            key: cpFrameKey,
+                            width: frameWidth,
                             name: profile?.displayName ?? username,
                             image: _networkImage(profile?.avatarUrl),
-                            size: _Card.avatar,
+                          )
+                        : Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: _Card.gold,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x55F2B84B),
+                                  blurRadius: 14,
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: SizedBox.square(
+                                dimension: _Card.avatar,
+                                child: KAvatar(
+                                  name: profile?.displayName ?? username,
+                                  image: _networkImage(profile?.avatarUrl),
+                                  size: _Card.avatar,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ],

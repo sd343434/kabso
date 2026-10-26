@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
@@ -402,6 +403,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
                 ),
                 profile: profile,
               ),
+              cpFrame: cpWearsSpecialFrame(profile.cp),
               actions: _actions(profile),
             ),
           ),

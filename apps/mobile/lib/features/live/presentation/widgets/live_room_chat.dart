@@ -46,6 +46,9 @@ class LiveRoomChatLines extends ConsumerWidget {
   static const maxVisibleLines = 8;
   static Key lineKey(String key) => Key('liveChat.line.$key');
 
+  /// CP-021: the heart at the start of a CP bubble line.
+  static const cpHeartKey = Key('liveChat.cpHeart');
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -127,11 +130,13 @@ class LiveRoomChatLines extends ConsumerWidget {
         ),
         child: _Bubble(
           color: bubble,
+          cp: entry.cpBubble,
           child: _message(
             context,
             entry.author.displayName,
             entry.text,
             entry.authorRole,
+            cp: entry.cpBubble,
           ),
         ),
       ),
@@ -195,6 +200,7 @@ class LiveRoomChatLines extends ConsumerWidget {
     final voice = entry.kind == LiveChatKind.voice;
     return _Bubble(
       color: bubble,
+      cp: entry.cpBubble,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +225,13 @@ class LiveRoomChatLines extends ConsumerWidget {
                 onProfile: onProfile,
               ),
             ),
-            child: _message(context, name, '', entry.authorRole),
+            child: _message(
+              context,
+              name,
+              '',
+              entry.authorRole,
+              cp: entry.cpBubble,
+            ),
           ),
           const SizedBox(height: 4),
           if (voice)
@@ -244,8 +256,9 @@ class LiveRoomChatLines extends ConsumerWidget {
     BuildContext context,
     String name,
     String text,
-    LiveChatRole? authorRole,
-  ) {
+    LiveChatRole? authorRole, {
+    bool cp = false,
+  }) {
     final l10n = context.l10n;
     final styles = context.textStyles;
     final badge = switch (authorRole) {
@@ -279,11 +292,37 @@ class LiveRoomChatLines extends ConsumerWidget {
             ),
             const TextSpan(text: ' '),
           ],
+          // CP-021: the Exclusive Chat Bubble starts with a small heart.
+          if (cp) ...[
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              // Placed no taller than the text, so the line keeps its
+              // height; the heart overflows its slot a little.
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 4),
+                child: SizedBox(
+                  key: LiveRoomChatLines.cpHeartKey,
+                  width: 14,
+                  height: 10,
+                  child: OverflowBox(
+                    maxWidth: 14,
+                    maxHeight: 14,
+                    child: Image.asset(
+                      LiveCpChatBubble.heart,
+                      width: 14,
+                      height: 14,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           TextSpan(
             text: KFormat.bidiIsolate(name),
             style: styles.caption.copyWith(
               fontSize: 12.5,
-              color: const Color(0xFFBFD8FF),
+              color: cp ? LiveCpChatBubble.name : const Color(0xFFBFD8FF),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -349,17 +388,62 @@ class LiveRoomChatLines extends ConsumerWidget {
 }
 
 class _Bubble extends StatelessWidget {
-  const new({required this.color, required this.child});
+  const new({required this.color, required this.child, this.cp = false});
 
   final Color color;
   final Widget child;
 
+  /// CP-021 (D112): the author's couple had the Exclusive Chat Bubble.
+  final bool cp;
+
+  @override
+  Widget build(BuildContext context) => cp
+      ? LiveCpChatBubble(child: child)
+      : Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: child,
+        );
+}
+
+/// The Exclusive Chat Bubble (CP-021, D112, §10.24; `LiveChatMessage.
+/// cpBubble`): a pink pill with a gold edge in the mood of the owner's
+/// privilege art (`assets/cp_space/privilege_bubble.webp`), the same
+/// padding as a plain line so the chat never jumps; the line starts with a
+/// small glossy heart (`assets/cp_space/heart.webp`).
+class LiveCpChatBubble extends StatelessWidget {
+  const new({required this.child, super.key});
+
+  final Widget child;
+
+  static const bubbleKey = Key('liveChat.cpBubble');
+  static const heart = 'assets/cp_space/heart.webp';
+
+  /// The author's name on the pink (a warm cream, like the art's gold).
+  static const name = Color(0xFFFFF0B8);
+
+  /// Pink to violet, sampled from the bubble art's deeper tones so white
+  /// text stays readable (≥ 4.5 : 1 at 12.5 pt bold).
+  static const colors = [Color(0xFFD62F7E), Color(0xFFA22BB0)];
+  static const edge = Color(0xFFFFC96B);
+
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
+    key: bubbleKey,
+    // The 1 pt edge sits inside the usual 8 × 5 padding.
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: AlignmentDirectional.centerStart,
+        end: AlignmentDirectional.centerEnd,
+        colors: colors,
+      ),
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+      border: Border.fromBorderSide(BorderSide(color: edge)),
+      boxShadow: [BoxShadow(color: Color(0x55FF4FA0), blurRadius: 6)],
     ),
     child: child,
   );

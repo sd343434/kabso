@@ -31,6 +31,7 @@ import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
+import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
 import { LiveCoverService, type LiveCoverDto } from './live-cover.service.js';
@@ -115,6 +116,7 @@ export class LiveController {
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
+    private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
     private readonly limiter: RateLimitService,
@@ -228,15 +230,22 @@ export class LiveController {
     return this.media.mediaToken(callerOf(req), roomId, body);
   }
 
-  /** CP-010: who is watching now (host only). */
+  /**
+   * CP-010: who is watching now. v1.23.2-live (D109): the host and anyone else who may watch the
+   * room; guests too (per IP) when the room allows guests.
+   */
   @Get('rooms/:roomId/viewers')
-  @RateLimit({ bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true })
+  @OptionalAuth()
+  @RateLimit(
+    { bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true, appliesTo: 'user' },
+    GUEST_READ,
+  )
   viewers(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Query(new ZodValidationPipe(pageQuerySchema)) query: PageQuery,
   ): Promise<{ data: LiveViewerDto[]; page: { nextCursor: string | null; hasMore: boolean } }> {
-    return this.media.viewers(requireCaller(req), roomId, query);
+    return this.media.viewers(callerOf(req), roomId, query);
   }
 
   // ---- CP-011: seats (CONVENTIONS §10.9) --------------------------------------------------------
@@ -254,8 +263,8 @@ export class LiveController {
     },
     GUEST_READ,
   )
-  getSeats(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
-    return this.seats.getSeats(callerOf(req), roomId);
+  async getSeats(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
+    return this.seats.getSeats(callerOf(req), roomId, await this.language(req));
   }
 
   /** A viewer asks for a seat: 201 new, 200 the pending one. */
@@ -291,13 +300,13 @@ export class LiveController {
   @Post('rooms/:roomId/seat-requests/:requestId/accept')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  acceptSeatRequest(
+  async acceptSeatRequest(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('requestId') requestId: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.acceptRequest(requireCaller(req), roomId, requestId, body);
+    return this.seats.acceptRequest(requireCaller(req), roomId, requestId, body, await this.language(req));
   }
 
   @Post('rooms/:roomId/seat-requests/:requestId/decline')
@@ -324,8 +333,8 @@ export class LiveController {
 
   @Post('rooms/:roomId/seat-invites/me/accept')
   @HttpCode(200)
-  acceptSeatInvite(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
-    return this.seats.acceptInvite(requireCaller(req), roomId);
+  async acceptSeatInvite(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveSeatsDto> {
+    return this.seats.acceptInvite(requireCaller(req), roomId, await this.language(req));
   }
 
   @Post('rooms/:roomId/seat-invites/me/decline')
@@ -343,58 +352,58 @@ export class LiveController {
   @Post('rooms/:roomId/seats/:seatIndex/mute')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  muteSeat(
+  async muteSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.mute(requireCaller(req), roomId, seatIndex, body);
+    return this.seats.mute(requireCaller(req), roomId, seatIndex, body, await this.language(req));
   }
 
   @Post('rooms/:roomId/seats/:seatIndex/remove')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  removeFromSeat(
+  async removeFromSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.remove(requireCaller(req), roomId, seatIndex);
+    return this.seats.remove(requireCaller(req), roomId, seatIndex, await this.language(req));
   }
 
   @Post('rooms/:roomId/seats/:seatIndex/lock')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  lockSeat(
+  async lockSeat(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('seatIndex') seatIndex: string,
     @Body() body: unknown,
   ): Promise<LiveSeatsDto> {
-    return this.seats.lock(requireCaller(req), roomId, seatIndex, body);
+    return this.seats.lock(requireCaller(req), roomId, seatIndex, body, await this.language(req));
   }
 
   @Put('rooms/:roomId/moderators/:username')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  addModerator(
+  async addModerator(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('username') username: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.addModerator(requireCaller(req), roomId, username);
+    return this.seats.addModerator(requireCaller(req), roomId, username, await this.language(req));
   }
 
   @Delete('rooms/:roomId/moderators/:username')
   @HttpCode(200)
   @RateLimit(SEAT_ACTION)
-  removeModerator(
+  async removeModerator(
     @Req() req: AppRequest,
     @Param('roomId') roomId: string,
     @Param('username') username: string,
   ): Promise<LiveSeatsDto> {
-    return this.seats.removeModerator(requireCaller(req), roomId, username);
+    return this.seats.removeModerator(requireCaller(req), roomId, username, await this.language(req));
   }
 
   // ---- CP-012: taps and the room score (CONVENTIONS §10.10) --------------------------------------
@@ -492,6 +501,23 @@ export class LiveController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<LiveBulletResultDto> {
     const { created, result } = await this.bullets.send(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
+  /**
+   * v1.23-live (CP-020): a gift to the host and/or seated people, paid with coins or from the bag.
+   * 201 new, 200 a retry with the same `clientId`. 120 / min per user, replacing the default (§7).
+   */
+  @Post('rooms/:roomId/gifts')
+  @RateLimit({ bucket: 'live:gift', rule: 'liveGiftUser', key: byUserId, replacesDefault: true })
+  async sendGift(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveGiftResultDto> {
+    const { created, result } = await this.liveGifts.send(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return result;
   }

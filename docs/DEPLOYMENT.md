@@ -599,6 +599,61 @@ a `CONNECTION LIMIT`.
   docker compose --profile jobs run --rm migrate node dist/cli/bag-admin.js list someone@example.com
   ```
 
+### 5.7 Live gifts (migrations `20261112090000_live_gifts_enums`, `20261112100000_live_gifts`; CP-020, D108) — [IMPLEMENTED, draft contract]
+
+- Apply both with the usual `migrate` job (§5), in order (the first only adds the wallet ledger
+  reason `LIVE_GIFT`; PostgreSQL needs it committed before use). The second creates `gifts`,
+  `user_gift_stock`, `live_gifts`, `live_gift_recipients` and the enums `gift_category`,
+  `gift_badge`, `live_gift_source`; lets `wallet_ledger` take `LIVE_GIFT` debits; and extends
+  `live_room_tappers` with `support_coins`, `points`, `points_at` (backfilled from the counted taps
+  in the same transaction; `last_batch_at` becomes nullable) and rebuilds
+  `live_room_tappers_room_rank_idx` on the new order. The backfill is one `UPDATE` over the
+  tappers table: fine at today's size; schedule it off-peak once that table is large.
+- **The catalogue starts empty** (owner: the art comes later). Until gifts are added the panel
+  shows empty tabs and every send answers 409 `GIFT_UNAVAILABLE`. Add gifts with the CLI; the
+  `assetKey` / `animationKey` must match files bundled in the app release:
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js add rose \
+    --category POPULAR --name-ar "وردة" --name-en "Rose" --price 1 --asset gift_rose --sort 10
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js update rose --animation fx_rose --badge NEW
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js disable rose
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js list
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js grant someone@example.com rose 99
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js bag someone@example.com
+  ```
+
+  Locally: `pnpm gift:admin …`. Runs as the migration role; every change writes an audit row
+  (`gift.add`, `gift.update`, `gift.disable`, `gift.enable`, `gift.grant`). Gifts are never deleted
+  (sends and bag stock keep them): disable instead.
+- **New optional server config:** `LIVE_GIFT_QUANTITIES` (default `1,10,66,99,188,520,1314`; 1–12
+  strictly ascending whole numbers 1–9999; the API refuses to start otherwise) and
+  `RATE_LIMIT_LIVE_GIFT_USER` (default `120/60`). Changing the quantities changes the catalogue
+  `version`, so apps reload it.
+- Levels: gifts credit charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) only while those
+  categories are enabled with a published version (`levels:admin`); nothing is credited later for
+  gifts sent while a category was unavailable.
+
+### 5.8 The CP space (migrations `20261113090000_cp_space_enums`, `20261113100000_cp_space`; CP-021, D112) — [IMPLEMENTED, draft contract]
+
+- Apply both with the usual `migrate` job (§5), in order (the first only adds the report target
+  `CP_CONFESSION`; PostgreSQL needs it committed before use). The second creates
+  `cp_points_ledger` (append-only for the runtime group), `cp_check_ins`, `cp_task_claims`,
+  `cp_confessions` and the enum `cp_points_source`; adds `live_chat_messages.cp_bubble` (boolean,
+  default false: a constant default, no table rewrite) and `reports.target_cp_confession_id`;
+  replaces the `reports_one_target` CHECK.
+- **Backfill inside the migration (no separate step):** one `cp_points_ledger` row per existing
+  CP gift (source `GIFT`, at the gift's time), so every couple's ledger adds up to its
+  `cp_couples.points` and gifts sent this week count for the weekly couples ranking. One
+  `INSERT … SELECT` over `cp_gifts`; idempotent (`ON CONFLICT DO NOTHING`).
+- The CP day (tasks reset at 00:00) and the CP week (Monday 00:00, the weekly ranking) follow the
+  existing `LIVE_RANKINGS_TIME_ZONE` (default UTC); changing it moves both for everyone.
+- **New optional server config:** `RATE_LIMIT_CP_SPACE_WRITE_USER` (default `60/60`: check-in, task
+  claims, confession deletes) and `RATE_LIMIT_CP_CONFESSION_USER` (default `10/3600`: new
+  confessions). No sweeper and no CLI.
+- Reported confessions appear in the existing admin reports queue (`targetType: CP_CONFESSION`);
+  `REMOVE_TARGET` hides the confession.
+
 ## 6. Observability baseline
 
 | Item | Status |

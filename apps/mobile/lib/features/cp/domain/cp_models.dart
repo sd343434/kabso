@@ -1,5 +1,7 @@
 // Wire models of the CP (couple) API (docs/contracts/openapi.yaml
-// v1.21-live DRAFT, tag `cp`, CP-018; CONVENTIONS §10.21).
+// v1.21-live DRAFT, tag `cp`, CP-018; CONVENTIONS §10.21). The CP space
+// (v1.24-live, CP-021, §10.24) adds the named gift cards and the profile's
+// couple id and privileges here; its own models are in cp_space_models.dart.
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
@@ -20,8 +22,25 @@ abstract class CpTier with _$CpTier {
   factory fromJson(Map<String, dynamic> json) => _$CpTierFromJson(json);
 }
 
+/// `CpGiftPreset` (v1.24-live, CP-021): a named CP gift card. [code] is
+/// one of `rose_love`, `angel_heart`, `love_carriage`, `swan_love`,
+/// `eternal_heart`; [name] follows the app language; sending still takes
+/// [amount].
+@freezed
+abstract class CpGiftPreset with _$CpGiftPreset {
+  const factory({
+    required String code,
+    required int amount,
+    required String name,
+    required String assetKey,
+  }) = _CpGiftPreset;
+
+  factory fromJson(Map<String, dynamic> json) => _$CpGiftPresetFromJson(json);
+}
+
 /// `CpConfig` (`GET /cp/config`): what a request costs (99 coins,
-/// refunded unless accepted), the gift amounts and the tiers.
+/// refunded unless accepted), the gift amounts and the tiers; v1.24-live
+/// adds the named [gifts] (empty from an older server).
 @freezed
 abstract class CpConfig with _$CpConfig {
   const factory({
@@ -29,6 +48,7 @@ abstract class CpConfig with _$CpConfig {
     required int requestTtlDays,
     required List<int> giftAmounts,
     required List<CpTier> tiers,
+    @Default(<CpGiftPreset>[]) List<CpGiftPreset> gifts,
   }) = _CpConfig;
 
   factory fromJson(Map<String, dynamic> json) => _$CpConfigFromJson(json);
@@ -91,7 +111,9 @@ abstract class CpGift with _$CpGift {
   factory fromJson(Map<String, dynamic> json) => _$CpGiftFromJson(json);
 }
 
-/// `ProfileCp`: a user's couple on their public profile.
+/// `ProfileCp`: a user's couple on their public profile. v1.24-live
+/// (CP-021): [id] opens the couple's CP space (null from an older server)
+/// and [privileges] are the `CpPrivilegeCode`s its level unlocked.
 @freezed
 abstract class ProfileCp with _$ProfileCp {
   const factory({
@@ -100,6 +122,8 @@ abstract class ProfileCp with _$ProfileCp {
     required int level,
     required String levelName,
     required int points,
+    String? id,
+    @Default(<String>[]) List<String> privileges,
   }) = _ProfileCp;
 
   factory fromJson(Map<String, dynamic> json) => _$ProfileCpFromJson(json);
