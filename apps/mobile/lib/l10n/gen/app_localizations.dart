@@ -7279,6 +7279,126 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'وقت البث'**
   String get liveToolLiveTime;
+
+  /// INSUFFICIENT_COINS (409, CP-017): a bullet costs 15 coins; no purchase flow exists yet.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.'**
+  String get errorInsufficientCoins;
+
+  /// Live chat tool: bullet mode on/off (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة'**
+  String get liveBulletToggle;
+
+  /// Chat field hint while bullet mode is on, with the coin balance (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة بـ 15 عملة · رصيدك {coins}'**
+  String liveBulletHint(String coins);
+
+  /// Chat field hint in bullet mode before the balance is known (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة بـ 15 عملة'**
+  String get liveBulletHintNoBalance;
+
+  /// Snack after a bullet was sent (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت رسالتك العامة إلى كل البثوث'**
+  String get liveBulletSent;
+
+  /// Screen reader label of a flying bullet (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة عامة من {name}: {text}'**
+  String liveBulletLabel(String name, String text);
+
+  /// Live chat tool: record a voice clip (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'مقطع صوتي'**
+  String get liveVoiceRecord;
+
+  /// Stops recording and sends the voice clip (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال المقطع الصوتي'**
+  String get liveVoiceSend;
+
+  /// Throws the voice clip away (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء التسجيل'**
+  String get liveVoiceCancel;
+
+  /// Recording timer in the chat box (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التسجيل {time} من 0:30'**
+  String liveVoiceRecording(String time);
+
+  /// Microphone permission refused (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح باستخدام الميكروفون من الإعدادات لإرسال مقاطع صوتية.'**
+  String get liveVoiceDenied;
+
+  /// The microphone could not start (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون غير متاح الآن.'**
+  String get liveVoiceUnavailable;
+
+  /// A voice clip over 1 MiB (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.'**
+  String get liveVoiceTooLarge;
+
+  /// Live chat tool: opens the Messages tab (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل الخاصة'**
+  String get liveChatPrivateMessages;
+
+  /// Live chat tool: send a picture (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة'**
+  String get liveChatPicture;
+
+  /// The chat box while a clip or picture uploads (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الإرسال…'**
+  String get liveChatSending;
+
+  /// Screen reader label of a voice clip line (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: مقطع صوتي، {duration}'**
+  String liveChatVoiceLine(String name, String duration);
+
+  /// Screen reader label of a picture line (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: صورة'**
+  String liveChatPictureLine(String name);
+
+  /// Plays a voice clip in the live chat (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل'**
+  String get liveChatPlay;
+
+  /// Pauses a voice clip in the live chat (CP-017).
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف مؤقت'**
+  String get liveChatPause;
 }
 
 class _AppLocalizationsDelegate

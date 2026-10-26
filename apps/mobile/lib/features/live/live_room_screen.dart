@@ -26,6 +26,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_bullet_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
@@ -279,12 +281,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _writing = false;
               _chatFocus.unfocus();
             }),
-            child: LiveChatComposer(
+            child: LiveRoomComposer(
+              roomId: widget.room.id,
               controller: _chat,
               focusNode: _chatFocus,
-              hint: context.l10n.goLiveChatHint,
-              sendLabel: context.l10n.goLiveChatSend,
               onSend: _sendChat,
+              // CP-017: private messages (the Messages tab; this live
+              // closes).
+              onMessages: () =>
+                  GoRouter.maybeOf(context)?.go(AppRoutes.messages),
               onEmoji: (emoji) => unawaited(
                 sendLiveChatText(
                   context,
@@ -393,9 +398,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       _mutedShown = muted;
     });
     final engine = _session.engine;
-    return ListenableBuilder(
+    final view = ListenableBuilder(
       listenable: engine.changes,
       builder: (context, _) => _scaffold(context, session, engine),
+    );
+    if (room.status != LiveRoomStatus.live) return view;
+    // CP-017: bullets from every live fly over this one.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        view,
+        LiveBulletLayer(roomId: room.id),
+      ],
     );
   }
 

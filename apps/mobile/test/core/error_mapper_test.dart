@@ -40,6 +40,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.reportAlreadyResolved: 409,
   // v1.14-live (CP-016 C)
   ErrorCode.liveScheduleFull: 409,
+  // v1.19-live (CP-017)
+  ErrorCode.insufficientCoins: 409,
 };
 
 DioException _badResponse(
@@ -98,6 +100,8 @@ void main() {
           'REPORT_ALREADY_RESOLVED',
           // v1.14-live (CP-016 C)
           'LIVE_SCHEDULE_FULL',
+          // v1.19-live (CP-017)
+          'INSUFFICIENT_COINS',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

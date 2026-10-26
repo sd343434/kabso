@@ -243,7 +243,24 @@ class LiveChatComposer extends StatefulWidget {
     required this.onSend,
     required this.onEmoji,
     super.key,
+    this.tools,
+    this.replaceField,
+    this.maxLength = 200,
+    this.accent = false,
   });
+
+  /// CP-017: a row of small buttons above the field (bullet, voice,
+  /// messages, picture).
+  final Widget? tools;
+
+  /// CP-017: shown instead of the field (e.g. while recording a clip).
+  final Widget? replaceField;
+
+  /// Code points the field takes (200 for chat, 60 for a bullet).
+  final int maxLength;
+
+  /// The field is outlined in the accent colour (bullet mode).
+  final bool accent;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -295,16 +312,24 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
   @override
   Widget build(BuildContext context) {
     final text = context.textStyles;
-    final hasText = widget.controller.text.trim().isNotEmpty;
+    final hasText =
+        widget.replaceField != null || widget.controller.text.trim().isNotEmpty;
     return Container(
       decoration: const BoxDecoration(
         color: LiveChatComposer.panel,
         borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
       ),
-      padding: const EdgeInsets.only(top: 12, bottom: 1.4),
+      padding: EdgeInsets.only(top: widget.tools == null ? 12 : 8, bottom: 1.4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.tools case final tools?) ...[
+            Padding(
+              padding: const EdgeInsetsDirectional.symmetric(horizontal: 12.6),
+              child: tools,
+            ),
+            const SizedBox(height: 6),
+          ],
           Row(
             children: [
               const SizedBox(width: 12.6),
@@ -318,31 +343,36 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
                   decoration: BoxDecoration(
                     color: LiveChatComposer.field,
                     borderRadius: BorderRadius.circular(20.5),
+                    border: widget.accent
+                        ? Border.all(color: LiveChatComposer.sendOn, width: 1.2)
+                        : null,
                   ),
                   alignment: Alignment.center,
-                  child: TextField(
-                    key: LiveChatComposer.fieldKey,
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    maxLength: 200,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => widget.onSend(),
-                    cursorColor: LiveChatComposer.sendOn,
-                    style: text.body.copyWith(color: LiveChatComposer.ink),
-                    decoration: InputDecoration(
-                      isCollapsed: true,
-                      contentPadding: EdgeInsets.zero,
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      counterText: '',
-                      hintText: widget.hint,
-                      hintStyle: text.body.copyWith(
-                        color: LiveChatComposer.hintInk,
+                  child:
+                      widget.replaceField ??
+                      TextField(
+                        key: LiveChatComposer.fieldKey,
+                        controller: widget.controller,
+                        focusNode: widget.focusNode,
+                        maxLength: widget.maxLength,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => widget.onSend(),
+                        cursorColor: LiveChatComposer.sendOn,
+                        style: text.body.copyWith(color: LiveChatComposer.ink),
+                        decoration: InputDecoration(
+                          isCollapsed: true,
+                          contentPadding: EdgeInsets.zero,
+                          filled: false,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          counterText: '',
+                          hintText: widget.hint,
+                          hintStyle: text.body.copyWith(
+                            color: LiveChatComposer.hintInk,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                 ),
               ),
               Semantics(

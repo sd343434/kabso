@@ -11,6 +11,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -104,6 +105,11 @@ class LiveRoomChatLines extends ConsumerWidget {
   Widget _line(BuildContext context, WidgetRef ref, LiveChatItem item) {
     final l10n = context.l10n;
     return switch (item) {
+      // CP-017: a voice clip or a picture (the controller drops them at
+      // `expiresAt` and when the media is gone).
+      LiveChatPosted(:final entry)
+          when entry.kind != LiveChatKind.text && entry.media != null =>
+        _mediaLine(context, ref, entry, entry.media!),
       LiveChatPosted(:final entry) => _Tappable(
         label: l10n.liveChatLineLabel(
           entry.author.displayName,
@@ -171,6 +177,53 @@ class LiveRoomChatLines extends ConsumerWidget {
         ),
       ),
     };
+  }
+
+  Widget _mediaLine(
+    BuildContext context,
+    WidgetRef ref,
+    LiveChatEntry entry,
+    LiveChatMedia media,
+  ) {
+    final l10n = context.l10n;
+    final name = entry.author.displayName;
+    final voice = entry.kind == LiveChatKind.voice;
+    return _Bubble(
+      color: bubble,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The name opens the message's actions, like a text line.
+          _Tappable(
+            label: voice
+                ? l10n.liveChatVoiceLine(
+                    name,
+                    KFormat.countdown(
+                      Duration(milliseconds: media.durationMs ?? 0),
+                    ),
+                  )
+                : l10n.liveChatPictureLine(name),
+            onTap: () => unawaited(
+              showLiveChatActions(
+                context,
+                ref,
+                roomId: roomId,
+                entry: entry,
+                role: role,
+                onProfile: onProfile,
+              ),
+            ),
+            child: _message(context, name, '', entry.authorRole),
+          ),
+          const SizedBox(height: 4),
+          if (voice)
+            LiveVoiceClipPill(key: ValueKey(media.id), media: media)
+          else
+            LiveChatPictureThumb(media: media),
+        ],
+      ),
+    );
   }
 
   Widget _plain(BuildContext context, String text) => Text(
@@ -376,7 +429,11 @@ Future<void> showLiveChatActions(
         children: [
           ListTile(
             title: Text(
-              KFormat.bidiIsolate(kabiSpokenText(entry.text, l10n)),
+              KFormat.bidiIsolate(switch (entry.kind) {
+                LiveChatKind.voice => l10n.liveVoiceRecord,
+                LiveChatKind.image => l10n.liveChatPicture,
+                LiveChatKind.text => kabiSpokenText(entry.text, l10n),
+              }),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),

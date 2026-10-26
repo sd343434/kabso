@@ -31,6 +31,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_bullet_layer.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -361,12 +363,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               _writing = false;
               _chatFocus.unfocus();
             }),
-            child: LiveChatComposer(
+            child: LiveRoomComposer(
+              roomId: room?.id ?? '',
               controller: _chat,
               focusNode: _chatFocus,
-              hint: l10n.goLiveChatHint,
-              sendLabel: l10n.goLiveChatSend,
               onSend: send,
+              // CP-017: private messages; the live goes on minimized.
+              onMessages: () {
+                final router = GoRouter.maybeOf(context);
+                if (router == null) return;
+                ref.read(liveMinimizedProvider.notifier).minimize();
+                router.go(AppRoutes.messages);
+              },
               onEmoji: (emoji) {
                 if (room == null) return;
                 unawaited(
@@ -1125,6 +1133,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               children: [
                 background,
                 body,
+                // CP-017: bullets from every live fly over this one.
+                if (onAir && room != null) LiveBulletLayer(roomId: room.id),
                 if (_countdown case final n?)
                   // The countdown (sized from the owner's recording).
                   IgnorePointer(

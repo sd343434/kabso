@@ -4856,5 +4856,116 @@
   "liveToolLiveTime": "وقت البث",
   "@liveToolLiveTime": {
     "description": "Room tools sheet tile (owner ref 84)"
+  },
+  "errorInsufficientCoins": "تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.",
+  "@errorInsufficientCoins": {
+    "description": "INSUFFICIENT_COINS (409, CP-017): a bullet costs 15 coins; no purchase flow exists yet."
+  },
+  "liveBulletToggle": "رسالة عامة",
+  "@liveBulletToggle": {
+    "description": "Live chat tool: bullet mode on/off (CP-017)."
+  },
+  "liveBulletHint": "رسالة عامة بـ 15 عملة · رصيدك {coins}",
+  "@liveBulletHint": {
+    "description": "Chat field hint while bullet mode is on, with the coin balance (CP-017).",
+    "placeholders": {
+      "coins": {
+        "type": "String"
+      }
+    }
+  },
+  "liveBulletHintNoBalance": "رسالة عامة بـ 15 عملة",
+  "@liveBulletHintNoBalance": {
+    "description": "Chat field hint in bullet mode before the balance is known (CP-017)."
+  },
+  "liveBulletSent": "أُرسلت رسالتك العامة إلى كل البثوث",
+  "@liveBulletSent": {
+    "description": "Snack after a bullet was sent (CP-017)."
+  },
+  "liveBulletLabel": "رسالة عامة من {name}: {text}",
+  "@liveBulletLabel": {
+    "description": "Screen reader label of a flying bullet (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "liveVoiceRecord": "مقطع صوتي",
+  "@liveVoiceRecord": {
+    "description": "Live chat tool: record a voice clip (CP-017)."
+  },
+  "liveVoiceSend": "إرسال المقطع الصوتي",
+  "@liveVoiceSend": {
+    "description": "Stops recording and sends the voice clip (CP-017)."
+  },
+  "liveVoiceCancel": "إلغاء التسجيل",
+  "@liveVoiceCancel": {
+    "description": "Throws the voice clip away (CP-017)."
+  },
+  "liveVoiceRecording": "جارٍ التسجيل {time} من 0:30",
+  "@liveVoiceRecording": {
+    "description": "Recording timer in the chat box (CP-017).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "liveVoiceDenied": "اسمح باستخدام الميكروفون من الإعدادات لإرسال مقاطع صوتية.",
+  "@liveVoiceDenied": {
+    "description": "Microphone permission refused (CP-017)."
+  },
+  "liveVoiceUnavailable": "الميكروفون غير متاح الآن.",
+  "@liveVoiceUnavailable": {
+    "description": "The microphone could not start (CP-017)."
+  },
+  "liveVoiceTooLarge": "المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.",
+  "@liveVoiceTooLarge": {
+    "description": "A voice clip over 1 MiB (CP-017)."
+  },
+  "liveChatPrivateMessages": "الرسائل الخاصة",
+  "@liveChatPrivateMessages": {
+    "description": "Live chat tool: opens the Messages tab (CP-017)."
+  },
+  "liveChatPicture": "صورة",
+  "@liveChatPicture": {
+    "description": "Live chat tool: send a picture (CP-017)."
+  },
+  "liveChatSending": "جارٍ الإرسال…",
+  "@liveChatSending": {
+    "description": "The chat box while a clip or picture uploads (CP-017)."
+  },
+  "liveChatVoiceLine": "{name}: مقطع صوتي، {duration}",
+  "@liveChatVoiceLine": {
+    "description": "Screen reader label of a voice clip line (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatPictureLine": "{name}: صورة",
+  "@liveChatPictureLine": {
+    "description": "Screen reader label of a picture line (CP-017).",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveChatPlay": "تشغيل",
+  "@liveChatPlay": {
+    "description": "Plays a voice clip in the live chat (CP-017)."
+  },
+  "liveChatPause": "إيقاف مؤقت",
+  "@liveChatPause": {
+    "description": "Pauses a voice clip in the live chat (CP-017)."
   }
 }

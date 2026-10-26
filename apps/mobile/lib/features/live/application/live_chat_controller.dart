@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:clock/clock.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
@@ -7,9 +10,11 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/posts/data/media_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 import 'package:kabso_live/features/safety/safety_repository.dart';
@@ -69,6 +74,7 @@ class LiveChatState {
     this.enabled = true,
     this.muted = false,
     this.loaded = false,
+    this.bullets = const [],
   });
 
   /// Oldest first.
@@ -83,16 +89,22 @@ class LiveChatState {
   /// The last messages were read (or failed to; the live ones still come).
   final bool loaded;
 
+  /// CP-017: bullets waiting to fly over the live, oldest first (the first
+  /// is on screen).
+  final List<LiveBullet> bullets;
+
   LiveChatState copyWith({
     List<LiveChatItem>? items,
     bool? enabled,
     bool? muted,
     bool? loaded,
+    List<LiveBullet>? bullets,
   }) => LiveChatState(
     items: items ?? this.items,
     enabled: enabled ?? this.enabled,
     muted: muted ?? this.muted,
     loaded: loaded ?? this.loaded,
+    bullets: bullets ?? this.bullets,
   );
 }
 
@@ -109,6 +121,12 @@ class LiveChatController extends Notifier<LiveChatState> {
   /// Lines kept on screen (the API returns the last 50 too).
   static const maxLines = 50;
 
+  /// CP-017: how long a voice clip or picture stays (§10.19).
+  static const mediaLifetime = Duration(seconds: 60);
+
+  /// Bullets waiting at once; more are dropped (a flood never piles up).
+  static const maxQueuedBullets = 20;
+
   late LiveRepository _repo;
   StreamSubscription<LiveChatEvent>? _events;
   final _blocked = <String>{};
@@ -116,11 +134,69 @@ class LiveChatController extends Notifier<LiveChatState> {
   int _serial = 0;
   bool _attached = false;
 
+  /// CP-017: when each VOICE / IMAGE message goes (message id → timer).
+  final _expiry = <String, Timer>{};
+
+  /// Bullets already queued or shown (a data message may come twice).
+  final _bulletIds = <String>{};
+
   @override
   LiveChatState build() {
     _repo = ref.read(liveRepositoryProvider);
-    ref.onDispose(() => unawaited(_events?.cancel()));
+    ref.onDispose(() {
+      unawaited(_events?.cancel());
+      for (final timer in _expiry.values) {
+        timer.cancel();
+      }
+      _expiry.clear();
+    });
     return const LiveChatState();
+  }
+
+  /// Whether [entry] can be shown: a VOICE or IMAGE message needs its media
+  /// (null once it expired, §10.19).
+  static bool _showable(LiveChatEntry entry) =>
+      entry.kind == LiveChatKind.text || entry.media != null;
+
+  /// Hides a VOICE / IMAGE message at its `expiresAt`. A message that just
+  /// arrived ([fresh]) lives as long as the server gave it from sending
+  /// (no synced clock needed); one from the list lives until `expiresAt` by
+  /// this device's clock. Returns false when it is already gone.
+  bool _scheduleExpiry(LiveChatEntry entry, {required bool fresh}) {
+    final expiresAt = entry.expiresAt;
+    if (entry.kind == LiveChatKind.text) return true;
+    var left = expiresAt == null
+        ? mediaLifetime
+        : fresh
+        ? expiresAt.difference(entry.createdAt)
+        : expiresAt.difference(clock.now());
+    if (left > mediaLifetime) left = mediaLifetime;
+    if (left <= Duration.zero) return false;
+    _expiry[entry.id]?.cancel();
+    _expiry[entry.id] = Timer(left, () => _expire(entry.id));
+    return true;
+  }
+
+  void _expire(String id) {
+    _expiry.remove(id)?.cancel();
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      items: [
+        for (final it in state.items)
+          if (it is! LiveChatPosted || it.entry.id != id) it,
+      ],
+    );
+  }
+
+  /// A bullet has flown: the next one may come.
+  void bulletShown(String id) {
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      bullets: [
+        for (final b in state.bullets)
+          if (b.id != id) b,
+      ],
+    );
   }
 
   /// Starts the chat with the room's [enabled] / [muted] and the [engine]'s
@@ -136,7 +212,10 @@ class LiveChatController extends Notifier<LiveChatState> {
     _events = engine.chatEvents.listen(_onEvent);
     unawaited(_loadBlocks());
     try {
-      final messages = await _repo.chatMessages(roomId);
+      final messages = [
+        for (final m in await _repo.chatMessages(roomId))
+          if (_showable(m) && _scheduleExpiry(m, fresh: false)) m,
+      ];
       if (!ref.mounted) return;
       // Live messages may have arrived first: keep them, without doubles.
       final known = {for (final m in messages) m.id};
@@ -177,7 +256,8 @@ class LiveChatController extends Notifier<LiveChatState> {
     switch (event) {
       case LiveChatReceived(:final message):
         if (_blocked.contains(message.author.id)) return;
-        if (_has(message.id)) return;
+        if (_has(message.id) || !_showable(message)) return;
+        if (!_scheduleExpiry(message, fresh: true)) return;
         var items = state.items;
         if (me != null && message.author.id == me.id) {
           // Our own message, before the API answered: it replaces the
@@ -192,6 +272,7 @@ class LiveChatController extends Notifier<LiveChatState> {
           items: _trim([...items, LiveChatPosted(message)]),
         );
       case LiveChatDeleted(:final id):
+        _expiry.remove(id)?.cancel();
         state = state.copyWith(
           items: [
             for (final it in state.items)
@@ -205,6 +286,12 @@ class LiveChatController extends Notifier<LiveChatState> {
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);
+      case LiveBulletReceived(:final bullet):
+        // Hidden from people this person blocked (§10.19).
+        if (_blocked.contains(bullet.sender.id)) return;
+        if (!_bulletIds.add(bullet.id)) return;
+        if (state.bullets.length >= maxQueuedBullets) return;
+        state = state.copyWith(bullets: [...state.bullets, bullet]);
     }
   }
 
@@ -292,6 +379,95 @@ class LiveChatController extends Notifier<LiveChatState> {
     }
   }
 
+  /// CP-017: uploads a voice clip or picture ([kind]; [bytes] of
+  /// [contentType], already checked) and sends it. Returns why it failed, or
+  /// `null`. It finishes even if the chat box closed meanwhile.
+  Future<AppFailure?> uploadAndSend(
+    Uint8List bytes,
+    String contentType, {
+    required LiveChatKind kind,
+  }) async {
+    final String mediaId;
+    try {
+      final asset = await ref
+          .read(mediaRepositoryProvider)
+          .uploadLiveChatMedia(
+            bytes,
+            contentType,
+            voice: kind == LiveChatKind.voice,
+          );
+      mediaId = asset.id;
+    } on Object catch (e) {
+      return toAppFailure(e);
+    }
+    if (!ref.mounted) return null;
+    final failure = await sendMedia(kind: kind, mediaId: mediaId);
+    return failure;
+  }
+
+  /// CP-017: sends an uploaded voice clip or picture ([kind], [mediaId]).
+  /// Returns why it was refused, or `null`.
+  Future<AppFailure?> sendMedia({
+    required LiveChatKind kind,
+    required String mediaId,
+  }) async {
+    if (ref.read(currentUserProvider) == null) return null;
+    try {
+      final message = await _repo.sendChatMedia(
+        roomId,
+        kind: kind,
+        mediaId: mediaId,
+        clientId: _uuidV4(),
+      );
+      if (!ref.mounted) return null;
+      if (!_has(message.id) &&
+          _showable(message) &&
+          _scheduleExpiry(message, fresh: true)) {
+        state = state.copyWith(
+          items: _trim([...state.items, LiveChatPosted(message)]),
+        );
+      }
+      return null;
+    } on Object catch (e) {
+      final failure = toAppFailure(e);
+      if (!ref.mounted) return failure;
+      final code = failure.code;
+      state = state.copyWith(
+        muted: code == ErrorCode.liveChatMuted ? true : null,
+        enabled: code == ErrorCode.liveChatClosed ? false : null,
+      );
+      return failure;
+    }
+  }
+
+  /// CP-017: sends [text] (trimmed) as a bullet over every live for 15
+  /// coins; the balance follows the answer. Returns why it was refused, or
+  /// `null`.
+  Future<AppFailure?> sendBullet(String text) async {
+    final trimmed = text.trim();
+    if (ref.read(currentUserProvider) == null || trimmed.isEmpty) return null;
+    try {
+      final result = await _repo.sendBullet(
+        roomId,
+        text: trimmed,
+        clientId: _uuidV4(),
+      );
+      if (ref.mounted) ref.read(liveCoinsProvider.notifier).set(result.coins);
+      return null;
+    } on Object catch (e) {
+      final failure = toAppFailure(e);
+      if (!ref.mounted) return failure;
+      if (failure.code == ErrorCode.insufficientCoins) {
+        // Show the real balance again.
+        ref.invalidate(liveCoinsProvider);
+      }
+      if (failure.code == ErrorCode.liveChatMuted) {
+        state = state.copyWith(muted: true);
+      }
+      return failure;
+    }
+  }
+
   /// Sends a failed line again (same `clientId`: never twice).
   Future<AppFailure?> retry(LiveChatPending line) =>
       send(line.text, retryOf: line.clientId);
@@ -307,6 +483,7 @@ class LiveChatController extends Notifier<LiveChatState> {
   /// The author, the host or a moderator. Throws an AppFailure.
   Future<void> delete(LiveChatEntry entry) async {
     await _repo.deleteChat(roomId, entry.id);
+    if (!ref.mounted) return;
     _onEvent(LiveChatDeleted(entry.id));
   }
 

@@ -38,6 +38,7 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.pinLimitReached => l10n.errorPinLimitReached,
     ErrorCode.liveScheduleFull => l10n.errorLiveScheduleFull,
     ErrorCode.reportAlreadyResolved => l10n.errorReportAlreadyResolved,
+    ErrorCode.insufficientCoins => l10n.errorInsufficientCoins,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

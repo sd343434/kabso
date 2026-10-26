@@ -412,4 +412,23 @@ class DemoLiveRepository implements LiveRepository {
   @override
   Future<void> reportChatMessage(String messageId, ReportReason reason) async =>
       throw _serverOnly;
+
+  // CP-017: no server, so no clips, pictures, bullets or coins.
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) async => throw _serverOnly;
+
+  @override
+  Future<int> myCoins() async => 0;
 }

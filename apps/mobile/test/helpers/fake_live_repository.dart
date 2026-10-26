@@ -612,6 +612,93 @@ class FakeLiveRepository implements LiveRepository {
   @override
   Future<void> reportChatMessage(String messageId, ReportReason reason) async =>
       chatCalls.add('report:$messageId:${reason.wire}');
+
+  // ---- CP-017 clips, pictures, bullets and coins --------------------------
+
+  /// The balance `GET /wallet/me` answers (and bullets charge).
+  int coins = 100;
+
+  /// How many times the wallet was read.
+  int walletReads = 0;
+
+  /// A failure for the next `sendBullet` (then cleared).
+  AppFailure? bulletFailure;
+
+  /// The body of every bullet sent.
+  final List<({String text, String clientId})> bulletCalls = [];
+
+  /// How long a sent VOICE / IMAGE message lives.
+  Duration mediaLifetime = const Duration(seconds: 60);
+
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) async {
+    chatCalls.add('${kind.name}:$mediaId');
+    final failure = chatFailure;
+    if (failure != null) {
+      chatFailure = null;
+      throw failure;
+    }
+    final at = DateTime.utc(2026, 10, 24, 20);
+    final voice = kind == LiveChatKind.voice;
+    return LiveChatEntry(
+      id: 'sent-${_chatSerial++}',
+      roomId: roomId,
+      author: chatAuthor,
+      authorRole: LiveChatRole.viewer,
+      text: '',
+      createdAt: at,
+      kind: kind,
+      media: LiveChatMedia(
+        id: mediaId,
+        url: voice
+            ? 'https://media.example.test/media/$mediaId/voice.m4a'
+            : 'https://media.example.test/media/$mediaId/1080.webp',
+        thumbUrl: voice
+            ? 'https://media.example.test/media/$mediaId/voice.m4a'
+            : 'https://media.example.test/media/$mediaId/320.webp',
+        width: voice ? 0 : 1080,
+        height: voice ? 0 : 1080,
+        durationMs: voice ? 4000 : null,
+      ),
+      expiresAt: at.add(mediaLifetime),
+    );
+  }
+
+  @override
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) async {
+    bulletCalls.add((text: text, clientId: clientId));
+    final failure = bulletFailure;
+    if (failure != null) {
+      bulletFailure = null;
+      throw failure;
+    }
+    coins -= 15;
+    return (
+      bullet: LiveBullet(
+        id: 'bullet-${bulletCalls.length}',
+        text: text,
+        sender: chatAuthor,
+        roomId: roomId,
+        createdAt: DateTime.utc(2026, 10, 24, 20),
+      ),
+      coins: coins,
+    );
+  }
+
+  @override
+  Future<int> myCoins() async {
+    walletReads++;
+    return coins;
+  }
 }
 
 /// Overrides that point live discovery at [repo] with a fixed scope (no

@@ -62,6 +62,10 @@ enum ErrorCode {
   /// v1.14-live (CP-016 C): already 10 upcoming scheduled lives (409).
   liveScheduleFull('LIVE_SCHEDULE_FULL'),
 
+  /// CP-017: the coin balance does not cover the price (a bullet costs 15
+  /// coins; 409, nothing charged).
+  insufficientCoins('INSUFFICIENT_COINS'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

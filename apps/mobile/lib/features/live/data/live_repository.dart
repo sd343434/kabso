@@ -173,6 +173,30 @@ abstract interface class LiveRepository {
   /// `POST /reports` with `targetType: LIVE_CHAT_MESSAGE`.
   Future<void> reportChatMessage(String messageId, ReportReason reason);
 
+  // ---- CP-017 voice clips, pictures, bullets and coins (§10.19) ---------
+
+  /// `POST /live/rooms/{roomId}/chat` with [kind] VOICE or IMAGE and the
+  /// caller's completed `LIVE_CHAT_VOICE` / `LIVE_CHAT_IMAGE` upload
+  /// [mediaId]; a retry with the same [clientId] returns the first message.
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  });
+
+  /// `POST /live/rooms/{roomId}/bullets` (15 coins): the bullet and the
+  /// balance after it. A retry with the same [clientId] is never charged
+  /// again.
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  });
+
+  /// `GET /wallet/me`: the caller's coin balance.
+  Future<int> myCoins();
+
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
 }
@@ -555,6 +579,47 @@ class LiveRepositoryImpl implements LiveRepository {
           },
         );
       });
+
+  @override
+  Future<LiveChatEntry> sendChatMedia(
+    String roomId, {
+    required LiveChatKind kind,
+    required String mediaId,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/chat',
+      data: {
+        'kind': kind == LiveChatKind.voice ? 'VOICE' : 'IMAGE',
+        'mediaId': mediaId,
+        'clientId': clientId,
+      },
+    );
+    return LiveChatEntry.fromJson(res.data!);
+  });
+
+  @override
+  Future<({LiveBullet bullet, int coins})> sendBullet(
+    String roomId, {
+    required String text,
+    required String clientId,
+  }) => guardApiCall(() async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '${_room(roomId)}/bullets',
+      data: {'text': text, 'clientId': clientId},
+    );
+    final data = res.data!;
+    return (
+      bullet: LiveBullet.fromJson(data['bullet']! as Map<String, dynamic>),
+      coins: (data['coins']! as num).toInt(),
+    );
+  });
+
+  @override
+  Future<int> myCoins() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/wallet/me');
+    return (res.data!['coins']! as num).toInt();
+  });
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

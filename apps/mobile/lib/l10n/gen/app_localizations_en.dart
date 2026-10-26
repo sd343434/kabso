@@ -4093,4 +4093,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolLiveTime => 'Live time';
+
+  @override
+  String get errorInsufficientCoins =>
+      'You need 15 coins for a public message. For now the team adds coins; there is no purchase yet.';
+
+  @override
+  String get liveBulletToggle => 'Public message';
+
+  @override
+  String liveBulletHint(String coins) {
+    return 'Public message for 15 coins · You have $coins';
+  }
+
+  @override
+  String get liveBulletHintNoBalance => 'Public message for 15 coins';
+
+  @override
+  String get liveBulletSent => 'Your public message went to every live';
+
+  @override
+  String liveBulletLabel(String name, String text) {
+    return 'Public message from $name: $text';
+  }
+
+  @override
+  String get liveVoiceRecord => 'Voice clip';
+
+  @override
+  String get liveVoiceSend => 'Send voice clip';
+
+  @override
+  String get liveVoiceCancel => 'Cancel recording';
+
+  @override
+  String liveVoiceRecording(String time) {
+    return 'Recording $time of 0:30';
+  }
+
+  @override
+  String get liveVoiceDenied =>
+      'Allow the microphone in Settings to send voice clips.';
+
+  @override
+  String get liveVoiceUnavailable =>
+      'The microphone isn\'t available right now.';
+
+  @override
+  String get liveVoiceTooLarge =>
+      'This voice clip is too large. Record a shorter one.';
+
+  @override
+  String get liveChatPrivateMessages => 'Private messages';
+
+  @override
+  String get liveChatPicture => 'Picture';
+
+  @override
+  String get liveChatSending => 'Sending…';
+
+  @override
+  String liveChatVoiceLine(String name, String duration) {
+    return '$name: voice clip, $duration';
+  }
+
+  @override
+  String liveChatPictureLine(String name) {
+    return '$name: picture';
+  }
+
+  @override
+  String get liveChatPlay => 'Play';
+
+  @override
+  String get liveChatPause => 'Pause';
 }

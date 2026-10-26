@@ -4121,4 +4121,76 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolLiveTime => 'وقت البث';
+
+  @override
+  String get errorInsufficientCoins =>
+      'تحتاج 15 عملة لإرسال رسالة عامة. يضيف الفريق العملات حالياً، ولا يوجد شراء بعد.';
+
+  @override
+  String get liveBulletToggle => 'رسالة عامة';
+
+  @override
+  String liveBulletHint(String coins) {
+    return 'رسالة عامة بـ 15 عملة · رصيدك $coins';
+  }
+
+  @override
+  String get liveBulletHintNoBalance => 'رسالة عامة بـ 15 عملة';
+
+  @override
+  String get liveBulletSent => 'أُرسلت رسالتك العامة إلى كل البثوث';
+
+  @override
+  String liveBulletLabel(String name, String text) {
+    return 'رسالة عامة من $name: $text';
+  }
+
+  @override
+  String get liveVoiceRecord => 'مقطع صوتي';
+
+  @override
+  String get liveVoiceSend => 'إرسال المقطع الصوتي';
+
+  @override
+  String get liveVoiceCancel => 'إلغاء التسجيل';
+
+  @override
+  String liveVoiceRecording(String time) {
+    return 'جارٍ التسجيل $time من 0:30';
+  }
+
+  @override
+  String get liveVoiceDenied =>
+      'اسمح باستخدام الميكروفون من الإعدادات لإرسال مقاطع صوتية.';
+
+  @override
+  String get liveVoiceUnavailable => 'الميكروفون غير متاح الآن.';
+
+  @override
+  String get liveVoiceTooLarge => 'المقطع الصوتي كبير جداً. سجّل مقطعاً أقصر.';
+
+  @override
+  String get liveChatPrivateMessages => 'الرسائل الخاصة';
+
+  @override
+  String get liveChatPicture => 'صورة';
+
+  @override
+  String get liveChatSending => 'جارٍ الإرسال…';
+
+  @override
+  String liveChatVoiceLine(String name, String duration) {
+    return '$name: مقطع صوتي، $duration';
+  }
+
+  @override
+  String liveChatPictureLine(String name) {
+    return '$name: صورة';
+  }
+
+  @override
+  String get liveChatPlay => 'تشغيل';
+
+  @override
+  String get liveChatPause => 'إيقاف مؤقت';
 }
