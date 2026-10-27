@@ -1253,7 +1253,9 @@ mixin _$LiveRoom {
 /// null while the charm levels are unavailable.
  int? get roomLevel;/// v1.20-live (D105, §10.20): the host or a moderator kicked the caller
 /// out of this live; the app shows why instead of the room.
- bool get kicked;
+ bool get kicked;/// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
+/// servers send none).
+ List<LiveWishGift> get wishGifts;
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1267,20 +1269,20 @@ $LiveRoomCopyWith<LiveRoom> get copyWith => _$LiveRoomCopyWithImpl<LiveRoom>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoom;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.scoreParts, _this.scoreParts) || other.scoreParts == _this.scoreParts)&&(identical(other.chatEnabled, _this.chatEnabled) || other.chatEnabled == _this.chatEnabled)&&(identical(other.chatMuted, _this.chatMuted) || other.chatMuted == _this.chatMuted)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.roomNumber, _this.roomNumber) || other.roomNumber == _this.roomNumber)&&(identical(other.roomLevel, _this.roomLevel) || other.roomLevel == _this.roomLevel)&&(identical(other.kicked, _this.kicked) || other.kicked == _this.kicked));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoom&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.title, _this.title) || other.title == _this.title)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.viewerCount, _this.viewerCount) || other.viewerCount == _this.viewerCount)&&(identical(other.startedAt, _this.startedAt) || other.startedAt == _this.startedAt)&&(identical(other.coverUrl, _this.coverUrl) || other.coverUrl == _this.coverUrl)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.host, _this.host) || other.host == _this.host)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.endedAt, _this.endedAt) || other.endedAt == _this.endedAt)&&(identical(other.endReason, _this.endReason) || other.endReason == _this.endReason)&&(identical(other.allowGuests, _this.allowGuests) || other.allowGuests == _this.allowGuests)&&(identical(other.seatCount, _this.seatCount) || other.seatCount == _this.seatCount)&&(identical(other.occupiedSeats, _this.occupiedSeats) || other.occupiedSeats == _this.occupiedSeats)&&(identical(other.theme, _this.theme) || other.theme == _this.theme)&&(identical(other.score, _this.score) || other.score == _this.score)&&(identical(other.scoreParts, _this.scoreParts) || other.scoreParts == _this.scoreParts)&&(identical(other.chatEnabled, _this.chatEnabled) || other.chatEnabled == _this.chatEnabled)&&(identical(other.chatMuted, _this.chatMuted) || other.chatMuted == _this.chatMuted)&&(identical(other.topic, _this.topic) || other.topic == _this.topic)&&(identical(other.roomNumber, _this.roomNumber) || other.roomNumber == _this.roomNumber)&&(identical(other.roomLevel, _this.roomLevel) || other.roomLevel == _this.roomLevel)&&(identical(other.kicked, _this.kicked) || other.kicked == _this.kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _this.wishGifts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoom;
-  return Object.hashAll([runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.scoreParts,_this.chatEnabled,_this.chatMuted,_this.topic,_this.roomNumber,_this.roomLevel,_this.kicked]);
+  return Object.hashAll([runtimeType,_this.id,_this.title,_this.mode,_this.viewerCount,_this.startedAt,_this.coverUrl,_this.category,_this.host,_this.status,_this.endedAt,_this.endReason,_this.allowGuests,_this.seatCount,_this.occupiedSeats,_this.theme,_this.score,_this.scoreParts,_this.chatEnabled,_this.chatMuted,_this.topic,_this.roomNumber,_this.roomLevel,_this.kicked,const DeepCollectionEquality().hash(_this.wishGifts)]);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoom;
-  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, scoreParts: ${_this.scoreParts}, chatEnabled: ${_this.chatEnabled}, chatMuted: ${_this.chatMuted}, topic: ${_this.topic}, roomNumber: ${_this.roomNumber}, roomLevel: ${_this.roomLevel}, kicked: ${_this.kicked})';
+  return 'LiveRoom(id: ${_this.id}, title: ${_this.title}, mode: ${_this.mode}, viewerCount: ${_this.viewerCount}, startedAt: ${_this.startedAt}, coverUrl: ${_this.coverUrl}, category: ${_this.category}, host: ${_this.host}, status: ${_this.status}, endedAt: ${_this.endedAt}, endReason: ${_this.endReason}, allowGuests: ${_this.allowGuests}, seatCount: ${_this.seatCount}, occupiedSeats: ${_this.occupiedSeats}, theme: ${_this.theme}, score: ${_this.score}, scoreParts: ${_this.scoreParts}, chatEnabled: ${_this.chatEnabled}, chatMuted: ${_this.chatMuted}, topic: ${_this.topic}, roomNumber: ${_this.roomNumber}, roomLevel: ${_this.roomLevel}, kicked: ${_this.kicked}, wishGifts: ${_this.wishGifts})';
 }
 
 
@@ -1291,7 +1293,7 @@ abstract mixin class $LiveRoomCopyWith<$Res>  {
   factory $LiveRoomCopyWith(LiveRoom value, $Res Function(LiveRoom) _then) = _$LiveRoomCopyWithImpl;
 @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts
 });
 
 
@@ -1308,7 +1310,7 @@ class _$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,}) {
   return _then(LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -1333,7 +1335,8 @@ as bool,topic: freezed == topic ? _self.topic : topic // ignore: cast_nullable_t
 as String?,roomNumber: freezed == roomNumber ? _self.roomNumber : roomNumber // ignore: cast_nullable_to_non_nullable
 as int?,roomLevel: freezed == roomLevel ? _self.roomLevel : roomLevel // ignore: cast_nullable_to_non_nullable
 as int?,kicked: null == kicked ? _self.kicked : kicked // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,wishGifts: null == wishGifts ? _self.wishGifts : wishGifts // ignore: cast_nullable_to_non_nullable
+as List<LiveWishGift>,
   ));
 }
 /// Create a copy of LiveRoom
@@ -1451,10 +1454,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts);case _:
   return orElse();
 
 }
@@ -1472,10 +1475,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom():
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1492,10 +1495,10 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title, @JsonKey(unknownEnumValue: LiveRoomMode.solo)  LiveRoomMode mode,  int viewerCount,  DateTime startedAt,  String? coverUrl,  LiveCategory? category,  UserSummary host,  LiveRoomStatus status,  DateTime? endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown)  LiveRoomEndReason? endReason,  bool allowGuests,  int? seatCount,  int occupiedSeats,  String theme,  int score,  LiveScore? scoreParts,  bool chatEnabled,  bool chatMuted,  String? topic,  int? roomNumber,  int? roomLevel,  bool kicked,  List<LiveWishGift> wishGifts)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoom() when $default != null:
-return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked);case _:
+return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedAt,_that.coverUrl,_that.category,_that.host,_that.status,_that.endedAt,_that.endReason,_that.allowGuests,_that.seatCount,_that.occupiedSeats,_that.theme,_that.score,_that.scoreParts,_that.chatEnabled,_that.chatMuted,_that.topic,_that.roomNumber,_that.roomLevel,_that.kicked,_that.wishGifts);case _:
   return null;
 
 }
@@ -1507,7 +1510,7 @@ return $default(_that.id,_that.title,_that.mode,_that.viewerCount,_that.startedA
 @JsonSerializable()
 
 class _LiveRoom implements LiveRoom {
-  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.scoreParts, this.chatEnabled = true, this.chatMuted = false, this.topic, this.roomNumber, this.roomLevel, this.kicked = false});
+  const _LiveRoom({required this.id, required this.title, @JsonKey(unknownEnumValue: LiveRoomMode.solo) required this.mode, required this.viewerCount, required this.startedAt, required this.coverUrl, required this.category, required this.host, required this.status, required this.endedAt, @JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) required this.endReason, this.allowGuests = true, this.seatCount, this.occupiedSeats = 0, this.theme = LiveThemes.classic, this.score = 0, this.scoreParts, this.chatEnabled = true, this.chatMuted = false, this.topic, this.roomNumber, this.roomLevel, this.kicked = false,  List<LiveWishGift> wishGifts = const <LiveWishGift>[]}): _wishGifts = wishGifts;
   factory _LiveRoom.fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
 
 @override final  String id;
@@ -1545,6 +1548,17 @@ class _LiveRoom implements LiveRoom {
 /// v1.20-live (D105, §10.20): the host or a moderator kicked the caller
 /// out of this live; the app shows why instead of the room.
 @override@JsonKey() final  bool kicked;
+/// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
+/// servers send none).
+ final  List<LiveWishGift> _wishGifts;
+/// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
+/// servers send none).
+@override@JsonKey() List<LiveWishGift> get wishGifts {
+  if (_wishGifts is EqualUnmodifiableListView) return _wishGifts;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_wishGifts);
+}
+
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
@@ -1559,18 +1573,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.scoreParts, scoreParts) || other.scoreParts == scoreParts)&&(identical(other.chatEnabled, chatEnabled) || other.chatEnabled == chatEnabled)&&(identical(other.chatMuted, chatMuted) || other.chatMuted == chatMuted)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.roomNumber, roomNumber) || other.roomNumber == roomNumber)&&(identical(other.roomLevel, roomLevel) || other.roomLevel == roomLevel)&&(identical(other.kicked, kicked) || other.kicked == kicked));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoom&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.viewerCount, viewerCount) || other.viewerCount == viewerCount)&&(identical(other.startedAt, startedAt) || other.startedAt == startedAt)&&(identical(other.coverUrl, coverUrl) || other.coverUrl == coverUrl)&&(identical(other.category, category) || other.category == category)&&(identical(other.host, host) || other.host == host)&&(identical(other.status, status) || other.status == status)&&(identical(other.endedAt, endedAt) || other.endedAt == endedAt)&&(identical(other.endReason, endReason) || other.endReason == endReason)&&(identical(other.allowGuests, allowGuests) || other.allowGuests == allowGuests)&&(identical(other.seatCount, seatCount) || other.seatCount == seatCount)&&(identical(other.occupiedSeats, occupiedSeats) || other.occupiedSeats == occupiedSeats)&&(identical(other.theme, theme) || other.theme == theme)&&(identical(other.score, score) || other.score == score)&&(identical(other.scoreParts, scoreParts) || other.scoreParts == scoreParts)&&(identical(other.chatEnabled, chatEnabled) || other.chatEnabled == chatEnabled)&&(identical(other.chatMuted, chatMuted) || other.chatMuted == chatMuted)&&(identical(other.topic, topic) || other.topic == topic)&&(identical(other.roomNumber, roomNumber) || other.roomNumber == roomNumber)&&(identical(other.roomLevel, roomLevel) || other.roomLevel == roomLevel)&&(identical(other.kicked, kicked) || other.kicked == kicked)&&const DeepCollectionEquality().equals(other.wishGifts, _wishGifts));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests,seatCount,occupiedSeats,theme,score,scoreParts,chatEnabled,chatMuted,topic,roomNumber,roomLevel,kicked]);
+    return Object.hashAll([runtimeType,id,title,mode,viewerCount,startedAt,coverUrl,category,host,status,endedAt,endReason,allowGuests,seatCount,occupiedSeats,theme,score,scoreParts,chatEnabled,chatMuted,topic,roomNumber,roomLevel,kicked,const DeepCollectionEquality().hash(_wishGifts)]);
 }
 
 @override
 String toString() {
-    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, scoreParts: $scoreParts, chatEnabled: $chatEnabled, chatMuted: $chatMuted, topic: $topic, roomNumber: $roomNumber, roomLevel: $roomLevel, kicked: $kicked)';
+    return 'LiveRoom(id: $id, title: $title, mode: $mode, viewerCount: $viewerCount, startedAt: $startedAt, coverUrl: $coverUrl, category: $category, host: $host, status: $status, endedAt: $endedAt, endReason: $endReason, allowGuests: $allowGuests, seatCount: $seatCount, occupiedSeats: $occupiedSeats, theme: $theme, score: $score, scoreParts: $scoreParts, chatEnabled: $chatEnabled, chatMuted: $chatMuted, topic: $topic, roomNumber: $roomNumber, roomLevel: $roomLevel, kicked: $kicked, wishGifts: $wishGifts)';
 }
 
 
@@ -1581,7 +1595,7 @@ abstract mixin class _$LiveRoomCopyWith<$Res> implements $LiveRoomCopyWith<$Res>
   factory _$LiveRoomCopyWith(_LiveRoom value, $Res Function(_LiveRoom) _then) = __$LiveRoomCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked
+ String id, String title,@JsonKey(unknownEnumValue: LiveRoomMode.solo) LiveRoomMode mode, int viewerCount, DateTime startedAt, String? coverUrl, LiveCategory? category, UserSummary host, LiveRoomStatus status, DateTime? endedAt,@JsonKey(unknownEnumValue: LiveRoomEndReason.unknown) LiveRoomEndReason? endReason, bool allowGuests, int? seatCount, int occupiedSeats, String theme, int score, LiveScore? scoreParts, bool chatEnabled, bool chatMuted, String? topic, int? roomNumber, int? roomLevel, bool kicked, List<LiveWishGift> wishGifts
 });
 
 
@@ -1598,7 +1612,7 @@ class __$LiveRoomCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoom
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? mode = null,Object? viewerCount = null,Object? startedAt = null,Object? coverUrl = freezed,Object? category = freezed,Object? host = null,Object? status = null,Object? endedAt = freezed,Object? endReason = freezed,Object? allowGuests = null,Object? seatCount = freezed,Object? occupiedSeats = null,Object? theme = null,Object? score = null,Object? scoreParts = freezed,Object? chatEnabled = null,Object? chatMuted = null,Object? topic = freezed,Object? roomNumber = freezed,Object? roomLevel = freezed,Object? kicked = null,Object? wishGifts = null,}) {
   return _then(_LiveRoom(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -1623,7 +1637,8 @@ as bool,topic: freezed == topic ? _self.topic : topic // ignore: cast_nullable_t
 as String?,roomNumber: freezed == roomNumber ? _self.roomNumber : roomNumber // ignore: cast_nullable_to_non_nullable
 as int?,roomLevel: freezed == roomLevel ? _self.roomLevel : roomLevel // ignore: cast_nullable_to_non_nullable
 as int?,kicked: null == kicked ? _self.kicked : kicked // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,wishGifts: null == wishGifts ? _self._wishGifts : wishGifts // ignore: cast_nullable_to_non_nullable
+as List<LiveWishGift>,
   ));
 }
 
@@ -1661,6 +1676,291 @@ $LiveScoreCopyWith<$Res>? get scoreParts {
     return _then(_self.copyWith(scoreParts: value));
   });
 }
+}
+
+
+/// @nodoc
+mixin _$LiveWishGift {
+
+ String get giftCode; String get name; int get priceCoins; String get assetKey; String? get imageUrl; int get received;
+/// Create a copy of LiveWishGift
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LiveWishGiftCopyWith<LiveWishGift> get copyWith => _$LiveWishGiftCopyWithImpl<LiveWishGift>(this as LiveWishGift, _$identity);
+
+  /// Serializes this LiveWishGift to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as LiveWishGift;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveWishGift&&(identical(other.giftCode, _this.giftCode) || other.giftCode == _this.giftCode)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.priceCoins, _this.priceCoins) || other.priceCoins == _this.priceCoins)&&(identical(other.assetKey, _this.assetKey) || other.assetKey == _this.assetKey)&&(identical(other.imageUrl, _this.imageUrl) || other.imageUrl == _this.imageUrl)&&(identical(other.received, _this.received) || other.received == _this.received));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as LiveWishGift;
+  return Object.hash(runtimeType,_this.giftCode,_this.name,_this.priceCoins,_this.assetKey,_this.imageUrl,_this.received);
+}
+
+@override
+String toString() {
+  final _this = this as LiveWishGift;
+  return 'LiveWishGift(giftCode: ${_this.giftCode}, name: ${_this.name}, priceCoins: ${_this.priceCoins}, assetKey: ${_this.assetKey}, imageUrl: ${_this.imageUrl}, received: ${_this.received})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LiveWishGiftCopyWith<$Res>  {
+  factory $LiveWishGiftCopyWith(LiveWishGift value, $Res Function(LiveWishGift) _then) = _$LiveWishGiftCopyWithImpl;
+@useResult
+$Res call({
+ String giftCode, String name, int priceCoins, String assetKey, String? imageUrl, int received
+});
+
+
+
+
+}
+/// @nodoc
+class _$LiveWishGiftCopyWithImpl<$Res>
+    implements $LiveWishGiftCopyWith<$Res> {
+  _$LiveWishGiftCopyWithImpl(this._self, this._then);
+
+  final LiveWishGift _self;
+  final $Res Function(LiveWishGift) _then;
+
+/// Create a copy of LiveWishGift
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? giftCode = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? imageUrl = freezed,Object? received = null,}) {
+  return _then(LiveWishGift(
+giftCode: null == giftCode ? _self.giftCode : giftCode // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,priceCoins: null == priceCoins ? _self.priceCoins : priceCoins // ignore: cast_nullable_to_non_nullable
+as int,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,received: null == received ? _self.received : received // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [LiveWishGift].
+extension LiveWishGiftPatterns on LiveWishGift {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _LiveWishGift value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _LiveWishGift() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _LiveWishGift value)  $default,){
+final _that = this;
+switch (_that) {
+case _LiveWishGift():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _LiveWishGift value)?  $default,){
+final _that = this;
+switch (_that) {
+case _LiveWishGift() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String giftCode,  String name,  int priceCoins,  String assetKey,  String? imageUrl,  int received)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _LiveWishGift() when $default != null:
+return $default(_that.giftCode,_that.name,_that.priceCoins,_that.assetKey,_that.imageUrl,_that.received);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String giftCode,  String name,  int priceCoins,  String assetKey,  String? imageUrl,  int received)  $default,) {final _that = this;
+switch (_that) {
+case _LiveWishGift():
+return $default(_that.giftCode,_that.name,_that.priceCoins,_that.assetKey,_that.imageUrl,_that.received);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String giftCode,  String name,  int priceCoins,  String assetKey,  String? imageUrl,  int received)?  $default,) {final _that = this;
+switch (_that) {
+case _LiveWishGift() when $default != null:
+return $default(_that.giftCode,_that.name,_that.priceCoins,_that.assetKey,_that.imageUrl,_that.received);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _LiveWishGift implements LiveWishGift {
+  const _LiveWishGift({required this.giftCode, required this.name, required this.priceCoins, required this.assetKey, this.imageUrl, this.received = 0});
+  factory _LiveWishGift.fromJson(Map<String, dynamic> json) => _$LiveWishGiftFromJson(json);
+
+@override final  String giftCode;
+@override final  String name;
+@override final  int priceCoins;
+@override final  String assetKey;
+@override final  String? imageUrl;
+@override@JsonKey() final  int received;
+
+/// Create a copy of LiveWishGift
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LiveWishGiftCopyWith<_LiveWishGift> get copyWith => __$LiveWishGiftCopyWithImpl<_LiveWishGift>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$LiveWishGiftToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveWishGift&&(identical(other.giftCode, giftCode) || other.giftCode == giftCode)&&(identical(other.name, name) || other.name == name)&&(identical(other.priceCoins, priceCoins) || other.priceCoins == priceCoins)&&(identical(other.assetKey, assetKey) || other.assetKey == assetKey)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.received, received) || other.received == received));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,giftCode,name,priceCoins,assetKey,imageUrl,received);
+}
+
+@override
+String toString() {
+    return 'LiveWishGift(giftCode: $giftCode, name: $name, priceCoins: $priceCoins, assetKey: $assetKey, imageUrl: $imageUrl, received: $received)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LiveWishGiftCopyWith<$Res> implements $LiveWishGiftCopyWith<$Res> {
+  factory _$LiveWishGiftCopyWith(_LiveWishGift value, $Res Function(_LiveWishGift) _then) = __$LiveWishGiftCopyWithImpl;
+@override @useResult
+$Res call({
+ String giftCode, String name, int priceCoins, String assetKey, String? imageUrl, int received
+});
+
+
+
+
+}
+/// @nodoc
+class __$LiveWishGiftCopyWithImpl<$Res>
+    implements _$LiveWishGiftCopyWith<$Res> {
+  __$LiveWishGiftCopyWithImpl(this._self, this._then);
+
+  final _LiveWishGift _self;
+  final $Res Function(_LiveWishGift) _then;
+
+/// Create a copy of LiveWishGift
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? giftCode = null,Object? name = null,Object? priceCoins = null,Object? assetKey = null,Object? imageUrl = freezed,Object? received = null,}) {
+  return _then(_LiveWishGift(
+giftCode: null == giftCode ? _self.giftCode : giftCode // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,priceCoins: null == priceCoins ? _self.priceCoins : priceCoins // ignore: cast_nullable_to_non_nullable
+as int,assetKey: null == assetKey ? _self.assetKey : assetKey // ignore: cast_nullable_to_non_nullable
+as String,imageUrl: freezed == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String?,received: null == received ? _self.received : received // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
 }
 
 

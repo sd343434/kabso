@@ -6206,4 +6206,41 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveRoomIdCopyHint => 'انقر للنسخ';
+
+  @override
+  String get liveWishTitle => 'قائمة الأمنيات';
+
+  @override
+  String get liveWishHint =>
+      'اختر حتى ٤ هدايا تتمنّاها، يراها المشاهدون في البث.';
+
+  @override
+  String get liveWishSave => 'حفظ';
+
+  @override
+  String get liveWishFull => '٤ هدايا كحد أقصى';
+
+  @override
+  String liveWishRemove(String name) {
+    return 'إزالة $name';
+  }
+
+  @override
+  String liveWishMoveEarlier(String name) {
+    return 'تقديم $name';
+  }
+
+  @override
+  String liveWishRowLabel(String name, String count) {
+    return '$name، استلمت $count';
+  }
+
+  @override
+  String get liveWishCardLabel => 'قائمة أمنيات المضيف';
+
+  @override
+  String get liveWishEditLabel => 'تعديل قائمة الأمنيات';
+
+  @override
+  String get liveToolWish => 'الأمنيات';
 }

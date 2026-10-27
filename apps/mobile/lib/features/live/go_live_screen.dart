@@ -47,6 +47,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -770,6 +771,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 onSettings: () => unawaited(
                   showLiveSetupSettings(
                     context,
+                    onWishList: () => unawaited(_openWishSheet()),
+                    wishCount: _wishCount(state),
                     allowGuests: state.allowGuests,
                     onAllowGuests: (_) => unawaited(_toggleGuests(state)),
                     onShare: user == null
@@ -1383,6 +1386,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(
                   showLiveSetupSettings(
                     context,
+                    onWishList: () => unawaited(_openWishSheet()),
+                    wishCount: _wishCount(state),
                     allowGuests: state.allowGuests,
                     guestsKey: GoLiveScreen.guestsChipKey,
                     onAllowGuests: (allow) => unawaited(
@@ -1458,6 +1463,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               onSettings: () => unawaited(
                 showLiveSetupSettings(
                   context,
+                  onWishList: () => unawaited(_openWishSheet()),
+                  wishCount: _wishCount(state),
                   allowGuests: state.allowGuests,
                   onAllowGuests: (_) => unawaited(_toggleGuests(state)),
                   onShare: user == null
@@ -1501,6 +1508,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             icon: Icons.picture_in_picture_alt_rounded,
             label: l10n.goLiveMinimize,
             onTap: live ? _minimize : null,
+          ),
+          // D136: the wish list.
+          GoLiveTool(
+            id: 'wish',
+            icon: Icons.card_giftcard_rounded,
+            label: l10n.liveToolWish,
+            onTap: !live ? null : () => unawaited(_openWishSheet()),
           ),
           GoLiveTool(
             id: 'share',
@@ -1671,6 +1685,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               onTap: () => unawaited(_openAudience(room, liveSeats)),
             ),
+      // D136: the wish list (a tap changes it).
+      sideStart: LiveWishCard(
+        wishes: room.wishGifts,
+        onEdit: live ? () => unawaited(_openWishSheet()) : null,
+      ),
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
@@ -1824,6 +1843,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
   }
+
+  /// D136: the wish list — the live room's, else the one picked before
+  /// going live.
+  List<String> _wishCodes(GoLiveState state) =>
+      state.room?.wishGifts.map((w) => w.giftCode).toList() ??
+      state.wishGifts ??
+      const [];
+
+  int? _wishCount(GoLiveState state) =>
+      state.room != null || state.wishGifts != null
+      ? _wishCodes(state).length
+      : null;
+
+  /// D136: the host picks the wish list (setup settings, Room Tools, a tap
+  /// on the card).
+  Future<void> _openWishSheet() => showLiveWishSheet(
+    context,
+    initial: _wishCodes(ref.read(liveHostControllerProvider)),
+    onSave: _host.setWishGifts,
+  );
 
   /// CP-020: the host's gift panel: to the people on a seat now, and to
   /// the host themself (D128).

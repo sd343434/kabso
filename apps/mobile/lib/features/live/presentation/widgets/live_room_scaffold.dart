@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -40,6 +41,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.cover,
     this.overlay,
     this.trailing,
+    this.sideStart,
     this.closeButtonKey = closeKey,
     this.closeLabel,
   });
@@ -60,6 +62,9 @@ class KLiveRoomScaffold extends StatelessWidget {
 
   /// D131 (host): a button between [viewers] and ✕ (minimize).
   final Widget? trailing;
+
+  /// D136: the wish list card, floating at the reading start (left middle).
+  final Widget? sideStart;
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   final Key closeButtonKey;
@@ -180,6 +185,12 @@ class KLiveRoomScaffold extends StatelessWidget {
                 ),
               ),
             ),
+            if (sideStart case final side?)
+              PositionedDirectional(
+                start: KLiveSideCards.wishStart,
+                top: MediaQuery.paddingOf(context).top + KLiveSideCards.wishTop,
+                child: side,
+              ),
             ?cover,
             ?overlay,
           ],

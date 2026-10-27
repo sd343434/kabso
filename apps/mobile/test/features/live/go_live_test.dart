@@ -50,13 +50,16 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
+import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/fake_live_blocked_words_repository.dart';
+import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_live_schedule_repository.dart';
@@ -100,6 +103,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   FakeLiveRepository? repo,
   GoldenViewport viewport = GoldenViewport.phone,
   LevelsRepository? levels,
+  FakeLiveGiftRepository? gifts,
 }) async {
   final live =
       repo ??
@@ -115,6 +119,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
     const GoLiveScreen(),
     language: language,
     liveMediaEngine: camera,
+    liveGiftRepository: gifts,
     overrides: [
       liveRepositoryProvider.overrideWithValue(live),
       currentUserProvider.overrideWithValue(
@@ -1797,6 +1802,47 @@ void main() {
         });
       }
     }
+
+    testWidgets('D136: the host sets the wish list in ≡ (up to 4, ordered); '
+        'the card shows it and a tap on it opens the list again; D135: '
+        'minimize is in ≡', (tester) async {
+      final repo = FakeLiveRepository(categories: _categories);
+      await _pump(
+        tester,
+        repo: repo,
+        gifts: FakeLiveGiftRepository(codes: giftFixtureCodes),
+      );
+      await _goLive(tester);
+      expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
+      await _openTools(tester);
+      expect(find.byKey(GoLiveKeys.tool('minimize')), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.tool('wish')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWishSheetKeys.sheet), findsOneWidget);
+      for (final code in ['rose', 'crown', 'cake', 'confetti', 'lantern']) {
+        await tester.ensureVisible(find.byKey(LiveWishSheetKeys.gift(code)));
+        await tester.tap(find.byKey(LiveWishSheetKeys.gift(code)));
+        await tester.pump();
+      }
+      // The fifth is refused (4 at most); crown moves first; cake removed.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.tap(find.byKey(LiveWishSheetKeys.earlier('crown')));
+      await tester.pump();
+      await tester.tap(find.byKey(LiveWishSheetKeys.remove('cake')));
+      await tester.pump();
+      await tester.tap(find.byKey(LiveWishSheetKeys.save));
+      await tester.pumpAndSettle();
+      expect(repo.wishUpdates, [
+        ['crown', 'rose', 'confetti'],
+      ]);
+      expect(find.byKey(LiveWishSheetKeys.sheet), findsNothing);
+      expect(find.byKey(LiveWishCard.cardKey), findsOneWidget);
+      expect(find.byKey(LiveWishCard.rowKey('crown')), findsOneWidget);
+      await tester.tap(find.byKey(LiveWishCard.cardKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWishSheetKeys.sheet), findsOneWidget);
+      await _leave(tester);
+    });
 
     testWidgets('≡ keeps every tool: flip and mic work; the missing ones say '
         'Soon', (tester) async {

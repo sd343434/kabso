@@ -285,6 +285,10 @@ class DemoLiveRepository implements LiveRepository {
   }) async => throw _serverOnly;
 
   @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) async =>
+      throw _serverOnly;
+
+  @override
   Future<LiveSeats> seats(String roomId) async => throw _serverOnly;
 
   @override

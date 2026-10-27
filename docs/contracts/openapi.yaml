@@ -1176,6 +1176,7 @@ paths:
                     chatEnabled: true
                     chatMuted: false
                     kicked: false
+                    wishGifts: []
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -5834,8 +5835,17 @@ components:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted, kicked]
+          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted, kicked, wishGifts]
           properties:
+            wishGifts:
+              type: array
+              maxItems: 4
+              description: |
+                v1.27.3-live (D136, CONVENTIONS §10.29): the host's wish list in display order — each
+                gift as shown (name by `Accept-Language`) with how many of it the host received in this
+                live. A gift that can no longer be sent is left out. Empty when the host wished nothing.
+                Changes move `roomInfoVersion`. Clients that do not know the field ignore it.
+              items: { $ref: '#/components/schemas/LiveWishGift' }
             scoreParts: { $ref: '#/components/schemas/LiveScore' }
             chatEnabled: { type: boolean, description: "CP-013: false when the host turned the chat off." }
             chatMuted: { type: boolean, description: "CP-013: the caller is muted in this live's chat (false for guests)." }
@@ -5855,6 +5865,32 @@ components:
             endReason:
               type: [string, 'null']
               enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, null]
+    LiveWishGift:
+      type: object
+      description: v1.27.3-live (D136). One gift of the host's wish list.
+      required: [giftCode, name, priceCoins, assetKey, imageUrl, received]
+      properties:
+        giftCode: { $ref: '#/components/schemas/GiftCode' }
+        name: { type: string }
+        priceCoins: { type: integer, minimum: 1 }
+        assetKey: { type: string, description: "The bundled image key (fallback)." }
+        imageUrl: { type: [string, 'null'], format: uri, description: "The hosted image, or null." }
+        received: { type: integer, minimum: 0, description: "How many of this gift the host received in this live (every send that named the host, whoever sent it)." }
+    GiftCode:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9_]{0,39}$'
+      description: A catalogue gift's code (v1.27.3-live, D136).
+      example: rose
+    WishGiftCodes:
+      type: array
+      maxItems: 4
+      uniqueItems: true
+      description: |
+        v1.27.3-live (D136, §10.29): up to 4 distinct gift codes in display order (`[]` empties the
+        list). Each must be a gift that can be sent now (enabled; `LUCKY` only while lucky gifts are
+        on), else 400 `wishGifts` / `invalid_value`; more than 4 → `too_many`; a repeated code →
+        `invalid_value`.
+      items: { $ref: '#/components/schemas/GiftCode' }
     LiveRoomPage:
       type: object
       required: [data, page]
@@ -5888,6 +5924,9 @@ components:
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
+        wishGifts:
+          allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
+          description: "v1.27.3-live (D136): the wish list; absent → the host's last live's list (gifts that can no longer be sent are left out when shown)."
     UpdateLiveRoomRequest:
       type: object
       minProperties: 1
@@ -5911,6 +5950,9 @@ components:
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
+        wishGifts:
+          allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
+          description: "v1.27.3-live (D136): the host's wish list (`[]` empties it). A real change moves `roomInfoVersion` (audited `live.room.edit`)."
     LiveMediaTokenRequest:
       type: object
       additionalProperties: false

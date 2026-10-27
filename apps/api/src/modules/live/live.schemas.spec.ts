@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import { type Prisma } from '../../generated/prisma/client.js';
 import { keysetAfter, orderBy } from './live-rooms.service.js';
-import { isUuid, listLiveRoomsQuerySchema, liveTitleIssue, startLiveRoomSchema } from './live.schemas.js';
+import {
+  isUuid,
+  listLiveRoomsQuerySchema,
+  liveTitleIssue,
+  MAX_WISH_GIFTS,
+  startLiveRoomSchema,
+  updateLiveRoomSchema,
+} from './live.schemas.js';
 
 /** Builds strings from code points, so invisible characters stay visible in this file. */
 const cp = (...points: number[]) => String.fromCodePoint(...points);
@@ -194,5 +201,27 @@ describe('list ordering (CONVENTIONS §10.4)', () => {
       expect(text(sql)).toBe('(r.started_at, r.id) < (?::timestamptz, ?::uuid)');
       expect(sql.values).toEqual(['2026-10-16T19:00:00.000Z', 'room-id']);
     }
+  });
+});
+
+describe('D136 wishGifts (v1.27.3-live, §10.29)', () => {
+  const issues = (body: unknown) => {
+    const r = updateLiveRoomSchema.safeParse(body, { reportInput: true });
+    return r.success ? [] : zodErrorToDetails(r.error);
+  };
+
+  it('takes up to 4 distinct gift codes, [] empties the list', () => {
+    expect(issues({ wishGifts: [] })).toEqual([]);
+    expect(issues({ wishGifts: ['rose', 'crown', 'cake', 'kabi_dance'] })).toEqual([]);
+    expect(startLiveRoomSchema.safeParse({ title: 'Hi', wishGifts: ['rose'] }).success).toBe(true);
+  });
+
+  it('refuses more than 4, a repeated code and a malformed code', () => {
+    expect(issues({ wishGifts: ['a1', 'a2', 'a3', 'a4', 'a5'] })).toEqual([
+      { field: 'wishGifts', issue: 'too_many' },
+    ]);
+    expect(issues({ wishGifts: ['rose', 'rose'] })).toEqual([{ field: 'wishGifts', issue: 'invalid_value' }]);
+    expect(issues({ wishGifts: ['Bad!'] })).toEqual([{ field: 'wishGifts.0', issue: 'invalid_format' }]);
+    expect(MAX_WISH_GIFTS).toBe(4);
   });
 });

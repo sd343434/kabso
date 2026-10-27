@@ -270,8 +270,8 @@ export class LiveGiftsService {
         // One send of this sender at a time (their combo follows the previous send).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
         // The room row first, like taps (§10.10): sends and tap batches of a room are serialized.
-        const [room] = await tx.$queryRaw<{ host_user_id: string; status: string }[]>`
-          SELECT host_user_id::text AS host_user_id, status::text AS status
+        const [room] = await tx.$queryRaw<{ host_user_id: string; status: string; wish_gifts: string[] }[]>`
+          SELECT host_user_id::text AS host_user_id, status::text AS status, wish_gifts
             FROM live_rooms WHERE id = ${row.id}::uuid
              FOR NO KEY UPDATE`;
         if (!room) throw new AppException(ErrorCode.NOT_FOUND);
@@ -420,7 +420,10 @@ export class LiveGiftsService {
           lucky: isLucky,
           countedPerRecipientCoins: counted.perRecipientCoins,
         });
-        if (hostLevelChanged) {
+        // v1.27.3-live (D136): a wished gift to the host moves the wish list's received count, so
+        // the room info version moves too (the metadata follows with the score's write).
+        const wished = room.wish_gifts.includes(gift.code) && to.some((r) => r.id === room.host_user_id);
+        if (hostLevelChanged || wished) {
           await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
              WHERE id = ${row.id}::uuid`;

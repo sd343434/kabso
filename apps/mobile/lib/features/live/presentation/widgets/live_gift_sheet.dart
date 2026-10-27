@@ -64,9 +64,18 @@ class LiveGiftRoom {
 /// dimmed, and every refused send, shows a message over the grid as well
 /// as the line above the bar.
 class KLiveGiftSheet extends ConsumerStatefulWidget {
-  const new({required this.room, super.key, this.preselect});
+  const new({
+    required this.room,
+    super.key,
+    this.preselect,
+    this.preselectGift,
+  });
 
   final LiveGiftRoom room;
+
+  /// D136: a gift of the host's wish list, selected (in its tab) when the
+  /// panel opens; nothing is sent until Send.
+  final String? preselectGift;
 
   /// The person whose card's Gifts button opened the panel (selected when
   /// they can receive).
@@ -77,9 +86,14 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
     BuildContext context, {
     required LiveGiftRoom room,
     LiveGiftPreselect? preselect,
+    String? preselectGift,
   }) => KGiftPanel.show(
     context,
-    builder: (_) => KLiveGiftSheet(room: room, preselect: preselect),
+    builder: (_) => KLiveGiftSheet(
+      room: room,
+      preselect: preselect,
+      preselectGift: preselectGift,
+    ),
   );
 
   static const sheetKey = Key('gift.sheet');
@@ -199,6 +213,7 @@ enum _PriceSort { none, up, down }
 class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   String? _tab;
   String? _selected;
+  bool _wishApplied = false;
 
   /// The chosen sub-category of the open tab; null: All (D117).
   String? _tag;
@@ -540,6 +555,16 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final catalogueAsync = ref.watch(giftCatalogueProvider);
     final catalogue = catalogueAsync.value;
     final tabs = _tabsOf(catalogue);
+    // D136: a wished gift opens its tab, selected (once).
+    if (!_wishApplied && catalogue != null) {
+      _wishApplied = true;
+      if (widget.preselectGift case final code?) {
+        if (catalogue.byCode(code) case final gift?) {
+          _tab = gift.category.wire;
+          _selected = gift.code;
+        }
+      }
+    }
     // D131: until the person picks a tab, open on the first one with gifts
     // (staging had one FUN gift: the panel opened on an empty Popular).
     final tab = tabs.contains(_tab)

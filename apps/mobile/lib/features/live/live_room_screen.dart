@@ -42,6 +42,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -775,6 +776,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       viewers: ended ? null : _viewers(session, video: true),
       onClose: () => unawaited(_leave()),
       roomInfo: ended ? null : KRoomChipsRow(level: room.roomLevel),
+      // D136: the host's wish list (a row opens the gift panel with that
+      // gift and the host).
+      sideStart: ended
+          ? null
+          : LiveWishCard(
+              wishes: room.wishGifts,
+              onWish: me == null
+                  ? null
+                  : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
+            ),
       chat: ended
           ? null
           : Align(
@@ -1178,27 +1189,30 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   /// CP-020: the gift panel for this live (the host and the people on a
   /// seat now), [preselect] chosen when they can receive.
-  Future<void> _openGifts({LiveGiftPreselect? preselect}) =>
-      KLiveGiftSheet.show(
-        context,
-        preselect: preselect,
-        room: LiveGiftRoom(
-          roomId: widget.room.id,
-          host: widget.room.host,
-          seated: (ref) => [
-            for (final seat
-                in ref
-                        .watch(liveRoomSessionProvider(widget.room.id))
-                        .seats
-                        ?.seats ??
-                    const <LiveSeat>[])
-              ?seat.user,
-          ],
-          onSeatsStale: () {
-            if (mounted) unawaited(_session.refreshSeats());
-          },
-        ),
-      );
+  Future<void> _openGifts({
+    LiveGiftPreselect? preselect,
+    String? preselectGift,
+  }) => KLiveGiftSheet.show(
+    context,
+    preselect: preselect,
+    preselectGift: preselectGift,
+    room: LiveGiftRoom(
+      roomId: widget.room.id,
+      host: widget.room.host,
+      seated: (ref) => [
+        for (final seat
+            in ref
+                    .watch(liveRoomSessionProvider(widget.room.id))
+                    .seats
+                    ?.seats ??
+                const <LiveSeat>[])
+          ?seat.user,
+      ],
+      onSeatsStale: () {
+        if (mounted) unawaited(_session.refreshSeats());
+      },
+    ),
+  );
 }
 
 /// The localized end reason (HL-L10).

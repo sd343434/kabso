@@ -224,7 +224,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     const room = await this.hostLiveRoom(hostId, roomId);
     const row = await this.rooms.visibleRow(room.id, hostId);
     if (row.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
-    const { allowGuests, seatCount, theme, chatEnabled, title, categorySlug, topic } = parsed.data;
+    const { allowGuests, seatCount, theme, chatEnabled, title, categorySlug, topic, wishGifts } = parsed.data;
     if (seatCount !== undefined && !seatCountFits(row.mode, seatCount)) {
       throw AppException.validation([{ field: 'seatCount', issue: 'invalid_value' }]);
     }
@@ -240,6 +240,10 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       if (await this.seats.updateSettings(room.id, { seatCount, theme })) {
         await this.metadata.infoChanged(room.id);
       }
+    }
+    // v1.27.3-live (D136): the wish list reaches everyone through `roomInfoVersion`.
+    if (wishGifts !== undefined && (await this.rooms.setWishes(hostId, room.id, wishGifts, meta))) {
+      await this.metadata.infoChanged(room.id);
     }
     if (title !== undefined || category !== undefined || topic !== undefined) {
       const version = await this.rooms.editInfo(

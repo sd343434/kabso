@@ -53,7 +53,12 @@ class GoLiveState {
     this.beauty = const LiveBeauty(),
     this.noiseReduction = true,
     this.voiceEnhance = true,
+    this.wishGifts,
   });
+
+  /// D136: the wish list picked before going live (sent once the room
+  /// exists); null: the server keeps the host's last live's list.
+  final List<String>? wishGifts;
 
   /// D94 voice settings (audio rooms, and the microphone in every mode).
   final bool noiseReduction;
@@ -112,7 +117,9 @@ class GoLiveState {
     LiveBeauty? beauty,
     bool? noiseReduction,
     bool? voiceEnhance,
+    List<String>? wishGifts,
   }) => GoLiveState(
+    wishGifts: wishGifts ?? this.wishGifts,
     noiseReduction: noiseReduction ?? this.noiseReduction,
     voiceEnhance: voiceEnhance ?? this.voiceEnhance,
     mode: mode ?? this.mode,
@@ -271,6 +278,19 @@ class LiveHostController extends Notifier<GoLiveState> {
         : state.copyWith(multiSeats: count);
   }
 
+  /// D136: the wish list (before going live it is kept and sent once the
+  /// room exists; while live `PATCH`). Throws an `AppFailure`.
+  Future<void> setWishGifts(List<String> codes) async {
+    final room = state.room;
+    if (state.phase == GoLivePhase.live && room != null) {
+      final updated = await _repo.setWishGifts(room.id, codes);
+      if (!ref.mounted) return;
+      state = state.copyWith(room: updated, wishGifts: codes);
+      return;
+    }
+    state = state.copyWith(wishGifts: codes);
+  }
+
   /// The room theme (before going live, or `PATCH` while live).
   Future<void> setTheme(String theme) async {
     final room = state.room;
@@ -390,6 +410,15 @@ class LiveHostController extends Notifier<GoLiveState> {
         theme: state.mode.hasSeats ? state.theme : null,
       );
       _onAir = room.id;
+      // D136: the wish list picked in the setup.
+      if (state.wishGifts case final wishes?) {
+        // The live goes on without it if this fails; the host can set it
+        // again.
+        final wished = await _repo
+            .setWishGifts(room.id, wishes)
+            .then<LiveRoom?>((r) => r, onError: (Object _) => null);
+        if (wished != null) room = wished;
+      }
       if (ref.mounted) state = state.copyWith(room: room);
       final access = await _repo.mediaToken(room.id);
       // An audio room's media token allows the microphone only (CP-011): a
@@ -424,6 +453,7 @@ class LiveHostController extends Notifier<GoLiveState> {
           beauty: state.beauty,
           noiseReduction: state.noiseReduction,
           voiceEnhance: state.voiceEnhance,
+          wishGifts: state.wishGifts,
         );
       }
       _release();

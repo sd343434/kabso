@@ -6184,4 +6184,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveRoomIdCopyHint => 'Tap to copy';
+
+  @override
+  String get liveWishTitle => 'Wish list';
+
+  @override
+  String get liveWishHint =>
+      'Pick up to 4 gifts you wish for; viewers see them in your live.';
+
+  @override
+  String get liveWishSave => 'Save';
+
+  @override
+  String get liveWishFull => '4 gifts at most';
+
+  @override
+  String liveWishRemove(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String liveWishMoveEarlier(String name) {
+    return 'Move $name up';
+  }
+
+  @override
+  String liveWishRowLabel(String name, String count) {
+    return '$name, received $count';
+  }
+
+  @override
+  String get liveWishCardLabel => 'The host\'s wish list';
+
+  @override
+  String get liveWishEditLabel => 'Edit the wish list';
+
+  @override
+  String get liveToolWish => 'Wish list';
 }

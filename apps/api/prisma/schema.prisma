@@ -414,6 +414,9 @@ model LiveRoom {
   seatCount       Int?               @map("seat_count") @db.SmallInt
   /// CP-011: a slug of LiveConfig.themes (CHECK `live_rooms_theme_format`).
   theme           String             @default("classic") @db.VarChar(32)
+  /// v1.27.3-live (D136, CONVENTIONS §10.29): the host's wish list, up to 4 distinct gift codes in
+  /// display order (CHECK `live_rooms_wish_gifts_max`). A new live copies the host's last list.
+  wishGifts       String[]           @default([]) @map("wish_gifts") @db.VarChar(40)
   /// CP-011: increases on every change of the room's seats, requests, invitations or moderators.
   seatsVersion    Int                @default(0) @map("seats_version")
   /// CP-012: the room's total score (tap + support points), kept equal to the room's
@@ -2356,6 +2359,9 @@ model HomeBanner {
   titleEn   String?   @map("title_en") @db.VarChar(80)
   /// The empty side of the picture where the overlay text goes (physical: `LEFT` or `RIGHT`).
   titleSide String    @default("RIGHT") @map("title_side") @db.VarChar(8)
+  /// v1.27.4-live (D137, §10.26): `HOME` (the live hub, 3:1) or `ROOM` (the promo box in a live,
+  /// 3:4, 600 × 800) — CHECK `home_banners_placement_values`.
+  placement String    @default("HOME") @db.VarChar(8)
   link      String    @db.VarChar(512)
   startsAt  DateTime  @default(now()) @map("starts_at") @db.Timestamptz(3)
   endsAt    DateTime? @map("ends_at") @db.Timestamptz(3)
@@ -2367,6 +2373,7 @@ model HomeBanner {
   media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
+  @@index([placement, sortOrder, startsAt], map: "home_banners_placement_idx", where: raw("enabled"))
   @@map("home_banners")
 }
 

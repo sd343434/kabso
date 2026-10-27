@@ -560,6 +560,72 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect(meta.seatsVersion).toBe(after.version);
     });
 
+    it('D136: the wish list — PATCH validates (≤ 4, distinct, sendable), the room shows names and received counts, wished gifts to the host move the info version, a new live copies it', async () => {
+      const { h, s1, viewer, roomId } = await scene();
+      const a = await gift({ priceCoins: 2, nameEn: 'Alpha', nameAr: 'ألفا' });
+      const b = await gift({ priceCoins: 3 });
+      const c = await gift({ priceCoins: 1 });
+      const off = await gift();
+      await ctx.prisma.gift.update({ where: { code: off }, data: { enabled: false } });
+      const patch = (body: object, u: TestUser = h) =>
+        ctx.http.patch(`/api/v1/live/rooms/${roomId}`).set(auth(u)).send(body);
+      const info = async () =>
+        (await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: roomId } })).infoVersion;
+      for (const [body, issue] of [
+        [{ wishGifts: [a, b, c, a] }, 'invalid_value'],
+        [{ wishGifts: [a, b, c, off] }, 'invalid_value'],
+        [{ wishGifts: ['no_such_gift'] }, 'invalid_value'],
+        [{ wishGifts: [a, b, c, 'x1', 'x2'] }, 'too_many'],
+        [{ wishGifts: ['Bad!'] }, 'invalid_format'],
+      ] as const) {
+        const res = await patch(body);
+        expect(res.status, JSON.stringify(body)).toBe(400);
+        expect(res.body.error.details[0]).toMatchObject({ issue });
+      }
+      expect((await patch({ wishGifts: [a] }, viewer)).status).toBe(404);
+      const before = await info();
+      const ok = await patch({ wishGifts: [b, a] });
+      expect(ok.status).toBe(200);
+      expectContract(ok, 'updateLiveRoom');
+      expect(ok.body.wishGifts.map((w: { giftCode: string }) => w.giftCode)).toEqual([b, a]);
+      expect(await info()).toBe(before + 1);
+      expect((await patch({ wishGifts: [b, a] })).status).toBe(200);
+      expect(await info()).toBe(before + 1);
+      // Received: sends of a wished gift that named the host (from anyone), not to others.
+      expect((await send(roomId, viewer, body(a, [h], { quantity: 10 }))).status).toBe(201);
+      expect(await info()).toBe(before + 2);
+      expect((await send(roomId, s1, body(a, [h, s1]))).status).toBe(201);
+      expect((await send(roomId, viewer, body(a, [s1], { quantity: 10 }))).status).toBe(201);
+      expect((await send(roomId, viewer, body(c, [h]))).status).toBe(201);
+      const read = await ctx.http
+        .get(`/api/v1/live/rooms/${roomId}`)
+        .set(auth(viewer))
+        .set('Accept-Language', 'ar');
+      expectContract(read, 'getLiveRoom');
+      expect(read.body.wishGifts).toEqual([
+        expect.objectContaining({ giftCode: b, received: 0, priceCoins: 3 }),
+        expect.objectContaining({ giftCode: a, name: 'ألفا', received: 11, priceCoins: 2, imageUrl: null }),
+      ]);
+      // A disabled gift drops out of the shown list (kept stored).
+      await ctx.prisma.gift.update({ where: { code: b }, data: { enabled: false } });
+      const shown = await ctx.http.get(`/api/v1/live/rooms/${roomId}`).set(auth(viewer));
+      expect(shown.body.wishGifts.map((w: { giftCode: string }) => w.giftCode)).toEqual([a]);
+      await ctx.prisma.gift.update({ where: { code: b }, data: { enabled: true } });
+      // Audited.
+      const audit = await ctx.prisma.auditLog.findMany({
+        where: { targetId: roomId, action: 'live.room.edit' },
+      });
+      expect(audit.map((x) => (x.metadata as { fields: string[] }).fields)).toEqual([['wishGifts']]);
+      // The next live copies the list; an explicit list wins; [] empties.
+      await ctx.http.post(`/api/v1/live/rooms/${roomId}/end`).set(auth(h)).expect(200);
+      const next = await goLive(h);
+      const nextRoom = await ctx.http.get(`/api/v1/live/rooms/${next}`).set(auth(h));
+      expect(nextRoom.body.wishGifts.map((w: { giftCode: string }) => w.giftCode)).toEqual([b, a]);
+      const cleared = await ctx.http.patch(`/api/v1/live/rooms/${next}`).set(auth(h)).send({ wishGifts: [] });
+      expect(cleared.body.wishGifts).toEqual([]);
+      await ctx.http.post(`/api/v1/live/rooms/${next}/end`).set(auth(h)).expect(200);
+    });
+
     it('counts for the sender family like other spending', async () => {
       const { h, viewer, roomId } = await scene();
       const created = await ctx.http

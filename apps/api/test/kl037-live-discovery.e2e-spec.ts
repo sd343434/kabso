@@ -326,6 +326,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         roomLevel: null,
         // v1.20-live (D105): the host is never kicked (kl078 covers kicks).
         kicked: false,
+        // v1.27.3-live (D136): no wish list yet (kl081 covers it).
+        wishGifts: [],
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

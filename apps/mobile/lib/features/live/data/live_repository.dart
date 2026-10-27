@@ -64,6 +64,10 @@ abstract interface class LiveRepository {
   /// `PATCH /live/rooms/{roomId}` (host, CP-011): seat count and theme.
   Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme});
 
+  /// v1.27.3-live (D136): `PATCH /live/rooms/{roomId}` `{wishGifts}` (host;
+  /// up to 4 gift codes in order, `[]` empties the list).
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes);
+
   // ---- CP-011 seats ----------------------------------------------------
 
   /// `GET /live/rooms/{roomId}/seats`.
@@ -432,6 +436,16 @@ class LiveRepositoryImpl implements LiveRepository {
         final res = await _dio.patch<Map<String, dynamic>>(
           '/live/rooms/${pathSegment(roomId)}',
           data: {'seatCount': ?seatCount, 'theme': ?theme},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          _room(roomId),
+          data: {'wishGifts': codes},
         );
         return LiveRoom.fromJson(res.data!);
       });

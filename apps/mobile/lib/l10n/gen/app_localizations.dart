@@ -10735,6 +10735,66 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'انقر للنسخ'**
   String get liveRoomIdCopyHint;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة الأمنيات'**
+  String get liveWishTitle;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر حتى ٤ هدايا تتمنّاها، يراها المشاهدون في البث.'**
+  String get liveWishHint;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get liveWishSave;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'٤ هدايا كحد أقصى'**
+  String get liveWishFull;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {name}'**
+  String liveWishRemove(String name);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقديم {name}'**
+  String liveWishMoveEarlier(String name);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، استلمت {count}'**
+  String liveWishRowLabel(String name, String count);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة أمنيات المضيف'**
+  String get liveWishCardLabel;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل قائمة الأمنيات'**
+  String get liveWishEditLabel;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأمنيات'**
+  String get liveToolWish;
 }
 
 class _AppLocalizationsDelegate

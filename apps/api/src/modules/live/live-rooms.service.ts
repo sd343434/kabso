@@ -11,6 +11,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
+import { availableWishCodes, wishGiftsOf, type LiveWishGiftDto } from './live-wishes.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
@@ -105,6 +106,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
   roomNumber: number | null;
   /** CP-016 D (§10.18): the host's charm level. */
   roomLevel: number | null;
+  /** v1.27.3-live (D136, §10.29): the host's wish list, as shown. */
+  wishGifts: LiveWishGiftDto[];
 }
 
 export interface LiveRoomPageDto {
@@ -181,6 +184,8 @@ export interface RoomRow {
   /** CP-016 G: the host's room number (null without the hosting permission). */
   room_number: number | null;
   room_level: number | null;
+  /** v1.27.3-live (D136): the wish list's gift codes. */
+  wish_gifts: string[];
 }
 
 /**
@@ -216,7 +221,8 @@ const ROOM_COLUMNS = Prisma.sql`
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
          p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
-         c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level`;
+         c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
+         r.wish_gifts`;
 
 const ROOM_FROM = Prisma.sql`
     FROM live_rooms r
@@ -686,7 +692,15 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private toRoom(row: RoomRow, lang: ContentLanguage): LiveRoomDto {
+  private async toRoom(row: RoomRow, lang: ContentLanguage): Promise<LiveRoomDto> {
+    const wishGifts = await wishGiftsOf(this.prisma, {
+      roomId: row.id,
+      hostId: row.host_user_id,
+      codes: row.wish_gifts,
+      lang,
+      publicBaseUrl: this.config.media.publicBaseUrl,
+      luckyEnabled: this.config.lucky.enabled,
+    });
     return {
       ...this.toSummary(row, lang),
       status: row.status,
@@ -703,6 +717,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       kicked: row.kicked ?? false,
       roomNumber: row.room_number,
       roomLevel: row.room_level,
+      wishGifts,
     };
   }
 
@@ -843,7 +858,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** The room DTO of a row from {@link visibleRow}. */
-  roomDto(row: RoomRow, lang: ContentLanguage): LiveRoomDto {
+  roomDto(row: RoomRow, lang: ContentLanguage): Promise<LiveRoomDto> {
     return this.toRoom(row, lang);
   }
 
@@ -897,6 +912,18 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       categoryId = await this.categories.findActiveId(input.categorySlug);
       if (!categoryId) throw AppException.validation([{ field: 'categorySlug', issue: 'invalid_value' }]);
     }
+    // v1.27.3-live (D136): the wish list given, else the host's last live's.
+    if (input.wishGifts !== undefined) await this.assertWishable(input.wishGifts);
+    const wishGifts =
+      input.wishGifts ??
+      (
+        await this.prisma.liveRoom.findFirst({
+          where: { hostUserId: callerId },
+          orderBy: { startedAt: 'desc' },
+          select: { wishGifts: true },
+        })
+      )?.wishGifts ??
+      [];
 
     const now = this.clock.now();
     let roomId: string;
@@ -928,6 +955,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
             seatCount: input.seatCount ?? null,
             theme: input.theme ?? DEFAULT_LIVE_THEME,
             coverUrl: host.cover_url,
+            wishGifts: [...wishGifts],
           },
           select: { id: true },
         });
@@ -1029,6 +1057,56 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     const row = await this.selectRoom(roomId);
     if (!row) throw notFound();
     return this.toRoom(row, lang);
+  }
+
+  /** v1.27.3-live (D136): 400 `wishGifts` / `invalid_value` unless every code can be wished now. */
+  async assertWishable(codes: readonly string[]): Promise<void> {
+    const ok = await availableWishCodes(this.prisma, codes, this.config.lucky.enabled);
+    if (codes.some((code) => !ok.has(code))) {
+      throw AppException.validation([{ field: 'wishGifts', issue: 'invalid_value' }]);
+    }
+  }
+
+  /**
+   * v1.27.3-live (D136, §10.29): sets the wish list of the host's LIVE room. A real change moves the
+   * room info version (everyone re-reads the room) and is audited (`live.room.edit`); returns
+   * whether it changed. Not the host or no such room → 404; ended → 409.
+   */
+  async setWishes(
+    hostId: string,
+    roomId: string,
+    codes: readonly string[],
+    meta: RequestMeta,
+  ): Promise<boolean> {
+    if (!isUuid(roomId)) throw notFound();
+    await this.assertWishable(codes);
+    return this.prisma.$transaction(async (tx) => {
+      await this.setStatementTimeout(tx);
+      const [room] = await tx.$queryRaw<{ wish_gifts: string[]; status: string }[]>`
+        SELECT wish_gifts, status::text AS status FROM live_rooms
+         WHERE id = ${roomId}::uuid AND host_user_id = ${hostId}::uuid
+           FOR NO KEY UPDATE`;
+      if (!room) throw notFound();
+      if (room.status !== 'LIVE') throw new AppException(ErrorCode.LIVE_ROOM_ENDED);
+      if (room.wish_gifts.length === codes.length && room.wish_gifts.every((c, i) => c === codes[i])) {
+        return false;
+      }
+      const updated = await tx.liveRoom.update({
+        where: { id: roomId },
+        data: { wishGifts: [...codes], infoVersion: { increment: 1 } },
+        select: { infoVersion: true },
+      });
+      await this.audit.recordIn(tx, {
+        action: AuditAction.LIVE_ROOM_EDIT,
+        actorUserId: hostId,
+        targetType: 'live_room',
+        targetId: roomId,
+        metadata: { fields: ['wishGifts'], wishGifts: [...codes], infoVersion: updated.infoVersion },
+        ip: meta.ip,
+        requestId: meta.requestId,
+      });
+      return true;
+    }, LIVE_TX_OPTIONS);
   }
 
   /**

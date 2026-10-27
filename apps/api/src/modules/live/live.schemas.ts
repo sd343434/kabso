@@ -101,6 +101,23 @@ const themeSchema = z
 /** A seat index in a body: an integer 1 … 24 (a seat beyond the room's count is a 409, not a 400). */
 const seatIndexSchema = z.number().int().min(1).max(MAX_SEAT_INDEX);
 
+/** v1.27.3-live (D136, §10.29): the host's wish list holds at most this many gifts. */
+export const MAX_WISH_GIFTS = 4;
+
+/**
+ * v1.27.3-live (D136): the host's wish list — up to 4 distinct gift codes, in display order
+ * (`[]` empties it). Whether each gift exists and can be sent now is checked by the service (400
+ * `wishGifts` / `invalid_value`).
+ */
+export const wishGiftsSchema = z
+  .array(z.string().regex(/^[a-z0-9][a-z0-9_]{0,39}$/))
+  .max(MAX_WISH_GIFTS)
+  .superRefine((codes, ctx) => {
+    if (new Set(codes).size !== codes.length) {
+      ctx.addIssue({ code: 'custom', path: [], params: { issue: 'invalid_value' } });
+    }
+  });
+
 /**
  * `StartLiveRoomRequest`: CP-011 adds `mode` (SOLO default; PK cannot be started), `seatCount`
  * (required for MULTI and AUDIO with a count of that mode, forbidden for SOLO) and `theme`.
@@ -114,6 +131,8 @@ export const startLiveRoomSchema = z
     mode: z.enum(['SOLO', 'MULTI', 'AUDIO']).optional(),
     seatCount: seatCountSchema.optional(),
     theme: themeSchema.optional(),
+    /** v1.27.3-live (D136): the wish list; absent → the host's last live's list. */
+    wishGifts: wishGiftsSchema.optional(),
   })
   .superRefine((input, ctx) => {
     const mode = input.mode ?? 'SOLO';
@@ -193,6 +212,8 @@ export const updateLiveRoomSchema = z
     theme: themeSchema.optional(),
     /** CP-013: the room chat on or off (host only). */
     chatEnabled: z.boolean().optional(),
+    /** v1.27.3-live (D136): the host's wish list. */
+    wishGifts: wishGiftsSchema.optional(),
   })
   .superRefine((input, ctx) => {
     if (Object.keys(input).length === 0) {

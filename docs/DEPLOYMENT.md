@@ -761,6 +761,13 @@ a `CONNECTION LIMIT`.
 - Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
   reload it on pull to refresh, so a change shows within about a minute.
 
+### 5.10a Wish list and in-room promo banners (migration `20261129090000_live_wish_gifts_room_banners`; D136, D137) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): `live_rooms.wish_gifts` (`VARCHAR(40)[]`, default empty,
+  CHECK ≤ 4) and `home_banners.placement` (`HOME` default, CHECK `HOME|ROOM`, index). No GRANT, no
+  backfill; existing banners stay on the hub. No new server config.
+- The wish list needs nothing from operations: hosts set it in the app (live settings, ≡ Room Tools).
+
 ### 5.11 Lucky gifts (migrations `20261127090000_lucky_gifts_enums`, `20261127100000_lucky_gifts`; D132) — [IMPLEMENTED, draft contract; owner / legal review before switching on]
 
 - Apply with the usual `migrate` job (§5): the enum values (`gift_category` `LUCKY`,

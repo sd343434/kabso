@@ -485,6 +485,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.3-live (draft) | 2026-10-27 | **D136 (owner: the host's wish list):** `StartLiveRoomRequest.wishGifts`, `UpdateLiveRoomRequest.wishGifts` (`WishGiftCodes`, ≤ 4 distinct, sendable now), `LiveRoom.wishGifts` (`LiveWishGift` `{giftCode, name, priceCoins, assetKey, imageUrl, received}`), `GiftCode`; a change, or a wished gift sent to the host, moves `roomInfoVersion`; migration `live_rooms.wish_gifts`. §10.29. | **Additive** (optional request fields, a new response field older apps ignore). |
 | v1.27.2-live (draft) | 2026-10-27 | **D135 (owner, staging device: "the host's new background does not reach the others"; "the support the others received does not show under their mic"):** a real `theme` change in `PATCH /live/rooms/{roomId}` now increases the room info version (`roomInfoVersion`), like `title`, `categorySlug` and `topic`; `LiveSeat.points` (required: the gift points a seated person received in this live, 0 for empty and locked seats); a gift to someone seated raises the seat `version`. §10.9, §10.12. | **Additive** (a new response field older apps ignore; one more reason for existing version moves). |
 | v1.27.1-live (draft) | 2026-10-27 | **D133 (owner: the Live hub's filters become Nearby · Popular ▾ · Featured · Explore, and a party page):** `listLiveRooms` takes `scope=nearby` (token required; rooms whose host's country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET`), `featured=true` (rooms of hosts featured now, ordered by feature rank, then score, startedAt, id) and the kinds `solo` (`SOLO`, `PK`), `multi` (`MULTI`), `party` (`AUDIO`, `MULTI`); cursors are bound to every filter. `Me.country` and `updateMe` `{locale?, country?}` (at least one; `locale` no longer required). Featured hosts are managed only by the `feature-admin` CLI (audit `live.feature.add`, `live.feature.remove`). Explore is `tab=new` (unchanged). §10.4, §10.28. | **Additive** (new query values and optional fields; a request without them behaves as before; `updateMe` accepts more). |
 | v1.27-live (draft) | 2026-10-27 | **D132 (owner: real lucky gifts):** `GiftCategory` `LUCKY` (listed only while `LUCKY_GIFTS_ENABLED`); `LiveGiftResult.luckyResult` (`LuckyGiftResult`, `LuckyGiftWin`; only on LUCKY sends); data message `lucky-win` on topic `lucky`; `getLuckyGiftOdds` (`GET /live/gifts/lucky/odds`, `LuckyGiftOdds`, `LuckyGiftOutcome`, `LuckyGiftEligibility`; guests too); `confirmLuckyGiftAge` (`PUT /me/lucky-gifts/age-confirmation`); codes `LUCKY_GIFT_AGE_UNCONFIRMED`, `LUCKY_GIFT_REGION_UNAVAILABLE` (403); wallet ledger reasons `LUCKY_GIFT` (the charge; 10 % counts for the family) and `LUCKY_GIFT_WIN`; server config `LUCKY_GIFT_*`; CLI `gift-admin … --category LUCKY`, `lucky-wins`, `lucky-day`; audit `lucky.age_confirm`. §4, §7, §10.23, §10.27. | **Additive.** Old apps drop gifts of an unknown category (catalogue and bag) and ignore unknown fields and data message types, so they neither show nor crash on lucky gifts; using them needs the app update. |
@@ -1928,6 +1929,25 @@ change in the server configuration (no app update). Odds, the age gate and the r
   (`live.feature.add` with before / after, `live.feature.remove`). A featured host's rooms are listed
   by `featured=true` while LIVE (§10.4); the ordering ties rooms of the same rank by the popular
   order. There is no admin API.
+
+### 10.29 The host's wish list *(v1.27.3-live, DRAFT — D136)*
+
+- **What:** the host chooses up to **4** gifts from the catalogue (any tab, `LUCKY` too while lucky
+  gifts are on) that the room shows as a see-through card; viewers tap one to open the gift panel
+  with that gift and the host chosen (nothing is sent by the tap).
+- **Writing:** `StartLiveRoomRequest.wishGifts` and `UpdateLiveRoomRequest.wishGifts` (host only):
+  distinct codes in display order, `[]` empties it; more than 4 → 400 `wishGifts` / `too_many`; a
+  repeated code → `invalid_value`; a code that is not a gift that can be sent now → `invalid_value`.
+  A go-live without the field copies the host's last live's list. A real change while live moves
+  the room info version (§10.12, `roomInfoVersion`) and is audited (`live.room.edit`, fields
+  `wishGifts`); setting the same list changes nothing. Counts against the `PATCH` bucket only.
+- **Reading:** `LiveRoom.wishGifts` (the room detail, start, edit and end responses; not hub cards):
+  `{giftCode, name, priceCoins, assetKey, imageUrl, received}` in the list's order, the name by
+  `Accept-Language`; a gift that can no longer be sent is left out (kept in the stored list).
+  `received` = the sum of `quantity` of this live's sends of that gift that named the host (whoever
+  sent them, the host included, D128). A send of a wished gift to the host moves the room info
+  version in the send's transaction (the metadata follows with the score's write, ≤ 2 s).
+- Storage: `live_rooms.wish_gifts` (`VARCHAR(40)[]`, CHECK `live_rooms_wish_gifts_max` ≤ 4).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

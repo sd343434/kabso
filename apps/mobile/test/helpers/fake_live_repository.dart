@@ -425,6 +425,32 @@ class FakeLiveRepository implements LiveRepository {
   Future<void> unkick(String roomId, String username) async =>
       kickCalls.add('unkick:$username');
 
+  /// D136: every wish list set (`setWishGifts`).
+  final List<List<String>> wishUpdates = [];
+
+  /// D136: the gifts `setWishGifts` answers with (code → shown gift).
+  Map<String, LiveWishGift> wishCatalogue = {};
+
+  @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) async {
+    wishUpdates.add(codes);
+    final base = hostRoom ?? apiRoom(id: roomId);
+    final room = base.copyWith(
+      wishGifts: [
+        for (final c in codes)
+          wishCatalogue[c] ??
+              LiveWishGift(
+                giftCode: c,
+                name: c,
+                priceCoins: 1,
+                assetKey: 'gift_$c',
+              ),
+      ],
+    );
+    hostRoom = room;
+    return room;
+  }
+
   @override
   Future<LiveRoom> updateRoom(
     String roomId, {
