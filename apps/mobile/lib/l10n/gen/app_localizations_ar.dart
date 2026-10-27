@@ -6242,9 +6242,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveSeatEmojiHint => 'يظهر على مقعدك مرة واحدة ويراه الجميع';
 
   @override
-  String get liveWishNoteTitle => 'أمنيات';
-
-  @override
   String liveWishChosenCount(int count) {
     return 'تم اختيار $count من 4';
   }

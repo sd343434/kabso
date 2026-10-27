@@ -8,6 +8,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
     show KLiveUsernameTag;
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -131,7 +132,17 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.chat = const [],
     this.composer,
     this.barLead,
+    this.promo,
   });
+
+  /// D141a (owner): the room's promo box, low at the end over the bar's
+  /// gift button (the last of [barEnd]); the chat keeps clear of it and the
+  /// seats stay above it. Hidden while writing (the keyboard is up).
+  final Widget? promo;
+
+  /// The promo box's distance from the end edge and above the bar.
+  static const double promoEnd = 4;
+  static const double promoGap = 6;
 
   /// Fills the bar's start before [barStart] (the "Say something" pill).
   final Widget? barLead;
@@ -161,6 +172,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = this.chips;
     final composer = this.composer;
+    final promo = composer == null ? this.promo : null;
     return Padding(
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -205,27 +217,51 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: stage,
                       ),
                     ),
-                    if (chat.isNotEmpty)
+                    if (chat.isNotEmpty || promo != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: box.maxHeight * 0.4,
+                          // The seats end above the promo box.
+                          minHeight: promo == null
+                              ? 0
+                              : LiveRoomPromoBox.audioHeight + promoGap,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
-                          child: SingleChildScrollView(
-                            reverse: true,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (final line in chat)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: line,
-                                  ),
-                              ],
+                        child: Stack(
+                          alignment: AlignmentDirectional.bottomStart,
+                          children: [
+                            Padding(
+                              padding: EdgeInsetsDirectional.fromSTEB(
+                                8,
+                                0,
+                                promo == null
+                                    ? 8
+                                    : promoEnd +
+                                          LiveRoomPromoBox.audioWidth +
+                                          promoGap,
+                                6,
+                              ),
+                              child: SingleChildScrollView(
+                                reverse: true,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    for (final line in chat)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: line,
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                            if (promo != null)
+                              PositionedDirectional(
+                                end: promoEnd,
+                                bottom: promoGap,
+                                child: promo,
+                              ),
+                          ],
                         ),
                       ),
                   ],

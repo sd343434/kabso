@@ -7552,8 +7552,6 @@
   "@liveSeatEmoji": {"description": "D138: an emoji played once on one's own seat in an audio room."},
   "liveSeatEmojiHint": "يظهر على مقعدك مرة واحدة ويراه الجميع",
   "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."},
-  "liveWishNoteTitle": "أمنيات",
-  "@liveWishNoteTitle": {"description": "D141: the owner's device feedback on the live rooms."},
   "liveWishChosenCount": "تم اختيار {count} من 4",
   "@liveWishChosenCount": {"description": "D141: the owner's device feedback on the live rooms.", "placeholders": {"count": {"type": "int"}}},
   "liveUsernameCopied": "تم النسخ",

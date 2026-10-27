@@ -484,6 +484,64 @@ void main() {
         expect(find.textContaining('SVIP'), findsNothing);
       });
     }
+
+    for (final language in AppLanguage.values) {
+      testWidgets('D141a (${language.name}): compact — a 32 pt avatar, 13 sp '
+          'text, at most 78 % of the screen wide, legible at text 1.3', (
+        tester,
+      ) async {
+        await _pumpBare(
+          tester,
+          Align(
+            alignment: AlignmentDirectional.topStart,
+            child: LivePublicMessage(
+              bullet: LiveBullet(
+                id: 'b2',
+                text:
+                    'Welcome everyone to the live tonight, enjoy the show '
+                    'and send your love to the host!',
+                sender: _huda,
+                roomId: 'room-1',
+                createdAt: DateTime(2026, 10, 27, 10, 37),
+              ),
+            ),
+          ),
+          language: language,
+          media: (d) => d.copyWith(textScaler: const TextScaler.linear(1.3)),
+        );
+        await tester.pump(const Duration(seconds: 3));
+        final card = tester.getRect(find.byKey(LivePublicMessage.keyFor('b2')));
+        expect(card.width, lessThanOrEqualTo(393 * 0.78 + 0.5));
+        final avatar = tester.getSize(
+          find
+              .descendant(
+                of: find.byKey(LivePublicMessage.keyFor('b2')),
+                matching: find.byType(KAvatar),
+              )
+              .first,
+        );
+        expect(avatar.width, lessThanOrEqualTo(LivePublicMessage.avatar));
+        expect(LivePublicMessage.textSize, 13);
+        // The whole text shows (wraps, never cut) and the ribbon stays on.
+        expect(find.byKey(LivePublicMessage.ribbonKey), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        // RTL: the avatar is at the right (reading start).
+        final avatarRect = tester.getRect(
+          find
+              .descendant(
+                of: find.byKey(LivePublicMessage.keyFor('b2')),
+                matching: find.byType(KAvatar),
+              )
+              .first,
+        );
+        expect(
+          language == AppLanguage.ar
+              ? avatarRect.center.dx > card.center.dx
+              : avatarRect.center.dx < card.center.dx,
+          isTrue,
+        );
+      });
+    }
   });
 
   group('10. the wish picker has the gift panel tabs', () {

@@ -69,6 +69,14 @@ class LivePublicMessage extends StatefulWidget {
   static const ribbonInk = Color(0xFF4A2600);
   static const streak = Color(0xFFFF6FA5);
 
+  /// D141a (owner: «too big»): about 25–30 % smaller than D141 — a 32 pt
+  /// avatar (was 40), 12.5 / 13 sp name and text (13.5 / 14.5), tighter
+  /// padding, a smaller ribbon and watermark, at most 78 % of the screen.
+  static const double avatar = 32;
+  static const double nameSize = 12.5;
+  static const double textSize = 13;
+  static const double screenShare = 0.78;
+
   @override
   State<LivePublicMessage> createState() => _LivePublicMessageState();
 }
@@ -178,14 +186,14 @@ class _LivePublicMessageState extends State<LivePublicMessage>
     final time =
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
-    const textSize = 14.5;
+    const textSize = LivePublicMessage.textSize;
     final body = Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(11, 15, 13, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 11, 10, 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Avatar(name: name, imageUrl: bullet.sender.avatarUrl),
-          const SizedBox(width: 9),
+          const SizedBox(width: 7),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +216,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                           textScaler: scaler,
                           style: styles.caption.copyWith(
                             color: const Color(0xFFFFFFFF),
-                            fontSize: 13.5,
+                            fontSize: LivePublicMessage.nameSize,
                             height: 1.25,
                             fontWeight: FontWeight.w800,
                           ),
@@ -229,7 +237,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                     style: styles.bodyStrong.copyWith(
                       color: const Color(0xFFFFFFFF),
                       fontSize: textSize,
-                      height: 1.4,
+                      height: 1.35,
                       fontWeight: FontWeight.w700,
                     ),
                     children: [
@@ -243,7 +251,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                   textScaler: scaler,
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.only(top: 1),
                   child: Text(
                     time,
                     key: LivePublicMessage.timeKey,
@@ -252,7 +260,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                     semanticsLabel: l10n.liveBulletTime(time),
                     style: styles.caption.copyWith(
                       color: const Color(0x80FFFFFF),
-                      fontSize: 10,
+                      fontSize: 9,
                       height: 1.2,
                       fontWeight: FontWeight.w700,
                       fontFeatures: const [FontFeature.tabularFigures()],
@@ -274,7 +282,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
         return Container(
           padding: const EdgeInsets.all(1.6),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -285,13 +293,13 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                 color: LivePublicMessage.glow.withValues(
                   alpha: .3 + .3 * pulse,
                 ),
-                blurRadius: 14 + 10 * pulse,
-                offset: const Offset(0, 4),
+                blurRadius: 10 + 8 * pulse,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.4),
+            borderRadius: BorderRadius.circular(12.4),
             child: Stack(
               children: [
                 Positioned.fill(
@@ -309,12 +317,12 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                   ),
                 ),
                 const PositionedDirectional(
-                  end: 6,
+                  end: 5,
                   bottom: 2,
                   child: Opacity(
                     opacity: .1,
                     child: CustomPaint(
-                      size: Size(46, 46),
+                      size: Size(32, 32),
                       painter: _MegaphoneMark(Color(0xFFFFFFFF)),
                     ),
                   ),
@@ -348,11 +356,17 @@ class _LivePublicMessageState extends State<LivePublicMessage>
       },
       child: body,
     );
+    final screen = MediaQuery.sizeOf(context).width;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: widget.maxWidth),
+      constraints: BoxConstraints(
+        maxWidth: math.min(
+          widget.maxWidth,
+          screen * LivePublicMessage.screenShare,
+        ),
+      ),
       child: Padding(
         // Room for the ribbon over the top edge.
-        padding: const EdgeInsets.only(top: 11),
+        padding: const EdgeInsets.only(top: 9),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -374,8 +388,8 @@ class _LivePublicMessageState extends State<LivePublicMessage>
                 ),
               ),
             PositionedDirectional(
-              top: -11,
-              start: 16,
+              top: -9,
+              start: 12,
               child: _Ribbon(label: l10n.liveBulletTag, playing: !reduced),
             ),
           ],
@@ -394,7 +408,7 @@ class _Ribbon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     key: LivePublicMessage.ribbonKey,
-    padding: const EdgeInsetsDirectional.fromSTEB(6, 1, 10, 1),
+    padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 8, 0),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(KRadius.pill),
       gradient: const LinearGradient(
@@ -417,7 +431,7 @@ class _Ribbon extends StatelessWidget {
         Padding(
           padding: const EdgeInsetsDirectional.only(end: 2),
           child: KShoutingMegaphone(
-            size: 20,
+            size: 15,
             playing: playing,
             loops: LivePublicMessage.loops,
           ),
@@ -428,9 +442,9 @@ class _Ribbon extends StatelessWidget {
               .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale),
           style: context.textStyles.caption.copyWith(
             color: LivePublicMessage.ribbonInk,
-            fontSize: 11,
+            fontSize: 9.5,
             fontWeight: FontWeight.w900,
-            height: 1.25,
+            height: 1.3,
           ),
         ),
       ],
@@ -446,9 +460,9 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 40,
-    height: 40,
-    padding: const EdgeInsets.all(2),
+    width: LivePublicMessage.avatar,
+    height: LivePublicMessage.avatar,
+    padding: const EdgeInsets.all(1.5),
     decoration: const BoxDecoration(
       shape: BoxShape.circle,
       gradient: LinearGradient(
@@ -457,7 +471,11 @@ class _Avatar extends StatelessWidget {
         colors: [Color(0xFFFFE27A), Color(0xFFE0A21A)],
       ),
     ),
-    child: KAvatar(name: name, imageUrl: imageUrl, size: 36),
+    child: KAvatar(
+      name: name,
+      imageUrl: imageUrl,
+      size: LivePublicMessage.avatar - 3,
+    ),
   );
 }
 

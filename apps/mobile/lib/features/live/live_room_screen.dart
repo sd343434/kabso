@@ -962,6 +962,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             children: [
               _video(session, engine),
               LiveAudioRoomLayout(
+                // D141a (owner): the promo box over the gift button.
+                promo:
+                    signedIn &&
+                        room.status != LiveRoomStatus.ended &&
+                        LiveRoomPromoBox.shows(ref, room.id)
+                    ? LiveRoomPromoBox(
+                        roomId: room.id,
+                        boxWidth: LiveRoomPromoBox.audioWidth,
+                      )
+                    : null,
                 header: LiveAudioRoomHeader(
                   cover: KAvatar(
                     name: host.displayName,

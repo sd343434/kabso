@@ -6221,9 +6221,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Plays once on your seat, for everyone in the room';
 
   @override
-  String get liveWishNoteTitle => 'Wishes';
-
-  @override
   String liveWishChosenCount(int count) {
     return '$count of 4 chosen';
   }

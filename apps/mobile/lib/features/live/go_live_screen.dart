@@ -908,6 +908,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
+        // D141a (owner): the promo box over the gift button.
+        promo: live && room != null && LiveRoomPromoBox.shows(ref, room.id)
+            ? LiveRoomPromoBox(
+                roomId: room.id,
+                boxWidth: LiveRoomPromoBox.audioWidth,
+              )
+            : null,
         header: LiveAudioRoomHeader(
           // CP-015: the live's cover, else the host's picture.
           cover: switch (room?.coverUrl ?? user?.liveCoverUrl) {

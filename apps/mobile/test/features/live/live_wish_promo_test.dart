@@ -14,6 +14,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -53,8 +54,10 @@ Future<FakeHomeBannersRepository> _pump(
   List<HomeBanner> roomBanners = const [],
   AppLanguage language = AppLanguage.en,
   bool signedIn = true,
+  bool audio = false,
+  GoldenViewport viewport = GoldenViewport.phone,
 }) async {
-  setViewport(tester, GoldenViewport.phone);
+  setViewport(tester, viewport);
   final banners = FakeHomeBannersRepository(roomBanners: roomBanners);
   await tester.pumpWidget(const SizedBox.shrink());
   await pumpScreen(
@@ -67,9 +70,13 @@ Future<FakeHomeBannersRepository> _pump(
     overrides: [
       liveRepositoryProvider.overrideWithValue(
         FakeLiveRepository(
-          room: (id) =>
-              apiRoom(id: id)
-                  .copyWith(wishGifts: wishes, roomNumber: 120345678),
+          room: (id) {
+            final room = apiRoom(id: id)
+                .copyWith(wishGifts: wishes, roomNumber: 120345678);
+            return audio
+                ? room.copyWith(mode: LiveRoomMode.audio, seatCount: 10)
+                : room;
+          },
         ),
       ),
       profileRepositoryProvider.overrideWithValue(
@@ -98,22 +105,15 @@ void main() {
         expect(find.byKey(LiveWishCard.rowKey('rose')), findsOneWidget);
         expect(find.byKey(LiveWishCard.rowKey('crown')), findsOneWidget);
         expect(find.text('×12'), findsOneWidget);
-        // D141: one sticky note with the title «أمنيات» / "Wishes" over the
-        // gifts (not a row box per gift), turned a little.
+        // D141a (owner): back to D136's see-through card of rows (no
+        // sticky note, no title), one row per wish.
         expect(
-          find.descendant(
-            of: card,
-            matching: find.byKey(LiveWishCard.titleKey),
-          ),
-          findsOneWidget,
+          find.text(language == AppLanguage.ar ? 'أمنيات' : 'Wishes'),
+          findsNothing,
         );
-        final l = l10nFor(language);
-        expect(find.text(l.liveWishNoteTitle), findsOneWidget);
         expect(
-          tester.getTopLeft(find.byKey(LiveWishCard.titleKey)).dy,
-          lessThan(
-            tester.getTopLeft(find.byKey(LiveWishCard.rowKey('rose'))).dy,
-          ),
+          find.descendant(of: card, matching: find.byType(Divider)),
+          findsOneWidget,
         );
         final rect = tester.getRect(card);
         expect(tester.getSize(card).width, closeTo(LiveWishCard.width, 0.5));
@@ -199,6 +199,105 @@ void main() {
         expect(box, findsNothing);
         await _leave(tester);
       });
+    }
+
+    testWidgets('D141a: a finger on the box pauses the carousel; it goes on '
+        'after the finger lifts; a swipe changes the banner', (tester) async {
+      await _pump(tester, roomBanners: room);
+      await tester.pump(const Duration(milliseconds: 100));
+      final box = find.byKey(LiveRoomPromoBox.boxKey);
+      final page0 = find.byKey(LiveRoomPromoBox.pageKey('room-banner-0'));
+      final page1 = find.byKey(LiveRoomPromoBox.pageKey('room-banner-1'));
+      final hold = await tester.startGesture(tester.getCenter(box));
+      await tester.pump(LiveRoomPromoBox.interval * 2);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(page0, findsOne);
+      expect(page1, findsNothing);
+      await hold.cancel();
+      await tester.pump(LiveRoomPromoBox.interval);
+      await tester.pumpAndSettle();
+      expect(page1, findsOne);
+      // A swipe back (English: to the right) shows the first again.
+      await tester.drag(box, const Offset(70, 0));
+      await tester.pumpAndSettle();
+      expect(page0, findsOne);
+      await _leave(tester);
+    });
+
+    testWidgets('D141a: reduced motion — no slide by itself, the swipe still '
+        'works; one banner — no dots, nothing moves', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await _pump(tester, roomBanners: room);
+      await tester.pump(const Duration(milliseconds: 100));
+      final box = find.byKey(LiveRoomPromoBox.boxKey);
+      await tester.pump(LiveRoomPromoBox.interval * 3);
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
+      await tester.drag(box, const Offset(-70, 0));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-1')), findsOne);
+      await _leave(tester);
+      tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+      await _pump(tester, roomBanners: [room.first]);
+      await tester.pump(LiveRoomPromoBox.interval * 2);
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
+      expect(find.byKey(LiveRoomPromoBox.dotsKey), findsNothing);
+      await _leave(tester);
+    });
+
+    for (final language in AppLanguage.values) {
+      for (final viewport in GoldenViewport.values) {
+        testWidgets('D141a: an audio room shows the box (64 × 85 pt) right '
+            'above the gift button at the end, clear of the seats and the '
+            'bar (${language.name}, ${viewport.name}, text 1.3)', (
+          tester,
+        ) async {
+          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await _pump(
+            tester,
+            roomBanners: room,
+            language: language,
+            audio: true,
+            viewport: viewport,
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+          final box = find.byKey(LiveRoomPromoBox.boxKey);
+          expect(box, findsOneWidget);
+          final rect = tester.getRect(box);
+          expect(rect.width, closeTo(LiveRoomPromoBox.audioWidth, 0.5));
+          expect(rect.height, closeTo(LiveRoomPromoBox.audioHeight, 0.5));
+          final gift = tester.getRect(find.byKey(AudioRoomViewKeys.gift));
+          expect(rect.bottom, lessThanOrEqualTo(gift.top));
+          expect(gift.top - rect.bottom, lessThan(16));
+          // Over the gift button: the end side (right in English, left in
+          // Arabic), mirrored.
+          expect((rect.center.dx - gift.center.dx).abs(), lessThan(12));
+          final width = viewport.logicalSize.width;
+          expect(
+            language == AppLanguage.ar
+                ? rect.left < 12
+                : rect.right > width - 12,
+            isTrue,
+          );
+          // No seat under it.
+          // The seats scroll in an area that ends above the box.
+          final seats = find.ancestor(
+            of: find.byKey(AudioSeatRing.seatKey(0)),
+            matching: find.byType(Scrollable),
+          );
+          expect(
+            tester.getRect(seats.first).bottom,
+            lessThanOrEqualTo(rect.top),
+          );
+          await _leave(tester);
+        });
+      }
     }
 
     testWidgets('no ROOM banner, or a guest: no box', (tester) async {

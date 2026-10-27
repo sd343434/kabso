@@ -10793,12 +10793,6 @@ abstract class AppLocalizations {
   /// D141: the owner's device feedback on the live rooms.
   ///
   /// In ar, this message translates to:
-  /// **'أمنيات'**
-  String get liveWishNoteTitle;
-
-  /// D141: the owner's device feedback on the live rooms.
-  ///
-  /// In ar, this message translates to:
   /// **'تم اختيار {count} من 4'**
   String liveWishChosenCount(int count);
 
