@@ -4301,10 +4301,6 @@
   "@errorLiveChatClosed": {
     "description": "LIVE_CHAT_CLOSED (409, CP-013)."
   },
-  "liveChatEmpty": "لا رسائل بعد. قل مرحباً.",
-  "@liveChatEmpty": {
-    "description": "Room chat with no messages (CP-013)."
-  },
   "liveChatOff": "الدردشة متوقفة",
   "@liveChatOff": {
     "description": "Chat pill when the host turned the chat off (CP-013)."
@@ -7525,5 +7521,45 @@
   "goLiveToolsLess": "أقل",
   "@goLiveToolsLess": {"description": "Go-live setup: fold the second row of tools."},
   "goLiveCategoriesAll": "كل المواضيع",
-  "@goLiveCategoriesAll": {"description": "Go-live setup: open every live category."}
+  "@goLiveCategoriesAll": {"description": "Go-live setup: open every live category."},
+  "liveUserMention": "منشن",
+  "@liveUserMention": {"description": "D135: the person card's Mention action (puts @username into the live chat box)."},
+  "liveQuickHostWelcome": "أهلاً بكم في البث 👋",
+  "@liveQuickHostWelcome": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostThanks": "شكراً على الدعم 🌹",
+  "@liveQuickHostThanks": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostFollow": "تابعوني ❤️",
+  "@liveQuickHostFollow": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostShare": "شاركوا البث 🔥",
+  "@liveQuickHostShare": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveRoomIdCopied": "تم نسخ معرّف الغرفة",
+  "@liveRoomIdCopied": {"description": "D135: the room ID beside the host's name (copy)."},
+  "liveRoomIdCopyHint": "انقر للنسخ",
+  "@liveRoomIdCopyHint": {"description": "D135: the room ID beside the host's name (copy)."},
+  "liveWishTitle": "قائمة الأمنيات",
+  "@liveWishTitle": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveWishHint": "اختر حتى ٤ هدايا تتمنّاها، يراها المشاهدون في البث.",
+  "@liveWishHint": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveWishSave": "حفظ",
+  "@liveWishSave": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveWishFull": "٤ هدايا كحد أقصى",
+  "@liveWishFull": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveWishRemove": "إزالة {name}",
+  "@liveWishRemove": {"description": "D136/D137: the wish list and the in-room promo box.", "placeholders": {"name": {"type": "String"}}},
+  "liveWishMoveEarlier": "تقديم {name}",
+  "@liveWishMoveEarlier": {"description": "D136/D137: the wish list and the in-room promo box.", "placeholders": {"name": {"type": "String"}}},
+  "liveWishRowLabel": "{name}، استلمت {count}",
+  "@liveWishRowLabel": {"description": "D136/D137: the wish list and the in-room promo box.", "placeholders": {"name": {"type": "String"}, "count": {"type": "String"}}},
+  "liveWishCardLabel": "قائمة أمنيات المضيف",
+  "@liveWishCardLabel": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveWishEditLabel": "تعديل قائمة الأمنيات",
+  "@liveWishEditLabel": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveToolWish": "الأمنيات",
+  "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "livePromoClose": "إخفاء الإعلان",
+  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveSeatEmoji": "إيموجي على مقعدي",
+  "@liveSeatEmoji": {"description": "D138: an emoji played once on one's own seat in an audio room."},
+  "liveSeatEmojiHint": "يظهر على مقعدك مرة واحدة ويراه الجميع",
+  "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."}
 }

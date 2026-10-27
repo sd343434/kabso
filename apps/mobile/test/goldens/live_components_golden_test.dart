@@ -7,10 +7,14 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_score_bar.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -40,6 +44,50 @@ void main() {
           language: language,
         );
         await expectScreenGolden('badges', language: language);
+      });
+
+      testWidgets('D136 wish list card and D135 chips', (tester) async {
+        final ar = language == AppLanguage.ar;
+        await pumpGolden(
+          tester,
+          ColoredBox(
+            color: const Color(0xFF8A7F7A),
+            child: Padding(
+              padding: const EdgeInsets.all(KSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LiveWishCard(
+                    wishes: [
+                      LiveWishGift(
+                        giftCode: 'rose',
+                        name: ar ? 'وردة' : 'Rose',
+                        priceCoins: 1,
+                        assetKey: 'gift_rose',
+                        received: 12,
+                      ),
+                      LiveWishGift(
+                        giftCode: 'crown',
+                        name: ar ? 'تاج' : 'Crown',
+                        priceCoins: 299,
+                        assetKey: 'gift_crown',
+                      ),
+                    ],
+                    onWish: (_) {},
+                  ),
+                  const SizedBox(height: KSpacing.md),
+                  const LiveLevelTargetChip(
+                    level: 12,
+                    points: 3510,
+                    target: 5000,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          language: language,
+        );
+        await expectScreenGolden('wish_card', language: language);
       });
 
       testWidgets('avatar rings', (tester) async {

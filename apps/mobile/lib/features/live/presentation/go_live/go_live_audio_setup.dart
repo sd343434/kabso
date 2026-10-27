@@ -826,6 +826,8 @@ Future<void> showLiveSetupSettings(
   required ValueChanged<bool> onAllowGuests,
   VoidCallback? onShare,
   Key? guestsKey,
+  VoidCallback? onWishList,
+  int? wishCount,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -860,6 +862,17 @@ Future<void> showLiveSetupSettings(
                       onShare();
                     },
             ),
+            // D136: the host's wish list (up to 4 gifts).
+            if (onWishList != null)
+              LiveSettingsRow(
+                key: LiveSettingsRow.wishKey,
+                label: l10n.liveWishTitle,
+                trailing: wishCount == null ? null : '$wishCount/4',
+                onTap: () {
+                  Navigator.of(sheet).pop();
+                  onWishList();
+                },
+              ),
             // CP-016 B: the count, then the editor.
             Consumer(
               builder: (context, ref, _) => LiveSettingsRow(
@@ -937,6 +950,9 @@ class LiveSettingsRow extends StatelessWidget {
 
   static const shareKey = Key('liveSettings.share');
   static const blockedWordsKey = Key('liveSettings.blockedWords');
+
+  /// D136: the wish list row.
+  static const wishKey = Key('liveSettings.wishList');
   static const scheduleKey = Key('liveSettings.schedule');
   static const ink = Color(0xFF000000);
 

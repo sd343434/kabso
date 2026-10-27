@@ -761,6 +761,27 @@ a `CONNECTION LIMIT`.
 - Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
   reload it on pull to refresh, so a change shows within about a minute.
 
+### 5.10a Wish list and in-room promo banners (migration `20261129090000_live_wish_gifts_room_banners`; D136, D137) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): `live_rooms.wish_gifts` (`VARCHAR(40)[]`, default empty,
+  CHECK ≤ 4) and `home_banners.placement` (`HOME` default, CHECK `HOME|ROOM`, index). No GRANT, no
+  backfill; existing banners stay on the hub. No new server config.
+- The wish list needs nothing from operations: hosts set it in the app (live settings, ≡ Room Tools).
+- **In-room promo box (D137):** no ROOM banner exists after the deploy, so rooms show no box. Add one
+  with the same job as §5.10 and `--placement room`. Design the picture at **600 × 800 px (3:4)**,
+  JPEG/PNG/WebP; it is cover-cropped to 600 × 800 and 240 × 320 WebP and shown about 82 × 109 pt at
+  the top end of every live. `--media` is refused for ROOM (API uploads are 3:1). Links as in §5.10;
+  an `https://` link is stored but not tappable in the app yet. With `$BANNER` as above:
+
+  ```bash
+  scp room_promo_event.webp server:/opt/kabso/banners/
+  $BANNER add --image /banners/room_promo_event.webp --owner owner@example.com \
+    --placement room --link /families --sort 10 --ends 2026-12-01T00:00:00+03:00
+  $BANNER list                 # each line shows "home" or "room"
+  ```
+
+- Apps read `GET /home/banners?placement=room` when a live opens (cached up to a minute).
+
 ### 5.11 Lucky gifts (migrations `20261127090000_lucky_gifts_enums`, `20261127100000_lucky_gifts`; D132) — [IMPLEMENTED, draft contract; owner / legal review before switching on]
 
 - Apply with the usual `migrate` job (§5): the enum values (`gift_category` `LUCKY`,

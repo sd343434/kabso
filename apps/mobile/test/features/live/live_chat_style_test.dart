@@ -5,6 +5,8 @@
 // in a rounded bubble. System lines (joins, the rules notice) stay compact.
 // Contract v1.24.3-live: `LiveChatMessage.authorBadges`.
 
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -431,6 +433,86 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('liveChat.action.profile')), findsOne);
     await _leave(tester);
+  });
+
+  for (final audio in [true, false]) {
+    testWidgets('D135: the rules line is the first line of the visit: at the '
+        'bottom on entering, it rises with the messages and leaves at the top '
+        'like any line; no "no messages" line (${audio ? 'audio' : 'video'})', (
+      tester,
+    ) async {
+      final engine = await _room(tester, audio: audio);
+      final notice = find.byKey(LiveRoomChatLines.noticeKey);
+      expect(notice, findsOne);
+      expect(find.textContaining('No messages yet'), findsNothing);
+      // A line of the list, its newest so far.
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomChatLines.listKey),
+          matching: notice,
+        ),
+        findsOne,
+      );
+      engine.chat.add(LiveChatReceived(_entry('n0', 'message 0')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // The new message comes under it.
+      expect(
+        tester.getRect(_line('m:n0')).top,
+        greaterThanOrEqualTo(tester.getRect(notice).bottom - 0.5),
+      );
+      for (var i = 1; i < LiveRoomChatLines.maxVisibleLines + 2; i++) {
+        engine.chat.add(LiveChatReceived(_entry('n$i', 'message $i')));
+        await tester.pump();
+      }
+      await tester.pump(const Duration(seconds: 1));
+      // Pushed out at the top like an old line.
+      expect(notice, findsNothing);
+      await _leave(tester);
+    });
+  }
+
+  test('D135: the see-through rules line reads at 4.5:1 or more over the '
+      'brightest backgrounds tested (a bright video frame, the bright room '
+      'themes) and on dark ones', () {
+    double contrast(Color a, Color b) {
+      final la = a.computeLuminance();
+      final lb = b.computeLuminance();
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    // Mean colour under the chat area: ref 158's bright video frame, the
+    // bright themes' lower half (sunset-sky, heart-garden, moon-palace,
+    // ocean-depths), black and the classic navy.
+    for (final (under, bright) in const [
+      (Color(0xFF9B8D87), false),
+      (Color(0xFFAD7467), true),
+      (Color(0xFFBC414D), true),
+      (Color(0xFF8C6D87), true),
+      (Color(0xFF4165AD), true),
+      (Color(0xFF000000), false),
+      (Color(0xFF0A1220), false),
+    ]) {
+      final box = Color.alphaBlend(
+        bright ? LiveRoomRulesNotice.fillBright : LiveRoomRulesNotice.fill,
+        under,
+      );
+      expect(
+        contrast(LiveRoomRulesNotice.textColor, box),
+        greaterThanOrEqualTo(4.5),
+        reason: '$under',
+      );
+      expect(
+        contrast(LiveRoomRulesNotice.icon, box),
+        greaterThanOrEqualTo(3),
+        reason: '$under',
+      );
+    }
+    // The fill stays see-through (owner: "a transparent background").
+    expect(LiveRoomRulesNotice.fill.a, lessThan(0.45));
+    expect(LiveRoomRulesNotice.fillBright.a, lessThan(0.45));
+    expect(LiveRoomRulesNotice.isBrightTheme('sunset-sky'), isTrue);
+    expect(LiveRoomRulesNotice.isBrightTheme('classic'), isFalse);
   });
 
   testWidgets('system lines stay compact: the rules notice has no picture; '

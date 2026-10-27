@@ -390,6 +390,7 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       // CP-014: the topic is 1–100 code points or NULL.
       'live_rooms_topic_length',
       'live_rooms_viewer_count_nonneg',
+      'live_rooms_wish_gifts_max',
     ]);
     // CP-014: the Contribution list of a room reads the tappers in rank order (v1.23-live: points,
     // taps and gifts, then who reached them first).

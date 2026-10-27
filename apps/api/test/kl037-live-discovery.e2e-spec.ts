@@ -125,6 +125,8 @@ describe('KL-037 contract coverage', () => {
             'listUserFollowing',
             // D132 (v1.27-live draft): the lucky-gift odds; kl093-lucky-gifts covers it.
             'getLuckyGiftOdds',
+            // D138 (v1.27.5-live draft): an emoji on one's own seat; kl095-live-seat-emoji covers it.
+            'sendLiveSeatEmoji',
           ].includes(o.operationId),
       )
       .filter(
@@ -326,6 +328,8 @@ describe('KL-037 live discovery and host lifecycle (hosting enabled)', () => {
         roomLevel: null,
         // v1.20-live (D105): the host is never kicked (kl078 covers kicks).
         kicked: false,
+        // v1.27.3-live (D136): no wish list yet (kl081 covers it).
+        wishGifts: [],
       });
       const audit = await ctx.prisma.auditLog.findMany({
         where: { action: 'live.room.start', targetId: res.body.id },

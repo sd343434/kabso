@@ -5,6 +5,7 @@ import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
 import { trimHygiene } from '../users/text-hygiene.js';
 import { LIVE_KINDS, LIVE_SCOPES, LIVE_TABS } from './live-cursor.js';
+import { isSeatEmojiToken } from './live-seat-emoji.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml v1.3 (strict objects: unknown fields fail
 // with `unknown_field`).
@@ -101,6 +102,23 @@ const themeSchema = z
 /** A seat index in a body: an integer 1 … 24 (a seat beyond the room's count is a 409, not a 400). */
 const seatIndexSchema = z.number().int().min(1).max(MAX_SEAT_INDEX);
 
+/** v1.27.3-live (D136, §10.29): the host's wish list holds at most this many gifts. */
+export const MAX_WISH_GIFTS = 4;
+
+/**
+ * v1.27.3-live (D136): the host's wish list — up to 4 distinct gift codes, in display order
+ * (`[]` empties it). Whether each gift exists and can be sent now is checked by the service (400
+ * `wishGifts` / `invalid_value`).
+ */
+export const wishGiftsSchema = z
+  .array(z.string().regex(/^[a-z0-9][a-z0-9_]{0,39}$/))
+  .max(MAX_WISH_GIFTS)
+  .superRefine((codes, ctx) => {
+    if (new Set(codes).size !== codes.length) {
+      ctx.addIssue({ code: 'custom', path: [], params: { issue: 'invalid_value' } });
+    }
+  });
+
 /**
  * `StartLiveRoomRequest`: CP-011 adds `mode` (SOLO default; PK cannot be started), `seatCount`
  * (required for MULTI and AUDIO with a count of that mode, forbidden for SOLO) and `theme`.
@@ -114,6 +132,8 @@ export const startLiveRoomSchema = z
     mode: z.enum(['SOLO', 'MULTI', 'AUDIO']).optional(),
     seatCount: seatCountSchema.optional(),
     theme: themeSchema.optional(),
+    /** v1.27.3-live (D136): the wish list; absent → the host's last live's list. */
+    wishGifts: wishGiftsSchema.optional(),
   })
   .superRefine((input, ctx) => {
     const mode = input.mode ?? 'SOLO';
@@ -193,6 +213,8 @@ export const updateLiveRoomSchema = z
     theme: themeSchema.optional(),
     /** CP-013: the room chat on or off (host only). */
     chatEnabled: z.boolean().optional(),
+    /** v1.27.3-live (D136): the host's wish list. */
+    wishGifts: wishGiftsSchema.optional(),
   })
   .superRefine((input, ctx) => {
     if (Object.keys(input).length === 0) {
@@ -381,6 +403,19 @@ export function liveGiftSendSchema(quantities: readonly number[]) {
   });
 }
 export type LiveGiftSendInput = z.output<ReturnType<typeof liveGiftSendSchema>>;
+
+// ---- v1.27.5-live (D138): an emoji on one's own seat ----------------------------------------
+
+/**
+ * `LiveSeatEmojiRequest` (strict): `token` is `:<pack>_<id>:` of one of the owner's packs
+ * (`live-seat-emoji.ts`); a string that is not one → `invalid_value`.
+ */
+export const liveSeatEmojiSchema = z.strictObject({
+  token: z
+    .string()
+    .refine((t) => isSeatEmojiToken(t), { message: 'not a known emoji', params: { issue: 'invalid_value' } }),
+});
+export type LiveSeatEmojiInput = z.output<typeof liveSeatEmojiSchema>;
 
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });

@@ -60,7 +60,7 @@ abstract final class CpSpaceAssets {
   static const privilege = '$_dir/privilege.webp';
   static const gift = '$_dir/cp_gift.webp';
   static const ranking = '$_dir/ranking.webp';
-  static const coin = 'assets/art/kabso_coin.webp';
+  static const coin = 'assets/currency/kabso_coin.png';
 
   /// The icon of a privilege.
   static String privilegeIcon(CpPrivilegeCode code) => switch (code) {

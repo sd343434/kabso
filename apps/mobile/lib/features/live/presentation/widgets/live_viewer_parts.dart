@@ -1,6 +1,5 @@
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -27,34 +26,74 @@ abstract final class KViewerRoom {
   static const double rowGap = 8.1;
 }
 
-/// The second row of the video live (ref 158 §4.3): the popularity board
-/// chip, the room level (the host's charm level, CP-016 D) and, at the
-/// end, the room number (CP-016 G). Only what the data has.
+/// The second row (ref 158 §4.3): at the reading start the board chip and
+/// (D135) the level chip — the host's charm level badge and, when known
+/// (the host's own screen), their charm points against the next level
+/// ("3.51K/5K") over a gold progress fill; at the end the [elapsed] LIVE
+/// timer (host) and the room ID. The charm level shows only here.
 class KRoomChipsRow extends StatelessWidget {
-  const new({super.key, this.level, this.roomNumber});
+  const new({
+    super.key,
+    this.level,
+    this.roomNumber,
+    this.points,
+    this.target,
+    this.elapsed,
+  });
 
   final int? level;
   final int? roomNumber;
 
+  /// D135: the host's charm points and the next level's requirement (null
+  /// at the top level or when unknown, e.g. to viewers).
+  final int? points;
+  final int? target;
+
+  /// D135: the host's LIVE timer, before the room ID.
+  final Widget? elapsed;
+
   static const numberKey = Key('room.number');
+  static const levelKey = Key('room.levelChip');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final level = this.level;
     final number = roomNumber;
+    final elapsed = this.elapsed;
     // The header row's 48 pt target already leaves 8.5 pt under the 31 pt
     // pill (ref: 8.1 pt).
     return SizedBox(
       height: KViewerRoom.chipHeight + 2,
       child: Row(
         children: [
-          const Flexible(child: LiveRankChip(icon: Icons.bar_chart_rounded)),
-          if (level != null) ...[
+          // The start group keeps its natural width; only a narrow screen
+          // shortens the board chip.
+          Expanded(
+            child: Row(
+              children: [
+                const Flexible(
+                  child: LiveRankChip(icon: Icons.bar_chart_rounded),
+                ),
+                if (level != null) ...[
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: LiveLevelTargetChip(
+                      key: levelKey,
+                      level: level,
+                      points: points,
+                      target: target,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (elapsed != null) ...[
             const SizedBox(width: 6),
-            LiveChip(child: CharmLevelBadge(level: level)),
+            elapsed,
+            const SizedBox(width: 6),
           ],
-          const Spacer(),
           if (number != null)
             Text(
               l10n.liveRoomNumber(KFormat.bidiIsolate('$number')),
@@ -70,6 +109,90 @@ class KRoomChipsRow extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// D135 (ref 158 "★3 ◷ 3.51K/5K"): the charm level badge and, when known,
+/// the points against the next level with a translucent gold fill behind
+/// the part reached.
+class LiveLevelTargetChip extends StatelessWidget {
+  const new({required this.level, super.key, this.points, this.target});
+
+  final int level;
+  final int? points;
+  final int? target;
+
+  static const fill = Color(0x66F5B83D);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final points = this.points;
+    final target = this.target;
+    final progress = points == null || target == null || target <= 0
+        ? null
+        : (points / target).clamp(0.0, 1.0);
+    final text = points == null
+        ? null
+        : target == null
+        ? KFormat.compact(points, l10n)
+        : '${KFormat.compact(points, l10n)}/${KFormat.compact(target, l10n)}';
+    return Semantics(
+      label: text == null
+          ? l10n.liveRoomLevelBadge(level)
+          : '${l10n.liveRoomLevelBadge(level)}, $text',
+      excludeSemantics: true,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(KViewerRoom.chipHeight / 2),
+        child: Container(
+          height: KViewerRoom.chipHeight,
+          color: KLiveColors.glass,
+          child: Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: [
+              if (progress != null)
+                Positioned.fill(
+                  child: FractionallySizedBox(
+                    alignment: AlignmentDirectional.centerStart,
+                    widthFactor: progress,
+                    child: const ColoredBox(color: fill),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(start: 3, end: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // D135 (owner): the same size as in the chat rows.
+                    CharmLevelBadge(
+                      level: level,
+                      height: CharmLevelBadge.lineHeight,
+                    ),
+                    if (text != null) ...[
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          text,
+                          textDirection: TextDirection.ltr,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.textStyles.caption.copyWith(
+                            fontSize: 10.5,
+                            height: 1,
+                            color: const Color(0xFFFFFFFF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -202,7 +325,15 @@ class KViewerBarButton extends StatelessWidget {
     this.asset,
     this.icon,
     this.badge = false,
+    this.art = false,
   }) : assert(asset != null || icon != null, 'an asset or an icon');
+
+  /// D135 (owner's colourful PK and gift art): [asset] fills the circle's
+  /// place (33 pt) with no dark circle behind it.
+  final bool art;
+
+  /// The colourful art's size.
+  static const double artSize = 33;
 
   /// Kabso's bar art; else [icon] in white.
   final String? asset;
@@ -229,10 +360,12 @@ class KViewerBarButton extends StatelessWidget {
           child: Container(
             width: KViewerRoom.button,
             height: KViewerRoom.button,
-            decoration: const BoxDecoration(
-              color: KViewerRoom.fill,
-              shape: BoxShape.circle,
-            ),
+            decoration: art
+                ? null
+                : const BoxDecoration(
+                    color: KViewerRoom.fill,
+                    shape: BoxShape.circle,
+                  ),
             alignment: Alignment.center,
             child: Stack(
               clipBehavior: Clip.none,
@@ -241,8 +374,8 @@ class KViewerBarButton extends StatelessWidget {
                 if (asset case final asset?)
                   Image.asset(
                     asset,
-                    width: 21,
-                    height: 21,
+                    width: art ? artSize : 21,
+                    height: art ? artSize : 21,
                     excludeFromSemantics: true,
                   )
                 else
@@ -465,12 +598,15 @@ class KLeavePrompt extends StatelessWidget {
 
 /// D131 (owner, ref 158 §4.7): quick replies over the bar — Kabso's own
 /// short phrases, each sent as an ordinary text message (the chat's rate
-/// limit applies). 20.9 pt light chips 7.5 pt apart, dark bold 12.5 sp.
+/// limit applies). 20.9 pt glass chips 7.5 pt apart, white bold 12.5 sp.
 /// Shown only to someone who may write.
 class KQuickReplies extends StatelessWidget {
-  const new({required this.onSend, super.key});
+  const new({required this.onSend, super.key, this.host = false});
 
   final ValueChanged<String> onSend;
+
+  /// D135: the host's own phrases (a welcome, thanks …) on their live.
+  final bool host;
 
   static Key chipKey(int i) => Key('quickReply.$i');
   static const double height = 20.9;
@@ -478,12 +614,19 @@ class KQuickReplies extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final phrases = [
-      l10n.liveQuickHello,
-      l10n.liveQuickFire,
-      l10n.liveQuickNiceMood,
-      l10n.liveQuickGotMe,
-    ];
+    final phrases = host
+        ? [
+            l10n.liveQuickHostWelcome,
+            l10n.liveQuickHostThanks,
+            l10n.liveQuickHostFollow,
+            l10n.liveQuickHostShare,
+          ]
+        : [
+            l10n.liveQuickHello,
+            l10n.liveQuickFire,
+            l10n.liveQuickNiceMood,
+            l10n.liveQuickGotMe,
+          ];
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     return SizedBox(
@@ -502,13 +645,22 @@ class KQuickReplies extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: () => onSend(phrases[i]),
             child: Center(
+              // D135: the chip hugs its text (20.9 pt), not the 40 pt row.
               child: Container(
                 constraints: const BoxConstraints(minHeight: height),
-                padding: const EdgeInsets.symmetric(horizontal: 9.5),
-                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9.5,
+                  vertical: 3,
+                ),
+                // D135 (owner: "make their frame transparent"): the live
+                // glass with a white hairline, white text with a shadow.
                 decoration: BoxDecoration(
-                  color: const Color(0xD9FFFFFF),
+                  color: KLiveColors.glass,
                   borderRadius: BorderRadius.circular(KRadius.pill),
+                  border: Border.all(
+                    color: const Color(0x40FFFFFF),
+                    width: 0.5,
+                  ),
                 ),
                 child: Text(
                   phrases[i],
@@ -516,8 +668,9 @@ class KQuickReplies extends StatelessWidget {
                   style: context.textStyles.label.copyWith(
                     fontSize: 12.5,
                     height: 1.2,
-                    color: const Color(0xFF1A1A1A),
+                    color: const Color(0xFFFFFFFF),
                     fontWeight: FontWeight.w700,
+                    shadows: KLiveColors.glassShadow,
                   ),
                 ),
               ),

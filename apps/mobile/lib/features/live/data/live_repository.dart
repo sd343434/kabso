@@ -7,6 +7,7 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 
@@ -63,6 +64,10 @@ abstract interface class LiveRepository {
 
   /// `PATCH /live/rooms/{roomId}` (host, CP-011): seat count and theme.
   Future<LiveRoom> updateRoom(String roomId, {int? seatCount, String? theme});
+
+  /// v1.27.3-live (D136): `PATCH /live/rooms/{roomId}` `{wishGifts}` (host;
+  /// up to 4 gift codes in order, `[]` empties the list).
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes);
 
   // ---- CP-011 seats ----------------------------------------------------
 
@@ -222,6 +227,10 @@ abstract interface class LiveRepository {
 
   /// `GET /wallet/me`: the caller's coin balance.
   Future<int> myCoins();
+
+  /// `POST /live/rooms/{roomId}/seat-emoji` (v1.27.5-live, D138): plays
+  /// [token] (`:<pack>_<id>:`) once on the caller's own tile, for the room.
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token);
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -432,6 +441,16 @@ class LiveRepositoryImpl implements LiveRepository {
         final res = await _dio.patch<Map<String, dynamic>>(
           '/live/rooms/${pathSegment(roomId)}',
           data: {'seatCount': ?seatCount, 'theme': ?theme},
+        );
+        return LiveRoom.fromJson(res.data!);
+      });
+
+  @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) =>
+      guardApiCall(() async {
+        final res = await _dio.patch<Map<String, dynamic>>(
+          _room(roomId),
+          data: {'wishGifts': codes},
         );
         return LiveRoom.fromJson(res.data!);
       });
@@ -685,6 +704,16 @@ class LiveRepositoryImpl implements LiveRepository {
     final res = await _dio.get<Map<String, dynamic>>('/wallet/me');
     return (res.data!['coins']! as num).toInt();
   });
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/seat-emoji',
+          data: {'token': token},
+        );
+        return LiveSeatEmoji.fromJson(res.data!);
+      });
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

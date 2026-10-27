@@ -7,7 +7,14 @@ import { AuditAction } from '../../common/audit/audit.service.js';
 import { uuidv7 } from '../levels/uuidv7.js';
 import { isUuid } from '../live/live.schemas.js';
 import { USERNAME_PATTERN } from '../users/username.js';
-import { BANNER_WIDTH, processImage, sniffImageType, THUMB_SIDE } from '../media/media-image.js';
+import {
+  BANNER_WIDTH,
+  processImage,
+  ROOM_BANNER_HEIGHT,
+  ROOM_BANNER_WIDTH,
+  sniffImageType,
+  THUMB_SIDE,
+} from '../media/media-image.js';
 import type { ObjectStorage } from '../media/object-storage.js';
 
 /** At most this many banners are returned (the active ones with the lowest `sortOrder`). */
@@ -17,6 +24,9 @@ export const BANNER_TITLE_MAX = 40;
 export const BANNER_LINK_MAX = 512;
 export const BANNER_TITLE_SIDES = ['LEFT', 'RIGHT'] as const;
 export type BannerTitleSide = (typeof BANNER_TITLE_SIDES)[number];
+/** v1.27.4-live (D137): the live hub (3:1) or the promo box inside a live (3:4). */
+export const BANNER_PLACEMENTS = ['HOME', 'ROOM'] as const;
+export type BannerPlacement = (typeof BANNER_PLACEMENTS)[number];
 /** `GET /home/banners` may be cached by the client for a minute (it is per language). */
 export const HOME_BANNERS_CACHE_CONTROL = 'private, max-age=60';
 
@@ -70,6 +80,8 @@ export interface BannerFields {
   readonly endsAt: Date | null;
   readonly sortOrder: number;
   readonly enabled: boolean;
+  /** v1.27.4-live (D137): `HOME` (default) or `ROOM`. */
+  readonly placement?: BannerPlacement;
 }
 
 /** Every problem with [fields] (empty when they are acceptable). */
@@ -88,6 +100,9 @@ export function bannerFieldProblems(fields: BannerFields): string[] {
     }
   }
   if (!BANNER_TITLE_SIDES.includes(fields.titleSide)) problems.push('--text-side is left or right');
+  if (fields.placement !== undefined && !BANNER_PLACEMENTS.includes(fields.placement)) {
+    problems.push('--placement is home or room');
+  }
   if (Number.isNaN(fields.startsAt.getTime())) problems.push('--starts is not a date');
   if (fields.endsAt !== null) {
     if (Number.isNaN(fields.endsAt.getTime())) problems.push('--ends is not a date');
@@ -112,17 +127,19 @@ export async function storeBannerImage(
   storage: ObjectStorage,
   ownerId: string,
   bytes: Buffer,
+  placement: BannerPlacement = 'HOME',
 ): Promise<MediaAsset> {
   const type = sniffImageType(bytes);
   if (type === null) throw new BannerError('The file is not a JPEG, PNG or WebP image');
   let image;
   try {
-    image = await processImage(bytes, type, BANNER_WIDTH, 'banner');
+    // D137: a ROOM banner is cover-cropped to 3:4 (600 × 800 and 240 × 320).
+    image = await processImage(bytes, type, BANNER_WIDTH, placement === 'ROOM' ? 'roomBanner' : 'banner');
   } catch {
     throw new BannerError('The image could not be read (or is larger than 8 000 px / 50 MP)');
   }
   const id = uuidv7();
-  const largeKey = `media/${id}/${String(BANNER_WIDTH)}.webp`;
+  const largeKey = `media/${id}/${String(placement === 'ROOM' ? ROOM_BANNER_WIDTH : BANNER_WIDTH)}.webp`;
   const thumbKey = `media/${id}/${String(THUMB_SIDE)}.webp`;
   const cache = 'public, max-age=31536000, immutable';
   await storage.put(largeKey, image.large, 'image/webp', cache);
@@ -157,8 +174,11 @@ export async function addBannerIn(
   if (problems.length > 0) throw new BannerError(problems.join('\n'));
   if (!isUuid(mediaId)) throw new BannerError('--media is a media id (UUID)');
   const id = mediaId.toLowerCase();
-  const locked = await tx.$queryRaw<{ kind: string; attached: boolean; fresh: boolean }[]>`
-    SELECT kind, attached_at IS NOT NULL AS attached, created_at > now() - interval '24 hours' AS fresh
+  const locked = await tx.$queryRaw<
+    { kind: string; attached: boolean; fresh: boolean; width: number; height: number }[]
+  >`
+    SELECT kind, attached_at IS NOT NULL AS attached, created_at > now() - interval '24 hours' AS fresh,
+           width, height
     FROM media_assets WHERE id = ${id}::uuid FOR UPDATE`;
   const asset = locked[0];
   if (!asset) throw new BannerError(`No media ${id}.`);
@@ -167,6 +187,17 @@ export async function addBannerIn(
   }
   if (asset.attached) throw new BannerError(`Media ${id} is already used.`);
   if (!asset.fresh) throw new BannerError(`Media ${id} is older than 24 hours; upload it again.`);
+  // D137: a ROOM banner's picture is 3:4 (stored by `--image` with `--placement room`); a HOME
+  // banner's is never that one.
+  const placement = fields.placement ?? 'HOME';
+  const roomShaped = asset.width === ROOM_BANNER_WIDTH && asset.height === ROOM_BANNER_HEIGHT;
+  if ((placement === 'ROOM') !== roomShaped) {
+    throw new BannerError(
+      placement === 'ROOM'
+        ? `Media ${id} is not a 600 × 800 room banner picture; add it with --image and --placement room.`
+        : `Media ${id} is a room banner picture (600 × 800); add it with --placement room.`,
+    );
+  }
   await tx.mediaAsset.update({ where: { id }, data: { attachedAt: new Date() } });
   const banner = await tx.homeBanner.create({
     data: {
@@ -179,6 +210,7 @@ export async function addBannerIn(
       endsAt: fields.endsAt,
       sortOrder: fields.sortOrder,
       enabled: fields.enabled,
+      placement,
     },
   });
   await tx.auditLog.create({
@@ -196,6 +228,7 @@ export async function addBannerIn(
         endsAt: banner.endsAt?.toISOString() ?? null,
         sortOrder: banner.sortOrder,
         enabled: banner.enabled,
+        placement: banner.placement,
         via: 'cli',
       },
     },
@@ -256,8 +289,13 @@ export async function removeBannerIn(
 }
 
 /** A banner is shown now: enabled and `startsAt <= now < endsAt` (no end = open). */
-export function activeBannerWhere(now: Date): Prisma.HomeBannerWhereInput {
-  return { enabled: true, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] };
+export function activeBannerWhere(now: Date, placement?: BannerPlacement): Prisma.HomeBannerWhereInput {
+  return {
+    enabled: true,
+    startsAt: { lte: now },
+    OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+    ...(placement === undefined ? {} : { placement }),
+  };
 }
 
 /** Lowest `sortOrder` first, then the latest start, then the id. */

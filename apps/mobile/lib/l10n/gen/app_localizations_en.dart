@@ -3723,9 +3723,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorLiveChatClosed => 'The host turned the chat off.';
 
   @override
-  String get liveChatEmpty => 'No messages yet. Say hi.';
-
-  @override
   String get liveChatOff => 'Chat is off';
 
   @override
@@ -6166,4 +6163,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goLiveCategoriesAll => 'All topics';
+
+  @override
+  String get liveUserMention => 'Mention';
+
+  @override
+  String get liveQuickHostWelcome => 'Welcome to my live 👋';
+
+  @override
+  String get liveQuickHostThanks => 'Thanks for the support 🌹';
+
+  @override
+  String get liveQuickHostFollow => 'Follow me ❤️';
+
+  @override
+  String get liveQuickHostShare => 'Share the live 🔥';
+
+  @override
+  String get liveRoomIdCopied => 'Room ID copied';
+
+  @override
+  String get liveRoomIdCopyHint => 'Tap to copy';
+
+  @override
+  String get liveWishTitle => 'Wish list';
+
+  @override
+  String get liveWishHint =>
+      'Pick up to 4 gifts you wish for; viewers see them in your live.';
+
+  @override
+  String get liveWishSave => 'Save';
+
+  @override
+  String get liveWishFull => '4 gifts at most';
+
+  @override
+  String liveWishRemove(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String liveWishMoveEarlier(String name) {
+    return 'Move $name up';
+  }
+
+  @override
+  String liveWishRowLabel(String name, String count) {
+    return '$name, received $count';
+  }
+
+  @override
+  String get liveWishCardLabel => 'The host\'s wish list';
+
+  @override
+  String get liveWishEditLabel => 'Edit the wish list';
+
+  @override
+  String get liveToolWish => 'Wish list';
+
+  @override
+  String get livePromoClose => 'Hide the promo';
+
+  @override
+  String get liveSeatEmoji => 'Emoji on my seat';
+
+  @override
+  String get liveSeatEmojiHint =>
+      'Plays once on your seat, for everyone in the room';
 }

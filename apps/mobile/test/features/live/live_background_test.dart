@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -189,7 +190,7 @@ Future<void> _goLive(WidgetTester tester) async {
   await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Evening chat');
   await tester.tap(find.byKey(GoLiveScreen.startKey));
   await tester.pumpAndSettle();
-  expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
+  expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
 }
 
 Future<void> _leave(WidgetTester tester) async {
@@ -333,7 +334,7 @@ void main() {
       expect(repo.endRequests, isEmpty);
       expect(repo.heartbeats, hasLength(4));
       expect(camera.stops, 0);
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
+      expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
 
       await _toForeground(tester);
       await tester.pump();
@@ -401,7 +402,10 @@ void main() {
       final (repo, _, service) = await _pumpApp(tester, router);
       await _openGoLiveFromCreate(tester);
       await _goLive(tester);
-      await tester.tap(find.byKey(GoLiveScreen.minimizeKey));
+      // D135: minimize is in ≡ (Room Tools).
+      await tester.tap(find.byKey(KHostBar.toolsKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveKeys.tool('minimize')));
       await tester.pumpAndSettle();
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
@@ -427,7 +431,10 @@ void main() {
       await tester.pumpAndSettle();
       await _openGoLiveFromCreate(tester);
       await _goLive(tester);
-      await tester.tap(find.byKey(GoLiveScreen.minimizeKey));
+      // D135: minimize is in ≡ (Room Tools).
+      await tester.tap(find.byKey(KHostBar.toolsKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveKeys.tool('minimize')));
       await tester.pumpAndSettle();
       expect(
         router.routerDelegate.currentConfiguration.uri.path,

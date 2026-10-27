@@ -8,6 +8,7 @@ import {
   BANNER_ORDER,
   bannerLinkProblem,
   HOME_BANNER_LIMIT,
+  type BannerPlacement,
   type BannerTitleSide,
 } from './home-banners.js';
 
@@ -37,9 +38,12 @@ export class HomeService {
    * The active banners now, in order, at most [HOME_BANNER_LIMIT]. A row whose link no longer
    * passes the allowlist (rules tightened after it was added) is left out rather than sent.
    */
-  async listBanners(language: ContentLanguage): Promise<HomeBannerDto[]> {
+  async listBanners(
+    language: ContentLanguage,
+    placement: BannerPlacement = 'HOME',
+  ): Promise<HomeBannerDto[]> {
     const rows = await this.prisma.homeBanner.findMany({
-      where: activeBannerWhere(this.clock.now()),
+      where: activeBannerWhere(this.clock.now(), placement),
       orderBy: BANNER_ORDER,
       take: HOME_BANNER_LIMIT,
       include: { media: true },

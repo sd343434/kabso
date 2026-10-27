@@ -31,6 +31,7 @@ import { pageQuerySchema, type PageQuery } from '../posts/posts.schemas.js';
 import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
+import { LiveSeatEmojiService, type LiveSeatEmojiDto } from './live-seat-emoji.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -116,6 +117,7 @@ export class LiveController {
     private readonly taps: LiveTapsService,
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
+    private readonly seatEmoji: LiveSeatEmojiService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -503,6 +505,22 @@ export class LiveController {
     const { created, result } = await this.bullets.send(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return result;
+  }
+
+  /**
+   * v1.27.5-live (D138): an emoji played once on the caller's own seat, for the whole room. 120 / min
+   * per user (the taps rule, bucket `live:seat-emoji`), replacing the default (§7); one every 2 s
+   * is a counting rule (§10.30).
+   */
+  @Post('rooms/:roomId/seat-emoji')
+  @HttpCode(200)
+  @RateLimit({ bucket: 'live:seat-emoji', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  sendSeatEmoji(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveSeatEmojiDto> {
+    return this.seatEmoji.send(requireCaller(req), roomId, body);
   }
 
   /**

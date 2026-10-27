@@ -26,6 +26,17 @@ abstract final class KLiveColors {
   /// v1.1: behind live chat lines (60 % black; white text stays ≥ 5.74:1
   /// even over a white video frame).
   static const chatScrim = Color(0x99000000);
+
+  /// D135 (owner: "more transparent frames"): the live's pills and chips
+  /// (host pill, chips row, viewer count, quick replies) — black 22 %; their
+  /// text carries [glassShadow].
+  static const glass = Color(0x38000000);
+
+  /// The text shadow on [glass] pills, so white text reads on bright video.
+  static const glassShadow = [
+    Shadow(color: Color(0x99000000), blurRadius: 3),
+    Shadow(color: Color(0x66000000), offset: Offset(0, 0.5), blurRadius: 1),
+  ];
 }
 
 /// `color.onStatus` (v1.1): text/icons on status, gold and PK fills.

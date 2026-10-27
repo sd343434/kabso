@@ -43,6 +43,7 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
+import { bumpSeatsVersionIn } from './live-seats.store.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -269,8 +270,8 @@ export class LiveGiftsService {
         // One send of this sender at a time (their combo follows the previous send).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
         // The room row first, like taps (§10.10): sends and tap batches of a room are serialized.
-        const [room] = await tx.$queryRaw<{ host_user_id: string; status: string }[]>`
-          SELECT host_user_id::text AS host_user_id, status::text AS status
+        const [room] = await tx.$queryRaw<{ host_user_id: string; status: string; wish_gifts: string[] }[]>`
+          SELECT host_user_id::text AS host_user_id, status::text AS status, wish_gifts
             FROM live_rooms WHERE id = ${row.id}::uuid
              FOR NO KEY UPDATE`;
         if (!room) throw new AppException(ErrorCode.NOT_FOUND);
@@ -419,10 +420,22 @@ export class LiveGiftsService {
           lucky: isLucky,
           countedPerRecipientCoins: counted.perRecipientCoins,
         });
-        if (hostLevelChanged) {
+        // v1.27.3-live (D136): a wished gift to the host moves the wish list's received count, so
+        // the room info version moves too (the metadata follows with the score's write).
+        const wished = room.wish_gifts.includes(gift.code) && to.some((r) => r.id === room.host_user_id);
+        if (hostLevelChanged || wished) {
           await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
              WHERE id = ${row.id}::uuid`;
+        }
+        // v1.27.2-live (D135, §10.9): a seated recipient's points under their seat moved — the seat
+        // version moves so every app re-reads the seats (the metadata follows the score's write).
+        const guests = to.filter((r) => r.id !== room.host_user_id).map((r) => r.id);
+        if (
+          guests.length > 0 &&
+          (await tx.liveRoomSeat.count({ where: { roomId: row.id, userId: { in: guests } } })) > 0
+        ) {
+          await bumpSeatsVersionIn(tx, [row.id]);
         }
 
         const stored = await tx.liveGift.findUniqueOrThrow({ where: { id: giftId }, include: GIFT_INCLUDE });

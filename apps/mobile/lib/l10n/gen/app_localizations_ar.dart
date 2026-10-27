@@ -3753,9 +3753,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorLiveChatClosed => 'أوقف المضيف الدردشة.';
 
   @override
-  String get liveChatEmpty => 'لا رسائل بعد. قل مرحباً.';
-
-  @override
   String get liveChatOff => 'الدردشة متوقفة';
 
   @override
@@ -6188,4 +6185,71 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveCategoriesAll => 'كل المواضيع';
+
+  @override
+  String get liveUserMention => 'منشن';
+
+  @override
+  String get liveQuickHostWelcome => 'أهلاً بكم في البث 👋';
+
+  @override
+  String get liveQuickHostThanks => 'شكراً على الدعم 🌹';
+
+  @override
+  String get liveQuickHostFollow => 'تابعوني ❤️';
+
+  @override
+  String get liveQuickHostShare => 'شاركوا البث 🔥';
+
+  @override
+  String get liveRoomIdCopied => 'تم نسخ معرّف الغرفة';
+
+  @override
+  String get liveRoomIdCopyHint => 'انقر للنسخ';
+
+  @override
+  String get liveWishTitle => 'قائمة الأمنيات';
+
+  @override
+  String get liveWishHint =>
+      'اختر حتى ٤ هدايا تتمنّاها، يراها المشاهدون في البث.';
+
+  @override
+  String get liveWishSave => 'حفظ';
+
+  @override
+  String get liveWishFull => '٤ هدايا كحد أقصى';
+
+  @override
+  String liveWishRemove(String name) {
+    return 'إزالة $name';
+  }
+
+  @override
+  String liveWishMoveEarlier(String name) {
+    return 'تقديم $name';
+  }
+
+  @override
+  String liveWishRowLabel(String name, String count) {
+    return '$name، استلمت $count';
+  }
+
+  @override
+  String get liveWishCardLabel => 'قائمة أمنيات المضيف';
+
+  @override
+  String get liveWishEditLabel => 'تعديل قائمة الأمنيات';
+
+  @override
+  String get liveToolWish => 'الأمنيات';
+
+  @override
+  String get livePromoClose => 'إخفاء الإعلان';
+
+  @override
+  String get liveSeatEmoji => 'إيموجي على مقعدي';
+
+  @override
+  String get liveSeatEmojiHint => 'يظهر على مقعدك مرة واحدة ويراه الجميع';
 }

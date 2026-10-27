@@ -262,7 +262,12 @@ class AudioSeatRing extends StatelessWidget {
     this.onHost,
     this.hostTapLabel,
     this.cpPairs = const [],
+    this.overlay,
   });
+
+  /// D138: what plays over tile `i`'s picture now (0 is the host), e.g. a
+  /// seat emoji; null for nothing.
+  final Widget? Function(int index)? overlay;
 
   /// Owner D111: CP partners' tiles (0 is the host, see [cpSeatPairs]). Two
   /// partners next to each other — consecutive tiles of a row — are joined
@@ -350,6 +355,7 @@ class AudioSeatRing extends StatelessWidget {
       speaking: !ghost && speaking.contains(0),
       points: hostPoints,
       cpMic: !ghost && cpMicTiles.contains(0),
+      overlay: ghost ? null : overlay?.call(0),
     );
     return ghost ? _ghost(seat) : seat;
   }
@@ -386,6 +392,34 @@ class AudioSeatRing extends StatelessWidget {
     );
   }
 
+  /// D135 (owner: "the support the others received does not show under
+  /// their mic"): under a taken seat, the points its person received in
+  /// this live ([LiveSeat.points], the cherry, as under the host) in the
+  /// space the host's points take; an empty or locked seat keeps that space
+  /// empty so every row has the same height.
+  Widget _guestExtra(BuildContext context, int i) {
+    final seat = seats.where((s) => s.index == i).firstOrNull;
+    if (seat == null ||
+        seat.state != LiveSeatState.taken ||
+        seat.user == null ||
+        hostPoints == null) {
+      return _hostExtra();
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 4),
+        _PointsPill(
+          KFormat.compact(seat.points, context.l10n),
+          key: seatPointsKey(i),
+        ),
+      ],
+    );
+  }
+
+  /// D135: the points under seat [index] (1 … count-1).
+  static Key seatPointsKey(int index) => Key('audioSeat.$index.points');
+
   /// Owner D100, D118: every size in rows of [rowSize] — the host is the
   /// first tile, then seats 1 … count-1, in reading order (start to end, so
   /// mirrored in Arabic). D123 (owner: avatar frames show on the seats and
@@ -409,7 +443,7 @@ class AudioSeatRing extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _guest(i, ghost: ghost),
-                      _hostExtra(),
+                      if (ghost) _hostExtra() else _guestExtra(context, i),
                     ],
                   ),
           ),
@@ -762,6 +796,7 @@ class AudioSeatRing extends StatelessWidget {
         speaking: speaking.contains(i),
         onTap: onTap,
         cpMic: cpMicTiles.contains(i),
+        overlay: overlay?.call(i),
         child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
@@ -848,10 +883,14 @@ class _Seat extends StatelessWidget {
     this.speaking = false,
     this.onTap,
     this.cpMic = false,
+    this.overlay,
   });
 
   /// D115: the seat's partner couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// D138: over the picture, under the name.
+  final Widget? overlay;
 
   final Widget child;
   final String label;
@@ -898,6 +937,8 @@ class _Seat extends StatelessWidget {
                       end: -1,
                       child: _MicOffBadge(),
                     ),
+                  if (overlay case final overlay?)
+                    Positioned.fill(child: overlay),
                 ],
               ),
             ),
@@ -924,10 +965,14 @@ class _HostSeat extends StatelessWidget {
     this.onTap,
     this.tapLabel,
     this.cpMic = false,
+    this.overlay,
   });
 
   /// D115: the host's couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// D138: over the picture, under the name.
+  final Widget? overlay;
 
   final VoidCallback? onTap;
   final String? tapLabel;
@@ -996,6 +1041,8 @@ class _HostSeat extends StatelessWidget {
                         end: -12,
                         child: _MicOffBadge(size: 20),
                       ),
+                    if (overlay case final overlay?)
+                      Positioned.fill(child: overlay),
                   ],
                 ),
               ),
@@ -1024,9 +1071,10 @@ class _HostSeat extends StatelessWidget {
   }
 }
 
-/// The live's points under the host's name.
+/// The live's points under the host's name, and (D135) the points a
+/// seated person received under theirs.
 class _PointsPill extends StatelessWidget {
-  const new(this.points);
+  const new(this.points, {super.key});
 
   final String points;
 

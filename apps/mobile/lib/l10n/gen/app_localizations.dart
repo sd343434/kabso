@@ -6614,12 +6614,6 @@ abstract class AppLocalizations {
   /// **'أوقف المضيف الدردشة.'**
   String get errorLiveChatClosed;
 
-  /// Room chat with no messages (CP-013).
-  ///
-  /// In ar, this message translates to:
-  /// **'لا رسائل بعد. قل مرحباً.'**
-  String get liveChatEmpty;
-
   /// Chat pill when the host turned the chat off (CP-013).
   ///
   /// In ar, this message translates to:
@@ -10699,6 +10693,126 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'كل المواضيع'**
   String get goLiveCategoriesAll;
+
+  /// D135: the person card's Mention action (puts @username into the live chat box).
+  ///
+  /// In ar, this message translates to:
+  /// **'منشن'**
+  String get liveUserMention;
+
+  /// D135: a host quick reply on their own live (sent as a chat message).
+  ///
+  /// In ar, this message translates to:
+  /// **'أهلاً بكم في البث 👋'**
+  String get liveQuickHostWelcome;
+
+  /// D135: a host quick reply on their own live (sent as a chat message).
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً على الدعم 🌹'**
+  String get liveQuickHostThanks;
+
+  /// D135: a host quick reply on their own live (sent as a chat message).
+  ///
+  /// In ar, this message translates to:
+  /// **'تابعوني ❤️'**
+  String get liveQuickHostFollow;
+
+  /// D135: a host quick reply on their own live (sent as a chat message).
+  ///
+  /// In ar, this message translates to:
+  /// **'شاركوا البث 🔥'**
+  String get liveQuickHostShare;
+
+  /// D135: the room ID beside the host's name (copy).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم نسخ معرّف الغرفة'**
+  String get liveRoomIdCopied;
+
+  /// D135: the room ID beside the host's name (copy).
+  ///
+  /// In ar, this message translates to:
+  /// **'انقر للنسخ'**
+  String get liveRoomIdCopyHint;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة الأمنيات'**
+  String get liveWishTitle;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر حتى ٤ هدايا تتمنّاها، يراها المشاهدون في البث.'**
+  String get liveWishHint;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get liveWishSave;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'٤ هدايا كحد أقصى'**
+  String get liveWishFull;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة {name}'**
+  String liveWishRemove(String name);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقديم {name}'**
+  String liveWishMoveEarlier(String name);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}، استلمت {count}'**
+  String liveWishRowLabel(String name, String count);
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة أمنيات المضيف'**
+  String get liveWishCardLabel;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل قائمة الأمنيات'**
+  String get liveWishEditLabel;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأمنيات'**
+  String get liveToolWish;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الإعلان'**
+  String get livePromoClose;
+
+  /// D138: an emoji played once on one's own seat in an audio room.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيموجي على مقعدي'**
+  String get liveSeatEmoji;
+
+  /// D138: an emoji played once on one's own seat in an audio room.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر على مقعدك مرة واحدة ويراه الجميع'**
+  String get liveSeatEmojiHint;
 }
 
 class _AppLocalizationsDelegate

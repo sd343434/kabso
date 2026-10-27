@@ -34,7 +34,12 @@ class LiveRoomChatLines extends ConsumerWidget {
     super.key,
     this.bubble = KAudioRoom.bubble,
     this.inline = false,
+    this.brightNotice = false,
   });
+
+  /// D135: the room's theme is bright (the rules line's fill is a little
+  /// darker).
+  final bool brightNotice;
 
   final String roomId;
   final LiveChatViewerRole role;
@@ -65,107 +70,94 @@ class LiveRoomChatLines extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
     final chat = ref.watch(liveChatProvider(roomId));
-    final items = inline
-        ? chat.items
-        : [
-            for (final it in chat.items)
-              if (it is! LiveChatJoinItem) it,
-          ];
+    // D135 (owner, final): the rules line is simply the first line of
+    // this visit — it shows at the bottom on entering and rises with the
+    // messages until it fades out at the top like any old line. No "no
+    // messages yet" line.
+    final items = [
+      for (final it in chat.items)
+        if (inline || it is! LiveChatJoinItem) it,
+    ];
     // D119: taller lines (picture, name, badges, bubble), so a little more
     // room than the 240 pt of one-line bubbles: about three messages.
     final maxHeight = math
         .min(300, MediaQuery.sizeOf(context).height * 0.35)
         .toDouble();
-    final empty = _Bubble(
-      color: bubble,
-      child: _plain(context, l10n.liveChatEmpty),
-    );
     // D119: the latest join, pinned under the newest message (D131: the
     // video live shows joins as rows instead).
     final strip = inline
         ? const SizedBox.shrink()
         : LiveChatJoinStrip(join: chat.latestJoin, color: bubble);
-    if (items.isEmpty) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [if (chat.loaded) empty, strip],
-      );
-    }
-    // The newest lines that fit; older ones fade out at the top. Not a
-    // lazy list: the audio room measures the chat's height.
+    // The newest lines that fit; older ones fade out at the top. Not a lazy
+    // list: the audio room measures the chat's height.
     final visible = items.length > maxVisibleLines
         ? items.sublist(items.length - maxVisibleLines)
         : items;
-    // Only the rules line so far (D118): the empty hint still follows it.
-    final nothingSaid =
-        chat.loaded && items.every((i) => i is LiveChatNoticeLine);
-    final lines = ConstrainedBox(
-      key: listKey,
-      // D119: wider than before (300 pt) for the picture, name and badges.
-      constraints: BoxConstraints(
-        maxHeight: maxHeight,
-        maxWidth: inline
-            ? LiveChatInlineRow.chatMaxWidth(context)
-            : LiveChatAuthoredLine.chatMaxWidth(context),
-      ),
-      child: ClipRect(
-        child: ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) => const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0x00000000), Color(0xFF000000)],
-            stops: [0, 0.18],
-          ).createShader(bounds),
-          child: Semantics(
-            container: true,
-            liveRegion: true,
-            child: OverflowBox(
-              alignment: AlignmentDirectional.bottomStart,
-              minHeight: 0,
-              maxHeight: double.infinity,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final item in visible)
-                    Padding(
-                      key: lineKey(item.key),
-                      // D119: messages 8 pt apart (the reference's ~7 pt
-                      // at this scale); system lines stay compact.
-                      padding: EdgeInsets.only(
-                        top: inline
-                            ? LiveChatInlineRow.gap
-                            : item is LiveChatPosted || item is LiveChatPending
-                            ? 8
-                            : 4,
-                      ),
-                      child: _line(context, ref, item),
+    final lines = items.isEmpty
+        ? null
+        : ConstrainedBox(
+            key: listKey,
+            // D119: wider than before (300 pt) for the picture, name and
+            // badges.
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+              maxWidth: inline
+                  ? LiveChatInlineRow.chatMaxWidth(context)
+                  : LiveChatAuthoredLine.chatMaxWidth(context),
+            ),
+            child: ClipRect(
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x00000000), Color(0xFF000000)],
+                  stops: [0, 0.18],
+                ).createShader(bounds),
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: OverflowBox(
+                    alignment: AlignmentDirectional.bottomStart,
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final item in visible)
+                          Padding(
+                            key: lineKey(item.key),
+                            // D119: messages 8 pt apart (the reference's ~7 pt
+                            // at this scale); system lines stay compact.
+                            padding: EdgeInsets.only(
+                              top: inline
+                                  ? LiveChatInlineRow.gap
+                                  : item is LiveChatPosted ||
+                                        item is LiveChatPending
+                                  ? 8
+                                  : 4,
+                            ),
+                            child: _line(context, ref, item),
+                          ),
+                      ],
                     ),
-                  if (nothingSaid)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: empty,
-                    ),
-                ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-    // The strip keeps its room: when the place is bounded (the video
-    // live) the lines give way; in the audio room's scroll view they do
-    // not need to.
+          );
+    // The strip keeps its room: when the place is bounded (the video live)
+    // the lines give way; in the audio room's scroll view they do not need
+    // to.
     return LayoutBuilder(
       builder: (context, box) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (box.hasBoundedHeight) Flexible(child: lines) else lines,
+          if (lines != null)
+            if (box.hasBoundedHeight) Flexible(child: lines) else lines,
           strip,
         ],
       ),
@@ -249,11 +241,13 @@ class LiveRoomChatLines extends ConsumerWidget {
         bullet: bullet,
         onTap: () => onProfile(bullet.sender.username),
       ),
-      // D118: the room's rules, a red system line (not tappable).
+      // D118/D135: the room's rules, a see-through system line (not
+      // tappable), the first line of this visit.
       LiveChatNoticeLine() => LiveRoomRulesNotice(
         key: LiveRoomChatLines.noticeKey,
         text: l10n.liveRoomRulesNotice,
         label: l10n.liveRoomRulesLabel,
+        bright: brightNotice,
       ),
     };
   }
@@ -396,15 +390,6 @@ class LiveRoomChatLines extends ConsumerWidget {
     );
   }
 
-  Widget _plain(BuildContext context, String text) => Text(
-    text,
-    style: context.textStyles.caption.copyWith(
-      fontSize: 12.5,
-      color: KAudioRoom.text,
-      fontWeight: FontWeight.w600,
-    ),
-  );
-
   /// The message text in its line's box (D119: the name and badges sit
   /// above it).
   Widget _message(BuildContext context, String text, {bool cp = false}) {
@@ -499,24 +484,6 @@ class LiveRoomChatLines extends ConsumerWidget {
       KSnack.error(context, failureMessage(l10n, failure));
     }
   }
-}
-
-/// A compact system bubble (the empty hint).
-class _Bubble extends StatelessWidget {
-  const new({required this.color, required this.child});
-
-  final Color color;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: child,
-  );
 }
 
 /// The Exclusive Chat Bubble (CP-021, D112, §10.24; `LiveChatMessage.
@@ -845,7 +812,12 @@ class LiveChatBadgeRow extends StatelessWidget {
                 height: h,
                 child: Center(
                   widthFactor: 1,
-                  child: CharmLevelBadge(level: level),
+                  // D135 (owner): one size with the other badges and the
+                  // room's level chip.
+                  child: CharmLevelBadge(
+                    level: level,
+                    height: CharmLevelBadge.lineHeight,
+                  ),
                 ),
               ),
               const SizedBox(width: _space),
@@ -1421,16 +1393,41 @@ class LiveChatBulletBox extends StatelessWidget {
 /// distinct from every message (Kabso's wording, l10n). [label] names it for
 /// screen readers.
 class LiveRoomRulesNotice extends StatelessWidget {
-  const new({required this.text, required this.label, super.key});
+  const new({
+    required this.text,
+    required this.label,
+    super.key,
+    this.bright = false,
+  });
 
   final String text;
   final String label;
 
-  /// Owner: a red box with high transparency and red text.
-  static const fill = Color(0x2EFF3B4E);
-  static const edge = Color(0xFFFF5A6E);
-  static const icon = Color(0xFFFF4D5E);
-  static const textColor = Color(0xFFFF4D5E);
+  /// D135: over a bright room theme the fill is a little darker.
+  final bool bright;
+
+  /// D135 (owner: "a transparent background and a colour that suits the
+  /// live's background"): no box edge — a see-through dark row like the
+  /// chat rows (35 % over video and dark themes, 42 % over bright themes),
+  /// soft coral-pink text with a shadow and a coral shield. The text keeps
+  /// at least 4.5:1 against the fill as rendered over the brightest
+  /// backgrounds tested (a bright video frame, the bright themes; tests).
+  static const fill = Color(0x59100610);
+  static const fillBright = Color(0x6B100610);
+  static const icon = Color(0xFFFF9AA5);
+  static const textColor = Color(0xFFFFD6D2);
+
+  /// The room themes whose lower half is bright (mean luminance, D135).
+  static const brightThemes = {
+    'sunset-sky',
+    'heart-garden',
+    'moon-palace',
+    'ocean-depths',
+    'golden-hall',
+    'ice-palace',
+  };
+
+  static bool isBrightTheme(String? slug) => brightThemes.contains(slug);
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -1438,11 +1435,10 @@ class LiveRoomRulesNotice extends StatelessWidget {
     label: '$label. $text',
     excludeSemantics: true,
     child: Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 10, 6),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 5, 10, 5),
       decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: edge.withValues(alpha: 0.45)),
+        color: bright ? fillBright : fill,
+        borderRadius: BorderRadius.circular(LiveChatInlineRow.radius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1450,7 +1446,12 @@ class LiveRoomRulesNotice extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 1),
-            child: Icon(Icons.shield_rounded, size: 15, color: icon),
+            child: Icon(
+              Icons.shield_rounded,
+              size: 14,
+              color: icon,
+              shadows: [Shadow(color: Color(0x99000000), blurRadius: 3)],
+            ),
           ),
           const SizedBox(width: 6),
           Flexible(
@@ -1460,9 +1461,14 @@ class LiveRoomRulesNotice extends StatelessWidget {
                 fontSize: 12,
                 height: 1.35,
                 color: textColor,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 shadows: const [
-                  Shadow(color: Color(0x99000000), blurRadius: 3),
+                  Shadow(color: Color(0xB3000000), blurRadius: 3),
+                  Shadow(
+                    color: Color(0x80000000),
+                    offset: Offset(0, 1),
+                    blurRadius: 1,
+                  ),
                 ],
               ),
             ),

@@ -8,6 +8,7 @@ import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 
@@ -168,6 +169,9 @@ class FakeLiveRepository implements LiveRepository {
   /// CP-016 D: the room level `startRoom` answers with.
   int? startRoomLevel;
 
+  /// CP-016 G: the room number `startRoom` answers with.
+  int? startRoomNumber;
+
   /// Answers `viewers`.
   List<LiveViewer> viewerList = [];
 
@@ -212,6 +216,7 @@ class FakeLiveRepository implements LiveRepository {
       seatCount: seatCount,
       theme: theme ?? LiveThemes.classic,
       roomLevel: startRoomLevel,
+      roomNumber: startRoomNumber,
     );
     if (mode.hasSeats) {
       seatState = LiveSeats(
@@ -420,6 +425,32 @@ class FakeLiveRepository implements LiveRepository {
   @override
   Future<void> unkick(String roomId, String username) async =>
       kickCalls.add('unkick:$username');
+
+  /// D136: every wish list set (`setWishGifts`).
+  final List<List<String>> wishUpdates = [];
+
+  /// D136: the gifts `setWishGifts` answers with (code → shown gift).
+  Map<String, LiveWishGift> wishCatalogue = {};
+
+  @override
+  Future<LiveRoom> setWishGifts(String roomId, List<String> codes) async {
+    wishUpdates.add(codes);
+    final base = hostRoom ?? apiRoom(id: roomId);
+    final room = base.copyWith(
+      wishGifts: [
+        for (final c in codes)
+          wishCatalogue[c] ??
+              LiveWishGift(
+                giftCode: c,
+                name: c,
+                priceCoins: 1,
+                assetKey: 'gift_$c',
+              ),
+      ],
+    );
+    hostRoom = room;
+    return room;
+  }
 
   @override
   Future<LiveRoom> updateRoom(
@@ -786,6 +817,34 @@ class FakeLiveRepository implements LiveRepository {
   Future<int> myCoins() async {
     walletReads++;
     return coins;
+  }
+
+  // ---- v1.27.5-live seat emoji (D138) ------------------------------------
+
+  /// The token of every seat emoji sent.
+  final List<String> seatEmojiCalls = [];
+
+  /// A failure for the next `sendSeatEmoji` (then cleared).
+  AppFailure? seatEmojiFailure;
+
+  /// The tile the answer names.
+  int seatEmojiSeat = 1;
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) async {
+    seatEmojiCalls.add(token);
+    final failure = seatEmojiFailure;
+    if (failure != null) {
+      seatEmojiFailure = null;
+      throw failure;
+    }
+    return LiveSeatEmoji(
+      id: 'seat-emoji-${seatEmojiCalls.length}',
+      seat: seatEmojiSeat,
+      user: chatAuthor,
+      token: token,
+      createdAt: DateTime.utc(2026, 10, 27, 20),
+    );
   }
 }
 

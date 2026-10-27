@@ -175,9 +175,29 @@ abstract class LiveRoom with _$LiveRoom {
     /// v1.20-live (D105, §10.20): the host or a moderator kicked the caller
     /// out of this live; the app shows why instead of the room.
     @Default(false) bool kicked,
+
+    /// v1.27.3-live (D136, §10.29): the host's wish list, as shown (older
+    /// servers send none).
+    @Default(<LiveWishGift>[]) List<LiveWishGift> wishGifts,
   }) = _LiveRoom;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomFromJson(json);
+}
+
+/// `LiveWishGift` (v1.27.3-live, D136): one gift of the host's wish list
+/// and how many of it the host received in this live.
+@freezed
+abstract class LiveWishGift with _$LiveWishGift {
+  const factory({
+    required String giftCode,
+    required String name,
+    required int priceCoins,
+    required String assetKey,
+    String? imageUrl,
+    @Default(0) int received,
+  }) = _LiveWishGift;
+
+  factory fromJson(Map<String, dynamic> json) => _$LiveWishGiftFromJson(json);
 }
 
 /// `LiveScore` (CP-012): a live's points. One counted tap is 1 point; one
@@ -370,6 +390,10 @@ abstract class LiveSeat with _$LiveSeat {
     required LiveSeatState state,
     required UserSummary? user,
     @Default(false) bool mutedByHost,
+
+    /// v1.27.2-live (D135): the gift points this seated person received in
+    /// this live (0 for empty and locked seats, and from older servers).
+    @Default(0) int points,
   }) = _LiveSeat;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);

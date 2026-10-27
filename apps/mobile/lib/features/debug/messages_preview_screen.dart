@@ -390,8 +390,6 @@ class _MessagesPreviewScreenState extends State<MessagesPreviewScreen> {
           ChatComposer(
             controller: _controller,
             onSend: _send,
-            // D66: a Kabi emoji goes out at once, as its own message.
-            onEmoji: (e) => _send(e.token),
             onMedia: _sendMedia,
             onGift: () => _sendGift(peer),
             giftKey: MessagesPreviewScreen.giftKey,

@@ -22,12 +22,14 @@ import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
+import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -42,6 +44,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -219,6 +222,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   String get _username => widget.room.host.username;
 
+  /// D135 (owner: "the host changes the background and the others do not
+  /// see it"): the room as last read — the session reads it again whenever
+  /// the media room's `roomInfoVersion` moves (title, category, topic,
+  /// cover and, v1.27.2-live, the theme), else the room it opened with.
+  /// [build] watches the session, so every change redraws the room.
+  LiveRoom get _room =>
+      ref.read(liveRoomSessionProvider(widget.room.id)).room ?? widget.room;
+
   // The audio room's chat box (D94: the same as the host's).
   final _chat = TextEditingController();
   final _chatFocus = FocusNode();
@@ -242,7 +253,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// can follow the host and does not (signed in, not the host, a live
   /// room); otherwise it leaves at once.
   bool get _askBeforeLeaving {
-    final room = widget.room;
+    final room = _room;
     if (room.status != LiveRoomStatus.live) return false;
     final me = ref.read(currentUserProvider);
     if (me == null || me.id == room.host.id) return false;
@@ -254,7 +265,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// exit" follows, then leaves; a failed follow says why and stays.
   Future<void> _leave() async {
     if (!_askBeforeLeaving) return widget.onClose();
-    final room = widget.room;
+    final room = _room;
     final choice = await showLiveLeavePrompt(
       context,
       hostName: room.host.displayName,
@@ -285,7 +296,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     _started = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final room = widget.room;
+      final room = _room;
       unawaited(
         _session.start(
           room,
@@ -298,6 +309,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // CP-020: the room's gifts, on the same media session.
       ref
           .read(liveGiftEffectsProvider(room.id).notifier)
+          .attach(_session.engine);
+      // D138: the emojis people play on their seats.
+      ref
+          .read(liveSeatEmojisProvider(room.id).notifier)
           .attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
@@ -320,7 +335,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     ({bool enabled, Future<void> Function({required bool enabled}) set})?
     selfMic,
   }) {
-    final room = widget.room;
+    final room = _room;
     final session = ref.read(liveRoomSessionProvider(room.id));
     final me = ref.read(currentUserProvider);
     final mine = session.mine?.role;
@@ -358,6 +373,23 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _session.mute(index, muted: muted),
           selfMic: selfMic,
           onGift: (person) => unawaited(_openGifts(preselect: person)),
+          // D135: Mention — "@username" in the chat box, opened.
+          onMention: me == null
+              ? null
+              : (username) {
+                  insertMention(_chat, username);
+                  unawaited(
+                    _openChat(
+                      liveChatComposerHint(
+                        context.l10n,
+                        chat: ref.read(liveChatProvider(room.id)),
+                        role: _chatRole(
+                          ref.read(liveRoomSessionProvider(room.id)),
+                        ),
+                      ),
+                    ),
+                  );
+                },
         ),
       ),
     );
@@ -370,32 +402,44 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// a list.
   Widget? _viewers(LiveRoomSessionState session, {bool video = false}) {
     final l10n = context.l10n;
-    final room = widget.room;
+    final room = _room;
     if (room.status != LiveRoomStatus.live) return null;
     final preview = ref.watch(liveViewersPreviewProvider(room.id)).value;
+    // D135 (owner: "why can't the viewer see the viewers and their
+    // count?"): the viewer always sees the count — at least themself — and
+    // can open the list, also before the faces arrive.
+    void open() => unawaited(
+      showLiveViewers(
+        context,
+        roomId: room.id,
+        moderators: session.seats?.moderators ?? const [],
+        seated: session.seats?.seats ?? const [],
+        onPerson: (u) => _person(u.username),
+      ),
+    );
     if (preview == null || preview.items.isEmpty) {
-      if (room.viewerCount < 1) return null;
+      final count = math.max(room.viewerCount, 1);
       return LiveViewersStack(
         key: LiveRoomScreen.viewersKey,
         avatarSize: video ? 25.6 : LiveViewersStack.size,
         pitch: video ? 30.6 : LiveViewersStack.size - 7,
         countHeight: video ? 25 : LiveViewersStack.size,
+        countMinWidth: video ? 31 : null,
         avatars: const [],
-        count: KFormat.compact(room.viewerCount, l10n),
-        label: l10n.liveViewers(
-          room.viewerCount,
-          KFormat.grouped(room.viewerCount),
-        ),
+        count: KFormat.compact(count, l10n),
+        label: l10n.liveViewers(count, KFormat.grouped(count)),
+        onTap: open,
       );
     }
-    final n = preview.items.length;
-    final more = preview.next == null ? '' : '+';
+    final n = math.max(preview.items.length, room.viewerCount);
+    final more = preview.next == null || n > preview.items.length ? '' : '+';
     return LiveViewersStack(
       key: LiveRoomScreen.viewersKey,
       // D131 (ref 158): 25.6 pt pictures 30.6 pt apart, a 25 pt count.
       avatarSize: video ? 25.6 : LiveViewersStack.size,
       pitch: video ? 30.6 : LiveViewersStack.size - 7,
       countHeight: video ? 25 : LiveViewersStack.size,
+      countMinWidth: video ? 31 : null,
       avatars: [
         for (final v in preview.items)
           if (v.user case final u?)
@@ -407,15 +451,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ],
       count: '${KFormat.compact(n, l10n)}$more',
       label: l10n.liveViewers(n, '${KFormat.grouped(n)}$more'),
-      onTap: () => unawaited(
-        showLiveViewers(
-          context,
-          roomId: room.id,
-          moderators: session.seats?.moderators ?? const [],
-          seated: session.seats?.seats ?? const [],
-          onPerson: (u) => _person(u.username),
-        ),
-      ),
+      onTap: open,
     );
   }
 
@@ -466,6 +502,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
 
   Widget _roomChat(LiveRoomSessionState session, {Color? bubble}) =>
       LiveRoomChatLines(
+        // D135: a bright theme darkens the rules line's fill a little.
+        brightNotice: LiveRoomRulesNotice.isBrightTheme(_room.theme),
         roomId: widget.room.id,
         role: _chatRole(session),
         bubble: bubble ?? KAudioRoom.bubble,
@@ -587,7 +625,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final room = widget.room;
+    final room = _room;
     _start();
     final session = ref.watch(liveRoomSessionProvider(room.id));
     // v1.20-live (D105): kicked out (the kick message, the media server's
@@ -656,7 +694,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     LiveMediaEngine engine,
   ) {
     final l10n = context.l10n;
-    final room = widget.room;
+    final room = _room;
     final host = room.host;
     final avatar = _networkImage(host.avatarUrl);
     final profile = ref.watch(publicProfileProvider(_username)).value;
@@ -702,6 +740,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(
+        // D135: the room ID beside the name (copy on tap).
+        roomId: room.roomNumber?.toString(),
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -741,9 +781,18 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // Presence does not exist yet: a count only when the API has one.
       viewers: ended ? null : _viewers(session, video: true),
       onClose: () => unawaited(_leave()),
-      roomInfo: ended
+      roomInfo: ended ? null : KRoomChipsRow(level: room.roomLevel),
+      // D136: the host's wish list (a row opens the gift panel with that
+      // gift and the host); D137: the promo box.
+      sideStart: ended
           ? null
-          : KRoomChipsRow(level: room.roomLevel, roomNumber: room.roomNumber),
+          : LiveWishCard(
+              wishes: room.wishGifts,
+              onWish: me == null
+                  ? null
+                  : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
+            ),
+      sideEnd: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
       chat: ended
           ? null
           : Align(
@@ -807,7 +856,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       actions: [
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
-                          asset: 'assets/live_bar/gift.png',
+                          // D135: the owner's colourful gift box.
+                          asset: 'assets/live_bar/bar_gift.png',
+                          art: true,
                           label: l10n.liveGifts,
                           onTap: () => unawaited(_openGifts()),
                         ),
@@ -848,7 +899,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     required ({bool canWrite, String hint}) composer,
   }) {
     final l10n = context.l10n;
-    final room = widget.room;
+    final room = _room;
     final host = room.host;
     final mine = session.mine;
     final pending = session.seats?.pendingRequests ?? 0;
@@ -984,6 +1035,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     label: l10n.livePreviewEmoji,
                     onTap: () => unawaited(_openChat(composer, emoji: true)),
                   ),
+                  // D138: someone seated plays an emoji on their seat.
+                  if (mine?.seatIndex case final seat?)
+                    LiveRoundButton(
+                      key: AudioRoomViewKeys.seatEmoji,
+                      icon: Icons.add_reaction_rounded,
+                      bare: true,
+                      label: l10n.liveSeatEmoji,
+                      onTap: () => unawaited(
+                        showSeatEmojiSheet(
+                          context,
+                          ref,
+                          roomId: room.id,
+                          seat: seat,
+                        ),
+                      ),
+                    ),
                 ],
                 barEnd: [
                   ?seatButton,
@@ -1031,7 +1098,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// SOLO: the host's video, "the host will be right back" while they are
   /// away, or the join failure. Seat rooms: the theme (seats are the stage).
   Widget _video(LiveRoomSessionState session, LiveMediaEngine engine) {
-    final room = widget.room;
+    final room = _room;
     if (room.mode.hasSeats) {
       if (room.mode == LiveRoomMode.audio && room.theme == LiveThemes.classic) {
         return const LiveAudioRoomBackground();
@@ -1065,7 +1132,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// MULTI: the host's tile and the seats; AUDIO: the crowned circle and
   /// rows of seats. A seated viewer sees their own camera in their tile.
   Widget _stage(LiveRoomSessionState session, LiveMediaEngine engine) {
-    final room = widget.room;
+    final room = _room;
     final seats = session.seats;
     final art = LiveThemeArt.of(room.theme);
     final count = seats?.seatCount ?? room.seatCount ?? 0;
@@ -1140,32 +1207,41 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           mine,
       },
       onSeat: onSeat,
+      // D138: the emojis played on the seats.
+      overlay: seatEmojiOverlay(
+        ref,
+        widget.room.id,
+        picture: AudioSeatRing.picture,
+      ),
     );
   }
 
   /// CP-020: the gift panel for this live (the host and the people on a
   /// seat now), [preselect] chosen when they can receive.
-  Future<void> _openGifts({LiveGiftPreselect? preselect}) =>
-      KLiveGiftSheet.show(
-        context,
-        preselect: preselect,
-        room: LiveGiftRoom(
-          roomId: widget.room.id,
-          host: widget.room.host,
-          seated: (ref) => [
-            for (final seat
-                in ref
-                        .watch(liveRoomSessionProvider(widget.room.id))
-                        .seats
-                        ?.seats ??
-                    const <LiveSeat>[])
-              ?seat.user,
-          ],
-          onSeatsStale: () {
-            if (mounted) unawaited(_session.refreshSeats());
-          },
-        ),
-      );
+  Future<void> _openGifts({
+    LiveGiftPreselect? preselect,
+    String? preselectGift,
+  }) => KLiveGiftSheet.show(
+    context,
+    preselect: preselect,
+    preselectGift: preselectGift,
+    room: LiveGiftRoom(
+      roomId: widget.room.id,
+      host: widget.room.host,
+      seated: (ref) => [
+        for (final seat
+            in ref
+                    .watch(liveRoomSessionProvider(widget.room.id))
+                    .seats
+                    ?.seats ??
+                const <LiveSeat>[])
+          ?seat.user,
+      ],
+      onSeatsStale: () {
+        if (mounted) unawaited(_session.refreshSeats());
+      },
+    ),
+  );
 }
 
 /// The localized end reason (HL-L10).
@@ -1265,6 +1341,11 @@ class _HostSheet extends ConsumerWidget {
   static const profileKey = Key('room.userCard.profile');
   static const messageKey = Key('room.userCard.message');
   static const giftKey = Key('room.userCard.gift');
+
+  /// D135: Mention (puts @username into the chat box) and Follow (for
+  /// someone this viewer does not follow; Message once they do).
+  static const mentionKey = Key('room.userCard.mention');
+  static const followKey = Key('room.userCard.follow');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
   static const cpFrameKey = Key('room.userCard.cpFrame');
@@ -1326,10 +1407,12 @@ class _HostSheet extends ConsumerWidget {
         key: key,
         onTap: onTap,
         radius: 32,
-        child: SizedBox(
-          width: 70,
+        child: ConstrainedBox(
+          // D135: at least a 48 pt target; Expanded cells share the row.
+          constraints: const BoxConstraints(minHeight: 56),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // One 36 dp box for every icon: the gift art has a clear margin,
               // so its drawing comes out about 28 dp, like the Message
@@ -1547,62 +1630,101 @@ class _HostSheet extends ConsumerWidget {
               const SizedBox(height: 10),
               const Divider(height: 1, color: Color(0xFFEDEEF2)),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  // CP-020: the gift panel with this person chosen (never
-                  // to oneself).
-                  if (scope?.onGift case final onGift? when !profile.isSelf)
-                    action(
-                      key: giftKey,
-                      asset: 'assets/live_bar/gift.png',
-                      label: l10n.liveGifts,
-                      onTap: () => close(
-                        () => onGift((
-                          username: profile.username,
-                          name: profile.displayName,
-                        )),
-                      ),
-                    ),
-                  if (onInvite != null)
-                    action(
-                      key: inviteKey,
-                      asset: 'assets/live_bar/seat.png',
-                      label: l10n.liveSeatInviteSend,
-                      onTap: () => close(onInvite),
-                    )
-                  else if (!profile.isSelf)
-                    // Owner (2026-10-26): Message here; the picture opens
-                    // the profile.
-                    action(
-                      key: messageKey,
-                      glyph: const _MessageGlyph(),
-                      label: l10n.profileMessage,
-                      onTap: () => close(
-                        () => unawaited(
-                          context.push(
-                            AppRoutes.chat(profile.username),
-                            extra: profile.displayName,
+              // D135 (owner): the bottom row — Gift, Mention, then Message
+              // for someone I follow or Follow (which turns into Message)
+              // for someone I do not; nothing for my own card. The host's
+              // Invite to a seat stays after them.
+              if (!profile.isSelf)
+                Row(
+                  children: [
+                    // CP-020: the gift panel with this person chosen; the
+                    // panel says when they cannot receive here (not on the
+                    // mic).
+                    if (scope?.onGift case final onGift?)
+                      Expanded(
+                        child: action(
+                          key: giftKey,
+                          asset: 'assets/live_bar/gift.png',
+                          label: l10n.liveGifts,
+                          onTap: () => close(
+                            () => onGift((
+                              username: profile.username,
+                              name: profile.displayName,
+                            )),
                           ),
                         ),
                       ),
-                    ),
-                  const SizedBox(width: 8),
-                  if (profile.canFollow)
-                    Expanded(
-                      child: _FollowButton(
-                        following: profile.isFollowing,
-                        onPressed: () => unawaited(
-                          setHostFollowing(
-                            context,
-                            ref,
-                            username,
-                            follow: !profile.isFollowing,
+                    if (scope?.onMention case final onMention?)
+                      Expanded(
+                        child: action(
+                          key: mentionKey,
+                          glyph: const _RoundGlyph(
+                            colors: [Color(0xFFFFB25B), Color(0xFFFF6A3D)],
+                            child: Text(
+                              '@',
+                              style: TextStyle(
+                                color: Color(0xFFFFFFFF),
+                                fontSize: 19,
+                                height: 1,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          label: l10n.liveUserMention,
+                          onTap: () => close(() => onMention(profile.username)),
+                        ),
+                      ),
+                    if (profile.isFollowing || !profile.canFollow)
+                      Expanded(
+                        child: action(
+                          key: messageKey,
+                          glyph: const _MessageGlyph(),
+                          label: l10n.profileMessage,
+                          onTap: () => close(
+                            () => unawaited(
+                              context.push(
+                                AppRoutes.chat(profile.username),
+                                extra: profile.displayName,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: action(
+                          key: followKey,
+                          glyph: const _RoundGlyph(
+                            colors: [Color(0xFFFF5A7A), Color(0xFFE5245A)],
+                            child: Icon(
+                              Icons.person_add_alt_1_rounded,
+                              size: 20,
+                              color: Color(0xFFFFFFFF),
+                            ),
+                          ),
+                          label: l10n.liveFollow,
+                          // Follows; the card then shows Message.
+                          onTap: () => unawaited(
+                            setHostFollowing(
+                              context,
+                              ref,
+                              username,
+                              follow: true,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                    if (onInvite != null)
+                      Expanded(
+                        child: action(
+                          key: inviteKey,
+                          asset: 'assets/live_bar/seat.png',
+                          label: l10n.liveSeatInviteSend,
+                          onTap: () => close(onInvite),
+                        ),
+                      ),
+                  ],
+                ),
             ],
           );
 
@@ -1735,6 +1857,43 @@ class _HostSheet extends ConsumerWidget {
       },
     );
   }
+}
+
+/// D135: a round glossy 32 pt button art (Mention, Follow) sized like the
+/// gift and Message art beside it.
+class _RoundGlyph extends StatelessWidget {
+  const new({required this.colors, required this.child});
+
+  final List<Color> colors;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 36,
+    child: Center(
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: colors,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.last.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: child,
+      ),
+    ),
+  );
 }
 
 /// The card's Message button art (owner, 2026-10-26: the flat bubble looked
@@ -2047,4 +2206,7 @@ abstract final class AudioRoomViewKeys {
   static const requests = Key('audioRoom.requests');
   static const gift = Key('audioRoom.gift');
   static const mic = Key('audioRoom.mic');
+
+  /// D138: an emoji on my own seat (seated only).
+  static const seatEmoji = Key('audioRoom.seatEmoji');
 }

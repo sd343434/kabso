@@ -17,6 +17,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -47,6 +49,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
@@ -84,6 +87,10 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static final Key themeKey = GoLiveKeys.tool('theme');
   static final Key liveGuestsKey = GoLiveKeys.tool('guests');
   static const Key guestsChipKey = GoLiveKeys.guestsChip;
+
+  /// D135: the host's quick replies over the host bar.
+  static const hostQuickRepliesKey = Key('goLive.quickReplies');
+
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
   static const shareKey = Key('goLive.share');
@@ -324,6 +331,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       // CP-020: the room's gifts, on the same media session.
       ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine);
+      // D138: the emojis people play on their seats.
+      ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -437,6 +446,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final roomChat = room == null || chat == null
         ? null
         : LiveRoomChatLines(
+            // D135: a bright theme darkens the rules line's fill a little.
+            brightNotice: LiveRoomRulesNotice.isBrightTheme(state.theme),
             roomId: room.id,
             role: LiveChatViewerRole.host,
             onProfile: (username) => _person(room.id, username),
@@ -764,6 +775,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 onSettings: () => unawaited(
                   showLiveSetupSettings(
                     context,
+                    onWishList: () => unawaited(_openWishSheet()),
+                    wishCount: _wishCount(state),
                     allowGuests: state.allowGuests,
                     onAllowGuests: (_) => unawaited(_toggleGuests(state)),
                     onShare: user == null
@@ -782,6 +795,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // voice in the mixer's place, viewers as users, chat as
           // comments), the rest greyed with "Soon" (owner D99).
           room: [
+            // D138: the host plays an emoji on their own tile (0).
+            GoLiveTool(
+              id: 'seatEmoji',
+              icon: Icons.add_reaction_rounded,
+              label: l10n.liveSeatEmoji,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showSeatEmojiSheet(
+                        context,
+                        ref,
+                        roomId: room.id,
+                        seat: 0,
+                      ),
+                    ),
+            ),
             ?byId['voice'],
             GoLiveTool.soon(
               id: 'music',
@@ -991,6 +1020,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           hostPoints: KFormat.compact(score, l10n),
           speaking: speaking,
           onSeat: onSeat,
+          // D138: the emojis played on the seats.
+          overlay: room == null
+              ? null
+              : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
         ),
         chat: [?roomChat],
         composer: chatComposer,
@@ -1377,6 +1410,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? () => unawaited(
                   showLiveSetupSettings(
                     context,
+                    onWishList: () => unawaited(_openWishSheet()),
+                    wishCount: _wishCount(state),
                     allowGuests: state.allowGuests,
                     guestsKey: GoLiveScreen.guestsChipKey,
                     onAllowGuests: (allow) => unawaited(
@@ -1452,6 +1487,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               onSettings: () => unawaited(
                 showLiveSetupSettings(
                   context,
+                  onWishList: () => unawaited(_openWishSheet()),
+                  wishCount: _wishCount(state),
                   allowGuests: state.allowGuests,
                   onAllowGuests: (_) => unawaited(_toggleGuests(state)),
                   onShare: user == null
@@ -1489,6 +1526,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         // The recording's Room Tools in its order: ours where they exist,
         // the rest "Soon" (D99); our other tools stay in the same sheet.
         room: [
+          // D135 (owner: "minimize is in ≡ at the bottom, not at the top").
+          GoLiveTool(
+            id: 'minimize',
+            icon: Icons.picture_in_picture_alt_rounded,
+            label: l10n.goLiveMinimize,
+            onTap: live ? _minimize : null,
+          ),
+          // D136: the wish list.
+          GoLiveTool(
+            id: 'wish',
+            icon: Icons.card_giftcard_rounded,
+            label: l10n.liveToolWish,
+            onTap: !live ? null : () => unawaited(_openWishSheet()),
+          ),
           GoLiveTool(
             id: 'share',
             icon: Icons.share_rounded,
@@ -1578,9 +1629,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
     final micOff = !state.micEnabled;
+    // D135: the host's own charm level and points (`GET /levels/me`).
+    final charm = ref
+        .watch(myLevelsProvider)
+        .value
+        ?.where(
+          (l) => l.category == LevelCategory.attractiveness && l.available,
+        )
+        .firstOrNull;
     return KLiveRoomScaffold(
       video: background,
       header: KHostPill(
+        // D135: the room ID beside the name (copy on tap).
+        roomId: room.roomNumber?.toString(),
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [
@@ -1629,6 +1690,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               avatarSize: 25.6,
               pitch: 30.6,
               countHeight: 25,
+              countMinWidth: 31,
               avatars: [
                 for (final v in viewers.items)
                   if (v.user case final u?)
@@ -1647,48 +1709,62 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               onTap: () => unawaited(_openAudience(room, liveSeats)),
             ),
-      trailing: KRoomIconButton(
-        key: GoLiveScreen.minimizeKey,
-        icon: Icons.picture_in_picture_alt_rounded,
-        label: l10n.goLiveMinimize,
-        onPressed: live ? _minimize : null,
-        iconSize: 19,
-        bare: true,
+      // D136: the wish list (a tap changes it); D137: the promo box.
+      sideStart: LiveWishCard(
+        wishes: room.wishGifts,
+        onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
+      sideEnd: live ? LiveRoomPromoBox(roomId: room.id) : null,
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
-      roomInfo: Row(
-        children: [
-          _HostElapsed(since: state.liveSince),
-          const SizedBox(width: 6),
-          Expanded(
-            child: KRoomChipsRow(
-              level: room.roomLevel,
-              roomNumber: room.roomNumber,
-            ),
-          ),
-        ],
+      // D135 (owner: "the charm level is in the wrong place"): the board
+      // chip and the charm level chip with the host's points against the
+      // next level at the start; the LIVE timer and the room ID at the end.
+      roomInfo: KRoomChipsRow(
+        level: charm?.level?.levelNumber ?? room.roomLevel,
+        points: charm?.points.toInt(),
+        target: charm?.nextLevel?.requiredPoints.toInt(),
+        elapsed: _HostElapsed(since: state.liveSince),
       ),
       stage: stage,
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
       actionBar:
           composer ??
-          KHostBar(
-            chatKey: GoLiveScreen.videoChatKey,
-            onChat: openChat,
-            onBeauty: openBeauty,
-            onTools: openTools,
-            beautyOn: state.beauty.enabled,
-            requests: liveSeats?.pendingRequests ?? 0,
-            // In a multi-guest live: requests and seats; a solo live has no
-            // seats to join (switching mid-live has no backend yet).
-            onGuests: state.mode.hasSeats
-                ? () =>
-                      unawaited(_openViewers(room.id, liveSeats, guests: true))
-                : () => KSnack.info(context, l10n.liveHostGuestsSoon),
-            onPk: () => KSnack.info(context, l10n.goLivePkSoon),
-            onGift: () => unawaited(_openGifts(room)),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // D135 (ref 158 §4.7): the host's quick replies over the bar
+              // while the chat is on (each one an ordinary chat message).
+              if (chat != null && chat.enabled) ...[
+                KQuickReplies(
+                  key: GoLiveScreen.hostQuickRepliesKey,
+                  host: true,
+                  onSend: (text) => unawaited(
+                    sendLiveChatText(context, ref, roomId: room.id, text: text),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+              KHostBar(
+                chatKey: GoLiveScreen.videoChatKey,
+                onChat: openChat,
+                onBeauty: openBeauty,
+                onTools: openTools,
+                beautyOn: state.beauty.enabled,
+                requests: liveSeats?.pendingRequests ?? 0,
+                // In a multi-guest live: requests and seats; a solo live has no
+                // seats to join (switching mid-live has no backend yet).
+                onGuests: state.mode.hasSeats
+                    ? () => unawaited(
+                        _openViewers(room.id, liveSeats, guests: true),
+                      )
+                    : () => KSnack.info(context, l10n.liveHostGuestsSoon),
+                onPk: () => KSnack.info(context, l10n.goLivePkSoon),
+                onGift: () => unawaited(_openGifts(room)),
+              ),
+            ],
           ),
     );
   }
@@ -1779,9 +1855,39 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           _ => null,
         },
+        // D135: Mention — "@username" in the host's chat box, opened.
+        onMention: (username) {
+          if (!mounted) return;
+          insertMention(_chat, username);
+          setState(() {
+            _writing = true;
+            _emojiMode = false;
+          });
+          _chatFocus.requestFocus();
+        },
       ),
     );
   }
+
+  /// D136: the wish list — the live room's, else the one picked before
+  /// going live.
+  List<String> _wishCodes(GoLiveState state) =>
+      state.room?.wishGifts.map((w) => w.giftCode).toList() ??
+      state.wishGifts ??
+      const [];
+
+  int? _wishCount(GoLiveState state) =>
+      state.room != null || state.wishGifts != null
+      ? _wishCodes(state).length
+      : null;
+
+  /// D136: the host picks the wish list (setup settings, Room Tools, a tap
+  /// on the card).
+  Future<void> _openWishSheet() => showLiveWishSheet(
+    context,
+    initial: _wishCodes(ref.read(liveHostControllerProvider)),
+    onSave: _host.setWishGifts,
+  );
 
   /// CP-020: the host's gift panel: to the people on a seat now, and to
   /// the host themself (D128).
@@ -2169,7 +2275,7 @@ class _HostElapsed extends StatelessWidget {
         height: KViewerRoom.chipHeight,
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
-          color: KLiveColors.chatScrim,
+          color: KLiveColors.glass,
           borderRadius: BorderRadius.circular(KRadius.pill),
         ),
         child: Row(

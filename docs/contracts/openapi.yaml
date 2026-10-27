@@ -144,6 +144,10 @@ info:
     hosts are managed by the `feature-admin` CLI) and the kinds `solo` (`SOLO`, `PK`), `multi`
     (`MULTI`) and `party` (`AUDIO`, `MULTI`); and the caller's own country (`Me.country`, set
     with `updateMe`) (CONVENTIONS §10.4, §10.28).
+    **D138 (DRAFT v1.27.5-live)** adds `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`,
+    `LiveSeatEmojiRequest`, `LiveSeatEmoji`): in a room with seats the host or someone seated plays
+    one of the owner's animated emojis once on their own tile, for the whole room, as the data
+    message `seat-emoji` on topic `seat-emoji` (CONVENTIONS §10.30).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1176,6 +1180,7 @@ paths:
                     chatEnabled: true
                     chatMuted: false
                     kicked: false
+                    wishGifts: []
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -1608,6 +1613,56 @@ paths:
                 error:
                   code: INSUFFICIENT_COINS
                   message: Not enough coins.
+                  requestId: 0192f1d0-7777-7000-8000-000000000008
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-emoji:
+    post:
+      tags: [live]
+      operationId: sendLiveSeatEmoji
+      summary: "Play an emoji once on one's own seat (D138)"
+      description: |
+        v1.27.5-live, CONVENTIONS §10.30. A signed-in caller in a LIVE room with seats (`AUDIO` or
+        `MULTI`) who is the host (tile 0) or seated now. Checks, in order: 401 without an account;
+        404 for a room the caller may not see; 409 `LIVE_ROOM_ENDED`; 400 for the body (`token`:
+        `required`, or `invalid_value` when it is not one of the owner's pack emojis); 403
+        `LIVE_KICKED`; 409 `LIVE_SEAT_UNAVAILABLE` (a room without seats, or the caller is neither
+        the host nor seated); 429 (one every 2 s per user, with `Retry-After`). Nothing is stored. On
+        success the room gets a reliable data message on topic `seat-emoji`:
+        `{"type":"seat-emoji", …LiveSeatEmoji}` (best effort, like every data message).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatEmojiRequest' }
+            example: { token: ':kabi_love:' }
+      responses:
+        '200':
+          description: Sent to the room; what the room was sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatEmoji' }
+              example:
+                id: 0192f1d0-4444-7000-8000-000000000009
+                seat: 2
+                user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                token: ':kabi_love:'
+                createdAt: '2026-10-27T18:30:00.000Z'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, or `LIVE_SEAT_UNAVAILABLE` (no seats in this room, or the caller is not on one)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: LIVE_SEAT_UNAVAILABLE
+                  message: That seat is not available.
                   requestId: 0192f1d0-7777-7000-8000-000000000008
         '429': { $ref: '#/components/responses/Error' }
 
@@ -3485,11 +3540,19 @@ paths:
         latest `startsAt`, then `id`; at most 10. **Empty** when none is active (the app then shows
         no banner). `title` is the overlay text in the language of `Accept-Language`, else the
         caller's locale (§10.1), or null when the banner has none in that language (no fallback to
-        the other language). `link` is one of the in-app routes `/cp/space`, `/families`,
+        the other language). *(v1.27.4-live, D137)* `placement=room` lists the banners of the promo
+        box inside a live instead (3:4 pictures, 600 × 800); the default `home` is the live hub's
+        (3:1). `link` is one of the in-app routes `/cp/space`, `/families`,
         `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
         `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
+      parameters:
+        - name: placement
+          in: query
+          required: false
+          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live). Anything else → 400 `placement` / `invalid_value`."
+          schema: { type: string, enum: [home, room], default: home }
       responses:
         '200':
           description: The active banners (possibly empty).
@@ -3516,6 +3579,7 @@ paths:
                         title: فضاء الثنائيات
                         titleSide: RIGHT
                         link: /cp/space
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/cp/config:
@@ -5834,8 +5898,17 @@ components:
       allOf:
         - { $ref: '#/components/schemas/LiveRoomSummary' }
         - type: object
-          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted, kicked]
+          required: [status, endedAt, endReason, allowGuests, scoreParts, chatEnabled, chatMuted, kicked, wishGifts]
           properties:
+            wishGifts:
+              type: array
+              maxItems: 4
+              description: |
+                v1.27.3-live (D136, CONVENTIONS §10.29): the host's wish list in display order — each
+                gift as shown (name by `Accept-Language`) with how many of it the host received in this
+                live. A gift that can no longer be sent is left out. Empty when the host wished nothing.
+                Changes move `roomInfoVersion`. Clients that do not know the field ignore it.
+              items: { $ref: '#/components/schemas/LiveWishGift' }
             scoreParts: { $ref: '#/components/schemas/LiveScore' }
             chatEnabled: { type: boolean, description: "CP-013: false when the host turned the chat off." }
             chatMuted: { type: boolean, description: "CP-013: the caller is muted in this live's chat (false for guests)." }
@@ -5855,6 +5928,32 @@ components:
             endReason:
               type: [string, 'null']
               enum: [HOST_ENDED, HEARTBEAT_TIMEOUT, HOST_SUSPENDED, ADMIN, null]
+    LiveWishGift:
+      type: object
+      description: v1.27.3-live (D136). One gift of the host's wish list.
+      required: [giftCode, name, priceCoins, assetKey, imageUrl, received]
+      properties:
+        giftCode: { $ref: '#/components/schemas/GiftCode' }
+        name: { type: string }
+        priceCoins: { type: integer, minimum: 1 }
+        assetKey: { type: string, description: "The bundled image key (fallback)." }
+        imageUrl: { type: [string, 'null'], format: uri, description: "The hosted image, or null." }
+        received: { type: integer, minimum: 0, description: "How many of this gift the host received in this live (every send that named the host, whoever sent it)." }
+    GiftCode:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9_]{0,39}$'
+      description: A catalogue gift's code (v1.27.3-live, D136).
+      example: rose
+    WishGiftCodes:
+      type: array
+      maxItems: 4
+      uniqueItems: true
+      description: |
+        v1.27.3-live (D136, §10.29): up to 4 distinct gift codes in display order (`[]` empties the
+        list). Each must be a gift that can be sent now (enabled; `LUCKY` only while lucky gifts are
+        on), else 400 `wishGifts` / `invalid_value`; more than 4 → `too_many`; a repeated code →
+        `invalid_value`.
+      items: { $ref: '#/components/schemas/GiftCode' }
     LiveRoomPage:
       type: object
       required: [data, page]
@@ -5888,11 +5987,14 @@ components:
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
+        wishGifts:
+          allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
+          description: "v1.27.3-live (D136): the wish list; absent → the host's last live's list (gifts that can no longer be sent are left out when shown)."
     UpdateLiveRoomRequest:
       type: object
       minProperties: 1
       additionalProperties: false
-      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`); `chatEnabled` is CP-013; `title`, `categorySlug` and `topic` are CP-014.
+      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`); `chatEnabled` is CP-013; `title`, `categorySlug` and `topic` are CP-014. A real change of `title`, `categorySlug`, `topic` or *(v1.27.2-live, D135)* `theme` increases the room's `roomInfoVersion` in the media room's metadata, so everyone in the room re-reads it (§10.12).
       properties:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug:
@@ -5911,6 +6013,9 @@ components:
           allOf:
             - $ref: '#/components/schemas/LiveSeatCount'
         theme: { $ref: '#/components/schemas/LiveThemeSlug' }
+        wishGifts:
+          allOf: [{ $ref: '#/components/schemas/WishGiftCodes' }]
+          description: "v1.27.3-live (D136): the host's wish list (`[]` empties it). A real change moves `roomInfoVersion` (audited `live.room.edit`)."
     LiveMediaTokenRequest:
       type: object
       additionalProperties: false
@@ -5979,9 +6084,19 @@ components:
         seatIndex: { type: integer, minimum: 1, maximum: 24 }
     LiveSeat:
       type: object
-      required: [index, state, user, mutedByHost]
+      required: [index, state, user, mutedByHost, points]
       properties:
         index: { type: integer, minimum: 1, maximum: 24, description: "1 … seatCount-1; the host is tile 0 and not listed." }
+        points:
+          type: integer
+          minimum: 0
+          description: |
+            v1.27.2-live (D135, CONVENTIONS §10.9): TAKEN only — the points the seated person received
+            from gifts in this live (every send that named them, whoever sent it, while seated or not):
+            100 for every counted coin of their share, exactly as the live score counts gifts (a LUCKY
+            gift counts its host share). 0 for EMPTY and LOCKED seats. A gift to someone seated raises
+            `LiveSeats.version`, so every app re-reads the seats. Clients that do not know the field
+            ignore it.
         state: { type: string, enum: [EMPTY, LOCKED, TAKEN] }
         user:
           description: TAKEN only.
@@ -6374,6 +6489,25 @@ components:
           type: string
           format: uuid
           description: The live it was sent from.
+        createdAt: { type: string, format: date-time }
+    # ---- v1.27.5-live (DRAFT, D138) — an emoji on one's own seat ---------------------------
+    LiveSeatEmojiRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          pattern: '^:[a-z]+_[a-z]+:$'
+          description: "`:<pack>_<id>:` (CP-003 shape) of one of the owner's nine packs (D102); anything else → 400 `token` / `invalid_value`."
+    LiveSeatEmoji:
+      type: object
+      required: [id, seat, user, token, createdAt]
+      properties:
+        id: { type: string, format: uuid, description: "Names this emoji (apps drop a data message they have already shown)." }
+        seat: { type: integer, minimum: 0, maximum: 24, description: "The tile it plays on: 0 = the host, else `LiveSeat.index`." }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        token: { type: string, description: "`:<pack>_<id>:`." }
         createdAt: { type: string, format: date-time }
     LiveBulletResult:
       type: object

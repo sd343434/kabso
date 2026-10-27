@@ -136,6 +136,11 @@ _LiveRoom _$LiveRoomFromJson(Map<String, dynamic> json) => _LiveRoom(
   roomNumber: (json['roomNumber'] as num?)?.toInt(),
   roomLevel: (json['roomLevel'] as num?)?.toInt(),
   kicked: json['kicked'] as bool? ?? false,
+  wishGifts:
+      (json['wishGifts'] as List<dynamic>?)
+          ?.map((e) => LiveWishGift.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const <LiveWishGift>[],
 );
 
 Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
@@ -162,6 +167,7 @@ Map<String, dynamic> _$LiveRoomToJson(_LiveRoom instance) => <String, dynamic>{
   'roomNumber': instance.roomNumber,
   'roomLevel': instance.roomLevel,
   'kicked': instance.kicked,
+  'wishGifts': instance.wishGifts,
 };
 
 const _$LiveRoomStatusEnumMap = {
@@ -176,6 +182,26 @@ const _$LiveRoomEndReasonEnumMap = {
   LiveRoomEndReason.admin: 'ADMIN',
   LiveRoomEndReason.unknown: 'unknown',
 };
+
+_LiveWishGift _$LiveWishGiftFromJson(Map<String, dynamic> json) =>
+    _LiveWishGift(
+      giftCode: json['giftCode'] as String,
+      name: json['name'] as String,
+      priceCoins: (json['priceCoins'] as num).toInt(),
+      assetKey: json['assetKey'] as String,
+      imageUrl: json['imageUrl'] as String?,
+      received: (json['received'] as num?)?.toInt() ?? 0,
+    );
+
+Map<String, dynamic> _$LiveWishGiftToJson(_LiveWishGift instance) =>
+    <String, dynamic>{
+      'giftCode': instance.giftCode,
+      'name': instance.name,
+      'priceCoins': instance.priceCoins,
+      'assetKey': instance.assetKey,
+      'imageUrl': instance.imageUrl,
+      'received': instance.received,
+    };
 
 _LiveScore _$LiveScoreFromJson(Map<String, dynamic> json) => _LiveScore(
   total: (json['total'] as num).toInt(),
@@ -325,6 +351,7 @@ _LiveSeat _$LiveSeatFromJson(Map<String, dynamic> json) => _LiveSeat(
       ? null
       : UserSummary.fromJson(json['user'] as Map<String, dynamic>),
   mutedByHost: json['mutedByHost'] as bool? ?? false,
+  points: (json['points'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
@@ -332,6 +359,7 @@ Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
   'state': _$LiveSeatStateEnumMap[instance.state]!,
   'user': instance.user,
   'mutedByHost': instance.mutedByHost,
+  'points': instance.points,
 };
 
 const _$LiveSeatStateEnumMap = {
