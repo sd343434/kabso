@@ -15,6 +15,7 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
@@ -464,4 +465,8 @@ class DemoLiveRepository implements LiveRepository {
 
   @override
   Future<int> myCoins() async => 0;
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) async =>
+      throw _serverOnly;
 }

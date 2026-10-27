@@ -6224,4 +6224,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get livePromoClose => 'Hide the promo';
+
+  @override
+  String get liveSeatEmoji => 'Emoji on my seat';
+
+  @override
+  String get liveSeatEmojiHint =>
+      'Plays once on your seat, for everyone in the room';
 }

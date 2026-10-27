@@ -367,9 +367,10 @@ class LiveChatController extends Notifier<LiveChatState> {
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
         _addBullet(bullet);
-      case LiveGiftReceived() || LuckyWinReceived():
+      case LiveGiftReceived() || LuckyWinReceived() || LiveSeatEmojiReceived():
         // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
-        // them (and D132's big lucky wins).
+        // them (and D132's big lucky wins); D138's seat emojis play on the
+        // seats (LiveSeatEmojis).
         break;
     }
   }

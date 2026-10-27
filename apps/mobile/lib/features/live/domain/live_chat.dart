@@ -3,6 +3,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -163,6 +164,8 @@ sealed class LiveChatEvent {
         'lucky-win' => LuckyWinReceived(
           LuckyWin.fromJson(json['win']! as Map<String, dynamic>),
         ),
+        // v1.27.5-live (D138): an emoji on someone's own seat.
+        'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
         _ => null,
       };
     } on Object {
@@ -259,4 +262,11 @@ final class LuckyWinReceived extends LiveChatEvent {
   const new(this.win);
 
   final LuckyWin win;
+}
+
+/// v1.27.5-live (D138, §10.30): someone played an emoji on their own seat.
+final class LiveSeatEmojiReceived extends LiveChatEvent {
+  const new(this.emoji);
+
+  final LiveSeatEmoji emoji;
 }

@@ -125,6 +125,8 @@ describe('KL-037 contract coverage', () => {
             'listUserFollowing',
             // D132 (v1.27-live draft): the lucky-gift odds; kl093-lucky-gifts covers it.
             'getLuckyGiftOdds',
+            // D138 (v1.27.5-live draft): an emoji on one's own seat; kl095-live-seat-emoji covers it.
+            'sendLiveSeatEmoji',
           ].includes(o.operationId),
       )
       .filter(

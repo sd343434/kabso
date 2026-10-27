@@ -262,7 +262,12 @@ class AudioSeatRing extends StatelessWidget {
     this.onHost,
     this.hostTapLabel,
     this.cpPairs = const [],
+    this.overlay,
   });
+
+  /// D138: what plays over tile `i`'s picture now (0 is the host), e.g. a
+  /// seat emoji; null for nothing.
+  final Widget? Function(int index)? overlay;
 
   /// Owner D111: CP partners' tiles (0 is the host, see [cpSeatPairs]). Two
   /// partners next to each other — consecutive tiles of a row — are joined
@@ -350,6 +355,7 @@ class AudioSeatRing extends StatelessWidget {
       speaking: !ghost && speaking.contains(0),
       points: hostPoints,
       cpMic: !ghost && cpMicTiles.contains(0),
+      overlay: ghost ? null : overlay?.call(0),
     );
     return ghost ? _ghost(seat) : seat;
   }
@@ -790,6 +796,7 @@ class AudioSeatRing extends StatelessWidget {
         speaking: speaking.contains(i),
         onTap: onTap,
         cpMic: cpMicTiles.contains(i),
+        overlay: overlay?.call(i),
         child: KAvatar(
           name: user.displayName,
           imageUrl: user.avatarUrl,
@@ -876,10 +883,14 @@ class _Seat extends StatelessWidget {
     this.speaking = false,
     this.onTap,
     this.cpMic = false,
+    this.overlay,
   });
 
   /// D115: the seat's partner couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// D138: over the picture, under the name.
+  final Widget? overlay;
 
   final Widget child;
   final String label;
@@ -926,6 +937,8 @@ class _Seat extends StatelessWidget {
                       end: -1,
                       child: _MicOffBadge(),
                     ),
+                  if (overlay case final overlay?)
+                    Positioned.fill(child: overlay),
                 ],
               ),
             ),
@@ -952,10 +965,14 @@ class _HostSeat extends StatelessWidget {
     this.onTap,
     this.tapLabel,
     this.cpMic = false,
+    this.overlay,
   });
 
   /// D115: the host's couple has the Couple Mic Effect.
   final bool cpMic;
+
+  /// D138: over the picture, under the name.
+  final Widget? overlay;
 
   final VoidCallback? onTap;
   final String? tapLabel;
@@ -1024,6 +1041,8 @@ class _HostSeat extends StatelessWidget {
                         end: -12,
                         child: _MicOffBadge(size: 20),
                       ),
+                    if (overlay case final overlay?)
+                      Positioned.fill(child: overlay),
                   ],
                 ),
               ),

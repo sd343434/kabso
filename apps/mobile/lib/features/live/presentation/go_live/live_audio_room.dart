@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -297,17 +298,14 @@ class LiveChatComposer extends StatefulWidget {
   /// panel, its group strip and its emoji.
   static const modeKey = Key('liveChat.mode');
   static const emojiPanelKey = Key('liveChat.emojiPanel');
-  static Key groupKey(UnicodeEmojiGroup g) => Key('liveChat.group.${g.name}');
-  static Key unicodeKey(String emoji) => Key('liveChat.unicode.$emoji');
 
-  /// Ref 162: 5 columns 75.8 pt apart, rows 73.3 pt; the strip's 9 groups
-  /// 43 pt apart, the chosen one on a 41.7 × 27.7 pt `#F5F7F9` cell.
-  static const gridColumns = 5;
-  static const gridRow = 73.3;
-  static const gridHeight = 250.0;
-  static const glyph = 34.0;
-  static const groupPitch = 43.0;
-  static const groupCell = Color(0xFFF5F7F9);
+  /// D138: the panel is the shared [EmojiPanel] (the owner's packs first,
+  /// then the Unicode groups); these name its tabs and cells.
+  static Key groupKey(UnicodeEmojiGroup g) =>
+      EmojiPanel.tabKey(UnicodeEmojiTab(g));
+  static Key packTabKey(EmojiPack p) => EmojiPanel.tabKey(EmojiPackTab(p));
+  static Key unicodeKey(String emoji) => EmojiPanel.unicodeKey(emoji);
+  static Key packKey(KabsoEmoji emoji) => EmojiPanel.packKey(emoji);
   static const modeCircle = Color(0xFFC6C7CB);
   static Key emojiKey(KabsoEmoji emoji) => Key('liveChat.emoji.${emoji.id}');
 
@@ -332,7 +330,6 @@ class LiveChatComposer extends StatefulWidget {
 
 class _LiveChatComposerState extends State<LiveChatComposer> {
   late bool _emoji = widget.startWithEmoji;
-  UnicodeEmojiGroup _group = UnicodeEmojiGroup.smileys;
 
   @override
   void initState() {
@@ -365,20 +362,9 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
     }
   }
 
-  /// Puts [emoji] at the cursor (the end when there is none).
-  void _insert(String emoji) {
-    final value = widget.controller.value;
-    final sel = value.selection;
-    final text = value.text;
-    final start = sel.isValid ? sel.start : text.length;
-    final end = sel.isValid ? sel.end : text.length;
-    final next = text.replaceRange(start, end, emoji);
-    if (next.characters.length > widget.maxLength) return;
-    widget.controller.value = TextEditingValue(
-      text: next,
-      selection: TextSelection.collapsed(offset: start + emoji.length),
-    );
-  }
+  /// Puts [emoji] (or a pack token) at the cursor.
+  void _insert(String emoji) =>
+      insertEmojiText(widget.controller, emoji, maxLength: widget.maxLength);
 
   @override
   Widget build(BuildContext context) {
@@ -529,11 +515,7 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
             ],
           ),
           if (_emoji)
-            _UnicodeEmojiPanel(
-              group: _group,
-              onGroup: (g) => setState(() => _group = g),
-              onEmoji: _insert,
-            )
+            EmojiPanel(key: LiveChatComposer.emojiPanelKey, onEmoji: _insert)
           else ...[
             const SizedBox(height: 5.1),
             SizedBox(
@@ -571,119 +553,6 @@ class _LiveChatComposerState extends State<LiveChatComposer> {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// D131 (ref 162): the emoji panel under the field — the nine Unicode
-/// groups in a strip (the chosen one on a soft cell) and the group's emoji
-/// in a 5-column grid; a tap puts the emoji in the field.
-class _UnicodeEmojiPanel extends StatelessWidget {
-  const new({
-    required this.group,
-    required this.onGroup,
-    required this.onEmoji,
-  });
-
-  final UnicodeEmojiGroup group;
-  final ValueChanged<UnicodeEmojiGroup> onGroup;
-  final ValueChanged<String> onEmoji;
-
-  static String label(AppLocalizations l10n, UnicodeEmojiGroup g) =>
-      switch (g) {
-        UnicodeEmojiGroup.smileys => l10n.liveEmojiSmileys,
-        UnicodeEmojiGroup.people => l10n.liveEmojiPeople,
-        UnicodeEmojiGroup.love => l10n.liveEmojiLove,
-        UnicodeEmojiGroup.animals => l10n.liveEmojiAnimals,
-        UnicodeEmojiGroup.food => l10n.liveEmojiFood,
-        UnicodeEmojiGroup.activities => l10n.liveEmojiActivities,
-        UnicodeEmojiGroup.travel => l10n.liveEmojiTravel,
-        UnicodeEmojiGroup.objects => l10n.liveEmojiObjects,
-        UnicodeEmojiGroup.symbols => l10n.liveEmojiSymbols,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final glyph = context.textStyles.body.copyWith(
-      fontSize: LiveChatComposer.glyph,
-      height: 1.15,
-      color: LiveChatComposer.ink,
-    );
-    return Column(
-      key: LiveChatComposer.emojiPanelKey,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 34,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            itemExtent: LiveChatComposer.groupPitch,
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: 9),
-            children: [
-              for (final g in UnicodeEmojiGroup.values)
-                Semantics(
-                  button: true,
-                  selected: g == group,
-                  label: label(l10n, g),
-                  excludeSemantics: true,
-                  child: GestureDetector(
-                    key: LiveChatComposer.groupKey(g),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onGroup(g),
-                    child: Center(
-                      child: Container(
-                        width: 41.7,
-                        height: 27.7,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: g == group ? LiveChatComposer.groupCell : null,
-                          borderRadius: BorderRadius.circular(13.9),
-                        ),
-                        child: Text(
-                          g.icon,
-                          style: glyph.copyWith(fontSize: 19, height: 1.1),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: LiveChatComposer.gridHeight,
-          child: GridView.builder(
-            key: PageStorageKey('liveChat.grid.${group.name}'),
-            padding: const EdgeInsets.fromLTRB(8.3, 6, 8.3, 4),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: LiveChatComposer.gridColumns,
-              mainAxisExtent: LiveChatComposer.gridRow,
-            ),
-            itemCount: group.emojis.length,
-            itemBuilder: (context, i) {
-              final e = group.emojis[i];
-              return Semantics(
-                button: true,
-                label: e,
-                child: GestureDetector(
-                  key: LiveChatComposer.unicodeKey(e),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onEmoji(e),
-                  child: Center(
-                    child: Text(
-                      e,
-                      style: glyph,
-                      textScaler: TextScaler.noScaling,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }

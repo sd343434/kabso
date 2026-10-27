@@ -7,6 +7,7 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 
@@ -226,6 +227,10 @@ abstract interface class LiveRepository {
 
   /// `GET /wallet/me`: the caller's coin balance.
   Future<int> myCoins();
+
+  /// `POST /live/rooms/{roomId}/seat-emoji` (v1.27.5-live, D138): plays
+  /// [token] (`:<pack>_<id>:`) once on the caller's own tile, for the room.
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token);
 
   /// CONVENTIONS §5 / HL-H5.
   static const defaultPageSize = 20;
@@ -699,6 +704,16 @@ class LiveRepositoryImpl implements LiveRepository {
     final res = await _dio.get<Map<String, dynamic>>('/wallet/me');
     return (res.data!['coins']! as num).toInt();
   });
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '${_room(roomId)}/seat-emoji',
+          data: {'token': token},
+        );
+        return LiveSeatEmoji.fromJson(res.data!);
+      });
 }
 
 /// D86: test builds with Demo data on get the demo hub (no server).

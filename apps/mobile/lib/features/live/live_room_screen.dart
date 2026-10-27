@@ -22,12 +22,14 @@ import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
+import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -307,6 +309,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // CP-020: the room's gifts, on the same media session.
       ref
           .read(liveGiftEffectsProvider(room.id).notifier)
+          .attach(_session.engine);
+      // D138: the emojis people play on their seats.
+      ref
+          .read(liveSeatEmojisProvider(room.id).notifier)
           .attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
@@ -1029,6 +1035,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     label: l10n.livePreviewEmoji,
                     onTap: () => unawaited(_openChat(composer, emoji: true)),
                   ),
+                  // D138: someone seated plays an emoji on their seat.
+                  if (mine?.seatIndex case final seat?)
+                    LiveRoundButton(
+                      key: AudioRoomViewKeys.seatEmoji,
+                      icon: Icons.add_reaction_rounded,
+                      bare: true,
+                      label: l10n.liveSeatEmoji,
+                      onTap: () => unawaited(
+                        showSeatEmojiSheet(
+                          context,
+                          ref,
+                          roomId: room.id,
+                          seat: seat,
+                        ),
+                      ),
+                    ),
                 ],
                 barEnd: [
                   ?seatButton,
@@ -1185,6 +1207,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           mine,
       },
       onSeat: onSeat,
+      // D138: the emojis played on the seats.
+      overlay: seatEmojiOverlay(
+        ref,
+        widget.room.id,
+        picture: AudioSeatRing.picture,
+      ),
     );
   }
 
@@ -2178,4 +2206,7 @@ abstract final class AudioRoomViewKeys {
   static const requests = Key('audioRoom.requests');
   static const gift = Key('audioRoom.gift');
   static const mic = Key('audioRoom.mic');
+
+  /// D138: an emoji on my own seat (seated only).
+  static const seatEmoji = Key('audioRoom.seatEmoji');
 }

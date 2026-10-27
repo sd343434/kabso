@@ -1945,5 +1945,9 @@
   "liveToolWish": "Wish list",
   "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."},
   "livePromoClose": "Hide the promo",
-  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."}
+  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveSeatEmoji": "Emoji on my seat",
+  "@liveSeatEmoji": {"description": "D138: an emoji played once on one's own seat in an audio room."},
+  "liveSeatEmojiHint": "Plays once on your seat, for everyone in the room",
+  "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."}
 }

@@ -23,6 +23,8 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_mode_bar.dart';
+import 'package:kabso_live/features/emoji/emoji_panel.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
@@ -42,6 +44,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.d
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
@@ -1013,6 +1016,41 @@ void main() {
       await tester.tap(find.byKey(GoLiveAudioSetup.micKey));
       await tester.pumpAndSettle();
       expect(camera.micEnabled, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('D138: the host plays an emoji once on their own tile '
+        '(≡ → Emoji on my seat)', (tester) async {
+      final (repo, _) = await _pump(tester);
+      await mode(tester, LiveRoomMode.audio);
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveKeys.tool('seatEmoji')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byKey(SeatEmojiSheet.panelKey), findsOneWidget);
+      await tester.tap(
+        find.byKey(EmojiPanel.tabKey(const EmojiPackTab(EmojiPack.lulu))),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(
+        find.byKey(EmojiPanel.packKey(KabsoEmoji.byKey('lulu_rainbow')!)),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(repo.seatEmojiCalls, [':lulu_rainbow:']);
+      final burst = find.descendant(
+        of: find.byKey(AudioSeatRing.seatKey(0)),
+        matching: find.byType(SeatEmojiBurst),
+      );
+      expect(burst, findsOneWidget);
+      // Once: gone after its cycle and the fade.
+      await tester.pumpAndSettle();
+      expect(burst, findsNothing);
       await _leave(tester);
     });
 

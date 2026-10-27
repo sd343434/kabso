@@ -10,15 +10,19 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/emoji/emoji_panel.dart';
+import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
+import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
@@ -220,59 +224,249 @@ void main() {
     });
   });
 
-  group('emoji panel (ref 162)', () {
-    testWidgets('😊 opens the box on the emoji panel with no keyboard; '
-        'groups, 5 columns, a tap puts the emoji in the field; the field '
-        'brings the keyboard back', (tester) async {
-      final (repo, _, _) = await _pump(tester);
+  group('emoji panel (ref 162, D138)', () {
+    // The owner's pack emojis loop in the grid: pump, never settle.
+    Future<void> frames(WidgetTester tester) async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    Future<void> openPanel(WidgetTester tester) async {
       await tester.tap(find.byKey(KViewerBar.emojiKey));
-      await tester.pumpAndSettle();
+      await frames(tester);
       expect(find.byKey(LiveChatComposer.emojiPanelKey), findsOneWidget);
+    }
+
+    testWidgets('😊 opens the box on the emoji panel with no keyboard; the '
+        "owner's nine packs first (each tab one of its emojis), then the "
+        'Unicode groups; 5 columns; a tap puts the emoji in the field; the '
+        'field brings the keyboard back', (tester) async {
+      final (repo, _, _) = await _pump(tester);
+      await openPanel(tester);
       final field = tester.widget<TextField>(
         find.byKey(LiveChatComposer.fieldKey),
       );
       expect(field.focusNode!.hasFocus, isFalse);
-      for (final g in UnicodeEmojiGroup.values) {
-        expect(find.byKey(LiveChatComposer.groupKey(g)), findsOneWidget);
+      // The strip: the packs, then the groups, in reading order (LTR).
+      final tabs = [
+        for (final p in EmojiPack.values) LiveChatComposer.packTabKey(p),
+        for (final g in UnicodeEmojiGroup.values) LiveChatComposer.groupKey(g),
+      ];
+      expect(tabs, hasLength(18));
+      // The strip in reading order: its list's children, start to end.
+      final stripFinder = find
+          .descendant(
+            of: find.byKey(LiveChatComposer.emojiPanelKey),
+            matching: find.byType(ListView),
+          )
+          .first;
+      final delegate =
+          tester.widget<ListView>(stripFinder).childrenDelegate
+              as SliverChildListDelegate;
+      final order = [
+        for (final child in delegate.children) (child as Semantics).child!.key,
+      ];
+      expect(order, tabs);
+      // Kabi, the first pack, sits at the start (left in English).
+      expect(
+        tester.getCenter(find.byKey(tabs.first)).dx,
+        lessThan(tester.getCenter(find.byKey(tabs[1])).dx),
+      );
+      final strip = find
+          .descendant(of: stripFinder, matching: find.byType(Scrollable))
+          .first;
+      // Each pack's tab shows one of its emojis (still), and says its name.
+      for (final p in EmojiPack.values.reversed) {
+        await tester.scrollUntilVisible(
+          find.byKey(LiveChatComposer.packTabKey(p)),
+          -40,
+          scrollable: strip,
+        );
+        final icon = find.descendant(
+          of: find.byKey(LiveChatComposer.packTabKey(p)),
+          matching: find.byType(KabiEmoji),
+        );
+        expect(tester.widget<KabiEmoji>(icon).emoji, p.icon);
+        expect(tester.widget<KabiEmoji>(icon).animate, isFalse);
+        expect(
+          tester.getSemantics(find.byKey(LiveChatComposer.packTabKey(p))),
+          matchesSemantics(
+            label: p.label(en),
+            isButton: true,
+            hasSelectedState: true,
+            isSelected: p == EmojiPack.values.first,
+          ),
+        );
       }
-      // Five to a row.
-      final first = UnicodeEmojiGroup.smileys.emojis;
+      // Opens on the first pack: its emojis animate, five to a row, at
+      // the grid pitch, each named for screen readers.
+      final kabi = EmojiPack.kabi.emojis;
       final y = tester
+          .getCenter(find.byKey(LiveChatComposer.packKey(kabi[0])))
+          .dy;
+      for (final e in kabi.take(5)) {
+        final cell = find.byKey(LiveChatComposer.packKey(e));
+        expect(tester.getCenter(cell).dy, y);
+        final emoji = tester.widget<KabiEmoji>(
+          find.descendant(of: cell, matching: find.byType(KabiEmoji)),
+        );
+        expect(emoji.animate, isTrue);
+        expect(emoji.size, EmojiPanel.packCell);
+        expect(
+          tester.getSemantics(cell),
+          matchesSemantics(
+            label: e.label(en),
+            isButton: true,
+            hasTapAction: true,
+          ),
+        );
+      }
+      expect(
+        tester.getCenter(find.byKey(LiveChatComposer.packKey(kabi[5]))).dy - y,
+        moreOrLessEquals(EmojiPanel.gridRow, epsilon: 0.01),
+      );
+      // Only the chosen tab is built: no other pack's emojis yet.
+      expect(
+        find.byKey(LiveChatComposer.packKey(EmojiPack.kiki.emojis.first)),
+        findsNothing,
+      );
+      // A pack emoji goes in as its token; Unicode as itself.
+      await tester.tap(
+        find.byKey(LiveChatComposer.packKey(KabsoEmoji.kabi('love'))),
+      );
+      await tester.pump();
+      expect(field.controller!.text, ':kabi_love:');
+      await tester.scrollUntilVisible(
+        find.byKey(LiveChatComposer.groupKey(UnicodeEmojiGroup.smileys)),
+        40,
+        scrollable: strip,
+      );
+      await tester.ensureVisible(
+        find.byKey(LiveChatComposer.groupKey(UnicodeEmojiGroup.smileys)),
+      );
+      await tester.pump();
+      await tester.tap(
+        find.byKey(LiveChatComposer.groupKey(UnicodeEmojiGroup.smileys)),
+      );
+      await frames(tester);
+      final first = UnicodeEmojiGroup.smileys.emojis;
+      final uy = tester
           .getCenter(find.byKey(LiveChatComposer.unicodeKey(first[0])))
           .dy;
       for (final e in first.take(5)) {
         expect(
           tester.getCenter(find.byKey(LiveChatComposer.unicodeKey(e))).dy,
-          y,
+          uy,
         );
       }
-      expect(
-        tester.getCenter(find.byKey(LiveChatComposer.unicodeKey(first[5]))).dy,
-        greaterThan(y),
-      );
       await tester.tap(find.byKey(LiveChatComposer.unicodeKey('😂')));
-      await tester.tap(
-        find.byKey(LiveChatComposer.groupKey(UnicodeEmojiGroup.love)),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(LiveChatComposer.unicodeKey('❤️')));
       await tester.pump();
-      expect(field.controller!.text, '😂❤️');
+      expect(field.controller!.text, ':kabi_love:😂');
       await tester.tap(find.byKey(LiveChatComposer.sendKey));
-      await tester.pumpAndSettle();
-      expect(repo.chatCalls, contains('send:😂❤️'));
+      await frames(tester);
+      expect(repo.chatCalls, contains('send::kabi_love:😂'));
       // The keyboard key switches back to typing.
       await tester.tap(find.byKey(LiveChatComposer.modeKey));
-      await tester.pumpAndSettle();
+      await frames(tester);
       expect(find.byKey(LiveChatComposer.emojiPanelKey), findsNothing);
       expect(field.focusNode!.hasFocus, isTrue);
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
-    testWidgets('Arabic RTL: the panel fits with no overflow', (tester) async {
-      await _pump(tester, language: AppLanguage.ar);
+    testWidgets('a pack emoji sent shows animated, inline, in the chat row', (
+      tester,
+    ) async {
+      final (repo, _, _) = await _pump(tester);
+      await openPanel(tester);
+      await tester.tap(
+        find.byKey(LiveChatComposer.packKey(KabsoEmoji.kabi('love'))),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(LiveChatComposer.sendKey));
+      await frames(tester);
+      expect(repo.chatCalls, contains('send::kabi_love:'));
+      // Close the box: what is left is the room.
+      await tester.tap(find.byKey(LiveChatComposer.modeKey));
+      await frames(tester);
+      final row = find.byType(LiveChatInlineRow);
+      final inline = find.descendant(
+        of: row,
+        matching: find.byWidgetPredicate(
+          (w) => w is KabiEmoji && w.emoji == KabsoEmoji.kabi('love'),
+        ),
+      );
+      expect(inline, findsOneWidget);
+      expect(tester.widget<KabiEmoji>(inline).animate, isTrue);
+      expect(
+        tester
+            .widget<Lottie>(
+              find.descendant(of: inline, matching: find.byType(Lottie)),
+            )
+            .animate,
+        isTrue,
+      );
+      expect(find.text(':kabi_love:', findRichText: true), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('reduced motion: the pack emojis stay on their first frame', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await _pump(tester);
       await tester.tap(find.byKey(KViewerBar.emojiKey));
       await tester.pumpAndSettle();
+      final lotties = tester.widgetList<Lottie>(
+        find.descendant(
+          of: find.byKey(LiveChatComposer.emojiPanelKey),
+          matching: find.byType(Lottie),
+        ),
+      );
+      expect(lotties, isNotEmpty);
+      expect(lotties.where((l) => l.animate), isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('Arabic RTL: the packs start at the right; no overflow at '
+        '393 and at 360 pt, text scale 1.3', (tester) async {
+      await _pump(tester, language: AppLanguage.ar);
+      await openPanel(tester);
+      final kabi = tester.getCenter(
+        find.byKey(LiveChatComposer.packTabKey(EmojiPack.kabi)),
+      );
+      final kiki = tester.getCenter(
+        find.byKey(LiveChatComposer.packTabKey(EmojiPack.kiki)),
+      );
+      expect(kabi.dx, greaterThan(kiki.dx));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      tester.view.physicalSize = const Size(360, 800) * 3;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await pumpScreen(
+        tester,
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: LiveChatComposer(
+              controller: TextEditingController(),
+              focusNode: FocusNode(),
+              hint: 'x',
+              sendLabel: 'send',
+              onSend: () {},
+              onEmoji: (_) {},
+              startWithEmoji: true,
+            ),
+          ),
+        ),
+        language: AppLanguage.ar,
+      );
+      await frames(tester);
       expect(find.byKey(LiveChatComposer.emojiPanelKey), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

@@ -144,6 +144,10 @@ info:
     hosts are managed by the `feature-admin` CLI) and the kinds `solo` (`SOLO`, `PK`), `multi`
     (`MULTI`) and `party` (`AUDIO`, `MULTI`); and the caller's own country (`Me.country`, set
     with `updateMe`) (CONVENTIONS §10.4, §10.28).
+    **D138 (DRAFT v1.27.5-live)** adds `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`,
+    `LiveSeatEmojiRequest`, `LiveSeatEmoji`): in a room with seats the host or someone seated plays
+    one of the owner's animated emojis once on their own tile, for the whole room, as the data
+    message `seat-emoji` on topic `seat-emoji` (CONVENTIONS §10.30).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1609,6 +1613,56 @@ paths:
                 error:
                   code: INSUFFICIENT_COINS
                   message: Not enough coins.
+                  requestId: 0192f1d0-7777-7000-8000-000000000008
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/seat-emoji:
+    post:
+      tags: [live]
+      operationId: sendLiveSeatEmoji
+      summary: "Play an emoji once on one's own seat (D138)"
+      description: |
+        v1.27.5-live, CONVENTIONS §10.30. A signed-in caller in a LIVE room with seats (`AUDIO` or
+        `MULTI`) who is the host (tile 0) or seated now. Checks, in order: 401 without an account;
+        404 for a room the caller may not see; 409 `LIVE_ROOM_ENDED`; 400 for the body (`token`:
+        `required`, or `invalid_value` when it is not one of the owner's pack emojis); 403
+        `LIVE_KICKED`; 409 `LIVE_SEAT_UNAVAILABLE` (a room without seats, or the caller is neither
+        the host nor seated); 429 (one every 2 s per user, with `Retry-After`). Nothing is stored. On
+        success the room gets a reliable data message on topic `seat-emoji`:
+        `{"type":"seat-emoji", …LiveSeatEmoji}` (best effort, like every data message).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSeatEmojiRequest' }
+            example: { token: ':kabi_love:' }
+      responses:
+        '200':
+          description: Sent to the room; what the room was sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveSeatEmoji' }
+              example:
+                id: 0192f1d0-4444-7000-8000-000000000009
+                seat: 2
+                user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                token: ':kabi_love:'
+                createdAt: '2026-10-27T18:30:00.000Z'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, or `LIVE_SEAT_UNAVAILABLE` (no seats in this room, or the caller is not on one)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: LIVE_SEAT_UNAVAILABLE
+                  message: That seat is not available.
                   requestId: 0192f1d0-7777-7000-8000-000000000008
         '429': { $ref: '#/components/responses/Error' }
 
@@ -6435,6 +6489,25 @@ components:
           type: string
           format: uuid
           description: The live it was sent from.
+        createdAt: { type: string, format: date-time }
+    # ---- v1.27.5-live (DRAFT, D138) — an emoji on one's own seat ---------------------------
+    LiveSeatEmojiRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          pattern: '^:[a-z]+_[a-z]+:$'
+          description: "`:<pack>_<id>:` (CP-003 shape) of one of the owner's nine packs (D102); anything else → 400 `token` / `invalid_value`."
+    LiveSeatEmoji:
+      type: object
+      required: [id, seat, user, token, createdAt]
+      properties:
+        id: { type: string, format: uuid, description: "Names this emoji (apps drop a data message they have already shown)." }
+        seat: { type: integer, minimum: 0, maximum: 24, description: "The tile it plays on: 0 = the host, else `LiveSeat.index`." }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        token: { type: string, description: "`:<pack>_<id>:`." }
         createdAt: { type: string, format: date-time }
     LiveBulletResult:
       type: object

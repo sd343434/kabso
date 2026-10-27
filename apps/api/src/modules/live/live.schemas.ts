@@ -5,6 +5,7 @@ import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
 import { trimHygiene } from '../users/text-hygiene.js';
 import { LIVE_KINDS, LIVE_SCOPES, LIVE_TABS } from './live-cursor.js';
+import { isSeatEmojiToken } from './live-seat-emoji.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml v1.3 (strict objects: unknown fields fail
 // with `unknown_field`).
@@ -402,6 +403,19 @@ export function liveGiftSendSchema(quantities: readonly number[]) {
   });
 }
 export type LiveGiftSendInput = z.output<ReturnType<typeof liveGiftSendSchema>>;
+
+// ---- v1.27.5-live (D138): an emoji on one's own seat ----------------------------------------
+
+/**
+ * `LiveSeatEmojiRequest` (strict): `token` is `:<pack>_<id>:` of one of the owner's packs
+ * (`live-seat-emoji.ts`); a string that is not one → `invalid_value`.
+ */
+export const liveSeatEmojiSchema = z.strictObject({
+  token: z
+    .string()
+    .refine((t) => isSeatEmojiToken(t), { message: 'not a known emoji', params: { issue: 'invalid_value' } }),
+});
+export type LiveSeatEmojiInput = z.output<typeof liveSeatEmojiSchema>;
 
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });

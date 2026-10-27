@@ -377,6 +377,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
+| `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -485,6 +486,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.5-live (draft) | 2026-10-27 | **D138 (owner: «في البث الصوتي المستخدم يستخدمها على الكرسي … مرة واحدة وتختفي»):** `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`, `LiveSeatEmojiRequest`, `LiveSeatEmoji`); data message `seat-emoji` on topic `seat-emoji`. §7, §10.30. | **Additive** (a new operation and data message topic; older apps ignore unknown topics and types). |
 | v1.27.4-live (draft) | 2026-10-27 | **D137 (owner: the promo box at the top end of a live):** `HomeBanner` placement — `listHomeBanners` takes `placement` (`home` default, `room`); `banner-admin add … --placement room` (3:4, 600 × 800); migration `20261129090000_live_wish_gifts_room_banners` (`home_banners.placement`). §10.26. | **Additive** (an optional parameter; existing banners are HOME). |
 | v1.27.3-live (draft) | 2026-10-27 | **D136 (owner: the host's wish list):** `StartLiveRoomRequest.wishGifts`, `UpdateLiveRoomRequest.wishGifts` (`WishGiftCodes`, ≤ 4 distinct, sendable now), `LiveRoom.wishGifts` (`LiveWishGift` `{giftCode, name, priceCoins, assetKey, imageUrl, received}`), `GiftCode`; a change, or a wished gift sent to the host, moves `roomInfoVersion`; migration `live_rooms.wish_gifts`. §10.29. | **Additive** (optional request fields, a new response field older apps ignore). |
 | v1.27.2-live (draft) | 2026-10-27 | **D135 (owner, staging device: "the host's new background does not reach the others"; "the support the others received does not show under their mic"):** a real `theme` change in `PATCH /live/rooms/{roomId}` now increases the room info version (`roomInfoVersion`), like `title`, `categorySlug` and `topic`; `LiveSeat.points` (required: the gift points a seated person received in this live, 0 for empty and locked seats); a gift to someone seated raises the seat `version`. §10.9, §10.12. | **Additive** (a new response field older apps ignore; one more reason for existing version moves). |
@@ -1959,6 +1961,25 @@ change in the server configuration (no app update). Odds, the age gate and the r
   sent them, the host included, D128). A send of a wished gift to the host moves the room info
   version in the send's transaction (the metadata follows with the score's write, ≤ 2 s).
 - Storage: `live_rooms.wish_gifts` (`VARCHAR(40)[]`, CHECK `live_rooms_wish_gifts_max` ≤ 4).
+
+### 10.30 An emoji on one's own seat *(v1.27.5-live, DRAFT — D138)*
+
+- **What (owner):** in a room with seats (`AUDIO`, `MULTI`), the host (tile 0) or someone seated
+  plays one of the owner's animated emojis (the nine packs of D102, token `:<pack>_<id>:`, CP-003
+  shape) **once** inside their own tile, over their picture; everyone in the room sees it.
+- **Sending:** `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`, `{"token"}`). Checks in
+  order: 404 (room not visible), 409 `LIVE_ROOM_ENDED`, 400 `token` (`required`; `invalid_value`
+  for anything that is not a pack emoji — Unicode emoji and unknown ids included), 403
+  `LIVE_KICKED`, 409 `LIVE_SEAT_UNAVAILABLE` (a `SOLO`/`PK` room, or the caller is neither the host
+  nor seated now), 429 with `Retry-After` (counting rule: **one every 2 s per user**). The answer is
+  the `LiveSeatEmoji` `{id, seat, user, token, createdAt}`; nothing is stored or audited.
+- **Delivery:** a reliable data message on topic **`seat-emoji`** to everyone in the media room
+  (best effort, like every data message): `{"type":"seat-emoji","id","seat","user":UserSummary,
+  "token","createdAt"}`. Apps hold no data publish permission (CP-010 `canPublishData: false`), so
+  every seat emoji goes through this check. The sender's app shows its own at once and drops the
+  echo (same `user`); a new emoji on a tile replaces the one playing there.
+- **Apps:** the emoji plays one cycle centred over the tile's picture (about 85 % of it, under the
+  name) and fades; with reduced motion the first frame shows for 1.5 s. Unknown tokens are ignored.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

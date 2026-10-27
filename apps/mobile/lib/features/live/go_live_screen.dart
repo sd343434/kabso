@@ -17,6 +17,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_rankings_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
@@ -329,6 +331,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       if (!mounted) return;
       // CP-020: the room's gifts, on the same media session.
       ref.read(liveGiftEffectsProvider(room.id).notifier).attach(engine);
+      // D138: the emojis people play on their seats.
+      ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -791,6 +795,22 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // voice in the mixer's place, viewers as users, chat as
           // comments), the rest greyed with "Soon" (owner D99).
           room: [
+            // D138: the host plays an emoji on their own tile (0).
+            GoLiveTool(
+              id: 'seatEmoji',
+              icon: Icons.add_reaction_rounded,
+              label: l10n.liveSeatEmoji,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showSeatEmojiSheet(
+                        context,
+                        ref,
+                        roomId: room.id,
+                        seat: 0,
+                      ),
+                    ),
+            ),
             ?byId['voice'],
             GoLiveTool.soon(
               id: 'music',
@@ -1000,6 +1020,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           hostPoints: KFormat.compact(score, l10n),
           speaking: speaking,
           onSeat: onSeat,
+          // D138: the emojis played on the seats.
+          overlay: room == null
+              ? null
+              : seatEmojiOverlay(ref, room.id, picture: AudioSeatRing.picture),
         ),
         chat: [?roomChat],
         composer: chatComposer,

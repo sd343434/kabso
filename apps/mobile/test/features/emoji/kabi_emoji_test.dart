@@ -10,6 +10,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/debug/feed_comments_sheet.dart';
 import 'package:kabso_live/features/debug/feed_preview_screen.dart';
 import 'package:kabso_live/features/debug/messages_preview_screen.dart';
+import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:lottie/lottie.dart';
@@ -234,15 +235,18 @@ void main() {
     expect(tester.widget<Lottie>(find.byType(Lottie)).animate, isFalse);
   });
 
-  testWidgets('chat preview: an emoji goes out at once, big, without a '
-      'bubble', (tester) async {
+  testWidgets('chat preview (D138): an emoji from the panel, sent alone, '
+      'shows big without a bubble', (tester) async {
     _phone(tester);
     await pumpScreen(tester, const MessagesPreviewScreen());
-    await _pick(
-      tester,
-      MessagesPreviewScreen.emojiKey,
-      KabsoEmoji.kabi('love'),
-    );
+    await tester.tap(find.byKey(MessagesPreviewScreen.emojiKey));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(EmojiPanel.packKey(KabsoEmoji.kabi('love'))));
+    await tester.pump();
+    await tester.tap(find.byKey(MessagesPreviewScreen.sendKey));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
     expect(
       _emoji(KabsoEmoji.kabi('love'), size: KKabiEmoji.big),
       findsOneWidget,

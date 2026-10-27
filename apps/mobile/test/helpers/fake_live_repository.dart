@@ -8,6 +8,7 @@ import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
 
@@ -816,6 +817,34 @@ class FakeLiveRepository implements LiveRepository {
   Future<int> myCoins() async {
     walletReads++;
     return coins;
+  }
+
+  // ---- v1.27.5-live seat emoji (D138) ------------------------------------
+
+  /// The token of every seat emoji sent.
+  final List<String> seatEmojiCalls = [];
+
+  /// A failure for the next `sendSeatEmoji` (then cleared).
+  AppFailure? seatEmojiFailure;
+
+  /// The tile the answer names.
+  int seatEmojiSeat = 1;
+
+  @override
+  Future<LiveSeatEmoji> sendSeatEmoji(String roomId, String token) async {
+    seatEmojiCalls.add(token);
+    final failure = seatEmojiFailure;
+    if (failure != null) {
+      seatEmojiFailure = null;
+      throw failure;
+    }
+    return LiveSeatEmoji(
+      id: 'seat-emoji-${seatEmojiCalls.length}',
+      seat: seatEmojiSeat,
+      user: chatAuthor,
+      token: token,
+      createdAt: DateTime.utc(2026, 10, 27, 20),
+    );
   }
 }
 

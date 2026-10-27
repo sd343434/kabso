@@ -6246,4 +6246,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get livePromoClose => 'إخفاء الإعلان';
+
+  @override
+  String get liveSeatEmoji => 'إيموجي على مقعدي';
+
+  @override
+  String get liveSeatEmojiHint => 'يظهر على مقعدك مرة واحدة ويراه الجميع';
 }

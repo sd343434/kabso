@@ -7557,5 +7557,9 @@
   "liveToolWish": "الأمنيات",
   "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."},
   "livePromoClose": "إخفاء الإعلان",
-  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."}
+  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "liveSeatEmoji": "إيموجي على مقعدي",
+  "@liveSeatEmoji": {"description": "D138: an emoji played once on one's own seat in an audio room."},
+  "liveSeatEmojiHint": "يظهر على مقعدك مرة واحدة ويراه الجميع",
+  "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."}
 }

@@ -10801,6 +10801,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إخفاء الإعلان'**
   String get livePromoClose;
+
+  /// D138: an emoji played once on one's own seat in an audio room.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيموجي على مقعدي'**
+  String get liveSeatEmoji;
+
+  /// D138: an emoji played once on one's own seat in an audio room.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر على مقعدك مرة واحدة ويراه الجميع'**
+  String get liveSeatEmojiHint;
 }
 
 class _AppLocalizationsDelegate
