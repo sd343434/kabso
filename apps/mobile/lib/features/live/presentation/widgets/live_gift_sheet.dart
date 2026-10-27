@@ -55,6 +55,11 @@ class LiveGiftRoom {
 /// more sends (the server counts the combo; the panel shows ×N). The
 /// balance and the bag follow each answer. Nothing is invented: an empty
 /// catalogue shows "No gifts yet".
+///
+/// D128 (owner): the host, or someone seated, may send to themself (they
+/// are among the recipients); Send is never silent — a tap while it is
+/// dimmed, and every refused send, shows a message over the grid as well
+/// as the line above the bar.
 class KLiveGiftSheet extends ConsumerStatefulWidget {
   const new({required this.room, super.key, this.preselect});
 
@@ -82,6 +87,11 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   static const reasonKey = Key('gift.reason');
   static const comboKey = Key('gift.combo');
   static const emptyKey = Key('gift.empty');
+
+  /// The short message over the grid (D128): why Send did nothing, or why
+  /// a send was refused. It goes by itself after [toastTime].
+  static const toastKey = Key('gift.toast');
+  static const toastTime = Duration(seconds: 3);
   static Key tabKey(String id) => Key('gift.tab.$id');
   static Key cellKey(String code, {bool bag = false}) =>
       Key('gift.${bag ? 'bag' : 'cell'}.$code');
@@ -159,6 +169,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   ({String intent, String clientId})? _pending;
   String? _error;
 
+  /// The message shown over the grid (D128: a Send never does nothing
+  /// silently), and its timer.
+  String? _toast;
+  Timer? _toastTimer;
+
   /// The combo count of the last answer, shown from 2 while it lasts.
   int _combo = 0;
   Timer? _comboTimer;
@@ -184,17 +199,28 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   @override
   void dispose() {
     _comboTimer?.cancel();
+    _toastTimer?.cancel();
     super.dispose();
   }
 
-  /// Who may receive: the host (not when the host sends) and the people on
-  /// a seat, never the caller.
-  List<UserSummary> _candidates(String? myId) {
+  /// Who may receive: the host and the people on a seat — the caller too
+  /// when they are one of them (D128, owner: "the host can support
+  /// himself"; a seated guest likewise). A viewer off the mic is not listed.
+  List<UserSummary> _candidates() {
     final seen = <String>{};
     return [
       for (final u in [room.host, ...room.seated(ref)])
-        if (u.id != myId && seen.add(u.username)) u,
+        if (seen.add(u.username)) u,
     ];
+  }
+
+  /// Shows [message] over the grid for [KLiveGiftSheet.toastTime] (D128).
+  void _showToast(String message) {
+    _toastTimer?.cancel();
+    _toastTimer = Timer(KLiveGiftSheet.toastTime, () {
+      if (mounted) setState(() => _toast = null);
+    });
+    setState(() => _toast = message);
   }
 
   Set<String> _defaultChosen(List<UserSummary> candidates) {
@@ -313,6 +339,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         _error = message;
         _resetCombo();
       });
+      _showToast(message);
       return false;
     }
   }
@@ -378,7 +405,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     final isBag = tab == KLiveGiftSheet.bagTab;
     final bagAsync = isBag ? ref.watch(giftBagProvider) : null;
 
-    final candidates = _candidates(me.id);
+    final candidates = _candidates();
     final max = catalogue?.maxRecipients ?? 25;
     final names = {for (final c in candidates) c.username};
     final chosen = (_chosen ?? _defaultChosen(candidates)).intersection(names);
@@ -567,7 +594,20 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             }),
           ),
         ],
-        Expanded(child: grid),
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(child: grid),
+              if (_toast case final toast?)
+                PositionedDirectional(
+                  start: KSpacing.md,
+                  end: KSpacing.md,
+                  bottom: KSpacing.sm,
+                  child: _Toast(key: KLiveGiftSheet.toastKey, message: toast),
+                ),
+            ],
+          ),
+        ),
         if (line != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -599,6 +639,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
           busy: _busy,
           reason: reason,
           onSend: intent == null ? null : () => unawaited(_onSend(intent)),
+          // D128: a tap on a dimmed Send says why instead of doing nothing.
+          onBlocked: switch (reason) {
+            final why? => () => _showToast(why),
+            null => null,
+          },
         ),
         SizedBox(height: bottomInset + barGap),
       ],
@@ -1218,6 +1263,51 @@ class _GiftTile extends StatelessWidget {
   }
 }
 
+/// The message over the grid's bottom (D128): an error icon and the text,
+/// on the panel's pill colour; screen readers hear it at once.
+class _Toast extends StatelessWidget {
+  const new({required this.message, super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    container: true,
+    child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: KSpacing.md,
+        vertical: KSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: _Sheet.pill,
+        borderRadius: BorderRadius.circular(KRadius.md),
+        border: Border.all(color: _Sheet.chipBorder),
+      ),
+      child: Row(
+        children: [
+          ExcludeSemantics(
+            child: Icon(
+              Icons.error_outline,
+              size: 18,
+              color: KPalette.dark.error,
+            ),
+          ),
+          const SizedBox(width: KSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.label.copyWith(color: _Sheet.white),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// The corner badge: 11.2 high, radius 2, bold 6.8 (condensed).
 class _Badge extends StatelessWidget {
   const new({
@@ -1268,6 +1358,7 @@ class _BottomBar extends ConsumerWidget {
     required this.busy,
     required this.reason,
     required this.onSend,
+    this.onBlocked,
   });
 
   final double height;
@@ -1280,6 +1371,9 @@ class _BottomBar extends ConsumerWidget {
   /// Why Send is off (screen readers), or null.
   final String? reason;
   final VoidCallback? onSend;
+
+  /// A tap while Send is dimmed (says [reason]).
+  final VoidCallback? onBlocked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1400,7 +1494,7 @@ class _BottomBar extends ConsumerWidget {
                   excludeSemantics: true,
                   child: GestureDetector(
                     key: KLiveGiftSheet.sendKey,
-                    onTap: onSend,
+                    onTap: onSend ?? onBlocked,
                     behavior: HitTestBehavior.opaque,
                     child: AnimatedContainer(
                       duration: KMotion.of(context, KMotion.fast),

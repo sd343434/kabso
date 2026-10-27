@@ -482,6 +482,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26.3-live (draft) | 2026-10-27 | **D128 (owner: "the host can support himself"; the gift panel's Send "does nothing"):** `sendLiveGift` accepts the caller among `recipients` when the caller is the host or seated now (before: 400 `recipients` / `invalid_value`); a viewer who is not seated naming themself → 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` like any unseated recipient. A gift to oneself counts like any gift: the score, the popularity board, the sender's Contribution points (the host still never listed), and both charm and support for that person (CP-005 `self_gift` stays for other gifts). §10.23. | **Behaviour only** (no shape change): a request that was refused with 400 now succeeds. |
 | v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
 | v1.26.1-live (draft) | 2026-10-26 | **D125 (owner: follow lists like the reference):** `listUserFollowers` / `listUserFollowing` take `q` (a case-insensitive prefix of the username or display name, trimmed, 1–30 characters) and `order` (`newest`, the default, or `oldest`); the cursor is bound to both. `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval` `{followsMe: false, followerCount}`): the caller removes a follower, idempotent, withdraws that follow's notification. §7 row, §10.6. | **Additive** (optional parameters, a new operation). Cursors of the default list stay valid. |
 | v1.26-live (draft) | 2026-10-26 | **D124 (owner: a 2-column live grid and promo banners):** `listHomeBanners` (`GET /home/banners`, tag `home`, `HomeBannerList` of `HomeBanner` `{id, imageUrl, width, height, blurhash, title, titleSide, link}`): the enabled banners inside their window now, ordered, at most 10, signed-in, `Cache-Control: private, max-age=60`; `MediaKind.HOME_BANNER` (cover-cropped to 3:1: 1 500 × 500 and 320 × 107 WebP). Banners are written only by the `banner-admin` CLI (migration role, audited). Migration `20261118090000_home_banners`. §10.26, §11.1. | **Additive** (a new operation, schemas and enum value). |
@@ -1500,10 +1501,13 @@ locale (§10.1).
     coins move and nothing counts for the family.
   - **Who:** a signed-in caller in that LIVE room now (the host, or a row in its media session,
     §10.8), not kicked out of it (§10.20). Being muted in the chat or the chat being off does not
-    stop gifts. Nobody sends a gift to themself; the host sends only to seated people.
+    stop gifts. *(v1.26.3-live, owner D128: "the host can support himself")* A person who is
+    part of the live — **the host, or someone seated now** — may name **themself** among the
+    recipients (alone or with others), like any recipient; a viewer who is not seated cannot
+    receive, themself included (409 below). Before, a caller among the recipients → 400.
   - **Order of checks:** 401, 404 (cannot see the room, e.g. a block with the host), 409
     `LIVE_ROOM_ENDED`, 400 body, a retry (below), 403 `LIVE_KICKED`, 403 `LIVE_CHAT_NOT_IN_ROOM`,
-    400 `recipients` / `invalid_value` (the caller is among them), 409 `GIFT_UNAVAILABLE` (unknown
+    409 `GIFT_UNAVAILABLE` (unknown
     or disabled code), 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` (a username without an ACTIVE account,
     a recipient who is neither the host nor seated now, or a block either way between the sender
     and a recipient), then the charge: 409 `INSUFFICIENT_COINS` (COINS) or 409
@@ -1536,7 +1540,12 @@ locale (§10.1).
     quantity` coins: the recipient earns **charm** (`ATTRACTIVENESS`, source `GIFT_RECEIVED`) and the
     sender **support** (`SUPPORT`, source `GIFT_SENT`), each `floor(coins × the published version's
     multiplier)` points (the owner's ladder: 0.1, 1 point per 10 coins); nothing while a category is
-    unavailable, and a share that rounds to 0 earns nothing. When the host's charm level moves, the
+    unavailable, and a share that rounds to 0 earns nothing. *(v1.26.3-live, D128: a gift to
+    oneself earns like any gift — that person gets both the charm and the support share, once per
+    send, like the host's own taps count since D120; the score, the popularity board and the
+    sender's Contribution points also grow as for any gift, and the host is still never listed in
+    their own Contribution list. CP-005's "a gift to oneself earns nothing" stays for every other
+    gift.)* When the host's charm level moves, the
     room's info version goes up (§10.12). Charm medals follow (§10.21).
 - **Delivery:** after the response the server sends the send to everyone in that live's media room
   as a reliable data message on topic **`gift`** (best effort, like every data message):

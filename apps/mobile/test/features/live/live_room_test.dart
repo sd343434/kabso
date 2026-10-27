@@ -556,10 +556,26 @@ void main() {
       // The host is the default recipient.
       expect(find.byKey(KLiveGiftSheet.recipientKey('host0')), findsOneWidget);
       expect(find.text(l10n.liveGiftHost), findsOneWidget);
-      final send = tester.widget<GestureDetector>(
-        find.byKey(KLiveGiftSheet.sendKey),
+      // Send is dimmed; D128: a tap on it says why and sends nothing.
+      final send = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.byKey(KLiveGiftSheet.sendKey),
+              matching: find.byType(Semantics),
+            )
+            .first,
       );
-      expect(send.onTap, isNull);
+      expect(send.properties.enabled, isFalse);
+      await tester.tap(find.byKey(KLiveGiftSheet.sendKey));
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byKey(KLiveGiftSheet.toastKey),
+          matching: find.text(l10n.liveGiftEmptyTitle),
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(KLiveGiftSheet.toastTime);
 
       // A tap on the visible stream closes it.
       await tester.tapAt(const Offset(200, 150));

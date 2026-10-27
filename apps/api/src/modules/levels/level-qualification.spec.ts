@@ -45,5 +45,29 @@ describe('activity → category mapping (CP-005 §5)', () => {
     expect(qualify({ ...gift, recipientUserId: 'sender' }, { luckyGiftsCountAsSupport: false })).toBe(
       'self_gift',
     );
+    expect(
+      qualify(
+        { ...gift, recipientUserId: 'sender' },
+        { luckyGiftsCountAsSupport: false, selfGiftsEarn: false },
+      ),
+    ).toBe('self_gift');
+  });
+
+  it('D128: with selfGiftsEarn a gift to oneself earns charm and support for that one person', () => {
+    expect(
+      qualify(
+        { ...gift, recipientUserId: 'sender' },
+        { luckyGiftsCountAsSupport: false, selfGiftsEarn: true },
+      ),
+    ).toEqual([
+      { userId: 'sender', category: 'ATTRACTIVENESS', sourceType: 'GIFT_RECEIVED', value: gift.value },
+      { userId: 'sender', category: 'SUPPORT', sourceType: 'GIFT_SENT', value: gift.value },
+    ]);
+    expect(
+      qualify(
+        { ...gift, recipientUserId: 'sender', value: 0n },
+        { luckyGiftsCountAsSupport: false, selfGiftsEarn: true },
+      ),
+    ).toBe('non_positive_value');
   });
 });

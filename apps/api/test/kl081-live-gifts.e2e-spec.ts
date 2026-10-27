@@ -410,6 +410,47 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect(JSON.parse(sent[0]!.payload)).toEqual({ type: 'gift', gift: res.body.gift });
     });
 
+    it('D128: the host and a seated guest may gift themselves; it counts like any gift', async () => {
+      const { h, s1, s2, viewer, roomId } = await scene();
+      const code = await gift({ priceCoins: 5 });
+      const before = await roomScore(roomId, viewer);
+      const boardBefore = await ctx.http.get('/api/v1/live/rankings?period=HOUR').set(auth(h));
+      const hostBefore = (boardBefore.body.me?.points as number | undefined) ?? 0;
+
+      // The host to themself (a SOLO-like case: nobody else named).
+      const mine = await send(roomId, h, body(code, [h], { quantity: 10 }));
+      expect(mine.status, JSON.stringify(mine.body)).toBe(201);
+      expectContract(mine, 'sendLiveGift');
+      expect(mine.body.gift).toMatchObject({
+        sender: { id: h.id },
+        recipients: [{ id: h.id }],
+        totalCoins: 50,
+      });
+      expect(mine.body.coins).toBe(9_950);
+      expect(await wallet(h)).toBe(9_950);
+
+      // A seated guest to themself and the host together.
+      const guest = await send(roomId, s1, body(code, [s1, h]));
+      expect(guest.status, JSON.stringify(guest.body)).toBe(201);
+      expect(guest.body.gift.recipients.map((r: { id: string }) => r.id)).toEqual([s1.id, h.id]);
+      expect(await wallet(s1)).toBe(10_000 - 10);
+      // A seated guest cannot name someone else who is not seated (unchanged).
+      expectError(await send(roomId, s2, body(code, [s2, viewer])), 409, 'LIVE_GIFT_RECIPIENT_UNAVAILABLE');
+
+      // The live score and the host's popularity points grow like for any gift (100 a coin).
+      const after = await roomScore(roomId, viewer);
+      expect(after.parts.supportPoints - before.parts.supportPoints).toBe(5_000 + 1_000);
+      const board = await ctx.http.get('/api/v1/live/rankings?period=HOUR').set(auth(h));
+      expect(board.body.me.points - hostBefore).toBe(6_000);
+      // The host is never in their own Contribution list; the guest is.
+      const list = await ctx.http.get(`/api/v1/live/rooms/${roomId}/contributors`).set(auth(h));
+      expect(
+        list.body.data.map((c: { user: { id: string }; points: number }) => [c.user.id, c.points]),
+      ).toEqual([[s1.id, 1_000]]);
+      await settle(ctx);
+      expect(giftsTo(roomId)).toHaveLength(2);
+    });
+
     it('is idempotent on clientId: a retry → 200 with the first send, nothing charged or sent again', async () => {
       const { h, viewer, roomId } = await scene();
       const code = await gift({ priceCoins: 7 });
@@ -552,14 +593,18 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect(await wallet(viewer)).toBe(10_000);
     });
 
-    it('400 when the caller is a recipient (the host to themself too)', async () => {
-      const { h, s1, viewer, roomId } = await scene();
+    it('D128: a viewer who is not seated cannot name themself (409, like any unseated recipient)', async () => {
+      const { h, viewer, roomId } = await scene();
       const code = await gift();
-      const self = await send(roomId, viewer, body(code, [h, viewer]));
-      expectError(self, 400, 'VALIDATION_FAILED');
-      expect(self.body.error.details).toEqual([{ field: 'recipients', issue: 'invalid_value' }]);
-      expectError(await send(roomId, h, body(code, [h])), 400, 'VALIDATION_FAILED');
-      expectError(await send(roomId, s1, body(code, [s1])), 400, 'VALIDATION_FAILED');
+      expectError(
+        await send(roomId, viewer, body(code, [h, viewer])),
+        409,
+        'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+      );
+      expectError(await send(roomId, viewer, body(code, [viewer])), 409, 'LIVE_GIFT_RECIPIENT_UNAVAILABLE');
+      expect(await wallet(viewer)).toBe(10_000);
+      await settle(ctx);
+      expect(giftsTo(roomId)).toHaveLength(0);
     });
 
     it('409 LIVE_GIFT_RECIPIENT_UNAVAILABLE: not seated, unknown, blocked; 409 GIFT_UNAVAILABLE', async () => {
@@ -739,6 +784,40 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect((await ctx.prisma.liveRoom.findUniqueOrThrow({ where: { id: roomId } })).infoVersion).toBe(
         infoBefore + 1,
       );
+    });
+
+    it('D128: a gift to oneself gives that person both charm and support, once', async () => {
+      // The categories were published by the test above.
+      const { h, s1, roomId } = await scene();
+      const code = await gift({ priceCoins: 6 });
+      const first = body(code, [h], { quantity: 10 });
+      const res = await send(roomId, h, first);
+      expect(res.status).toBe(201);
+      const giftId = res.body.gift.id as string;
+      // A retry with the same clientId credits nothing again.
+      expect((await send(roomId, h, first)).status).toBe(200);
+      const credits = await ctx.prisma.pointsLedgerEntry.findMany({
+        where: { sourceTransactionId: `gift:${giftId}:${h.id}` },
+      });
+      expect(
+        credits
+          .map((e) => [e.userId, e.sourceType, e.pointsDelta])
+          .sort((x, y) => String(x[1]).localeCompare(String(y[1]))),
+      ).toEqual([
+        [h.id, 'GIFT_RECEIVED', 60n],
+        [h.id, 'GIFT_SENT', 60n],
+      ]);
+      expect((await levels(h)).get('ATTRACTIVENESS')).toMatchObject({
+        points: '60',
+        level: { levelNumber: 2 },
+      });
+      expect((await levels(h)).get('SUPPORT')).toMatchObject({ points: '60' });
+
+      // A seated guest gifting themself earns the same way.
+      const guest = await send(roomId, s1, body(code, [s1]));
+      expect(guest.status).toBe(201);
+      expect((await levels(s1)).get('ATTRACTIVENESS')).toMatchObject({ points: '6' });
+      expect((await levels(s1)).get('SUPPORT')).toMatchObject({ points: '6' });
     });
   });
 
