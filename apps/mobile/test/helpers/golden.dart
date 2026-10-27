@@ -133,14 +133,28 @@ Future<void> pumpGolden(
 
 /// Decodes every image in the tree outside the fake-async zone, then
 /// rebuilds so images (or their error builders) are painted.
+///
+/// Repeats while the rebuild shows images it has not decoded yet: an error
+/// builder can bring its own image (a live card's broken cover falls back
+/// to the host's photo). With one pass, that second image was decoded only
+/// when an earlier test in the same isolate had cached it, so a golden
+/// depended on which tests ran before it.
 Future<void> precacheImages(WidgetTester tester) async {
-  await tester.runAsync(() async {
-    for (final element in find.byType(Image).evaluate()) {
-      final image = element.widget as Image;
-      await precacheImage(image.image, element, onError: (_, _) {});
-    }
-  });
-  await tester.pumpAndSettle();
+  final done = <ImageProvider>{};
+  for (var pass = 0; pass < 4; pass++) {
+    final pending = [
+      for (final element in find.byType(Image).evaluate())
+        if (done.add((element.widget as Image).image)) element,
+    ];
+    if (pending.isEmpty && pass > 0) break;
+    await tester.runAsync(() async {
+      for (final element in pending) {
+        final image = element.widget as Image;
+        await precacheImage(image.image, element, onError: (_, _) {});
+      }
+    });
+    await tester.pumpAndSettle();
+  }
 }
 
 /// Compares the whole screen with `test/goldens/png/<name>.<lang>.<vp>.png`.

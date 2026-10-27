@@ -10,6 +10,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
@@ -427,15 +428,33 @@ class _LiveHubDemo extends StatefulWidget {
 
 class _LiveHubDemoState extends State<_LiveHubDemo> {
   String? _category;
+  LiveRoomsKind _kind = LiveRoomsKind.audio;
 
   @override
   Widget build(BuildContext context) => FeedTabsScaffold(
     centerTabs: true,
-    topBar: const LiveHubTopBar(showNotifications: false),
+    topBar: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const LiveHubTopBar(showNotifications: false),
+        // D129: the samples split by kind.
+        LiveHubKindSwitch(
+          selected: _kind,
+          onSelected: (kind) => setState(() => _kind = kind),
+        ),
+      ],
+    ),
     pageBuilder: (context, tab, selectTab) => LiveHubBody(
       tab: tab,
       content: AsyncData(
-        FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
+        FeedItems(
+          tab == FeedTab.following
+              ? const []
+              : [
+                  for (final room in _Samples.hubRooms)
+                    if (room.isAudio == (_kind == LiveRoomsKind.audio)) room,
+                ],
+        ),
       ),
       categories: _Samples.liveCategories,
       selectedCategory: _category,
@@ -516,6 +535,8 @@ abstract final class _Samples {
         categoryName: rooms[i % rooms.length].categoryName,
         cover: PreviewPhotos.cover(i),
         hostAvatar: PreviewPhotos.avatar(i),
+        // D129: every other sample is a voice room (not in PK).
+        isAudio: i.isOdd && !rooms[i % rooms.length].inPk,
       ),
   ];
 

@@ -24,9 +24,11 @@ abstract interface class LiveRepository {
   Future<List<LiveCategory>> listCategories();
 
   /// `GET /live/rooms?tab&category&cursor&limit`.
+  /// D129: [kind] lists voice rooms or video lives only (`null`: all).
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
     String? cursor,
     int limit = defaultPageSize,
   });
@@ -245,6 +247,7 @@ class LiveRepositoryImpl implements LiveRepository {
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) => guardApiCall(() async {
@@ -253,6 +256,7 @@ class LiveRepositoryImpl implements LiveRepository {
       queryParameters: {
         'tab': tab.wire,
         'category': ?category,
+        'kind': ?kind?.wire,
         'cursor': ?cursor,
         'limit': limit,
       },

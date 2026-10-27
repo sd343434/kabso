@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -25,6 +26,38 @@ final liveScopeProvider = Provider<LiveScope>(
     language: ref.watch(languageControllerProvider),
   ),
 );
+
+/// D129: the hub's "voice rooms · live" switch. Voice rooms first (the
+/// owner named them first); the last choice is kept on this device.
+class LiveHubKindController extends Notifier<LiveRoomsKind> {
+  @override
+  LiveRoomsKind build() =>
+      LiveRoomsKind.tryParse(readSaved()) ?? LiveRoomsKind.audio;
+
+  /// Shows [kind] on every tab (each reloads from its first page) and
+  /// remembers it.
+  Future<void> select(LiveRoomsKind kind) async {
+    if (kind == state) return;
+    state = kind;
+    await save(kind);
+  }
+
+  /// The choice saved on this device (tests replace the storage).
+  @protected
+  String? readSaved() => ref
+      .watch(sharedPreferencesProvider)
+      .getString(PreferenceKeys.liveHubKind);
+
+  @protected
+  Future<void> save(LiveRoomsKind kind) => ref
+      .read(sharedPreferencesProvider)
+      .setString(PreferenceKeys.liveHubKind, kind.wire);
+}
+
+final liveHubKindProvider =
+    NotifierProvider<LiveHubKindController, LiveRoomsKind>(
+      LiveHubKindController.new,
+    );
 
 extension FeedTabLiveRooms on FeedTab {
   /// The `tab` query value of `GET /live/rooms` for this hub tab.
@@ -90,6 +123,8 @@ abstract class LiveHubState with _$LiveHubState {
 ///   (no list calls). Re-checked on every [refresh].
 /// - Popular: `GET /live/categories`, and the selected category is sent with
 ///   the list call. Other tabs never send a category (HL-H3).
+/// - D129: every list call carries the hub's kind (`liveHubKindProvider`);
+///   switching it reloads the tab from its first page (the category stays).
 /// - `GET /live/rooms` from the first cursor, then [loadMore] page by page;
 ///   rooms are deduplicated by id (ranking drift, §10.4).
 /// - A rejected cursor (400 `VALIDATION_FAILED`, field `cursor`) restarts
@@ -100,8 +135,11 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
 
   final FeedTab tab;
 
-  /// Survives rebuilds (locale change, retry) of this tab.
+  /// Survives rebuilds (locale change, retry, kind switch) of this tab.
   String? _category;
+
+  /// D129: the kind this state was loaded for (set by [build]).
+  LiveRoomsKind _kind = LiveRoomsKind.audio;
 
   /// Bumped by every first-page load; late responses of older loads are
   /// dropped.
@@ -118,6 +156,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
     ref
       ..watch(liveScopeProvider)
       ..watch(liveRepositoryProvider);
+    _kind = ref.watch(liveHubKindProvider);
     _generation++;
     _restartedForBadCursor = false;
     return _loadAll();
@@ -142,6 +181,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
     final page = await repo.listRooms(
       tab: tab.liveRoomsTab,
       category: _categoryParam,
+      kind: _kind,
     );
     return LiveHubState(
       hostingEnabled: true,
@@ -205,6 +245,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
       final page = await _repo.listRooms(
         tab: tab.liveRoomsTab,
         category: _categoryParam,
+        kind: _kind,
       );
       if (!ref.mounted || generation != _generation) return;
       state = AsyncData(
@@ -238,6 +279,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
       final page = await _repo.listRooms(
         tab: tab.liveRoomsTab,
         category: current.category,
+        kind: _kind,
         cursor: current.nextCursor,
       );
       if (!ref.mounted || generation != _generation) return;
@@ -280,6 +322,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
       final page = await _repo.listRooms(
         tab: tab.liveRoomsTab,
         category: state.requireValue.category,
+        kind: _kind,
       );
       if (!ref.mounted || generation != _generation) return;
       state = AsyncData(

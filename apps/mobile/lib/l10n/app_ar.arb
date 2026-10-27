@@ -7266,6 +7266,12 @@
     "description": "D121: screen-reader hint of the Following count on a profile (opens the list)."
   },
   "liveHubBrand": "Kabso",
+  "liveHubKindLabel": "نوع البث",
+  "@liveHubKindLabel": {"description": "D129: the hub's voice rooms / live switch, announced as a group."},
+  "liveHubKindAudio": "غرف صوتية",
+  "@liveHubKindAudio": {"description": "D129: the hub filter showing voice (audio) rooms only, podcasts included."},
+  "liveHubKindVideo": "بث حي",
+  "@liveHubKindVideo": {"description": "D129: the hub filter showing video lives only (solo, multi-guest, PK)."},
   "liveGridAudio": "صوتي",
   "liveGridVideo": "فيديو",
   "homeBannerSemantics": "إعلان {index} من {count}",

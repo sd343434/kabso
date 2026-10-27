@@ -256,6 +256,30 @@ enum LiveRoomsTab {
   final String wire;
 }
 
+/// The hub's room kind (`kind` of `GET /live/rooms`, v1.26.4-live, D129):
+/// voice rooms (`AUDIO`; there is no podcast type, a podcast is a voice
+/// room) or video lives (`SOLO`, `PK`, `MULTI`).
+enum LiveRoomsKind {
+  audio('audio'),
+  video('video');
+
+  new(this.wire);
+
+  final String wire;
+
+  /// The kind a room of [mode] is listed under.
+  static LiveRoomsKind of(LiveRoomMode mode) =>
+      mode == LiveRoomMode.audio ? audio : video;
+
+  /// [wire] back to a kind; anything else is `null`.
+  static LiveRoomsKind? tryParse(String? wire) {
+    for (final kind in values) {
+      if (kind.wire == wire) return kind;
+    }
+    return null;
+  }
+}
+
 /// `LiveMediaAccess` (CP-010): what joining a room's video needs.
 @freezed
 abstract class LiveMediaAccess with _$LiveMediaAccess {

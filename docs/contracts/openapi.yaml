@@ -128,6 +128,10 @@ info:
     **D128 (DRAFT v1.26.3-live)** lets the host, or someone seated, send a gift to themself in that
     live (`sendLiveGift`; before: 400); it counts like any gift, charm and support included; no
     shape change (CONVENTIONS §10.23).
+    **D129 (DRAFT v1.26.4-live)** adds `kind=audio|video` to `listLiveRooms` (the hub's voice rooms
+    apart from its video lives; the cursor is bound to it) and states that a live's score, which
+    orders `popular`, belongs to that one live: it starts at 0 and leaves the ranking when the live
+    ends (CONVENTIONS §10.4, §10.10).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -971,6 +975,11 @@ paths:
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
         `id`** (HL-H5). CP-012: the room score changes while people tap, so rooms move between
         pages more often; v1.8-live cursors carry the score (cursors of an older format, any tab → 400).
+        *(v1.26.4-live, D129)* `kind` filters every tab like `category`: `audio` = `AUDIO` rooms
+        (voice rooms, podcasts included), `video` = `SOLO`, `PK` and `MULTI`; absent = all rooms. The
+        cursor is bound to it (a cursor of another kind → 400). The score that orders `popular`
+        belongs to one live: every go-live is a new room starting at 0, and an ended room is never
+        listed, so a host who ends a live loses that ranking (§10.10).
       parameters:
         - name: tab
           in: query
@@ -981,6 +990,11 @@ paths:
           required: false
           description: 'Category slug. Malformed → 400 `VALIDATION_FAILED` (`field "category"`).'
           schema: { $ref: '#/components/schemas/CategorySlug' }
+        - name: kind
+          in: query
+          required: false
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -1018,7 +1032,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }

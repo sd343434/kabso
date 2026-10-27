@@ -708,7 +708,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     if (callerId === null && query.tab === 'following') {
       throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     }
-    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest');
+    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest', query.kind);
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
@@ -729,6 +729,10 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
       conditions.push(
         Prisma.sql`r.category_id = (SELECT id FROM live_categories WHERE slug = ${query.category} AND is_active)`,
       );
+    }
+    if (query.kind !== undefined) {
+      // v1.26.4-live (D129): voice rooms (podcasts included) apart from video lives (solo, PK, multi).
+      conditions.push(query.kind === 'audio' ? Prisma.sql`r.mode = 'AUDIO'` : Prisma.sql`r.mode <> 'AUDIO'`);
     }
     if (query.tab === 'following') {
       conditions.push(

@@ -482,6 +482,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26.4-live (draft) | 2026-10-27 | **D129 (owner: voice rooms apart from video lives on the hub; a host who ends a live loses its ranking):** `listLiveRooms` takes `kind` (`audio` = `AUDIO` rooms, podcasts included; `video` = `SOLO`, `PK`, `MULTI`; absent = all), on every tab like `category`; the cursor is bound to it (`k`, only when a kind is given). The `popular` score belongs to one live: every go-live is a new room starting at 0 and an ended room is never listed, so ending a live drops its ranking; the ended room keeps its own final score (§10.10). Room level (charm), the popularity boards and every other point system are unchanged. §10.4, §10.10. | **Additive** (an optional parameter; requests and cursors without `kind` are unchanged). The ranking rule is the existing behaviour, now stated. |
 | v1.26.3-live (draft) | 2026-10-27 | **D128 (owner: "the host can support himself"; the gift panel's Send "does nothing"):** `sendLiveGift` accepts the caller among `recipients` when the caller is the host or seated now (before: 400 `recipients` / `invalid_value`); a viewer who is not seated naming themself → 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` like any unseated recipient. A gift to oneself counts like any gift: the score, the popularity board, the sender's Contribution points (the host still never listed), and both charm and support for that person (CP-005 `self_gift` stays for other gifts). §10.23. | **Behaviour only** (no shape change): a request that was refused with 400 now succeeds. |
 | v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
 | v1.26.1-live (draft) | 2026-10-26 | **D125 (owner: follow lists like the reference):** `listUserFollowers` / `listUserFollowing` take `q` (a case-insensitive prefix of the username or display name, trimmed, 1–30 characters) and `order` (`newest`, the default, or `oldest`); the cursor is bound to both. `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval` `{followsMe: false, followerCount}`): the caller removes a follower, idempotent, withdraws that follow's notification. §7 row, §10.6. | **Additive** (optional parameters, a new operation). Cursors of the default list stay valid. |
@@ -660,6 +661,10 @@ until a media provider is wired in.
   While every score is 0, `popular` orders like `new`.
 - **`category`** is optional and filters **every** tab, so the semantics are uniform. Per HL-H3
   the client sends it only on Popular.
+- *(v1.26.4-live, owner D129)* **`kind`** is optional and, like `category`, filters **every** tab:
+  `audio` = rooms with `mode` `AUDIO` (voice rooms; there is no separate podcast type, a podcast is a
+  voice room), `video` = `SOLO`, `PK` and `MULTI`; absent = all rooms. Another value → 400
+  (`field "kind"`). The app's hub sends it on every tab (its "voice rooms · live" switch).
   - A malformed slug → 400 (`field "category"`).
   - A well-formed slug that is unknown or inactive → **200 with an empty list**. Categories can
     change between the client's category fetch and the list call, and an empty grid is the
@@ -674,7 +679,8 @@ until a media provider is wired in.
     - does not decode;
     - fails the tag check;
     - has an unknown version;
-    - does not match the request's `tab`, `category` or caller.
+    - does not match the request's `tab`, `category`, `kind` *(v1.26.4-live; the payload has
+      `k` only when a kind was given)* or caller.
   - The cursor contains nothing secret; the HMAC only stops crafted cursors from turning into
     arbitrary keyset queries.
 - **Ranking drift:** pages are keyset queries over live data. A room can move between pages (its
@@ -919,7 +925,14 @@ until a media provider is wired in.
   `supportPoints` in the gift's own transaction, and takes them back on a refund). *(v1.23-live,
   CP-020: every coin of a gift's value sent in the live, §10.23; there are no refunds yet.)* Nothing
   else changes the score. `LiveScore.total` = `tapPoints` + `supportPoints`. The score
-  belongs to one room: a new live starts at 0 and an ended room keeps its score.
+  belongs to one room: a new live starts at 0 and an ended room keeps its score. *(v1.26.4-live,
+  owner D129: "a host who ends a live loses his ranking, to give other hosts a chance")* The hub
+  ranking is this per-live score only: every go-live creates a new room (a host has no room that
+  outlives a live, voice rooms included), so it starts at 0, and an ended room is never listed
+  (§10.2), so ending a live — by the host, a heartbeat timeout, a suspension or an admin — drops
+  its ranking at once; nothing carries over to the host's next live. The ended room's own final
+  score stays readable on that room (history); the host's charm level (§10.18), the popularity
+  boards (§10.15) and every other point system are not touched.
 - **Who may tap:** signed-in callers who may see the room. Guests without an account → 401
   (owner D95). Seated guests and moderators count like any viewer (owner D95). *(v1.25.1-live,
   owner D120: the host's own taps count like a viewer's — the score, the popularity board

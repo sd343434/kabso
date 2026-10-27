@@ -5717,6 +5717,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveHubBrand => 'Kabso';
 
   @override
+  String get liveHubKindLabel => 'Room type';
+
+  @override
+  String get liveHubKindAudio => 'Voice rooms';
+
+  @override
+  String get liveHubKindVideo => 'Live';
+
+  @override
   String get liveGridAudio => 'Audio';
 
   @override

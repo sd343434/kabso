@@ -15,6 +15,14 @@ import { z } from 'zod';
 export const LIVE_TABS = ['popular', 'new', 'following'] as const;
 export type LiveTab = (typeof LIVE_TABS)[number];
 
+/**
+ * v1.26.4-live (D129): the hub's room kind filter. `audio` = `AUDIO` rooms (voice rooms; podcasts
+ * are voice rooms), `video` = `SOLO`, `PK` and `MULTI`. A cursor is bound to it like to the
+ * category; a cursor issued without a kind carries no `k` (cursors of older apps stay valid).
+ */
+export const LIVE_KINDS = ['audio', 'video'] as const;
+export type LiveKind = (typeof LIVE_KINDS)[number];
+
 /** v2 (CP-012, v1.8-live): `n` is the room's score (was the viewer count in v1). */
 export const CURSOR_VERSION = 2;
 const TAG_BYTES = 16;
@@ -27,6 +35,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export interface CursorScope {
   readonly tab: LiveTab;
   readonly category: string | null;
+  /** v1.26.4-live (D129): the kind filter; null = all rooms. */
+  readonly kind: LiveKind | null;
   /** The caller's id for `following` (personal list); null for the public tabs. */
   readonly userId: string | null;
 }
@@ -53,6 +63,7 @@ const payloadSchema = z.strictObject({
   v: z.number(),
   t: z.enum(LIVE_TABS),
   c: z.string().max(32).nullable(),
+  k: z.enum(LIVE_KINDS).optional(),
   u: z.string().regex(UUID).nullable(),
   n: z.number().int().min(0).max(CURSOR_MAX_SCORE),
   s: z.number().int().min(0).max(CURSOR_MAX_STARTED_AT_MS),
@@ -60,8 +71,18 @@ const payloadSchema = z.strictObject({
 });
 
 /** The scope a request maps to (`userId` is only bound for the personal `following` tab). */
-export function cursorScope(tab: LiveTab, category: string | undefined, callerId: string): CursorScope {
-  return { tab, category: category ?? null, userId: tab === 'following' ? callerId : null };
+export function cursorScope(
+  tab: LiveTab,
+  category: string | undefined,
+  callerId: string,
+  kind?: LiveKind,
+): CursorScope {
+  return {
+    tab,
+    category: category ?? null,
+    kind: kind ?? null,
+    userId: tab === 'following' ? callerId : null,
+  };
 }
 
 export class LiveCursorCodec {
@@ -85,6 +106,8 @@ export class LiveCursorCodec {
         v: CURSOR_VERSION,
         t: scope.tab,
         c: scope.category,
+        // Only with a kind, so a request without one gets the same cursor as before v1.26.4-live.
+        ...(scope.kind === null ? {} : { k: scope.kind }),
         u: scope.userId,
         n: position.score,
         s: position.startedAt.getTime(),
@@ -117,7 +140,9 @@ export class LiveCursorCodec {
     if (!parsed.success) return null;
     const p = parsed.data;
     if (p.v !== CURSOR_VERSION) return null;
-    if (p.t !== scope.tab || p.c !== scope.category || p.u !== scope.userId) return null;
+    if (p.t !== scope.tab || p.c !== scope.category || (p.k ?? null) !== scope.kind || p.u !== scope.userId) {
+      return null;
+    }
     return { score: p.n, startedAt: new Date(p.s), id: p.i };
   }
 }

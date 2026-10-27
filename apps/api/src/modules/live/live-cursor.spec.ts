@@ -36,6 +36,9 @@ describe('LiveCursorCodec', () => {
     cursorScope('new', 'music', USER),
     cursorScope('following', undefined, USER),
     cursorScope('following', 'music', USER),
+    cursorScope('popular', undefined, USER, 'audio'),
+    cursorScope('new', 'music', USER, 'video'),
+    cursorScope('following', undefined, USER, 'audio'),
   ];
 
   it.each(scopes)('round-trips %o', (scope) => {
@@ -43,6 +46,32 @@ describe('LiveCursorCodec', () => {
     expect(cursor).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
     expect(cursor.length).toBeLessThanOrEqual(512);
     expect(codec.decode(cursor, scope)).toEqual(position);
+  });
+
+  it('D129 (v1.26.4-live): binds the kind filter; a cursor without a kind has no `k` and stays valid', () => {
+    const audio = codec.encode(cursorScope('popular', undefined, USER, 'audio'), position);
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER, 'audio'))).toEqual(position);
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER, 'video'))).toBeNull();
+    expect(codec.decode(audio, cursorScope('popular', undefined, USER))).toBeNull();
+
+    const all = codec.encode(cursorScope('popular', undefined, USER), position);
+    const [payload = ''] = all.split('.');
+    expect(JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))).not.toHaveProperty('k');
+    expect(codec.decode(all, cursorScope('popular', undefined, USER))).toEqual(position);
+    expect(codec.decode(all, cursorScope('popular', undefined, USER, 'audio'))).toBeNull();
+
+    // A signed payload with an unknown kind is rejected.
+    const bad = forge({
+      v: CURSOR_VERSION,
+      t: 'popular',
+      c: null,
+      k: 'podcast',
+      u: null,
+      n: 3,
+      s: 0,
+      i: ROOM,
+    });
+    expect(codec.decode(bad, cursorScope('popular', undefined, USER))).toBeNull();
   });
 
   it('binds the caller only for the personal following tab', () => {

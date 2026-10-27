@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -28,7 +29,9 @@ import 'package:material_ui/material_ui.dart';
 /// HOME_LIVE_LAYOUT_DECISIONS §1 HL-H3–H6): Following · Popular · New over
 /// live rooms (opens on Popular), category chips on Popular and (D124) a
 /// 2-column 3:4 grid with the promo banners after the 4th card, all from the
-/// API (`liveRoomsProvider`, `homeBannersProvider`). D124: a top bar with the
+/// API (`liveRoomsProvider`, `homeBannersProvider`). D129: a "voice rooms ·
+/// live" switch under the top bar filters every tab on the server
+/// (`liveHubKindProvider`, kept per device). D124: a top bar with the
 /// Kabso title, search (Discover) and the notifications bell above the
 /// tabs; the hub follows the app theme. While the server has hosting
 /// switched off every tab shows its own unavailable state with Try again
@@ -84,7 +87,18 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
   @override
   Widget build(BuildContext context) => FeedTabsScaffold(
     centerTabs: true,
-    topBar: const LiveHubTopBar(),
+    // D129: the voice rooms · live switch under the title, over every tab.
+    topBar: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const LiveHubTopBar(),
+        LiveHubKindSwitch(
+          selected: ref.watch(liveHubKindProvider),
+          onSelected: (kind) =>
+              unawaited(ref.read(liveHubKindProvider.notifier).select(kind)),
+        ),
+      ],
+    ),
     requestedTab: ref.watch(liveHubTabRequestProvider),
     onReselect: (tab) => unawaited(
       ref
