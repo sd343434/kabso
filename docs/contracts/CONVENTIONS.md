@@ -130,6 +130,8 @@ All non-2xx responses use one envelope:
 | 409 | `CP_TASK_NOT_COMPLETED` | *(v1.24-live, DRAFT, CP-021)* A claim for a daily CP task that is not completed yet today (§10.24). Nothing was added. |
 | 403 | `CP_PRIVILEGE_LOCKED` | *(v1.24-live, DRAFT, CP-021)* A read that needs a CP privilege the couple has not unlocked (today: another couple's gift wall before `GIFT_WALL`, §10.24). |
 | 403 | `FAMILY_CHAT_MUTED` | *(v1.25-live, DRAFT, CP-022)* The family's leader or a deputy muted the caller in the family chat. The app disables the composer and says so (§10.25). |
+| 403 | `LUCKY_GIFT_AGE_UNCONFIRMED` | *(v1.27-live, DRAFT, D132)* A lucky gift from someone who has not confirmed they are 18 or older (`confirmLuckyGiftAge`). Nothing was charged, drawn or sent; the app asks for the confirmation (§10.27). |
+| 403 | `LUCKY_GIFT_REGION_UNAVAILABLE` | *(v1.27-live, DRAFT, D132)* Lucky gifts are off in the caller's country (server list), or the country is unknown while such a list is configured. Nothing was charged, drawn or sent; the app hides the lucky tab (§10.27). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -371,6 +373,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
 | `DELETE /me/followers/{username}` *(v1.26.1-live, D125)* | the follow / unfollow buckets (`follow:h` 60 / hour, `follow:d` 300 / day per user; idempotent no-ops count). **Replaces** the per-user default |
+| `GET /live/gifts/lucky/odds` *(v1.27-live, D132)* | Guests: the per-IP guest read bucket (`RATE_LIMIT_LIVE_GUEST_READ_IP`); signed in: the per-user default. `PUT /me/lucky-gifts/age-confirmation` uses the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
@@ -483,6 +486,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
 | v1.27.1-live (draft) | 2026-10-27 | **D133 (owner: the Live hub's filters become Nearby · Popular ▾ · Featured · Explore, and a party page):** `listLiveRooms` takes `scope=nearby` (token required; rooms whose host's country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET`), `featured=true` (rooms of hosts featured now, ordered by feature rank, then score, startedAt, id) and the kinds `solo` (`SOLO`, `PK`), `multi` (`MULTI`), `party` (`AUDIO`, `MULTI`); cursors are bound to every filter. `Me.country` and `updateMe` `{locale?, country?}` (at least one; `locale` no longer required). Featured hosts are managed only by the `feature-admin` CLI (audit `live.feature.add`, `live.feature.remove`). Explore is `tab=new` (unchanged). §10.4, §10.28. | **Additive** (new query values and optional fields; a request without them behaves as before; `updateMe` accepts more). |
+| v1.27-live (draft) | 2026-10-27 | **D132 (owner: real lucky gifts):** `GiftCategory` `LUCKY` (listed only while `LUCKY_GIFTS_ENABLED`); `LiveGiftResult.luckyResult` (`LuckyGiftResult`, `LuckyGiftWin`; only on LUCKY sends); data message `lucky-win` on topic `lucky`; `getLuckyGiftOdds` (`GET /live/gifts/lucky/odds`, `LuckyGiftOdds`, `LuckyGiftOutcome`, `LuckyGiftEligibility`; guests too); `confirmLuckyGiftAge` (`PUT /me/lucky-gifts/age-confirmation`); codes `LUCKY_GIFT_AGE_UNCONFIRMED`, `LUCKY_GIFT_REGION_UNAVAILABLE` (403); wallet ledger reasons `LUCKY_GIFT` (the charge; 10 % counts for the family) and `LUCKY_GIFT_WIN`; server config `LUCKY_GIFT_*`; CLI `gift-admin … --category LUCKY`, `lucky-wins`, `lucky-day`; audit `lucky.age_confirm`. §4, §7, §10.23, §10.27. | **Additive.** Old apps drop gifts of an unknown category (catalogue and bag) and ignore unknown fields and data message types, so they neither show nor crash on lucky gifts; using them needs the app update. |
 | v1.26.4-live (draft) | 2026-10-27 | **D129 (owner: voice rooms apart from video lives on the hub; a host who ends a live loses its ranking):** `listLiveRooms` takes `kind` (`audio` = `AUDIO` rooms, podcasts included; `video` = `SOLO`, `PK`, `MULTI`; absent = all), on every tab like `category`; the cursor is bound to it (`k`, only when a kind is given). The `popular` score belongs to one live: every go-live is a new room starting at 0 and an ended room is never listed, so ending a live drops its ranking; the ended room keeps its own final score (§10.10). Room level (charm), the popularity boards and every other point system are unchanged. §10.4, §10.10. | **Additive** (an optional parameter; requests and cursors without `kind` are unchanged). The ranking rule is the existing behaviour, now stated. |
 | v1.26.3-live (draft) | 2026-10-27 | **D128 (owner: "the host can support himself"; the gift panel's Send "does nothing"):** `sendLiveGift` accepts the caller among `recipients` when the caller is the host or seated now (before: 400 `recipients` / `invalid_value`); a viewer who is not seated naming themself → 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` like any unseated recipient. A gift to oneself counts like any gift: the score, the popularity board, the sender's Contribution points (the host still never listed), and both charm and support for that person (CP-005 `self_gift` stays for other gifts). §10.23. | **Behaviour only** (no shape change): a request that was refused with 400 now succeeds. |
 | v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
@@ -1586,7 +1590,7 @@ locale (§10.1).
 - **Rate limit:** 120 sends / min per user (§7); there is no other counting rule.
 
 **Not in v1.23-live:** buying gifts or coins (B5), lucky gifts and their winnings (`LUCKY_GIFT_SENT`,
-`WIZARD`), refunds and reversals, a received-gifts wall or history, gifts as chat lines, a
+`WIZARD`; *since v1.27-live, §10.27*), refunds and reversals, a received-gifts wall or history, gifts as chat lines, a
 spenders (rich) board, gifts outside a live, an admin UI, bag gifts that expire.
 
 ### 10.24 The CP space *(v1.24-live, DRAFT — CP-021, D112)*
@@ -1777,6 +1781,123 @@ Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaul
 - **App** *(owner)*: the carousel sits full width after the 4th live card (after the last card when
   fewer), radius 12, auto-advances every 4 s (not with reduce motion), pauses while touched, shows
   page dots when there is more than one, and opens the link on tap.
+
+### 10.27 Lucky gifts *(v1.27-live, DRAFT — D132)*
+
+Owner decisions (2026-10-27) are marked *(owner)*; every other number is a CTO default the owner may
+change in the server configuration (no app update). Odds, the age gate and the region list are
+**pending owner / legal review** before lucky gifts are switched on in production.
+
+- **What** *(owner)*: a gift of category **`LUCKY`** is sent like any live gift (§10.23) and, in
+  addition, gives the sender a chance to win coins back: **every gift of the send is one draw**
+  (`quantity × recipients` draws; a send of 99 to 2 people is 198 draws), each independent, against
+  one multiplier table; a draw that wins credits `multiplier × unitPrice` coins. Multipliers ×5, ×10,
+  ×50, ×100, ×500 *(owner)*, the big ones very rare. One draw per gift (not one per send) keeps the
+  return the same whatever quantity is picked and lets a combo feel like many tries.
+- **Switch:** `LUCKY_GIFTS_ENABLED` (default false). While it is off, `LUCKY` is not in
+  `GiftCatalogue.categories`, LUCKY gifts are neither in the catalogue nor in the bag, a send of one →
+  409 `GIFT_UNAVAILABLE`, and the odds say `enabled: false` (the table is still published).
+  `gift-admin add|update <code> --category LUCKY` works either way.
+- **The odds, from the return** *(owner: RTP 85 %)*: the configuration gives the return `R`
+  (`LUCKY_GIFT_RTP_PERCENT`, 85), the multipliers `m_i` (`LUCKY_GIFT_MULTIPLIERS`, `5,10,50,100,500`)
+  and how the return is split between them, `s_i` in whole percent summing to 100
+  (`LUCKY_GIFT_RTP_SHARES`, `40,25,15,12,8`). Each multiplier's chance, in draws per million, is
+  `c_i = floor(R_bps × s_i / m_i)` (R_bps = R × 100), i.e. `p_i = c_i / 10^6 ≈ R × s_i / m_i`, so
+  `Σ p_i × m_i = R × Σ s_i = R` (the floor can only lower it; the published `returnPercent` is the
+  exact `Σ c_i × m_i / 10^4`). No win: `c_0 = 10^6 − Σ c_i`. The default table:
+
+  | Multiplier | Chance per million | Probability | ≈ 1 in | Share of the return |
+  | ---------: | -----------------: | ----------: | -----: | ------------------: |
+  | ×5   | 68 000 | 6.8 %    | 15     | 34 points of 85 |
+  | ×10  | 21 250 | 2.125 %  | 47     | 21.25 |
+  | ×50  | 2 550  | 0.255 %  | 392    | 12.75 |
+  | ×100 | 1 020  | 0.102 %  | 980    | 10.2 |
+  | ×500 | 136    | 0.0136 % | 7 353  | 6.8 |
+  | no win | 907 044 | 90.7044 % | — | — |
+
+  Σ c_i × m_i = 340 000 + 212 500 + 127 500 + 102 000 + 68 000 = 850 000 per million = **85 %**
+  exactly. The server **refuses to start** when: R is not 1–99 (two decimals at most), the host share
+  is not 0–100 or R + host share > 100 (the platform would pay out more than it takes), the
+  multipliers are not 1–32 strictly ascending whole numbers 2–10 000, the shares are not whole
+  numbers ≥ 1 of the same count summing to 100, any `c_i` rounds to 0, `Σ c_i > 10^6`, the big-win
+  multiplier is not one of the multipliers, the time zone is not an IANA name, or a country is not
+  two letters.
+- **Randomness:** each draw is `crypto.randomInt(0, 10^6)` (a CSPRNG; never `Math.random`), mapped
+  onto the cumulative table. Draws are made by the server only.
+- **Daily protection** *(owner: "the app never loses")*: per day (midnight to midnight in
+  `LUCKY_GIFT_DAY_TIME_ZONE`, default UTC) the server keeps the day's lucky spend `S` and the coins
+  paid `W`. A send first adds its price to `S`; then its winning draws, in draw order, are paid while
+  `W + win ≤ floor(S × R_bps / 10^4)`. A winning draw that does not fit is **downgraded** to the
+  largest smaller multiplier that fits, or pays nothing; `LuckyGiftResult.downgraded` counts them.
+  So the coins won in a day never exceed R % of that day's lucky spend (and, with the host share,
+  never exceed what the senders paid). The realised return is therefore at most R and, early in a
+  day or on a quiet day, lower. The odds response says so (`dailyProtection: true`).
+- **Sending** (`sendLiveGift`, §10.23; additions in order after 409 `GIFT_UNAVAILABLE`):
+  - 400 `source` / `invalid_value`: a LUCKY gift is sent with `COINS` only (a bag send would draw for
+    free); `gift-admin grant` refuses LUCKY gifts.
+  - 403 `LUCKY_GIFT_REGION_UNAVAILABLE`: lucky gifts are off in the caller's country —
+    `LUCKY_GIFTS_DISABLED_COUNTRIES` (ISO 3166-1 alpha-2, comma-separated, default empty) matched
+    against the country the edge (CDN / reverse proxy) sets in the request header named by
+    `LUCKY_GIFTS_COUNTRY_HEADER` (e.g. `CF-IPCountry`) **and** the caller's own `Me.country`
+    (§10.28); either in the list → refused. With a list configured, a request **without** that header
+    (unknown country, e.g. `XX`/`T1` or missing) is refused too (fail closed). A non-empty list without
+    a header name → the server refuses to start. The edge must set or strip that header on every
+    request, so a client cannot choose it.
+  - 403 `LUCKY_GIFT_AGE_UNCONFIRMED`: the caller has not confirmed they are 18+ (below).
+  - then the recipients and the charge as in §10.23.
+- **In the send's transaction** (one transaction with the existing `clientId` idempotency): the
+  charge (ledger **`LUCKY_GIFT`**, the full price), the day row (`S`, `W`) locked and updated, the win
+  credited to the sender (ledger **`LUCKY_GIFT_WIN`**, reference = the send's id; none when nothing is
+  won), an audit row of the draws (`lucky_gift_draws`: sender, gift, unit price, quantity, recipients,
+  the table used, every winning draw as `[index, drawn multiplier, paid multiplier]` — draws not
+  listed did not win —, coins won, downgraded, the day, the day's budget before and after, the day's
+  spend after), and the crediting below. A retry with the same `clientId` returns the first send
+  with the same `luckyResult` (read from that audit row) and never draws again; a refused send
+  stores, charges and draws nothing.
+- **Crediting** *(owner: host share 10 %; `LUCKY_GIFT_HOST_SHARE_PERCENT`, default 10)*: let `V` =
+  the send's value (`unitPrice × quantity × recipients`, `LiveGift.totalCoins`, unchanged) and
+  `v_r = floor(unitPrice × quantity × share)` per recipient, `C = floor(V × share)` for the send.
+  Counted at the **share**: the live score and the host's popularity board (`100 × C` points instead of
+  `100 × V`), the sender's Contribution points and support coins in this live (the same), each recipient's charm
+  (`ATTRACTIVENESS`, `GIFT_RECEIVED`, value `v_r`), the sender's family points
+  (`C`; a lucky charge is not counted in full like `LIVE_GIFT`), and the sender's
+  support (`SUPPORT`, value `v_r`) only when the published SUPPORT version has
+  `luckyGiftsCountAsSupport` (CP-005; default off). Counted in **full**: the sender's **Wizard**
+  level (`WIZARD`, `LUCKY_GIFT_SENT`, value per recipient `unitPrice × quantity`; CP-005: the value
+  of lucky gifts sent, never their winnings). **Winnings count for nothing** (no level, score,
+  board, family or medal). A gift to oneself (D128) follows the same rules (that person gets the
+  charm share and the Wizard value). The coins the recipients would earn (B5, earnings) are not
+  built yet; when they are, they use the same share.
+- **Response:** `LiveGiftResult.luckyResult` = `{draws, wins: [{multiplier, count, coins}]
+  (multipliers paid, ascending), coinsWon, topMultiplier (null without a win), downgraded}`; `coins`
+  is the balance after the charge **and** the wins. Absent for every other gift.
+- **Big wins:** when `topMultiplier ≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER` (default 100) the server also
+  sends the room a reliable data message on topic **`lucky`** after the response (best effort):
+
+  | `type` | Payload |
+  | ------ | ------- |
+  | `lucky-win` | `{"type":"lucky-win","win":{"giftId","roomId","giftCode","sender":UserSummary,"multiplier","coinsWon","createdAt"}}` |
+
+  The app shows a banner ("<name> won ×500 — 25 000 coins"); older apps ignore the type.
+- **The odds** (`GET /live/gifts/lucky/odds`, guests too) *(owner: publish the odds; store
+  loot-box rules)*: `{enabled, drawsPerGift: 1, returnPercent, hostSharePercent, outcomes:
+  [{multiplier, chancePerMillion, probability}], noWinChancePerMillion, noWinProbability,
+  bigWinMultiplier, dailyProtection: true, dayTimeZone, minimumAge: 18, caller}`; `caller` is null for
+  a guest, else `{eligible, reason (DISABLED | REGION_UNAVAILABLE | AGE_UNCONFIRMED | null),
+  ageConfirmed}`. The app links it from the lucky tab and shows it before the first lucky send.
+- **18+ gate** *(owner)*: accounts have **no birth date**, so the minimal honest mechanism is a
+  one-time statement: `PUT /me/lucky-gifts/age-confirmation` `{"adult": true}` → 200
+  `{ageConfirmedAt}` (the first time is kept; audited `lucky.age_confirm`).
+  The app asks with a clear "I am 18 or older" screen (never pre-ticked) before the first lucky send.
+  No way to withdraw it in the app (support can). **Legal review:** whether a self-declaration is
+  enough for the stores and each country, and whether a real age check (birth date at sign-up or an
+  ID check) is needed — before production.
+- **Admin:** `gift-admin lucky-wins [--limit N] [--min-multiplier M]` lists the latest lucky sends
+  with a win (time, sender, gift, draws, top multiplier, coins won, downgraded); `gift-admin
+  lucky-day [YYYY-MM-DD]` prints a day's spend, paid, budget left and realised return. There is no
+  admin API.
+- **Not in v1.27-live:** buying coins (B5), recipients' earnings, jackpots or pools, lucky gifts
+  outside a live, per-user loss limits, a history of one's own draws in the app.
 
 ### 10.28 Country and featured hosts *(v1.27.1-live, DRAFT — D133)*
 

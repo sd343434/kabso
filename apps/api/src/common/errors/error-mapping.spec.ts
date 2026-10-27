@@ -82,6 +82,9 @@ describe('ErrorCode', () => {
         'CP_PRIVILEGE_LOCKED',
         // v1.25-live (DRAFT, CP-022)
         'FAMILY_CHAT_MUTED',
+        // v1.27-live (DRAFT, D132)
+        'LUCKY_GIFT_AGE_UNCONFIRMED',
+        'LUCKY_GIFT_REGION_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -135,6 +138,8 @@ describe('ErrorCode', () => {
       CP_TASK_NOT_COMPLETED: 409,
       CP_PRIVILEGE_LOCKED: 403,
       FAMILY_CHAT_MUTED: 403,
+      LUCKY_GIFT_AGE_UNCONFIRMED: 403,
+      LUCKY_GIFT_REGION_UNAVAILABLE: 403,
     });
   });
 

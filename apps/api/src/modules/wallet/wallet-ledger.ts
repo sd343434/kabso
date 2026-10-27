@@ -13,7 +13,10 @@ export type WalletLedgerReason =
   | 'CP_REQUEST'
   | 'CP_REFUND'
   | 'CP_GIFT'
-  | 'LIVE_GIFT';
+  | 'LIVE_GIFT'
+  /** v1.27-live (D132): a LUCKY gift's charge (10 % counts for the family) and the coins it won. */
+  | 'LUCKY_GIFT'
+  | 'LUCKY_GIFT_WIN';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

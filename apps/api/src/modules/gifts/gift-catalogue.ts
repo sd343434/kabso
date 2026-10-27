@@ -8,8 +8,11 @@ import type { Gift, GiftBadge, GiftCategory, Prisma } from '../../generated/pris
  * inside the caller's transaction.
  */
 
-/** The catalogue tabs, in display order (شائعة, مناسبات, مرح). The bag (الحقيبة) is the 4th tab. */
-export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN'];
+/**
+ * The catalogue tabs, in display order (شائعة, مناسبات, مرح; v1.27-live, D132: حظ, listed only while
+ * LUCKY_GIFTS_ENABLED). The bag (الحقيبة) is the last tab.
+ */
+export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN', 'LUCKY'];
 export const GIFT_BADGES: readonly GiftBadge[] = ['NONE', 'NEW', 'EVENT'];
 
 /** `gifts_code_format`: lower-case letters, digits and `_`, 1–40 characters, not starting with `_`. */
@@ -248,7 +251,7 @@ export async function stockOf(db: Pick<Tx, 'userGiftStock'>, userId: string, cod
   return row?.quantity ?? 0;
 }
 
-/** The catalogue order: tab (POPULAR, EVENT, FUN), then sort order, then code. */
+/** The catalogue order: tab (POPULAR, EVENT, FUN, LUCKY), then sort order, then code. */
 export function compareGifts(
   a: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
   b: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
@@ -284,10 +287,13 @@ export function catalogueVersion(
   >[],
   quantities: readonly number[],
   comboWindowSeconds: number,
+  categories?: readonly GiftCategory[],
 ): string {
   const canonical = JSON.stringify({
     q: quantities,
     c: comboWindowSeconds,
+    // v1.27-live (D132): the tabs, only when LUCKY is among them (so the hash is unchanged otherwise).
+    ...(categories?.includes('LUCKY') ? { t: categories } : {}),
     g: gifts.map((g) => [
       g.code,
       g.category,

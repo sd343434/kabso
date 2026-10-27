@@ -517,7 +517,12 @@ export class LiveController {
     @Body() body: unknown,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LiveGiftResultDto> {
-    const { created, result } = await this.liveGifts.send(requireCaller(req), roomId, body);
+    const { created, result } = await this.liveGifts.send(
+      requireCaller(req),
+      roomId,
+      body,
+      this.liveGifts.regionOf(req.headers),
+    );
     res.status(created ? 201 : 200);
     return result;
   }

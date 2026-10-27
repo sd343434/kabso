@@ -2,6 +2,7 @@ import { isIP } from 'node:net';
 import { ipv6Hextets } from '../common/http/request-context.js';
 import { availableParallelism } from 'node:os';
 import { z } from 'zod';
+import { luckyTable, percentToBps } from '../modules/gifts/lucky-odds.js';
 import { MIN_SECRET_BYTES, productionSecretProblem } from './secret-strength.js';
 
 /** A rate-limit rule: at most `max` requests per `windowSeconds`. */
@@ -76,6 +77,71 @@ export const giftQuantities = (fallback: string) =>
       return Object.freeze(numbers);
     });
 const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
+
+/** v1.27-live (D132): a percentage with at most two decimals ("85", "10.5") → basis points. */
+const percentSetting = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): number => {
+      const bps = percentToBps(value);
+      if (bps === null) {
+        ctx.addIssue({ code: 'custom', message: `expected a percentage like 85 or 10.5, got "${value}"` });
+        return z.NEVER;
+      }
+      return bps;
+    });
+
+/** v1.27-live (D132): a comma-separated list of plain whole numbers (checked further in superRefine). */
+const wholeNumberList = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly number[] => {
+      const parts = value.split(',').map((p) => p.trim());
+      if (parts.some((p) => !/^[1-9][0-9]{0,5}$/.test(p))) {
+        ctx.addIssue({ code: 'custom', message: `expected comma-separated whole numbers, got "${value}"` });
+        return z.NEVER;
+      }
+      return Object.freeze(parts.map(Number));
+    });
+
+/** v1.27-live (D132): ISO 3166-1 alpha-2 codes, comma-separated (case-insensitive), possibly none. */
+const countryList = z
+  .string()
+  .trim()
+  .default('')
+  .transform((value, ctx): readonly string[] => {
+    if (value === '') return Object.freeze([]);
+    const codes = value.split(',').map((p) => p.trim().toUpperCase());
+    if (codes.some((c) => !/^[A-Z]{2}$/.test(c))) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `expected two-letter country codes, comma-separated, got "${value}"`,
+      });
+      return z.NEVER;
+    }
+    return Object.freeze([...new Set(codes)]);
+  });
+
+const ianaTimeZone = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .refine(
+      (tz) => {
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'must be an IANA time zone' },
+    );
 
 /** SEC-035: bounds of LIVE_SWEEP_BATCH_SIZE (rooms ended per sweeper transaction). */
 export const LIVE_SWEEP_BATCH_SIZE_MIN = 1;
@@ -319,6 +385,39 @@ export const envSchema = z
      */
     LIVE_GIFT_QUANTITIES: giftQuantities('1,10,66,99,188,520,1314'),
     /**
+     * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
+     * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is
+     * checked at start-up even while off (the server refuses to start on an invalid table).
+     */
+    LUCKY_GIFTS_ENABLED: z
+      .enum(['true', 'false'], { error: 'must be "true" or "false"' })
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** The expected return to senders (RTP), percent (owner: 85). */
+    LUCKY_GIFT_RTP_PERCENT: percentSetting('85'),
+    /** The share of a lucky gift's value counted for charm, scores, boards and families (owner: 10). */
+    LUCKY_GIFT_HOST_SHARE_PERCENT: percentSetting('10'),
+    /** The winning multipliers, strictly ascending (owner: ×5, ×10, ×50, ×100, ×500). */
+    LUCKY_GIFT_MULTIPLIERS: wholeNumberList('5,10,50,100,500'),
+    /** The share of the return each multiplier carries, whole percent, summing to 100. */
+    LUCKY_GIFT_RTP_SHARES: wholeNumberList('40,25,15,12,8'),
+    /** Sends whose best win is at least this multiplier are announced to the room (`lucky-win`). */
+    LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
+    /** The daily protection's day starts at midnight in this IANA time zone. */
+    LUCKY_GIFT_DAY_TIME_ZONE: ianaTimeZone('UTC'),
+    /** Countries (ISO 3166-1 alpha-2) where lucky gifts are off; needs LUCKY_GIFTS_COUNTRY_HEADER. */
+    LUCKY_GIFTS_DISABLED_COUNTRIES: countryList,
+    /**
+     * The request header the edge (CDN / reverse proxy) sets to the client's country, e.g.
+     * `cf-ipcountry`. The edge must set or strip it on every request. Unset: no edge country.
+     */
+    LUCKY_GIFTS_COUNTRY_HEADER: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9-]{1,64}$/, 'must be an HTTP header name')
+      .transform((v) => v.toLowerCase())
+      .optional(),
+    /**
      * SEC-035 (CONVENTIONS §10.2, D43): the sweeper ends at most this many stale rooms per batch,
      * each batch in its own short transaction. Bounded so one batch always fits its timeout.
      */
@@ -443,6 +542,31 @@ export const envSchema = z
     ARGON2_MAX_QUEUE: nonNegativeInt(availableParallelism() * 4),
   })
   .superRefine((env, ctx) => {
+    // v1.27-live (D132): the lucky-gift table must be valid whether or not lucky gifts are on.
+    const lucky = luckyTable(
+      env.LUCKY_GIFT_RTP_PERCENT,
+      env.LUCKY_GIFT_HOST_SHARE_PERCENT,
+      env.LUCKY_GIFT_MULTIPLIERS,
+      env.LUCKY_GIFT_RTP_SHARES,
+    );
+    if (Array.isArray(lucky)) {
+      for (const problem of lucky) {
+        ctx.addIssue({ code: 'custom', path: ['LUCKY_GIFT_MULTIPLIERS'], message: problem });
+      }
+    } else if (!env.LUCKY_GIFT_MULTIPLIERS.includes(env.LUCKY_GIFT_BIG_WIN_MULTIPLIER)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LUCKY_GIFT_BIG_WIN_MULTIPLIER'],
+        message: 'must be one of LUCKY_GIFT_MULTIPLIERS',
+      });
+    }
+    if (env.LUCKY_GIFTS_DISABLED_COUNTRIES.length > 0 && env.LUCKY_GIFTS_COUNTRY_HEADER === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LUCKY_GIFTS_COUNTRY_HEADER'],
+        message: 'is required when LUCKY_GIFTS_DISABLED_COUNTRIES is set (the edge country decides)',
+      });
+    }
     if (env.REFRESH_ABSOLUTE_TTL_SECONDS < env.REFRESH_TTL_SECONDS) {
       ctx.addIssue({
         code: 'custom',

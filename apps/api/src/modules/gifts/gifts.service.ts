@@ -130,16 +130,25 @@ export class GiftsService {
     return this.config.gifts.quantities;
   }
 
+  /**
+   * The tabs listed now: v1.27-live (D132) `LUCKY` only while lucky gifts are on, so a gift of it is
+   * neither listed nor sendable while they are off.
+   */
+  get listedCategories(): readonly GiftCategory[] {
+    return this.config.lucky.enabled ? GIFT_CATEGORIES : GIFT_CATEGORIES.filter((c) => c !== 'LUCKY');
+  }
+
   /** `GET /gifts/catalogue`: enabled gifts by tab, then sort order, then code. */
   async catalogue(lang: ContentLanguage): Promise<GiftCatalogueDto> {
+    const categories = [...this.listedCategories];
     const gifts = await this.prisma.gift.findMany({
-      where: { enabled: true },
+      where: { enabled: true, category: { in: categories } },
       orderBy: [...CATALOGUE_ORDER],
     });
     const quantities = [...this.quantities];
     return {
-      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS),
-      categories: [...GIFT_CATEGORIES],
+      version: catalogueVersion(gifts, quantities, LIVE_GIFT_COMBO_WINDOW_SECONDS, categories),
+      categories,
       quantities,
       maxRecipients: LIVE_GIFT_MAX_RECIPIENTS,
       comboWindowSeconds: LIVE_GIFT_COMBO_WINDOW_SECONDS,
@@ -150,7 +159,11 @@ export class GiftsService {
   /** `GET /me/gifts/bag`: the caller's enabled gifts with a quantity above 0, in catalogue order. */
   async bag(userId: string, lang: ContentLanguage): Promise<GiftBagDto> {
     const rows = await this.prisma.userGiftStock.findMany({
-      where: { userId, quantity: { gt: 0 }, gift: { enabled: true } },
+      where: {
+        userId,
+        quantity: { gt: 0 },
+        gift: { enabled: true, category: { in: [...this.listedCategories] } },
+      },
       include: { gift: true },
       orderBy: [{ gift: { category: 'asc' } }, { gift: { sortOrder: 'asc' } }, { giftCode: 'asc' }],
     });
