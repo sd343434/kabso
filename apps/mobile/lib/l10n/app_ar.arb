@@ -7271,5 +7271,15 @@
   "homeBannerSemantics": "إعلان {index} من {count}",
   "@homeBannerSemantics": {"placeholders": {"index": {"type": "int"}, "count": {"type": "int"}}},
   "homeBannerTitledSemantics": "{title}، إعلان {index} من {count}",
-  "@homeBannerTitledSemantics": {"placeholders": {"title": {"type": "String"}, "index": {"type": "int"}, "count": {"type": "int"}}}
+  "@homeBannerTitledSemantics": {"placeholders": {"title": {"type": "String"}, "index": {"type": "int"}, "count": {"type": "int"}}},
+  "familiesActivitiesTitle": "أنشطة العائلات",
+  "@familiesActivitiesTitle": {"description": "D127: the families list section above the activity cards."},
+  "familiesActivityMonthly": "التصنيف الشهري\nهيبة العائلة",
+  "@familiesActivityMonthly": {"description": "D127: the activity card that opens the monthly prestige board (two lines)."},
+  "familiesRowMembers": "الأعضاء: {count}/{capacity}",
+  "@familiesRowMembers": {"description": "D127: a list row, members of capacity.", "placeholders": {"count": {"type": "int"}, "capacity": {"type": "int"}}},
+  "familiesMonthPointsLabel": "نقاط هذا الشهر:",
+  "@familiesMonthPointsLabel": {"description": "D127: a list row, before the points gained this calendar month."},
+  "familiesActiveLabel": "نشطون هذا الأسبوع:",
+  "@familiesActiveLabel": {"description": "D127: a list row, before the members active this week."}
 }

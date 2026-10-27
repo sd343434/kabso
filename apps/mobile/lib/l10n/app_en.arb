@@ -1783,5 +1783,10 @@
   "liveGridAudio": "Audio",
   "liveGridVideo": "Video",
   "homeBannerSemantics": "Promotion {index} of {count}",
-  "homeBannerTitledSemantics": "{title}, promotion {index} of {count}"
+  "homeBannerTitledSemantics": "{title}, promotion {index} of {count}",
+  "familiesActivitiesTitle": "Family activities",
+  "familiesActivityMonthly": "Monthly ranking\nFamily prestige",
+  "familiesRowMembers": "Members: {count}/{capacity}",
+  "familiesMonthPointsLabel": "Points this month:",
+  "familiesActiveLabel": "Active this week:"
 }

@@ -5731,4 +5731,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String homeBannerTitledSemantics(String title, int index, int count) {
     return '$title, promotion $index of $count';
   }
+
+  @override
+  String get familiesActivitiesTitle => 'Family activities';
+
+  @override
+  String get familiesActivityMonthly => 'Monthly ranking\nFamily prestige';
+
+  @override
+  String familiesRowMembers(int count, int capacity) {
+    return 'Members: $count/$capacity';
+  }
+
+  @override
+  String get familiesMonthPointsLabel => 'Points this month:';
+
+  @override
+  String get familiesActiveLabel => 'Active this week:';
 }

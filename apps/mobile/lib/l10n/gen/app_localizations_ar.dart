@@ -5755,4 +5755,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String homeBannerTitledSemantics(String title, int index, int count) {
     return '$title، إعلان $index من $count';
   }
+
+  @override
+  String get familiesActivitiesTitle => 'أنشطة العائلات';
+
+  @override
+  String get familiesActivityMonthly => 'التصنيف الشهري\nهيبة العائلة';
+
+  @override
+  String familiesRowMembers(int count, int capacity) {
+    return 'الأعضاء: $count/$capacity';
+  }
+
+  @override
+  String get familiesMonthPointsLabel => 'نقاط هذا الشهر:';
+
+  @override
+  String get familiesActiveLabel => 'نشطون هذا الأسبوع:';
 }

@@ -9937,6 +9937,36 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{title}، إعلان {index} من {count}'**
   String homeBannerTitledSemantics(String title, int index, int count);
+
+  /// D127: the families list section above the activity cards.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشطة العائلات'**
+  String get familiesActivitiesTitle;
+
+  /// D127: the activity card that opens the monthly prestige board (two lines).
+  ///
+  /// In ar, this message translates to:
+  /// **'التصنيف الشهري\nهيبة العائلة'**
+  String get familiesActivityMonthly;
+
+  /// D127: a list row, members of capacity.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأعضاء: {count}/{capacity}'**
+  String familiesRowMembers(int count, int capacity);
+
+  /// D127: a list row, before the points gained this calendar month.
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط هذا الشهر:'**
+  String get familiesMonthPointsLabel;
+
+  /// D127: a list row, before the members active this week.
+  ///
+  /// In ar, this message translates to:
+  /// **'نشطون هذا الأسبوع:'**
+  String get familiesActiveLabel;
 }
 
 class _AppLocalizationsDelegate

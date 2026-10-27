@@ -6,6 +6,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/families/application/families_providers.dart';
@@ -18,32 +19,49 @@ import 'package:kabso_live/features/profile/profile_screen.dart'
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/families` (CP-018; redesigned for CP-022, D116, after the owner's style
-/// board): the caller's family (or Create), then "Families list" with the
-/// search, the boards — هيبة العائلة (points this month) and الأكثر نشاطاً
-/// (members active this week); ترتيب القتال is shown as "Soon" (no family
-/// battles exist) — as a podium of the top 3 and ranked rows with Join,
-/// and the caller's family's place pinned at the bottom. The style board's
-/// "family activities" banners are not shown: nothing real backs them yet.
-/// The search matches a name or the 8-digit number (a full number opens
-/// that family, `GET /family-numbers/{number}`).
+/// `/families` (CP-018; CP-022, D116; D127: laid out literally after the
+/// owner's own mockup, measured at 393 pt). Top to bottom: the header
+/// (back on the left, the title centred, on the right Create — or the
+/// caller's family — where the mockup has nothing), "Family activities"
+/// with the monthly-ranking card (it opens the prestige board; the
+/// mockup's promo-video card and "More" are hidden: there is no video),
+/// "Families list" with the search, the three board pills (battles greyed
+/// "Soon", D62), the podium on its warm backdrop, the ranked rows with
+/// Join, and the caller's family pinned at the bottom. As on the mockup
+/// the rows run left to right in both directions (rank, emblem, text,
+/// Join); the Arabic text itself stays right-to-left. The search matches a
+/// name or the 8-digit number (a full number opens that family,
+/// `GET /family-numbers/{number}`).
 class FamiliesScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
   static const searchKey = Key('families.search');
   static const createKey = Key('families.create');
   static const mineKey = Key('families.mine');
+  static const backKey = Key('families.back');
   static const cancelRequestKey = Key('families.cancelRequest');
   static const emptyKey = Key('families.empty');
   static const podiumKey = Key('families.podium');
   static const myRankKey = Key('families.myRank');
   static const battleTabKey = Key('families.tab.battle');
+  static const activityMonthlyKey = Key('families.activity.monthly');
+  static const listHeaderKey = Key('families.listHeader');
 
   static Key tileKey(String id) => Key('families.tile.$id');
   static Key podiumSlotKey(int place) => Key('families.podium.$place');
+  static Key podiumPlaceKey(int place) => Key('families.podium.$place.place');
   static Key joinKey(String id) => Key('families.join.$id');
   static Key tabKey(FamilyRankingBoard board) =>
       Key('families.tab.${board.name}');
+
+  /// Measured on the owner's mockup at 393 pt (D127).
+  static const double headerHeight = 44;
+  static const double gutter = 12;
+  static const double activityHeight = 95;
+  static const double tabHeight = 32;
+  static const double searchWidth = 168;
+  static const double searchHeight = 30;
+  static const double rowHeight = 59;
 
   @override
   ConsumerState<FamiliesScreen> createState() => _FamiliesScreenState();
@@ -51,6 +69,7 @@ class FamiliesScreen extends ConsumerStatefulWidget {
 
 class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
   final _search = TextEditingController();
+  final GlobalKey _listHeader = GlobalKey();
   Timer? _debounce;
   String _query = '';
   FamilyRankingBoard _board = FamilyRankingBoard.prestige;
@@ -105,185 +124,277 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
     }
   }
 
-  List<Widget> _mineSlivers(BuildContext context) {
+  /// The monthly-ranking card: the prestige board, scrolled into view.
+  void _openMonthly() {
+    _search.clear();
+    _debounce?.cancel();
+    setState(() {
+      _query = '';
+      _board = FamilyRankingBoard.prestige;
+    });
+    final target = _listHeader.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(
+        target,
+        duration: KMotion.of(context, KMotion.base),
+        curve: KMotion.standard,
+      );
+    }
+  }
+
+  /// The header: back (left), the title (centre) and, where the mockup
+  /// has nothing (right), Create — or the caller's family.
+  Widget _header(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final mine = ref.watch(myFamilyProvider);
+    final canPop = context.canPop();
+    final end = switch (mine) {
+      AsyncValue(value: final Family family) => Semantics(
+        button: true,
+        label: l10n.familiesMine,
+        excludeSemantics: true,
+        child: InkResponse(
+          key: FamiliesScreen.mineKey,
+          radius: 22,
+          onTap: () => context.push(AppRoutes.family(family.id)),
+          child: SizedBox.square(
+            dimension: 44,
+            child: Center(child: FamilyEmblem(url: family.emblemUrl, size: 30)),
+          ),
+        ),
+      ),
+      AsyncValue(hasValue: true) => IconButton(
+        key: FamiliesScreen.createKey,
+        tooltip: l10n.familiesCreate,
+        icon: Icon(Icons.add_rounded, size: 28, color: p.textPrimary),
+        onPressed: () => context.push(AppRoutes.newFamily),
+      ),
+      _ => null,
+    };
+    return SizedBox(
+      width: double.infinity,
+      height: FamiliesScreen.headerHeight,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 56),
+            child: Semantics(
+              header: true,
+              child: Text(
+                l10n.familiesTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.headline.copyWith(
+                  color: p.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ),
+          if (canPop)
+            Positioned(
+              left: 4,
+              // "<" on the left in both directions (the mockup).
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: IconButton(
+                  key: FamiliesScreen.backKey,
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  icon: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 22,
+                    color: p.textPrimary,
+                  ),
+                  onPressed: () => context.pop(),
+                ),
+              ),
+            ),
+          if (end != null) Positioned(right: 4, child: end),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _requestSlivers(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
     final mine = ref.watch(myFamilyProvider);
     final request = ref.watch(myFamilyRequestProvider).value;
+    if (request == null || mine.value != null) return const [];
     return [
       SliverToBoxAdapter(
-        child: switch (mine) {
-          AsyncValue(value: final Family family) => Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KSpacing.lg,
-              KSpacing.sm,
-              KSpacing.lg,
-              0,
-            ),
-            child: Material(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FamiliesScreen.gutter,
+            KSpacing.xs,
+            FamiliesScreen.gutter,
+            0,
+          ),
+          child: Container(
+            padding: const EdgeInsetsDirectional.only(start: KSpacing.md),
+            decoration: BoxDecoration(
               color: p.surface,
-              borderRadius: BorderRadius.circular(KRadius.lg),
-              child: InkWell(
-                key: FamiliesScreen.mineKey,
-                borderRadius: BorderRadius.circular(KRadius.lg),
-                onTap: () => context.push(AppRoutes.family(family.id)),
-                child: Container(
-                  padding: const EdgeInsets.all(KSpacing.sm),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(KRadius.lg),
-                    border: Border.all(color: p.border),
-                  ),
-                  child: Row(
-                    children: [
-                      FamilyEmblem(url: family.emblemUrl, size: 40),
-                      const SizedBox(width: KSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.familiesMine,
-                              style: t.caption.copyWith(color: p.textSecondary),
-                            ),
-                            Text(
-                              family.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.bodyStrong.copyWith(
-                                color: p.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      FamilyLevelChip(level: family.level),
-                      Icon(
-                        Directionality.of(context) == TextDirection.rtl
-                            ? Icons.chevron_left_rounded
-                            : Icons.chevron_right_rounded,
-                        color: p.textSecondary,
-                      ),
-                    ],
+              borderRadius: BorderRadius.circular(KRadius.md),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.familyPendingRequest(request.family.name),
+                    style: t.body.copyWith(color: p.textPrimary),
                   ),
                 ),
-              ),
-            ),
-          ),
-          AsyncValue(hasValue: true) => Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KSpacing.lg,
-              KSpacing.sm,
-              KSpacing.lg,
-              0,
-            ),
-            child: KButton(
-              key: FamiliesScreen.createKey,
-              label: l10n.familiesCreate,
-              icon: Icons.add_rounded,
-              variant: KButtonVariant.secondary,
-              onPressed: () => context.push(AppRoutes.newFamily),
-            ),
-          ),
-          _ => const SizedBox.shrink(),
-        },
-      ),
-      if (request != null && mine.value == null)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KSpacing.lg,
-              KSpacing.sm,
-              KSpacing.lg,
-              0,
-            ),
-            child: Container(
-              padding: const EdgeInsetsDirectional.only(start: KSpacing.md),
-              decoration: BoxDecoration(
-                color: p.surfaceRaised,
-                borderRadius: BorderRadius.circular(KRadius.md),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.familyPendingRequest(request.family.name),
-                      style: t.body.copyWith(color: p.textPrimary),
-                    ),
-                  ),
-                  TextButton(
-                    key: FamiliesScreen.cancelRequestKey,
-                    onPressed: _cancelRequest,
-                    child: Text(l10n.familyCancelRequest),
-                  ),
-                ],
-              ),
+                TextButton(
+                  key: FamiliesScreen.cancelRequestKey,
+                  onPressed: _cancelRequest,
+                  child: Text(l10n.familyCancelRequest),
+                ),
+              ],
             ),
           ),
         ),
+      ),
     ];
   }
 
-  Widget _listHeader(BuildContext context) {
+  /// "Family activities" and its card (only the monthly ranking: the
+  /// mockup's second card, a promo video, has no video behind it).
+  Widget _activities(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        KSpacing.lg,
-        KSpacing.lg,
-        KSpacing.lg,
-        KSpacing.sm,
-      ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
-        runSpacing: KSpacing.sm,
-        spacing: KSpacing.md,
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              l10n.familiesListTitle,
-              style: t.title.copyWith(
-                color: p.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 210, minWidth: 150),
-            child: SizedBox(
-              height: 40,
-              child: TextField(
-                key: FamiliesScreen.searchKey,
-                controller: _search,
-                onChanged: _changed,
-                onSubmitted: _submitted,
-                textInputAction: TextInputAction.search,
-                style: t.body.copyWith(color: p.textPrimary),
-                decoration: InputDecoration(
-                  hintText: l10n.familiesSearchShort,
-                  hintStyle: t.body.copyWith(color: p.textTertiary),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: p.textSecondary,
-                    size: 20,
-                  ),
-                  isDense: true,
-                  filled: true,
-                  fillColor: p.surfaceRaised,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: KSpacing.md,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KRadius.pill),
-                    borderSide: BorderSide.none,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                Flexible(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.familiesActivitiesTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.title.copyWith(
+                        color: p.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
+          const SizedBox(height: 6),
+          LayoutBuilder(
+            builder: (context, c) => Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                SizedBox(
+                  width: (c.maxWidth - 6) / 2,
+                  height: FamiliesScreen.activityHeight,
+                  child: _ActivityCard(
+                    key: FamiliesScreen.activityMonthlyKey,
+                    asset: FamilyArt.activityMonthly,
+                    title: l10n.familiesActivityMonthly,
+                    onTap: _openMonthly,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Families list" (left) and the search (right), as on the mockup.
+  Widget _listHeaderRow(BuildContext context) {
+    final l10n = context.l10n;
+    final p = context.palette;
+    final t = context.textStyles;
+    final search = SizedBox(
+      width: FamiliesScreen.searchWidth,
+      height: FamiliesScreen.searchHeight,
+      child: TextField(
+        key: FamiliesScreen.searchKey,
+        controller: _search,
+        onChanged: _changed,
+        onSubmitted: _submitted,
+        textInputAction: TextInputAction.search,
+        textAlignVertical: TextAlignVertical.center,
+        style: t.label.copyWith(color: p.textPrimary, fontSize: 13),
+        decoration: InputDecoration(
+          hintText: l10n.familiesSearchShort,
+          hintStyle: t.label.copyWith(
+            color: p.textTertiary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w400,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: p.textSecondary,
+            size: 22,
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 40),
+          isDense: true,
+          filled: true,
+          fillColor: p.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+          border: _pillBorder,
+          enabledBorder: _pillBorder,
+          focusedBorder: _pillBorder,
+        ),
+      ),
+    );
+    return Padding(
+      key: _listHeader,
+      padding: const EdgeInsets.fromLTRB(
+        FamiliesScreen.gutter,
+        19,
+        FamiliesScreen.gutter,
+        9,
+      ),
+      child: Row(
+        key: FamiliesScreen.listHeaderKey,
+        textDirection: TextDirection.ltr,
+        children: [
+          Expanded(
+            child: Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                Flexible(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.familiesListTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.title.copyWith(
+                        color: p.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: KSpacing.sm),
+          Flexible(child: search),
         ],
       ),
     );
@@ -294,7 +405,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
     Widget tab(
       FamilyRankingBoard? board,
       String label,
-      IconData icon, {
+      Widget Function(Color) icon, {
       Key? key,
     }) => Expanded(
       child: _BoardTab(
@@ -305,29 +416,31 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
         onTap: board == null ? null : () => setState(() => _board = board),
       ),
     );
+    // Left to right in both directions, as on the mockup.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
+        textDirection: TextDirection.ltr,
         children: [
           tab(
             FamilyRankingBoard.prestige,
             l10n.familiesTabPrestige,
-            Icons.workspace_premium_rounded,
+            (c) => AppIcon(AppIcons.crownFilled, size: 17, color: c),
           ),
-          const SizedBox(width: KSpacing.sm),
+          const SizedBox(width: 10),
           // Owner D116: no family battles exist yet — labelled "Soon",
           // greyed and not a button (D62 convention).
           tab(
             null,
             l10n.familiesTabBattle,
-            Icons.sports_martial_arts_rounded,
+            (c) => Icon(Icons.sports_martial_arts_rounded, size: 17, color: c),
             key: FamiliesScreen.battleTabKey,
           ),
-          const SizedBox(width: KSpacing.sm),
+          const SizedBox(width: 10),
           tab(
             FamilyRankingBoard.active,
             l10n.familiesTabActive,
-            Icons.bar_chart_rounded,
+            (c) => Icon(Icons.bar_chart_rounded, size: 17, color: c),
           ),
         ],
       ),
@@ -364,6 +477,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
             top: value.items.take(3).toList(),
           ),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xs)),
         SliverList.builder(
           itemCount:
               (value.items.length > 3 ? value.items.length - 3 : 0) +
@@ -376,7 +490,8 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
                 key: FamiliesScreen.tileKey(e.family.id),
                 family: e.family,
                 rank: e.rank,
-                scoreLine: _scoreLine(context, board, e.score),
+                scoreLabel: _scoreLabel(context, board),
+                scoreValue: familyCount(context, e.score),
               );
             }
             return value.loadMoreError == null
@@ -442,7 +557,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
               return FamilyBoardRow(
                 key: FamiliesScreen.tileKey(f.id),
                 family: f,
-                scoreLine: l10n.familyNumber('${f.number}'),
+                scoreLabel: l10n.familyNumber('${f.number}'),
               );
             }
             return value.loadMoreError == null
@@ -482,9 +597,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final p = context.palette;
-    final t = context.textStyles;
     final searching = _query.isNotEmpty;
     final boardLoad = ref.watch(familyRankingsProvider(_board));
     final me = boardLoad.hasValue
@@ -492,37 +605,39 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
         : null;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
-        backgroundColor: p.background,
-        centerTitle: true,
-        title: Text(
-          l10n.familiesTitle,
-          style: t.title.copyWith(
-            color: p.textPrimary,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          refreshFamilies(ref);
-          await (searching
-              ? ref.read(familySearchProvider(_query).future)
-              : ref.read(familyRankingsProvider(_board).future));
-        },
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            ..._mineSlivers(context),
-            SliverToBoxAdapter(child: _listHeader(context)),
-            if (searching)
-              ..._searchSlivers(context)
-            else ...[
-              SliverToBoxAdapter(child: _tabs(context)),
-              const SliverToBoxAdapter(child: SizedBox(height: KSpacing.md)),
-              ..._boardSlivers(context),
-            ],
-            const SliverToBoxAdapter(child: SizedBox(height: KSpacing.xl)),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _header(context),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  refreshFamilies(ref);
+                  await (searching
+                      ? ref.read(familySearchProvider(_query).future)
+                      : ref.read(familyRankingsProvider(_board).future));
+                },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    ..._requestSlivers(context),
+                    SliverToBoxAdapter(child: _activities(context)),
+                    SliverToBoxAdapter(child: _listHeaderRow(context)),
+                    if (searching)
+                      ..._searchSlivers(context)
+                    else ...[
+                      SliverToBoxAdapter(child: _tabs(context)),
+                      const SliverToBoxAdapter(child: SizedBox(height: 7)),
+                      ..._boardSlivers(context),
+                    ],
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: KSpacing.xl),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -533,7 +648,18 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
   }
 }
 
-/// What a board row says under the name.
+const _pillBorder = OutlineInputBorder(
+  borderRadius: BorderRadius.all(Radius.circular(KRadius.pill)),
+  borderSide: BorderSide.none,
+);
+
+/// The label before a row's score.
+String _scoreLabel(BuildContext context, FamilyRankingBoard board) =>
+    board == FamilyRankingBoard.prestige
+    ? context.l10n.familiesMonthPointsLabel
+    : context.l10n.familiesActiveLabel;
+
+/// What the pinned bar says under the name.
 String _scoreLine(BuildContext context, FamilyRankingBoard board, int score) {
   final l10n = context.l10n;
   return board == FamilyRankingBoard.prestige
@@ -541,7 +667,75 @@ String _scoreLine(BuildContext context, FamilyRankingBoard board, int score) {
       : l10n.familiesScoreActive(familyCount(context, score));
 }
 
-/// One board tab: a gold pill when selected; without [onTap], "Soon".
+/// An activity card: the owner's art with its title over it, white, in two
+/// centred lines (D127, the mockup's card 1).
+class _ActivityCard extends StatelessWidget {
+  const new({
+    required this.asset,
+    required this.title,
+    required this.onTap,
+    super.key,
+  });
+
+  final String asset;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.textStyles;
+    return Semantics(
+      button: true,
+      label: title.replaceAll('\n', ' '),
+      excludeSemantics: true,
+      child: Material(
+        color: const Color(0xFF3B0D12),
+        borderRadius: BorderRadius.circular(KRadius.sm),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(asset, fit: BoxFit.cover, excludeFromSemantics: true),
+              const DecoratedBox(
+                decoration: BoxDecoration(color: Color(0x40000000)),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: KMetrics.overlayMaxTextScale,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: t.title.copyWith(
+                          color: const Color(0xFFFFFFFF),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                          shadows: const [
+                            Shadow(color: Color(0xCC000000), blurRadius: 6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One board pill: gold when selected; without [onTap], greyed "Soon".
+/// The icon sits left of the label in both directions (the mockup).
 class _BoardTab extends StatelessWidget {
   const new({
     required this.label,
@@ -552,7 +746,7 @@ class _BoardTab extends StatelessWidget {
   });
 
   final String label;
-  final IconData icon;
+  final Widget Function(Color) icon;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -567,27 +761,28 @@ class _BoardTab extends StatelessWidget {
         ? p.textTertiary
         : p.textPrimary;
     final pill = Container(
-      constraints: const BoxConstraints(minHeight: 40),
+      constraints: const BoxConstraints(minHeight: FamiliesScreen.tabHeight),
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs),
       decoration: BoxDecoration(
-        gradient: selected ? FamilyColors.goldGradient : null,
-        color: selected ? null : p.surfaceRaised,
+        gradient: selected ? FamilyColors.buttonGradient : null,
+        color: selected ? null : p.surface,
         borderRadius: BorderRadius.circular(KRadius.pill),
         boxShadow: selected
             ? const [
                 BoxShadow(
                   color: Color(0x40D98E28),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
                 ),
               ]
             : null,
       ),
       child: Row(
+        textDirection: TextDirection.ltr,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 18, color: fg),
-          const SizedBox(width: KSpacing.xs),
+          icon(fg),
+          const SizedBox(width: 6),
           Flexible(
             child: Text(
               label,
@@ -595,7 +790,8 @@ class _BoardTab extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: t.label.copyWith(
                 color: fg,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
@@ -610,11 +806,7 @@ class _BoardTab extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             pill,
-            const PositionedDirectional(
-              top: -8,
-              end: 0,
-              child: FamilySoonBadge(),
-            ),
+            const Positioned(top: -8, right: 2, child: FamilySoonBadge()),
           ],
         ),
       );
@@ -631,92 +823,103 @@ class _BoardTab extends StatelessWidget {
   }
 }
 
-/// The top three on a soft panel: second, first (taller), third.
+/// The top three on the owner's podium cards (D125) inside the mockup's
+/// warm backdrop (D127): second on the left, first in the centre (larger),
+/// third on the right, in both directions; the cards stand on one line.
 class _Podium extends StatelessWidget {
   const new({required this.board, required this.top, super.key});
 
   final FamilyRankingBoard board;
   final List<FamilyRankingEntry> top;
 
+  /// Of the backdrop's width (measured at 393: the backdrop 373 wide). The
+  /// mockup's cards are 129 and 98 wide; the owner's art needs 158 and 136
+  /// for its panels to hold three readable lines (CTO minimums, D125). The
+  /// side cards' centres are 120 from the middle, under the first's wings.
+  static const double firstShare = 158 / 373;
+  static const double sideShare = 136 / 373;
+  static const double sideOffset = 120 / 373;
+
+  /// The backdrop's padding above the first card (its crown has its own
+  /// clear margin) and below the cards: the backdrop stays 215 pt tall as
+  /// measured.
+  static const double topInset = 0;
+  static const double bottomInset = 4;
+
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final dark = Theme.of(context).brightness == Brightness.dark;
     FamilyRankingEntry? at(int place) =>
         top.length >= place ? top[place - 1] : null;
-    Widget slot(int place, int flex) => Expanded(
-      flex: flex,
-      child: _PodiumCard(
-        key: FamiliesScreen.podiumSlotKey(place),
-        place: place,
-        entry: at(place),
-        board: board,
-      ),
-    );
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-      padding: const EdgeInsets.fromLTRB(
-        KSpacing.sm,
-        KSpacing.md,
-        KSpacing.sm,
-        KSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(KRadius.xl),
-        gradient: dark
-            ? LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [p.surfaceRaised, p.surface],
-              )
-            : const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFF4EA), Color(0xFFFFE6D5)],
+    // Text over the art is capped like other overlays.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: KMetrics.overlayMaxTextScale,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final w = c.maxWidth;
+            final w1 = w * firstShare;
+            final ws = w * sideShare;
+            double height(int place, double width) {
+              final art = FamilyArt.podiumCards[place - 1].size;
+              return width * art.height / art.width;
+            }
+
+            Widget slot(int place, double width) => SizedBox(
+              width: width,
+              height: height(place, width),
+              child: _PodiumCard(
+                key: FamiliesScreen.podiumSlotKey(place),
+                place: place,
+                entry: at(place),
+                board: board,
               ),
-      ),
-      // The podium keeps 2nd – 1st – 3rd from the left in both directions
-      // (owner D116: "2nd left, 1st centre larger, 3rd right").
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            slot(2, 10),
-            const SizedBox(width: KSpacing.sm),
-            slot(1, 12),
-            const SizedBox(width: KSpacing.sm),
-            slot(3, 10),
-          ],
+            );
+            final h1 = height(1, w1);
+            return Container(
+              height: topInset + h1 + bottomInset,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(KRadius.md + 2),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: dark
+                      ? FamilyColors.podiumBackdropDark
+                      : FamilyColors.podiumBackdropLight,
+                ),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: w / 2 - w * sideOffset - ws / 2,
+                    bottom: bottomInset,
+                    child: slot(2, ws),
+                  ),
+                  Positioned(
+                    left: w / 2 + w * sideOffset - ws / 2,
+                    bottom: bottomInset,
+                    child: slot(3, ws),
+                  ),
+                  Positioned(
+                    left: (w - w1) / 2,
+                    bottom: bottomInset,
+                    child: slot(1, w1),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-/// A banner-shaped card with a pointed bottom.
-class _BannerClipper extends CustomClipper<Path> {
-  const new();
-
-  @override
-  Path getClip(Size size) {
-    const r = 16.0;
-    final tip = size.height * 0.06;
-    return Path()
-      ..moveTo(0, r)
-      ..quadraticBezierTo(0, 0, r, 0)
-      ..lineTo(size.width - r, 0)
-      ..quadraticBezierTo(size.width, 0, size.width, r)
-      ..lineTo(size.width, size.height - tip)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(0, size.height - tip)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(_BannerClipper oldClipper) => false;
-}
-
+/// One of the owner's podium cards: the emblem in its circle with the place
+/// badge on the circle's lower edge; the name, level and points in its
+/// panel; Join on the panel's lower edge. A tap opens the family.
 class _PodiumCard extends StatelessWidget {
   const new({
     required this.place,
@@ -729,219 +932,250 @@ class _PodiumCard extends StatelessWidget {
   final FamilyRankingEntry? entry;
   final FamilyRankingBoard board;
 
+  /// Minimum sizes (CTO review, D125): the text is cut with an ellipsis to
+  /// the panel's width, never scaled below these at text scale 1.
+  static const double nameSize = 13;
+  static const double lineSize = 11;
+  static const double placeSize = 14;
+  static const double joinSize = 28;
+  static const double placeBadge = 24;
+
+  /// How much of Join overlaps the panel (the rest covers its frame).
+  static const double joinInside = 10;
+
+  /// The place badge colours (red-gold, silver-blue, rose gold).
+  static const List<(Color, Color)> placeColors = [
+    (Color(0xFFFFD86B), Color(0xFF9A1B12)),
+    (Color(0xFFE4ECFF), Color(0xFF1E46A8)),
+    (Color(0xFFFFD2B5), Color(0xFF9A4A2A)),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final t = context.textStyles;
-    final (top, bottom) = FamilyColors.podium[place - 1];
     final entry = this.entry;
-    final first = place == 1;
     final art = FamilyArt.podiumCards[place - 1];
+    const white = Color(0xFFFFFFFF);
+    final (badgeFg, badgeBg) = placeColors[place - 1];
     return LayoutBuilder(
       builder: (context, c) {
-        final w = c.maxWidth;
-        final emblem = w * (first ? 0.5 : 0.48);
-        final frame = w * (first ? 0.98 : 0.94);
-        const white = Color(0xFFFFFFFF);
-        final card = ClipPath(
-          clipper: const _BannerClipper(),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [top, bottom],
+        final drawn = Offset.zero & c.biggest;
+        final circle = art.circleIn(drawn);
+        final panel = art.map(art.panel, drawn);
+        // Join sits on the panel's lower edge, [joinInside] of it inside;
+        // the text keeps above it.
+        final textArea = Rect.fromLTRB(
+          panel.left,
+          panel.top,
+          panel.right,
+          panel.bottom - (entry == null ? 0 : joinInside),
+        );
+        Text line(String text, double size, {bool bold = false}) => Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: t.caption.copyWith(
+            color: bold ? white : const Color(0xF2FFFFFF),
+            fontSize: size,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            height: size == nameSize ? 1.15 : 1.0,
+            shadows: const [Shadow(color: Color(0x99000000), blurRadius: 3)],
+          ),
+        );
+        final lines = SizedBox(
+          width: textArea.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              line(entry?.family.name ?? '—', nameSize, bold: true),
+              if (entry != null) ...[
+                line(l10n.familyLevelLong(entry.family.level), lineSize),
+                Row(
+                  textDirection: TextDirection.ltr,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      board == FamilyRankingBoard.prestige
+                          ? Icons.local_fire_department_rounded
+                          : Icons.people_alt_rounded,
+                      size: lineSize + 2,
+                      color: const Color(0xFFFFD86B),
+                    ),
+                    const SizedBox(width: 2),
+                    Flexible(
+                      child: line(
+                        familyCount(context, entry.score),
+                        lineSize,
+                        bold: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+        final card = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                art.asset,
+                fit: BoxFit.fill,
+                excludeFromSemantics: true,
               ),
-              image: art == null
-                  ? null
-                  : DecorationImage(image: AssetImage(art), fit: BoxFit.cover),
             ),
-            padding: EdgeInsets.fromLTRB(
-              KSpacing.xs,
-              frame * 0.62,
-              KSpacing.xs,
-              KSpacing.lg,
+            Positioned.fromRect(
+              rect: circle,
+              child: entry == null
+                  ? const SizedBox.shrink()
+                  : FamilyEmblem(
+                      url: entry.family.emblemUrl,
+                      size: circle.width,
+                    ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  entry?.family.name ?? '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  textDirection: entry == null
-                      ? null
-                      : Directionality.of(context),
-                  style: t.bodyStrong.copyWith(
-                    color: white,
-                    fontWeight: FontWeight.w800,
+            // The place on the circle's lower edge, like a medal.
+            Positioned(
+              left: circle.center.dx - placeBadge / 2,
+              top: circle.bottom - placeBadge / 2 - 2,
+              width: placeBadge,
+              height: placeBadge,
+              child: Container(
+                key: FamiliesScreen.podiumPlaceKey(place),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: badgeBg,
+                  border: Border.all(color: badgeFg, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x66000000), blurRadius: 4),
+                  ],
+                ),
+                child: FittedBox(
+                  child: Text(
+                    '$place',
+                    style: t.label.copyWith(
+                      color: badgeFg,
+                      fontSize: placeSize,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
                   ),
                 ),
-                if (entry != null) ...[
-                  Text(
-                    l10n.familyLevelLong(entry.family.level),
-                    maxLines: 1,
-                    style: t.caption.copyWith(color: const Color(0xE6FFFFFF)),
-                  ),
-                  const SizedBox(height: KSpacing.xxs),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        board == FamilyRankingBoard.prestige
-                            ? Icons.local_fire_department_rounded
-                            : Icons.people_alt_rounded,
-                        size: 14,
-                        color: const Color(0xFFFFD86B),
-                      ),
-                      const SizedBox(width: 2),
-                      Flexible(
-                        child: Text(
-                          familyCount(context, entry.score),
-                          maxLines: 1,
-                          style: t.label.copyWith(
-                            color: white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: KSpacing.xs),
-                  FamilyJoinButton(family: entry.family, compact: true),
-                ],
-              ],
+              ),
             ),
-          ),
+            // Fits at text scale 1; larger scales shrink it back towards
+            // the minimums instead of overflowing the panel.
+            Positioned.fromRect(
+              rect: textArea,
+              child: FittedBox(fit: BoxFit.scaleDown, child: lines),
+            ),
+            if (entry != null)
+              Positioned(
+                left: panel.center.dx - joinSize / 2,
+                top: panel.bottom - joinInside,
+                width: joinSize,
+                height: joinSize,
+                child: FittedBox(
+                  child: FamilyJoinButton(family: entry.family, compact: true),
+                ),
+              ),
+          ],
         );
         return Semantics(
           container: true,
           label: entry == null
               ? null
               : l10n.familiesPodiumLabel(place, entry.family.name),
-          child: Padding(
-            padding: EdgeInsets.only(top: first ? 0 : KSpacing.xl),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.topCenter,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(top: frame * 0.3),
+          child: entry == null
+              ? card
+              : GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.push(AppRoutes.family(entry.family.id)),
                   child: card,
                 ),
-                SizedBox(
-                  width: frame,
-                  height: frame * 0.9,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(top: frame * 0.1),
-                        child: entry == null
-                            ? SizedBox.square(dimension: emblem)
-                            : FamilyEmblem(
-                                url: entry.family.emblemUrl,
-                                size: emblem,
-                              ),
-                      ),
-                      Image.asset(
-                        FamilyArt.podiumFrame(place),
-                        width: frame,
-                        fit: BoxFit.contain,
-                        excludeFromSemantics: true,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: bottom,
-                            border: Border.all(color: white, width: 2),
-                          ),
-                          child: Text(
-                            '$place',
-                            style: t.label.copyWith(
-                              color: white,
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
   }
 }
 
-/// One family in a list: place, emblem, name with the level, members, the
-/// [scoreLine] and Join.
+/// One family in a list (D127, the owner's mockup, left to right in both
+/// directions): the place, the emblem in its gold hexagon, the name with
+/// the level, "Members: n/cap", the [scoreLabel] with [scoreValue], and
+/// Join on the right.
 class FamilyBoardRow extends StatelessWidget {
   const new({
     required this.family,
-    required this.scoreLine,
+    required this.scoreLabel,
     super.key,
+    this.scoreValue,
     this.rank,
   });
 
   final FamilyCard family;
-  final String scoreLine;
+  final String scoreLabel;
+  final String? scoreValue;
   final int? rank;
+
+  static const double joinWidth = 84;
+  static const double joinHeight = 31;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final rank = this.rank;
+    final scoreValue = this.scoreValue;
+    final grey = p.textTertiary;
+    final levelColor = dark
+        ? FamilyColors.levelRedOnDark
+        : FamilyColors.levelRed;
     return InkWell(
       onTap: () => context.push(AppRoutes.family(family.id)),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.lg,
-          vertical: KSpacing.sm + 2,
-        ),
+        constraints: const BoxConstraints(minHeight: FamiliesScreen.rowHeight),
+        margin: const EdgeInsets.symmetric(horizontal: FamiliesScreen.gutter),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: p.border, width: 0.5)),
         ),
+        padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
+          textDirection: TextDirection.ltr,
           children: [
-            if (rank != null) ...[
-              SizedBox(
-                width: 26,
-                child: Text(
-                  '$rank',
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  style: t.title.copyWith(color: p.textPrimary),
-                ),
-              ),
-              const SizedBox(width: KSpacing.xs),
-            ],
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: FamilyColors.goldGradient,
-              ),
-              child: FamilyEmblem(url: family.emblemUrl, size: 46),
+            SizedBox(
+              width: 18,
+              child: rank == null
+                  ? null
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$rank',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: t.title.copyWith(
+                          color: p.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
             ),
-            const SizedBox(width: KSpacing.sm),
+            const SizedBox(width: 5),
+            FamilyHexEmblem(url: family.emblemUrl),
+            const SizedBox(width: 11),
             Expanded(
               child: Column(
+                textDirection: TextDirection.ltr,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    textDirection: TextDirection.ltr,
                     children: [
                       Flexible(
                         child: Text(
@@ -950,47 +1184,92 @@ class FamilyBoardRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: t.bodyStrong.copyWith(
                             color: p.textPrimary,
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
+                            height: 1.3,
                           ),
                         ),
                       ),
-                      const SizedBox(width: KSpacing.xs),
+                      const SizedBox(width: KSpacing.sm),
+                      AppIcon(
+                        AppIcons.crownFilled,
+                        size: 14,
+                        color: levelColor,
+                      ),
+                      const SizedBox(width: 3),
                       Flexible(
                         child: Text(
                           l10n.familyLevelLong(family.level),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: t.caption.copyWith(
-                            color: const Color(0xFFD2372C),
-                            fontWeight: FontWeight.w700,
+                          style: t.label.copyWith(
+                            color: levelColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
                   Text(
-                    l10n.familyMembersCount(
+                    l10n.familiesRowMembers(
                       family.memberCount,
                       family.capacity,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: t.caption.copyWith(color: p.textSecondary),
+                    style: t.label.copyWith(
+                      color: grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      height: 1.3,
+                    ),
                   ),
-                  Text(
-                    scoreLine,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.caption.copyWith(color: p.textSecondary),
+                  Row(
+                    textDirection: TextDirection.ltr,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          scoreLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.caption.copyWith(
+                            color: grey,
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                      if (scoreValue != null) ...[
+                        const SizedBox(width: KSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            scoreValue,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.body.copyWith(
+                              color: grey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(width: KSpacing.sm),
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 112),
+              constraints: const BoxConstraints(
+                minWidth: joinWidth,
+                maxWidth: 112,
+              ),
               child: FamilyJoinButton(family: family),
             ),
+            const SizedBox(width: 3),
           ],
         ),
       ),
@@ -1101,6 +1380,10 @@ class _FamilyJoinButtonState extends ConsumerState<FamilyJoinButton> {
           ? l10n.familyFullLabel
           : l10n.familyJoinShort,
       icon: requested || full ? null : Icons.add_rounded,
+      height: FamilyBoardRow.joinHeight,
+      fontSize: 13.5,
+      iconSize: 16,
+      horizontalPadding: KSpacing.sm,
       busy: _busy,
       onPressed: onPressed,
     );
@@ -1123,20 +1406,21 @@ class _MyRankBar extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Material(
-        color: p.surface,
+        color: p.background,
         elevation: 8,
         child: InkWell(
           key: FamiliesScreen.myRankKey,
           onTap: () => context.push(AppRoutes.family(me.family.id)),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: KSpacing.lg,
+              horizontal: FamiliesScreen.gutter,
               vertical: KSpacing.sm,
             ),
             child: Row(
+              textDirection: TextDirection.ltr,
               children: [
                 SizedBox(
-                  width: 44,
+                  width: 30,
                   child: Text(
                     rank == null ? '—' : '$rank',
                     textAlign: TextAlign.center,
@@ -1144,10 +1428,12 @@ class _MyRankBar extends StatelessWidget {
                     style: t.title.copyWith(color: FamilyColors.goldDeep),
                   ),
                 ),
-                FamilyEmblem(url: me.family.emblemUrl, size: 38),
+                const SizedBox(width: KSpacing.xs),
+                FamilyHexEmblem(url: me.family.emblemUrl, width: 38),
                 const SizedBox(width: KSpacing.sm),
                 Expanded(
                   child: Column(
+                    textDirection: TextDirection.ltr,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1163,7 +1449,7 @@ class _MyRankBar extends StatelessWidget {
                             : _scoreLine(context, board, me.score),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: t.caption.copyWith(color: p.textSecondary),
+                        style: t.caption.copyWith(color: p.textTertiary),
                       ),
                     ],
                   ),
