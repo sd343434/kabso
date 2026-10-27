@@ -15,7 +15,6 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/app_router.dart';
@@ -35,6 +34,7 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cover_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -51,18 +51,65 @@ import '../../helpers/pump_app.dart';
 
 final AppLocalizations _en = l10nFor(AppLanguage.en);
 
-Finder _tab(String label) =>
-    find.descendant(of: find.byType(KPrimaryTabs), matching: find.text(label));
+/// D131: a Live hub filter pill.
+Finder _filter(LiveHubFilter f) => find.byKey(LiveHubFilterBar.pillKey(f));
+
+/// D131: the hub's Popular pill selected, showing [label] (Popular, or
+/// its menu choice).
+bool _popularShows(WidgetTester tester, String label) =>
+    _selected(tester, _filter(LiveHubFilter.popular)) &&
+    find
+        .descendant(
+          of: _filter(LiveHubFilter.popular),
+          matching: find.text(label),
+        )
+        .evaluate()
+        .isNotEmpty;
+
+/// D131: shows the old tab [tab] with the filters: Following is Popular's
+/// menu, New is Explore.
+Future<void> _showTab(WidgetTester tester, FeedTab tab) async {
+  final l10n = AppLocalizations.of(tester.element(find.byType(LiveScreen)));
+  if (tab == FeedTab.latest) {
+    await tester.dragUntilVisible(
+      _filter(LiveHubFilter.explore),
+      find.byType(LiveHubFilterBar),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_filter(LiveHubFilter.explore));
+    await tester.pumpAndSettle();
+    return;
+  }
+  await tester.dragUntilVisible(
+    _filter(LiveHubFilter.popular),
+    find.byType(LiveHubFilterBar),
+    const Offset(200, 0),
+  );
+  await tester.pumpAndSettle();
+  if (!_selected(tester, _filter(LiveHubFilter.popular))) {
+    await tester.tap(_filter(LiveHubFilter.popular));
+    await tester.pumpAndSettle();
+  }
+  final want = tab == FeedTab.following
+      ? l10n.feedTabFollowing
+      : l10n.feedTabPopular;
+  if (_popularShows(tester, want)) return;
+  await tester.tap(_filter(LiveHubFilter.popular));
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.byKey(
+      tab == FeedTab.following
+          ? LiveHubFilterBar.menuFollowingKey
+          : LiveHubFilterBar.menuAllKey,
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 bool _selected(WidgetTester tester, Finder finder) =>
     tester.getSemantics(finder).getSemanticsData().flagsCollection.isSelected ==
     Tristate.isTrue;
-
-String _tabLabel(AppLocalizations l10n, FeedTab tab) => switch (tab) {
-  FeedTab.following => l10n.feedTabFollowing,
-  FeedTab.popular => l10n.feedTabPopular,
-  FeedTab.latest => l10n.feedTabNew,
-};
 
 /// D52: shows [tab] on the Reels shell tab with the header switch.
 Future<void> _showHomeMode(WidgetTester tester, HomeTab tab) async {
@@ -227,11 +274,7 @@ void main() {
         expect(find.byType(LiveScreen), findsOneWidget);
         expect(_selected(tester, find.byKey(const Key('nav.home'))), isTrue);
         expect(_selected(tester, find.byKey(const Key('nav.reels'))), isFalse);
-        final popular = find.descendant(
-          of: find.byType(LiveScreen),
-          matching: _tab(_en.feedTabPopular),
-        );
-        expect(_selected(tester, popular), isTrue);
+        expect(_popularShows(tester, _en.feedTabPopular), isTrue);
       });
     }
 
@@ -241,18 +284,13 @@ void main() {
       await _pumpApp(tester);
       // The hub (Home) is built on launch: move it to Following, open Reels,
       // then "Watch live streams" brings Home back on Popular.
-      await tester.tap(_tab(_en.feedTabFollowing));
-      await tester.pumpAndSettle();
+      await _showTab(tester, FeedTab.following);
       await tester.tap(find.byKey(const Key('nav.reels')));
       await tester.pumpAndSettle();
       await tester.tap(_action(_en.homeWatchLive));
       await tester.pumpAndSettle();
       expect(_location(tester), AppRoutes.home);
-      final popular = find.descendant(
-        of: find.byType(LiveScreen),
-        matching: _tab(_en.feedTabPopular),
-      );
-      expect(_selected(tester, popular), isTrue);
+      expect(_popularShows(tester, _en.feedTabPopular), isTrue);
     });
 
     testWidgets('loading: skeleton posts after 300 ms; no empty or '
@@ -426,7 +464,13 @@ void main() {
       await _pumpLive(tester, live);
       await tester.tap(_action(_en.liveHubSeeNew));
       await tester.pumpAndSettle();
-      expect(_selected(tester, _tab(_en.feedTabNew)), isTrue);
+      await tester.dragUntilVisible(
+        _filter(LiveHubFilter.explore),
+        find.byType(LiveHubFilterBar),
+        const Offset(-200, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(_selected(tester, _filter(LiveHubFilter.explore)), isTrue);
       expect(live.requests.last.tab, LiveRoomsTab.latest);
       expect(find.byKey(FeedRegion.emptyKey), findsOneWidget);
       expect(_action(_en.liveHubSeeNew), findsNothing);
@@ -437,8 +481,7 @@ void main() {
         'Following', (tester) async {
       final live = FakeLiveRepository();
       await _pumpLive(tester, live);
-      await tester.tap(_tab(_en.feedTabFollowing));
-      await tester.pumpAndSettle();
+      await _showTab(tester, FeedTab.following);
       expect(find.text(_en.liveHubFollowingEmptyTitle), findsOneWidget);
       expect(find.text(_en.liveHubFollowingEmptyBody), findsOneWidget);
       int following() =>
@@ -449,7 +492,7 @@ void main() {
       expect(following(), before + 1);
       await tester.tap(_action(_en.feedSeePopular));
       await tester.pumpAndSettle();
-      expect(_selected(tester, _tab(_en.feedTabPopular)), isTrue);
+      expect(_popularShows(tester, _en.feedTabPopular), isTrue);
     });
   });
 
@@ -507,8 +550,7 @@ void main() {
         (FeedTab.latest, _en.liveHubNewUnavailableTitle),
         (FeedTab.popular, _en.liveHubPopularUnavailableTitle),
       ]) {
-        await tester.tap(_tab(_tabLabel(_en, tab)));
-        await tester.pumpAndSettle();
+        await _showTab(tester, tab);
         expect(find.text(title), findsOneWidget);
         expect(_action(_en.actionRetry), findsOneWidget);
       }
@@ -571,7 +613,7 @@ void main() {
       expect(_streams(tester), 2);
     });
 
-    testWidgets('a failed category reload retries only that first page', (
+    testWidgets('a failed category list: Try again reloads that category', (
       tester,
     ) async {
       var fail = true;
@@ -582,18 +624,19 @@ void main() {
             : apiPage(apiRooms(2)),
       );
       await _pumpLive(tester, live);
-      await tester.tap(find.byKey(const ValueKey('live.chip.music')));
+      // D131: a category is chosen from Popular's menu.
+      await tester.tap(_filter(LiveHubFilter.popular));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveHubFilterBar.menuCategoryKey('music')));
       await tester.pumpAndSettle();
       // Offline gets its own state (QA-003).
       expect(find.byKey(FeedRegion.offlineKey), findsOneWidget);
       expect(find.text(_en.feedOfflineTitle), findsOneWidget);
       expect(find.byKey(FeedRegion.emptyKey), findsNothing);
-      final configs = live.configCalls;
       final lists = live.requests.length;
       fail = false;
       await tester.tap(_action(_en.actionRetry));
       await tester.pumpAndSettle();
-      expect(live.configCalls, configs);
       expect(live.requests, hasLength(lists + 1));
       expect(live.requests.last.category, 'music');
       expect(_streams(tester), 2);
@@ -643,20 +686,21 @@ void main() {
       expect(inCard(1, find.text('7')), findsOneWidget);
     });
 
-    testWidgets('category name when present, nothing when absent; '
-        'announced', (tester) async {
+    testWidgets('D131 (ref 165): the category is announced, not drawn; '
+        'the title is the only bottom line', (tester) async {
       final live = FakeLiveRepository(
         rooms: (_) => apiPage(apiRooms(2, categories: apiCategories())),
       );
       await _pumpLive(tester, live);
-      expect(inCard(0, find.text('Music')), findsOneWidget);
+      expect(inCard(0, find.text('Music')), findsNothing);
+      expect(inCard(0, find.text('Sara')), findsNothing);
+      expect(inCard(0, find.text('Arabic music night')), findsOneWidget);
       expect(
         find.bySemanticsLabel(
           'Sara, live, New, Arabic music night, Video, Music',
         ),
         findsOneWidget,
       );
-      expect(inCard(1, find.byKey(KLiveGridCard.categoryKey)), findsNothing);
       expect(
         find.bySemanticsLabel('Omar, live, New, Evening chat, Video'),
         findsOneWidget,
@@ -776,8 +820,8 @@ void main() {
                 .copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
               body: screen,
-              bottomNavigationBar: KBottomNav(
-                items: shellNavItems(context.l10n),
+              bottomNavigationBar: KTabBar(
+                items: shellTabItems(context.l10n),
                 currentIndex: 3,
                 onSelect: (_) {},
               ),
@@ -951,7 +995,7 @@ void main() {
 
     for (final language in ['en', 'ar']) {
       testWidgets('$language: order mirrors, 48 dp targets, icon sizes, '
-          'Create pill', (tester) async {
+          'Create button', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         await _pumpApp(tester, language: language);
         final xs = [for (final k in keys) tester.getCenter(find.byKey(k)).dx];
@@ -963,26 +1007,34 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
           expect(size.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
         }
-        final nav = find.byType(KBottomNav);
-        final icons = find.descendant(
-          of: nav,
-          matching: find.byType(SvgPicture),
-        );
-        // D49: four 28 dp icons and the 54×36 Create pill.
-        expect(icons, findsNWidgets(5));
+        // D130: the owner's painted icons (26 dp) and the 52 dp camera button.
         for (final k in keys) {
+          if (k == const Key('nav.create')) continue;
           final icon = find.descendant(
             of: find.byKey(k),
-            matching: find.byType(SvgPicture),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is SizedBox &&
+                  w.width == KTabBar.iconSize &&
+                  w.height == KTabBar.iconSize,
+            ),
           );
           expect(
             tester.getSize(icon),
-            k == const Key('nav.create')
-                ? KNavIcons.createSize
-                : const Size.square(KNavIcons.iconSize),
+            const Size.square(KTabBar.iconSize),
             reason: '$k',
           );
         }
+        final plus = find.descendant(
+          of: find.byKey(const Key('nav.create')),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.constraints ==
+                    BoxConstraints.tight(const Size.square(KTabBar.createSize)),
+          ),
+        );
+        expect(tester.getSize(plus), const Size.square(KTabBar.createSize));
         expect(_selected(tester, find.byKey(keys.first)), isTrue);
       });
     }
@@ -1000,7 +1052,7 @@ void main() {
       for (final key in [const Key('nav.home'), const Key('nav.reels')]) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
-        final nav = tester.getRect(find.byType(KBottomNav));
+        final nav = tester.getRect(find.byType(KTabBar));
         expect(nav.bottom, 852);
         final visible = find.byWidgetPredicate((w) => w is CustomScrollView);
         final region = tester.getRect(visible.first);
@@ -1008,7 +1060,7 @@ void main() {
         final header = tester.getRect(
           key == const Key('nav.reels')
               ? find.byKey(FeedScreen.tabsKey)
-              : find.byType(KPrimaryTabs).first,
+              : find.byType(LiveHubFilterBar).first,
         );
         expect(header.top, greaterThanOrEqualTo(59));
         // KL-060: Posts has an API (empty here); the live hub is off.
@@ -1048,12 +1100,10 @@ void main() {
       testWidgets('every rendered Home/Live state (${language.name})', (
         tester,
       ) async {
-        final l10n = l10nFor(language);
         final seen = <String>{};
         Future<void> visitTabs() async {
           for (final tab in FeedTab.values) {
-            await tester.tap(_tab(_tabLabel(l10n, tab)).first);
-            await tester.pumpAndSettle();
+            await _showTab(tester, tab);
             seen.addAll(texts(tester));
           }
         }

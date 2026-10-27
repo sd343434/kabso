@@ -60,6 +60,15 @@ class AuthRemoteDataSource {
     return MeDto.fromJson(res.data!);
   });
 
+  /// v1.27.1-live (D133): `PATCH /me` `{country}`; null clears it.
+  Future<MeDto> updateCountry(String? country) => _guard(() async {
+    final res = await _dio.patch<Map<String, dynamic>>(
+      '/me',
+      data: {'country': country},
+    );
+    return MeDto.fromJson(res.data!);
+  });
+
   Future<void> logout() => _guard(() => _dio.post<void>('/auth/logout'));
 
   Future<MeDto> getMe() => _guard(() async {

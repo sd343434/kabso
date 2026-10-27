@@ -933,7 +933,7 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const KPointsIcon(size: 16),
+                        const KCherryIcon(size: 16),
                         const SizedBox(width: 3),
                         Text(
                           KFormat.compact(c.points, l10n),

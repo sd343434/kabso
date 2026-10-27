@@ -1013,7 +1013,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('nav.reels')),
-          matching: find.text(_en.navPosts),
+          matching: find.text(_en.navMoments),
         ),
         findsOneWidget,
       );

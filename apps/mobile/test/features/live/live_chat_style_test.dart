@@ -191,7 +191,52 @@ void main() {
   for (final language in AppLanguage.values) {
     final rtl = language == AppLanguage.ar;
     group('layout (${language.name})', () {
-      for (final audio in [true, false]) {
+      testWidgets('D131 video live (ref 158): one row, no picture; the badges '
+          'then the name and the text inline, at the reading start', (
+        tester,
+      ) async {
+        final engine = await _room(tester, language: language, audio: false);
+        engine.chat.add(LiveChatReceived(_entry('m1', 'hello', badges: _full)));
+        await tester.pumpAndSettle();
+        expect(
+          _in('m:m1', find.byKey(LiveChatAuthoredLine.avatarKey)),
+          findsNothing,
+        );
+        final row = tester.getRect(
+          _in('m:m1', find.byKey(LiveChatInlineRow.rowKey)),
+        );
+        final badges = tester.getRect(
+          _in('m:m1', find.byType(LiveChatBadgeRow)),
+        );
+        final list = tester.getRect(find.byKey(LiveRoomChatLines.listKey));
+        expect(row.contains(badges.center), isTrue);
+        // The badges at the row's reading start, inside its padding.
+        expect(
+          rtl
+              ? (row.right - badges.right - 8).abs() < 1.5
+              : (badges.left - row.left - 8).abs() < 1.5,
+          isTrue,
+        );
+        expect(
+          rtl
+              ? (list.right - row.right).abs() < 1
+              : (row.left - list.left).abs() < 1,
+          isTrue,
+        );
+        // 13 sp lines 18.2 pt apart: one line is about 23 pt (ref 22–23);
+        // the test font's wide glyphs wrap this badge-full line once.
+        expect(row.height, inInclusiveRange(21, 46));
+        final text = tester.widget<RichText>(
+          _in('m:m1', find.byType(RichText)).first,
+        );
+        final plain = text.text.toPlainText();
+        expect(plain, contains('Huda'));
+        expect(plain, contains('hello'));
+        expect(plain.indexOf('Huda'), lessThan(plain.indexOf('hello')));
+        expect(tester.takeException(), isNull);
+        await _leave(tester);
+      });
+      for (final audio in [true]) {
         testWidgets('${audio ? 'audio room' : 'video live'}: picture at the '
             'reading start, then name, badges and bubble', (tester) async {
           final engine = await _room(tester, language: language, audio: audio);
@@ -543,25 +588,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       final screen = tester.getRect(find.byType(LiveRoomScreen));
+      // D131: rows wrap inside the chat's width (81 %, at most 318.5 pt).
       for (final key in ['m:m1', 'm:m2']) {
-        final bubble = tester.getRect(
-          _in(key, find.byKey(LiveChatAuthoredLine.bubbleKey)),
+        final row = tester.getRect(
+          _in(key, find.byKey(LiveChatInlineRow.rowKey)),
         );
-        expect(bubble.left, greaterThanOrEqualTo(screen.left));
-        expect(bubble.right, lessThanOrEqualTo(screen.right));
-        expect(bubble.width, lessThanOrEqualTo(360 * 0.7 + 0.5));
+        expect(row.left, greaterThanOrEqualTo(screen.left));
+        expect(row.right, lessThanOrEqualTo(screen.right));
+        expect(row.width, lessThanOrEqualTo(360 * 0.81 + 0.5));
       }
-      // The name stays on one line (ellipsis), isolated from the layout's
-      // direction.
-      final name = tester.widget<Text>(
-        _in('m:m1', find.byKey(LiveChatAuthoredLine.nameKey)),
+      // The name is isolated from the layout's direction.
+      final mixed = tester.widget<RichText>(
+        _in('m:m2', find.byType(RichText)).first,
       );
-      expect(name.maxLines, 1);
-      expect(name.overflow, TextOverflow.ellipsis);
-      final mixed = tester.widget<Text>(
-        _in('m:m2', find.byKey(LiveChatAuthoredLine.nameKey)),
-      );
-      expect(mixed.data, '\u2068نور Star 99\u2069');
+      expect(mixed.text.toPlainText(), contains('\u2068نور Star 99\u2069'));
       await _leave(tester);
     });
   }

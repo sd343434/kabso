@@ -98,7 +98,7 @@ class _ScorePartsState extends ConsumerState<_ScoreParts> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const KPointsIcon(size: 32),
+                  const KCherryIcon(size: 32),
                   const SizedBox(width: KSpacing.sm),
                   Text(
                     KFormat.grouped(parts.total),

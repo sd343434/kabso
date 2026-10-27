@@ -22,7 +22,10 @@ abstract final class LiveRankingsKeys {
 
 /// The room's "Room rank" chip (owner ref 76): opens the popularity board.
 class LiveRankChip extends StatelessWidget {
-  const new({super.key});
+  const new({super.key, this.icon = Icons.home_rounded});
+
+  /// D131: the video live shows a board (bar chart) icon (ref 158).
+  final IconData icon;
 
   static const chipKey = Key('rankings.chip');
 
@@ -34,7 +37,7 @@ class LiveRankChip extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => unawaited(showLiveRankings(context)),
       child: LiveChip(
-        icon: Icons.home_rounded,
+        icon: icon,
         child: Text(
           context.l10n.liveRankChip,
           maxLines: 1,
@@ -407,7 +410,7 @@ class _Points extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      KPointsIcon(size: size + 1),
+      KCherryIcon(size: size + 1),
       const SizedBox(width: 2),
       Text(
         KFormat.compact(points, context.l10n),

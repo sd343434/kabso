@@ -2238,7 +2238,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsLoadError => 'تعذّر تحميل المستويات';
 
   @override
-  String get navPosts => 'المنشورات';
+  String get navMoments => 'اللحظات';
 
   @override
   String get navMessages => 'الرسائل';
@@ -5741,15 +5741,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveHubBrand => 'Kabso';
 
   @override
-  String get liveHubKindLabel => 'نوع البث';
-
-  @override
-  String get liveHubKindAudio => 'غرف صوتية';
-
-  @override
-  String get liveHubKindVideo => 'بث حي';
-
-  @override
   String get liveGridAudio => 'صوتي';
 
   @override
@@ -5781,4 +5772,420 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get familiesActiveLabel => 'نشطون هذا الأسبوع:';
+
+  @override
+  String navMessagesUnread(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count رسالة غير مقروءة',
+      many: '$count رسالة غير مقروءة',
+      few: '$count رسائل غير مقروءة',
+      two: 'رسالتان غير مقروءتين',
+      one: 'رسالة واحدة غير مقروءة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get navMessagesUnreadMany => 'أكثر من 99 رسالة غير مقروءة';
+
+  @override
+  String get navMomentsNew => 'قصص جديدة';
+
+  @override
+  String get liveVoiceRoomsTitle => 'الغرف الصوتية';
+
+  @override
+  String get liveHubFilterLabel => 'عوامل التصفية';
+
+  @override
+  String get liveHubFilterNearby => 'القريبة';
+
+  @override
+  String get liveHubFilterPopular => 'الرائج';
+
+  @override
+  String get liveHubFilterFeatured => 'المميزة';
+
+  @override
+  String get liveHubFilterExplore => 'استكشاف';
+
+  @override
+  String get liveHubPopularMenuHint => 'يفتح قائمة: المتابَعون أو الفئات';
+
+  @override
+  String get liveNearbyNoCountryTitle => 'حدّد بلدك لترى البثوث القريبة';
+
+  @override
+  String get liveNearbyNoCountryBody =>
+      'تعرض «القريبة» بثوث المضيفين من بلدك. بلدك لا يظهر في ملفك العام.';
+
+  @override
+  String get liveNearbySetCountry => 'حدّد بلدك';
+
+  @override
+  String get liveNearbyChangeCountry => 'تغيير البلد';
+
+  @override
+  String liveNearbyEmptyTitle(String country) {
+    return 'لا بثوث من $country الآن';
+  }
+
+  @override
+  String get liveNearbyEmptyBody => 'عد لاحقًا أو جرّب «الرائج».';
+
+  @override
+  String get liveFeaturedEmptyTitle => 'لا بثوث مميزة الآن';
+
+  @override
+  String get liveFeaturedEmptyBody =>
+      'تظهر هنا بثوث المضيفين الذين يختارهم فريق Kabso Live.';
+
+  @override
+  String get liveVoiceTabFollow => 'المتابَعون';
+
+  @override
+  String get liveVoiceTabHot => 'الرائجة';
+
+  @override
+  String get liveVoiceTabNew => 'الجديدة';
+
+  @override
+  String get liveVoiceRecommended => 'المقترحة';
+
+  @override
+  String get liveVoiceSection => 'الغرف';
+
+  @override
+  String get liveVoiceListView => 'عرض كقائمة';
+
+  @override
+  String get liveVoiceGridView => 'عرض كشبكة';
+
+  @override
+  String liveVoiceSeats(int taken, int total) {
+    return '$taken/$total';
+  }
+
+  @override
+  String get liveVoiceEmptyTitle => 'لا غرف صوتية الآن';
+
+  @override
+  String get liveVoiceEmptyBody => 'عد لاحقًا أو جرّب فئة أخرى.';
+
+  @override
+  String get countryPickerTitle => 'بلدك';
+
+  @override
+  String get countryPickerBody =>
+      'يحدّد بثوث «القريبة». لا يظهر في ملفك العام.';
+
+  @override
+  String get countryPickerSearch => 'ابحث عن بلد';
+
+  @override
+  String get countryPickerClear => 'إزالة البلد';
+
+  @override
+  String get settingsCountry => 'البلد';
+
+  @override
+  String get settingsCountryNotSet => 'غير محدّد';
+
+  @override
+  String get liveGiftRecipientRefused =>
+      'لا يمكن إرسال الهدية إلى هذا المستلم هنا الآن.';
+
+  @override
+  String get liveLeaveTitle => 'أعجبك البث؟ تابِع المضيف قبل أن تغادر';
+
+  @override
+  String get liveLeaveFollow => 'تابِع واخرج';
+
+  @override
+  String get liveLeaveExit => 'الخروج من البث';
+
+  @override
+  String liveHostPillPoints(String points) {
+    return 'نقاط هذا البث $points';
+  }
+
+  @override
+  String liveHostPillTaps(String taps) {
+    return 'نقرات هذا البث $taps';
+  }
+
+  @override
+  String get liveChatSayHi => 'قل مرحبًا…';
+
+  @override
+  String get liveQuickHello => 'مرحبًا 😊';
+
+  @override
+  String get liveQuickFire => '🔥🔥🔥';
+
+  @override
+  String get liveQuickNiceMood => 'أجواء جميلة~';
+
+  @override
+  String get liveQuickGotMe => 'أسرتني';
+
+  @override
+  String liveQuickReplyLabel(String text) {
+    return 'إرسال: $text';
+  }
+
+  @override
+  String get liveToolFlash => 'الفلاش';
+
+  @override
+  String get liveToolDual => 'كاميرتان';
+
+  @override
+  String get liveToolHd => 'جودة عالية';
+
+  @override
+  String get liveToolSticker => 'ملصقات';
+
+  @override
+  String get liveToolInfo => 'المعلومات';
+
+  @override
+  String get liveToolTrafficCard => 'بطاقة الزيارات';
+
+  @override
+  String get liveToolMagic => 'مؤثرات';
+
+  @override
+  String get liveToolFillLight => 'إضاءة';
+
+  @override
+  String get liveToolMixer => 'الصوت';
+
+  @override
+  String get liveBeautyToolsTitle => 'أدوات التجميل';
+
+  @override
+  String get liveHostGuests => 'اتصال الضيوف';
+
+  @override
+  String get liveHostGuestsSoon =>
+      'يمكن للضيوف الانضمام في البث متعدد الضيوف. في البث الفردي ستتوفر لاحقاً.';
+
+  @override
+  String get liveHostTools => 'الأدوات';
+
+  @override
+  String get liveManageTitle => 'إدارة المستخدمين';
+
+  @override
+  String get liveManageMuted => 'المكتومون في الدردشة';
+
+  @override
+  String get liveManageKicked => 'المطرودون من البث';
+
+  @override
+  String get liveManageModerators => 'المشرفون';
+
+  @override
+  String get liveManageModeratorsHint => 'افتح بطاقة الشخص لتعيينه مشرفاً.';
+
+  @override
+  String get liveManageSignedInOnly => 'للمسجلين فقط';
+
+  @override
+  String get liveManageSignedInOnlyBody =>
+      'لا يستطيع من ليس لديه حساب المشاهدة.';
+
+  @override
+  String get liveManageEmpty => 'لا أحد بعد';
+
+  @override
+  String get liveManageUnmute => 'إلغاء الكتم';
+
+  @override
+  String get liveManageLetBack => 'السماح بالعودة';
+
+  @override
+  String get liveManageRemove => 'إزالة';
+
+  @override
+  String get goLiveSummaryTime => 'مدة البث';
+
+  @override
+  String get goLiveSummaryPoints => 'النقاط';
+
+  @override
+  String get goLiveSummaryTaps => 'من النقرات';
+
+  @override
+  String get goLiveSummaryGifts => 'من الهدايا';
+
+  @override
+  String get goLiveSummarySupporters => 'الداعمون';
+
+  @override
+  String get goLiveSummaryViewers => 'المشاهدون عند الانتهاء';
+
+  @override
+  String goLiveSummaryCharm(String level) {
+    return 'مستوى الجاذبية $level';
+  }
+
+  @override
+  String goLiveSummaryCharmNext(String points) {
+    return '$points للمستوى التالي';
+  }
+
+  @override
+  String get goLiveSummaryData => 'بيانات البث';
+
+  @override
+  String get liveGiftTabRecent => 'الأخيرة';
+
+  @override
+  String get liveGiftTabLucky => 'الحظ';
+
+  @override
+  String get liveGiftRecentEmptyTitle => 'لا هدايا حديثة';
+
+  @override
+  String get liveGiftRecentEmptyMessage =>
+      'تظهر هنا الهدايا التي ترسلها من هذا الهاتف.';
+
+  @override
+  String get liveGiftPriceSort => 'السعر';
+
+  @override
+  String get liveGiftPriceSortOff => 'الترتيب حسب السعر';
+
+  @override
+  String get liveGiftPriceSortUp => 'السعر من الأقل إلى الأعلى';
+
+  @override
+  String get liveGiftPriceSortDown => 'السعر من الأعلى إلى الأقل';
+
+  @override
+  String liveGiftWealthLevel(String level) {
+    return 'مستوى الثروة $level';
+  }
+
+  @override
+  String liveGiftWealthToNext(String points) {
+    return '$points للمستوى التالي';
+  }
+
+  @override
+  String get liveLuckyOdds => 'احتمالات الربح';
+
+  @override
+  String get liveLuckyOddsTitle => 'احتمالات الربح في هدايا الحظ';
+
+  @override
+  String get liveLuckyOddsIntro =>
+      'كل هدية ترسلها سحبة واحدة. الربح يساوي المضاعف مضروباً في سعر الهدية بالعملات.';
+
+  @override
+  String liveLuckyOddsRow(String multiplier) {
+    return '×$multiplier';
+  }
+
+  @override
+  String get liveLuckyOddsNoWin => 'بلا ربح';
+
+  @override
+  String liveLuckyOddsReturn(String percent) {
+    return 'العائد المتوقع: $percent من العملات المنفقة';
+  }
+
+  @override
+  String liveLuckyOddsHostShare(String percent) {
+    return 'يُحتسب $percent من قيمة الهدية للمضيف.';
+  }
+
+  @override
+  String get liveLuckyOddsProtection =>
+      'لا تتجاوز أرباح اليوم العائد المتوقع من هدايا الحظ في ذلك اليوم؛ والربح الذي يتجاوزه يُدفع أقل أو لا يُدفع.';
+
+  @override
+  String get liveLuckyOddsAge => 'لمن هم في سن 18 عاماً أو أكثر فقط.';
+
+  @override
+  String get liveLuckyAgeTitle => 'هل عمرك 18 عاماً أو أكثر؟';
+
+  @override
+  String get liveLuckyAgeBody =>
+      'هدايا الحظ لعبة حظ تُلعب بالعملات. أكّد أن عمرك 18 عاماً أو أكثر لإرسالها.';
+
+  @override
+  String get liveLuckyAgeConfirm => 'عمري 18 عاماً أو أكثر';
+
+  @override
+  String get liveLuckyRegion => 'هدايا الحظ غير متاحة في بلدك.';
+
+  @override
+  String get liveLuckyOff => 'هدايا الحظ متوقفة حالياً.';
+
+  @override
+  String liveLuckyWon(String coins, String multiplier) {
+    return 'ربحت $coins عملة، وأعلى مضاعف ×$multiplier';
+  }
+
+  @override
+  String get liveLuckyNoWin => 'لا ربح هذه المرة';
+
+  @override
+  String liveLuckyBanner(String name, String multiplier, String coins) {
+    return '$name ربح ×$multiplier: $coins عملة';
+  }
+
+  @override
+  String get errorLuckyGiftAgeUnconfirmed =>
+      'أكّد أن عمرك 18 عاماً أو أكثر لإرسال هدايا الحظ.';
+
+  @override
+  String get errorLuckyGiftRegionUnavailable => 'هدايا الحظ غير متاحة في بلدك.';
+
+  @override
+  String get liveEmojiPanel => 'الرموز التعبيرية';
+
+  @override
+  String get liveEmojiKeyboard => 'لوحة المفاتيح';
+
+  @override
+  String get liveEmojiSmileys => 'الوجوه';
+
+  @override
+  String get liveEmojiPeople => 'الأيدي والأشخاص';
+
+  @override
+  String get liveEmojiLove => 'الحب';
+
+  @override
+  String get liveEmojiAnimals => 'الحيوانات والطبيعة';
+
+  @override
+  String get liveEmojiFood => 'الطعام والشراب';
+
+  @override
+  String get liveEmojiActivities => 'الأنشطة';
+
+  @override
+  String get liveEmojiTravel => 'السفر والأماكن';
+
+  @override
+  String get liveEmojiObjects => 'الأشياء';
+
+  @override
+  String get liveEmojiSymbols => 'الرموز';
+
+  @override
+  String get goLiveToolsMore => 'المزيد';
+
+  @override
+  String get goLiveToolsLess => 'أقل';
+
+  @override
+  String get goLiveCategoriesAll => 'كل المواضيع';
 }

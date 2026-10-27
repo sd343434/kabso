@@ -132,6 +132,18 @@ info:
     apart from its video lives; the cursor is bound to it) and states that a live's score, which
     orders `popular`, belongs to that one live: it starts at 0 and leaves the ranking when the live
     ends (CONVENTIONS §10.4, §10.10).
+    **D132 (DRAFT v1.27-live)** adds lucky gifts: the gift category `LUCKY` (listed only while
+    lucky gifts are on), `LiveGiftResult.luckyResult` (the draws of a lucky send and the coins won),
+    the data message `lucky-win` on topic `lucky` for big wins, the public odds
+    (`getLuckyGiftOdds`, `GET /live/gifts/lucky/odds`), a one-time 18+ confirmation
+    (`confirmLuckyGiftAge`, `PUT /me/lucky-gifts/age-confirmation`) and the codes
+    `LUCKY_GIFT_AGE_UNCONFIRMED` and `LUCKY_GIFT_REGION_UNAVAILABLE` (CONVENTIONS §10.27).
+    **D133 (DRAFT v1.27.1-live)** adds to `listLiveRooms`: `scope=nearby` (rooms whose host's
+    country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET` when the caller has none),
+    `featured=true` (rooms of featured hosts, ordered by feature rank then like `popular`; featured
+    hosts are managed by the `feature-admin` CLI) and the kinds `solo` (`SOLO`, `PK`), `multi`
+    (`MULTI`) and `party` (`AUDIO`, `MULTI`); and the caller's own country (`Me.country`, set
+    with `updateMe`) (CONVENTIONS §10.4, §10.28).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -495,17 +507,28 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale)"
+      summary: "Update the caller's preferences (v1.2: locale; v1.27.1-live: country)"
+      description: |
+        v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
+        them must be sent (an empty object → 400 `body` / `required`). `country` is an ISO 3166-1
+        alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
+        such as `EU` are not countries here), or null to clear it;
+        another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
+        statement (no check by IP) and only decides `scope=nearby` of `listLiveRooms`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [locale]
+              minProperties: 1
               additionalProperties: false
               properties:
                 locale: { $ref: '#/components/schemas/Locale' }
+                country:
+                  type: [string, 'null']
+                  pattern: '^[A-Za-z]{2}$'
+                  description: v1.27.1-live (D133). ISO 3166-1 alpha-2; null clears it.
       responses:
         '200':
           description: Updated user.
@@ -980,6 +1003,16 @@ paths:
         cursor is bound to it (a cursor of another kind → 400). The score that orders `popular`
         belongs to one live: every go-live is a new room starting at 0, and an ended room is never
         listed, so a host who ends a live loses that ranking (§10.10).
+        *(v1.27.1-live, D133)* `kind` also takes `solo` (`SOLO` and `PK`: the hub's lives), `multi`
+        (`MULTI`) and `party` (`AUDIO` and `MULTI`: the party page). `scope=nearby` keeps the rooms
+        whose host's country (`Me.country`, set by the host) is the caller's; it needs a token
+        (guest → 401, like `following`); a caller with no country gets 200 with an empty page and
+        `emptyReason` `COUNTRY_NOT_SET` (no country is ever guessed, e.g. from the IP). `featured=true`
+        keeps the rooms of currently featured hosts (admin `feature-admin` CLI) and **orders them by
+        feature rank ascending, then score desc, startedAt desc, id desc on every tab** (`tab` still
+        filters `following`). `scope`, `featured`, `kind` and `category` combine freely and filter every
+        tab; the cursor is bound to all of them (and, for `nearby`, to the caller and their country:
+        a cursor issued before the caller's country changed → 400). Explore is `tab=new` (unchanged).
       parameters:
         - name: tab
           in: query
@@ -993,8 +1026,18 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
-          schema: { type: string, enum: [audio, video] }
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video, solo, multi, party] }
+        - name: scope
+          in: query
+          required: false
+          description: '(v1.27.1-live, D133) `nearby`: only rooms whose host has the same country as the caller (`Me.country`). Needs a token (else 401). A caller without a country → 200, empty page, `emptyReason` `COUNTRY_NOT_SET`. Absent: every country. Another value → 400 (`field "scope"`).'
+          schema: { type: string, enum: [nearby] }
+        - name: featured
+          in: query
+          required: false
+          description: '(v1.27.1-live, D133) `true`: only rooms of hosts featured now, ordered by feature rank ascending, then score desc, startedAt desc, id desc (on every tab). `false` or absent: no filter, the tab''s order. Another value → 400 (`field "featured"`).'
+          schema: { type: string, enum: ['true', 'false'] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -1032,7 +1075,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -1592,6 +1635,20 @@ paths:
         recipients' charm and the caller's support levels (a gift to oneself gives that person
         both, D128). After the response every viewer gets a
         `gift` data message on topic `gift` (`{"type":"gift","gift":LiveGift}`).
+        **v1.27-live (D132), lucky gifts** (`Gift.category` `LUCKY`, CONVENTIONS §10.27): after 409
+        `GIFT_UNAVAILABLE` (also for a LUCKY gift while lucky gifts are off) come 400 `source` /
+        `invalid_value` (a LUCKY gift is sent with `COINS` only), 403 `LUCKY_GIFT_REGION_UNAVAILABLE`
+        (lucky gifts are off in the caller's country, or it is unknown while a country list is
+        configured) and 403 `LUCKY_GIFT_AGE_UNCONFIRMED` (the caller has not confirmed they are 18 or
+        older, `confirmLuckyGiftAge`), then the checks above. Every gift of the send (`quantity ×
+        recipients`) is one draw against the published odds (`getLuckyGiftOdds`); the coins won are
+        credited to the caller in the same transaction (ledger `LUCKY_GIFT_WIN`), capped by the daily
+        protection, and reported in `luckyResult`; `coins` is the balance after the charge and the
+        wins. The recipients' charm, the live score, the popularity board, the Contribution points
+        and family points count **10 %** of the gift value (`hostSharePercent`); the caller's Wizard
+        level counts the full value (CP-005). A retry returns the first send with the same
+        `luckyResult` and never draws again. A send whose best win is at least `bigWinMultiplier`
+        also goes to the room as a `lucky-win` data message on topic `lucky`.
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1640,7 +1697,11 @@ paths:
               schema: { $ref: '#/components/schemas/LiveGiftResult' }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
-        '403': { $ref: '#/components/responses/Error' }
+        '403':
+          description: "`LIVE_KICKED`, `LIVE_CHAT_NOT_IN_ROOM`; v1.27-live (D132) `LUCKY_GIFT_REGION_UNAVAILABLE` or `LUCKY_GIFT_AGE_UNCONFIRMED` (nothing charged, drawn or sent)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '404': { $ref: '#/components/responses/Error' }
         '409':
           description: "`LIVE_ROOM_ENDED`, `GIFT_UNAVAILABLE`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE`, `INSUFFICIENT_COINS` or `GIFT_BAG_INSUFFICIENT` (nothing charged or sent)."
@@ -1652,6 +1713,45 @@ paths:
                   code: GIFT_BAG_INSUFFICIENT
                   message: Not enough of that gift in your bag.
                   requestId: 0192f1d0-7777-7000-8000-000000000018
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/gifts/lucky/odds:
+    get:
+      tags: [gifts]
+      operationId: getLuckyGiftOdds
+      summary: "The published odds of lucky gifts (v1.27-live, D132)"
+      description: |
+        CONVENTIONS §10.27. Public (store disclosure): guests may read it (rate limited per IP). The
+        multiplier table the server draws from **now**, each outcome's chance, the chance of no win,
+        the target return, the host share, the daily protection and the age limit. `caller` is null
+        for a guest; for a signed-in caller it says whether they may send lucky gifts now and, if
+        not, why. Served also while lucky gifts are off (`enabled` false). Never cached by clients
+        for longer than the response says (`Cache-Control: no-store`, §1).
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        '200':
+          description: The odds.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LuckyGiftOdds' }
+              example:
+                enabled: true
+                drawsPerGift: 1
+                returnPercent: 85
+                hostSharePercent: 10
+                outcomes:
+                  - { multiplier: 5, chancePerMillion: 68000, probability: 0.068 }
+                  - { multiplier: 10, chancePerMillion: 21250, probability: 0.02125 }
+                  - { multiplier: 50, chancePerMillion: 2550, probability: 0.00255 }
+                  - { multiplier: 100, chancePerMillion: 1020, probability: 0.00102 }
+                  - { multiplier: 500, chancePerMillion: 136, probability: 0.000136 }
+                noWinChancePerMillion: 907044
+                noWinProbability: 0.907044
+                bigWinMultiplier: 100
+                dailyProtection: true
+                dayTimeZone: UTC
+                minimumAge: 18
+                caller: { eligible: false, reason: AGE_UNCONFIRMED, ageConfirmed: false }
         '429': { $ref: '#/components/responses/Error' }
 
   /api/v1/live/rankings:
@@ -4087,6 +4187,33 @@ paths:
                   - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة } }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/me/lucky-gifts/age-confirmation:
+    put:
+      tags: [gifts]
+      operationId: confirmLuckyGiftAge
+      summary: "Confirm once that the caller is 18 or older, to send lucky gifts (v1.27-live, D132)"
+      description: |
+        CONVENTIONS §10.27. Accounts carry no birth date, so the 18+ gate of lucky gifts is the
+        caller's own statement, made once and stored on the server with its time (audited
+        `lucky.age_confirm`). Idempotent: confirming again keeps the first time (200 both times).
+        `adult` must be `true` (else 400 `adult` / `invalid_value`); there is no way to withdraw it
+        from the app. **Pending owner / legal review** (a self-declaration may not be enough in every
+        store or country).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LuckyGiftAgeConfirmationRequest' }
+            example: { adult: true }
+      responses:
+        '200':
+          description: Confirmed (now or before).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LuckyGiftAgeConfirmation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/gifts/bag:
     get:
       tags: [gifts]
@@ -5424,7 +5551,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -5442,6 +5569,15 @@ components:
           type: [string, 'null']
           format: uri
           description: "CP-015: the host's live cover (WebP, 640 px square), or null (the avatar is used)."
+        country:
+          type: [string, 'null']
+          pattern: '^[A-Z]{2}$'
+          description: |
+            v1.27.1-live (D133): the caller's country (ISO 3166-1 alpha-2, upper case), chosen by the caller
+            with `updateMe`, or null (not set; every account starts with none). It decides `scope=nearby` of
+            `listLiveRooms` (a host's rooms are nearby for callers of the same country). Never inferred from
+            the IP (owner D45: the user chooses their country, location is never inferred; XK is not offered).
+            Not shown on public profiles. Always present; older apps ignore it.
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -5727,6 +5863,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/LiveRoomSummary' }
         page: { $ref: '#/components/schemas/PageInfo' }
+        emptyReason:
+          type: [string, 'null']
+          enum: [COUNTRY_NOT_SET, null]
+          description: |
+            v1.27.1-live (D133): present only on `scope=nearby` responses. `COUNTRY_NOT_SET`: the caller has
+            no country (`Me.country` null), so the page is empty and the app asks them to set it; null
+            otherwise. Clients that do not know the field ignore it; unknown values are treated as null.
     StartLiveRoomRequest:
       type: object
       required: [title]
@@ -7962,8 +8105,8 @@ components:
     # ---- v1.23-live (DRAFT, CP-020): live gifts -----------------------------------------------
     GiftCategory:
       type: string
-      enum: [POPULAR, EVENT, FUN]
-      description: "A gift panel tab: POPULAR (شائعة), EVENT (مناسبات), FUN (مرح). The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
+      enum: [POPULAR, EVENT, FUN, LUCKY]
+      description: "A gift panel tab: POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (حظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on. The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
     GiftBadge:
       type: string
       enum: [NONE, NEW, EVENT]
@@ -8143,5 +8286,94 @@ components:
           type: integer
           minimum: 0
           description: What the caller's gift bag holds of this gift after the send (for a retry, now).
+        luckyResult:
+          description: v1.27-live (D132). Present only for a LUCKY gift (absent for every other send); the same for a retry.
+          allOf:
+            - $ref: '#/components/schemas/LuckyGiftResult'
+    LuckyGiftWin:
+      type: object
+      description: v1.27-live (D132). The draws of one send that paid one multiplier.
+      required: [multiplier, count, coins]
+      properties:
+        multiplier: { type: integer, minimum: 2, description: 'The multiplier paid (× the unit price).' }
+        count: { type: integer, minimum: 1, description: "Draws that paid it." }
+        coins: { type: integer, format: int64, minimum: 1, description: "multiplier × unitPrice × count." }
+    LuckyGiftResult:
+      type: object
+      description: |
+        v1.27-live (D132, CONVENTIONS §10.27): the draws of a lucky send. One draw per gift
+        (`quantity × recipients`), each against the odds of `getLuckyGiftOdds` at the time of the send.
+      required: [draws, wins, coinsWon, topMultiplier, downgraded]
+      properties:
+        draws: { type: integer, minimum: 1, description: "quantity × recipients." }
+        wins:
+          type: array
+          maxItems: 32
+          items: { $ref: '#/components/schemas/LuckyGiftWin' }
+          description: The multipliers paid, ascending; empty when nothing was won.
+        coinsWon: { type: integer, format: int64, minimum: 0, description: 'Coins credited to the caller (the sum of `wins[].coins`).' }
+        topMultiplier: { type: [integer, 'null'], minimum: 2, description: "The largest multiplier paid, or null." }
+        downgraded:
+          type: integer
+          minimum: 0
+          description: Winning draws paid less, or nothing, because the day's protection budget was reached (CONVENTIONS §10.27).
+    LuckyGiftOutcome:
+      type: object
+      required: [multiplier, chancePerMillion, probability]
+      properties:
+        multiplier: { type: integer, minimum: 2, description: "The win is multiplier × the gift's unit price, in coins." }
+        chancePerMillion: { type: integer, minimum: 1, maximum: 999999, description: "The exact chance of one draw, in draws per million." }
+        probability: { type: number, exclusiveMinimum: 0, exclusiveMaximum: 1, description: "chancePerMillion / 1 000 000." }
+    LuckyGiftEligibility:
+      type: object
+      required: [eligible, reason, ageConfirmed]
+      properties:
+        eligible: { type: boolean, description: "The caller may send lucky gifts now." }
+        reason:
+          type: [string, 'null']
+          enum: [DISABLED, REGION_UNAVAILABLE, AGE_UNCONFIRMED, null]
+          description: Why not (null when eligible). Unknown values mean "not eligible".
+        ageConfirmed: { type: boolean, description: "The caller confirmed they are 18 or older (`confirmLuckyGiftAge`)." }
+    LuckyGiftOdds:
+      type: object
+      description: v1.27-live (D132, CONVENTIONS §10.27). The published odds of lucky gifts (server configuration).
+      required: [enabled, drawsPerGift, returnPercent, hostSharePercent, outcomes, noWinChancePerMillion, noWinProbability, bigWinMultiplier, dailyProtection, dayTimeZone, minimumAge, caller]
+      properties:
+        enabled: { type: boolean, description: "Lucky gifts can be sent now (`LUCKY_GIFTS_ENABLED`)." }
+        drawsPerGift: { type: integer, enum: [1], description: "Every gift of a send (quantity × recipients) is one draw." }
+        returnPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: The expected coins won per 100 coins of lucky gifts sent, Σ multiplier × probability × 100, before the daily protection (which can only lower it).
+        hostSharePercent: { type: number, minimum: 0, maximum: 100, description: "The share of a lucky gift's value that counts for the recipients (charm), the live score, the boards and the Contribution list." }
+        outcomes:
+          type: array
+          minItems: 1
+          maxItems: 32
+          items: { $ref: '#/components/schemas/LuckyGiftOutcome' }
+          description: The winning outcomes, by multiplier ascending.
+        noWinChancePerMillion: { type: integer, minimum: 0, maximum: 1000000 }
+        noWinProbability: { type: number, minimum: 0, maximum: 1 }
+        bigWinMultiplier: { type: integer, minimum: 2, description: "Wins of at least this multiplier are announced to the room (`lucky-win`)." }
+        dailyProtection: { type: boolean, enum: [true], description: "The day's wins never exceed `returnPercent` of the day's lucky-gift spend; a draw that would pass it pays a smaller multiplier that fits, or nothing (`LuckyGiftResult.downgraded`)." }
+        dayTimeZone: { type: string, description: "The IANA time zone whose midnight starts the protection's day." }
+        minimumAge: { type: integer, enum: [18] }
+        caller:
+          oneOf:
+            - $ref: '#/components/schemas/LuckyGiftEligibility'
+            - type: 'null'
+          description: Null for a guest.
+    LuckyGiftAgeConfirmationRequest:
+      type: object
+      required: [adult]
+      additionalProperties: false
+      properties:
+        adult: { type: boolean, enum: [true], description: "The caller states they are 18 or older." }
+    LuckyGiftAgeConfirmation:
+      type: object
+      required: [ageConfirmedAt]
+      properties:
+        ageConfirmedAt: { type: string, format: date-time, description: "When the caller first confirmed." }
 security:
   - bearerAuth: []

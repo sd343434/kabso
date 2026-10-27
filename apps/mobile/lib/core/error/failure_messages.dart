@@ -57,6 +57,9 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.giftBagInsufficient => l10n.errorGiftBagInsufficient,
     ErrorCode.liveGiftRecipientUnavailable =>
       l10n.errorLiveGiftRecipientUnavailable,
+    ErrorCode.luckyGiftAgeUnconfirmed => l10n.errorLuckyGiftAgeUnconfirmed,
+    ErrorCode.luckyGiftRegionUnavailable =>
+      l10n.errorLuckyGiftRegionUnavailable,
     ErrorCode.cpTaskNotCompleted => l10n.errorCpTaskNotCompleted,
     ErrorCode.cpPrivilegeLocked => l10n.errorCpPrivilegeLocked,
     ErrorCode.familyChatMuted => l10n.errorFamilyChatMuted,

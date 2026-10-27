@@ -761,6 +761,69 @@ a `CONNECTION LIMIT`.
 - Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
   reload it on pull to refresh, so a change shows within about a minute.
 
+### 5.11 Lucky gifts (migrations `20261127090000_lucky_gifts_enums`, `20261127100000_lucky_gifts`; D132) — [IMPLEMENTED, draft contract; owner / legal review before switching on]
+
+- Apply with the usual `migrate` job (§5): the enum values (`gift_category` `LUCKY`,
+  `wallet_ledger_reason` `LUCKY_GIFT`, `LUCKY_GIFT_WIN`) in their own migration first, then the tables
+  `lucky_gift_days` (the daily protection), `lucky_gift_draws` (the audit row of every lucky send) and
+  `lucky_gift_age_confirmations` (the 18+ statement), and the wallet ledger's sign CHECK extended. No
+  GRANT (default privileges), no backfill; no existing row changes.
+- **Config** (API environment; restart to change; the server refuses to start on an invalid value,
+  even while lucky gifts are off — CONVENTIONS §10.27 has the rules and the odds formula):
+
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `LUCKY_GIFTS_ENABLED` | `false` | `true` lists the LUCKY tab and lets lucky gifts be sent |
+  | `LUCKY_GIFT_RTP_PERCENT` | `85` | expected coins won per 100 spent (1–99, two decimals) |
+  | `LUCKY_GIFT_HOST_SHARE_PERCENT` | `10` | share of the value counted for charm, scores, boards, Contribution and family points |
+  | `LUCKY_GIFT_MULTIPLIERS` | `5,10,50,100,500` | winning multipliers, ascending |
+  | `LUCKY_GIFT_RTP_SHARES` | `40,25,15,12,8` | share of the return per multiplier (whole %, sum 100) |
+  | `LUCKY_GIFT_BIG_WIN_MULTIPLIER` | `100` | wins from this multiplier are announced to the room |
+  | `LUCKY_GIFT_DAY_TIME_ZONE` | `UTC` | the daily protection's day |
+  | `LUCKY_GIFTS_DISABLED_COUNTRIES` | empty | ISO alpha-2 codes where lucky gifts are off |
+  | `LUCKY_GIFTS_COUNTRY_HEADER` | unset | the header the edge sets to the client country (required with a country list) |
+
+  `GET /api/v1/live/gifts/lucky/odds` shows the table the server draws from; check it after every
+  change. With a country list, the edge (Cloudflare `CF-IPCountry`, or the reverse proxy's GeoIP)
+  must **set or strip** that header on every request so clients cannot choose it; requests without
+  it are refused lucky gifts (fail closed).
+- **Before switching on in production:** owner / legal sign-off on the odds, the 18+
+  self-declaration and the country list (store loot-box rules), and lucky gifts added with
+  `gift-admin add <code> --category LUCKY …` (§5.7). Lucky gifts are sent with coins only
+  (`gift-admin grant` refuses them).
+- **Monitoring:** every lucky send writes a `lucky_gift_draws` row (winning draws, table, budget
+  before and after). On the server:
+
+  ```bash
+  GIFT="docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js"
+  $GIFT lucky-wins --limit 50 --min-multiplier 100   # the latest big wins
+  $GIFT lucky-day 2026-11-01                         # spend, paid, budget left, realised return
+  ```
+
+  Pass `-e LUCKY_GIFT_RTP_PERCENT` to the job when the API does not use the default 85, so
+  `lucky-day` prints the right budget.
+- **Rollback:** set `LUCKY_GIFTS_ENABLED=false` (lucky gifts disappear from the catalogue and cannot
+  be sent; the rows stay). The migration is additive; do not drop the tables (audit).
+
+### 5.12 Nearby and Featured on the live hub (migration `20261128090000_live_nearby_featured`; D133) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): a nullable `user_profiles.country_code` (every account
+  starts with none; users set it with `PATCH /me`) and the table `live_featured_hosts`. No GRANT, no
+  backfill, no new server config.
+- Featured hosts are managed only with the `feature-admin` CLI (migration role, audited
+  `live.feature.add` / `live.feature.remove`):
+
+  ```bash
+  FEATURE="docker compose --profile jobs run --rm migrate node dist/cli/feature-admin.js"
+  $FEATURE add --user host@example.com --rank 10                       # or --user <username>
+  $FEATURE add --user layla.k --rank 5 --until 2026-11-30T00:00:00Z     # ends on its own
+  $FEATURE add --user layla.k --until none                              # remove the end
+  $FEATURE remove --user layla.k
+  $FEATURE list                                                         # expired rows marked -
+  ```
+
+  Locally: `pnpm feature:admin …`. Lower ranks come first; equal ranks follow the popular order.
+
 ## 6. Observability baseline
 
 | Item | Status |

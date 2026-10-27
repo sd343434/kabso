@@ -132,6 +132,14 @@ enum ErrorCode {
   /// on a seat (or a block); the app reloads the seats.
   liveGiftRecipientUnavailable('LIVE_GIFT_RECIPIENT_UNAVAILABLE'),
 
+  /// v1.27-live (D132, §10.27, 403): a lucky gift before the 18+
+  /// confirmation; nothing was charged; the app asks for it.
+  luckyGiftAgeUnconfirmed('LUCKY_GIFT_AGE_UNCONFIRMED'),
+
+  /// v1.27-live (D132, §10.27, 403): lucky gifts are off in the caller's
+  /// country; nothing was charged; the app hides the lucky tab.
+  luckyGiftRegionUnavailable('LUCKY_GIFT_REGION_UNAVAILABLE'),
+
   /// v1.24-live (CP-021, §10.24, 409): a daily CP task claimed before it is
   /// done today; nothing was added.
   cpTaskNotCompleted('CP_TASK_NOT_COMPLETED'),

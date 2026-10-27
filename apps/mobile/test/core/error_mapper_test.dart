@@ -61,6 +61,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.giftUnavailable: 409,
   ErrorCode.giftBagInsufficient: 409,
   ErrorCode.liveGiftRecipientUnavailable: 409,
+  ErrorCode.luckyGiftAgeUnconfirmed: 403,
+  ErrorCode.luckyGiftRegionUnavailable: 403,
   ErrorCode.cpTaskNotCompleted: 409,
   ErrorCode.cpPrivilegeLocked: 403,
   ErrorCode.familyChatMuted: 403,
@@ -145,6 +147,9 @@ void main() {
           'GIFT_UNAVAILABLE',
           'GIFT_BAG_INSUFFICIENT',
           'LIVE_GIFT_RECIPIENT_UNAVAILABLE',
+          // v1.27-live (D132)
+          'LUCKY_GIFT_AGE_UNCONFIRMED',
+          'LUCKY_GIFT_REGION_UNAVAILABLE',
           // v1.24-live (CP-021)
           'CP_TASK_NOT_COMPLETED',
           'CP_PRIVILEGE_LOCKED',

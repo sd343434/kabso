@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
@@ -10,7 +9,7 @@ import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dar
 import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_overlay.dart';
@@ -427,43 +426,46 @@ class _LiveHubDemo extends StatefulWidget {
 }
 
 class _LiveHubDemoState extends State<_LiveHubDemo> {
-  String? _category;
-  LiveRoomsKind _kind = LiveRoomsKind.audio;
+  LiveHubSelection _selection = const LiveHubSelection();
 
   @override
-  Widget build(BuildContext context) => FeedTabsScaffold(
-    centerTabs: true,
-    topBar: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const LiveHubTopBar(showNotifications: false),
-        // D129: the samples split by kind.
-        LiveHubKindSwitch(
-          selected: _kind,
-          onSelected: (kind) => setState(() => _kind = kind),
-        ),
-      ],
-    ),
-    pageBuilder: (context, tab, selectTab) => LiveHubBody(
-      tab: tab,
-      content: AsyncData(
-        FeedItems(
-          tab == FeedTab.following
-              ? const []
-              : [
-                  for (final room in _Samples.hubRooms)
-                    if (room.isAudio == (_kind == LiveRoomsKind.audio)) room,
-                ],
+  Widget build(BuildContext context) {
+    // D131: the hub's filters over the video samples (Following empty).
+    final following =
+        _selection.filter == LiveHubFilter.popular && _selection.following;
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const LiveHubTopBar(showNotifications: false),
+            LiveHubFilterBar(
+              selection: _selection,
+              categories: _Samples.liveCategories,
+              onSelect: (next) => setState(() => _selection = next),
+            ),
+            Expanded(
+              child: LiveHubBody(
+                kind: following ? LiveListKind.following : LiveListKind.popular,
+                content: AsyncData(
+                  FeedItems(
+                    following
+                        ? const []
+                        : [
+                            for (final room in _Samples.hubRooms)
+                              if (!room.isAudio) room,
+                          ],
+                  ),
+                ),
+                onRefresh: () async {},
+                onRetry: () {},
+              ),
+            ),
+          ],
         ),
       ),
-      categories: _Samples.liveCategories,
-      selectedCategory: _category,
-      onSelectCategory: (slug) => setState(() => _category = slug),
-      onRefresh: () async {},
-      onRetry: () {},
-      onSelectTab: selectTab,
-    ),
-  );
+    );
+  }
 }
 
 /// Obviously fake gallery samples (debug only).

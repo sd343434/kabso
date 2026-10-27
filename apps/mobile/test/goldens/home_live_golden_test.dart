@@ -24,11 +24,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
-import 'package:kabso_live/app/shell/feed_tabs_scaffold.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
@@ -37,7 +37,8 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
-import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -57,7 +58,7 @@ const _reelsIndex = 3;
 Future<void> _pumpShellTab(
   WidgetTester tester, {
   required Widget screen,
-  required int navIndex,
+  required int? navIndex,
   required AppLanguage language,
   required GoldenViewport viewport,
   List<Override> overrides = const [],
@@ -84,11 +85,14 @@ Future<void> _pumpShellTab(
       child: Builder(
         builder: (context) => Scaffold(
           body: screen,
-          bottomNavigationBar: KBottomNav(
-            items: shellNavItems(context.l10n),
-            currentIndex: navIndex,
-            onSelect: (_) {},
-          ),
+          // D131: the Voice rooms screen sits above the shell (no bar).
+          bottomNavigationBar: navIndex == null
+              ? null
+              : KTabBar(
+                  items: shellTabItems(context.l10n),
+                  currentIndex: navIndex,
+                  onSelect: (_) {},
+                ),
         ),
       ),
     ),
@@ -109,7 +113,7 @@ void main() {
           WidgetTester tester,
           String name, {
           required Widget screen,
-          required int navIndex,
+          required int? navIndex,
           List<Override> overrides = const [],
           Duration extraPump = Duration.zero,
           bool scrollToEnd = false,
@@ -237,33 +241,33 @@ void main() {
               tester,
               'live_hub.populated$suffix',
               brightness: brightness,
-              screen: FeedTabsScaffold(
-                centerTabs: true,
-                // D129: the fixture rooms are video lives (PK, multi-guest).
-                topBar: Column(
-                  mainAxisSize: MainAxisSize.min,
+              // D131: the hub's top bar and filters over the fixture rooms.
+              screen: SafeArea(
+                bottom: false,
+                child: Column(
                   children: [
                     const LiveHubTopBar(showNotifications: false),
-                    LiveHubKindSwitch(
-                      selected: LiveRoomsKind.video,
-                      onSelected: (_) {},
+                    LiveHubFilterBar(
+                      selection: const LiveHubSelection(),
+                      onSelect: (_) {},
+                    ),
+                    Expanded(
+                      child: LiveHubBody(
+                        kind: LiveListKind.popular,
+                        content: AsyncData(FeedItems(hubRooms(language))),
+                        banners: [
+                          for (var i = 0; i < 3; i++)
+                            HomeBanner(
+                              id: 'banner-$i',
+                              imageUrl: 'https://media.example.test/$i.webp',
+                              link: '/families',
+                            ),
+                        ],
+                        onRefresh: () async {},
+                        onRetry: () {},
+                      ),
                     ),
                   ],
-                ),
-                pageBuilder: (context, tab, selectTab) => LiveHubBody(
-                  tab: tab,
-                  content: AsyncData(FeedItems(hubRooms(language))),
-                  banners: [
-                    for (var i = 0; i < 3; i++)
-                      HomeBanner(
-                        id: 'banner-$i',
-                        imageUrl: 'https://media.example.test/$i.webp',
-                        link: '/families',
-                      ),
-                  ],
-                  onRefresh: () async {},
-                  onRetry: () {},
-                  onSelectTab: (_) {},
                 ),
               ),
               navIndex: _liveIndex,
@@ -271,67 +275,80 @@ void main() {
           });
         }
 
-        // D129: the real hub on each side of the voice rooms · live switch,
-        // the server answering `kind` (rooms 0–5 voice, 6–11 video), in the
-        // dark and the light theme.
-        for (final kind in LiveRoomsKind.values) {
-          for (final brightness in Brightness.values) {
-            final suffix = brightness == Brightness.light ? '.light' : '';
-            final name = 'live_hub.kind_${kind.wire}$suffix';
-            testWidgets('$name ($vp)', (tester) async {
-              final ar = language == AppLanguage.ar;
-              final rooms = [
-                for (final (i, room) in apiRooms(
-                  12,
-                  ar: ar,
-                  categories: apiCategories(ar: ar),
-                ).indexed)
-                  room.copyWith(
-                    mode: i < 6
-                        ? LiveRoomMode.audio
-                        : const [
-                            LiveRoomMode.solo,
-                            LiveRoomMode.multi,
-                            LiveRoomMode.pk,
-                          ][i % 3],
-                    viewerCount: const [
-                      128,
-                      0,
-                      2400,
-                      37,
-                      910,
-                      5,
-                      15300,
-                      0,
-                      642,
-                      88,
-                      1200,
-                      9,
-                    ][i],
-                  ),
-              ];
-              await golden(
-                tester,
-                name,
-                brightness: brightness,
-                screen: const LiveScreen(),
-                navIndex: _liveIndex,
-                overrides: liveOverrides(
-                  FakeLiveRepository(
-                    categories: apiCategories(ar: ar),
-                    rooms: (request) => apiPage([
-                      for (final room in rooms)
-                        if (request.kind == null ||
-                            LiveRoomsKind.of(room.mode) == request.kind)
-                          room,
-                    ]),
-                  ),
-                  language: language,
-                  kind: kind,
-                ),
-              );
-            });
-          }
+        // D131: the real hub (ref 165: video lives under the four filters)
+        // and the Voice rooms screen behind the party button (ref 166: list
+        // rows, and the grid), the server answering `kind` (rooms 0–5
+        // voice, 6–11 video), in the dark and the light theme.
+        List<LiveRoomSummary> rooms() {
+          final ar = language == AppLanguage.ar;
+          return [
+            for (final (i, room) in apiRooms(
+              12,
+              ar: ar,
+              categories: apiCategories(ar: ar),
+            ).indexed)
+              room.copyWith(
+                mode: i < 6
+                    ? LiveRoomMode.audio
+                    : const [
+                        LiveRoomMode.solo,
+                        LiveRoomMode.multi,
+                        LiveRoomMode.pk,
+                      ][i % 3],
+                seatCount: i < 6 ? 8 : null,
+                occupiedSeats: i < 6 ? (i * 3) % 8 : 0,
+                viewerCount: const [
+                  128,
+                  0,
+                  2400,
+                  37,
+                  910,
+                  5,
+                  15300,
+                  0,
+                  642,
+                  88,
+                  1200,
+                  9,
+                ][i],
+              ),
+          ];
+        }
+
+        List<Override> server() => liveOverrides(
+          FakeLiveRepository(
+            categories: apiCategories(ar: language == AppLanguage.ar),
+            rooms: (request) => apiPage([
+              for (final room in rooms())
+                if (request.kind == null || request.kind!.includes(room.mode))
+                  room,
+            ]),
+          ),
+          language: language,
+        );
+
+        for (final brightness in Brightness.values) {
+          final suffix = brightness == Brightness.light ? '.light' : '';
+          testWidgets('live_hub.filters$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'live_hub.filters$suffix',
+              brightness: brightness,
+              screen: const LiveScreen(),
+              navIndex: _liveIndex,
+              overrides: server(),
+            );
+          });
+          testWidgets('voice_rooms$suffix ($vp)', (tester) async {
+            await golden(
+              tester,
+              'voice_rooms$suffix',
+              brightness: brightness,
+              screen: const VoiceRoomsScreen(),
+              navIndex: null,
+              overrides: server(),
+            );
+          });
         }
 
         // KL-038: what the v1.3 API returns today when hosting is on —

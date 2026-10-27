@@ -3110,7 +3110,10 @@ $UserSummaryCopyWith<$Res> get user {
 /// @nodoc
 mixin _$LiveRoomPage {
 
- List<LiveRoomSummary> get data; PageInfo get page;
+ List<LiveRoomSummary> get data; PageInfo get page;/// v1.27.1-live (D133), `scope=nearby` only: `COUNTRY_NOT_SET` when the
+/// caller has no country (the page is empty). Unknown values read as
+/// null.
+@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) LiveRoomsEmptyReason? get emptyReason;
 /// Create a copy of LiveRoomPage
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -3124,20 +3127,20 @@ $LiveRoomPageCopyWith<LiveRoomPage> get copyWith => _$LiveRoomPageCopyWithImpl<L
 @override
 bool operator ==(Object other) {
   final _this = this as LiveRoomPage;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomPage&&const DeepCollectionEquality().equals(other.data, _this.data)&&(identical(other.page, _this.page) || other.page == _this.page));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveRoomPage&&const DeepCollectionEquality().equals(other.data, _this.data)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.emptyReason, _this.emptyReason) || other.emptyReason == _this.emptyReason));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveRoomPage;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.data),_this.page);
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.data),_this.page,_this.emptyReason);
 }
 
 @override
 String toString() {
   final _this = this as LiveRoomPage;
-  return 'LiveRoomPage(data: ${_this.data}, page: ${_this.page})';
+  return 'LiveRoomPage(data: ${_this.data}, page: ${_this.page}, emptyReason: ${_this.emptyReason})';
 }
 
 
@@ -3148,7 +3151,7 @@ abstract mixin class $LiveRoomPageCopyWith<$Res>  {
   factory $LiveRoomPageCopyWith(LiveRoomPage value, $Res Function(LiveRoomPage) _then) = _$LiveRoomPageCopyWithImpl;
 @useResult
 $Res call({
- List<LiveRoomSummary> data, PageInfo page
+ List<LiveRoomSummary> data, PageInfo page,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) LiveRoomsEmptyReason? emptyReason
 });
 
 
@@ -3165,11 +3168,12 @@ class _$LiveRoomPageCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomPage
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? data = null,Object? page = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? data = null,Object? page = null,Object? emptyReason = freezed,}) {
   return _then(LiveRoomPage(
 data: null == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
 as List<LiveRoomSummary>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
-as PageInfo,
+as PageInfo,emptyReason: freezed == emptyReason ? _self.emptyReason : emptyReason // ignore: cast_nullable_to_non_nullable
+as LiveRoomsEmptyReason?,
   ));
 }
 /// Create a copy of LiveRoomPage
@@ -3263,10 +3267,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<LiveRoomSummary> data,  PageInfo page)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<LiveRoomSummary> data,  PageInfo page, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  LiveRoomsEmptyReason? emptyReason)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveRoomPage() when $default != null:
-return $default(_that.data,_that.page);case _:
+return $default(_that.data,_that.page,_that.emptyReason);case _:
   return orElse();
 
 }
@@ -3284,10 +3288,10 @@ return $default(_that.data,_that.page);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<LiveRoomSummary> data,  PageInfo page)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<LiveRoomSummary> data,  PageInfo page, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  LiveRoomsEmptyReason? emptyReason)  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomPage():
-return $default(_that.data,_that.page);case _:
+return $default(_that.data,_that.page,_that.emptyReason);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -3304,10 +3308,10 @@ return $default(_that.data,_that.page);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<LiveRoomSummary> data,  PageInfo page)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<LiveRoomSummary> data,  PageInfo page, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)  LiveRoomsEmptyReason? emptyReason)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveRoomPage() when $default != null:
-return $default(_that.data,_that.page);case _:
+return $default(_that.data,_that.page,_that.emptyReason);case _:
   return null;
 
 }
@@ -3319,7 +3323,7 @@ return $default(_that.data,_that.page);case _:
 @JsonSerializable()
 
 class _LiveRoomPage implements LiveRoomPage {
-  const _LiveRoomPage({required  List<LiveRoomSummary> data, required this.page}): _data = data;
+  const _LiveRoomPage({required  List<LiveRoomSummary> data, required this.page, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.emptyReason}): _data = data;
   factory _LiveRoomPage.fromJson(Map<String, dynamic> json) => _$LiveRoomPageFromJson(json);
 
  final  List<LiveRoomSummary> _data;
@@ -3330,6 +3334,10 @@ class _LiveRoomPage implements LiveRoomPage {
 }
 
 @override final  PageInfo page;
+/// v1.27.1-live (D133), `scope=nearby` only: `COUNTRY_NOT_SET` when the
+/// caller has no country (the page is empty). Unknown values read as
+/// null.
+@override@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) final  LiveRoomsEmptyReason? emptyReason;
 
 /// Create a copy of LiveRoomPage
 /// with the given fields replaced by the non-null parameter values.
@@ -3344,18 +3352,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomPage&&const DeepCollectionEquality().equals(other.data, _data)&&(identical(other.page, page) || other.page == page));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveRoomPage&&const DeepCollectionEquality().equals(other.data, _data)&&(identical(other.page, page) || other.page == page)&&(identical(other.emptyReason, emptyReason) || other.emptyReason == emptyReason));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_data),page);
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_data),page,emptyReason);
 }
 
 @override
 String toString() {
-    return 'LiveRoomPage(data: $data, page: $page)';
+    return 'LiveRoomPage(data: $data, page: $page, emptyReason: $emptyReason)';
 }
 
 
@@ -3366,7 +3374,7 @@ abstract mixin class _$LiveRoomPageCopyWith<$Res> implements $LiveRoomPageCopyWi
   factory _$LiveRoomPageCopyWith(_LiveRoomPage value, $Res Function(_LiveRoomPage) _then) = __$LiveRoomPageCopyWithImpl;
 @override @useResult
 $Res call({
- List<LiveRoomSummary> data, PageInfo page
+ List<LiveRoomSummary> data, PageInfo page,@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) LiveRoomsEmptyReason? emptyReason
 });
 
 
@@ -3383,11 +3391,12 @@ class __$LiveRoomPageCopyWithImpl<$Res>
 
 /// Create a copy of LiveRoomPage
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? data = null,Object? page = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? data = null,Object? page = null,Object? emptyReason = freezed,}) {
   return _then(_LiveRoomPage(
 data: null == data ? _self._data : data // ignore: cast_nullable_to_non_nullable
 as List<LiveRoomSummary>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
-as PageInfo,
+as PageInfo,emptyReason: freezed == emptyReason ? _self.emptyReason : emptyReason // ignore: cast_nullable_to_non_nullable
+as LiveRoomsEmptyReason?,
   ));
 }
 

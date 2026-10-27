@@ -23,6 +23,7 @@ class LiveRoomSessionState {
     this.publishing = false,
     this.captureFailed = false,
     this.score,
+    this.scoreParts,
     this.disconnected = false,
     this.room,
     this.kicked = false,
@@ -45,6 +46,9 @@ class LiveRoomSessionState {
 
   /// CP-012: the room score from this viewer's last counted tap batch.
   final int? score;
+
+  /// D131: the parts of that score (its `tapPoints` is the live's taps).
+  final LiveScore? scoreParts;
 
   /// Connected to the room's media session.
   final bool joined;
@@ -75,6 +79,7 @@ class LiveRoomSessionState {
     bool? publishing,
     bool? captureFailed,
     int? score,
+    LiveScore? scoreParts,
     bool? disconnected,
     LiveRoom? room,
     bool? kicked,
@@ -85,6 +90,7 @@ class LiveRoomSessionState {
     publishing: publishing ?? this.publishing,
     captureFailed: captureFailed ?? this.captureFailed,
     score: score ?? this.score,
+    scoreParts: scoreParts ?? this.scoreParts,
     disconnected: disconnected ?? this.disconnected,
     room: room ?? this.room,
     kicked: kicked ?? this.kicked,
@@ -165,8 +171,10 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   /// room's score.
   void tap() => (_taps ??= LiveTapBatcher(
     send: (count) => _repo.tap(roomId, count),
-    onScore: (total) {
-      if (ref.mounted) state = state.copyWith(score: total);
+    onScore: (score) {
+      if (ref.mounted) {
+        state = state.copyWith(score: score.total, scoreParts: score);
+      }
     },
     // Best effort: a lost batch only loses points, never the room.
     onError: (e) {

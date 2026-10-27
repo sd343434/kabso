@@ -15,6 +15,10 @@ const migration = readFileSync(
   'utf8',
 );
 
+const luckyMigration = readFileSync(
+  new URL('../../../prisma/migrations/20261127090000_lucky_gifts_enums/migration.sql', import.meta.url),
+  'utf8',
+);
 const tagMigration = readFileSync(
   new URL('../../../prisma/migrations/20261116090000_gift_tags/migration.sql', import.meta.url),
   'utf8',
@@ -45,7 +49,9 @@ describe('gift catalogue (CP-020)', () => {
 
   it('the migration enums list the tabs and the code CHECK matches the API pattern', () => {
     expect(migration).toContain(`CREATE TYPE "gift_category" AS ENUM ('POPULAR', 'EVENT', 'FUN')`);
-    expect(GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN']);
+    // v1.27-live (D132): LUCKY is appended by its own migration (enum order = tab order).
+    expect(luckyMigration).toContain(`ALTER TYPE "gift_category" ADD VALUE 'LUCKY';`);
+    expect(GIFT_CATEGORIES).toEqual(['POPULAR', 'EVENT', 'FUN', 'LUCKY']);
     expect(migration).toContain(`CHECK (code ~ '${GIFT_CODE_PATTERN.source}')`);
   });
 

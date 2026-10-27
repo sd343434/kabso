@@ -28,11 +28,14 @@ import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
+import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
@@ -43,6 +46,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.da
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -156,6 +160,20 @@ Future<void> _startAudio(WidgetTester tester) async {
   expect(find.byKey(GoLiveScreen.countdownKey), findsNothing);
 }
 
+/// Waits until a snack bar (which covers the host bar) is gone.
+Future<void> _snackGone(WidgetTester tester) async {
+  for (var i = 0; i < 3; i++) {
+    await tester.pump(const Duration(seconds: 5));
+  }
+  await tester.pumpAndSettle();
+}
+
+/// D131: the host's ≡ (room tools) on a video live.
+Future<void> _openTools(WidgetTester tester) async {
+  await tester.tap(find.byKey(KHostBar.toolsKey));
+  await tester.pumpAndSettle();
+}
+
 AppLocalizations _l10n(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(GoLiveScreen)));
 
@@ -184,7 +202,7 @@ void main() {
       expect(find.byKey(GoLiveScreen.startKey), findsNothing);
       expect(camera.previewStarts, 0);
       // The modes are still there.
-      expect(find.byType(GoLiveModeBar), findsOneWidget);
+      expect(find.byType(GoLiveModePager), findsOneWidget);
       await _leave(tester);
     });
   });
@@ -203,7 +221,9 @@ void main() {
         GoLiveScreen.flipKey,
         GoLiveScreen.micKey,
         GoLiveScreen.beautyKey,
-        GoLiveScreen.guestsChipKey,
+        // D131 (ref 164): Share and Settings (who may watch) are tools.
+        GoLiveKeys.tool('share'),
+        GoLiveKeys.tool('settings'),
         GoLiveScreen.startKey,
       ]) {
         expect(find.byKey(key), findsOneWidget, reason: '$key');
@@ -211,7 +231,12 @@ void main() {
       expect(find.text(l10n.goLiveNoCategory), findsOneWidget);
       expect(find.text('# Music'), findsOneWidget);
       expect(find.text(l10n.goLiveTitleHint), findsOneWidget);
-      // Nothing that does not work: no flash, timer or sound.
+      // Nothing that does not work: no flash, timer or sound; Magic and
+      // Fill light say Soon (D99).
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.flash_on), findsNothing);
       expect(find.byIcon(Icons.timer_outlined), findsNothing);
       await _leave(tester);
@@ -313,7 +338,12 @@ void main() {
       final (repo, camera) = await _pump(tester);
       final l10n = _l10n(tester);
       await tester.tap(find.byKey(GoLiveScreen.categoryKey('music')));
+      // D131 (ref 164): who may watch is in Settings.
+      await tester.tap(find.byKey(GoLiveKeys.tool('settings')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(GoLiveScreen.guestsChipKey));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(200, 100));
       await tester.pumpAndSettle();
       await _goLive(tester, title: '  Evening chat  ');
 
@@ -332,8 +362,10 @@ void main() {
       expect(find.byKey(GoLiveScreen.elapsedKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.startKey), findsNothing);
-      expect(find.byType(GoLiveModeBar), findsNothing);
-      expect(find.text('Evening chat'), findsOneWidget);
+      expect(find.byType(GoLiveModePager), findsNothing);
+      // D131: the viewer's frame — the host pill, not the title.
+      expect(find.byType(KHostPill), findsOneWidget);
+      expect(find.byType(KHostBar), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 15));
       expect(repo.heartbeats, ['room-host']);
@@ -359,6 +391,7 @@ void main() {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await _goLive(tester);
+      await _openTools(tester);
       await tester.tap(find.byKey(GoLiveScreen.liveGuestsKey));
       await tester.pump();
       expect(repo.guestUpdates, [(roomId: 'room-host', allow: false)]);
@@ -370,8 +403,11 @@ void main() {
       final (repo, _) = await _pump(tester);
       await _goLive(tester);
       repo.guestsFailure = _internal;
+      await _openTools(tester);
       await tester.tap(find.byKey(GoLiveScreen.liveGuestsKey));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await _snackGone(tester);
+      await _openTools(tester);
       final semantics = tester.getSemantics(
         find.byKey(GoLiveScreen.liveGuestsKey),
       );
@@ -985,7 +1021,7 @@ void main() {
     testWidgets('the mode cannot change once live', (tester) async {
       await _pump(tester);
       await _goLive(tester);
-      expect(find.byType(GoLiveModeBar), findsNothing);
+      expect(find.byType(GoLiveModePager), findsNothing);
       await _leave(tester);
     });
   });
@@ -1570,6 +1606,220 @@ void main() {
       expect(repo.contributorCalls, 1);
       expect(find.byKey(SeatControlKeys.contributor('huda')), findsOneWidget);
       expect(find.text('12.4K'), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D131 host video live (owner recording)', () {
+    const someone = UserSummary(
+      id: 'u-9',
+      username: 'mona',
+      displayName: 'Mona',
+      avatarUrl: null,
+    );
+
+    testWidgets('the host pill (cherries, no follow) and the host bar: '
+        '💬 ✨ ≡ … ∞ PK 🎁, 48 pt targets; flip and mic are in ≡', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _goLive(tester);
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveScreen.scoreKey),
+          matching: find.byType(KCherryIcon),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(_l10n(tester).liveFollow), findsNothing);
+      final keys = [
+        GoLiveScreen.videoChatKey,
+        KHostBar.beautyKey,
+        KHostBar.toolsKey,
+        KHostBar.guestsKey,
+        KHostBar.pkKey,
+        KHostBar.giftKey,
+      ];
+      double? last;
+      for (final key in keys) {
+        final r = tester.getRect(find.byKey(key));
+        expect(r.width, greaterThanOrEqualTo(48));
+        expect(r.height, greaterThanOrEqualTo(48));
+        if (last != null) expect(r.left, greaterThanOrEqualTo(last));
+        last = r.right;
+      }
+      expect(find.byKey(GoLiveScreen.flipKey), findsNothing);
+      expect(find.byKey(GoLiveScreen.micKey), findsNothing);
+      await _leave(tester);
+    });
+
+    testWidgets('≡ keeps every tool: flip and mic work; the missing ones say '
+        'Soon', (tester) async {
+      final (_, camera) = await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      for (final id in [
+        'share',
+        'flip',
+        'mic',
+        'beauty',
+        'voice',
+        'topic',
+        'viewers',
+        'chat',
+        'management',
+        'guests',
+      ]) {
+        expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
+      }
+      final l10n = _l10n(tester);
+      for (final label in [
+        l10n.liveToolFlash,
+        l10n.liveToolDual,
+        l10n.liveToolHd,
+        l10n.liveToolSticker,
+        l10n.liveToolTrafficCard,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsOneWidget,
+          reason: label,
+        );
+      }
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      expect(camera.flips, 1);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveScreen.micKey));
+      await tester.pumpAndSettle();
+      expect(camera.micEnabled, isFalse);
+      // Muted: the host pill says so.
+      expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('PK and (solo) guest connection say they are coming; 🎁 '
+        'opens the gifts', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(KHostBar.pkKey));
+      await tester.pump();
+      expect(find.text(l10n.goLivePkSoon), findsOneWidget);
+      await _snackGone(tester);
+      await tester.tap(find.byKey(KHostBar.guestsKey));
+      await tester.pump();
+      expect(find.text(l10n.liveHostGuestsSoon), findsOneWidget);
+      await _snackGone(tester);
+      await tester.tap(find.byKey(KHostBar.giftKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(KLiveGiftSheet), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('Beautification: Beauty and Mixer work; Magic and Fill light '
+        'are Soon', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(KHostBar.beautyKey));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveBeautyToolsTitle), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolFillLight}, ${l10n.liveSoon}'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('mixer')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.tool('mixer')), findsNothing);
+      expect(find.byType(Switch), findsWidgets);
+      await _leave(tester);
+    });
+
+    testWidgets('User management: muted, removed, moderators (solo: how), '
+        'and signed-in only', (tester) async {
+      final repo = FakeLiveRepository(categories: _categories)
+        ..chatMuteList = [
+          LiveChatMute(user: someone, mutedAt: DateTime.utc(2026, 10, 27)),
+        ]
+        ..kickList = [
+          LiveKick(user: someone, kickedAt: DateTime.utc(2026, 10, 27)),
+        ];
+      await _pump(tester, repo: repo);
+      await _goLive(tester);
+      final l10n = _l10n(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('management')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveManageTitle), findsOneWidget);
+      expect(find.text(l10n.liveManageModeratorsHint), findsOneWidget);
+      await tester.tap(find.byKey(LiveManageKeys.muted));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveManageKeys.action('mona')));
+      await tester.pumpAndSettle();
+      expect(repo.chatCalls, contains('unmute:mona'));
+      await tester.tap(find.byKey(LiveManageKeys.back));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveManageKeys.kicked));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveManageKeys.action('mona')));
+      await tester.pumpAndSettle();
+      expect(repo.kickCalls, contains('unkick:mona'));
+      await tester.tap(find.byKey(LiveManageKeys.back));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveManageKeys.signedInOnly));
+      await tester.pumpAndSettle();
+      expect(repo.guestUpdates, [(roomId: 'room-host', allow: false)]);
+      await _leave(tester);
+    });
+
+    testWidgets('the end summary: real data only (time, cherries from taps '
+        'and gifts, supporters, viewers, charm)', (tester) async {
+      final repo = FakeLiveRepository(categories: _categories)
+        ..contributorList = [const LiveContributor(user: someone, points: 120)];
+      await _pump(tester, repo: repo);
+      await _goLive(tester);
+      repo.hostRoom = repo.hostRoom!.copyWith(
+        score: 1520,
+        scoreParts: const LiveScore(
+          total: 1520,
+          tapPoints: 20,
+          supportPoints: 1500,
+        ),
+      );
+      await tester.tap(find.byKey(GoLiveScreen.closeKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveScreen.endConfirmKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
+      expect(find.byType(GoLiveSummary), findsOneWidget);
+      expect(find.text('1,520'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveSummary.tapsKey),
+          matching: find.textContaining('20'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveSummary.giftsKey),
+          matching: find.textContaining('1,500'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveSummary.supportersKey),
+          matching: find.text('1'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(GoLiveScreen.doneKey), findsOneWidget);
       await _leave(tester);
     });
   });

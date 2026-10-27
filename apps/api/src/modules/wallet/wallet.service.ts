@@ -43,12 +43,15 @@ export class WalletService {
     return change;
   }
 
-  /** CP-018: gives coins back (a CP refund) inside the caller's transaction. */
+  /**
+   * CP-018: gives coins back (a CP refund) inside the caller's transaction. v1.27-live (D132): also
+   * the coins a lucky gift's draws won (`LUCKY_GIFT_WIN`, never family points).
+   */
   creditIn(
     tx: Prisma.TransactionClient,
     userId: string,
     amount: number,
-    reason: 'CP_REFUND',
+    reason: 'CP_REFUND' | 'LUCKY_GIFT_WIN',
     referenceId: string,
   ): Promise<WalletChange> {
     return creditIn(tx, userId, BigInt(amount), reason, referenceId);

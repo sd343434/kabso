@@ -27,7 +27,8 @@
     "medals:admin": "tsx src/cli/medals-admin.ts",
     "bag:admin": "tsx src/cli/bag-admin.ts",
     "gift:admin": "tsx src/cli/gift-admin.ts",
-    "banner:admin": "tsx src/cli/banner-admin.ts"
+    "banner:admin": "tsx src/cli/banner-admin.ts",
+    "feature:admin": "tsx src/cli/feature-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

@@ -64,6 +64,8 @@ describe('POST /auth/register', () => {
       canHost: false,
       // CP-015: no live cover yet.
       liveCoverUrl: null,
+      // v1.27.1-live (D133): every account starts with no country (none is guessed).
+      country: null,
     });
     const { tokens } = res.body as AuthBody;
     expect(tokens.accessToken.split('.')).toHaveLength(3);

@@ -173,11 +173,14 @@ abstract final class KMetrics {
   // KL-034 live room (HOME_LIVE_LAYOUT_DECISIONS §3, §5 KMetrics list).
   // Kabso values; none is taken from a reference image.
 
-  /// HL-L2 host pill visual height (grows with text scale).
-  static const double hostPillHeight = 40;
+  /// HL-L2 host pill visual height (grows with text scale). D131 (ref 158,
+  /// 73 px = 31.1 pt).
+  static const double hostPillHeight = 31;
 
-  /// HL-L2 follow chip visual height inside its 48 dp hit area.
-  static const double followChipHeight = 28;
+  /// HL-L2 follow capsule inside its 48 dp hit area. D131 (ref 158: a
+  /// 31.5 × 23.8 pt cyan capsule with a "+").
+  static const double followChipHeight = 23.8;
+  static const double followChipWidth = 31.5;
 
   /// HL-L2: after following, the check stays this long, then fades out.
   static const Duration followConfirmDuration = Duration(seconds: 1);

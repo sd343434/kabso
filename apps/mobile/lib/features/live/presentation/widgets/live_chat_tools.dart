@@ -44,8 +44,12 @@ class LiveRoomComposer extends ConsumerStatefulWidget {
     required this.onEmoji,
     required this.onMessages,
     this.liveMic,
+    this.emoji = false,
     super.key,
   });
+
+  /// D131 (ref 162): opened from 😊 — the emoji panel, no keyboard yet.
+  final bool emoji;
 
   /// CP-017: the live's own microphone, paused while a voice clip records
   /// (null: no live media here).
@@ -362,6 +366,7 @@ class _LiveRoomComposerState extends ConsumerState<LiveRoomComposer> {
       onEmoji: widget.onEmoji,
       maxLength: _bullet ? LiveRoomComposer.bulletMaxLength : 200,
       accent: _bullet,
+      startWithEmoji: widget.emoji,
       tools: signedIn ? _tools(l10n) : null,
       replaceField: _recording
           ? _recordingBar(l10n)

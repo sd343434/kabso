@@ -21,6 +21,17 @@ final FutureProvider<List<StoryTrayItem>> storyTrayProvider = FutureProvider((
   return page.items;
 });
 
+/// D130: the Moments tab's dot — someone the caller follows has a story
+/// the caller has not seen (`hasUnseen` in the stories tray, the caller's
+/// own entry left out). False while the tray loads or when it fails (no
+/// dot is ever guessed).
+final Provider<bool> unseenFollowedStoriesProvider = Provider<bool>((ref) {
+  final me = ref.watch(currentUserProvider.select((u) => u?.id));
+  final tray = ref.watch(storyTrayProvider).value;
+  if (me == null || tray == null) return false;
+  return tray.any((item) => item.hasUnseen && item.user.id != me);
+});
+
 /// One account's active stories, oldest first.
 final FutureProviderFamily<List<Story>, String> userStoriesProvider =
     FutureProvider.autoDispose.family(

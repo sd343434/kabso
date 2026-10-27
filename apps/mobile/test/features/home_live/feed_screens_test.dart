@@ -22,6 +22,7 @@ import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -46,24 +47,33 @@ String _unavailableTitle(AppLocalizations l10n, String screen, FeedTab tab) =>
       (_, FeedTab.latest) => l10n.liveHubNewUnavailableTitle,
     };
 
-String _tabLabel(AppLocalizations l10n, FeedTab tab) => switch (tab) {
-  FeedTab.following => l10n.feedTabFollowing,
-  FeedTab.popular => l10n.feedTabPopular,
-  FeedTab.latest => l10n.feedTabNew,
-};
-
 /// The header tab with [label] (the New tab label equals the card "New"
 /// chip text, so look inside the header only).
 Finder _tab(String label) =>
     find.descendant(of: find.byType(KPrimaryTabs), matching: find.text(label));
 
-bool _selected(WidgetTester tester, String label) =>
+/// D131: a Live hub filter pill.
+Finder _pill(LiveHubFilter f) => find.byKey(LiveHubFilterBar.pillKey(f));
+
+bool _pillSelected(WidgetTester tester, LiveHubFilter f) =>
     tester
-        .getSemantics(_tab(label))
+        .getSemantics(_pill(f))
         .getSemanticsData()
         .flagsCollection
         .isSelected ==
     Tristate.isTrue;
+
+/// D131: Popular ▾ Following (Popular's menu).
+Future<void> _showFollowing(WidgetTester tester) async {
+  if (!_pillSelected(tester, LiveHubFilter.popular)) {
+    await tester.tap(_pill(LiveHubFilter.popular));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(_pill(LiveHubFilter.popular));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(LiveHubFilterBar.menuFollowingKey));
+  await tester.pumpAndSettle();
+}
 
 /// Pumps [screen]; live discovery answers from [live] (default: hosting
 /// switched off, the production state today).
@@ -93,22 +103,23 @@ void main() {
   for (final (:name, :screen) in _screens) {
     group(name, () {
       testWidgets('defaults to Popular; D124: a top bar with the Kabso '
-          'title, search and the bell, no app bar', (tester) async {
+          'title, search and the bell, no app bar; D131: the filter row '
+          'under it', (tester) async {
         final l10n = l10nFor(AppLanguage.en);
         await _pump(tester, screen);
-        expect(_selected(tester, l10n.feedTabPopular), isTrue);
-        expect(_selected(tester, l10n.feedTabFollowing), isFalse);
+        expect(_pillSelected(tester, LiveHubFilter.popular), isTrue);
+        expect(_pillSelected(tester, LiveHubFilter.nearby), isFalse);
         expect(
           find.text(_unavailableTitle(l10n, name, FeedTab.popular)),
           findsOneWidget,
         );
         expect(find.byType(AppBar), findsNothing);
         expect(find.byType(KLogo), findsNothing);
-        // VG-05: the tab bar is 48 dp; the hub's search lives in the top
-        // bar (D124), not in the tab header.
+        // No tab header any more (D131), the filter row is 48 dp.
+        expect(find.byType(KPrimaryTabs), findsNothing);
         expect(
-          tester.getSize(find.byType(KPrimaryTabs)).height,
-          KMetrics.topBarHeight,
+          tester.getSize(find.byType(LiveHubFilterBar)).height,
+          KSizes.minTouchTarget,
         );
         expect(find.byKey(FeedTabsScaffold.searchKey), findsNothing);
         expect(find.byKey(LiveHubTopBar.titleKey), findsOneWidget);
@@ -117,98 +128,47 @@ void main() {
         expect(find.byKey(NotificationsBell.bellKey), findsOneWidget);
         expect(
           tester.getRect(find.byKey(LiveHubTopBar.titleKey)).bottom,
-          lessThanOrEqualTo(tester.getRect(find.byType(KPrimaryTabs)).top),
+          lessThanOrEqualTo(tester.getRect(find.byType(LiveHubFilterBar)).top),
         );
       });
 
-      testWidgets('tapping a tab switches the page and its copy', (
-        tester,
-      ) async {
+      testWidgets('a filter switches the list and its copy', (tester) async {
         final l10n = l10nFor(AppLanguage.en);
         await _pump(tester, screen);
-        for (final tab in [
-          FeedTab.following,
-          FeedTab.latest,
-          FeedTab.popular,
-        ]) {
-          await tester.tap(_tab(_tabLabel(l10n, tab)));
-          await tester.pumpAndSettle();
-          expect(_selected(tester, _tabLabel(l10n, tab)), isTrue);
-          expect(
-            find.text(_unavailableTitle(l10n, name, tab)),
-            findsOneWidget,
-            reason: '$tab',
-          );
-        }
+        await _showFollowing(tester);
+        expect(
+          find.text(_unavailableTitle(l10n, name, FeedTab.following)),
+          findsOneWidget,
+        );
+        await tester.tap(_pill(LiveHubFilter.featured));
+        await tester.pumpAndSettle();
+        expect(_pillSelected(tester, LiveHubFilter.featured), isTrue);
+        expect(
+          find.text(_unavailableTitle(l10n, name, FeedTab.popular)),
+          findsOneWidget,
+        );
       });
 
       for (final language in AppLanguage.values) {
-        testWidgets(
-          'swiping follows the reading direction (${language.name})',
-          (tester) async {
-            final l10n = l10nFor(language);
-            await _pump(tester, screen, language: language);
-            // The next tab (New) is towards the reading end: drag the page
-            // towards the reading start (left in LTR, right in RTL).
-            final towardsStart = language == AppLanguage.ar ? 300.0 : -300.0;
-            await tester.fling(
-              find.byKey(FeedTabsScaffold.pagerKey),
-              Offset(towardsStart, 0),
-              1000,
-            );
-            await tester.pumpAndSettle();
-            expect(_selected(tester, l10n.feedTabNew), isTrue);
-            expect(
-              find.text(_unavailableTitle(l10n, name, FeedTab.latest)),
-              findsOneWidget,
-            );
-
-            await tester.fling(
-              find.byKey(FeedTabsScaffold.pagerKey),
-              Offset(-towardsStart, 0),
-              1000,
-            );
-            await tester.pumpAndSettle();
-            expect(_selected(tester, l10n.feedTabPopular), isTrue);
-          },
-        );
-
-        testWidgets('header mirrors in ${language.name}; D51: the three '
-            'tabs are centred with even space between them', (tester) async {
-          final l10n = l10nFor(language);
+        testWidgets('the filter row mirrors in ${language.name}: Nearby at '
+            'the reading start, 14.5 pt in', (tester) async {
           await _pump(tester, screen, language: language);
-          final following = tester.getRect(_tab(l10n.feedTabFollowing));
-          final popular = tester.getRect(_tab(l10n.feedTabPopular));
-          final latest = tester.getRect(_tab(l10n.feedTabNew));
+          final nearby = tester.getRect(
+            find.descendant(
+              of: _pill(LiveHubFilter.nearby),
+              matching: find.byType(AnimatedContainer),
+            ),
+          );
+          final popular = tester.getRect(_pill(LiveHubFilter.popular));
           final width =
               tester.view.physicalSize.width / tester.view.devicePixelRatio;
-          // Following sits at the reading start (RTL: to the right).
           if (language == AppLanguage.ar) {
-            expect(following.center.dx, greaterThan(popular.center.dx));
-            expect(popular.center.dx, greaterThan(latest.center.dx));
+            expect(nearby.center.dx, greaterThan(popular.center.dx));
+            expect(width - nearby.right, closeTo(14.5, 0.5));
           } else {
-            expect(following.center.dx, lessThan(popular.center.dx));
-            expect(popular.center.dx, lessThan(latest.center.dx));
+            expect(nearby.center.dx, lessThan(popular.center.dx));
+            expect(nearby.left, closeTo(14.5, 0.5));
           }
-          // The group is centred on the screen.
-          final left = [
-            following,
-            popular,
-            latest,
-          ].map((r) => r.left).reduce((a, b) => a < b ? a : b);
-          final right = [
-            following,
-            popular,
-            latest,
-          ].map((r) => r.right).reduce((a, b) => a > b ? a : b);
-          expect((left + right) / 2, closeTo(width / 2, 1));
-          // Even gaps, wider than labels side by side.
-          final ordered = [following, popular, latest]
-            ..sort((a, b) => a.left.compareTo(b.left));
-          final gap1 = ordered[1].left - ordered[0].right;
-          final gap2 = ordered[2].left - ordered[1].right;
-          expect(gap1, closeTo(gap2, 0.5));
-          expect(gap1, greaterThanOrEqualTo(KPrimaryTabs.centeredGap));
         });
       }
 
@@ -220,21 +180,16 @@ void main() {
         setViewport(tester, GoldenViewport.phone);
         await _pump(tester, screen);
         final state = find.byKey(const Key('feed.unavailable'));
-        // The visual block (disc → actions) at real fonts, 393×852.
         final block = tester.getRect(
           find.descendant(of: state, matching: find.byType(Column)).first,
         );
-        final header = tester.getRect(find.byType(KPrimaryTabs));
+        final header = tester.getRect(find.byType(LiveHubFilterBar));
         expect(block.top, greaterThan(header.bottom));
-        // Not a line at the top of a void: the block's centre sits in the
-        // middle band of the region (a little above its centre), and it is
-        // horizontally centred.
         final region = 852 - header.bottom;
         final centre = (block.center.dy - header.bottom) / region;
         expect(centre, inInclusiveRange(0.3, 0.5));
         expect(block.center.dx, closeTo(393 / 2, 1));
         expect(block.bottom, lessThan(852));
-        // 88 dp icon disc and one primary (filled) action.
         expect(
           find.descendant(of: state, matching: find.byType(KButton)),
           findsOneWidget,
@@ -247,13 +202,9 @@ void main() {
               .variant,
           KButtonVariant.primary,
         );
-        // Home has no feed API, so nothing to refresh. The Live hub's
-        // unavailable state comes from GET /live/config, which can change:
-        // pull-to-refresh re-checks it (KL-038).
-        expect(
-          find.byType(RefreshIndicator),
-          name == 'live' ? findsOneWidget : findsNothing,
-        );
+        // The unavailable state comes from GET /live/config, which can
+        // change: pull-to-refresh re-checks it (KL-038).
+        expect(find.byType(RefreshIndicator), findsOneWidget);
       });
     });
   }
@@ -338,32 +289,6 @@ void main() {
   });
 
   group('Live hub', () {
-    testWidgets('chip row: Popular only, a single non-interactive "All"; '
-        'none while live streaming is unavailable', (tester) async {
-      final l10n = l10nFor(AppLanguage.en);
-      await _pump(tester, const LiveScreen());
-      // KL-047: nothing to filter while hosting is off.
-      expect(find.byKey(FeedRegion.unavailableKey), findsOneWidget);
-      expect(find.byType(KChip), findsNothing);
-
-      await _pump(tester, const LiveScreen(), live: FakeLiveRepository());
-      expect(find.byType(KChip), findsOneWidget);
-      expect(find.text(l10n.liveHubChipAll), findsOneWidget);
-      expect(
-        find.descendant(of: find.byType(KChip), matching: find.byType(InkWell)),
-        findsNothing,
-      );
-      final chip = tester.getSemantics(find.text(l10n.liveHubChipAll));
-      expect(
-        chip.getSemanticsData().flagsCollection.isSelected,
-        Tristate.isTrue,
-      );
-
-      await tester.tap(_tab(l10n.feedTabFollowing));
-      await tester.pumpAndSettle();
-      expect(find.byType(KChip), findsNothing);
-    });
-
     for (final width in const [393.0, 360.0]) {
       testWidgets('D124: a 2-column grid at $width dp with the live mark '
           'on every card', (tester) async {
@@ -376,17 +301,17 @@ void main() {
           const LiveScreen(),
           live: FakeLiveRepository(rooms: (_) => apiPage(apiRooms(8))),
         );
-        final cardWidth = (width - 2 * 16 - 8) / 2;
+        // D131 (ref 165): 13 dp sides, 7.2 dp apart, 0.894 cards.
+        final cardWidth = (width - 2 * 13 - 7.2) / 2;
         final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
         final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
         expect(first.width, moreOrLessEquals(cardWidth));
-        expect(first.height, moreOrLessEquals(cardWidth / 0.75));
+        expect(first.height, moreOrLessEquals(cardWidth / 0.894));
         expect(first.top, second.top);
-        // EN: the first card at the left, the second 8 dp to its right.
-        expect(second.left - first.right, moreOrLessEquals(8));
+        expect(second.left - first.right, moreOrLessEquals(7.2));
         for (final card in [first, second]) {
-          expect(card.left, greaterThanOrEqualTo(16));
-          expect(card.right, lessThanOrEqualTo(width - 16));
+          expect(card.left, greaterThanOrEqualTo(13));
+          expect(card.right, lessThanOrEqualTo(width - 13));
         }
         expect(
           find.descendant(
@@ -422,7 +347,7 @@ void main() {
       expect(skeleton, findsWidgets);
       expect(
         tester.getSize(skeleton.first).width,
-        moreOrLessEquals((393 - 40) / 2),
+        moreOrLessEquals((393 - 26 - 7.2) / 2),
       );
     });
 
@@ -434,12 +359,18 @@ void main() {
       expect(find.text(l10n.liveHubEmptyTitle), findsOneWidget);
       expect(find.text(l10n.feedSeePopular), findsNothing);
 
-      await tester.tap(_tab(l10n.feedTabFollowing));
-      await tester.pumpAndSettle();
+      await _showFollowing(tester);
       expect(find.text(l10n.liveHubFollowingEmptyTitle), findsOneWidget);
       await tester.tap(find.text(l10n.feedSeePopular));
       await tester.pumpAndSettle();
-      expect(_selected(tester, l10n.feedTabPopular), isTrue);
+      expect(_pillSelected(tester, LiveHubFilter.popular), isTrue);
+      expect(
+        find.descendant(
+          of: _pill(LiveHubFilter.popular),
+          matching: find.text(l10n.liveHubFilterPopular),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('offline (QA-003): its own state with Try again that re-runs '

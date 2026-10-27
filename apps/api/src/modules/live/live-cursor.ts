@@ -20,8 +20,24 @@ export type LiveTab = (typeof LIVE_TABS)[number];
  * are voice rooms), `video` = `SOLO`, `PK` and `MULTI`. A cursor is bound to it like to the
  * category; a cursor issued without a kind carries no `k` (cursors of older apps stay valid).
  */
-export const LIVE_KINDS = ['audio', 'video'] as const;
+export const LIVE_KINDS = ['audio', 'video', 'solo', 'multi', 'party'] as const;
 export type LiveKind = (typeof LIVE_KINDS)[number];
+
+/** v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI. */
+export const LIVE_KIND_MODES: Readonly<Record<LiveKind, readonly ('SOLO' | 'PK' | 'MULTI' | 'AUDIO')[]>> = {
+  audio: ['AUDIO'],
+  video: ['SOLO', 'PK', 'MULTI'],
+  solo: ['SOLO', 'PK'],
+  multi: ['MULTI'],
+  party: ['AUDIO', 'MULTI'],
+};
+
+/** v1.27.1-live (D133): the only `scope`. */
+export const LIVE_SCOPES = ['nearby'] as const;
+export type LiveScope = (typeof LIVE_SCOPES)[number];
+
+/** The largest feature rank (`live_featured_hosts_rank_range`). */
+export const FEATURE_RANK_MAX = 1_000_000;
 
 /** v2 (CP-012, v1.8-live): `n` is the room's score (was the viewer count in v1). */
 export const CURSOR_VERSION = 2;
@@ -37,8 +53,12 @@ export interface CursorScope {
   readonly category: string | null;
   /** v1.26.4-live (D129): the kind filter; null = all rooms. */
   readonly kind: LiveKind | null;
-  /** The caller's id for `following` (personal list); null for the public tabs. */
+  /** The caller's id for `following` and `nearby` (personal lists); null for the public ones. */
   readonly userId: string | null;
+  /** v1.27.1-live (D133): `nearby`'s country (the caller's), null without `scope=nearby`. */
+  readonly nearbyCountry: string | null;
+  /** v1.27.1-live (D133): `featured=true` (order by feature rank first). */
+  readonly featured: boolean;
 }
 
 /** Sort key of the last row of a page (`score`, `startedAt`, `id`). */
@@ -47,6 +67,8 @@ export interface CursorPosition {
   readonly score: number;
   readonly startedAt: Date;
   readonly id: string;
+  /** v1.27.1-live (D133): the row's feature rank (featured lists only). */
+  readonly rank?: number;
 }
 
 /**
@@ -64,6 +86,11 @@ const payloadSchema = z.strictObject({
   t: z.enum(LIVE_TABS),
   c: z.string().max(32).nullable(),
   k: z.enum(LIVE_KINDS).optional(),
+  sc: z
+    .string()
+    .regex(/^[A-Z]{2}$/)
+    .optional(),
+  f: z.number().int().min(0).max(FEATURE_RANK_MAX).optional(),
   u: z.string().regex(UUID).nullable(),
   n: z.number().int().min(0).max(CURSOR_MAX_SCORE),
   s: z.number().int().min(0).max(CURSOR_MAX_STARTED_AT_MS),
@@ -76,12 +103,16 @@ export function cursorScope(
   category: string | undefined,
   callerId: string,
   kind?: LiveKind,
+  extra: { readonly nearbyCountry?: string | null; readonly featured?: boolean } = {},
 ): CursorScope {
+  const nearbyCountry = extra.nearbyCountry ?? null;
   return {
     tab,
     category: category ?? null,
     kind: kind ?? null,
-    userId: tab === 'following' ? callerId : null,
+    userId: tab === 'following' || nearbyCountry !== null ? callerId : null,
+    nearbyCountry,
+    featured: extra.featured === true,
   };
 }
 
@@ -108,6 +139,9 @@ export class LiveCursorCodec {
         c: scope.category,
         // Only with a kind, so a request without one gets the same cursor as before v1.26.4-live.
         ...(scope.kind === null ? {} : { k: scope.kind }),
+        // v1.27.1-live (D133): only with `scope=nearby` / `featured=true` (older cursors unchanged).
+        ...(scope.nearbyCountry === null ? {} : { sc: scope.nearbyCountry }),
+        ...(scope.featured ? { f: position.rank ?? 0 } : {}),
         u: scope.userId,
         n: position.score,
         s: position.startedAt.getTime(),
@@ -140,9 +174,16 @@ export class LiveCursorCodec {
     if (!parsed.success) return null;
     const p = parsed.data;
     if (p.v !== CURSOR_VERSION) return null;
-    if (p.t !== scope.tab || p.c !== scope.category || (p.k ?? null) !== scope.kind || p.u !== scope.userId) {
+    if (
+      p.t !== scope.tab ||
+      p.c !== scope.category ||
+      (p.k ?? null) !== scope.kind ||
+      (p.sc ?? null) !== scope.nearbyCountry ||
+      (p.f !== undefined) !== scope.featured ||
+      p.u !== scope.userId
+    ) {
       return null;
     }
-    return { score: p.n, startedAt: new Date(p.s), id: p.i };
+    return { score: p.n, startedAt: new Date(p.s), id: p.i, ...(p.f !== undefined ? { rank: p.f } : {}) };
   }
 }

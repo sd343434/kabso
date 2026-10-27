@@ -36,6 +36,8 @@ const ME_REQUIRED = [
   'canHost',
   // CP-015 (D98): the host's live cover (nullable, always present).
   'liveCoverUrl',
+  // D133 (v1.27.1-live): the caller's own country (nullable, always present).
+  'country',
 ];
 const ME_OPTIONAL = ['bio', 'avatarUrl'];
 const TOKEN_PAIR = ['accessToken', 'accessTokenExpiresAt', 'refreshToken', 'refreshTokenExpiresAt'];

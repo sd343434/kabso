@@ -123,6 +123,8 @@ describe('KL-037 contract coverage', () => {
             // D121 (v1.25.2-live draft): the follow lists; kl086-follow-lists covers them.
             'listUserFollowers',
             'listUserFollowing',
+            // D132 (v1.27-live draft): the lucky-gift odds; kl093-lucky-gifts covers it.
+            'getLuckyGiftOdds',
           ].includes(o.operationId),
       )
       .filter(

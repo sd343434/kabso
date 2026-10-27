@@ -193,15 +193,17 @@ void main() {
       expect(find.byType(LiveTapCharacter), findsNothing);
     });
 
-    testWidgets('D120: wherever the finger taps, every character starts '
-        'and rises inside the narrow lane at the physical right edge near '
-        'the bottom, at half the old size', (tester) async {
+    testWidgets('D120/D131: wherever the finger taps, every character '
+        'starts and rises inside the narrow lane at the physical right edge '
+        'near the bottom, 30 pt (D131 ref 159 supersedes the half size)', (
+      tester,
+    ) async {
       await _pumpTaps(tester, seed: 5);
       final layer = tester.getRect(find.byKey(LiveTapLayer.tapKey));
       final lane = LiveTapLayer.lane(layer.size, 72).shift(layer.topLeft);
       expect(lane.width, LiveTapLayer.laneWidth);
       expect(layer.right - lane.right, LiveTapLayer.laneRightInset);
-      expect(LiveTapLayer.size, 19);
+      expect(LiveTapLayer.size, 30);
       final rects = <Rect>[];
       void sample() {
         for (final e
@@ -233,7 +235,9 @@ void main() {
         sample();
       }
       expect(rects, isNotEmpty);
-      final inLane = lane.inflate(0.5);
+      // D131: a 30 pt picture fills the 36 pt lane; while it tilts its box
+      // may brush 3 pt past the lane (its art is smaller than its box).
+      final inLane = lane.inflate(3);
       for (final r in rects) {
         expect(
           inLane.contains(r.topLeft) && inLane.contains(r.bottomRight),
@@ -267,7 +271,8 @@ void main() {
         ))
           image.width!,
       ];
-      expect(sizes.last, closeTo(LiveTapLayer.size * 1.7, 0.01));
+      // D131: the big pop is the lane's width (1.7 × no longer fits).
+      expect(sizes.last, closeTo(LiveTapLayer.bigSize, 0.01));
       expect(sizes.take(9).every((s) => s < LiveTapLayer.size * 1.2), isTrue);
       // The ring's sparkles belong to the big pop only.
       expect(find.byIcon(Icons.auto_awesome), findsNWidgets(4));

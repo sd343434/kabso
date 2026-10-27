@@ -196,3 +196,41 @@ describe('LiveCursorCodec', () => {
     expect(codec.decode(`${body}.${tag.toString('base64url')}`, scope)).toBeNull();
   });
 });
+
+describe('D133 (v1.27.1-live): nearby, featured and the new kinds', () => {
+  const codec2 = new LiveCursorCodec(randomBytes(48).toString('base64url'));
+  const at: CursorPosition = { ...position, rank: 7 };
+
+  it('binds the nearby country and the caller; a country change invalidates the cursor', () => {
+    const sa = cursorScope('popular', undefined, USER, 'solo', { nearbyCountry: 'SA' });
+    expect(sa.userId).toBe(USER);
+    const cursor = codec2.encode(sa, position);
+    expect(codec2.decode(cursor, sa)).toEqual(position);
+    expect(
+      codec2.decode(cursor, cursorScope('popular', undefined, USER, 'solo', { nearbyCountry: 'EG' })),
+    ).toBeNull();
+    expect(
+      codec2.decode(cursor, cursorScope('popular', undefined, OTHER, 'solo', { nearbyCountry: 'SA' })),
+    ).toBeNull();
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, 'solo'))).toBeNull();
+  });
+
+  it('binds featured and carries the feature rank; a non-featured cursor is refused for featured', () => {
+    const featured = cursorScope('new', 'music', USER, 'party', { featured: true });
+    const cursor = codec2.encode(featured, at);
+    expect(codec2.decode(cursor, featured)).toEqual(at);
+    expect(codec2.decode(cursor, cursorScope('new', 'music', USER, 'party'))).toBeNull();
+    const plain = codec2.encode(cursorScope('new', 'music', USER, 'party'), position);
+    expect(codec2.decode(plain, featured)).toBeNull();
+    const [payload = ''] = plain.split('.');
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as object;
+    expect(decoded).not.toHaveProperty('f');
+    expect(decoded).not.toHaveProperty('sc');
+  });
+
+  it.each(['solo', 'multi', 'party'] as const)('binds kind %s', (kind) => {
+    const cursor = codec2.encode(cursorScope('popular', undefined, USER, kind), position);
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, kind))).toEqual(position);
+    expect(codec2.decode(cursor, cursorScope('popular', undefined, USER, 'audio'))).toBeNull();
+  });
+});

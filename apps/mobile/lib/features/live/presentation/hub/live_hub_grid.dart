@@ -4,8 +4,8 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The live hub's 2-column grid as slivers (D124): 16 pt side padding,
-/// 8 pt gaps, 3:4 cards; `banner` (the promo carousel) full width after the
+/// The live hub's 2-column grid as slivers (D124; D131 geometry of ref 165,
+/// [KLiveGrid]); `banner` (the promo carousel) full width after the
 /// first `KLiveGrid.bannerAfter` cards, or after the last card when there
 /// are fewer.
 abstract final class LiveHubGrid {
@@ -19,7 +19,7 @@ abstract final class LiveHubGrid {
 
   static const _delegate = SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: 2,
-    mainAxisSpacing: KLiveGrid.gap,
+    mainAxisSpacing: KLiveGrid.rowGap,
     crossAxisSpacing: KLiveGrid.gap,
     childAspectRatio: KLiveGrid.cardAspect,
   );

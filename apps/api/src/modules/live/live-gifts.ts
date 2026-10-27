@@ -6,6 +6,9 @@ import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 /** The media data topic of gift data messages. */
 export const LIVE_GIFT_TOPIC = 'gift';
 
+/** v1.27-live (D132): the media data topic of `lucky-win` messages (big lucky wins). */
+export const LUCKY_WIN_TOPIC = 'lucky';
+
 export interface GiftAmounts {
   /** Coins each recipient's gifts are worth (unit price × quantity). */
   readonly perRecipientCoins: number;

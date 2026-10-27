@@ -34,6 +34,10 @@ abstract interface class AuthRepository {
   /// `PATCH /me {"locale"}` (v1.2): persists the user's language choice.
   Future<User> updateLocale(String locale);
 
+  /// `PATCH /me {"country"}` (v1.27.1-live, D133): the person's own
+  /// country (ISO 3166-1 alpha-2), or null to clear it.
+  Future<User> updateCountry(String? country);
+
   /// Revokes the current session on the server (best effort) and always
   /// clears the local session.
   Future<void> logout();

@@ -13,7 +13,8 @@ import 'package:material_ui/material_ui.dart';
 /// fades. D120 (owner): the characters do not fly where the finger is: they
 /// all rise in one narrow lane at the **physical right** edge near the
 /// bottom ([lane]; right in Arabic and English alike), like the hearts lane
-/// of other live apps, at half the old size. Every tap picks one of **all ten**
+/// of other live apps (D131: 30 pt characters in a 36 pt lane over the
+/// gift button, ref 159). Every tap picks one of **all ten**
 /// characters at random, whatever the host's charm level (never the same one
 /// twice in a row, so a run of taps always mixes). Every 10th tap of a combo
 /// is a big pop with a ring of sparkles. The host taps their own live too
@@ -50,15 +51,19 @@ class LiveTapLayer extends StatefulWidget {
   /// A pause longer than this starts a new combo.
   static const comboTimeout = Duration(milliseconds: 900);
 
-  /// The character's size (D120: half of the first 38); a big pop is 1.7 ×.
-  static const size = 19.0;
+  /// The character's size. D131 (owner, ref 159: the characters' ink is
+  /// 29–32 pt): 30, and they keep it while they rise (D120's half size and
+  /// its 0.7 shrink are withdrawn).
+  static const size = 30.0;
 
-  /// The size of the 10th tap's big pop.
-  static const double bigSize = size * 1.7;
+  /// The size of the 10th tap's big pop: the lane's width (D131: the
+  /// characters are nearly as wide as the lane, so 1.7 × no longer fits).
+  static const double bigSize = laneWidth - 2;
 
-  /// D120: the lane's width and its inset from the physical right edge.
-  static const laneWidth = 72.0;
-  static const laneRightInset = 12.0;
+  /// The lane's width and its inset from the physical right edge. D131
+  /// (ref 159: 36 pt wide, 5 pt in, right above the gift button).
+  static const laneWidth = 36.0;
+  static const laneRightInset = 5.0;
 
   /// How high a character rises (from its start) at most.
   static const maxRise = 260.0;
@@ -158,12 +163,13 @@ class _LiveTapLayerState extends State<LiveTapLayer>
     );
     final s = big
         ? LiveTapLayer.bigSize
-        : LiveTapLayer.size * (0.85 + _random.nextDouble() * 0.3);
-    final sway = big ? 0.0 : 2 + _random.nextDouble() * 3;
-    // The start: the lane's bottom, with a little sideways jitter that keeps
-    // the character (even at its elastic overshoot) and its sway in the lane;
-    // the big pop starts in the middle so its ring fits.
-    final room = math.max(0, lane.width / 2 - s * 0.7 - sway);
+        : LiveTapLayer.size * (0.95 + _random.nextDouble() * 0.1);
+    // D131: a 30 pt character leaves ≈ 3 pt on each side of the 36 pt lane:
+    // the sway and the start jitter share it, so it stays in the lane.
+    final spare = math.max(0, (lane.width - s) / 2).toDouble();
+    final sway = big ? 0.0 : math.min(2 + _random.nextDouble() * 3, spare);
+    // The start: the lane's bottom; the big pop starts in the middle.
+    final room = math.max(0, spare - sway);
     final x =
         lane.center.dx + (big ? 0 : (_random.nextDouble() * 2 - 1) * room);
     final pop = _Pop(
@@ -174,7 +180,7 @@ class _LiveTapLayerState extends State<LiveTapLayer>
       rise: 200 + _random.nextDouble() * 60,
       sway: sway,
       phase: _random.nextDouble() * math.pi * 2,
-      spin: (_random.nextDouble() - 0.5) * 0.5,
+      spin: big ? 0 : (_random.nextDouble() - 0.5) * 0.12,
       big: big,
     );
     controller
@@ -238,8 +244,8 @@ class _LiveTapLayerState extends State<LiveTapLayer>
 }
 
 /// One tap character: an elastic pop at the lane's start (the first 18 %),
-/// then it rises in the lane with a small sine sway, shrinks a little and
-/// fades in the last 30 %.
+/// then it rises in the lane with a small sine sway at its size (D131: no
+/// shrink) and fades in the last 30 %.
 class LiveTapCharacter extends StatelessWidget {
   const new _(this._pop, {super.key});
 
@@ -252,7 +258,10 @@ class LiveTapCharacter extends StatelessWidget {
       animation: p.controller,
       builder: (context, _) {
         final t = p.controller.value;
-        final pop = t < 0.18 ? Curves.elasticOut.transform(t / 0.18) : 1.0;
+        // D131: a 30 pt character fills the lane, so its pop barely overshoots.
+        final pop = t < 0.18
+            ? math.min(Curves.elasticOut.transform(t / 0.18), 1.04)
+            : 1.0;
         final r = Curves.easeOut.transform(((t - 0.12) / 0.88).clamp(0, 1));
         final dx = math.sin(p.phase + r * math.pi * 2.2) * p.sway * r;
         final opacity = t < 0.7 ? 1.0 : (1 - (t - 0.7) / 0.3).clamp(0.0, 1.0);
@@ -263,9 +272,9 @@ class LiveTapCharacter extends StatelessWidget {
           child: Opacity(
             opacity: opacity,
             child: Transform.rotate(
-              angle: p.spin * r + (t < 0.18 ? (1 - t / 0.18) * -0.4 : 0),
+              angle: p.spin * r + (t < 0.18 ? (1 - t / 0.18) * -0.12 : 0),
               child: Transform.scale(
-                scale: pop * (1 - 0.3 * r),
+                scale: pop,
                 child: SizedBox.square(
                   dimension: s,
                   child: Stack(

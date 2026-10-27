@@ -140,6 +140,18 @@ class FakeAuthRepository implements AuthRepository {
     return me = me.copyWith(locale: locale);
   }
 
+  /// Countries sent with `PATCH /me` (D133).
+  final List<String?> countryUpdates = [];
+  AppFailure? updateCountryFailure;
+
+  @override
+  Future<User> updateCountry(String? country) async {
+    countryUpdates.add(country);
+    final failure = updateCountryFailure;
+    if (failure != null) throw failure;
+    return me = me.copyWith(country: country);
+  }
+
   @override
   Future<void> logout() async => logoutCalls++;
 

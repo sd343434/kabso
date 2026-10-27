@@ -223,8 +223,8 @@ void main() {
           Column(
             children: [
               for (final index in [0, 2, 3]) ...[
-                KBottomNav(
-                  items: shellNavItems(l10n),
+                KTabBar(
+                  items: shellTabItems(l10n),
                   currentIndex: index,
                   onSelect: (_) {},
                 ),

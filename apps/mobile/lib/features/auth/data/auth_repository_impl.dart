@@ -86,6 +86,10 @@ class AuthRepositoryImpl implements AuthRepository {
       (await _remote.updateMe(locale: locale)).toEntity();
 
   @override
+  Future<User> updateCountry(String? country) async =>
+      (await _remote.updateCountry(country)).toEntity();
+
+  @override
   Future<void> logout() async {
     try {
       if (_tokens.accessToken != null || await _tokens.hasRefreshToken()) {

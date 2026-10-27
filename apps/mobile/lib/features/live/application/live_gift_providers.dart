@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -105,3 +106,55 @@ giftBagProvider =
     AsyncNotifierProvider.autoDispose<GiftBagController, List<GiftBagItem>>(
       GiftBagController.new,
     );
+
+/// v1.27-live (D132): the published lucky-gift odds and whether the caller
+/// may send lucky gifts now (`GET /live/gifts/lucky/odds`, never cached).
+final FutureProvider<LuckyGiftOdds> luckyOddsProvider =
+    FutureProvider.autoDispose(
+      (ref) => ref.watch(liveGiftRepositoryProvider).luckyOdds(),
+    );
+
+/// D131 (ref 161 "Recent"): the gifts this person sent from this phone,
+/// newest first (at most [maxCount]); kept on the device only, per account.
+class RecentGiftsController extends Notifier<List<String>> {
+  static const maxCount = 16;
+
+  String? get _key => switch (ref.read(currentUserProvider)) {
+    final u? => 'pref.recentGifts.${u.id}',
+    null => null,
+  };
+
+  @override
+  List<String> build() {
+    ref.watch(currentUserProvider.select((u) => u?.id));
+    final key = _key;
+    if (key == null) return const [];
+    try {
+      return ref.read(sharedPreferencesProvider).getStringList(key) ?? const [];
+    } on Object {
+      return const [];
+    }
+  }
+
+  /// [code] was just sent: it moves to the front.
+  void add(String code) {
+    final next = [
+      code,
+      for (final c in state)
+        if (c != code) c,
+    ].take(maxCount).toList();
+    state = next;
+    final key = _key;
+    if (key == null) return;
+    try {
+      unawaited(ref.read(sharedPreferencesProvider).setStringList(key, next));
+    } on Object {
+      // Kept in memory only.
+    }
+  }
+}
+
+final NotifierProvider<RecentGiftsController, List<String>>
+recentGiftsProvider = NotifierProvider<RecentGiftsController, List<String>>(
+  RecentGiftsController.new,
+);

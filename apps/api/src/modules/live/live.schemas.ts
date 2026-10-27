@@ -4,7 +4,7 @@ import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.j
 import { normalizeContentText } from '../posts/content-text.js';
 import { normalizeDisplayName, textHygieneIssue, type TextHygieneIssue } from '../users/display-name.js';
 import { trimHygiene } from '../users/text-hygiene.js';
-import { LIVE_KINDS, LIVE_TABS } from './live-cursor.js';
+import { LIVE_KINDS, LIVE_SCOPES, LIVE_TABS } from './live-cursor.js';
 
 // Request schemas mirror docs/contracts/openapi.yaml v1.3 (strict objects: unknown fields fail
 // with `unknown_field`).
@@ -398,7 +398,14 @@ export const listLiveRoomsQuerySchema = z.strictObject({
   tab: z.string().pipe(z.enum(LIVE_TABS)),
   category: categorySlugSchema.optional(),
   // v1.26.4-live (D129): `audio` = AUDIO rooms, `video` = SOLO, PK and MULTI; absent = all.
+  // v1.27.1-live (D133): `solo` = SOLO and PK, `multi` = MULTI, `party` = AUDIO and MULTI.
   kind: z.enum(LIVE_KINDS).optional(),
+  // v1.27.1-live (D133): rooms of the caller's country; rooms of featured hosts.
+  scope: z.enum(LIVE_SCOPES).optional(),
+  featured: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
   cursor: z.string().min(1).max(512).optional(),
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });

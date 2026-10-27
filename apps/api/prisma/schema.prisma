@@ -149,6 +149,11 @@ model User {
   familyChatDeleted  FamilyChatMessage[]    @relation("FamilyChatDeleter")
   familyChatMutes    FamilyChatMute[]       @relation("FamilyChatMuted")
   familyChatMutesBy  FamilyChatMute[]       @relation("FamilyChatMutedBy")
+  // v1.27-live (D132): lucky gifts — the audit rows of the caller's lucky sends and the 18+ statement.
+  luckyDraws         LuckyGiftDraw[]
+  luckyAgeConfirm    LuckyGiftAgeConfirmation?
+  // v1.27.1-live (D133): featured on the live hub.
+  liveFeatured       LiveFeaturedHost?
 
   @@map("users")
 }
@@ -162,6 +167,9 @@ model UserProfile {
   bio         String?  @db.VarChar(300)
   avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
   locale      String   @default("ar") @db.VarChar(8)
+  /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
+  /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
+  countryCode String?  @map("country_code") @db.Char(2)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -683,6 +691,10 @@ enum WalletLedgerReason {
   CP_GIFT
   /// v1.23-live (CP-020, D108): a gift sent in a live, paid with coins.
   LIVE_GIFT
+  /// v1.27-live (D132): a LUCKY gift sent in a live (the charge; counts 10 % for the family).
+  LUCKY_GIFT
+  /// v1.27-live (D132): coins won by a lucky gift's draws (reference: the send).
+  LUCKY_GIFT_WIN
 
   @@map("wallet_ledger_reason")
 }
@@ -2203,6 +2215,8 @@ enum GiftCategory {
   POPULAR
   EVENT
   FUN
+  /// v1.27-live (D132): lucky gifts (CONVENTIONS §10.27), listed only while LUCKY_GIFTS_ENABLED.
+  LUCKY
 
   @@map("gift_category")
 }
@@ -2304,6 +2318,8 @@ model LiveGift {
   room       LiveRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
   gift       Gift                @relation(fields: [giftCode], references: [code], onDelete: Restrict)
   recipients LiveGiftRecipient[]
+  /// v1.27-live (D132): the draws of a LUCKY send (none for other gifts).
+  luckyDraw  LuckyGiftDraw?
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
@@ -2352,4 +2368,76 @@ model HomeBanner {
 
   @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
   @@map("home_banners")
+}
+
+/// v1.27-live (D132, CONVENTIONS §10.27): the daily protection of lucky gifts. One row per day (in
+/// LUCKY_GIFT_DAY_TIME_ZONE): the day's lucky spend and the coins paid out. Locked by every lucky
+/// send; CHECK `lucky_gift_days_amounts`: 0 ≤ paid, 0 ≤ spend.
+model LuckyGiftDay {
+  day        DateTime @id @db.Date
+  spendCoins BigInt   @default(0) @map("spend_coins")
+  paidCoins  BigInt   @default(0) @map("paid_coins")
+  sends      Int      @default(0)
+  draws      BigInt   @default(0)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("lucky_gift_days")
+}
+
+/// v1.27-live (D132): the audit row of one lucky send — every winning draw as
+/// `[index, drawn multiplier, paid multiplier]` (draws not listed did not win), the table used and
+/// the day's budget before and after. Written in the send's transaction; read back for a retry.
+model LuckyGiftDraw {
+  giftId        String   @id @map("gift_id") @db.Uuid
+  senderId      String   @map("sender_id") @db.Uuid
+  giftCode      String   @map("gift_code") @db.VarChar(40)
+  unitPrice     Int      @map("unit_price")
+  quantity      Int
+  recipients    Int
+  draws         Int
+  /// The table used: `{rtpBps, hostShareBps, outcomes: [[multiplier, chancePerMillion], …]}`.
+  odds          Json
+  /// `[[index, drawnMultiplier, paidMultiplier], …]` (paid 0: withheld by the daily protection).
+  wins          Json
+  coinsWon      BigInt   @map("coins_won")
+  topMultiplier Int?     @map("top_multiplier")
+  downgraded    Int
+  budgetDay     DateTime @map("budget_day") @db.Date
+  budgetBefore  BigInt   @map("budget_before")
+  budgetAfter   BigInt   @map("budget_after")
+  spendAfter    BigInt   @map("spend_after")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  gift   LiveGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  sender User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt(sort: Desc)], map: "lucky_gift_draws_created_idx")
+  @@index([senderId, createdAt(sort: Desc)], map: "lucky_gift_draws_sender_idx")
+  @@map("lucky_gift_draws")
+}
+
+/// v1.27-live (D132): the caller's one-time "I am 18 or older" statement (accounts have no birth
+/// date). Pending owner / legal review (CONVENTIONS §10.27).
+model LuckyGiftAgeConfirmation {
+  userId      String   @id @map("user_id") @db.Uuid
+  confirmedAt DateTime @default(now()) @map("confirmed_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("lucky_gift_age_confirmations")
+}
+
+/// v1.27.1-live (D133, CONVENTIONS §10.28): a host featured on the live hub (`featured=true`).
+/// Managed only by the `feature-admin` CLI. CHECK `live_featured_hosts_rank_range`: 0 … 1 000 000.
+model LiveFeaturedHost {
+  userId    String    @id @map("user_id") @db.Uuid
+  rank      Int       @default(100)
+  /// After this time the row no longer counts (null: no end).
+  until     DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("live_featured_hosts")
 }

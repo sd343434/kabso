@@ -127,9 +127,9 @@ void main() {
           200,
           body: giftCatalogueJson(
             codes: const ['rose'],
-            categories: const ['POPULAR', 'LUCKY', 'EVENT', 'FUN'],
+            categories: const ['POPULAR', 'TREASURE', 'EVENT', 'FUN'],
             extra: [
-              {...giftJson('crown'), 'code': 'lucky_cat', 'category': 'LUCKY'},
+              {...giftJson('crown'), 'code': 'chest', 'category': 'TREASURE'},
               {...giftJson('crown'), 'badge': 'HOT'},
             ],
           ),
@@ -151,7 +151,7 @@ void main() {
         body: {
           'data': [
             giftBagItemJson('rose', 99),
-            {...giftBagItemJson('crown', 2), 'category': 'LUCKY'},
+            {...giftBagItemJson('crown', 2), 'category': 'TREASURE'},
           ],
         },
       ),

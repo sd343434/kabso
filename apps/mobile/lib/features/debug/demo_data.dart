@@ -203,6 +203,8 @@ class DemoLiveRepository implements LiveRepository {
     required LiveRoomsTab tab,
     String? category,
     LiveRoomsKind? kind,
+    bool nearby = false,
+    bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) async {
@@ -210,7 +212,7 @@ class DemoLiveRepository implements LiveRepository {
     if (kind != null) {
       rooms = [
         for (final r in rooms)
-          if (LiveRoomsKind.of(r.mode) == kind) r,
+          if (kind.includes(r.mode)) r,
       ];
     }
     if (category != null) {
@@ -227,6 +229,8 @@ class DemoLiveRepository implements LiveRepository {
       // The demo account follows two hosts.
       LiveRoomsTab.following => rooms.take(2).toList(),
     };
+    // D133: the demo hosts count as featured and as near the demo account.
+    if (featured) rooms = rooms.take(2).toList();
     return LiveRoomPage(
       data: rooms,
       page: const PageInfo(nextCursor: null, hasMore: false),

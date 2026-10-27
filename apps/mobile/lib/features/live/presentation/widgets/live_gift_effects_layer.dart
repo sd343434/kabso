@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
@@ -21,6 +22,9 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
 
   static Key bannerKey(String comboId) => Key('gift.banner.$comboId');
   static const effectKey = Key('gift.effect');
+
+  /// D132: the big lucky win banner.
+  static const luckyKey = Key('gift.lucky');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +58,18 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
               ),
             ),
           ),
+          if (effects.lucky case final win?)
+            Align(
+              alignment: const Alignment(0, -0.62),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+                child: LiveLuckyWinBanner(
+                  key: luckyKey,
+                  win: win,
+                  name: catalogue?.byCode(win.giftCode)?.name,
+                ),
+              ),
+            ),
           if (big != null)
             Positioned.fill(
               key: effectKey,
@@ -219,6 +235,66 @@ class LiveGiftBanner extends StatelessWidget {
           ),
         ),
         child: banner,
+      ),
+    );
+  }
+}
+
+/// D132 (owner): a big lucky win (×100 or more) announced to the room, in
+/// Kabso's own style: a gold pill with the coin, the sender, ×multiplier
+/// and the coins won. Screen readers hear it once.
+class LiveLuckyWinBanner extends StatelessWidget {
+  const new({required this.win, super.key, this.name});
+
+  final LuckyWin win;
+
+  /// The gift's name from the catalogue, when known.
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = l10n.liveLuckyBanner(
+      KFormat.bidiIsolate(win.sender.displayName),
+      KFormat.grouped(win.multiplier),
+      KFormat.bidiIsolate(KFormat.grouped(win.coinsWon)),
+    );
+    return Semantics(
+      liveRegion: true,
+      label: name == null ? text : '$text, $name',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KSpacing.md,
+          vertical: KSpacing.xs + 2,
+        ),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFC94A), Color(0xFFFF8A3D)],
+          ),
+          borderRadius: BorderRadius.circular(KRadius.pill),
+          boxShadow: const [
+            BoxShadow(color: Color(0x66000000), blurRadius: 10),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const KabsoArtIcon(KabsoArt.coin, size: 20),
+            const SizedBox(width: KSpacing.xs),
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.label.copyWith(
+                  color: const Color(0xFF3A1C00),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

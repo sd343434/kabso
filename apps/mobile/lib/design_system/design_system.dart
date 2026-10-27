@@ -1,11 +1,14 @@
 export 'components/k_avatar.dart';
 export 'components/k_badge.dart';
 export 'components/k_button.dart';
+export 'components/k_cherry.dart';
 export 'components/k_chip.dart';
 export 'components/k_logo.dart';
+export 'components/k_party_icon.dart';
 export 'components/k_skeleton.dart';
 export 'components/k_snack.dart';
 export 'components/k_states.dart';
+export 'components/k_tab_bar.dart';
 export 'components/k_tabs.dart';
 export 'components/k_text_field.dart';
 export 'theme/app_theme.dart';

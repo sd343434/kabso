@@ -12,13 +12,17 @@ import 'package:material_ui/material_ui.dart' show immutable;
 /// and one large centred effect for a gift with an animation or a big one.
 @immutable
 class LiveGiftEffectsState {
-  const new({this.banners = const [], this.big});
+  const new({this.banners = const [], this.big, this.lucky});
 
   /// The banners on screen, oldest first.
   final List<LiveGift> banners;
 
   /// The big gift playing now, or null.
   final LiveGift? big;
+
+  /// D132: the big lucky win announced now (×[LiveGiftEffects.luckyBanner]
+  /// or more), or null.
+  final LuckyWin? lucky;
 }
 
 /// Plays the gifts of one live: the `gift` data messages of the media room
@@ -51,12 +55,19 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// At most this many sends wait for a banner or the large effect.
   static const maxWaiting = 20;
 
+  /// D131/D132 (owner): a lucky win of at least this multiplier gets the
+  /// room banner, for [luckyTime].
+  static const luckyBanner = 100;
+  static const luckyTime = Duration(seconds: 4);
+
   StreamSubscription<LiveChatEvent>? _events;
   final _seen = <String>{};
   final _waiting = <LiveGift>[];
   final _waitingBig = <LiveGift>[];
   final _timers = <String, Timer>{};
   Timer? _bigTimer;
+  Timer? _luckyTimer;
+  final _luckyWaiting = <LuckyWin>[];
 
   @override
   LiveGiftEffectsState build() {
@@ -67,6 +78,7 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       }
       _timers.clear();
       _bigTimer?.cancel();
+      _luckyTimer?.cancel();
     });
     return const LiveGiftEffectsState();
   }
@@ -77,7 +89,35 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     _events = engine.chatEvents.listen((event) {
       if (event is LiveGiftReceived && event.gift.roomId == roomId) {
         show(event.gift);
+      } else if (event is LuckyWinReceived && event.win.roomId == roomId) {
+        showLucky(event.win);
       }
+    });
+  }
+
+  /// D132: announces [win] when it reaches [luckyBanner] (one at a time;
+  /// a send seen twice shows once).
+  void showLucky(LuckyWin win) {
+    if (!ref.mounted || win.multiplier < luckyBanner) return;
+    if (!_seen.add('lucky:${win.giftId}')) return;
+    if (state.lucky != null) {
+      if (_luckyWaiting.length < maxWaiting) _luckyWaiting.add(win);
+      return;
+    }
+    _setLucky(win);
+  }
+
+  void _setLucky(LuckyWin? win) {
+    state = LiveGiftEffectsState(
+      banners: state.banners,
+      big: state.big,
+      lucky: win,
+    );
+    _luckyTimer?.cancel();
+    if (win == null) return;
+    _luckyTimer = Timer(luckyTime, () {
+      if (!ref.mounted) return;
+      _setLucky(_luckyWaiting.isEmpty ? null : _luckyWaiting.removeAt(0));
     });
   }
 
@@ -127,6 +167,7 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
         state = LiveGiftEffectsState(
           banners: [...banners]..[i] = gift,
           big: state.big,
+          lucky: state.lucky,
         );
       }
       _hold(key);
@@ -138,7 +179,11 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       return;
     }
     if (banners.length < maxBanners) {
-      state = LiveGiftEffectsState(banners: [...banners, gift], big: state.big);
+      state = LiveGiftEffectsState(
+        banners: [...banners, gift],
+        big: state.big,
+        lucky: state.lucky,
+      );
       _hold(key);
     } else if (_waiting.length < maxWaiting) {
       _waiting.add(gift);
@@ -162,7 +207,11 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       banners.add(next);
       _hold(_comboKey(next));
     }
-    state = LiveGiftEffectsState(banners: banners, big: state.big);
+    state = LiveGiftEffectsState(
+      banners: banners,
+      big: state.big,
+      lucky: state.lucky,
+    );
   }
 
   void _big(LiveGift gift) {
@@ -170,7 +219,11 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
       if (_waitingBig.length < maxWaiting) _waitingBig.add(gift);
       return;
     }
-    state = LiveGiftEffectsState(banners: state.banners, big: gift);
+    state = LiveGiftEffectsState(
+      banners: state.banners,
+      big: gift,
+      lucky: state.lucky,
+    );
     _bigTimer = Timer(bigTime, _bigDone);
   }
 
@@ -178,7 +231,11 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     _bigTimer = null;
     if (!ref.mounted) return;
     final next = _waitingBig.isEmpty ? null : _waitingBig.removeAt(0);
-    state = LiveGiftEffectsState(banners: state.banners, big: next);
+    state = LiveGiftEffectsState(
+      banners: state.banners,
+      big: next,
+      lucky: state.lucky,
+    );
     if (next != null) _bigTimer = Timer(bigTime, _bigDone);
   }
 }

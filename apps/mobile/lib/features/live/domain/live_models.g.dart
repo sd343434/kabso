@@ -240,10 +240,23 @@ _LiveRoomPage _$LiveRoomPageFromJson(Map<String, dynamic> json) =>
           .map((e) => LiveRoomSummary.fromJson(e as Map<String, dynamic>))
           .toList(),
       page: PageInfo.fromJson(json['page'] as Map<String, dynamic>),
+      emptyReason: $enumDecodeNullable(
+        _$LiveRoomsEmptyReasonEnumMap,
+        json['emptyReason'],
+        unknownValue: JsonKey.nullForUndefinedEnumValue,
+      ),
     );
 
 Map<String, dynamic> _$LiveRoomPageToJson(_LiveRoomPage instance) =>
-    <String, dynamic>{'data': instance.data, 'page': instance.page};
+    <String, dynamic>{
+      'data': instance.data,
+      'page': instance.page,
+      'emptyReason': _$LiveRoomsEmptyReasonEnumMap[instance.emptyReason],
+    };
+
+const _$LiveRoomsEmptyReasonEnumMap = {
+  LiveRoomsEmptyReason.countryNotSet: 'COUNTRY_NOT_SET',
+};
 
 _LiveMediaAccess _$LiveMediaAccessFromJson(Map<String, dynamic> json) =>
     _LiveMediaAccess(

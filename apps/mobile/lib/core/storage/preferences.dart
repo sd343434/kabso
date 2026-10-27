@@ -25,6 +25,8 @@ abstract final class PreferenceKeys {
   static const welcomeSeen = 'pref.welcomeSeen';
 
   /// D129: the live hub's last kind filter on this device (`audio` /
-  /// `video`). Not sensitive.
+  /// `video`). D131: no longer read or written (the hub lists video lives;
+  /// the party button opens the voice rooms). A value saved by an older
+  /// build is left alone and ignored. Not sensitive.
   static const liveHubKind = 'pref.liveHubKind';
 }

@@ -1,4 +1,5 @@
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/design_system/components/k_cherry.dart';
 import 'package:kabso_live/design_system/theme/app_theme.dart';
 import 'package:kabso_live/design_system/tokens/component_metrics.dart';
 import 'package:kabso_live/design_system/tokens/tokens.dart';
@@ -155,23 +156,6 @@ class KViewerCountChip extends StatelessWidget {
   }
 }
 
-/// The points icon (CP-012): the owner's gold "K" coin
-/// (`assets/points/`), drawn next to every points count. Decorative: the
-/// count beside it carries the meaning.
-class KPointsIcon extends StatelessWidget {
-  const new({this.size = KMetrics.iconXs, super.key});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Image.asset(
-    'assets/points/coin.png',
-    width: size,
-    height: size,
-    excludeFromSemantics: true,
-  );
-}
-
 /// A live's points (CP-012): the points coin and the short count on
 /// `scrim`, the same size as [KViewerCountChip].
 class KScoreChip extends StatelessWidget {
@@ -202,7 +186,7 @@ class KScoreChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const KPointsIcon(),
+              const KCherryIcon(size: KMetrics.iconXs),
               const SizedBox(width: KSpacing.xxs),
               Text(
                 formatted,

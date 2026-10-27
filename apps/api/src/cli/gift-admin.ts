@@ -6,7 +6,7 @@
  * `docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js …`
  * (docs/DEPLOYMENT.md), locally with `pnpm gift:admin …`.
  *
- *   pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>
+ *   pnpm gift:admin add <code> --category POPULAR|EVENT|FUN|LUCKY --name-ar <text> --name-en <text>
  *                   --price <coins> --asset <assetKey> [--animation <animationKey>] [--sort <n>]
  *                   [--badge NONE|NEW|EVENT] [--tag <tagCode> --tag-ar <text> --tag-en <text>]
  *                   [--image <file.png|webp>] [--animation-file <file.svga>]
@@ -18,6 +18,12 @@
  *   pnpm gift:admin list               # every gift, disabled ones marked `-`
  *   pnpm gift:admin grant <email> <code> <quantity>   # adds to the user's gift bag
  *   pnpm gift:admin bag <email>        # the user's gift bag
+ *   pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]   # latest lucky sends with a win
+ *   pnpm gift:admin lucky-day [YYYY-MM-DD]                         # a day's lucky spend and payout
+ *
+ * v1.27-live (D132, CONVENTIONS §10.27): `--category LUCKY` makes a lucky gift (listed and sendable
+ * only while the API has LUCKY_GIFTS_ENABLED=true; sent with coins only, so `grant` refuses it).
+ * `lucky-wins` and `lucky-day` read the audit rows of the draws and the daily protection.
  *
  * `--image` / `--animation-file` (v1.26.2-live, D126) upload the gift's art to object storage, from
  * where the app downloads it on demand (no app release for a new gift): a PNG or WebP image (≤ 1 MB,
@@ -61,6 +67,7 @@ import {
   updateGiftIn,
   type GiftFields,
 } from '../modules/gifts/gift-catalogue.js';
+import { budgetLeft, percentToBps } from '../modules/gifts/lucky-odds.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -68,7 +75,7 @@ function fail(message: string): never {
 }
 
 const USAGE = [
-  'Usage: pnpm gift:admin add <code> --category POPULAR|EVENT|FUN --name-ar <text> --name-en <text>',
+  'Usage: pnpm gift:admin add <code> --category POPULAR|EVENT|FUN|LUCKY --name-ar <text> --name-en <text>',
   '         --price <coins> --asset <assetKey> [--animation <key>] [--sort <n>] [--badge NONE|NEW|EVENT]',
   '         [--tag <tagCode> --tag-ar <text> --tag-en <text>]',
   '         [--image <file.png|webp>] [--animation-file <file.svga>]',
@@ -78,6 +85,8 @@ const USAGE = [
   '       pnpm gift:admin list',
   '       pnpm gift:admin grant <email> <code> <quantity>',
   '       pnpm gift:admin bag <email>',
+  '       pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]',
+  '       pnpm gift:admin lucky-day [YYYY-MM-DD]',
 ].join('\n');
 
 const url = process.env.MIGRATION_DATABASE_URL;
@@ -380,8 +389,10 @@ async function grant(email: string, code: string, rawQuantity: string | undefine
   }
   const userId = await user(email);
   const total = await prisma.$transaction(async (tx) => {
-    const gift = await tx.gift.findUnique({ where: { code }, select: { code: true } });
+    const gift = await tx.gift.findUnique({ where: { code }, select: { code: true, category: true } });
     if (!gift) fail(`No gift ${code}.`);
+    // v1.27-live (D132): lucky gifts are sent with coins only (a bag send would draw for free).
+    if (gift.category === 'LUCKY') fail(`${code} is a LUCKY gift; lucky gifts cannot be put in a bag.`);
     const after = await grantStockIn(tx, userId, code, quantity);
     if (after === null)
       fail(`${email} would hold more than ${String(GIFT_STOCK_MAX)} of ${code}; nothing changed.`);
@@ -414,6 +425,65 @@ async function bag(email: string): Promise<void> {
   }
 }
 
+/** v1.27-live (D132): the latest lucky sends that won something (the audit rows of the draws). */
+async function luckyWins(args: readonly string[]): Promise<void> {
+  let values: Record<string, string | undefined>;
+  try {
+    ({ values } = parseArgs({
+      args: [...args],
+      options: { limit: { type: 'string' }, 'min-multiplier': { type: 'string' } },
+      strict: true,
+      allowPositionals: false,
+    }));
+  } catch (err) {
+    fail(`${err instanceof Error ? err.message : String(err)}\n${USAGE}`);
+  }
+  const limit = values.limit === undefined ? 50 : wholeNumber(values.limit, 'The limit');
+  if (limit < 1 || limit > 1000) fail('The limit must be from 1 to 1000.');
+  const min =
+    values['min-multiplier'] === undefined
+      ? 2
+      : wholeNumber(values['min-multiplier'], 'The minimum multiplier');
+  const rows = await prisma.luckyGiftDraw.findMany({
+    where: { coinsWon: { gt: 0 }, topMultiplier: { gte: min } },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    include: { sender: { select: { email: true, profile: { select: { username: true } } } } },
+  });
+  if (rows.length === 0) {
+    process.stdout.write('No lucky wins.\n');
+    return;
+  }
+  for (const r of rows) {
+    process.stdout.write(
+      `${r.createdAt.toISOString()} ${r.giftId} @${r.sender.profile?.username ?? '?'} ${r.giftCode} ` +
+        `${String(r.unitPrice)}x${String(r.quantity)}x${String(r.recipients)} draws=${String(r.draws)} ` +
+        `top=x${String(r.topMultiplier)} won=${String(r.coinsWon)} downgraded=${String(r.downgraded)} ` +
+        `budget=${String(r.budgetBefore)}->${String(r.budgetAfter)}\n`,
+    );
+  }
+}
+
+/** v1.27-live (D132): one day of the daily protection (default: today in UTC). */
+async function luckyDay(raw: string | undefined): Promise<void> {
+  const day = raw ?? new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(`${day}T00:00:00Z`))) {
+    fail('The day is YYYY-MM-DD.');
+  }
+  const row = await prisma.luckyGiftDay.findUnique({ where: { day: new Date(`${day}T00:00:00.000Z`) } });
+  if (!row) {
+    process.stdout.write(`${day}: no lucky gifts.\n`);
+    return;
+  }
+  const rtpBps = percentToBps(process.env.LUCKY_GIFT_RTP_PERCENT ?? '85') ?? 8500;
+  const realised = row.spendCoins > 0n ? Number((row.paidCoins * 10_000n) / row.spendCoins) / 100 : 0;
+  process.stdout.write(
+    `${day}: spend=${String(row.spendCoins)} paid=${String(row.paidCoins)} ` +
+      `budget left=${String(budgetLeft(row.spendCoins, row.paidCoins, rtpBps))} (RTP ${String(rtpBps / 100)} %) ` +
+      `realised=${String(realised)} % sends=${String(row.sends)} draws=${String(row.draws)}\n`,
+  );
+}
+
 const [command, first, ...rest] = process.argv.slice(2);
 try {
   switch (command) {
@@ -439,6 +509,13 @@ try {
     case 'bag':
       if (!first || rest.length > 0) fail(USAGE);
       await bag(first);
+      break;
+    case 'lucky-wins':
+      await luckyWins(first === undefined ? [] : [first, ...rest]);
+      break;
+    case 'lucky-day':
+      if (rest.length > 0) fail(USAGE);
+      await luckyDay(first);
       break;
     default:
       fail(command ? `Unknown command ${command}.\n${USAGE}` : USAGE);

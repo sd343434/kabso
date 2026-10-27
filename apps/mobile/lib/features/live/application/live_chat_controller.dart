@@ -78,6 +78,17 @@ final class LiveChatJoinLine {
   final int burst;
 }
 
+/// D131 (owner, ref 158): "X joined" as a chat line of the video live, in
+/// the reference's row style (the audio room keeps D119's join strip).
+final class LiveChatJoinItem extends LiveChatItem {
+  const new(this.join);
+
+  final LiveChatJoinLine join;
+
+  @override
+  String get key => 'j:${join.serial}';
+}
+
 /// CP-017 (owner, 2026-10-26): a bullet ("public message") in the chat, as
 /// a box of its own; it stays like a message.
 final class LiveChatBulletLine extends LiveChatItem {
@@ -336,14 +347,17 @@ class LiveChatController extends Notifier<LiveChatState> {
         final quick = last != null && now.difference(last) < joinBurstWindow;
         _lastJoinAt = now;
         final before = state.latestJoin;
+        // A partner this person blocked: a normal join.
+        final join = LiveChatJoinLine(
+          user,
+          _serial++,
+          cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
+          burst: quick && before != null ? before.burst + 1 : 0,
+        );
         state = state.copyWith(
-          // A partner this person blocked: a normal join.
-          latestJoin: LiveChatJoinLine(
-            user,
-            _serial++,
-            cp: cp == null || _blocked.contains(cp.partner.id) ? null : cp,
-            burst: quick && before != null ? before.burst + 1 : 0,
-          ),
+          latestJoin: join,
+          // D131: also a line (the video live shows joins as rows).
+          items: _trim([...state.items, LiveChatJoinItem(join)]),
         );
       case LiveChatStateChanged(:final enabled):
         state = state.copyWith(enabled: enabled);
@@ -353,9 +367,9 @@ class LiveChatController extends Notifier<LiveChatState> {
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
         _addBullet(bullet);
-      case LiveGiftReceived():
+      case LiveGiftReceived() || LuckyWinReceived():
         // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
-        // them.
+        // them (and D132's big lucky wins).
         break;
     }
   }
@@ -365,13 +379,37 @@ class LiveChatController extends Notifier<LiveChatState> {
 
   /// Keeps the newest [maxLines] lines; this person's pending ones and the
   /// rules line (D118) stay and do not count.
-  List<LiveChatItem> _trim(List<LiveChatItem> items) {
+  /// D131: join lines kept at most (older joins leave first).
+  static const maxJoinLines = 4;
+
+  List<LiveChatItem> _trim(List<LiveChatItem> all) {
+    var items = all;
+    // D131: join lines have their own small budget; they never push out a
+    // message.
+    var joins = items.whereType<LiveChatJoinItem>().length - maxJoinLines;
+    if (joins > 0) {
+      final out = <LiveChatItem>[];
+      for (final it in items) {
+        if (it is LiveChatJoinItem && joins > 0) {
+          joins--;
+          continue;
+        }
+        out.add(it);
+      }
+      items = out;
+    }
     var extra =
-        items.where((it) => it is! LiveChatNoticeLine).length - maxLines;
+        items
+            .where((it) => it is! LiveChatNoticeLine && it is! LiveChatJoinItem)
+            .length -
+        maxLines;
     if (extra <= 0) return items;
     final kept = <LiveChatItem>[];
     for (final it in items) {
-      if (extra > 0 && it is! LiveChatPending && it is! LiveChatNoticeLine) {
+      if (extra > 0 &&
+          it is! LiveChatPending &&
+          it is! LiveChatNoticeLine &&
+          it is! LiveChatJoinItem) {
         extra--;
         continue;
       }

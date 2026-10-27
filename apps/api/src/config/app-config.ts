@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { envSchema, type Env, type RateLimitRule } from './env.schema.js';
+import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
@@ -140,6 +141,18 @@ export interface AppConfig {
   readonly gifts: {
     /** The quantities a send may use, ascending (LIVE_GIFT_QUANTITIES). */
     readonly quantities: readonly number[];
+  };
+  /** v1.27-live (D132) lucky gifts (CONVENTIONS §10.27). */
+  readonly lucky: {
+    readonly enabled: boolean;
+    /** The validated odds (the server refuses to start on an invalid table). */
+    readonly table: LuckyTable;
+    readonly bigWinMultiplier: number;
+    readonly dayTimeZone: string;
+    /** ISO 3166-1 alpha-2, upper case. */
+    readonly disabledCountries: readonly string[];
+    /** Lower-case header name set by the edge, or null. */
+    readonly countryHeader: string | null;
   };
   /** Contract v1.3 live discovery (CONVENTIONS §10). */
   readonly live: {
@@ -314,6 +327,19 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
+    lucky: {
+      enabled: e.LUCKY_GIFTS_ENABLED,
+      table: luckyTable(
+        e.LUCKY_GIFT_RTP_PERCENT,
+        e.LUCKY_GIFT_HOST_SHARE_PERCENT,
+        e.LUCKY_GIFT_MULTIPLIERS,
+        e.LUCKY_GIFT_RTP_SHARES,
+      ) as LuckyTable,
+      bigWinMultiplier: e.LUCKY_GIFT_BIG_WIN_MULTIPLIER,
+      dayTimeZone: e.LUCKY_GIFT_DAY_TIME_ZONE,
+      disabledCountries: e.LUCKY_GIFTS_DISABLED_COUNTRIES,
+      countryHeader: e.LUCKY_GIFTS_COUNTRY_HEADER ?? null,
+    },
     live: {
       hostingEnabled: e.LIVE_HOSTING_ENABLED,
       heartbeatIntervalSeconds: e.LIVE_HEARTBEAT_INTERVAL_SECONDS,

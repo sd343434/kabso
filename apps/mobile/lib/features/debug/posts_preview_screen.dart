@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
@@ -51,10 +52,10 @@ class PostsPreviewScreen extends StatelessWidget {
       ],
       child: Scaffold(
         body: FeedScreen(initialTab: initialTab, showNotifications: false),
-        bottomNavigationBar: KBottomNav(
+        bottomNavigationBar: KTabBar(
           currentIndex: AppRoutes.shellBranches.indexOf(AppRoutes.reels),
           onSelect: (i) => context.go(AppRoutes.shellBranches[i]),
-          items: shellNavItems(context.l10n),
+          items: shellTabItems(context.l10n),
         ),
       ),
     );

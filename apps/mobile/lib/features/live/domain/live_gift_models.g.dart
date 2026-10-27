@@ -54,6 +54,7 @@ const _$GiftCategoryEnumMap = {
   GiftCategory.popular: 'POPULAR',
   GiftCategory.event: 'EVENT',
   GiftCategory.fun: 'FUN',
+  GiftCategory.lucky: 'LUCKY',
 };
 
 const _$GiftBadgeEnumMap = {
@@ -166,6 +167,11 @@ _LiveGiftResult _$LiveGiftResultFromJson(Map<String, dynamic> json) =>
       gift: LiveGift.fromJson(json['gift'] as Map<String, dynamic>),
       coins: (json['coins'] as num).toInt(),
       bagQuantity: (json['bagQuantity'] as num).toInt(),
+      luckyResult: json['luckyResult'] == null
+          ? null
+          : LuckyGiftResult.fromJson(
+              json['luckyResult'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$LiveGiftResultToJson(_LiveGiftResult instance) =>
@@ -173,4 +179,138 @@ Map<String, dynamic> _$LiveGiftResultToJson(_LiveGiftResult instance) =>
       'gift': instance.gift,
       'coins': instance.coins,
       'bagQuantity': instance.bagQuantity,
+      'luckyResult': instance.luckyResult,
     };
+
+_LuckyGiftWin _$LuckyGiftWinFromJson(Map<String, dynamic> json) =>
+    _LuckyGiftWin(
+      multiplier: (json['multiplier'] as num).toInt(),
+      count: (json['count'] as num).toInt(),
+      coins: (json['coins'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$LuckyGiftWinToJson(_LuckyGiftWin instance) =>
+    <String, dynamic>{
+      'multiplier': instance.multiplier,
+      'count': instance.count,
+      'coins': instance.coins,
+    };
+
+_LuckyGiftResult _$LuckyGiftResultFromJson(Map<String, dynamic> json) =>
+    _LuckyGiftResult(
+      draws: (json['draws'] as num).toInt(),
+      wins: (json['wins'] as List<dynamic>)
+          .map((e) => LuckyGiftWin.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      coinsWon: (json['coinsWon'] as num).toInt(),
+      topMultiplier: (json['topMultiplier'] as num?)?.toInt(),
+      downgraded: (json['downgraded'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$LuckyGiftResultToJson(_LuckyGiftResult instance) =>
+    <String, dynamic>{
+      'draws': instance.draws,
+      'wins': instance.wins,
+      'coinsWon': instance.coinsWon,
+      'topMultiplier': instance.topMultiplier,
+      'downgraded': instance.downgraded,
+    };
+
+_LuckyGiftOutcome _$LuckyGiftOutcomeFromJson(Map<String, dynamic> json) =>
+    _LuckyGiftOutcome(
+      multiplier: (json['multiplier'] as num).toInt(),
+      chancePerMillion: (json['chancePerMillion'] as num).toInt(),
+      probability: (json['probability'] as num).toDouble(),
+    );
+
+Map<String, dynamic> _$LuckyGiftOutcomeToJson(_LuckyGiftOutcome instance) =>
+    <String, dynamic>{
+      'multiplier': instance.multiplier,
+      'chancePerMillion': instance.chancePerMillion,
+      'probability': instance.probability,
+    };
+
+_LuckyGiftEligibility _$LuckyGiftEligibilityFromJson(
+  Map<String, dynamic> json,
+) => _LuckyGiftEligibility(
+  eligible: json['eligible'] as bool,
+  reason: $enumDecodeNullable(
+    _$LuckyGiftIneligibilityEnumMap,
+    json['reason'],
+    unknownValue: LuckyGiftIneligibility.unknown,
+  ),
+  ageConfirmed: json['ageConfirmed'] as bool,
+);
+
+Map<String, dynamic> _$LuckyGiftEligibilityToJson(
+  _LuckyGiftEligibility instance,
+) => <String, dynamic>{
+  'eligible': instance.eligible,
+  'reason': _$LuckyGiftIneligibilityEnumMap[instance.reason],
+  'ageConfirmed': instance.ageConfirmed,
+};
+
+const _$LuckyGiftIneligibilityEnumMap = {
+  LuckyGiftIneligibility.disabled: 'DISABLED',
+  LuckyGiftIneligibility.regionUnavailable: 'REGION_UNAVAILABLE',
+  LuckyGiftIneligibility.ageUnconfirmed: 'AGE_UNCONFIRMED',
+  LuckyGiftIneligibility.unknown: 'unknown',
+};
+
+_LuckyGiftOdds _$LuckyGiftOddsFromJson(Map<String, dynamic> json) =>
+    _LuckyGiftOdds(
+      enabled: json['enabled'] as bool,
+      drawsPerGift: (json['drawsPerGift'] as num).toInt(),
+      returnPercent: (json['returnPercent'] as num).toDouble(),
+      hostSharePercent: (json['hostSharePercent'] as num).toDouble(),
+      outcomes: (json['outcomes'] as List<dynamic>)
+          .map((e) => LuckyGiftOutcome.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      noWinChancePerMillion: (json['noWinChancePerMillion'] as num).toInt(),
+      noWinProbability: (json['noWinProbability'] as num).toDouble(),
+      bigWinMultiplier: (json['bigWinMultiplier'] as num).toInt(),
+      dailyProtection: json['dailyProtection'] as bool,
+      dayTimeZone: json['dayTimeZone'] as String,
+      minimumAge: (json['minimumAge'] as num).toInt(),
+      caller: json['caller'] == null
+          ? null
+          : LuckyGiftEligibility.fromJson(
+              json['caller'] as Map<String, dynamic>,
+            ),
+    );
+
+Map<String, dynamic> _$LuckyGiftOddsToJson(_LuckyGiftOdds instance) =>
+    <String, dynamic>{
+      'enabled': instance.enabled,
+      'drawsPerGift': instance.drawsPerGift,
+      'returnPercent': instance.returnPercent,
+      'hostSharePercent': instance.hostSharePercent,
+      'outcomes': instance.outcomes,
+      'noWinChancePerMillion': instance.noWinChancePerMillion,
+      'noWinProbability': instance.noWinProbability,
+      'bigWinMultiplier': instance.bigWinMultiplier,
+      'dailyProtection': instance.dailyProtection,
+      'dayTimeZone': instance.dayTimeZone,
+      'minimumAge': instance.minimumAge,
+      'caller': instance.caller,
+    };
+
+_LuckyWin _$LuckyWinFromJson(Map<String, dynamic> json) => _LuckyWin(
+  giftId: json['giftId'] as String,
+  roomId: json['roomId'] as String,
+  giftCode: json['giftCode'] as String,
+  sender: UserSummary.fromJson(json['sender'] as Map<String, dynamic>),
+  multiplier: (json['multiplier'] as num).toInt(),
+  coinsWon: (json['coinsWon'] as num).toInt(),
+  createdAt: DateTime.parse(json['createdAt'] as String),
+);
+
+Map<String, dynamic> _$LuckyWinToJson(_LuckyWin instance) => <String, dynamic>{
+  'giftId': instance.giftId,
+  'roomId': instance.roomId,
+  'giftCode': instance.giftCode,
+  'sender': instance.sender,
+  'multiplier': instance.multiplier,
+  'coinsWon': instance.coinsWon,
+  'createdAt': instance.createdAt.toIso8601String(),
+};
