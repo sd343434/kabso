@@ -1246,6 +1246,8 @@ model MediaAsset {
   familyEmblem Family?
   /// CP-022: a family's cover.
   familyCover  Family? @relation("FamilyCover")
+  /// D124: a home banner's picture.
+  homeBanner   HomeBanner?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -2225,25 +2227,32 @@ enum LiveGiftSource {
 /// The gift catalogue, managed only with the `gift-admin` CLI (no gift is seeded). Disabled, never
 /// deleted. CHECKs `gifts_code_format`, `gifts_price_range`, `gifts_names_present`.
 model Gift {
-  code         String       @id @db.VarChar(40)
-  category     GiftCategory
-  nameAr       String       @map("name_ar") @db.VarChar(60)
-  nameEn       String       @map("name_en") @db.VarChar(60)
-  priceCoins   Int          @map("price_coins")
+  code               String       @id @db.VarChar(40)
+  category           GiftCategory
+  nameAr             String       @map("name_ar") @db.VarChar(60)
+  nameEn             String       @map("name_en") @db.VarChar(60)
+  priceCoins         Int          @map("price_coins")
   /// The app's static image of the gift.
-  assetKey     String       @map("asset_key") @db.VarChar(80)
+  assetKey           String       @map("asset_key") @db.VarChar(80)
   /// The app's full-screen effect (SVGA), or null for none.
-  animationKey String?      @map("animation_key") @db.VarChar(80)
-  sortOrder    Int          @default(0) @map("sort_order")
-  badge        GiftBadge    @default(NONE)
+  animationKey       String?      @map("animation_key") @db.VarChar(80)
+  sortOrder          Int          @default(0) @map("sort_order")
+  badge              GiftBadge    @default(NONE)
   /// v1.24.3-live (D117): the optional sub-category (the panel's chips): all three null or all set
   /// (CHECK `gifts_tag_complete`; `gifts_tag_code_format`).
-  tagCode      String?      @map("tag_code") @db.VarChar(40)
-  tagNameAr    String?      @map("tag_name_ar") @db.VarChar(30)
-  tagNameEn    String?      @map("tag_name_en") @db.VarChar(30)
-  enabled      Boolean      @default(true)
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tagCode            String?      @map("tag_code") @db.VarChar(40)
+  tagNameAr          String?      @map("tag_name_ar") @db.VarChar(30)
+  tagNameEn          String?      @map("tag_name_en") @db.VarChar(30)
+  /// v1.26.2-live (D126): the gift's art on the server, downloaded by the app on demand (object keys
+  /// under `media/gifts/<code>/`, content-addressed; the API answers `MEDIA_PUBLIC_BASE_URL/<key>`).
+  /// Null: the bundled `assetKey` / `animationKey` only. `animationBytes` is set exactly when
+  /// `animationObjectKey` is (CHECK `gifts_animation_bytes_set`).
+  imageObjectKey     String?      @map("image_object_key") @db.VarChar(200)
+  animationObjectKey String?      @map("animation_object_key") @db.VarChar(200)
+  animationBytes     Int?         @map("animation_bytes")
+  enabled            Boolean      @default(true)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   stock UserGiftStock[]
   sends LiveGift[]
@@ -2316,4 +2325,31 @@ model LiveGiftRecipient {
   @@id([giftId, userId], map: "live_gift_recipients_pkey")
   @@index([userId], map: "live_gift_recipients_user_idx")
   @@map("live_gift_recipients")
+}
+
+/// D124 (v1.26-live, CONVENTIONS §10.26): a promo banner shown on the live hub between the live
+/// cards. Managed only with the `banner-admin` CLI (migration role); read by `GET /home/banners`
+/// while `enabled` and `starts_at <= now < ends_at` (no end = open). `link` is an in-app route of
+/// the allowlist or an https URL (`home-banners.ts`), checked by the CLI and again on read.
+model HomeBanner {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  /// A `HOME_BANNER` media asset (1 500 × 500 WebP), owned by the banner from now on.
+  mediaId   String    @unique @map("media_id") @db.Uuid
+  /// Optional overlay text, 1–40 code points each.
+  titleAr   String?   @map("title_ar") @db.VarChar(80)
+  titleEn   String?   @map("title_en") @db.VarChar(80)
+  /// The empty side of the picture where the overlay text goes (physical: `LEFT` or `RIGHT`).
+  titleSide String    @default("RIGHT") @map("title_side") @db.VarChar(8)
+  link      String    @db.VarChar(512)
+  startsAt  DateTime  @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz(3)
+  sortOrder Int       @default(0) @map("sort_order")
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
+  @@map("home_banners")
 }

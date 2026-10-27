@@ -3641,6 +3641,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveMinimize => 'تصغير البث';
 
   @override
+  String get liveBgChannel => 'البث المباشر';
+
+  @override
+  String get liveBgHostTitle => 'البث مستمر';
+
+  @override
+  String get liveBgGuestTitle => 'أنت على مقعد في البث';
+
+  @override
+  String get liveBgListenerTitle => 'تستمع إلى بث مباشر';
+
+  @override
+  String get liveBgBody => 'اضغط للعودة إلى الغرفة';
+
+  @override
+  String get liveBgEnd => 'إنهاء البث';
+
+  @override
+  String get liveBgLeave => 'مغادرة';
+
+  @override
   String get goLiveBackToLive => 'العودة إلى البث';
 
   @override
@@ -5650,8 +5671,105 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يرى متابِعي هذا الحساب ومن يتابعهم إلا متابِعوه.';
 
   @override
+  String followListsTabFollowers(String count) {
+    return '$count المتابِعون';
+  }
+
+  @override
+  String followListsTabFollowing(String count) {
+    return '$count يتابع';
+  }
+
+  @override
+  String get followListsAddPeople => 'اكتشف أشخاصاً';
+
+  @override
+  String get followListsSearchHint => 'بحث';
+
+  @override
+  String get followListsSortBy => 'الترتيب:';
+
+  @override
+  String get followListsSortDefault => 'الافتراضي';
+
+  @override
+  String get followListsSortOldest => 'الأقدم أولاً';
+
+  @override
+  String get followListsSortToggle => 'تغيير الترتيب';
+
+  @override
+  String followListsRowMore(String name) {
+    return 'خيارات $name';
+  }
+
+  @override
+  String get followListsRemoveFollower => 'إزالة المتابِع';
+
+  @override
+  String followListsRemoveFollowerTitle(String name) {
+    return 'إزالة $name من متابِعيك؟';
+  }
+
+  @override
+  String get followListsRemoveFollowerBody =>
+      'لن يُبلَّغ بذلك، ويستطيع متابعتك مجدداً ما لم يكن حسابك خاصاً.';
+
+  @override
+  String get followListsRemoveFollowerConfirm => 'إزالة';
+
+  @override
+  String followListsFollowerRemoved(String name) {
+    return 'أُزيل $name من متابِعيك';
+  }
+
+  @override
+  String get followListsNoMatch => 'لا نتائج';
+
+  @override
+  String followListsNoMatchBody(String query) {
+    return 'لا أحد في هذه القائمة يبدأ اسمه بـ «$query».';
+  }
+
+  @override
   String get profileOpenFollowers => 'عرض المتابِعين';
 
   @override
   String get profileOpenFollowing => 'عرض من يتابعهم';
+
+  @override
+  String get liveHubBrand => 'Kabso';
+
+  @override
+  String get liveGridAudio => 'صوتي';
+
+  @override
+  String get liveGridVideo => 'فيديو';
+
+  @override
+  String homeBannerSemantics(int index, int count) {
+    return 'إعلان $index من $count';
+  }
+
+  @override
+  String homeBannerTitledSemantics(String title, int index, int count) {
+    return '$title، إعلان $index من $count';
+  }
+
+  @override
+  String get familiesActivitiesTitle => 'أنشطة العائلات';
+
+  @override
+  String get familiesActivityMonthly => 'التصنيف الشهري\nهيبة العائلة';
+
+  @override
+  String familiesRowMembers(int count, int capacity) {
+    return 'الأعضاء: $count/$capacity';
+  }
+
+  @override
+  String get familiesMonthPointsLabel => 'نقاط هذا الشهر:';
+
+  @override
+  String get familiesActiveLabel => 'نشطون هذا الأسبوع:';
 }

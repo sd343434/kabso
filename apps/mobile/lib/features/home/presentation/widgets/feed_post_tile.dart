@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +38,7 @@ class FeedPostData {
     this.location,
     this.text,
     this.media,
+    this.gallery = const [],
     this.mediaAspect,
     this.isVideo = false,
     this.likes,
@@ -77,6 +80,10 @@ class FeedPostData {
 
   /// Photo or video cover; `null` for a text-only post.
   final ImageProvider? media;
+
+  /// Every photo of a post with more than one, in post order (the first is
+  /// [media]). The tile then swipes between them; empty: [media] alone.
+  final List<ImageProvider> gallery;
 
   /// Width / height of [media]; `KMetrics.feedMediaAspect` when unknown.
   final double? mediaAspect;
@@ -169,7 +176,7 @@ abstract final class KPostCard {
 /// needs post links, CP-006 Q7). Previews without a post id are display
 /// only. Someone else's real post records a view while at least half of
 /// it is on screen ([ViewRecorder], `POST /views`).
-class FeedPostTile extends StatelessWidget {
+class FeedPostTile extends StatefulWidget {
   const new({required this.post, super.key});
 
   final FeedPostData post;
@@ -195,6 +202,20 @@ class FeedPostTile extends StatelessWidget {
   static const muteActionKey = Key('feed.post.more.mute');
   static const pendingKey = Key('feed.post.pending');
   static const deleteConfirmKey = Key('feed.post.delete.confirm');
+  static const mediaPagerKey = Key('feed.post.media.pager');
+  static const mediaCounterKey = Key('feed.post.media.counter');
+  static const mediaDotsKey = Key('feed.post.media.dots');
+  static const likeBurstKey = Key('feed.post.likeBurst');
+
+  @override
+  State<FeedPostTile> createState() => _FeedPostTileState();
+}
+
+class _FeedPostTileState extends State<FeedPostTile> {
+  /// Double-tapping the media likes the post through the action row.
+  final _actions = GlobalKey<_ActionsState>();
+
+  FeedPostData get post => widget.post;
 
   @override
   Widget build(BuildContext context) {
@@ -239,24 +260,12 @@ class FeedPostTile extends StatelessWidget {
         if (media != null)
           AspectRatio(
             aspectRatio: post.mediaAspect ?? KMetrics.feedMediaAspect,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ColoredBox(
-                  color: p.surfaceRaised,
-                  child: Image(
-                    image: media,
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    excludeFromSemantics: true,
-                    errorBuilder: (_, _, _) => const SizedBox.expand(),
-                  ),
-                ),
-                if (post.isVideo)
-                  const Center(
-                    child: _VideoMark(key: FeedPostTile.videoMarkKey),
-                  ),
-              ],
+            child: _MediaPager(
+              images: post.gallery.length > 1 ? post.gallery : [media],
+              isVideo: post.isVideo,
+              onDoubleTap: post.postId == null
+                  ? null
+                  : () => _actions.currentState?.likeFromMedia(),
             ),
           ),
         if (post.postId case final id?)
@@ -267,7 +276,7 @@ class FeedPostTile extends StatelessWidget {
               KSpacing.xs,
               0,
             ),
-            child: _Actions(postId: id, post: post),
+            child: _Actions(key: _actions, postId: id, post: post),
           )
         else if (likes != null && comments != null && shares != null)
           Padding(
@@ -881,6 +890,197 @@ class _ExpandableTextState extends State<_ExpandableText> {
   }
 }
 
+/// The post's media, edge to edge: one photo, or a horizontal pager over
+/// all of them (CONVENTIONS §11: up to 10 per post). A swipe in the reading
+/// direction shows the next photo (in Arabic the next one comes from the
+/// left); the counter ("2/5") sits in the top end corner and the dots at
+/// the bottom. The pager is the innermost horizontal scrollable, so it
+/// wins horizontal drags that start on the photo while vertical drags
+/// still scroll the feed. A double tap (posts with an id) likes the post
+/// and shows a heart (no animation with reduced motion).
+class _MediaPager extends StatefulWidget {
+  const new({
+    required this.images,
+    required this.isVideo,
+    required this.onDoubleTap,
+  });
+
+  final List<ImageProvider> images;
+  final bool isVideo;
+  final VoidCallback? onDoubleTap;
+
+  @override
+  State<_MediaPager> createState() => _MediaPagerState();
+}
+
+class _MediaPagerState extends State<_MediaPager>
+    with SingleTickerProviderStateMixin {
+  final _pages = PageController();
+  int _page = 0;
+  late final AnimationController _burst = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  );
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    _burst.dispose();
+    super.dispose();
+  }
+
+  void _doubleTap() {
+    widget.onDoubleTap?.call();
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    _burst.forward(from: 0);
+  }
+
+  Widget _image(ImageProvider image) => ColoredBox(
+    color: context.palette.surfaceRaised,
+    child: Image(
+      image: image,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      excludeFromSemantics: true,
+      errorBuilder: (_, _, _) => const SizedBox.expand(),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final images = widget.images;
+    final count = images.length;
+    final many = count > 1;
+    final page = _page.clamp(0, count - 1);
+    var media = many
+        ? PageView.builder(
+            key: FeedPostTile.mediaPagerKey,
+            controller: _pages,
+            // The neighbour is laid out ahead, so it is ready mid-swipe.
+            allowImplicitScrolling: true,
+            itemCount: count,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) => _image(images[i]),
+          )
+        : _image(images.single);
+    if (many) {
+      media = Semantics(
+        container: true,
+        label: l10n.createPhotoLabel(page + 1, count),
+        child: media,
+      );
+    }
+    final pill = KStatusColors.onStatus.withValues(alpha: 0.6);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (widget.onDoubleTap == null)
+          media
+        else
+          // Only a double tap: drags (the pager, the feed) are untouched.
+          GestureDetector(onDoubleTap: _doubleTap, child: media),
+        if (widget.isVideo && page == 0)
+          const IgnorePointer(
+            child: Center(child: _VideoMark(key: FeedPostTile.videoMarkKey)),
+          ),
+        if (many) ...[
+          PositionedDirectional(
+            top: KSpacing.sm,
+            end: KSpacing.sm,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: Container(
+                  key: FeedPostTile.mediaCounterKey,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: KSpacing.sm,
+                    vertical: KSpacing.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pill,
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                  ),
+                  child: Text(
+                    '${l10n.createPhotoNumber(page + 1)}/'
+                    '${l10n.createPhotoNumber(count)}',
+                    textDirection: TextDirection.ltr,
+                    style: context.textStyles.caption.copyWith(
+                      color: KPalette.dark.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: KSpacing.sm,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: Row(
+                  key: FeedPostTile.mediaDotsKey,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < count; i++)
+                      AnimatedContainer(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        width: i == page ? 7 : 6,
+                        height: i == page ? 7 : 6,
+                        margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == page
+                              ? context.palette.primary
+                              : KPalette.dark.textPrimary.withValues(
+                                  alpha: 0.6,
+                                ),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x40000000), blurRadius: 2),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (widget.onDoubleTap != null)
+          IgnorePointer(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: _burst,
+                builder: (context, _) {
+                  final t = _burst.value;
+                  if (t == 0 || t == 1) return const SizedBox.shrink();
+                  // Grows in quickly, holds, then fades.
+                  final scale = t < 0.25 ? 0.6 + 1.6 * t : 1.0;
+                  final opacity = t < 0.7 ? 1.0 : (1 - t) / 0.3;
+                  return Opacity(
+                    key: FeedPostTile.likeBurstKey,
+                    opacity: opacity.clamp(0, 1),
+                    child: Transform.scale(
+                      scale: scale,
+                      child: AppIcon(
+                        AppIcons.heartFilled,
+                        size: 96,
+                        color: KPalette.dark.textPrimary,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Marks a video cover: a white disc with a play glyph. Playback arrives
 /// with the player, so this is a mark, not a button.
 class _VideoMark extends StatelessWidget {
@@ -978,7 +1178,7 @@ class _Counts extends StatelessWidget {
 /// repost and save apply at once and are undone with a message when the
 /// API refuses; the counts then come from the server's answer.
 class _Actions extends ConsumerStatefulWidget {
-  const new({required this.postId, required this.post});
+  const new({required this.postId, required this.post, super.key});
 
   final String postId;
   final FeedPostData post;
@@ -1040,6 +1240,11 @@ class _ActionsState extends ConsumerState<_Actions> {
   }
 
   void _openLikers() => context.push(AppRoutes.postLikes(widget.postId));
+
+  /// A double tap on the media likes the post; it never unlikes it.
+  void likeFromMedia() {
+    if (!_liked) unawaited(_toggleLike());
+  }
 
   Future<void> _toggleLike() async {
     if (_liking) return;

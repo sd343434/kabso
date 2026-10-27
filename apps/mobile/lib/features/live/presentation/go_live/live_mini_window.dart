@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -23,8 +24,17 @@ class LiveMiniWindow extends ConsumerWidget {
 
   static const windowKey = Key('liveMini.window');
 
+  void _open(WidgetRef ref) {
+    ref.read(liveMinimizedProvider.notifier).restore();
+    unawaited(router.push(AppRoutes.goLive));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // D123: a tap on the ongoing notification opens the minimized live.
+    ref.listen(liveBackgroundOpenRequestsProvider, (_, _) {
+      if (ref.read(liveMinimizedProvider)) _open(ref);
+    });
     if (!ref.watch(liveMinimizedProvider)) return const SizedBox.shrink();
     final state = ref.watch(liveHostControllerProvider);
     if (state.phase != GoLivePhase.live && state.phase != GoLivePhase.ending) {
@@ -34,12 +44,14 @@ class LiveMiniWindow extends ConsumerWidget {
       });
       return const SizedBox.shrink();
     }
-    return _Floating(
-      onOpen: () {
-        ref.read(liveMinimizedProvider.notifier).restore();
-        unawaited(router.push(AppRoutes.goLive));
-      },
-      child: _Picture(state: state),
+    // D123: it floats over the app's navigator (above any Material), so it
+    // brings its own text style (no fallback underlined yellow text).
+    return Material(
+      type: MaterialType.transparency,
+      child: _Floating(
+        onOpen: () => _open(ref),
+        child: _Picture(state: state),
+      ),
     );
   }
 }

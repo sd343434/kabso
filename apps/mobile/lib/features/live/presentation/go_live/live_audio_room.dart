@@ -30,7 +30,7 @@ abstract final class KAudioRoom {
   /// Owner ref 83 (430 pt, black over the room): the room bar 33 %, the
   /// round top buttons 35 %, the chips 45 %.
   static const bar = Color(0x54000000);
-  static const topButton = Color(0x59000000);
+  static const topButton = Color(0x55000000);
   static const chip = Color(0x73000000);
 
   /// Chat bubbles.
@@ -52,6 +52,30 @@ abstract final class KAudioRoom {
   static const text = Color(0xFFFFFFFF);
   static const textSoft = Color(0xD9FFFFFF);
   static const badge = Color(0xFFFF3B5C);
+
+  /// D123, owner ref 147 (923 px = 430 pt, measured): the bottom bar's
+  /// buttons are equal dark translucent circles, 37.5 pt wide (black ≈ 27 %
+  /// over the room), 46 pt apart, the outer ones 8 pt from the edges; the
+  /// icon is drawn at 25 pt (its glyph ≈ 21–24 pt like the reference's).
+  static const barCircle = Color(0x45000000);
+  static const barButton = 37.5;
+  static const barIcon = 25.0;
+
+  /// Ref 147: the top buttons are 31 pt circles (black ≈ 33 %) 39 pt
+  /// apart, the last one 10 pt from the edge; our framed icons are drawn
+  /// at 17 pt in them.
+  static const topCircle = 31.0;
+  static const topPitch = 39.0;
+  static const topIcon = 17.0;
+
+  /// Ref 147: the room card is 39.6 pt tall, at most 268 pt wide; its
+  /// action circle (a viewer's Follow) 26 pt, 6.5 pt from its end.
+  static const cardHeight = 39.6;
+  static const cardMaxWidth = 268.0;
+  static const cardAction = 26.0;
+
+  /// Ref 147: the chips under the card are 22 pt tall, 10 pt under it.
+  static const chipHeight = 22.0;
 }
 
 /// The recording's purple gradient (the classic theme of an audio room).
@@ -124,15 +148,17 @@ class LiveAudioRoomLayout extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Ref 83 (430 pt): the room bar 10 pt from the edge right under
-            // the status bar; the chips 7 pt under it.
+            // Ref 147 (430 pt): the room card 10.5 pt from the edge right
+            // under the status bar, the last top circle 10 pt from the other
+            // edge (6 + its 39 pt target's 4 pt margin); the chips 10 pt
+            // under the card, the viewers chip 10 pt from the edge.
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(10, 0, 6, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(10.5, 0, 6, 0),
               child: header,
             ),
             if (chips != null)
               Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(10, 7, 8, 0),
+                padding: const EdgeInsetsDirectional.fromSTEB(10.5, 10, 10, 0),
                 child: chips,
               ),
             // The seats (scrolling when they do not fit), then the chat low on
@@ -142,16 +168,12 @@ class LiveAudioRoomLayout extends StatelessWidget {
                 builder: (context, box) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // D123: the seats keep one size in every room; when
+                    // they do not fit above the chat, they scroll.
                     Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, stageBox) => SingleChildScrollView(
-                          // The seat circle's centre 373 pt from the top.
-                          padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
-                          child: AudioStageBounds(
-                            height: stageBox.maxHeight - 66,
-                            child: stage,
-                          ),
-                        ),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(4, 58, 4, 8),
+                        child: stage,
                       ),
                     ),
                     if (chat.isNotEmpty)
@@ -183,8 +205,10 @@ class LiveAudioRoomLayout extends StatelessWidget {
             ),
             Padding(
               // The chat box is a panel across the whole width.
+              // Ref 147: the outer circles 8 pt from the edges (5 + the
+              // 44 pt target's 3.25 pt margin).
               padding: composer == null
-                  ? const EdgeInsets.fromLTRB(4, 2, 4, 1)
+                  ? const EdgeInsets.fromLTRB(5, 2, 5, 0)
                   : EdgeInsets.zero,
               child: composer != null
                   ? ColoredBox(
@@ -196,7 +220,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: composer,
                       ),
                     )
-                  // Ref 83: 37 pt buttons, 46 pt apart.
+                  // Ref 147: 37.5 pt circles, 46 pt apart.
                   : Row(
                       children: [
                         if (barLead case final lead?) ...[
@@ -214,21 +238,6 @@ class LiveAudioRoomLayout extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The height the seats have on screen (above the chat), so rows of seats
-/// can shrink to fit instead of hiding under the chat (owner, 2026-10-26).
-class AudioStageBounds extends InheritedWidget {
-  const new({required this.height, required super.child, super.key});
-
-  final double height;
-
-  static double? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AudioStageBounds>()?.height;
-
-  @override
-  bool updateShouldNotify(AudioStageBounds oldWidget) =>
-      height != oldWidget.height;
 }
 
 /// The chat box (owner's reference): a white panel across the bottom with
@@ -503,13 +512,15 @@ class LiveAudioRoomHeader extends StatelessWidget {
     final subtitle = this.subtitle;
     return Row(
       children: [
-        // Ref 83: the bar hugs its title, from 10 pt to at most 275 pt;
-        // 39.6 pt tall, fully rounded.
+        // Ref 147: the card hugs its title, from 10.5 pt to at most
+        // 278.5 pt; 39.6 pt tall, fully rounded.
         Expanded(
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 265),
+              constraints: const BoxConstraints(
+                maxWidth: KAudioRoom.cardMaxWidth,
+              ),
               child: GestureDetector(
                 key: barKey,
                 onTap: onTap,
@@ -517,11 +528,22 @@ class LiveAudioRoomHeader extends StatelessWidget {
                 child: Container(
                   // At least 39.6 pt; it grows with large text instead of
                   // clipping the title and the subtitle.
-                  constraints: const BoxConstraints(minHeight: 39.6),
-                  padding: const EdgeInsetsDirectional.fromSTEB(5, 5, 14, 5),
+                  constraints: const BoxConstraints(
+                    minHeight: KAudioRoom.cardHeight,
+                  ),
+                  // Ref 147: the cover 5 pt in; the action circle 6.5 pt
+                  // from the end, the title 14 pt without one.
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    5,
+                    5,
+                    action == null ? 14 : 6.5,
+                    5,
+                  ),
                   decoration: BoxDecoration(
                     color: KAudioRoom.bar,
-                    borderRadius: BorderRadius.circular(19.8),
+                    borderRadius: BorderRadius.circular(
+                      KAudioRoom.cardHeight / 2,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -530,7 +552,8 @@ class LiveAudioRoomHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(5),
                         child: SizedBox.square(dimension: 29, child: cover),
                       ),
-                      const SizedBox(width: 7),
+                      // Ref 147: the title starts 52 pt from the edge.
+                      const SizedBox(width: 8),
                       Flexible(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -575,7 +598,16 @@ class LiveAudioRoomHeader extends StatelessWidget {
                       ),
                       if (action case final action?) ...[
                         const SizedBox(width: 8),
-                        action,
+                        // Ref 147: a 26 pt circle; its 44 pt target
+                        // overflows the card instead of making it taller.
+                        SizedBox.square(
+                          dimension: KAudioRoom.cardAction,
+                          child: OverflowBox(
+                            maxWidth: KSizes.minTouchTarget,
+                            maxHeight: KSizes.minTouchTarget,
+                            child: action,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -585,7 +617,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        // Ref 83: 30 pt round buttons, 39 pt apart.
+        // Ref 147: 31 pt round buttons, 39 pt apart.
         if (onShare != null)
           _TopIcon(
             key: shareKey,
@@ -621,13 +653,13 @@ class LiveChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = this.icon;
-    // Ref 83: 21 pt tall, fully rounded, black 45 % over the room.
+    // Ref 147: 22 pt tall, fully rounded, dark over the room.
     return Container(
-      constraints: const BoxConstraints(minHeight: 21),
+      constraints: const BoxConstraints(minHeight: KAudioRoom.chipHeight),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: KAudioRoom.chip,
-        borderRadius: BorderRadius.circular(10.5),
+        borderRadius: BorderRadius.circular(KAudioRoom.chipHeight / 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -739,8 +771,10 @@ class LiveRoundButton extends StatelessWidget {
     this.bare = false,
   });
 
-  /// Only [asset], at the button's full size, with no circle behind it (the
-  /// owner's live bar pack, 2026-10-26).
+  /// The audio room's bar button (owner ref 147, D123): a flat dark
+  /// translucent circle ([KAudioRoom.barButton]) with [asset] in its own
+  /// colours (the owner's live bar pack), or [icon] in white, at
+  /// [KAudioRoom.barIcon]; [size], [iconSize] and [color] do not apply.
   final bool bare;
 
   /// A picture icon (`assets/live_room_icons/`) instead of [icon].
@@ -782,10 +816,30 @@ class LiveRoundButton extends StatelessWidget {
               isLabelVisible: badge > 0,
               backgroundColor: KAudioRoom.badge,
               label: Text(badge > 99 ? '99+' : badge.toString()),
-              child: bare && asset != null
-                  ? Opacity(
-                      opacity: onTap == null ? 0.45 : 1,
-                      child: Image.asset(asset!, width: size, height: size),
+              child: bare
+                  ? Container(
+                      width: KAudioRoom.barButton,
+                      height: KAudioRoom.barButton,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: KAudioRoom.barCircle,
+                      ),
+                      child: Opacity(
+                        opacity: onTap == null ? 0.45 : 1,
+                        child: switch (asset) {
+                          final asset? => Image.asset(
+                            asset,
+                            width: KAudioRoom.barIcon,
+                            height: KAudioRoom.barIcon,
+                          ),
+                          null => Icon(
+                            icon,
+                            size: KAudioRoom.barIcon - 3,
+                            color: iconColor,
+                          ),
+                        },
+                      ),
                     )
                   : Container(
                       width: size,
@@ -925,7 +979,8 @@ class LiveViewersStack extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
 
-  static const size = 24.0;
+  /// Ref 147: as tall as the chips beside it.
+  static const double size = KAudioRoom.chipHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -964,19 +1019,20 @@ class LiveViewersStack extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: 4),
+            // Ref 147: the count is a chip like the room rank's.
             Container(
               constraints: const BoxConstraints(minWidth: size),
               height: size,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: KAudioRoom.glass,
+                color: KAudioRoom.chip,
                 borderRadius: BorderRadius.circular(size / 2),
               ),
               child: Text(
                 count,
                 style: context.textStyles.caption.copyWith(
-                  fontSize: 10.5,
+                  fontSize: 11.5,
                   height: 1,
                   color: KAudioRoom.text,
                   fontWeight: FontWeight.w700,
@@ -990,7 +1046,7 @@ class LiveViewersStack extends StatelessWidget {
   }
 }
 
-/// A top-bar button (owner ref 83): a 30 pt dark round button with the
+/// A top-bar button (owner ref 147): a 31 pt dark round button with the
 /// icon drawn white, 39 pt apart (in a 39 × 44 pt target).
 class _TopIcon extends StatelessWidget {
   const new({
@@ -1017,14 +1073,14 @@ class _TopIcon extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          width: 39,
-          height: 44,
+          width: KAudioRoom.topPitch,
+          height: KSizes.minTouchTarget,
           child: Center(
             child: Opacity(
               opacity: onTap == null ? 0.45 : 1,
               child: Container(
-                width: 30,
-                height: 30,
+                width: KAudioRoom.topCircle,
+                height: KAudioRoom.topCircle,
                 alignment: Alignment.center,
                 decoration: const BoxDecoration(
                   color: KAudioRoom.topButton,
@@ -1032,8 +1088,8 @@ class _TopIcon extends StatelessWidget {
                 ),
                 child: Image.asset(
                   asset,
-                  width: 17,
-                  height: 17,
+                  width: KAudioRoom.topIcon,
+                  height: KAudioRoom.topIcon,
                   color: KAudioRoom.text,
                 ),
               ),

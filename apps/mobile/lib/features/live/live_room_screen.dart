@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
@@ -241,7 +242,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final room = widget.room;
-      unawaited(_session.start(room));
+      unawaited(
+        _session.start(
+          room,
+          background: liveBackgroundTexts(context.l10n),
+          onLeave: () {
+            if (mounted) closeLiveRoom(context);
+          },
+        ),
+      );
       // CP-020: the room's gifts, on the same media session.
       ref
           .read(liveGiftEffectsProvider(room.id).notifier)
@@ -742,6 +751,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         seatButton = LiveRoundButton(
           key: AudioRoomViewKeys.leave,
           icon: Icons.logout_rounded,
+          bare: true,
           label: l10n.liveSeatLeave,
           onTap: () => unawaited(runSeatAction(context, _session.leaveSeat)),
         );
@@ -749,6 +759,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         seatButton = LiveRoundButton(
           key: AudioRoomViewKeys.cancel,
           icon: Icons.hourglass_top_rounded,
+          bare: true,
           label: l10n.liveSeatRequested,
           onTap: () =>
               unawaited(runSeatAction(context, _session.cancelRequest)),
@@ -798,8 +809,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           key: AudioRoomViewKeys.follow,
                           icon: Icons.person_add_alt_1_rounded,
                           label: l10n.liveFollow,
-                          size: 24,
-                          iconSize: 14,
+                          // Ref 147: the card's 26 pt action circle.
+                          size: KAudioRoom.cardAction,
+                          iconSize: 15,
                           color: const Color(0xFFFF4D7A),
                           onTap: () => unawaited(_setFollowing(follow: true)),
                         )
@@ -845,7 +857,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 stage: _stage(session, engine),
                 chat: [_roomChat(session)],
                 composer: _chatComposer(composer),
-                // Ref 83: chat and emoji on one side; the seat, requests,
+                // Ref 83/147: chat and emoji on one side; the seat, requests,
                 // gifts and the mic on the other.
                 barStart: [
                   LiveRoundButton(
@@ -870,6 +882,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     LiveRoundButton(
                       key: AudioRoomViewKeys.requests,
                       icon: Icons.front_hand_rounded,
+                      bare: true,
                       label: l10n.liveSeatRequests,
                       badge: pending,
                       onTap: () => unawaited(
@@ -999,8 +1012,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         if (seat.user != null && engine.speaking.contains(seat.user!.id))
           seat.index,
     };
-    // The room's stage scrolls, and rows of seats shrink to fit it
-    // (AudioStageBounds).
+    // The room's stage scrolls; seats keep one size in every room (D123).
     return AudioSeatRing(
       count: count,
       seats: seats?.seats ?? const [],

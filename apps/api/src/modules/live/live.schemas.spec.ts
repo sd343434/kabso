@@ -90,7 +90,7 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
       { title: 'ok', mode: 'AUDIO', seatCount: 10 },
       { title: 'ok', mode: 'AUDIO', seatCount: 15 },
       { title: 'ok', mode: 'AUDIO', seatCount: 20 },
-      { title: 'ok', mode: 'AUDIO', seatCount: 25, theme: 'rose-garden' },
+      { title: 'ok', mode: 'AUDIO', seatCount: 20, theme: 'rose-garden' },
       { title: 'ok', theme: 'classic' },
     ]) {
       expect({ body, details: details(body) }).toEqual({ body, details: [] });
@@ -102,7 +102,8 @@ describe('live-room title (CONVENTIONS §10.3)', () => {
       [{ title: 'ok', mode: 'AUDIO', seatCount: 4 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 7 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       // D103: the former AUDIO sizes 6 and 9 (D100) and 13 (before D100) are gone; 5 / 10 / 15 /
-      // 20 / 25 are AUDIO only (MULTI 5 is refused above, MULTI 15 below).
+      // 20 are AUDIO only (MULTI 5 is refused above, MULTI 15 below). D123: 25 is gone too.
+      [{ title: 'ok', mode: 'AUDIO', seatCount: 25 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 6 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 9 }, [{ field: 'seatCount', issue: 'invalid_value' }]],
       [{ title: 'ok', mode: 'AUDIO', seatCount: 13 }, [{ field: 'seatCount', issue: 'invalid_value' }]],

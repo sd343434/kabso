@@ -370,6 +370,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
+| `DELETE /me/followers/{username}` *(v1.26.1-live, D125)* | the follow / unfollow buckets (`follow:h` 60 / hour, `follow:d` 300 / day per user; idempotent no-ops count). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/gifts` *(v1.23-live, CP-020)* | 120 / min per user (bucket `live:gift`, `RATE_LIMIT_LIVE_GIFT_USER`; combos are quick taps on "send"). **Replaces** the per-user default. `GET /gifts/catalogue` and `GET /me/gifts/bag` use the per-user default |
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
@@ -481,6 +482,10 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
+| v1.26.1-live (draft) | 2026-10-26 | **D125 (owner: follow lists like the reference):** `listUserFollowers` / `listUserFollowing` take `q` (a case-insensitive prefix of the username or display name, trimmed, 1–30 characters) and `order` (`newest`, the default, or `oldest`); the cursor is bound to both. `removeMyFollower` (`DELETE /me/followers/{username}`, `FollowerRemoval` `{followsMe: false, followerCount}`): the caller removes a follower, idempotent, withdraws that follow's notification. §7 row, §10.6. | **Additive** (optional parameters, a new operation). Cursors of the default list stay valid. |
+| v1.26-live (draft) | 2026-10-26 | **D124 (owner: a 2-column live grid and promo banners):** `listHomeBanners` (`GET /home/banners`, tag `home`, `HomeBannerList` of `HomeBanner` `{id, imageUrl, width, height, blurhash, title, titleSide, link}`): the enabled banners inside their window now, ordered, at most 10, signed-in, `Cache-Control: private, max-age=60`; `MediaKind.HOME_BANNER` (cover-cropped to 3:1: 1 500 × 500 and 320 × 107 WebP). Banners are written only by the `banner-admin` CLI (migration role, audited). Migration `20261118090000_home_banners`. §10.26, §11.1. | **Additive** (a new operation, schemas and enum value). |
+| v1.25.4-live (draft) | 2026-10-26 | **D123 (owner: one seat size in every audio room; 25 seats removed):** `AUDIO` seat counts 5, 10, 15, 20 (`LiveConfig.seatCounts.AUDIO`); `startLiveRoom` / `updateLiveRoom` with `seatCount` 25 → 400 `invalid_value`. A room already LIVE with 25 keeps working (seats 1 … 24, `seatCount` 25 in responses) until it ends; no data migration (the database CHECK still admits 25 for those rows). App: every seat the same size whatever the count; a live keeps running in the background (Android foreground service, no API change). §10.9. | **Breaking for `AUDIO` starts / changes with 25** (400); apps read the counts from `LiveConfig.seatCounts`. |
 | v1.25.2-live (draft) | 2026-10-26 | **D121 (owner: "I can't see who follows me and whom I follow"):** `listUserFollowers` / `listUserFollowing` (`GET /users/{username}/followers`, `GET /users/{username}/following`, `FollowListPage` of `FollowListItem` = `UserSummary` + `isSelf`, `isPrivate`, `followedByMe`, `followsMe`): newest follow first, signed social cursor (§5) bound to the list, the user and the caller; rows only ACTIVE accounts with no block either way with the caller; 404 across a block with the user (like `listUserPosts`); a private user's lists → 403 unless the caller is the user or follows them. `PublicProfile.followerCount` / `followingCount` and `FollowState.followerCount` count ACTIVE accounts only (were all rows, suspended included). Migration `20261117090000_follows_following_list_idx`. §7 row, §10.5, §10.6. | **Additive** (new operations and schemas). **Behaviour:** counts no longer include suspended accounts (the documented v1.3 inaccuracy is gone); no shape change. |
 | v1.25.1-live (draft) | 2026-10-26 | **D120 (owner):** `tapLiveRoom` counts the host's own taps like a viewer's (before: 0): the room score, the popularity board, and 1 charm point (`LIVE_TAPS`) for every 10 counted taps, under the same per-person limits (10 a second, 10 000 a live); the host is still not in their own Contribution list. App: every tap pops one of all ten tap characters at random (D101's reached-tiers rule withdrawn), and the host's screen has the tap layer. §10.10, §10.18. | **Behaviour only** (no shape change): a host's batch now answers `accepted` > 0, and a host's score and charm level can move from their own taps. |
 | v1.25-live (draft) | 2026-10-26 | **CP-022 (D116, owner 2026-10-26: "the look + the missing basics"):** families v2. Tag `families`: `listFamilyRankings` (`GET /families/rankings?board=PRESTIGE\|ACTIVE`, `FamilyRankings`, `FamilyRankingEntry`, `FamilyRankingBoard`), `getFamilyStanding` (`GET /families/{familyId}/rankings`, `FamilyStanding`, `FamilyBoardStanding`), `listFamilyContributions` (`GET /families/{familyId}/contributions`, `FamilyContributions`, `FamilyContribution`), `listFamilyChat` / `sendFamilyChatMessage` (`GET` / `POST /families/{familyId}/chat`, `FamilyChatPage`, `FamilyChatMessage`, `FamilyChatSendRequest`), `deleteFamilyChatMessage`, `muteFamilyChatMember` / `unmuteFamilyChatMember` (`PUT` / `DELETE …/chat/mutes/{username}`); `listFamilyMembers` gains `sort=ROLE\|POINTS` and `q`; `FamilyMember.monthPoints`, `presence` (`FamilyPresence`), `chatMuted` (required) and `rank` (with `sort=POINTS`); `Family.coverUrl`, `tagline`, `pendingRequestCount` (required); `UpdateFamilyRequest` fields all optional (at least one) with `coverMediaId`, `tagline`; `PrivacySettings.showActivityStatus` (required) / `UpdatePrivacyRequest.showActivityStatus`; `MediaKind.FAMILY_COVER`; report `targetType: FAMILY_CHAT_MESSAGE`; code `FAMILY_CHAT_MUTED` (403). Server config `RATE_LIMIT_FAMILY_CHAT_USER`. §4, §7, §8, §10.21, §10.25, §11.1, §11.7. | **Additive** (new operations, schemas, fields, codes and enum values; `UpdateFamilyRequest` relaxes `emblemMediaId` from required to optional; new required response fields: strict clients update their models in the same change set). |
@@ -759,6 +764,18 @@ until a media provider is wired in.
     itself and its followers; anyone else → 403 `AUTH_FORBIDDEN` (the profile already says the
     account is private).
   - Rate limit: the `GET /users/{username}` bucket (§7).
+  - *(v1.26.1-live, D125)* **Search and order:** `q` keeps the rows whose username or display
+    name starts with it (case-insensitive; trimmed, 1–30 characters, else 400 `q`); `order=oldest`
+    lists the oldest follow first (the follow's time, then the other user's id, ascending;
+    `newest` is the default). The cursor is bound to `q` and `order` as well (another one → 400
+    `cursor` / `invalid_value`); a default-list cursor keeps the D121 binding.
+- *(v1.26.1-live, D125)* **Remove a follower:** `DELETE /me/followers/{username}` deletes the edge
+  `username` → caller and answers `{followsMe: false, followerCount}` (the caller's count after,
+  ACTIVE followers only). Idempotent (not a follower → 200). Errors as for `DELETE
+  /users/{username}/follow` (404 for a malformed, unknown, suspended or deleted user; 400 for the
+  caller's own username). The FOLLOW notification is withdrawn as on an unfollow; the removed
+  account is not told and may follow again unless the caller is private (no follow requests).
+  Shares the follow / unfollow buckets (§7).
 
 ### 10.7 Out of scope for v1.3 (recorded so nobody assumes otherwise)
 
@@ -835,8 +852,11 @@ until a media provider is wired in.
 
 - **Modes:** `SOLO` (§10.8), `MULTI` (video seats) and `AUDIO` (voice seats). `PK` stays
   reserved (L5). `seatCount` counts the host's tile: `MULTI` 4, 6, 9 or 12 (owner D94); `AUDIO`
-  5, 10, 15, 20 or 25 (v1.18-live, owner D103; was 6, 9, 15, 20 or 25 — rooms of 6 or 9
-  became 10; before v1.16-live, owner D100, it was 5, 9 or 13). Seats are numbered 1 … `seatCount`-1 (at most 24); the host is 0.
+  5, 10, 15 or 20 (v1.25.4-live, owner D123: 25 removed — a start or a change to 25 → 400
+  `invalid_value`; a room already LIVE with 25 keeps them, seats 1 … 24 working, until it ends, and
+  `seatCount` may still read 25 for such a room; v1.18-live, owner D103: 5, 10, 15, 20 or 25; was
+  6, 9, 15, 20 or 25 — rooms of 6 or 9 became 10; before v1.16-live, owner D100, it was 5, 9 or
+  13). Seats are numbered 1 … `seatCount`-1 (at most 24); the host is 0.
 - **Seat state:** `EMPTY`, `LOCKED` or `TAKEN` (with the user and `mutedByHost`). Every change
   increases the room's seat `version` in the same transaction and writes `{"seatsVersion": n}`
   into the media room's metadata; apps refetch `getLiveRoomSeats` when it moves.
@@ -1428,10 +1448,34 @@ locale (§10.1).
   chip keeps only that tag's gifts; no chip row when the open tab has no tagged gift. A tab whose
   gifts have tags shows a small caret (▲ when it is the open tab). Tags never change what a send
   does.
+- **Hosted art** *(v1.26.2-live, DRAFT — D126, owner: animated gifts are large, e.g. a 16.8 MB
+  SVGA, so they are not bundled and a new gift needs no app update)*: a gift may have its art in
+  object storage — a static **image** (PNG or WebP, ≤ 1 MB, 64–2048 px a side, about square: at
+  most 5:4) and an **animation** (SVGA 2.x, i.e. a zlib stream; ≤ 25 MB; SVGA 1.x zip files are
+  refused because the app's player cannot read them). Uploaded only by the CLI: `add|update <code>
+  --image <file> --animation-file <file>` (`update … --image none` / `--animation-file none` remove
+  them; audited as `gift.add` / `gift.update`). Every file is checked by its bytes before anything
+  is uploaded or changed, then stored at a **content-addressed, immutable** key
+  `media/gifts/<code>/<first 32 hex of SHA-256>.<png|webp|svga>` (`Content-Type` `image/png`,
+  `image/webp` or `application/octet-stream`; `Cache-Control: public, max-age=31536000,
+  immutable`): new bytes get a new key and URL, so caches never go stale; replaced files stay in
+  the bucket. The rows keep the object keys (`image_object_key`, `animation_object_key`,
+  `animation_bytes`); responses carry `imageUrl` / `animationUrl` = `MEDIA_PUBLIC_BASE_URL/<key>`
+  (null without that setting) and `animationBytes` (the SVGA's size, null exactly when
+  `animationUrl` is). The bundled `assetKey` / `animationKey` stay as the fallback. **App:** the
+  panel, the banner and the effect show `imageUrl` (downloaded once into a disk cache keyed by the
+  URL), else the bundled `assetKey`, else Kabso's gift box; the effect plays `animationUrl` from the
+  disk cache (else the bundled `animationKey`), full screen, once, **with the sound embedded in the
+  SVGA** (its audio clips at their frames, media volume, never while the app is in the background,
+  stopped when the effect ends); while it downloads the image pops; a download that fails or takes
+  longer than 6 s skips the animation for that send (the download goes on, so the next send plays
+  it). When the panel opens the app prefetches the animations of ≤ 2 MB; larger ones download when
+  first sent or received. Decoded SVGA frames are released when the effect ends.
 - **`GET /gifts/catalogue`** → `{version, categories, quantities, maxRecipients,
   comboWindowSeconds, data: [Gift]}`: the **enabled** gifts by tab (in `categories` order), then
   `sortOrder`, then `code`, whole (not paged). `Gift` = `{code, category, name, priceCoins,
-  assetKey, animationKey, sortOrder, badge, tag}` (`tag` v1.24.3-live). `version` (16 hex characters) changes whenever
+  assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag}` (`tag`
+  v1.24.3-live; `imageUrl`, `animationUrl`, `animationBytes` v1.26.2-live). `version` (16 hex characters) changes whenever
   anything in the response except `name`'s language changes; the app caches the catalogue per
   language and `version` and redraws the panel only when it moves (responses stay `no-store`, §1).
   `quantities` are the quantities a send may use (server config `LIVE_GIFT_QUANTITIES`, default
@@ -1470,7 +1514,8 @@ locale (§10.1).
     per sender and plays the role of the §3 `Idempotency-Key` (no header): the same sender and
     `clientId` → 200 with the first send and the current balance and bag quantity; nothing is
     charged, taken, credited or sent again (even if the body differs).
-  - **`LiveGift`** = `{id, roomId, giftCode, assetKey, animationKey, unitPrice, quantity, source,
+  - **`LiveGift`** = `{id, roomId, giftCode, assetKey, animationKey, imageUrl, animationUrl,
+    animationBytes (v1.26.2-live: the gift's hosted art now), unitPrice, quantity, source,
     totalCoins, sender: UserSummary, recipients: [UserSummary] (in the order sent), combo: {id,
     count, quantity}, createdAt}`. `unitPrice` is the price when it was sent; `totalCoins` =
     `unitPrice × quantity × recipients` (the value, also for BAG). No `name`: one message serves
@@ -1500,7 +1545,7 @@ locale (§10.1).
   | ------ | ------- |
   | `gift` | `{"type":"gift","gift":LiveGift}` |
 
-  Every viewer plays the effect (`animationKey`, else the image) with the sender, the recipients,
+  Every viewer plays the effect (`animationUrl`, else `animationKey`, else the image) with the sender, the recipients,
   the quantity and the combo count. A send is a broadcast: the app may hide sends from people the
   reader blocked (`GET /me/blocks`). Gifts are not chat lines (§10.11) and no read lists them yet.
 - **Rate limit:** 120 sends / min per user (§7); there is no other counting rule.
@@ -1669,6 +1714,35 @@ rest are CTO defaults the owner may change (named constants in `families.constan
   all, never as working features); chat pictures, voice, replies, reactions, read receipts,
   typing, push notifications for chat, realtime delivery; a family-level blocked-words list.
 
+### 10.26 Promo banners on the live hub *(v1.26-live, DRAFT — D124)*
+
+Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaults.
+
+- **Read:** `GET /home/banners` (signed-in; the per-user default rate limit) → `{data: HomeBanner[]}`:
+  the banners that are `enabled` and inside their window now (`startsAt <= now < endsAt`; no end =
+  open), ordered by `sortOrder` ascending, then the latest `startsAt`, then `id`; at most **10**.
+  Empty when none is active: the app then shows no banner *(owner: hidden when none)*. The
+  response carries `Cache-Control: private, max-age=60` and `Vary: Authorization,
+  Accept-Language`.
+- **Picture** *(owner)*: a `HOME_BANNER` media asset (§11.1), cover-cropped around the centre to
+  **3:1** — `media/{mediaId}/1500.webp` (1 500 × 500) and `320.webp` (320 × 107). The owner's
+  banners carry their text inside the picture; the app shows it whole at 3:1 (never cropped
+  further). `width` / `height` are the stored size.
+- **Text:** optional `titleAr` / `titleEn` (1–40 code points each); `title` is the one in the
+  language of `Accept-Language`, else the caller's locale (§10.1), or null — never the other
+  language. `titleSide` (`LEFT` / `RIGHT`, physical) is the side of the picture left empty for it.
+- **Link allowlist** *(owner)*: `/cp/space`, `/families`, `/live?tab=trending|new|following` (the
+  live hub's Popular, New or Following tab), `/home/room/{roomId}`, `/users/{username}`, or an
+  `https://` URL (no user name or password). Checked by the CLI and again on every read (a stored
+  link that no longer passes is left out). Apps ignore a link they cannot open.
+- **Writes:** only the `banner-admin` CLI (migration role; `add` from an image file or a fresh
+  `HOME_BANNER` upload, `list`, `enable`, `disable`, `remove`), each with an `audit_logs` row
+  (`banner.add`, `banner.enable`, `banner.disable`, `banner.remove`). There is no admin API.
+  `remove` deletes the banner, its asset row and its objects.
+- **App** *(owner)*: the carousel sits full width after the 4th live card (after the last card when
+  fewer), radius 12, auto-advances every 4 s (not with reduce motion), pauses while touched, shows
+  page dots when there is more than one, and opens the link on tap.
+
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
@@ -1697,6 +1771,9 @@ these rules.
   squares, 640 and 320 px) and attach only as a family's emblem (§10.21).
 - *(v1.25-live, CP-022)* `FAMILY_COVER` uploads are processed like `POST_IMAGE` (at most 1 080 px
   on the long side, and 320 px) and attach only as a family's cover (§10.25).
+- *(v1.26-live, D124)* `HOME_BANNER` uploads are cover-cropped around the centre to exactly 3:1,
+  enlarged when smaller: `media/{mediaId}/1500.webp` (1 500 × 500) and `320.webp` (320 × 107).
+  Only the `banner-admin` CLI attaches them, as a home banner's picture (§10.26).
 - *(v1.19-live, CP-017)* `LIVE_CHAT_IMAGE` uploads follow the same checks and sizes as
   `POST_IMAGE` and attach only to a live chat message. `LIVE_CHAT_VOICE` uploads are voice clips:
   `audio/mp4` (AAC in an MPEG-4 container, `.m4a`), at most 1 MiB (else 400 `byteSize` /

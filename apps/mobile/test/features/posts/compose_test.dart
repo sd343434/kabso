@@ -615,6 +615,206 @@ void main() {
       expect(posts.created.single.location, 'Amman');
     });
 
+    // Owner (real phone): "with more than one image I cannot move between
+    // them". The dots counted "offset / photo width" plus the add tile, so
+    // with a few photos (a strip that barely scrolls) they never moved, and
+    // nothing showed the photos larger than the 70 dp cards.
+    int activeDot(WidgetTester tester, int photos) {
+      final primary = tester
+          .element(find.byKey(CreateScreen.stripKey))
+          .palette
+          .primary;
+      final active = [
+        for (var i = 0; i < photos; i++)
+          if ((tester
+                          .widget<Container>(find.byKey(CreateScreen.dotKey(i)))
+                          .decoration!
+                      as BoxDecoration)
+                  .color ==
+              primary)
+            i,
+      ];
+      expect(active, hasLength(1));
+      return active.single;
+    }
+
+    String previewCounter(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(ComposePhotoPreview.counterKey)).data!;
+
+    Offset nextSwipe(AppLanguage language, [double dx = 300]) =>
+        Offset(language == AppLanguage.ar ? dx : -dx, 0);
+
+    for (final language in [AppLanguage.ar, AppLanguage.en]) {
+      testWidgets('details (${language.name}): a sideways drag on the strip '
+          'scrolls it and the dots follow to the last photo; a vertical drag '
+          'on it scrolls the page', (tester) async {
+        await pump(
+          tester,
+          language: language,
+          viewport: GoldenViewport.android,
+          picks: [for (var i = 0; i < 8; i++) jpegBytes],
+        );
+        // One dot per photo (no dot for the add tile).
+        expect(find.byKey(CreateScreen.dotKey(7)), findsOneWidget);
+        expect(find.byKey(CreateScreen.dotKey(8)), findsNothing);
+        expect(activeDot(tester, 8), 0);
+        final strip = tester
+            .state<ScrollableState>(
+              find
+                  .descendant(
+                    of: find.byKey(CreateScreen.stripKey),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            )
+            .position;
+        // Drag in the reading direction (towards the end of the strip).
+        await tester.drag(
+          find.byKey(CreateScreen.photoKey(1)),
+          nextSwipe(language, 200),
+        );
+        await tester.pumpAndSettle();
+        expect(strip.pixels, greaterThan(150));
+        final mid = activeDot(tester, 8);
+        expect(mid, inInclusiveRange(1, 6));
+        await tester.fling(
+          find.byKey(CreateScreen.photoKey(3)),
+          nextSwipe(language, 400),
+          2000,
+        );
+        await tester.pumpAndSettle();
+        expect(strip.pixels, strip.maxScrollExtent);
+        expect(activeDot(tester, 8), 7);
+
+        // Vertical drag starting on the strip scrolls the details page.
+        final page = tester
+            .state<ScrollableState>(
+              find
+                  .ancestor(
+                    of: find.byKey(CreateScreen.stripKey),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            )
+            .position;
+        expect(page.axis, Axis.vertical);
+        expect(page.maxScrollExtent, greaterThan(40));
+        await tester.drag(
+          find.byKey(CreateScreen.photoKey(5)),
+          const Offset(0, -150),
+        );
+        await tester.pumpAndSettle();
+        expect(page.pixels, page.maxScrollExtent);
+        expect(strip.pixels, strip.maxScrollExtent);
+      });
+
+      testWidgets('details (${language.name}): a tap opens the photos full '
+          'screen; swipe between them, remove one, close back on the strip', (
+        tester,
+      ) async {
+        await pump(
+          tester,
+          language: language,
+          picks: [for (var i = 0; i < 3; i++) jpegBytes],
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(CreateScreen)),
+        );
+        List<int> order() => [
+          for (final p in container.read(composeControllerProvider).photos)
+            p.localId,
+        ];
+        // Three photos fit: the strip has nothing to scroll.
+        expect(activeDot(tester, 3), 0);
+        await tester.tap(find.byKey(CreateScreen.photoKey(1)));
+        await tester.pumpAndSettle();
+        final pager = find.byKey(ComposePhotoPreview.pagerKey);
+        expect(pager, findsOneWidget);
+        expect(previewCounter(tester), '2/3');
+        await tester.drag(pager, nextSwipe(language));
+        await tester.pumpAndSettle();
+        expect(previewCounter(tester), '3/3');
+        // Past the last photo nothing moves.
+        await tester.fling(pager, nextSwipe(language), 1500);
+        await tester.pumpAndSettle();
+        expect(previewCounter(tester), '3/3');
+        await tester.drag(pager, -nextSwipe(language));
+        await tester.pumpAndSettle();
+        expect(previewCounter(tester), '2/3');
+        // Remove the photo shown (photo 1): the next one takes its place.
+        await tester.tap(find.byKey(ComposePhotoPreview.removeKey));
+        await tester.pumpAndSettle();
+        expect(order(), [0, 2]);
+        expect(previewCounter(tester), '2/2');
+        await tester.tap(find.byKey(ComposePhotoPreview.closeKey));
+        await tester.pumpAndSettle();
+        expect(pager, findsNothing);
+        expect(find.byKey(CreateScreen.detailsStepKey), findsOneWidget);
+        expect(find.byKey(CreateScreen.photoKey(1)), findsNothing);
+        expect(activeDot(tester, 2), 1);
+        // Long-press reorder still works after a tap-open.
+        expect(find.byKey(CreateScreen.handleKey(2)), findsOneWidget);
+      });
+
+      testWidgets('media step (${language.name}): with photos selected the '
+          'grid still scrolls; a tray photo opens the swipeable preview', (
+        tester,
+      ) async {
+        final library = FakeMediaLibrary(
+          access: LibraryAccess.granted,
+          ids: [for (var i = 0; i < 40; i++) 'p$i'],
+        );
+        await pump(
+          tester,
+          language: language,
+          library: library,
+          details: false,
+        );
+        for (final id in ['p0', 'p1', 'p2', 'p3']) {
+          await tester.tap(find.byKey(CreateMediaStep.itemKey(id)));
+          await tester.pumpAndSettle();
+        }
+        final grid = tester
+            .state<ScrollableState>(
+              find
+                  .descendant(
+                    of: find.byKey(CreateMediaStep.gridKey),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            )
+            .position;
+        await tester.drag(
+          find.byKey(CreateMediaStep.itemKey('p4')),
+          const Offset(0, -300),
+        );
+        await tester.pumpAndSettle();
+        expect(grid.pixels, greaterThan(200));
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(CreateScreen)),
+        );
+        final photos = container.read(composeControllerProvider).photos;
+        await tester.tap(
+          find.byKey(CreateMediaStep.trayPhotoKey(photos.first.localId)),
+        );
+        await tester.pumpAndSettle();
+        expect(previewCounter(tester), '1/4');
+        await tester.fling(
+          find.byKey(ComposePhotoPreview.pagerKey),
+          nextSwipe(language),
+          1500,
+        );
+        await tester.pumpAndSettle();
+        expect(previewCounter(tester), '2/4');
+        // System back closes the preview, the selection is kept.
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.byKey(ComposePhotoPreview.pagerKey), findsNothing);
+        expect(find.byKey(CreateScreen.mediaStepKey), findsOneWidget);
+        expect(container.read(composeControllerProvider).photos, hasLength(4));
+      });
+    }
+
     testWidgets('media step: library photos are selected in tap order, the '
         'tray lists and removes them, Next keeps the order', (tester) async {
       final library = FakeMediaLibrary(

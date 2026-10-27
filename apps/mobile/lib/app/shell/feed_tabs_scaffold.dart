@@ -36,6 +36,7 @@ class FeedTabsScaffold extends StatefulWidget {
     this.requestedTab,
     this.overlayHeader = false,
     this.centerTabs = false,
+    this.topBar,
   });
 
   static const searchKey = Key('feed.search');
@@ -74,6 +75,10 @@ class FeedTabsScaffold extends StatefulWidget {
 
   /// D51: the tabs are centred with space between them (live hub).
   final bool centerTabs;
+
+  /// D124: a bar above the tabs (the live hub's title, search and bell);
+  /// not with [overlayHeader].
+  final Widget? topBar;
 
   /// The height the floating header covers: the top safe area plus the
   /// 48 dp tab bar.
@@ -208,6 +213,7 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
         bottom: false,
         child: Column(
           children: [
+            ?widget.topBar,
             header,
             Expanded(child: pages),
           ],

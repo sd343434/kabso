@@ -176,7 +176,7 @@ describe('CP-011 multi-guest and audio rooms', () => {
           'heart-garden',
           'galaxy',
         ],
-        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] },
+        seatCounts: { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] },
       });
 
       const [h1, h2, h3] = [await host(), await host(), await host()];

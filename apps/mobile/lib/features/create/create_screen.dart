@@ -71,6 +71,7 @@ class CreateScreen extends ConsumerStatefulWidget {
   static Key photoKey(int localId) => Key('create.photo.$localId');
   static Key removePhotoKey(int localId) => Key('create.photo.$localId.remove');
   static Key handleKey(int localId) => Key('create.photo.$localId.handle');
+  static Key dotKey(int index) => Key('create.strip.dot.$index');
   static Key placeChipKey(String place) => Key('create.place.chip.$place');
 
   @override
@@ -97,10 +98,32 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
 
   void _changed() => setState(() {});
 
+  /// The dots follow the strip: one per photo, the active one moves from
+  /// the first to the last as the strip scrolls from start to end. (They
+  /// used to count "offset / photo width" plus the add tile, so with a few
+  /// photos — a strip that barely scrolls — they never moved.)
   void _scrolled() {
-    const step = KCompose.photoWidth + KCompose.stripGap;
-    final page = (_strip.offset / step).round();
+    final photos = ref.read(composeControllerProvider).photos.length;
+    final max = _strip.position.maxScrollExtent;
+    if (photos < 2 || max <= 0) return;
+    final page = (_strip.offset.clamp(0, max) / max * (photos - 1)).round();
     if (page != _page) setState(() => _page = page);
+  }
+
+  /// Opens photo [index] full screen; back on the strip, the photo last
+  /// shown is the active dot and is scrolled into view.
+  Future<void> _openPhoto(int index) async {
+    FocusScope.of(context).unfocus();
+    setState(() => _page = index);
+    final shown = await showComposePhotoPreview(context, index);
+    if (!mounted || shown == null) return;
+    final photos = ref.read(composeControllerProvider).photos.length;
+    final page = shown.clamp(0, photos < 1 ? 0 : photos - 1);
+    setState(() => _page = page);
+    if (_strip.hasClients && photos > 1) {
+      final max = _strip.position.maxScrollExtent;
+      _strip.jumpTo(max * page / (photos - 1));
+    }
   }
 
   @override
@@ -435,6 +458,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
               _PhotoStrip(
                 controller: _strip,
                 onAdd: draft.busy ? null : _toMedia,
+                onOpen: _openPhoto,
               ),
               _StripFooter(photos: draft.photos.length, active: _page),
               Padding(
@@ -668,13 +692,19 @@ class _Stepper extends StatelessWidget {
 }
 
 /// The photo strip: scrolls sideways; "Add more" at the start (back to the
-/// media step), then the photos in post order. Long-press a photo and drag
-/// to reorder.
+/// media step), then the photos in post order. A tap opens the photos full
+/// screen (swipe between them, remove one); long-press a photo and drag to
+/// reorder.
 class _PhotoStrip extends ConsumerWidget {
-  const new({required this.controller, required this.onAdd});
+  const new({
+    required this.controller,
+    required this.onAdd,
+    required this.onOpen,
+  });
 
   final ScrollController controller;
   final VoidCallback? onAdd;
+  final ValueChanged<int> onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -772,40 +802,51 @@ class _PhotoStrip extends ConsumerWidget {
                 image: true,
                 label: l10n.createPhotoLabel(i + 1, photos.length),
                 hint: photos.length > 1 ? l10n.createLongPressReorder : null,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(KCompose.cardRadius),
-                  child: SizedBox(
-                    width: KCompose.photoWidth,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.memory(
-                          photo.bytes,
-                          fit: BoxFit.cover,
-                          excludeFromSemantics: true,
-                          errorBuilder: (_, _, _) =>
-                              ColoredBox(color: p.surfaceOverlay),
-                        ),
-                        PositionedDirectional(
-                          bottom: KSpacing.xs + 2,
-                          end: KSpacing.xs + 2,
-                          child: _Badge(
-                            child: Text(l10n.createPhotoNumber(i + 1)),
+                onTap: () => onOpen(i),
+                child: GestureDetector(
+                  onTap: () => onOpen(i),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(KCompose.cardRadius),
+                    child: SizedBox(
+                      width: KCompose.photoWidth,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image(
+                            image: composeThumb(
+                              context,
+                              photo.bytes,
+                              KCompose.stripHeight,
+                            ),
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                            excludeFromSemantics: true,
+                            errorBuilder: (_, _, _) =>
+                                ColoredBox(color: p.surfaceOverlay),
                           ),
-                        ),
-                        PositionedDirectional(
-                          top: 0,
-                          start: 0,
-                          child: _RemoveButton(
-                            key: CreateScreen.removePhotoKey(photo.localId),
-                            onTap: draft.busy
-                                ? null
-                                : () => ref
-                                      .read(composeControllerProvider.notifier)
-                                      .removePhoto(photo.localId),
+                          PositionedDirectional(
+                            bottom: KSpacing.xs + 2,
+                            end: KSpacing.xs + 2,
+                            child: _Badge(
+                              child: Text(l10n.createPhotoNumber(i + 1)),
+                            ),
                           ),
-                        ),
-                      ],
+                          PositionedDirectional(
+                            top: 0,
+                            start: 0,
+                            child: _RemoveButton(
+                              key: CreateScreen.removePhotoKey(photo.localId),
+                              onTap: draft.busy
+                                  ? null
+                                  : () => ref
+                                        .read(
+                                          composeControllerProvider.notifier,
+                                        )
+                                        .removePhoto(photo.localId),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -889,7 +930,8 @@ class _RemoveButton extends StatelessWidget {
 }
 
 /// Under the strip: the reorder hint (two photos or more) at the start,
-/// then the page dots (centred when there is no hint).
+/// then one dot per photo (centred when there is no hint); the active dot
+/// follows the strip's scroll and the photo last opened.
 class _StripFooter extends StatelessWidget {
   const new({required this.photos, required this.active});
 
@@ -899,7 +941,7 @@ class _StripFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final count = photos + 1;
+    final count = photos;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         KCompose.inset,
@@ -938,6 +980,7 @@ class _StripFooter extends StatelessWidget {
               const Spacer(),
             for (var i = 0; i < count; i++)
               Container(
+                key: CreateScreen.dotKey(i),
                 width: KCompose.dot,
                 height: KCompose.dot,
                 margin: const EdgeInsets.symmetric(horizontal: 3),

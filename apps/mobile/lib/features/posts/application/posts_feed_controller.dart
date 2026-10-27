@@ -13,7 +13,9 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// A [Post] as the feed tile shows it. Images load from the media CDN.
+/// A [Post] as the feed tile shows it: the first photo is the cover (its
+/// ratio sizes the media), and a post with several photos carries all of
+/// them. Images load from the media CDN.
 FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
   final cover = post.media.isEmpty ? null : post.media.first;
   return FeedPostData(
@@ -31,6 +33,10 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     location: post.location,
     text: post.text,
     media: cover == null ? null : NetworkImage(cover.url),
+    // Every photo, in post order: the tile swipes between them.
+    gallery: post.media.length > 1
+        ? [for (final m in post.media) NetworkImage(m.url)]
+        : const [],
     mediaAspect: cover?.aspect,
     likes: post.likeCount,
     comments: post.commentCount,

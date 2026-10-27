@@ -22,6 +22,8 @@ class LiveRoomCardData {
     this.categoryName,
     this.roomId,
     this.score = 0,
+    this.isAudio = false,
+    this.hostId,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -43,6 +45,8 @@ class LiveRoomCardData {
       categoryName: room.category?.name,
       roomId: room.id,
       score: room.score,
+      isAudio: room.mode == LiveRoomMode.audio,
+      hostId: room.host.id,
     );
   }
 
@@ -79,6 +83,14 @@ class LiveRoomCardData {
 
   /// CP-012: the live's points; 0 shows nothing.
   final int score;
+
+  /// D124: an audio room (CP-011 `AUDIO`); every other mode has video. The
+  /// grid card names the room type next to the live mark.
+  final bool isAudio;
+
+  /// D124: the host's user id (API rooms only), so the in-room swipe never
+  /// moves a host away from their own live.
+  final String? hostId;
 }
 
 /// A line in the live chat overlay.

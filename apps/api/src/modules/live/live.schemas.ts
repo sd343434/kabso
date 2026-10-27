@@ -61,11 +61,15 @@ export const LIVE_THEMES = [
 ] as const;
 export const DEFAULT_LIVE_THEME = LIVE_THEMES[0];
 
-/** Allowed `seatCount` per mode, host tile included (owner D94; AUDIO owner D103). */
-export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20, 25] } as const;
+/**
+ * Allowed `seatCount` per mode for a start or a change, host tile included (owner D94; AUDIO owner
+ * D103, D123: 25 removed). A room already LIVE with 25 keeps it until it ends (seats 1 … 24 keep
+ * working: {@link MAX_SEAT_INDEX}; the database CHECK still admits 25).
+ */
+export const LIVE_SEAT_COUNTS = { MULTI: [4, 6, 9, 12], AUDIO: [5, 10, 15, 20] } as const;
 export type SeatedMode = keyof typeof LIVE_SEAT_COUNTS;
 
-/** Seat indexes 1 … 24 (the host is 0; the largest room has 25 tiles). */
+/** Seat indexes 1 … 24 (the host is 0; a room started with 25 tiles before D123 has 24 seats). */
 export const MAX_SEAT_INDEX = 24;
 
 export function isSeatedMode(mode: string): mode is SeatedMode {

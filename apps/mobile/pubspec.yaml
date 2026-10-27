@@ -10,12 +10,15 @@ environment:
 dependencies:
   audioplayers: ^6.5.1
   clock: ^1.1.3
+  # D126 the gift art disk cache (file names are SHA-256 of the URL).
+  crypto: ^3.0.7
   # D94 beauty on the web: dart_webrtc, flutter_webrtc and web are pinned to
   # the versions livekit_client already resolves.
   dart_webrtc: 1.8.2
   dio: ^5.11.1
   flutter:
     sdk: flutter
+  flutter_foreground_task: 11.0.3
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.4.3
@@ -34,6 +37,8 @@ dependencies:
   livekit_client: 2.13.1
   lottie: ^3.3.1
   material_ui: ^1.7.0
+  # D126 the gift art disk cache directory.
+  path_provider: ^2.1.6
   photo_manager: ^3.12.0
   # CP-017 voice clips in the live chat (AAC in .m4a). Pinned exactly.
   record: 7.1.2
@@ -63,6 +68,8 @@ flutter:
     - assets/art/
     # D84 leaderboard art (Kabso's own, AI-generated; see the board).
     - assets/leaderboard/
+    # D125 the owner's family art (assets/families/PROVENANCE.md).
+    - assets/families/
     # D84 flags from Noto Color Emoji (OFL, assets/flags/NOTICE.txt).
     - assets/flags/
     # KL-056 debug-preview imagery (AI-generated, development only).

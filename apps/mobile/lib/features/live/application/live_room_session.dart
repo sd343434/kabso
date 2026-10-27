@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -120,6 +122,9 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   bool _refreshing = false;
   bool _syncing = false;
   int? _infoSeen;
+  late LiveBackgroundKeeper _keeper;
+  LiveBackgroundTexts? _background;
+  VoidCallback? _onLeave;
 
   LiveMediaEngine get engine => _engine;
 
@@ -127,6 +132,8 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   LiveRoomSessionState build() {
     _engine = ref.read(liveMediaEngineProvider)();
     _repo = ref.read(liveRepositoryProvider);
+    _keeper = ref.read(liveBackgroundKeeperProvider);
+    listenSelf((_, _) => _syncBackground());
     _engine.changes.addListener(_onChanges);
     _invites = _engine.seatInvites.listen((id) {
       if (id == roomId) unawaited(refreshSeats());
@@ -141,6 +148,7 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       }
     });
     ref.onDispose(() {
+      _keeper.release(this);
       _poll?.cancel();
       _taps?.close();
       unawaited(_invites?.cancel());
@@ -167,7 +175,18 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
   )).tap();
 
   /// Joins the media session of [room] (once).
-  Future<void> start(LiveRoom room) async {
+  ///
+  /// D123: with [background], a seated guest (and a listener of an audio
+  /// room) keeps the live running while the app is in the background; the
+  /// notification's Leave leaves the seat, or calls [onLeave] (the screen
+  /// leaves the room) for a listener.
+  Future<void> start(
+    LiveRoom room, {
+    LiveBackgroundTexts? background,
+    VoidCallback? onLeave,
+  }) async {
+    _background = background;
+    _onLeave = onLeave;
     if (state.joined || room.status != LiveRoomStatus.live) return;
     if (room.kicked || state.kicked) {
       if (!state.kicked) state = state.copyWith(kicked: true);
@@ -197,6 +216,47 @@ class LiveRoomSession extends Notifier<LiveRoomSessionState> {
       } else if (ref.mounted) {
         state = state.copyWith(joinFailure: failure);
       }
+    }
+  }
+
+  /// D123: who this session is for the background service — a seated
+  /// guest publishing, a listener of an audio room, or nobody (released).
+  void _syncBackground() {
+    final texts = _background;
+    if (!ref.mounted || texts == null) return;
+    final s = state;
+    final LiveBackgroundRole? role;
+    if (!s.joined || s.kicked || s.disconnected) {
+      role = null;
+    } else if (s.seated && s.publishing) {
+      role = LiveBackgroundRole.guest;
+    } else if (_mode == LiveRoomMode.audio) {
+      role = LiveBackgroundRole.listener;
+    } else {
+      role = null;
+    }
+    if (role == null) {
+      _keeper.release(this);
+      return;
+    }
+    final video =
+        role == LiveBackgroundRole.guest && _mode == LiveRoomMode.multi;
+    _keeper.hold(
+      this,
+      LiveBackgroundSpec.of(role, texts),
+      onEnd: role == LiveBackgroundRole.guest
+          ? () => unawaited(leaveSeat().then((_) {}, onError: (_) {}))
+          : () => _onLeave?.call(),
+      onBackground: video ? () => unawaited(_pauseVideo(paused: true)) : null,
+      onForeground: video ? () => unawaited(_pauseVideo(paused: false)) : null,
+    );
+  }
+
+  Future<void> _pauseVideo({required bool paused}) async {
+    try {
+      await _engine.setVideoPaused(paused: paused);
+    } on Object {
+      // Best effort.
     }
   }
 

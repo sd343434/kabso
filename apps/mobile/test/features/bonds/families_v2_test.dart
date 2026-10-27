@@ -3,12 +3,18 @@
 // presence, contributions, ranking; invite, chat), the family chat (send,
 // muted, members only, delete, report), Arabic and English at 393×852 and
 // 360×800 with text scale 1.3 and 2.
+// D125: the owner's podium cards (emblem in each card's circle, the place,
+// name, level, points and Join in its panel) and the default hero art.
+// D127: the owner's own mockup, literally: rows left to right in both
+// directions, the activity card, the podium backdrop, the hero layout
+// (level chip left, number box right, emblem over the sheet's edge).
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
+import 'package:kabso_live/features/families/presentation/bond_widgets.dart';
 import 'package:kabso_live/features/families/presentation/families_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_chat_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_screen.dart';
@@ -146,8 +152,9 @@ void main() {
       expect(find.text('Family 0'), findsOneWidget);
       // Rows from 4th on, with the month's points and members.
       expect(find.byKey(FamiliesScreen.tileKey('fam-3')), findsOneWidget);
-      expect(find.text(en.familiesScoreMonth('53.5M')), findsOneWidget);
-      expect(find.text(en.familyMembersCount(408, 500)), findsOneWidget);
+      expect(find.text(en.familiesMonthPointsLabel), findsWidgets);
+      expect(find.text('53.5M'), findsOneWidget);
+      expect(find.text(en.familiesRowMembers(408, 500)), findsOneWidget);
       // The caller's family is pinned at the bottom.
       expect(find.byKey(FamiliesScreen.myRankKey), findsOneWidget);
       expect(find.text('9'), findsOneWidget);
@@ -184,7 +191,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(fakes.families.calls, contains('rankings:ACTIVE'));
-      expect(find.text(en.familiesScoreActive('53.5M')), findsOneWidget);
+      expect(find.text(en.familiesActiveLabel), findsWidgets);
+      expect(find.text('53.5M'), findsOneWidget);
     });
 
     testWidgets('a member of a family sees no Join buttons', (tester) async {
@@ -221,6 +229,8 @@ void main() {
         fakes: fakes,
       );
       expect(find.text(en.familyLevelLong(1)), findsWidgets);
+      // D127: the number box (label and digits) at the hero's top right.
+      expect(find.text(en.familyNumberLabel), findsOneWidget);
       expect(find.text('48213907'), findsOneWidget);
       expect(find.text('عائلة عالمية · ترفيه · بث مباشر'), findsOneWidget);
       expect(find.text('12.4K'), findsOneWidget);
@@ -446,6 +456,264 @@ void main() {
       );
       expect(find.byKey(FamilyChatScreen.notMemberKey), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  group('D125 family art', () {
+    Rect rectOf(WidgetTester tester, Finder f) => tester.getRect(f);
+
+    testWidgets('podium: the three owner cards, 1st centred and larger, the '
+        'emblem inside each circle, place / name / level / points and Join '
+        'inside the panel; a tap opens the family', (tester) async {
+      _tall(tester);
+      final fakes = BondFakes();
+      fakes.families.boards[FamilyRankingBoard.prestige] = _board();
+      await pumpBonds(tester, const FamiliesScreen(), fakes: fakes);
+      for (var place = 1; place <= 3; place++) {
+        final slot = find.byKey(FamiliesScreen.podiumSlotKey(place));
+        final art = FamilyArt.podiumCards[place - 1];
+        final image = find.descendant(
+          of: slot,
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Image &&
+                w.image is AssetImage &&
+                (w.image as AssetImage).assetName == art.asset,
+          ),
+        );
+        expect(image, findsOneWidget, reason: '$place');
+        final card = rectOf(tester, slot);
+        // The card keeps the art's aspect.
+        expect(
+          card.height / card.width,
+          closeTo(art.size.height / art.size.width, 0.01),
+        );
+        final drawn = card;
+        final circle = art.map(
+          Rect.fromCircle(center: art.circleCentre, radius: art.circleRadius),
+          drawn,
+        );
+        final emblem = rectOf(
+          tester,
+          find.descendant(of: slot, matching: find.byType(FamilyEmblem)),
+        );
+        expect(emblem.center.dx, closeTo(circle.center.dx, 0.5));
+        expect(emblem.center.dy, closeTo(circle.center.dy, 0.5));
+        final panel = art.map(art.panel, drawn).inflate(0.5);
+        // The place badge sits on the circle's lower edge.
+        final placeBadge = rectOf(
+          tester,
+          find.byKey(FamiliesScreen.podiumPlaceKey(place)),
+        );
+        expect(placeBadge.center.dx, closeTo(circle.center.dx, 0.5));
+        expect(placeBadge.center.dy, closeTo(circle.bottom - 2, 1));
+        final name = rectOf(
+          tester,
+          find.descendant(of: slot, matching: find.text('Family ${place - 1}')),
+        );
+        expect(panel.contains(name.center), isTrue);
+        final join = rectOf(
+          tester,
+          find.byKey(FamiliesScreen.joinKey('fam-${place - 1}')),
+        );
+        expect(join.top, closeTo(panel.bottom - 0.5 - 10, 1.5));
+      }
+      // CTO review: readable sizes, nothing scaled below them at scale 1.
+      for (var i = 0; i < 3; i++) {
+        final name = find.text('Family $i');
+        final style = tester.widget<Text>(name).style!;
+        expect(style.fontSize, greaterThanOrEqualTo(13));
+        expect(style.fontWeight, FontWeight.w800);
+        // Not shrunk by a FittedBox: on screen the line is full height.
+        expect(
+          tester.getRect(name).height,
+          greaterThanOrEqualTo(13 * 1.15 - 0.01),
+          reason: 'Family $i',
+        );
+        final level = find.descendant(
+          of: find.byKey(FamiliesScreen.podiumSlotKey(i + 1)),
+          matching: find.text(en.familyLevelLong(5 - (i ~/ 2))),
+        );
+        expect(
+          tester.widget<Text>(level).style!.fontSize,
+          greaterThanOrEqualTo(11),
+        );
+        expect(
+          tester.getSize(find.byKey(FamiliesScreen.joinKey('fam-$i'))).width,
+          greaterThanOrEqualTo(28),
+        );
+        expect(
+          tester
+              .getSize(find.byKey(FamiliesScreen.podiumPlaceKey(i + 1)))
+              .width,
+          greaterThanOrEqualTo(24),
+        );
+      }
+      // D127: the cards stand inside the warm backdrop (10 pt gutters),
+      // the side cards' centres 125/373 of it from the middle.
+      final podium = rectOf(tester, find.byKey(FamiliesScreen.podiumKey));
+      expect(podium.left, 0);
+      expect(podium.right, 393);
+      final c2 = rectOf(tester, find.byKey(FamiliesScreen.podiumSlotKey(2)));
+      final c3 = rectOf(tester, find.byKey(FamiliesScreen.podiumSlotKey(3)));
+      // Only the wing tips reach into the gutters.
+      expect(c2.left, greaterThan(0));
+      expect(c3.right, lessThan(393));
+      expect(c2.center.dx, closeTo(196.5 - 120, 0.5));
+      expect(c3.center.dx, closeTo(196.5 + 120, 0.5));
+      final first = rectOf(tester, find.byKey(FamiliesScreen.podiumSlotKey(1)));
+      final second = rectOf(
+        tester,
+        find.byKey(FamiliesScreen.podiumSlotKey(2)),
+      );
+      expect(first.top, lessThan(second.top));
+      expect(first.bottom, closeTo(second.bottom, 0.5));
+      await tester.tap(find.text('Family 0'));
+      await tester.pumpAndSettle();
+      expect(fakes.visited, ['/families/fam-0']);
+    });
+
+    testWidgets('family page without a cover (D127): the owner art at full '
+        'bleed with the emblem in its gold ring (never mirrored), the level '
+        'chip top left, the number box top right, the emblem over the '
+        "sheet's edge on the left and the members on the right", (
+      tester,
+    ) async {
+      for (final language in AppLanguage.values) {
+        _tall(tester);
+        final fakes = BondFakes();
+        fakes.families.byId[_familyId] = _family();
+        await pumpBonds(
+          tester,
+          const FamilyScreen(familyId: _familyId),
+          fakes: fakes,
+          language: language,
+        );
+        final art = rectOf(tester, find.byKey(FamilyScreen.heroArtKey));
+        const slots = FamilyArt.hero;
+        // The crest (x 1340 of 1860) centred, the right edges together.
+        expect(art.right, closeTo(393, 0.5));
+        expect(art.left + 1340 * art.width / 1860, closeTo(196.5, 0.5));
+        final ring = slots.circleIn(art);
+        final emblem = rectOf(tester, find.byKey(FamilyScreen.heroEmblemKey));
+        expect(emblem.center.dx, closeTo(ring.center.dx, 0.5));
+        expect(emblem.center.dy, closeTo(ring.center.dy, 0.5));
+        expect(emblem.center.dx, greaterThan(300));
+        final chip = rectOf(tester, find.byType(FamilyLevelCrownChip));
+        final number = rectOf(tester, find.byKey(FamilyScreen.numberKey));
+        expect(chip.left, 14);
+        expect(number.right, 393 - 13);
+        expect(chip.top, closeTo(55, 0.5));
+        // The emblem in its ring on the sheet's edge (left, both
+        // directions), the name beside it, the members on the right.
+        expect(find.byType(FamilyEmblem), findsNWidgets(2));
+        final name = rectOf(tester, find.text('عائلة النجوم'));
+        expect(name.left, closeTo(91, 0.5));
+        final members = rectOf(
+          tester,
+          find.byKey(FamilyScreen.membersCountKey),
+        );
+        expect(members.right, closeTo(393 - 13, 0.5));
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    });
+
+    testWidgets('D127: in Arabic the rows still run left to right (place, '
+        'emblem, text, Join; medal, avatar, name, presence, menu); the tools '
+        'and tabs follow the reading order', (tester) async {
+      _tall(tester);
+      final fakes = BondFakes();
+      fakes.families
+        ..boards[FamilyRankingBoard.prestige] = _board()
+        ..boards[FamilyRankingBoard.active] = _board(board: 'ACTIVE');
+      await pumpBonds(
+        tester,
+        const FamiliesScreen(),
+        fakes: fakes,
+        language: AppLanguage.ar,
+      );
+      final row = find.byKey(FamiliesScreen.tileKey('fam-3'));
+      final rank = rectOf(
+        tester,
+        find.descendant(of: row, matching: find.text('4')),
+      );
+      final join = rectOf(tester, find.byKey(FamiliesScreen.joinKey('fam-3')));
+      expect(rank.center.dx, lessThan(40));
+      expect(join.right, greaterThan(370));
+      // The board pills: prestige on the left in both directions.
+      expect(
+        rectOf(
+          tester,
+          find.byKey(FamiliesScreen.tabKey(FamilyRankingBoard.prestige)),
+        ).left,
+        10,
+      );
+      // The activity card opens the prestige board.
+      await tester.tap(
+        find.byKey(FamiliesScreen.tabKey(FamilyRankingBoard.active)),
+      );
+      await tester.pumpAndSettle();
+      final ar = l10nFor(AppLanguage.ar);
+      expect(find.text(ar.familiesActiveLabel), findsWidgets);
+      await tester.tap(find.byKey(FamiliesScreen.activityMonthlyKey));
+      await tester.pumpAndSettle();
+      expect(find.text(ar.familiesMonthPointsLabel), findsWidgets);
+      expect(find.text(ar.familiesActiveLabel), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      final page = BondFakes();
+      page.families
+        ..byId[_familyId] = _family()
+        ..memberList = [_member('oz', 'LEADER', points: 500, rank: 1)];
+      await pumpBonds(
+        tester,
+        const FamilyScreen(familyId: _familyId),
+        fakes: page,
+        language: AppLanguage.ar,
+      );
+      final member = find.byKey(FamilyScreen.memberKey('oz'));
+      final medal = rectOf(
+        tester,
+        find.descendant(of: member, matching: find.byType(FamilyRankMedal)),
+      );
+      final menu = rectOf(tester, find.byKey(FamilyScreen.memberMenuKey('oz')));
+      expect(medal.left, lessThan(20));
+      expect(menu.right, greaterThan(385));
+      // Tools in reading order: manage first, on the right in Arabic.
+      final manage = rectOf(tester, find.byKey(FamilyScreen.manageToolKey));
+      final requests = rectOf(tester, find.byKey(FamilyScreen.requestsToolKey));
+      expect(manage.left, greaterThan(requests.left));
+      expect(manage.right, closeTo(393 - 12, 0.5));
+      // Message on the left, Invite on the right, in both directions.
+      final chat = rectOf(tester, find.byKey(FamilyScreen.chatKey));
+      final invite = rectOf(tester, find.byKey(FamilyScreen.inviteKey));
+      expect(chat.left, 12);
+      expect(chat.width, 146);
+      expect(invite.left, greaterThan(chat.right));
+    });
+
+    testWidgets("a leader's cover replaces the art (same layout)", (
+      tester,
+    ) async {
+      _tall(tester);
+      final fakes = BondFakes();
+      fakes.families.byId[_familyId] = Family.fromJson({
+        ...familyJson(),
+        'pendingRequestCount': 0,
+        'coverUrl': 'https://media.example.test/cover.webp',
+      });
+      await pumpBonds(
+        tester,
+        const FamilyScreen(familyId: _familyId),
+        fakes: fakes,
+      );
+      // No network in tests: the cover falls back to the gradient.
+      tester.takeException();
+      expect(find.byKey(FamilyScreen.heroArtKey), findsNothing);
+      expect(find.byKey(FamilyScreen.heroEmblemKey), findsNothing);
+      // The emblem over the sheet's edge only (no art ring).
+      expect(find.byType(FamilyEmblem), findsOneWidget);
+      expect(find.text(en.familyNumberLabel), findsOneWidget);
     });
   });
 

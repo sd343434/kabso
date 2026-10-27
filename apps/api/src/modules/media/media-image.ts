@@ -15,6 +15,17 @@ export const STORY_LARGE_SIDE = 1920;
 /** The large variant of a live cover (CP-015): a 640 px square, centre-cropped. */
 export const COVER_SIDE = 640;
 export const THUMB_SIDE = 320;
+/** D124: a home banner is always 1 500 × 500 (3:1), cover-cropped around the centre. */
+export const BANNER_WIDTH = 1500;
+export const BANNER_HEIGHT = 500;
+
+/**
+ * How the variants are shaped: `inside` (the long side bounded, never enlarged), `square` (a live
+ * cover or family emblem, CP-015: centre-cropped squares, never enlarged) or `banner` (D124: a
+ * home banner, cover-cropped to exactly 3:1 around the centre — 1 500 × 500 and 320 × 107 —
+ * enlarged when smaller, so every banner has the same size).
+ */
+export type ImageShape = 'inside' | 'square' | 'banner';
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
 export class InvalidImageError extends Error {}
@@ -62,14 +73,15 @@ const SHARP_FORMAT: Readonly<Record<ImageContentType, string>> = {
  * block (EXIF, GPS, XMP, IPTC) is dropped — sharp writes none unless asked — and colours are
  * converted to sRGB. Outputs WebP at `largeSide` (1 080 px; 1 920 px for stories) and 320 px on the
  * long side (never enlarged) and a 4×3 blurhash. Animated images keep their first frame only.
- * [square] (a live cover, CP-015) centre-crops both variants to squares instead, never enlarged:
- * the shorter side bounds them.
+ * [shape] `square` (a live cover, CP-015) centre-crops both variants to squares instead, never
+ * enlarged: the shorter side bounds them; `banner` (D124) cover-crops them to 3:1 (`largeSide` is
+ * then ignored: 1 500 × 500 and 320 × 107).
  */
 export async function processImage(
   bytes: Buffer,
   declared: ImageContentType,
   largeSide: number = LARGE_SIDE,
-  square = false,
+  shape: ImageShape = 'inside',
 ): Promise<ProcessedImage> {
   const sniffed = sniffImageType(bytes);
   if (sniffed !== declared) throw new InvalidImageError(`signature ${sniffed ?? 'unknown'} ≠ ${declared}`);
@@ -88,13 +100,21 @@ export async function processImage(
   const base = () =>
     sharp(bytes, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: 'error' }).rotate().toColorspace('srgb');
   const resize = (side: number) => {
-    if (!square) return [side, side, { fit: 'inside', withoutEnlargement: true }] as const;
+    if (shape === 'banner') {
+      const width = side === THUMB_SIDE ? THUMB_SIDE : BANNER_WIDTH;
+      return [
+        width,
+        Math.round((width * BANNER_HEIGHT) / BANNER_WIDTH),
+        { fit: 'cover', position: 'centre' },
+      ] as const;
+    }
+    if (shape === 'inside') return [side, side, { fit: 'inside', withoutEnlargement: true }] as const;
     const s = Math.min(side, w, h);
     return [s, s, { fit: 'cover', position: 'centre' }] as const;
   };
   try {
     const large = await base()
-      .resize(...resize(largeSide))
+      .resize(...resize(shape === 'banner' ? BANNER_WIDTH : largeSide))
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await base()

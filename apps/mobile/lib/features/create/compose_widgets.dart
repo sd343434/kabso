@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -856,4 +857,197 @@ Future<DateTime?> pickScheduleTime(
     return null;
   }
   return at;
+}
+
+/// A selected photo as a small card shows it: decoded near the size it is
+/// drawn at instead of its full 2160 px (a dozen full-size decodes made the
+/// strip and the tray stutter on phones). [extent] is the card's larger
+/// side; twice it keeps `BoxFit.cover` sharp for ratios up to 2:1.
+ImageProvider composeThumb(
+  BuildContext context,
+  Uint8List bytes,
+  double extent,
+) {
+  final px = (extent * 2 * MediaQuery.devicePixelRatioOf(context)).round();
+  return ResizeImage(
+    MemoryImage(bytes),
+    width: px,
+    height: px,
+    policy: ResizeImagePolicy.fit,
+  );
+}
+
+/// Opens the selected photos full screen at [initial]: swipe between them
+/// (in the reading direction), see "2/5" and the dots, remove the one shown.
+/// Returns the index shown when it closes (null when no photo is left).
+Future<int?> showComposePhotoPreview(BuildContext context, int initial) =>
+    Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ComposePhotoPreview(initial: initial),
+      ),
+    );
+
+/// The full-screen preview of the draft's photos (both Create steps): a
+/// pager over the photos in post order, Close at the start, the counter in
+/// the middle and Remove at the end, the dots at the bottom.
+class ComposePhotoPreview extends ConsumerStatefulWidget {
+  const new({required this.initial, super.key});
+
+  final int initial;
+
+  static const pagerKey = Key('create.preview.pager');
+  static const counterKey = Key('create.preview.counter');
+  static const closeKey = Key('create.preview.close');
+  static const removeKey = Key('create.preview.remove');
+
+  @override
+  ConsumerState<ComposePhotoPreview> createState() =>
+      _ComposePhotoPreviewState();
+}
+
+class _ComposePhotoPreviewState extends ConsumerState<ComposePhotoPreview> {
+  late int _page = widget.initial;
+  late final PageController _pages = PageController(
+    initialPage: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  void _close() => Navigator.of(context).pop(_page);
+
+  void _remove(List<ComposePhoto> photos) {
+    if (photos.isEmpty) return;
+    final page = _page.clamp(0, photos.length - 1);
+    ref
+        .read(composeControllerProvider.notifier)
+        .removePhoto(photos[page].localId);
+    if (photos.length == 1) {
+      Navigator.of(context).pop();
+      return;
+    }
+    // The next photo slides in; removing the last shows the one before.
+    final next = page.clamp(0, photos.length - 2);
+    setState(() => _page = next);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pages.hasClients) _pages.jumpToPage(next);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final draft = ref.watch(composeControllerProvider);
+    final photos = draft.photos;
+    final count = photos.length;
+    final page = count == 0 ? 0 : _page.clamp(0, count - 1);
+    const fg = Colors.white;
+    final width = MediaQuery.sizeOf(context).width;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Semantics(
+              container: true,
+              label: count == 0 ? null : l10n.createPhotoLabel(page + 1, count),
+              child: PageView.builder(
+                key: ComposePhotoPreview.pagerKey,
+                controller: _pages,
+                itemCount: count,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemBuilder: (_, i) => Image(
+                  image: ResizeImage(
+                    MemoryImage(photos[i].bytes),
+                    width: (width * dpr).round(),
+                    policy: ResizeImagePolicy.fit,
+                  ),
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, _, _) => const SizedBox.expand(),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.all(KSpacing.sm),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        key: ComposePhotoPreview.closeKey,
+                        tooltip: l10n.createClose,
+                        onPressed: _close,
+                        icon: const AppIcon(AppIcons.close, color: fg),
+                      ),
+                      Expanded(
+                        child: Text(
+                          count == 0
+                              ? ''
+                              : '${l10n.createPhotoNumber(page + 1)}/'
+                                    '${l10n.createPhotoNumber(count)}',
+                          key: ComposePhotoPreview.counterKey,
+                          textAlign: TextAlign.center,
+                          textDirection: TextDirection.ltr,
+                          style: context.textStyles.bodyStrong.copyWith(
+                            color: fg,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        key: ComposePhotoPreview.removeKey,
+                        tooltip: l10n.createRemovePhoto,
+                        onPressed: draft.busy ? null : () => _remove(photos),
+                        icon: const Icon(Icons.delete_outline, color: fg),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (count > 1)
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: KSpacing.lg),
+                    child: ExcludeSemantics(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < count; i++)
+                            Container(
+                              width: 7,
+                              height: 7,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: i == page
+                                    ? context.palette.primary
+                                    : fg.withValues(alpha: 0.45),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,17 +1,26 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Scaffold of the five primary tabs with the custom bottom navigation.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const new({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
-  void _onSelect(int index) {
+  void _onSelect(WidgetRef ref, int index) {
+    final create = AppRoutes.shellBranches.indexOf(AppRoutes.create);
+    if (index == create && navigationShell.currentIndex != create) {
+      // D123: Create (and Go live from it) returns here when it is left.
+      ref
+          .read(shellReturnTabProvider.notifier)
+          .remember(AppRoutes.shellBranches[navigationShell.currentIndex]);
+    }
     navigationShell.goBranch(
       index,
       // Tapping the active tab returns to its first page.
@@ -20,7 +29,7 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Create is a full-screen flow (owner's reference, KL-060): it has its
     // own Close and Back, so the bar is hidden there.
     final creating =
@@ -32,7 +41,7 @@ class AppShell extends StatelessWidget {
           ? null
           : KBottomNav(
               currentIndex: navigationShell.currentIndex,
-              onSelect: _onSelect,
+              onSelect: (index) => _onSelect(ref, index),
               items: shellNavItems(context.l10n),
             ),
     );

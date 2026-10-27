@@ -37,12 +37,15 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// A banner stays this long after its last send.
   static const bannerTime = Duration(seconds: 3);
 
-  /// The large effect's length (the image's grow and fade; an animation
-  /// file plays within it).
+  /// The large effect's length (the image's grow and fade).
   static const bigTime = Duration(milliseconds: 3200);
 
+  /// An effect that fetches or plays an SVGA ([bigHold]) ends when it has
+  /// played ([bigDone]); this is only the longest it may stay on screen.
+  static const maxAnimatedTime = Duration(seconds: 30);
+
   /// A send worth at least this many coins plays the large effect (as does
-  /// a gift with an `animationKey`).
+  /// a gift with an `animationKey` or a hosted `animationUrl`, D126).
   static const bigGiftCoins = 1000;
 
   /// At most this many sends wait for a banner or the large effect.
@@ -90,9 +93,28 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
         ..add(gift.id);
     }
     _banner(gift);
-    if (gift.animationKey != null || gift.totalCoins >= bigGiftCoins) {
+    if (_animated(gift) || gift.totalCoins >= bigGiftCoins) {
       _big(gift);
     }
+  }
+
+  static bool _animated(LiveGift g) =>
+      g.animationKey != null || g.animationUrl != null;
+
+  /// The large effect of send [id] fetches or plays an SVGA: it stays
+  /// until [bigDone] (at most [maxAnimatedTime]) instead of [bigTime].
+  void bigHold(String id) {
+    if (state.big?.id != id) return;
+    _bigTimer?.cancel();
+    _bigTimer = Timer(maxAnimatedTime, _bigDone);
+  }
+
+  /// The large effect of send [id] is over (its SVGA played, or the image
+  /// popped): the next one plays. Ignored for an effect no longer shown.
+  void bigDone(String id) {
+    if (state.big?.id != id) return;
+    _bigTimer?.cancel();
+    _bigDone();
   }
 
   void _banner(LiveGift gift) {

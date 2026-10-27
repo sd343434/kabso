@@ -519,6 +519,11 @@ a `CONNECTION LIMIT`.
   also needs the hosting permission (`PUT /api/v1/admin/live/hosts/{username}`, admin permission
   `LIVE_HOSTS`); keep `LIVE_HOSTING_ENABLED=false` in production until L1b (agencies and identity
   checks) is done. Locally: `livekit-server --dev --bind 127.0.0.1` with the `.env.example` values.
+  *(D123)* A live keeps running in the background through an Android foreground service (types
+  `microphone` and `mediaPlayback`): the Play Console's foreground-service declaration must list
+  both, with a short video of going live, leaving the app and the ongoing notification. Keep
+  `LIVE_HEARTBEAT_STALE_SECONDS` (45) at least 2 × `LIVE_HEARTBEAT_INTERVAL_SECONDS` (15) as
+  enforced: the backgrounded app keeps beating at the interval.
 - **Notifications retention (CP-009):** the in-process sweeper
   (`NOTIFICATIONS_SWEEP_INTERVAL_SECONDS`, 3600 s, refused at 0 in production) deletes
   notifications whose latest activity is older than 30 days. `POST /notifications/read` is
@@ -630,6 +635,43 @@ a `CONNECTION LIMIT`.
   Locally: `pnpm gift:admin …`. Runs as the migration role; every change writes an audit row
   (`gift.add`, `gift.update`, `gift.disable`, `gift.enable`, `gift.grant`). Gifts are never deleted
   (sends and bag stock keep them): disable instead.
+- **Hosted gift art (migration `20261119090000_gift_art`; D126, contract v1.26.2-live draft):**
+  apply it with the usual `migrate` job (nullable columns and CHECKs on `gifts`; no backfill, no
+  GRANT). Gift images and SVGA effects are no longer bundled in the app: `gift-admin add|update …
+  --image <file.png|webp> --animation-file <file.svga>` checks each file (image ≤ 1 MB, 64–2048 px,
+  about square; SVGA 2.x ≤ 25 MB) and uploads it to the media bucket at
+  `media/gifts/<code>/<sha256 prefix>.<ext>` (public through `MEDIA_PUBLIC_BASE_URL` like the rest of
+  `media/`, §5.3; `Cache-Control: public, max-age=31536000, immutable`); the app downloads and caches
+  it. `--image none` / `--animation-file none` remove them (the old objects stay in the bucket).
+  The job therefore needs the API's `S3_*` settings and `MEDIA_PUBLIC_BASE_URL` besides
+  `MIGRATION_DATABASE_URL`, and **the files must be inside the job container**: copy them to the
+  host, mount the folder read-only with `-v`, and pass the storage settings with `-e` (the server's
+  compose file is not in this repository: if its `migrate` service already receives the `S3_*`
+  variables, drop the `-e` flags; never put the keys in git). From the operator's Mac, then on the
+  server in `/opt/kabso/infra/deploy`:
+
+  ```bash
+  # on the Mac (the files the owner supplied)
+  ssh root@<server> mkdir -p /root/gifts
+  scp ~/Downloads/angel_warrior.png ~/Downloads/angel_warrior.svga root@<server>:/root/gifts/
+  # on the server, after the API image with D126 is deployed and the migrate job has run
+  cd /opt/kabso/infra/deploy
+  set -a; . ./<the env file the api service uses>; set +a   # S3_* and MEDIA_PUBLIC_BASE_URL
+  GIFT="docker compose --profile jobs run --rm -v /root/gifts:/gifts:ro \
+    -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID -e S3_SECRET_ACCESS_KEY \
+    -e S3_FORCE_PATH_STYLE -e MEDIA_PUBLIC_BASE_URL migrate node dist/cli/gift-admin.js"
+  $GIFT add angel_warrior --category FUN --name-ar "الملاك المحارب" --name-en "Angel Warrior" \
+    --price 50 --asset gift_angel_warrior --tag luxury --tag-ar "فخامة" --tag-en "Luxury" \
+    --badge NEW --sort 10 --image /gifts/angel_warrior.png --animation-file /gifts/angel_warrior.svga
+  $GIFT list            # … image=media/gifts/angel_warrior/1eaf….png animation-file=…svga (16830815 bytes)
+  curl -sI "$MEDIA_PUBLIC_BASE_URL/media/gifts/angel_warrior/<key from list>.svga" | head -5   # 200, immutable
+  # later: replace a file, or take the art away
+  $GIFT update angel_warrior --animation-file /gifts/angel_warrior_v2.svga
+  $GIFT update angel_warrior --image none --animation-file none
+  ```
+
+  The CLI prints each uploaded URL. Apps from before D126 ignore the URLs and show the bundled
+  `--asset` image if the release has it, else Kabso's gift box.
 - **New optional server config:** `LIVE_GIFT_QUANTITIES` (default `1,10,66,99,188,520,1314`; 1–12
   strictly ascending whole numbers 1–9999; the API refuses to start otherwise) and
   `RATE_LIMIT_LIVE_GIFT_USER` (default `120/60`). Changing the quantities changes the catalogue
@@ -677,6 +719,47 @@ a `CONNECTION LIMIT`.
   no CLI; family chat messages have no retention limit yet.
 - Reported family chat messages appear in the existing admin reports queue
   (`targetType: FAMILY_CHAT_MESSAGE`); `REMOVE_TARGET` hides the message.
+
+### 5.10 Promo banners on the live hub (migration `20261118090000_home_banners`; D124) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5). It creates `home_banners` and lets `media_assets.kind`
+  take `HOME_BANNER`; no GRANT (default privileges), no backfill. No new server config.
+- **No banner exists after the deploy**, so the hub shows none. Banners are managed only with the
+  `banner-admin` CLI, built into the API image as `dist/cli/banner-admin.js` (locally:
+  `pnpm banner:admin …`). It runs as the migration role; every change writes an audit row
+  (`banner.add`, `banner.enable`, `banner.disable`, `banner.remove`).
+- `add --image <file>` reads a JPEG, PNG or WebP **inside the container**, cover-crops it to 3:1
+  (1 500 × 500 and 320 × 107 WebP; send 3:1 pictures, e.g. 1 500 × 500 or 2 000 × 667, and nothing
+  is cut) and stores it in the media bucket, so the job needs the API's `S3_*` settings and
+  `MEDIA_PUBLIC_BASE_URL` besides `MIGRATION_DATABASE_URL`, and media storage must be configured
+  (§5.3, B12). `--owner` is an existing account (the picture's owner, e.g. the owner's admin
+  account). Instead of `--image`, `--media <id>` takes a `HOME_BANNER` upload made through the API
+  in the last 24 hours.
+- `--link` is `/cp/space`, `/families`, `/live?tab=trending|new|following`, `/home/room/<roomId>`,
+  `/users/<username>` or an `https://` URL. Optional: `--title-ar`, `--title-en` (overlay text,
+  1–40 characters; leave them out when the text is in the picture), `--text-side left|right`,
+  `--starts` / `--ends` (ISO times; default now / open), `--sort <n>` (lowest first), `--disabled`.
+- On the server: copy the pictures to the host first (they are not in the image), mount that folder
+  into the job, and pass the storage settings from the environment the API uses. From the
+  operator's machine and then from `/opt/kabso/infra/deploy`:
+
+  ```bash
+  scp banner_families.webp banner_cp.webp banner_talents.webp server:/opt/kabso/banners/
+  # on the server, in /opt/kabso/infra/deploy, with the API's S3_* / MEDIA_PUBLIC_BASE_URL exported
+  # (skip the -e flags if the migrate service already receives them)
+  BANNER="docker compose --profile jobs run --rm -v /opt/kabso/banners:/banners:ro \
+    -e S3_ENDPOINT -e S3_REGION -e S3_BUCKET -e S3_ACCESS_KEY_ID -e S3_SECRET_ACCESS_KEY \
+    -e S3_FORCE_PATH_STYLE -e MEDIA_PUBLIC_BASE_URL migrate node dist/cli/banner-admin.js"
+  $BANNER add --image /banners/banner_families.webp --owner owner@example.com --link /families --sort 10
+  $BANNER add --image /banners/banner_cp.webp --owner owner@example.com --link /cp/space --sort 20
+  $BANNER add --image /banners/banner_talents.webp --owner owner@example.com --link '/live?tab=trending' --sort 30
+  $BANNER list                 # + shown now, ~ outside its window, - disabled
+  $BANNER disable <bannerId>   # hide; enable <bannerId> shows it again
+  $BANNER remove <bannerId>    # deletes the banner, its asset row and its two objects
+  ```
+
+- Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
+  reload it on pull to refresh, so a change shows within about a minute.
 
 ## 6. Observability baseline
 

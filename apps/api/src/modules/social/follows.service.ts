@@ -15,6 +15,14 @@ export interface FollowStateDto {
   followerCount: number;
 }
 
+/** `FollowerRemoval` (v1.26.1-live, D125). */
+export interface FollowerRemovalDto {
+  /** Always false: the user no longer follows the caller. */
+  followsMe: false;
+  /** The caller's follower count after the removal (ACTIVE followers, like the profile). */
+  followerCount: number;
+}
+
 export interface FollowCounts {
   followerCount: number;
   followingCount: number;
@@ -105,6 +113,31 @@ export class FollowsService {
         isFollowing: false,
         followerCount: await tx.follow.count({
           where: { followeeId: target.id, follower: ACTIVE_COUNTERPART },
+        }),
+      };
+    });
+  }
+
+  /**
+   * D125 `DELETE /me/followers/{username}`: removes the edge `username` → caller. A missing edge
+   * is a no-op (200); the same 404 / 400 rules as `unfollow` (the other account must be ACTIVE,
+   * never the caller). The follow notification it sent is withdrawn, as on an unfollow. They
+   * can follow again later unless the caller's account is private (no follow requests, §10.6).
+   */
+  async removeFollower(callerId: string, username: string): Promise<FollowerRemovalDto> {
+    assertWellFormed(username);
+    return this.prisma.$transaction(async (tx) => {
+      const follower = await this.lockPair(tx, callerId, username);
+      const { count } = await tx.follow.deleteMany({
+        where: { followerId: follower.id, followeeId: callerId },
+      });
+      if (count > 0) {
+        await this.notifier.undo(tx, { type: 'FOLLOW', recipientId: callerId, actorId: follower.id });
+      }
+      return {
+        followsMe: false,
+        followerCount: await tx.follow.count({
+          where: { followeeId: callerId, follower: ACTIVE_COUNTERPART },
         }),
       };
     });

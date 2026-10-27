@@ -429,26 +429,20 @@ class _LiveHubDemoState extends State<_LiveHubDemo> {
   String? _category;
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: buildAppTheme(
-      brightness: Brightness.dark,
-      locale: Localizations.localeOf(context),
-    ),
-    child: FeedTabsScaffold(
-      overlayHeader: true,
-      centerTabs: true,
-      pageBuilder: (context, tab, selectTab) => LiveHubBody(
-        tab: tab,
-        content: AsyncData(
-          FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
-        ),
-        categories: _Samples.liveCategories,
-        selectedCategory: _category,
-        onSelectCategory: (slug) => setState(() => _category = slug),
-        onRefresh: () async {},
-        onRetry: () {},
-        onSelectTab: selectTab,
+  Widget build(BuildContext context) => FeedTabsScaffold(
+    centerTabs: true,
+    topBar: const LiveHubTopBar(showNotifications: false),
+    pageBuilder: (context, tab, selectTab) => LiveHubBody(
+      tab: tab,
+      content: AsyncData(
+        FeedItems(tab == FeedTab.following ? const [] : _Samples.hubRooms),
       ),
+      categories: _Samples.liveCategories,
+      selectedCategory: _category,
+      onSelectCategory: (slug) => setState(() => _category = slug),
+      onRefresh: () async {},
+      onRetry: () {},
+      onSelectTab: selectTab,
     ),
   );
 }

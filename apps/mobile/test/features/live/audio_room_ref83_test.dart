@@ -1,7 +1,8 @@
 // Owner refs 83/84 and D118: the audio room's seats in rows of 5 for every
-// size (5, 10, 15, 20, 25; no circle any more) with the host as the first
-// tile, mirrored in Arabic; empty seats readable on every theme; and the
-// room tools sheet with the tools that have no server greyed "Soon".
+// size (5, 10, 15, 20 — D123 removed 25; no circle any more) with the host
+// as the first tile, mirrored in Arabic; one seat size in every room (D123);
+// empty seats readable on every theme; and the room tools sheet with the
+// tools that have no server greyed "Soon".
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -106,8 +107,7 @@ void main() {
     );
   });
 
-  testWidgets('25 seats with the chat on a 360 × 800 phone: every row shows '
-      'above the chat (they hid under it, owner 2026-10-26)', (tester) async {
+  Future<void> roomWithChat(WidgetTester tester, int count) async {
     setViewport(tester, GoldenViewport.android);
     await pumpScreen(
       tester,
@@ -116,7 +116,7 @@ void main() {
           header: const SizedBox(height: 48),
           chips: const SizedBox(height: 32),
           stage: AudioSeatRing(
-            count: 25,
+            count: count,
             host: const KAvatar(name: 'Layla', size: AudioSeatRing.picture),
             hostName: 'Layla',
             hostPoints: '0',
@@ -132,13 +132,44 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final chatTop = tester.getTopLeft(find.byKey(const ValueKey('chat0'))).dy;
-    for (var i = 1; i <= 24; i++) {
-      final seat = tester.getRect(find.byKey(AudioSeatRing.seatKey(i)));
-      expect(seat.bottom, lessThanOrEqualTo(chatTop), reason: 'seat $i');
+  }
+
+  testWidgets('D123: every seat count has the same seat size on a 360 × '
+      '800 phone (full size, no scale-down by count)', (tester) async {
+    Rect? first;
+    for (final count in [5, 10, 15, 20, 25]) {
+      await roomWithChat(tester, count);
+      final host = tester.getRect(find.byKey(AudioSeatRing.seatKey(0)));
+      final seat = tester.getRect(find.byKey(AudioSeatRing.seatKey(1)));
+      first ??= seat;
+      // A seat tile is 70 pt wide at full size on a 360 pt phone.
+      expect(seat.width, closeTo(70, 0.01), reason: '$count');
+      expect(seat.size, first.size, reason: '$count');
+      expect(host.width, closeTo(seat.width, 0.01), reason: '$count');
+      // The same place too: the rows start where the 5-seat row does.
+      expect(seat.top, closeTo(first.top, 0.01), reason: '$count');
     }
   });
 
+  testWidgets('D123: 20 seats with the chat on a 360 × 800 phone: the '
+      'seats keep their size and the stage scrolls to the last row', (
+    tester,
+  ) async {
+    await roomWithChat(tester, 20);
+    final chatTop = tester.getTopLeft(find.byKey(const ValueKey('chat0'))).dy;
+    final last = find.byKey(AudioSeatRing.seatKey(19));
+    await tester.scrollUntilVisible(
+      last,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    final seat = tester.getRect(last);
+    expect(seat.width, closeTo(70, 0.01));
+    expect(seat.bottom, lessThanOrEqualTo(chatTop));
+  });
+
+  // 25: an AUDIO room started before D123 still shows its 25 tiles.
   for (final count in [5, 10, 15, 20, 25]) {
     testWidgets('$count seats (D100, D118): rows of 5, the host the first '
         'tile, in reading order', (tester) async {

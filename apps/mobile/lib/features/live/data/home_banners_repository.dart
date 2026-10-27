@@ -1,0 +1,44 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kabso_live/core/demo/demo_mode.dart';
+import 'package:kabso_live/core/network/api_call.dart';
+import 'package:kabso_live/core/network/network_providers.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
+
+/// The live hub's promo banners (openapi v1.26-live draft, D124, tag
+/// `home`). Every method throws an `AppFailure`.
+abstract interface class HomeBannersRepository {
+  /// `GET /home/banners`: the active banners in server order (possibly
+  /// empty; at most 10).
+  Future<List<HomeBanner>> listBanners();
+}
+
+class HomeBannersRepositoryImpl implements HomeBannersRepository {
+  new(this._dio);
+
+  final Dio _dio;
+
+  @override
+  Future<List<HomeBanner>> listBanners() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/home/banners');
+    final data = res.data!['data']! as List<dynamic>;
+    return [
+      for (final item in data)
+        HomeBanner.fromJson(item as Map<String, dynamic>),
+    ];
+  });
+}
+
+/// Demo mode (test builds) has no banners: nothing is invented (D39).
+class _NoBanners implements HomeBannersRepository {
+  const new();
+
+  @override
+  Future<List<HomeBanner>> listBanners() async => const [];
+}
+
+final homeBannersRepositoryProvider = Provider<HomeBannersRepository>(
+  (ref) => watchDemo(ref)
+      ? const _NoBanners()
+      : HomeBannersRepositoryImpl(ref.watch(apiDioProvider)),
+);

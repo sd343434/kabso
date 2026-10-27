@@ -77,6 +77,11 @@ export enum AuditAction {
   GIFT_DISABLE = 'gift.disable',
   GIFT_ENABLE = 'gift.enable',
   GIFT_GRANT = 'gift.grant',
+  // D124 (v1.26-live): home banners, changed only by the banner-admin CLI.
+  BANNER_ADD = 'banner.add',
+  BANNER_ENABLE = 'banner.enable',
+  BANNER_DISABLE = 'banner.disable',
+  BANNER_REMOVE = 'banner.remove',
 }
 
 export interface AuditEntry {

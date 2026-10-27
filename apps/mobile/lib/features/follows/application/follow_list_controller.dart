@@ -8,11 +8,27 @@ import 'package:kabso_live/features/profile/application/profile_grid_provider.da
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 
-/// Which list: a user's followers or following.
-typedef FollowListKey = ({String username, FollowListKind kind});
+/// Which list: a user's followers or following, the search ('' = none) and
+/// the order (D125).
+typedef FollowListKey = ({
+  String username,
+  FollowListKind kind,
+  String query,
+  FollowListOrder order,
+});
 
-/// One follow list (D121), newest follow first, paged (CONVENTIONS §5),
-/// with an optimistic Follow / Unfollow per row.
+/// The list of [username]'s [kind] for [query] in [order].
+FollowListKey followListKey(
+  String username,
+  FollowListKind kind, {
+  String query = '',
+  FollowListOrder order = FollowListOrder.newest,
+}) => (username: username, kind: kind, query: query, order: order);
+
+/// One follow list (D121), newest follow first (D125: or oldest first, and
+/// searched by name), paged (CONVENTIONS §5), with an optimistic Follow /
+/// Unfollow per row; on your own lists, removing a follower and dropping a
+/// row you unfollowed or blocked (D125).
 class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
   new(this.key);
 
@@ -25,7 +41,12 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
     final repo = ref.watch(followListsRepositoryProvider);
     ref.watch(currentUserProvider.select((u) => u?.id));
     _busy.clear();
-    final page = await repo.list(key.username, key.kind);
+    final page = await repo.list(
+      key.username,
+      key.kind,
+      query: key.query.isEmpty ? null : key.query,
+      order: key.order,
+    );
     _next = page.next;
     return FeedItems(page.items, hasMore: _next != null);
   }
@@ -42,7 +63,13 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
     try {
       final page = await ref
           .read(followListsRepositoryProvider)
-          .list(key.username, key.kind, cursor: _next);
+          .list(
+            key.username,
+            key.kind,
+            cursor: _next,
+            query: key.query.isEmpty ? null : key.query,
+            order: key.order,
+          );
       if (!ref.mounted) return;
       _next = page.next;
       final current = state.value?.items ?? s.items;
@@ -80,6 +107,47 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
     );
   }
 
+  /// Takes the row [id] out of the list (unfollowed or blocked from your
+  /// own list, D125).
+  void drop(String id) {
+    final s = state.value;
+    if (s == null) return;
+    state = AsyncData(
+      FeedItems(
+        [
+          for (final u in s.items)
+            if (u.id != id) u,
+        ],
+        hasMore: s.hasMore,
+        loadingMore: s.loadingMore,
+        loadMoreError: s.loadMoreError,
+      ),
+    );
+  }
+
+  void _countsMoved(String username) => ref
+    ..invalidate(profileStatsProvider)
+    ..invalidate(publicProfileProvider(username))
+    ..invalidate(publicProfileProvider(key.username));
+
+  /// D125: removes [item] from your followers (`DELETE /me/followers/…`);
+  /// the row leaves the list once the server agrees. Throws an `AppFailure`
+  /// (nothing changes). Ignored while that row is busy.
+  Future<void> removeFollower(FollowListItem item) async {
+    if (_busy.contains(item.id)) return;
+    _busy.add(item.id);
+    try {
+      await ref
+          .read(followListsRepositoryProvider)
+          .removeFollower(item.username);
+      if (!ref.mounted) return;
+      drop(item.id);
+      _countsMoved(item.username);
+    } finally {
+      _busy.remove(item.id);
+    }
+  }
+
   /// Follows ([follow] true) or unfollows the row [item]. The row changes at
   /// once; on failure it is restored and the `AppFailure` rethrown for the
   /// screen to show. Ignored while that row is busy, when nothing would
@@ -101,10 +169,7 @@ class FollowListController extends AsyncNotifier<FeedItems<FollowListItem>> {
       if (!ref.mounted) return;
       _replace(row.id, followedByMe: result.isFollowing);
       // The counts on the profiles behind this screen move too.
-      ref
-        ..invalidate(profileStatsProvider)
-        ..invalidate(publicProfileProvider(row.username))
-        ..invalidate(publicProfileProvider(key.username));
+      _countsMoved(row.username);
     } on Object {
       if (ref.mounted) _replace(row.id, followedByMe: row.followedByMe);
       rethrow;

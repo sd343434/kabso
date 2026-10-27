@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, KeepAliveLink;
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
+import 'package:kabso_live/features/live/application/live_background.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -66,7 +67,7 @@ class GoLiveState {
   final int audioSeats;
 
   /// The counts a new room starts with: MULTI 6 (D94), AUDIO 10 (owner,
-  /// 2026-10-26; D103 allows 5, 10, 15, 20, 25 — the old default 9 was
+  /// 2026-10-26; D103/D123 allow 5, 10, 15, 20 — the old default 9 was
   /// refused by the server).
   static const defaultMultiSeats = 6;
   static const defaultAudioSeats = 10;
@@ -141,13 +142,17 @@ int fitSeatCount(int count, List<int> allowed) {
 /// The go-live flow (CP-010 L1): camera preview → `POST /live/rooms` →
 /// media token → publish → heartbeats at the server's interval → end.
 ///
-/// Leaving the screen while live ends the room (best effort) and always
-/// turns the camera and microphone off.
+/// On air the session outlives the screen (minimized) and the app (D123:
+/// a foreground service keeps it, and the heartbeats, running in the
+/// background; nothing ends on a lifecycle change). Disposing the session
+/// while live ends the room (best effort) and always turns the camera and
+/// microphone off.
 class LiveHostController extends Notifier<GoLiveState> {
   late LiveMediaEngine _engine;
   late LiveRepository _repo;
   Timer? _heartbeat;
   KeepAliveLink? _alive;
+  late LiveBackgroundKeeper _keeper;
 
   /// The room on air (created and not yet ended by this screen).
   String? _onAir;
@@ -159,9 +164,11 @@ class LiveHostController extends Notifier<GoLiveState> {
   GoLiveState build() {
     _engine = ref.read(liveMediaEngineProvider)();
     _repo = ref.read(liveRepositoryProvider);
+    _keeper = ref.read(liveBackgroundKeeperProvider);
     _engine.changes.addListener(_watchRoomInfo);
     ref.onDispose(() {
       _engine.changes.removeListener(_watchRoomInfo);
+      _keeper.release(this);
       _heartbeat?.cancel();
       final onAir = _onAir;
       if (onAir != null) _endQuietly(onAir);
@@ -345,7 +352,14 @@ class LiveHostController extends Notifier<GoLiveState> {
   /// Goes live. Throws an `AppFailure` and returns to the preview when the
   /// room, the token or publishing fails (a room already created is ended
   /// so it does not linger until the heartbeat timeout).
-  Future<void> goLive({required String title, String? categorySlug}) async {
+  ///
+  /// [background] words the ongoing notification that keeps the live
+  /// running while the app is in the background (D123).
+  Future<void> goLive({
+    required String title,
+    String? categorySlug,
+    LiveBackgroundTexts? background,
+  }) async {
     if (state.phase != GoLivePhase.preview) return;
     state = state.copyWith(phase: GoLivePhase.starting);
     // On air the session outlives the screen (minimized, owner D94).
@@ -390,6 +404,7 @@ class LiveHostController extends Notifier<GoLiveState> {
         Duration(seconds: config.heartbeatIntervalSeconds),
         (_) => unawaited(_beat()),
       );
+      if (background != null) _holdBackground(background);
     } on Object catch (e) {
       final failure = toAppFailure(e);
       if (room != null && _onAir == room.id) {
@@ -415,6 +430,40 @@ class LiveHostController extends Notifier<GoLiveState> {
       throw failure;
     }
   }
+
+  /// D123: the live keeps running while the app is away. The camera pauses
+  /// there (Android blocks it; the microphone goes on) and resumes on
+  /// return, when a heartbeat is also sent at once in case the timer was
+  /// late. The notification's End ends the live as the ✕ does.
+  void _holdBackground(LiveBackgroundTexts texts) {
+    final video = state.mode != LiveRoomMode.audio;
+    _keeper.hold(
+      this,
+      LiveBackgroundSpec.of(LiveBackgroundRole.host, texts),
+      onEnd: () => unawaited(end()),
+      onOpen: () {
+        if (ref.mounted && ref.read(liveMinimizedProvider)) {
+          ref.read(liveBackgroundOpenRequestsProvider.notifier).request();
+        }
+      },
+      onBackground: video ? () => unawaited(_pauseVideo(paused: true)) : null,
+      onForeground: () {
+        if (video) unawaited(_pauseVideo(paused: false));
+        unawaited(beatNow());
+      },
+    );
+  }
+
+  Future<void> _pauseVideo({required bool paused}) async {
+    try {
+      await _engine.setVideoPaused(paused: paused);
+    } on Object {
+      // Best effort: the live goes on.
+    }
+  }
+
+  /// A heartbeat now (back from the background, D123).
+  Future<void> beatNow() => _beat();
 
   Future<void> _beat() async {
     final room = state.room;
@@ -460,6 +509,7 @@ class LiveHostController extends Notifier<GoLiveState> {
 
   Future<void> _finish([LiveRoom? ended]) async {
     _heartbeat?.cancel();
+    _keeper.release(this);
     await _engine.stop();
     if (!ref.mounted) return;
     state = state.copyWith(

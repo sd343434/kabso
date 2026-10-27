@@ -93,6 +93,13 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   Future<void> setMicEnabled({required bool enabled}) async => _mic = enabled;
 
+  /// Every `setVideoPaused` call (D123).
+  final List<bool> videoPauses = [];
+
+  @override
+  Future<void> setVideoPaused({required bool paused}) async =>
+      videoPauses.add(paused);
+
   // ---- CP-017: the live microphone around a voice clip -------------------
 
   /// Whether the live microphone is paused for a voice clip now.

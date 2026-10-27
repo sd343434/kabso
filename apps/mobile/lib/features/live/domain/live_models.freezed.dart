@@ -527,7 +527,7 @@ return $default(_that.multi,_that.audio);case _:
 @JsonSerializable()
 
 class _LiveSeatCounts implements LiveSeatCounts {
-  const _LiveSeatCounts({@JsonKey(name: 'MULTI')  List<int> multi = const <int>[4, 6, 9, 12], @JsonKey(name: 'AUDIO')  List<int> audio = const <int>[5, 10, 15, 20, 25]}): _multi = multi,_audio = audio;
+  const _LiveSeatCounts({@JsonKey(name: 'MULTI')  List<int> multi = const <int>[4, 6, 9, 12], @JsonKey(name: 'AUDIO')  List<int> audio = const <int>[5, 10, 15, 20]}): _multi = multi,_audio = audio;
   factory _LiveSeatCounts.fromJson(Map<String, dynamic> json) => _$LiveSeatCountsFromJson(json);
 
  final  List<int> _multi;

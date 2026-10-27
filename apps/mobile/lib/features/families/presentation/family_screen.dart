@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +9,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
@@ -23,15 +26,18 @@ import 'package:kabso_live/features/profile/profile_screen.dart'
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// `/families/:familyId` (CP-018; redesigned for CP-022, D116, after the
-/// owner's style board): the hero (cover, back, share, ⋯, level and the
-/// family number), the emblem over its edge with the name, tagline and
-/// members, the level progress, the tools (manage and join requests for the
-/// leader and deputies; competitions, shop and tasks shown as "Soon"), and
-/// the tabs Members (by points, with presence) · Events ("Soon") ·
-/// Contributions (this month) · Ranking (the family on both boards). The
-/// bottom bar: Message the family and Invite members for members; Ask to
-/// join / Cancel for others.
+/// `/families/:familyId` (CP-018; CP-022, D116; D127: laid out literally
+/// after the owner's own mockup, measured at 393 pt): the picture at full
+/// bleed under the top bar with the level chip and the family number, the
+/// sheet with the emblem over its edge, the name, tagline and members, the
+/// level progress, the tools (manage and join requests for the leader and
+/// deputies; competitions, shop and tasks shown as "Soon"), and the tabs
+/// Members (by points, with presence) · Events ("Soon") · Contributions
+/// (this month) · Ranking (the family on both boards). The bottom bar:
+/// Message the family and Invite members for members; Ask to join /
+/// Cancel for others. As on the mockup most rows run left to right in
+/// both directions (the tools and the tabs follow the reading order); the
+/// Arabic text itself stays right-to-left.
 class FamilyScreen extends ConsumerWidget {
   const new({required this.familyId, super.key});
 
@@ -55,6 +61,8 @@ class FamilyScreen extends ConsumerWidget {
   static const inviteKey = Key('family.invite');
   static const shareKey = Key('family.share');
   static const numberKey = Key('family.number');
+  static const heroArtKey = Key('family.heroArt');
+  static const heroEmblemKey = Key('family.heroEmblem');
   static const membersCountKey = Key('family.membersCount');
   static const memberSearchKey = Key('family.memberSearch');
   static const standingKey = Key('family.standing');
@@ -264,7 +272,12 @@ class _FamilyMenu extends ConsumerWidget {
     return PopupMenuButton<_Menu>(
       key: FamilyScreen.manageKey,
       tooltip: l10n.familyManage,
-      icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFFFFFFFF)),
+      icon: const Icon(
+        Icons.more_horiz_rounded,
+        color: Color(0xFFFFFFFF),
+        size: 28,
+        shadows: [Shadow(color: Color(0x99000000), blurRadius: 6)],
+      ),
       onSelected: (action) => unawaited(switch (action) {
         _Menu.changeEmblem => _changeEmblem(context, ref),
         _Menu.removeEmblem => _guard(context, () async {
@@ -392,15 +405,13 @@ class _FamilyBodyState extends ConsumerState<_FamilyBody> {
   Widget build(BuildContext context) {
     final membersKey = familyMembersKey(family.id, _query);
     final slivers = <Widget>[
-      SliverToBoxAdapter(child: _Hero(family: family)),
       SliverToBoxAdapter(
-        child: _Identity(
-          family: family,
-          onMembers: () => setState(() => _tab = 0),
-        ),
+        child: _Top(family: family, onMembers: () => setState(() => _tab = 0)),
       ),
       SliverToBoxAdapter(child: _LevelRow(family: family)),
+      const SliverToBoxAdapter(child: SizedBox(height: 13)),
       SliverToBoxAdapter(child: _Tools(family: family)),
+      const SliverToBoxAdapter(child: SizedBox(height: 12)),
       SliverPersistentHeader(
         pinned: true,
         delegate: _TabsHeader(
@@ -442,54 +453,65 @@ class _FamilyBodyState extends ConsumerState<_FamilyBody> {
     final t = context.textStyles;
     final members = ref.watch(familyMembersProvider(key));
     final notifier = ref.read(familyMembersProvider(key).notifier);
+    // D127: the search on the left with its icon and hint at its left
+    // edge, the members count on the right (the mockup); typed text keeps
+    // the language's direction.
+    final textDirection = Directionality.of(context);
     final header = Padding(
-      padding: const EdgeInsets.fromLTRB(
-        KSpacing.lg,
-        KSpacing.md,
-        KSpacing.lg,
-        KSpacing.xs,
-      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 13, 8),
       child: Row(
+        textDirection: TextDirection.ltr,
         children: [
           Expanded(
             child: SizedBox(
-              height: 40,
-              child: TextField(
-                key: FamilyScreen.memberSearchKey,
-                controller: _search,
-                onChanged: _changed,
-                textInputAction: TextInputAction.search,
-                style: t.body.copyWith(color: p.textPrimary),
-                decoration: InputDecoration(
-                  hintText: l10n.familyMembersSearchHint,
-                  hintStyle: t.body.copyWith(color: p.textTertiary),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: p.textSecondary,
-                    size: 20,
-                  ),
-                  isDense: true,
-                  filled: true,
-                  fillColor: p.surfaceRaised,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: KSpacing.md,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KRadius.pill),
-                    borderSide: BorderSide.none,
+              height: 30,
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: TextField(
+                  key: FamilyScreen.memberSearchKey,
+                  controller: _search,
+                  onChanged: _changed,
+                  textInputAction: TextInputAction.search,
+                  textDirection: textDirection,
+                  textAlign: TextAlign.left,
+                  textAlignVertical: TextAlignVertical.center,
+                  style: t.label.copyWith(color: p.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: l10n.familyMembersSearchHint,
+                    hintTextDirection: textDirection,
+                    hintStyle: t.label.copyWith(
+                      color: p.textTertiary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: p.textSecondary,
+                      size: 22,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 44),
+                    isDense: true,
+                    filled: true,
+                    fillColor: p.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: KSpacing.sm,
+                    ),
+                    border: _pillBorder,
+                    enabledBorder: _pillBorder,
+                    focusedBorder: _pillBorder,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: KSpacing.md),
+          const SizedBox(width: 14),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 110),
             child: Text(
               l10n.familyMembersShort(familyCount(context, family.memberCount)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: t.label.copyWith(color: p.textSecondary),
+              style: t.body.copyWith(color: p.textTertiary, fontSize: 13),
             ),
           ),
         ],
@@ -637,282 +659,173 @@ class _FamilyBodyState extends ConsumerState<_FamilyBody> {
   }
 }
 
-/// The hero: the cover (or the slot for the owner's art, or a gradient
-/// with the emblem in its winged frame), the top bar, the level chip and
-/// the family number.
-class _Hero extends StatelessWidget {
-  const new({required this.family});
-
-  final Family family;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    const white = Color(0xFFFFFFFF);
-    final top = MediaQuery.paddingOf(context).top;
-    final cover = family.coverUrl;
-    final art = FamilyArt.heroBackground;
-    final height = top + 196;
-    final Widget background;
-    if (cover != null) {
-      background = Image.network(
-        cover,
-        fit: BoxFit.cover,
-        excludeFromSemantics: true,
-        errorBuilder: (_, _, _) => const DecoratedBox(
-          decoration: BoxDecoration(gradient: FamilyColors.heroGradient),
-        ),
-      );
-    } else if (art != null) {
-      background = Image.asset(art, fit: BoxFit.cover);
-    } else {
-      background = DecoratedBox(
-        decoration: const BoxDecoration(gradient: FamilyColors.heroGradient),
-        child: Align(
-          alignment: const Alignment(0, 0.35),
-          child: SizedBox(
-            width: 150,
-            height: 140,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: FamilyEmblem(url: family.emblemUrl, size: 74),
-                ),
-                Image.asset(
-                  FamilyArt.podiumFrame(1),
-                  width: 150,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    Widget round(Widget child) => Container(
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color(0x40000000),
-      ),
-      child: child,
-    );
-    // Over a picture: text scaling is capped like other overlays.
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: KMetrics.overlayMaxTextScale,
-      child: SizedBox(
-        height: height,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            background,
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x99000000),
-                    Color(0x00000000),
-                    Color(0x33000000),
-                  ],
-                  stops: [0, 0.45, 1],
-                ),
-              ),
-            ),
-            Positioned(
-              top: top + KSpacing.xs,
-              left: KSpacing.sm,
-              right: KSpacing.sm,
-              child: Row(
-                children: [
-                  round(
-                    BackButton(
-                      color: white,
-                      onPressed: () =>
-                          context.canPop() ? context.pop() : context.go('/'),
-                    ),
-                  ),
-                  Expanded(
-                    child: Semantics(
-                      header: true,
-                      child: Text(
-                        l10n.familyPageTitle,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        style: t.title.copyWith(
-                          color: white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                  round(
-                    IconButton(
-                      key: FamilyScreen.shareKey,
-                      tooltip: l10n.familyShare,
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(
-                        Icons.share_rounded,
-                        color: white,
-                        size: 20,
-                      ),
-                      onPressed: () => unawaited(_copyInvite(context, family)),
-                    ),
-                  ),
-                  const SizedBox(width: KSpacing.xs),
-                  round(_FamilyMenu(family: family)),
-                ],
-              ),
-            ),
-            PositionedDirectional(
-              top: top + 64,
-              start: KSpacing.lg,
-              end: KSpacing.lg,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(child: FamilyLevelCrownChip(level: family.level)),
-                  const SizedBox(width: KSpacing.sm),
-                  Semantics(
-                    button: true,
-                    label: l10n.familyNumberCopy('${family.number}'),
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      key: FamilyScreen.numberKey,
-                      onTap: () => unawaited(_copyNumber(context, family)),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: KSpacing.md,
-                          vertical: KSpacing.xs + 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0x59000000),
-                          border: Border.all(color: const Color(0x66FFFFFF)),
-                          borderRadius: BorderRadius.circular(KRadius.md),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.familyNumberLabel,
-                              style: t.caption.copyWith(color: white),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${family.number}',
-                                  textDirection: TextDirection.ltr,
-                                  style: t.bodyStrong.copyWith(color: white),
-                                ),
-                                const SizedBox(width: KSpacing.xs),
-                                const Icon(
-                                  Icons.copy_rounded,
-                                  size: 16,
-                                  color: white,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // The panel's rounded lip over the hero's bottom edge.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 22,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: context.palette.background,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(KRadius.xl),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The emblem over the hero's edge, the name (and edit for the leader), the
-/// tagline and the members.
-class _Identity extends ConsumerWidget {
+/// The top of the page (D127, the owner's mockup measured at 393 pt): the
+/// picture at full bleed — the leader's cover, else the owner's default
+/// art (D125) with the family emblem in its gold ring — under the top bar
+/// (back left, title centred, share and ⋯ right), the level chip (top
+/// left) and the family number box (top right); the white sheet with
+/// rounded corners over the picture's lower edge, the emblem in its ring
+/// over the sheet's edge (left), the name with edit (leader) and the
+/// tagline beside it, and the members count on the right.
+class _Top extends ConsumerWidget {
   const new({required this.family, required this.onMembers});
 
   final Family family;
   final VoidCallback onMembers;
 
-  static const double _emblem = 80;
+  /// Below the status bar (measured): the top bar's height, where the
+  /// sheet starts, its corners, the emblem ring and where the block ends.
+  static const double barHeight = 44;
+  static const double sheetTop = 183;
+  static const double sheetRadius = 18;
+  static const double avatar = 80;
+  static const double avatarTop = 158;
+  static const double height = 244;
+
+  /// The default art's scale: the crest (x 1340 of 1860) centred with the
+  /// picture's right edge on the screen's (the ring stays on screen).
+  static double artScale(double width) => width / 1040;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final p = context.palette;
     final t = context.textStyles;
+    const white = Color(0xFFFFFFFF);
+    const shadow = [Shadow(color: Color(0x99000000), blurRadius: 6)];
+    final top = MediaQuery.paddingOf(context).top;
+    final width = MediaQuery.sizeOf(context).width;
+    final cover = family.coverUrl;
     final tagline = family.tagline;
-    final members = Semantics(
+    final pictureHeight = top + sheetTop + sheetRadius;
+
+    final List<Widget> picture;
+    if (cover != null) {
+      picture = [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: pictureHeight,
+          child: Image.network(
+            cover,
+            fit: BoxFit.cover,
+            excludeFromSemantics: true,
+            errorBuilder: (_, _, _) => const DecoratedBox(
+              decoration: BoxDecoration(gradient: FamilyColors.heroGradient),
+            ),
+          ),
+        ),
+      ];
+    } else {
+      const art = FamilyArt.hero;
+      final s = artScale(width);
+      final drawn = Rect.fromLTWH(
+        width - art.size.width * s,
+        top - 39,
+        art.size.width * s,
+        art.size.height * s,
+      );
+      final ring = art.circleIn(drawn);
+      picture = [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: pictureHeight,
+          child: ClipRect(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // The status bar band above the picture: the same picture
+                // blurred (never a flat block).
+                Positioned.fill(
+                  child: ImageFiltered(
+                    imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: Image.asset(
+                      art.asset,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topRight,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
+                Positioned.fromRect(
+                  rect: drawn,
+                  child: Image.asset(
+                    art.asset,
+                    key: FamilyScreen.heroArtKey,
+                    fit: BoxFit.fill,
+                    excludeFromSemantics: true,
+                  ),
+                ),
+                Positioned.fromRect(
+                  rect: ring,
+                  child: FamilyEmblem(
+                    key: FamilyScreen.heroEmblemKey,
+                    url: family.emblemUrl,
+                    size: ring.width,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final numberBox = Semantics(
       button: true,
-      child: InkWell(
-        key: FamilyScreen.membersCountKey,
-        borderRadius: BorderRadius.circular(KRadius.md),
-        onTap: onMembers,
-        child: Padding(
-          padding: const EdgeInsets.all(KSpacing.xs),
+      label: l10n.familyNumberCopy('${family.number}'),
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: FamilyScreen.numberKey,
+        onTap: () => unawaited(_copyNumber(context, family)),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 5),
+          decoration: BoxDecoration(
+            color: const Color(0x80140A04),
+            border: Border.all(color: const Color(0x59FFFFFF)),
+            borderRadius: BorderRadius.circular(KRadius.sm),
+          ),
           child: Column(
+            textDirection: TextDirection.ltr,
             crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                l10n.familyNumberLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.label.copyWith(
+                  color: white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 2),
               Row(
+                textDirection: TextDirection.ltr,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.groups_rounded, size: 20, color: p.textPrimary),
-                  const SizedBox(width: KSpacing.xs),
                   Flexible(
-                    child: Text(
-                      familyCount(context, family.memberCount),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.title.copyWith(
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w800,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${family.number}',
+                        maxLines: 1,
+                        style: t.bodyStrong.copyWith(
+                          color: white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.2,
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      l10n.familyMemberWord,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.caption.copyWith(color: p.textSecondary),
-                    ),
-                  ),
-                  Icon(
-                    Directionality.of(context) == TextDirection.rtl
-                        ? Icons.chevron_left_rounded
-                        : Icons.chevron_right_rounded,
-                    size: 16,
-                    color: p.textSecondary,
-                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.copy_rounded, size: 15, color: white),
                 ],
               ),
             ],
@@ -920,25 +833,295 @@ class _Identity extends ConsumerWidget {
         ),
       ),
     );
-    return Transform.translate(
-      offset: const Offset(0, -34),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-        child: Row(
+
+    final topBar = Positioned(
+      top: top,
+      left: 0,
+      right: 0,
+      height: barHeight,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 100),
+            child: Semantics(
+              header: true,
+              child: Text(
+                l10n.familyPageTitle,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.title.copyWith(
+                  color: white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  shadows: shadow,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 4,
+            // "<" on the left in both directions (the mockup).
+            child: IconButton(
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              icon: const Directionality(
+                textDirection: TextDirection.ltr,
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: white,
+                  size: 22,
+                  shadows: shadow,
+                ),
+              ),
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/'),
+            ),
+          ),
+          Positioned(
+            right: 44,
+            child: IconButton(
+              key: FamilyScreen.shareKey,
+              tooltip: l10n.familyShare,
+              icon: const Icon(
+                Icons.share_rounded,
+                color: white,
+                size: 24,
+                shadows: shadow,
+              ),
+              onPressed: () => unawaited(_copyInvite(context, family)),
+            ),
+          ),
+          Positioned(right: 4, child: _FamilyMenu(family: family)),
+        ],
+      ),
+    );
+
+    final members = Semantics(
+      button: true,
+      child: InkWell(
+        key: FamilyScreen.membersCountKey,
+        borderRadius: BorderRadius.circular(KRadius.sm),
+        onTap: onMembers,
+        child: Column(
+          textDirection: TextDirection.ltr,
           crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            Row(
+              textDirection: TextDirection.ltr,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.groups_rounded, size: 22, color: p.textPrimary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    familyCount(context, family.memberCount),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.title.copyWith(
+                      color: p.textPrimary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              textDirection: TextDirection.ltr,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    l10n.familyMemberWord,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.label.copyWith(
+                      color: p.textTertiary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_left_rounded,
+                  size: 16,
+                  color: p.textTertiary,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final identity = Row(
+      textDirection: TextDirection.ltr,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            textDirection: TextDirection.ltr,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 28,
+                child: Row(
+                  textDirection: TextDirection.ltr,
+                  children: [
+                    Flexible(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          family.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.title.copyWith(
+                            color: p.textPrimary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (family.myRole == FamilyRole.leader)
+                      IconButton(
+                        tooltip: l10n.familyTaglineTitle,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 28,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          Icons.edit_rounded,
+                          size: 19,
+                          color: p.textSecondary,
+                        ),
+                        onPressed: () => unawaited(
+                          _FamilyMenu(family: family)
+                              ._editTagline(context, ref),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (tagline != null)
+                Text(
+                  tagline,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.label.copyWith(
+                    color: p.textTertiary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: KSpacing.sm),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 124),
+          child: members,
+        ),
+      ],
+    );
+
+    // Over a picture: text scaling is capped like other overlays.
+    return SizedBox(
+      height: top + height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ...picture,
+          // Darkens the top under the status and top bars.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: top + sheetTop,
+            child: const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x8C000000),
+                      Color(0x00000000),
+                      Color(0x26000000),
+                    ],
+                    stops: [0, 0.5, 1],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // The sheet.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: top + sheetTop,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: p.background,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(sheetRadius),
+                ),
+              ),
+            ),
+          ),
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: KMetrics.overlayMaxTextScale,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                topBar,
+                Positioned(
+                  left: 14,
+                  top: top + 55,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: width / 2 - 24),
+                    child: FamilyLevelCrownChip(level: family.level),
+                  ),
+                ),
+                Positioned(
+                  right: 13,
+                  top: top + 53,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: width / 2 - 24),
+                    child: numberBox,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // The emblem in its ring over the sheet's edge.
+          Positioned(
+            left: 6,
+            top: top + avatarTop,
+            width: avatar,
+            height: avatar,
+            child: Container(
               padding: const EdgeInsets.all(3),
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: SweepGradient(
                   colors: [
-                    Color(0xFFF26FA8),
+                    Color(0xFFF06BC8),
                     Color(0xFFF8CB6A),
                     Color(0xFFE4A23C),
-                    Color(0xFFF26FA8),
+                    Color(0xFFF06BC8),
                   ],
                 ),
+                boxShadow: [
+                  BoxShadow(color: Color(0x59F06BC8), blurRadius: 10),
+                ],
               ),
               child: Container(
                 padding: const EdgeInsets.all(2),
@@ -946,75 +1129,24 @@ class _Identity extends ConsumerWidget {
                   shape: BoxShape.circle,
                   color: p.background,
                 ),
-                child: FamilyEmblem(url: family.emblemUrl, size: _emblem),
+                child: FamilyEmblem(url: family.emblemUrl, size: avatar - 10),
               ),
             ),
-            const SizedBox(width: KSpacing.sm),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: KSpacing.xs),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Semantics(
-                            header: true,
-                            child: Text(
-                              family.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.title.copyWith(
-                                color: p.textPrimary,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (family.myRole == FamilyRole.leader)
-                          IconButton(
-                            tooltip: l10n.familyTaglineTitle,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              Icons.edit_outlined,
-                              size: 18,
-                              color: p.textSecondary,
-                            ),
-                            onPressed: () => unawaited(
-                              _FamilyMenu(family: family)
-                                  ._editTagline(context, ref),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (tagline != null)
-                      Text(
-                        tagline,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.caption.copyWith(color: p.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 124),
-              child: members,
-            ),
-          ],
-        ),
+          ),
+          Positioned(
+            left: 91,
+            right: 13,
+            top: top + sheetTop + 20,
+            child: identity,
+          ),
+        ],
       ),
     );
   }
 }
 
-/// "Level N", the progress bar and "points / next · to reach level N+1".
+/// "Level N" (left), the progress bar, "points / next" and "to reach
+/// level N+1" (right), as on the mockup.
 class _LevelRow extends StatelessWidget {
   const new({required this.family});
 
@@ -1026,69 +1158,87 @@ class _LevelRow extends StatelessWidget {
     final p = context.palette;
     final t = context.textStyles;
     final next = family.nextLevelPoints;
-    return Transform.translate(
-      offset: const Offset(0, -22),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-        child: Row(
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 104),
-              child: Text(
-                l10n.familyLevelLong(family.level),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: t.bodyStrong.copyWith(
-                  color: p.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
+    final value = next == null || next <= 0
+        ? 1.0
+        : (family.points / next).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 13, 0),
+      child: Row(
+        textDirection: TextDirection.ltr,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 104),
+            child: Text(
+              l10n.familyLevelLong(family.level),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.bodyStrong.copyWith(
+                color: p.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: KSpacing.md),
-            Expanded(
-              flex: 5,
-              child: ClipRRect(
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Container(
+              height: 8,
+              decoration: BoxDecoration(
+                color: p.surfaceOverlay,
                 borderRadius: BorderRadius.circular(KRadius.pill),
-                child: LinearProgressIndicator(
-                  value: next == null || next <= 0
-                      ? 1
-                      : (family.points / next).clamp(0, 1),
-                  minHeight: 8,
-                  backgroundColor: p.surfaceRaised,
-                  color: FamilyColors.gold,
+              ),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: FamilyColors.progressGradient,
+                    borderRadius: BorderRadius.circular(KRadius.pill),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: KSpacing.md),
-            Flexible(
-              flex: 6,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    next == null
-                        ? formatBondPoints(family.points)
-                        : '${formatBondPoints(family.points)} / '
-                              '${formatBondPoints(next)}',
-                    textDirection: TextDirection.ltr,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.bodyStrong.copyWith(color: p.textPrimary),
+          ),
+          const SizedBox(width: 22),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 132),
+            child: Column(
+              textDirection: TextDirection.ltr,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  next == null
+                      ? formatBondPoints(family.points)
+                      : '${formatBondPoints(family.points)} / '
+                            '${formatBondPoints(next)}',
+                  textDirection: TextDirection.ltr,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.bodyStrong.copyWith(
+                    color: p.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
                   ),
-                  Text(
-                    next == null
-                        ? l10n.familyTopLevel
-                        : l10n.familyToReach(family.level + 1),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: t.caption.copyWith(color: p.textSecondary),
+                ),
+                Text(
+                  next == null
+                      ? l10n.familyTopLevel
+                      : l10n.familyToReach(family.level + 1),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.label.copyWith(
+                    color: p.textTertiary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    height: 1.25,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1096,6 +1246,7 @@ class _LevelRow extends StatelessWidget {
 
 /// The five tools: manage (leader), join requests (leader and deputies,
 /// with the count), and competitions, shop and tasks — not built, "Soon".
+/// In reading order (in Arabic the first on the right, as on the mockup).
 class _Tools extends ConsumerWidget {
   const new({required this.family});
 
@@ -1111,52 +1262,45 @@ class _Tools extends ConsumerWidget {
           key: FamilyScreen.manageToolKey,
           icon: Icons.settings_rounded,
           art: FamilyArt.toolIcons[0],
-          color: FamilyColors.goldDeep,
           label: l10n.familyToolManage,
           onTap: () => unawaited(_showManageSheet(context, family)),
         ),
       if (role != null && role.answersRequests)
         _ToolTile(
           key: FamilyScreen.requestsToolKey,
-          icon: Icons.group_add_rounded,
+          icon: Icons.group_rounded,
           art: FamilyArt.toolIcons[1],
-          color: FamilyColors.goldDeep,
           label: l10n.familyRequestsTitle,
           badge: family.pendingRequestCount,
           onTap: () => unawaited(_showRequests(context, family)),
         ),
       _ToolTile(
-        icon: Icons.emoji_events_rounded,
+        icon: Icons.workspace_premium_rounded,
+        svg: AppIcons.crownFilled,
         art: FamilyArt.toolIcons[2],
-        color: FamilyColors.goldDeep,
         label: l10n.familyToolCompetitions,
       ),
       _ToolTile(
         icon: Icons.shopping_bag_rounded,
         art: FamilyArt.toolIcons[3],
-        color: FamilyColors.goldDeep,
         label: l10n.familyToolShop,
       ),
       _ToolTile(
-        icon: Icons.task_alt_rounded,
+        icon: Icons.emoji_events_rounded,
         art: FamilyArt.toolIcons[4],
-        color: FamilyColors.goldDeep,
         label: l10n.familyToolTasks,
       ),
     ];
-    return Transform.translate(
-      offset: const Offset(0, -10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final (i, tile) in tiles.indexed) ...[
-              if (i > 0) const SizedBox(width: KSpacing.sm),
-              Expanded(child: tile),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (i, tile) in tiles.indexed) ...[
+            if (i > 0) const SizedBox(width: 11),
+            Expanded(child: tile),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1165,20 +1309,24 @@ class _Tools extends ConsumerWidget {
 class _ToolTile extends StatelessWidget {
   const new({
     required this.icon,
-    required this.color,
     required this.label,
     super.key,
     this.art,
+    this.svg,
     this.onTap,
     this.badge,
   });
 
   final IconData icon;
+
+  /// A Kabso SVG icon in place of [icon].
+  final String? svg;
   final String? art;
-  final Color color;
   final String label;
   final VoidCallback? onTap;
   final int? badge;
+
+  static const double height = 68;
 
   @override
   Widget build(BuildContext context) {
@@ -1187,74 +1335,90 @@ class _ToolTile extends StatelessWidget {
     final soon = onTap == null;
     final art = this.art;
     final badge = this.badge;
+    final glyph = art == null
+        ? ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFFCF5C), Color(0xFFE08A1E)],
+            ).createShader(bounds),
+            child: svg == null
+                ? Icon(icon, size: 30, color: const Color(0xFFFFFFFF))
+                : AppIcon(svg!, size: 30, color: const Color(0xFFFFFFFF)),
+          )
+        : Image.asset(art, width: 30, height: 30);
+    final labelStyle = t.label.copyWith(
+      color: soon ? p.textTertiary : p.textPrimary,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w500,
+      height: 1.2,
+    );
     final tile = Container(
-      constraints: const BoxConstraints(minHeight: 76),
-      padding: const EdgeInsets.symmetric(
-        horizontal: KSpacing.xxs,
-        vertical: KSpacing.sm,
-      ),
+      constraints: const BoxConstraints(minHeight: height),
       decoration: BoxDecoration(
         color: p.surface,
         borderRadius: BorderRadius.circular(KRadius.md),
-        border: Border.all(color: p.border, width: 0.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Opacity(
-                opacity: soon ? 0.45 : 1,
-                child: art == null
-                    ? Icon(icon, size: 28, color: color)
-                    : Image.asset(art, width: 30, height: 30),
-              ),
-              if (badge != null && badge > 0)
-                PositionedDirectional(
-                  top: -6,
-                  end: -12,
-                  child: Container(
-                    constraints: const BoxConstraints(minWidth: 18),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: p.error,
-                      borderRadius: BorderRadius.circular(KRadius.pill),
-                      border: Border.all(color: p.surface, width: 1.5),
-                    ),
-                    child: Text(
-                      badge > 99 ? '99+' : '$badge',
-                      textAlign: TextAlign.center,
-                      style: t.caption.copyWith(
-                        color: const Color(0xFFFFFFFF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 15, 2, 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Opacity(opacity: soon ? 0.45 : 1, child: glyph),
                 ),
-            ],
-          ),
-          const SizedBox(height: KSpacing.xs),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: t.caption.copyWith(
-              color: soon ? p.textTertiary : p.textPrimary,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
+                const SizedBox(height: 4),
+                // One line as on the mockup; a larger text scale wraps.
+                if (MediaQuery.textScalerOf(context).scale(1) > 1)
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle,
+                  )
+                else
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(label, maxLines: 1, style: labelStyle),
+                  ),
+              ],
             ),
           ),
-          if (soon) ...[const SizedBox(height: 2), const FamilySoonBadge()],
+          if (badge != null && badge > 0)
+            Positioned(
+              top: 3,
+              right: 5,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53935),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                ),
+                child: Text(
+                  badge > 99 ? '99+' : '$badge',
+                  textAlign: TextAlign.center,
+                  style: t.caption.copyWith(
+                    color: const Color(0xFFFFFFFF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          if (soon)
+            const PositionedDirectional(
+              top: 3,
+              end: 3,
+              child: FamilySoonBadge(),
+            ),
         ],
       ),
     );
@@ -1278,7 +1442,9 @@ class _ToolTile extends StatelessWidget {
   }
 }
 
-/// The pinned tabs: Members · Events ("Soon") · Contributions · Ranking.
+/// The pinned tabs (quarters of the width; in Arabic the first on the
+/// right, as on the mockup): Members · Events ("Soon") · Contributions ·
+/// Ranking, a gold bar under the selected one.
 class _TabsHeader extends SliverPersistentHeaderDelegate {
   const new({
     required this.selected,
@@ -1296,7 +1462,10 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
   final Color border;
   final double scale;
 
-  double get _height => 48 * scale.clamp(1, 1.6);
+  double get _height => 44 * scale.clamp(1, 1.6);
+
+  /// The selected tab's gold bar (measured 76 × 3.5).
+  static const double indicatorWidth = 76;
 
   @override
   double get minExtent => _height;
@@ -1308,6 +1477,16 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
     final p = context.palette;
     final t = context.textStyles;
+    TextStyle style({required bool on, bool soon = false}) => t.title.copyWith(
+      color: on
+          ? p.textPrimary
+          : soon
+          ? p.textTertiary.withValues(alpha: 0.7)
+          : p.textTertiary,
+      fontSize: 17,
+      fontWeight: on ? FontWeight.w800 : FontWeight.w500,
+      height: 1.2,
+    );
     return Container(
       decoration: BoxDecoration(
         color: background,
@@ -1322,16 +1501,27 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
                       label: context.l10n.familiesSoonLabel(label),
                       excludeSemantics: true,
                       child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            Text(
-                              label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.body.copyWith(color: p.textTertiary),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  label,
+                                  maxLines: 1,
+                                  style: style(on: false, soon: true),
+                                ),
+                              ),
                             ),
-                            const FamilySoonBadge(),
+                            const PositionedDirectional(
+                              top: -12,
+                              end: -10,
+                              child: FamilySoonBadge(),
+                            ),
                           ],
                         ),
                       ),
@@ -1343,29 +1533,30 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
                         key: FamilyScreen.tabKey(i),
                         onTap: () => onSelect(i),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Spacer(),
-                            Text(
-                              label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.label.copyWith(
-                                color: i == selected
-                                    ? p.textPrimary
-                                    : p.textSecondary,
-                                fontWeight: i == selected
-                                    ? FontWeight.w800
-                                    : FontWeight.w500,
+                            Expanded(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      label,
+                                      maxLines: 1,
+                                      style: style(on: i == selected),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                            const Spacer(),
                             Container(
-                              width: 44,
-                              height: 4,
+                              width: indicatorWidth,
+                              height: 3.5,
                               decoration: BoxDecoration(
                                 gradient: i == selected
-                                    ? FamilyColors.goldGradient
+                                    ? FamilyColors.progressGradient
                                     : null,
                                 borderRadius: BorderRadius.circular(
                                   KRadius.pill,
@@ -1390,8 +1581,9 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
       old.scale != scale;
 }
 
-/// A person in a list: place medal, avatar, name with role, [line] and
-/// optional presence and menu.
+/// A person in a list (D127, the owner's mockup, left to right in both
+/// directions): place medal, avatar, name with the role chip and [line]
+/// below, then the presence and the menu on the right.
 class _PersonRow extends StatelessWidget {
   const new({
     required this.rank,
@@ -1410,6 +1602,8 @@ class _PersonRow extends StatelessWidget {
   final Widget? presence;
   final Widget? trailing;
 
+  static const double height = 50;
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -1419,57 +1613,71 @@ class _PersonRow extends StatelessWidget {
     return InkWell(
       onTap: () => context.push(AppRoutes.userProfile(user.username)),
       child: Container(
-        padding: const EdgeInsetsDirectional.fromSTEB(
-          KSpacing.lg,
-          KSpacing.sm,
-          KSpacing.xs,
-          KSpacing.sm,
-        ),
+        constraints: const BoxConstraints(minHeight: height),
+        margin: const EdgeInsets.only(left: 12),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: p.border, width: 0.5)),
         ),
         child: Row(
+          textDirection: TextDirection.ltr,
           children: [
-            if (rank != null) ...[
-              FamilyRankMedal(rank: rank, size: 28),
-              const SizedBox(width: KSpacing.sm),
-            ],
-            KAvatar(name: name, imageUrl: user.avatarUrl, size: 44),
-            const SizedBox(width: KSpacing.sm),
+            SizedBox(
+              width: 34,
+              child: rank == null
+                  ? null
+                  : Center(child: FamilyRankMedal(rank: rank)),
+            ),
+            const SizedBox(width: 14),
+            KAvatar(name: name, imageUrl: user.avatarUrl, size: 40),
+            const SizedBox(width: 13),
             Expanded(
-              flex: 5,
+              flex: 11,
               child: Column(
+                textDirection: TextDirection.ltr,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    textDirection: TextDirection.ltr,
                     children: [
                       Flexible(
+                        flex: 2,
                         child: Text(
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: t.bodyStrong.copyWith(
                             color: p.textPrimary,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
+                            height: 1.3,
                           ),
                         ),
                       ),
-                      const SizedBox(width: KSpacing.xs),
-                      Flexible(child: FamilyRoleChip(role: role)),
+                      const SizedBox(width: 8),
+                      // The role keeps the larger share of a tight row.
+                      Flexible(flex: 3, child: FamilyRoleChip(role: role)),
                     ],
                   ),
                   Text(
                     line,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: t.caption.copyWith(color: p.textSecondary),
+                    style: t.body.copyWith(
+                      color: p.textTertiary,
+                      fontSize: 12.5,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
             ),
             if (presence case final presence?) ...[
               const SizedBox(width: KSpacing.xs),
-              Flexible(flex: 4, child: presence),
+              Flexible(
+                flex: 9,
+                child: Align(alignment: Alignment.centerRight, child: presence),
+              ),
             ],
             ?trailing,
           ],
@@ -1478,6 +1686,11 @@ class _PersonRow extends StatelessWidget {
     );
   }
 }
+
+const _pillBorder = OutlineInputBorder(
+  borderRadius: BorderRadius.all(Radius.circular(KRadius.pill)),
+  borderSide: BorderSide.none,
+);
 
 enum _MemberAction { deputy, member, transfer, remove, mute, unmute, profile }
 
@@ -1985,39 +2198,60 @@ class _BottomBarState extends ConsumerState<_BottomBar> {
     final mine = ref.watch(myFamilyProvider).value;
     final Widget child;
     if (role != null) {
+      // D127: Message (outlined, left) and Invite (gold, wider, dark text,
+      // right) in both directions, as on the mockup.
       child = Row(
+        textDirection: TextDirection.ltr,
         children: [
-          Expanded(
-            flex: 11,
-            child: OutlinedButton.icon(
+          SizedBox(
+            width: 146,
+            height: 44,
+            child: OutlinedButton(
               key: FamilyScreen.chatKey,
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
                 foregroundColor: p.textPrimary,
-                side: BorderSide(color: p.borderStrong),
+                backgroundColor: p.background,
+                side: BorderSide(color: p.border, width: 1.5),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KRadius.lg),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () => context.push(AppRoutes.familyChat(family.id)),
-              icon: const Icon(Icons.chat_bubble_rounded, size: 20),
-              label: Text(
-                l10n.familyChatOpen,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: t.bodyStrong,
+              child: Row(
+                textDirection: TextDirection.ltr,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.textsms_rounded, size: 20),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      l10n.familyChatOpen,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        color: p.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: KSpacing.md),
+          const SizedBox(width: 10),
           Expanded(
-            flex: 12,
             child: FamilyGoldButton(
               key: FamilyScreen.inviteKey,
               label: l10n.familyInvite,
               icon: Icons.person_add_alt_1_rounded,
-              height: 48,
+              iconSize: 22,
+              height: 46,
+              radius: 14,
               expand: true,
+              foreground: FamilyColors.onGoldButton,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
               onPressed: () => unawaited(_copyInvite(context, family)),
             ),
           ),
@@ -2058,16 +2292,8 @@ class _BottomBarState extends ConsumerState<_BottomBar> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          KSpacing.lg,
-          KSpacing.sm,
-          KSpacing.lg,
-          KSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: p.background,
-          border: Border(top: BorderSide(color: p.border, width: 0.5)),
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        color: p.background,
         child: child,
       ),
     );

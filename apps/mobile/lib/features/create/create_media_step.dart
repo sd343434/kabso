@@ -43,6 +43,7 @@ class CreateMediaStep extends ConsumerStatefulWidget {
   static Key itemKey(String id) => Key('create.media.item.$id');
   static Key trayRemoveKey(int localId) =>
       Key('create.media.tray.$localId.remove');
+  static Key trayPhotoKey(int localId) => Key('create.media.tray.$localId');
 
   @override
   ConsumerState<CreateMediaStep> createState() => _CreateMediaStepState();
@@ -519,7 +520,8 @@ class _Check extends StatelessWidget {
   }
 }
 
-/// The selection: count, then the photos in post order (× removes).
+/// The selection: count, then the photos in post order (× removes, a tap
+/// opens them full screen).
 class _Tray extends ConsumerWidget {
   const new({required this.draft});
 
@@ -578,16 +580,44 @@ class _Tray extends ConsumerWidget {
                         PositionedDirectional(
                           top: 8,
                           start: 0,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(KRadius.sm),
-                            child: Image.memory(
-                              photo.bytes,
-                              width: KCompose.trayThumb,
-                              height: KCompose.trayThumb,
-                              fit: BoxFit.cover,
-                              excludeFromSemantics: true,
-                              errorBuilder: (_, _, _) =>
-                                  ColoredBox(color: p.surfaceOverlay),
+                          // A tap opens the selection full screen (swipe
+                          // between the photos, remove one).
+                          child: Semantics(
+                            button: true,
+                            label: l10n.createPhotoLabel(
+                              i + 1,
+                              draft.photos.length,
+                            ),
+                            excludeSemantics: true,
+                            child: GestureDetector(
+                              key: CreateMediaStep.trayPhotoKey(photo.localId),
+                              onTap: () => unawaited(
+                                showComposePhotoPreview(context, i),
+                              ),
+                              // Sized here, so a photo that cannot be
+                              // decoded still fills its square.
+                              child: SizedBox.square(
+                                dimension: KCompose.trayThumb,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    KRadius.sm,
+                                  ),
+                                  child: Image(
+                                    image: composeThumb(
+                                      context,
+                                      photo.bytes,
+                                      KCompose.trayThumb,
+                                    ),
+                                    width: KCompose.trayThumb,
+                                    height: KCompose.trayThumb,
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                    excludeFromSemantics: true,
+                                    errorBuilder: (_, _, _) =>
+                                        ColoredBox(color: p.surfaceOverlay),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
