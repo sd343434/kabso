@@ -7,6 +7,7 @@ import 'package:kabso_live/core/network/network_providers.dart';
 import 'package:kabso_live/features/debug/demo_data.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_room_stats.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
@@ -156,6 +157,10 @@ abstract interface class LiveRepository {
   /// `GET /live/rooms/{roomId}/contributors/{username}` (v1.20-live, D105):
   /// one person's points in this live and their rank (null with 0 points).
   Future<LiveContributorStanding> contributor(String roomId, String username);
+
+  /// `GET /live/rooms/{roomId}/stats` (host only, v1.27.6-live, D140): the
+  /// live's statistics for the end-of-live summary.
+  Future<LiveRoomStats> roomStats(String roomId);
 
   // ---- v1.20-live kicks (CONVENTIONS §10.20, D105) ---------------------
 
@@ -358,6 +363,12 @@ class LiveRepositoryImpl implements LiveRepository {
       data: {'title': title, 'categorySlug': categorySlug, 'topic': topic},
     );
     return LiveRoom.fromJson(res.data!);
+  });
+
+  @override
+  Future<LiveRoomStats> roomStats(String roomId) => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('${_room(roomId)}/stats');
+    return LiveRoomStats.fromJson(res.data!);
   });
 
   @override

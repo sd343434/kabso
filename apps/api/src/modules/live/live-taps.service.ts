@@ -295,7 +295,7 @@ export class LiveTapsService {
  * gifts), not the host,
  * ACTIVE accounts and, for a signed-in reader, no block either way.
  */
-function contributorsWhere(
+export function contributorsWhere(
   roomId: string,
   hostUserId: string,
   callerId: string | null,

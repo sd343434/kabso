@@ -6011,9 +6011,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveSummaryTime => 'مدة البث';
 
   @override
-  String get goLiveSummaryPoints => 'النقاط';
-
-  @override
   String get goLiveSummaryTaps => 'من النقرات';
 
   @override
@@ -6021,9 +6018,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveSummarySupporters => 'الداعمون';
-
-  @override
-  String get goLiveSummaryViewers => 'المشاهدون عند الانتهاء';
 
   @override
   String goLiveSummaryCharm(String level) {
@@ -6034,9 +6028,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String goLiveSummaryCharmNext(String points) {
     return '$points للمستوى التالي';
   }
-
-  @override
-  String get goLiveSummaryData => 'بيانات البث';
 
   @override
   String get liveGiftTabRecent => 'الأخيرة';
@@ -6274,4 +6265,71 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveGamesSoon => 'الألعاب قريباً';
+
+  @override
+  String get liveStatsCherries => 'كرز هذا البث';
+
+  @override
+  String liveStatsIncludesYours(String points) {
+    return 'منها $points من نقراتك وهداياك أنت';
+  }
+
+  @override
+  String get liveStatsViewers => 'المشاهدون';
+
+  @override
+  String get liveStatsPeak => 'ذروة المشاهدة';
+
+  @override
+  String get liveStatsAverageWatch => 'متوسط مدة المشاهدة';
+
+  @override
+  String get liveStatsNewFollowers => 'متابعون جدد';
+
+  @override
+  String get liveStatsChatMessages => 'رسائل الدردشة';
+
+  @override
+  String get liveStatsGiftsSent => 'الهدايا المُرسلة';
+
+  @override
+  String get liveStatsCountriesTitle => 'من أين جاء مشاهدوك';
+
+  @override
+  String get liveStatsCountryOther => 'دول أخرى';
+
+  @override
+  String get liveStatsCountryUnknown => 'غير محدد';
+
+  @override
+  String liveStatsCountriesNote(String count) {
+    return 'النسب من إجمالي المشاهدين ($count)، مقرّبة إلى منزلة عشرية واحدة';
+  }
+
+  @override
+  String liveStatsCountryRow(String country, String percent, String count) {
+    return '$country: $percent من المشاهدين ($count)';
+  }
+
+  @override
+  String get liveStatsNoViewers =>
+      'لم يشاهد أحد هذه المرة. بثك القادم فرصة جديدة.';
+
+  @override
+  String get liveStatsTopSupporters => 'أبرز الداعمين';
+
+  @override
+  String get liveStatsNoSupporters =>
+      'لا داعمين هذه المرة. ستظهر هنا هدايا ونقرات مشاهديك.';
+
+  @override
+  String liveStatsSupporterRank(int rank, String name, String points) {
+    return 'المركز $rank: $name، $points كرزة';
+  }
+
+  @override
+  String get liveStatsLoadFailed => 'تعذّر تحميل بيانات البث';
+
+  @override
+  String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
 }

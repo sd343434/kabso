@@ -30,6 +30,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -540,8 +541,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     Widget? middle;
     if (gate != null) {
       middle = gate;
-    } else if (ended) {
-      middle = _Ended(state: state, onDone: _close);
     } else if (captureFailed) {
       middle = _captureNotice(state);
     } else if (state.mode == LiveRoomMode.multi) {
@@ -700,7 +699,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
     const pad = KSpacing.lg;
     final Widget body;
-    if (audioSetup) {
+    if (ended && gate == null) {
+      // D140 (owner): the end-of-live summary takes the whole screen.
+      body = _Ended(
+        state: state,
+        hostName: user?.displayName ?? '',
+        hostAvatarUrl: user?.avatarUrl,
+        onDone: _close,
+      );
+    } else if (audioSetup) {
       body = GoLiveAudioSetup(
         controller: _title,
         focusNode: _titleFocus,
@@ -2233,11 +2240,19 @@ class _LiveClock extends StatelessWidget {
   }
 }
 
-/// Over (D131): the end-of-live summary from real data only.
+/// Over (D131, D140): the full-screen end-of-live summary, from the live's
+/// statistics (`GET /live/rooms/{roomId}/stats`) and the host's charm level.
 class _Ended extends ConsumerWidget {
-  const new({required this.state, required this.onDone});
+  const new({
+    required this.state,
+    required this.hostName,
+    required this.hostAvatarUrl,
+    required this.onDone,
+  });
 
   final GoLiveState state;
+  final String hostName;
+  final String? hostAvatarUrl;
   final VoidCallback onDone;
 
   @override
@@ -2245,26 +2260,33 @@ class _Ended extends ConsumerWidget {
     final l10n = context.l10n;
     final since = state.liveSince;
     final until = state.endedAt ?? clock.now();
-    final duration = formatLiveDuration(
-      since == null ? Duration.zero : until.difference(since),
-    );
+    final local = since == null ? Duration.zero : until.difference(since);
     final room = state.room;
-    final supporters = room == null
+    final stats = room == null
         ? null
-        : ref.watch(liveSummaryContributorsProvider(room.id)).value;
+        : ref.watch(liveRoomStatsProvider(room.id));
     final charm = ref
         .watch(myLevelsProvider)
         .value
         ?.where((l) => l.category == LevelCategory.attractiveness)
         .firstOrNull;
+    final value = stats?.value;
     return Semantics(
       key: GoLiveScreen.endedKey,
       container: true,
-      label: l10n.goLiveEndedDuration(duration),
+      label: l10n.goLiveEndedDuration(
+        formatLiveDuration(value?.duration ?? local),
+      ),
       child: GoLiveSummary(
-        duration: duration,
-        room: room,
-        supporters: supporters,
+        localDuration: local,
+        stats: value,
+        loading: stats != null && stats.isLoading && !stats.hasValue,
+        failed: stats == null || (stats.hasError && !stats.hasValue),
+        onRetry: room == null
+            ? null
+            : () => ref.invalidate(liveRoomStatsProvider(room.id)),
+        hostName: hostName,
+        hostAvatarUrl: hostAvatarUrl,
         charm: charm,
         onDone: onDone,
         doneKey: GoLiveScreen.doneKey,

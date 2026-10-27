@@ -17,6 +17,7 @@ import { LiveGiftsService } from './live-gifts.service.js';
 import { LiveKicksService } from './live-kicks.service.js';
 import { LiveMediaService } from './live-media.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
+import { LiveStatsService } from './live-stats.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveRoomsService } from './live-rooms.service.js';
 import { LiveScheduleService } from './live-schedule.service.js';
@@ -67,6 +68,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveChatBadgesService,
     LiveCoverService,
     LiveRankingsService,
+    // v1.27.6-live (D140): the host's statistics of a live (§10.31).
+    LiveStatsService,
     LiveBlockedWordsService,
     LiveScheduleService,
     LiveRoomMetadataService,

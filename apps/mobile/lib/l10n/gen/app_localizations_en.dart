@@ -5987,9 +5987,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goLiveSummaryTime => 'Live time';
 
   @override
-  String get goLiveSummaryPoints => 'Points';
-
-  @override
   String get goLiveSummaryTaps => 'From taps';
 
   @override
@@ -5997,9 +5994,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goLiveSummarySupporters => 'Supporters';
-
-  @override
-  String get goLiveSummaryViewers => 'Viewers at the end';
 
   @override
   String goLiveSummaryCharm(String level) {
@@ -6010,9 +6004,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String goLiveSummaryCharmNext(String points) {
     return '$points to the next level';
   }
-
-  @override
-  String get goLiveSummaryData => 'Live data';
 
   @override
   String get liveGiftTabRecent => 'Recent';
@@ -6253,4 +6244,71 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveGamesSoon => 'Games are coming soon';
+
+  @override
+  String get liveStatsCherries => 'Cherries this live';
+
+  @override
+  String liveStatsIncludesYours(String points) {
+    return 'Includes $points from your own taps and gifts';
+  }
+
+  @override
+  String get liveStatsViewers => 'Viewers';
+
+  @override
+  String get liveStatsPeak => 'Peak viewers';
+
+  @override
+  String get liveStatsAverageWatch => 'Avg. watch time';
+
+  @override
+  String get liveStatsNewFollowers => 'New followers';
+
+  @override
+  String get liveStatsChatMessages => 'Chat messages';
+
+  @override
+  String get liveStatsGiftsSent => 'Gifts sent';
+
+  @override
+  String get liveStatsCountriesTitle => 'Where your viewers came from';
+
+  @override
+  String get liveStatsCountryOther => 'Other countries';
+
+  @override
+  String get liveStatsCountryUnknown => 'Not shared';
+
+  @override
+  String liveStatsCountriesNote(String count) {
+    return 'Shares of all viewers ($count), rounded to one decimal';
+  }
+
+  @override
+  String liveStatsCountryRow(String country, String percent, String count) {
+    return '$country: $percent of viewers ($count)';
+  }
+
+  @override
+  String get liveStatsNoViewers =>
+      'No one watched this time. Your next live is a fresh start.';
+
+  @override
+  String get liveStatsTopSupporters => 'Top supporters';
+
+  @override
+  String get liveStatsNoSupporters =>
+      'No supporters this time. Gifts and taps from your viewers show here.';
+
+  @override
+  String liveStatsSupporterRank(int rank, String name, String points) {
+    return 'Rank $rank: $name, $points cherries';
+  }
+
+  @override
+  String get liveStatsLoadFailed => 'Couldn\'t load your live\'s data';
+
+  @override
+  String get liveStatsLoadFailedBody => 'Check your connection and try again.';
 }

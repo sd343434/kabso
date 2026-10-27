@@ -378,6 +378,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
+| `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -486,6 +487,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.6-live (draft) | 2026-10-27 | **D140 (owner: «صفحة انتهاء البث بملء الشاشة … ومعلومات أكثر منها دول المشاهدين ونسبة المشاهدة لكل دولة»):** `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`, host only, `LiveRoomStats`, `LiveRoomViewerStats`, `LiveViewerCountry`): the live's cherries with the host's own share, supporters and the top three, gifts, chat messages, new followers, unique / peak viewers, average watch time and the viewers' countries (top 5 + `OTHER` + `UNKNOWN`, one-decimal shares). Migration `20261130090000_live_audience` (`live_room_audience`, `live_rooms.peak_viewer_count`). §7, §10.31. | **Additive** (a new operation and schemas). Lives started before the deploy read `viewers: null`, `viewerCountries: []`. |
 | v1.27.5-live (draft) | 2026-10-27 | **D138 (owner: «في البث الصوتي المستخدم يستخدمها على الكرسي … مرة واحدة وتختفي»):** `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`, `LiveSeatEmojiRequest`, `LiveSeatEmoji`); data message `seat-emoji` on topic `seat-emoji`. §7, §10.30. | **Additive** (a new operation and data message topic; older apps ignore unknown topics and types). |
 | v1.27.4-live (draft) | 2026-10-27 | **D137 (owner: the promo box at the top end of a live):** `HomeBanner` placement — `listHomeBanners` takes `placement` (`home` default, `room`); `banner-admin add … --placement room` (3:4, 600 × 800); migration `20261129090000_live_wish_gifts_room_banners` (`home_banners.placement`). §10.26. | **Additive** (an optional parameter; existing banners are HOME). |
 | v1.27.3-live (draft) | 2026-10-27 | **D136 (owner: the host's wish list):** `StartLiveRoomRequest.wishGifts`, `UpdateLiveRoomRequest.wishGifts` (`WishGiftCodes`, ≤ 4 distinct, sendable now), `LiveRoom.wishGifts` (`LiveWishGift` `{giftCode, name, priceCoins, assetKey, imageUrl, received}`), `GiftCode`; a change, or a wished gift sent to the host, moves `roomInfoVersion`; migration `live_rooms.wish_gifts`. §10.29. | **Additive** (optional request fields, a new response field older apps ignore). |
@@ -1980,6 +1982,42 @@ change in the server configuration (no app update). Odds, the age gate and the r
   echo (same `user`); a new emoji on a tile replaces the one playing there.
 - **Apps:** the emoji plays one cycle centred over the tile's picture (about 85 % of it, under the
   name) and fades; with reduced motion the first frame shows for 1.5 s. Unknown tokens are ignored.
+
+### 10.31 The host's statistics of a live *(v1.27.6-live, DRAFT — D140)*
+
+- **What (owner):** the end-of-live screen shows more than the score — who came, from where, and
+  how they engaged. `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`) answers it for the
+  **host only**, while the live is on or after it ended. Checks: 401; 404 (room not visible, as
+  `getLiveRoom`); 403 `AUTH_FORBIDDEN` for anyone but the host. Per-user default bucket (§7).
+- **Privacy:** aggregates only. No endpoint lists the audience record or says who watched from
+  where; a country is the viewer's own `Me.country` (§10.28, never inferred, XK excluded as in D45).
+- **Fields and how they are computed:**
+  - `durationSeconds`: start → end (→ now while LIVE). `score`: the live score (§10.10).
+    `hostOwnPoints`: the host's own row of `live_room_tappers` (their taps since D120 and gifts
+    since D128 count in the score); the host is never their own supporter, so a live whose points
+    all came from the host shows supporters 0.
+  - `supporters`: rows of the Contribution list (§10.12) as the host reads it, without the 50 cap;
+    `topSupporters`: its first three, same order.
+  - `giftCount`: Σ `quantity` of the live's sends (`live_gifts.room_id`), whoever sent them to
+    whomever in the room. `chatMessages`: the live's messages not deleted (the chat sweeper
+    removes them 30 days after the end). `newFollowers`: `follows` to the host created between
+    the start and the end (now while LIVE) whose follower is ACTIVE — an unfollow removes the row.
+  - `viewers` (from the audience record below; `null` for a live started before D140):
+    `unique` = audience rows (a person or a guest counts once, however often they came back; the
+    host has no row), `guests` = rows without a user, `peak` = the most presence rows at once
+    (`live_rooms.peak_viewer_count`, raised with every recount), `atEnd` = `viewer_count` (the
+    viewers when it ended; now while LIVE), `averageWatchSeconds` = round(Σ watch time / `unique`).
+  - `viewerCountries`: the audience grouped by the viewer's country; the five largest (ties: code
+    A → Z), then `OTHER` (all further countries), then `UNKNOWN` (guests and people without a
+    country) — each only when non-zero; `[]` without viewers. **Rounding:** `percent` =
+    round-half-up(`viewers` × 1000 / `unique`) / 10, each bucket on its own; the shares are shown
+    as they are (their sum may be 99.9–100.1). Apps never re-normalize.
+- **Audience record** (`live_room_audience`, one row per room and identity): written only from
+  media presence (§10.8). A recorded join opens a visit (`open_since`); every removal of a presence
+  row — `participant_left`, `room_finished`, a kick, guests switched off, the end, the sweeper's
+  reconciliation — closes it, adding the time (never past the room's end) to `watch_ms`. A visit
+  still open when read counts until the end (now while LIVE). Rows go with the room (cascade) or
+  the user.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

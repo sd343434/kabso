@@ -845,6 +845,22 @@ a `CONNECTION LIMIT`.
 
   Locally: `pnpm feature:admin …`. Lower ranks come first; equal ranks follow the popular order.
 
+### 5.13 The host's live statistics (migration `20261130090000_live_audience`; D140) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): the table `live_room_audience` (one row per live and
+  viewer identity: first join, watch time, open visit) and the nullable column
+  `live_rooms.peak_viewer_count` (CHECK ≥ 0; new rooms start at 0). No GRANT (default privileges),
+  no backfill, no new server config.
+- Lives started before the deploy keep `peak_viewer_count` NULL: their statistics answer
+  `viewers: null` and no countries (the app hides those parts). A live that is on during the deploy
+  is one of them.
+- Rows are written by the media webhook and the sweeper's presence reconciliation (§10.8 of the
+  conventions); they are removed with their live or their user (cascade). No endpoint lists them —
+  `GET /live/rooms/{roomId}/stats` (host only) returns aggregates.
+- Rollback: the API before D140 ignores the table and the column; drop them only after rolling
+  back the API (`DROP TABLE live_room_audience; ALTER TABLE live_rooms DROP COLUMN
+  peak_viewer_count;`).
+
 ## 6. Observability baseline
 
 | Item | Status |

@@ -66,6 +66,8 @@ model User {
   liveHost           LiveHost?              @relation("LiveHostUser")
   liveHostsGranted   LiveHost[]             @relation("LiveHostGrantedBy")
   liveViews          LiveRoomViewer[]
+  /// v1.27.6-live (D140): the lives this user watched (statistics only).
+  liveAudience       LiveRoomAudience[]
   liveSeats          LiveRoomSeat[]
   liveSeatRequests   LiveSeatRequest[]
   liveSeatInvites    LiveSeatInvite[]       @relation("LiveSeatInvitee")
@@ -393,6 +395,26 @@ model LiveRoomViewer {
   @@map("live_room_viewers")
 }
 
+/// v1.27.6-live (D140, CONVENTIONS §10.31): everyone who watched a live (the host excluded), kept
+/// with the room for its statistics — the first join, and the watch time: `watch_ms` of the closed
+/// visits plus the open one since `open_since` (NULL when not connected). Written only from the
+/// media server's presence (`live_room_viewers`); no endpoint lists it (aggregates only).
+model LiveRoomAudience {
+  roomId        String    @map("room_id") @db.Uuid
+  identity      String    @db.VarChar(80)
+  userId        String?   @map("user_id") @db.Uuid
+  firstJoinedAt DateTime  @map("first_joined_at") @db.Timestamptz(3)
+  watchMs       BigInt    @default(0) @map("watch_ms")
+  openSince     DateTime? @map("open_since") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, identity], map: "live_room_audience_pkey")
+  @@index([userId], map: "live_room_audience_user_idx")
+  @@map("live_room_audience")
+}
+
 model LiveRoom {
   id              String             @id @default(uuid(7)) @db.Uuid
   hostUserId      String             @map("host_user_id") @db.Uuid
@@ -407,6 +429,9 @@ model LiveRoom {
   endReason       LiveRoomEndReason? @map("end_reason")
   /// CP-010: connected viewers other than the host, guests included (kept from `live_room_viewers`).
   viewerCount     Int                @default(0) @map("viewer_count")
+  /// v1.27.6-live (D140, CONVENTIONS §10.31): the most viewers at once (kept with `viewer_count`);
+  /// NULL for lives started before D140, which have no audience record.
+  peakViewerCount Int?               @default(0) @map("peak_viewer_count")
   /// CP-010: people without an account may watch (owner D93: allowed by default).
   allowGuests     Boolean            @default(true) @map("allow_guests")
   /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (5, 10, 15, 20, 25, D103) room; null for
@@ -437,6 +462,7 @@ model LiveRoom {
   host         User                @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
   category     LiveCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers      LiveRoomViewer[]
+  audience     LiveRoomAudience[]
   reports      Report[]
   seats        LiveRoomSeat[]
   seatRequests LiveSeatRequest[]

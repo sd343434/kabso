@@ -10388,12 +10388,6 @@ abstract class AppLocalizations {
   /// **'مدة البث'**
   String get goLiveSummaryTime;
 
-  /// End-of-live summary: this live's points (cherries).
-  ///
-  /// In ar, this message translates to:
-  /// **'النقاط'**
-  String get goLiveSummaryPoints;
-
   /// End-of-live summary: points from taps.
   ///
   /// In ar, this message translates to:
@@ -10412,12 +10406,6 @@ abstract class AppLocalizations {
   /// **'الداعمون'**
   String get goLiveSummarySupporters;
 
-  /// End-of-live summary: the viewer count when the live ended.
-  ///
-  /// In ar, this message translates to:
-  /// **'المشاهدون عند الانتهاء'**
-  String get goLiveSummaryViewers;
-
   /// End-of-live summary: the host's charm level.
   ///
   /// In ar, this message translates to:
@@ -10429,12 +10417,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{points} للمستوى التالي'**
   String goLiveSummaryCharmNext(String points);
-
-  /// End-of-live summary: the section title.
-  ///
-  /// In ar, this message translates to:
-  /// **'بيانات البث'**
-  String get goLiveSummaryData;
 
   /// Gift panel tab: gifts sent recently from this phone.
   ///
@@ -10849,6 +10831,120 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الألعاب قريباً'**
   String get liveGamesSoon;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز هذا البث'**
+  String get liveStatsCherries;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'منها {points} من نقراتك وهداياك أنت'**
+  String liveStatsIncludesYours(String points);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveStatsViewers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذروة المشاهدة'**
+  String get liveStatsPeak;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط مدة المشاهدة'**
+  String get liveStatsAverageWatch;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get liveStatsNewFollowers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل الدردشة'**
+  String get liveStatsChatMessages;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا المُرسلة'**
+  String get liveStatsGiftsSent;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'من أين جاء مشاهدوك'**
+  String get liveStatsCountriesTitle;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'دول أخرى'**
+  String get liveStatsCountryOther;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محدد'**
+  String get liveStatsCountryUnknown;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'النسب من إجمالي المشاهدين ({count})، مقرّبة إلى منزلة عشرية واحدة'**
+  String liveStatsCountriesNote(String count);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'{country}: {percent} من المشاهدين ({count})'**
+  String liveStatsCountryRow(String country, String percent, String count);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يشاهد أحد هذه المرة. بثك القادم فرصة جديدة.'**
+  String get liveStatsNoViewers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'أبرز الداعمين'**
+  String get liveStatsTopSupporters;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا داعمين هذه المرة. ستظهر هنا هدايا ونقرات مشاهديك.'**
+  String get liveStatsNoSupporters;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {rank}: {name}، {points} كرزة'**
+  String liveStatsSupporterRank(int rank, String name, String points);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل بيانات البث'**
+  String get liveStatsLoadFailed;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
+  String get liveStatsLoadFailedBody;
 }
 
 class _AppLocalizationsDelegate

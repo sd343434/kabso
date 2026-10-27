@@ -15,6 +15,7 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_room_stats.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
@@ -389,6 +390,10 @@ class DemoLiveRepository implements LiveRepository {
     required String? categorySlug,
     required String? topic,
   }) async => throw _serverOnly;
+
+  // D140: the demo cannot go live, so it has no statistics.
+  @override
+  Future<LiveRoomStats> roomStats(String roomId) async => throw _serverOnly;
 
   // The demo hub has no taps, so nobody contributed.
   @override

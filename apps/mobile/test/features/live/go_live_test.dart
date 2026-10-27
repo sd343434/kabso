@@ -40,6 +40,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setu
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -2118,8 +2119,8 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('the end summary: real data only (time, cherries from taps '
-        'and gifts, supporters, viewers, charm)', (tester) async {
+    testWidgets('the end summary: full screen, real data only (time, '
+        'cherries from taps and gifts, supporters)', (tester) async {
       final repo = FakeLiveRepository(categories: _categories)
         ..contributorList = [const LiveContributor(user: someone, points: 120)];
       await _pump(tester, repo: repo);
@@ -2138,6 +2139,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
       expect(find.byType(GoLiveSummary), findsOneWidget);
+      // D140: the summary takes the whole screen, from the live's statistics.
+      final view = tester.view.physicalSize / tester.view.devicePixelRatio;
+      expect(tester.getSize(find.byType(GoLiveSummary)), view);
+      expect(tester.getTopLeft(find.byType(GoLiveSummary)), Offset.zero);
+      expect(repo.statsCalls, 1);
       expect(find.text('1,520'), findsOneWidget);
       expect(
         find.descendant(

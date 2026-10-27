@@ -148,6 +148,11 @@ info:
     `LiveSeatEmojiRequest`, `LiveSeatEmoji`): in a room with seats the host or someone seated plays
     one of the owner's animated emojis once on their own tile, for the whole room, as the data
     message `seat-emoji` on topic `seat-emoji` (CONVENTIONS §10.30).
+    **D140 (DRAFT v1.27.6-live)** adds `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`,
+    `LiveRoomStats`, `LiveRoomViewerStats`, `LiveViewerCountry`): the host's statistics of one of
+    their lives — cherries with the host's own share, supporters and the top three, gifts, chat
+    messages, new followers, unique and peak viewers, average watch time and the viewers'
+    countries with their shares (aggregates only) (CONVENTIONS §10.31).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1890,6 +1895,61 @@ paths:
                 user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
                 points: 340
                 rank: 7
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/stats:
+    get:
+      tags: [live]
+      operationId: getLiveRoomStats
+      summary: "Host: the statistics of one of my lives (v1.27.6-live, D140)"
+      description: |
+        CONVENTIONS §10.31. The host's own summary of a live, while it is LIVE or after it ended
+        (the end-of-live screen). Aggregates only: no endpoint says who watched or from where.
+        Checks, in order: 401; 404 for a room the caller may not see; 403 `AUTH_FORBIDDEN` when
+        the caller is not the room's host. Per-user default rate limit (§7).
+
+        - `score` is the live score (`LiveRoom.scoreParts`); `hostOwnPoints` is the part of it
+          from the host's own taps and gifts (D120, D128) — the host is never their own supporter.
+        - `supporters`: everyone else with points in the Contribution list (as the host reads it,
+          no 50 cap); `topSupporters`: its first three.
+        - `giftCount`: the sum of `quantity` of every gift sent in this live (to anyone in it, the
+          host's own sends included). `chatMessages`: messages of this live not deleted (the chat
+          is removed 30 days after the end). `newFollowers`: people who started following the host
+          between the start and the end (now while LIVE) and still do.
+        - `viewers` and `viewerCountries` come from the audience record (D140): `null` and `[]`
+          for a live started before it. Shares are of `viewers.unique`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The live's statistics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoomStats' }
+              example:
+                roomId: 0192f1d0-1111-7000-8000-000000000001
+                status: ENDED
+                startedAt: '2026-10-27T18:00:00.000Z'
+                endedAt: '2026-10-27T18:03:18.000Z'
+                durationSeconds: 198
+                score: { total: 2411, tapPoints: 11, supportPoints: 2400 }
+                hostOwnPoints: 801
+                supporters: 4
+                topSupporters:
+                  - user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                    points: 1200
+                giftCount: 6
+                chatMessages: 3
+                newFollowers: 2
+                viewers: { unique: 11, guests: 1, peak: 11, atEnd: 0, averageWatchSeconds: 74 }
+                viewerCountries:
+                  - { country: SA, viewers: 3, percent: 27.3 }
+                  - { country: EG, viewers: 2, percent: 18.2 }
+                  - { country: OTHER, viewers: 4, percent: 36.4 }
+                  - { country: UNKNOWN, viewers: 2, percent: 18.2 }
+        '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -6490,6 +6550,67 @@ components:
           format: uuid
           description: The live it was sent from.
         createdAt: { type: string, format: date-time }
+    # ---- v1.27.6-live (DRAFT, D140) — the host's statistics of a live ----------------------
+    LiveRoomStats:
+      type: object
+      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, chatMessages, newFollowers, viewers, viewerCountries]
+      properties:
+        roomId: { type: string, format: uuid }
+        status: { type: string, enum: [LIVE, ENDED] }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        durationSeconds: { type: integer, minimum: 0, description: "From the start to the end (to now while LIVE), whole seconds." }
+        score: { $ref: '#/components/schemas/LiveScore' }
+        hostOwnPoints:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "The part of `score.total` from the host's own taps and gifts (D120, D128)."
+        supporters: { type: integer, minimum: 0, description: "People other than the host who gave this live points (the Contribution list as the host reads it, no 50 cap)." }
+        topSupporters:
+          type: array
+          maxItems: 3
+          description: The first three of the Contribution list.
+          items: { $ref: '#/components/schemas/LiveContributor' }
+        giftCount: { type: integer, format: int64, minimum: 0, description: "Gifts sent in this live (the sum of quantities; to anyone in it, the host's own included)." }
+        chatMessages: { type: integer, minimum: 0, description: "Chat messages of this live that were not deleted." }
+        newFollowers: { type: integer, minimum: 0, description: "People who started following the host during the live and still do (ACTIVE accounts)." }
+        viewers:
+          oneOf:
+            - { $ref: '#/components/schemas/LiveRoomViewerStats' }
+            - { type: 'null' }
+          description: "`null` for a live started before the audience record (D140)."
+        viewerCountries:
+          type: array
+          maxItems: 7
+          description: |
+            Shares of `viewers.unique`: the five countries with the most viewers (ties: the code,
+            A → Z), then `OTHER` (every further country) and `UNKNOWN` (guests and people without a
+            country), each only when it has viewers. Empty without viewers.
+          items: { $ref: '#/components/schemas/LiveViewerCountry' }
+    LiveRoomViewerStats:
+      type: object
+      required: [unique, guests, peak, atEnd, averageWatchSeconds]
+      properties:
+        unique: { type: integer, minimum: 0, description: "Different people and guests who watched (the host left out); one person counts once however often they came back." }
+        guests: { type: integer, minimum: 0, description: "Of `unique`, viewers without an account." }
+        peak: { type: integer, minimum: 0, description: The most viewers connected at once. }
+        atEnd: { type: integer, minimum: 0, description: "Viewers connected when the live ended (now while LIVE)." }
+        averageWatchSeconds: { type: integer, minimum: 0, description: "The total time viewers were connected, divided by `unique`, rounded; 0 without viewers." }
+    LiveViewerCountry:
+      type: object
+      required: [country, viewers, percent]
+      properties:
+        country:
+          type: string
+          pattern: '^([A-Z]{2}|OTHER|UNKNOWN)$'
+          description: "ISO 3166-1 alpha-2 (the viewer's own `Me.country`), `OTHER` or `UNKNOWN`."
+        viewers: { type: integer, minimum: 1 }
+        percent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: "`viewers` / `LiveRoomViewerStats.unique` × 100, one decimal, half up; each bucket rounded on its own, so the shares may add up to 99.9–100.1 (shown as they are)."
     # ---- v1.27.5-live (DRAFT, D138) — an emoji on one's own seat ---------------------------
     LiveSeatEmojiRequest:
       type: object
