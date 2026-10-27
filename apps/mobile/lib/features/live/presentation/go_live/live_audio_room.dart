@@ -54,12 +54,14 @@ abstract final class KAudioRoom {
   static const badge = Color(0xFFFF3B5C);
 
   /// D123, owner ref 147 (923 px = 430 pt, measured): the bottom bar's
-  /// buttons are equal dark translucent circles, 37.5 pt wide (black ≈ 27 %
-  /// over the room), 46 pt apart, the outer ones 8 pt from the edges; the
-  /// icon is drawn at 25 pt (its glyph ≈ 21–24 pt like the reference's).
+  /// buttons are equal dark translucent circles (black ≈ 27 % over the
+  /// room), 46 pt apart, the outer ones 8 pt from the edges. The reference
+  /// measured 37.5 pt circles with 25 pt icons; on the device the owner
+  /// found the icons too small, so they are drawn larger (42 pt circles,
+  /// 31 pt icons) on the same 46 pt pitch.
   static const barCircle = Color(0x45000000);
-  static const barButton = 37.5;
-  static const barIcon = 25.0;
+  static const barButton = 42.0;
+  static const barIcon = 31.0;
 
   /// Ref 147: the top buttons are 31 pt circles (black ≈ 33 %) 39 pt
   /// apart, the last one 10 pt from the edge; our framed icons are drawn
@@ -220,7 +222,7 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: composer,
                       ),
                     )
-                  // Ref 147: 37.5 pt circles, 46 pt apart.
+                  // Ref 147: equal circles, 46 pt apart.
                   : Row(
                       children: [
                         if (barLead case final lead?) ...[
