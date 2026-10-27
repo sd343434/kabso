@@ -44,6 +44,7 @@ final class LiveChatPending extends LiveChatItem {
     required this.text,
     required this.authorName,
     this.failed = false,
+    this.tooFast = false,
   });
 
   final String clientId;
@@ -52,6 +53,10 @@ final class LiveChatPending extends LiveChatItem {
   /// This person's display name.
   final String authorName;
   final bool failed;
+
+  /// D141: it failed because this person sent faster than the chat's one
+  /// line a second (429), even after waiting — the line says so.
+  final bool tooFast;
 
   @override
   String get key => 'p:$clientId';
@@ -265,17 +270,44 @@ class LiveChatController extends Notifier<LiveChatState> {
           if (_showable(m) && _scheduleExpiry(m, fresh: false)) m,
       ];
       if (!ref.mounted) return;
-      // Live messages may have arrived first: keep them, without doubles.
-      final known = {for (final m in messages) m.id};
-      final live = state.items.where(
-        (i) => i is! LiveChatPosted || !known.contains(i.entry.id),
-      );
-      // D118: the rules line follows the history, so it is the first thing
-      // said in this visit.
+      // D141 (owner's device: the lines sat ABOVE the rules line, which
+      // stayed at the bottom): the rules line is the first line of the
+      // visit and must stay where it was said —
+      // 1. lines that arrived while the history loaded stay after it (they
+      //    win over their copy in the history, which used to pull them
+      //    above it);
+      // 2. a visit that comes back (the host's minimized live reopened, the
+      //    chat rebuilt) keeps the line after the same message as before,
+      //    so what was said since stays under it and it rises and scrolls
+      //    off like any line.
+      final live = state.items.toList();
+      final liveIds = {
+        for (final i in live)
+          if (i is LiveChatPosted) i.entry.id,
+      };
+      final history = [
+        for (final m in messages)
+          if (!liveIds.contains(m.id)) m,
+      ];
+      final visits = ref.read(liveChatVisitsProvider);
+      final visit = visits[roomId];
+      final int split;
+      if (visit == null) {
+        split = history.length;
+        visits[roomId] = LiveChatVisit(after: history.lastOrNull?.id);
+      } else {
+        final after = visit.after;
+        // Gone from the history (older than its last 50): the rules line
+        // left the top long ago.
+        split = after == null
+            ? 0
+            : history.indexWhere((m) => m.id == after) + 1;
+      }
       state = state.copyWith(
         items: _trim([
-          ...messages.map(LiveChatPosted.new),
+          ...history.take(split).map(LiveChatPosted.new),
           const LiveChatNoticeLine(),
+          ...history.skip(split).map(LiveChatPosted.new),
           ...live,
         ]),
         loaded: true,
@@ -419,6 +451,11 @@ class LiveChatController extends Notifier<LiveChatState> {
     return kept;
   }
 
+  /// D141: how many times a line refused for going too fast (429) is sent
+  /// again by itself, and the longest wait before each.
+  static const rateRetries = 3;
+  static const maxRateWait = Duration(seconds: 3);
+
   /// Sends [text] (trimmed). Returns why it was refused, or `null`.
   Future<AppFailure?> send(String text, {String? retryOf}) async {
     final me = ref.read(currentUserProvider);
@@ -438,11 +475,34 @@ class LiveChatController extends Notifier<LiveChatState> {
       ],
     );
     try {
-      final message = await _repo.sendChat(
-        roomId,
-        text: trimmed,
-        clientId: clientId,
-      );
+      // D141 (owner's device: an emoji sent right after two others showed
+      // "Not sent"): the chat takes one line a second per person (§10.11,
+      // 429 + Retry-After). A quick line waits its turn and goes by itself
+      // (the same clientId, so never twice), at most [rateRetries] times.
+      LiveChatEntry message;
+      for (var attempt = 0; ; attempt++) {
+        try {
+          message = await _repo.sendChat(
+            roomId,
+            text: trimmed,
+            clientId: clientId,
+          );
+          break;
+        } on Object catch (e) {
+          final failure = toAppFailure(e);
+          if (failure.code != ErrorCode.rateLimited ||
+              attempt >= rateRetries ||
+              !ref.mounted) {
+            rethrow;
+          }
+          final wait = switch (failure) {
+            ServerFailure(:final retryAfter?) => retryAfter,
+            _ => const Duration(seconds: 1),
+          };
+          await Future<void>.delayed(wait > maxRateWait ? maxRateWait : wait);
+          if (!ref.mounted) rethrow;
+        }
+      }
       if (!ref.mounted) return null;
       final items = [
         for (final it in state.items)
@@ -472,6 +532,7 @@ class LiveChatController extends Notifier<LiveChatState> {
               text: trimmed,
               authorName: me.displayName,
               failed: true,
+              tooFast: code == ErrorCode.rateLimited,
             ),
           );
         }
@@ -644,6 +705,26 @@ class LiveChatController extends Notifier<LiveChatState> {
     return '${hex(8)}-${hex(4)}-4${hex(3)}-$variant${hex(3)}-${hex(12)}';
   }
 }
+
+/// D141: where the rules line of the current visit to a room was said —
+/// after which message of the history ([after]; null: before them all).
+class LiveChatVisit {
+  const new({this.after});
+
+  final String? after;
+}
+
+/// D141: the visits in progress, by room id. Kept while the app runs (a
+/// chat controller is rebuilt when the host's live is minimized and
+/// reopened); [endLiveChatVisit] forgets a room when its screen really
+/// closes, so the next visit gets its own rules line.
+final liveChatVisitsProvider = Provider<Map<String, LiveChatVisit>>(
+  (ref) => <String, LiveChatVisit>{},
+);
+
+/// D141: the person left [roomId] (or the host ended it).
+void endLiveChatVisit(Map<String, LiveChatVisit> visits, String roomId) =>
+    visits.remove(roomId);
 
 final NotifierProviderFamily<LiveChatController, LiveChatState, String>
 liveChatProvider = NotifierProvider.autoDispose

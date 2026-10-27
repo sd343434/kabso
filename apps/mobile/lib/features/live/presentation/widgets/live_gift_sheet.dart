@@ -823,7 +823,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             ),
           ),
         const SizedBox(height: 4),
-        _Tabs(
+        LiveGiftTabs(
           tabs: tabs,
           selected: tab,
           hasTags: (id) => switch (GiftCategory.fromWire(id)) {
@@ -1202,12 +1202,13 @@ class _Person extends StatelessWidget {
 /// bold white when open, `#858487` otherwise, a caret when the tab has
 /// sub-categories, a 7.2 × 1.7 pt white bar under the open one) and the bag
 /// as an icon at the end. The row scrolls.
-class _Tabs extends StatelessWidget {
+class LiveGiftTabs extends StatelessWidget {
   const new({
     required this.tabs,
     required this.selected,
     required this.hasTags,
     required this.onTap,
+    super.key,
   });
 
   final List<String> tabs;
@@ -1216,6 +1217,21 @@ class _Tabs extends StatelessWidget {
   final ValueChanged<String> onTap;
 
   static const double height = 34;
+
+  /// D141: the catalogue's own categories in the panel's order (Popular
+  /// first; Lucky only when it has gifts) — no Recent and no bag (the
+  /// host's wish picker).
+  static List<String> categoriesOf(GiftCatalogue? catalogue) {
+    final categories = catalogue?.categories ?? GiftCategory.values;
+    return [
+      if (categories.contains(GiftCategory.popular)) GiftCategory.popular.wire,
+      for (final c in categories)
+        if (c != GiftCategory.popular &&
+            (c != GiftCategory.lucky ||
+                (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)))
+          c.wire,
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {

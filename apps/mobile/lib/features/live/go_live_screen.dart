@@ -35,6 +35,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.da
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
@@ -98,7 +99,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
   static const audioPkKey = Key('goLive.audio.pk');
-  static const audioToolboxKey = Key('goLive.audio.toolbox');
+
+  /// D141: the games button (in place of the toolbox, which repeated ≡).
+  static const audioGamesKey = Key('goLive.audio.games');
   static const audioGiftKey = Key('goLive.audio.gift');
   static const endConfirmKey = Key('goLive.endConfirm');
   static const doneKey = Key('goLive.done');
@@ -884,10 +887,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.insights_outlined,
               label: l10n.liveToolDataCenter,
             ),
-            GoLiveTool.soon(
+            // D141 (owner): the host's live schedule (D99 C), from the
+            // live itself.
+            GoLiveTool(
               id: 'time',
               icon: Icons.alarm_rounded,
               label: l10n.liveToolLiveTime,
+              onTap: () => unawaited(showLiveSchedule(context)),
             ),
             byId['guests']!,
           ],
@@ -912,11 +918,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           },
           title: room?.title ?? _title.text.trim(),
           level: room?.roomLevel,
-          // CP-016 G (ref 83): the room number, else the username.
-          subtitle: switch (room?.roomNumber) {
-            final n? => l10n.liveRoomNumber('$n'),
-            null => user == null ? null : '@${user.username}',
-          },
+          // D141 (owner): the host's @username (copy on tap), not the
+          // room number.
+          username: user?.username,
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
@@ -1057,8 +1061,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         barEnd: [
           LiveRoundButton(
             key: GoLiveKeys.tool('requests'),
-            icon: Icons.weekend_rounded,
-            asset: 'assets/live_bar/seat.png',
+            // D141 (owner): the video bar's ∞ (guests) icon.
+            icon: Icons.all_inclusive_rounded,
             bare: true,
             label: byId['requests']!.label,
             // Owner (2026-10-26): the seat button opens the room's people on
@@ -1075,24 +1079,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveRoundButton(
             key: GoLiveScreen.audioPkKey,
             icon: Icons.sports_mma_rounded,
-            asset: 'assets/live_bar/pk.png',
+            // D135/D141: the owner's colourful PK art, as on the video bar.
+            asset: 'assets/live_bar/bar_pk.png',
+            art: true,
             bare: true,
             label: l10n.goLivePk,
             onTap: () => KSnack.info(context, l10n.goLivePkSoon),
           ),
-          // Owner (2026-10-26): the toolbox and the gift box always show.
+          // D141 (owner): games, with the owner's controller art, where
+          // the toolbox was (it repeated ≡). There are no games yet: the
+          // button says so (no list is shown).
           LiveRoundButton(
-            key: GoLiveScreen.audioToolboxKey,
-            icon: Icons.work_rounded,
-            asset: 'assets/live_bar/toolbox.png',
+            key: GoLiveScreen.audioGamesKey,
+            icon: Icons.sports_esports_rounded,
+            asset: 'assets/live_bar/bar_games.png',
+            art: true,
             bare: true,
-            label: l10n.liveToolbox,
-            onTap: openTools,
+            label: l10n.liveGames,
+            onTap: () => KSnack.info(context, l10n.liveGamesSoon),
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioGiftKey,
             icon: Icons.card_giftcard_rounded,
-            asset: 'assets/live_bar/gift.png',
+            // D135/D141: the owner's colourful gift box.
+            asset: 'assets/live_bar/bar_gift.png',
+            art: true,
             bare: true,
             label: l10n.liveGifts,
             onTap: room == null ? null : () => unawaited(_openGifts(room)),
@@ -1592,7 +1603,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
           soon('newcomers', Icons.fiber_new_outlined, l10n.liveToolNewcomers),
           soon('data', Icons.insights_outlined, l10n.liveToolDataCenter),
-          soon('time', Icons.alarm_rounded, l10n.liveToolLiveTime),
+          // D141 (owner): the host's live schedule (D99 C), from the live.
+          GoLiveTool(
+            id: 'time',
+            icon: Icons.alarm_rounded,
+            label: l10n.liveToolLiveTime,
+            onTap: () => unawaited(showLiveSchedule(context)),
+          ),
           soon(
             'traffic',
             Icons.confirmation_number_outlined,
@@ -1640,8 +1657,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     return KLiveRoomScaffold(
       video: background,
       header: KHostPill(
-        // D135: the room ID beside the name (copy on tap).
-        roomId: room.roomNumber?.toString(),
+        // D141 (owner): the host's @username beside the name (copy on tap).
+        username: user?.username,
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [
@@ -1687,17 +1704,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ? null
           : LiveViewersStack(
               key: GoLiveScreen.viewersKey,
-              avatarSize: 25.6,
-              pitch: 30.6,
-              countHeight: 25,
-              countMinWidth: 31,
+              avatarSize: 28.5,
+              pitch: 33.5,
+              countHeight: 28,
+              countMinWidth: 34,
               avatars: [
                 for (final v in viewers.items)
                   if (v.user case final u?)
                     KAvatar(
                       name: u.displayName,
                       imageUrl: u.avatarUrl,
-                      size: 25.6,
+                      size: 28.5,
                     ),
               ],
               count: viewers.next == null
@@ -1714,7 +1731,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
-      sideEnd: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
@@ -2263,46 +2280,6 @@ class _HostElapsed extends StatelessWidget {
   final DateTime? since;
 
   @override
-  Widget build(BuildContext context) {
-    final elapsed = formatLiveDuration(
-      since == null ? Duration.zero : clock.now().difference(since!),
-    );
-    return Semantics(
-      key: GoLiveScreen.elapsedKey,
-      label: context.l10n.goLiveElapsed(elapsed),
-      excludeSemantics: true,
-      child: Container(
-        height: KViewerRoom.chipHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: KLiveColors.glass,
-          borderRadius: BorderRadius.circular(KRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(0xFFFF3B5C),
-                shape: BoxShape.circle,
-              ),
-              child: SizedBox.square(dimension: 6),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              elapsed,
-              textDirection: TextDirection.ltr,
-              style: context.textStyles.caption.copyWith(
-                color: const Color(0xFFFFFFFF),
-                fontSize: 10.5,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      KLiveElapsedPill(key: GoLiveScreen.elapsedKey, since: since);
 }

@@ -130,10 +130,16 @@ Finder _hostPill(AppLocalizations l, String host) => find.bySemanticsLabel(
   RegExp('^${RegExp.escape(l.liveRoomHostSemantics(host))}'),
 );
 
+/// D141: the host pill's picture (a tap on the pill opens the host; its
+/// middle holds the @username, which copies it instead).
+Finder _hostPillPicture(AppLocalizations l, String host) => find
+    .descendant(of: _hostPill(l, host), matching: find.byType(KAvatar))
+    .first;
+
 /// A chat line (rich text with an icon).
 /// Every visible text (Text and rich text) in the tree.
 List<String> _texts(WidgetTester tester) => [
-  for (final element in find.byType(RichText).evaluate())
+  for (final element in find.byWidgetPredicate((w) => w is RichText).evaluate())
     (element.widget as RichText).text.toPlainText(),
 ];
 
@@ -528,7 +534,7 @@ void main() {
       );
       // Already following: no chip in the pill.
       expect(_label(l10n.liveFollow), findsNothing);
-      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.tap(_hostPillPicture(l10n, 'Sara'));
       await tester.pumpAndSettle();
       final sheet = find.byKey(const Key('room.hostSheet'));
       expect(sheet, findsOneWidget);
@@ -567,7 +573,7 @@ void main() {
         profile: apiProfile(),
         user: testUser(),
       );
-      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.tap(_hostPillPicture(l10n, 'Sara'));
       await tester.pumpAndSettle();
       final follow = find.byKey(const Key('room.userCard.follow'));
       expect(follow, findsOneWidget);
@@ -596,7 +602,7 @@ void main() {
       tester,
     ) async {
       await _pumpRoom(tester, profile: apiProfile(isSelf: true));
-      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.tap(_hostPillPicture(l10n, 'Sara'));
       await tester.pumpAndSettle();
       for (final k in ['gift', 'mention', 'message', 'follow']) {
         expect(find.byKey(Key('room.userCard.$k')), findsNothing, reason: k);
@@ -681,7 +687,7 @@ void main() {
       tester,
     ) async {
       await _pumpRoom(tester, user: testUser());
-      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.tap(_hostPillPicture(l10n, 'Sara'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(const Key('room.userCard.gift')));
       await tester.tap(find.byKey(const Key('room.userCard.gift')));
@@ -1112,7 +1118,7 @@ void main() {
         await tester.tapAt(const Offset(180, 100));
         await tester.pumpAndSettle();
         expect(find.byType(KLiveGiftSheet), findsNothing);
-        await tester.tap(_hostPill(l, 'سارة'));
+        await tester.tap(_hostPillPicture(l, 'سارة'));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('room.hostSheet')), findsOneWidget);
         expect(tester.takeException(), isNull);

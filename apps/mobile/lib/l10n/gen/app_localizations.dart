@@ -1046,12 +1046,6 @@ abstract class AppLocalizations {
   /// **'الهدايا'**
   String get liveGifts;
 
-  /// The audio room bar's toolbox button (owner pack): opens the room tools.
-  ///
-  /// In ar, this message translates to:
-  /// **'صندوق الأدوات'**
-  String get liveToolbox;
-
   /// No description provided for @liveShare.
   ///
   /// In ar, this message translates to:
@@ -10733,12 +10727,6 @@ abstract class AppLocalizations {
   /// D135: the room ID beside the host's name (copy).
   ///
   /// In ar, this message translates to:
-  /// **'تم نسخ معرّف الغرفة'**
-  String get liveRoomIdCopied;
-
-  /// D135: the room ID beside the host's name (copy).
-  ///
-  /// In ar, this message translates to:
   /// **'انقر للنسخ'**
   String get liveRoomIdCopyHint;
 
@@ -10819,6 +10807,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يظهر على مقعدك مرة واحدة ويراه الجميع'**
   String get liveSeatEmojiHint;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أمنيات'**
+  String get liveWishNoteTitle;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم اختيار {count} من 4'**
+  String liveWishChosenCount(int count);
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النسخ'**
+  String get liveUsernameCopied;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت بسرعة كبيرة. اضغط لإعادة المحاولة'**
+  String get liveChatTooFast;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت {time}'**
+  String liveBulletTime(String time);
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'الألعاب'**
+  String get liveGames;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'الألعاب قريباً'**
+  String get liveGamesSoon;
 }
 
 class _AppLocalizationsDelegate

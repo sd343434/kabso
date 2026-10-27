@@ -98,9 +98,25 @@ void main() {
         expect(find.byKey(LiveWishCard.rowKey('rose')), findsOneWidget);
         expect(find.byKey(LiveWishCard.rowKey('crown')), findsOneWidget);
         expect(find.text('×12'), findsOneWidget);
-        // Ref 158: 94.5 pt wide, 33 pt rows.
+        // D141: one sticky note with the title «أمنيات» / "Wishes" over the
+        // gifts (not a row box per gift), turned a little.
+        expect(
+          find.descendant(
+            of: card,
+            matching: find.byKey(LiveWishCard.titleKey),
+          ),
+          findsOneWidget,
+        );
+        final l = l10nFor(language);
+        expect(find.text(l.liveWishNoteTitle), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.byKey(LiveWishCard.titleKey)).dy,
+          lessThan(
+            tester.getTopLeft(find.byKey(LiveWishCard.rowKey('rose'))).dy,
+          ),
+        );
         final rect = tester.getRect(card);
-        expect(rect.width, closeTo(LiveWishCard.width, 0.5));
+        expect(tester.getSize(card).width, closeTo(LiveWishCard.width, 0.5));
         expect(
           tester.getSize(find.byKey(LiveWishCard.rowKey('rose'))).height,
           closeTo(LiveWishCard.row, 0.5),
@@ -153,10 +169,9 @@ void main() {
     ];
 
     for (final language in AppLanguage.values) {
-      testWidgets('ROOM banners in a 3:4 box at the end, opposite the wish '
-          'list; "–" hides it for this live (${language.name})', (
-        tester,
-      ) async {
+      testWidgets('ROOM banners in a 3:4 box right above the wish note, in '
+          'the same column (D141); "–" hides it for this live '
+          '(${language.name})', (tester) async {
         final banners = await _pump(
           tester,
           roomBanners: room,
@@ -169,8 +184,10 @@ void main() {
         expect(rect.width, closeTo(LiveRoomPromoBox.width, 0.5));
         expect(rect.height, closeTo(LiveRoomPromoBox.height, 0.5));
         final wish = tester.getRect(find.byKey(LiveWishCard.cardKey));
-        final ar = language == AppLanguage.ar;
-        expect(ar ? rect.left < wish.left : rect.left > wish.left, isTrue);
+        // Directly above it (the note is turned a little), centred on it.
+        expect(rect.bottom, lessThanOrEqualTo(wish.top + 1));
+        expect(wish.top - rect.bottom, lessThan(KLiveSideCards.gap + 4));
+        expect((rect.center.dx - wish.center.dx).abs(), lessThan(4));
         expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
         // Every 4 s the next one.
         await tester.pump(LiveRoomPromoBox.interval);
@@ -247,9 +264,8 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('the room ID beside the host name copies the number', (
-      tester,
-    ) async {
+    testWidgets("D141: the host's @username beside the name (not the room "
+        'number) copies it and says «Copied»', (tester) async {
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
@@ -267,15 +283,25 @@ void main() {
         ),
       );
       await _pump(tester);
-      final id = find.byKey(KHostPill.roomIdKey);
+      final tag = find.byKey(KLiveUsernameTag.tagKey);
       expect(
-        find.descendant(of: find.byType(KHostPill), matching: id),
+        find.descendant(of: find.byType(KHostPill), matching: tag),
         findsOneWidget,
       );
-      await tester.tap(id);
+      final username = tester
+          .widget<KLiveUsernameTag>(find.byType(KLiveUsernameTag))
+          .username;
+      expect(username, isNotEmpty);
+      expect(
+        find.descendant(of: tag, matching: find.textContaining('@$username')),
+        findsOneWidget,
+      );
+      // The room number is not shown any more.
+      expect(find.textContaining('120345678'), findsNothing);
+      await tester.tap(tag);
       await tester.pump();
-      expect(copied, '120345678');
-      expect(find.text(l10nFor(AppLanguage.en).liveRoomIdCopied), findsOne);
+      expect(copied, '@$username');
+      expect(find.text(l10nFor(AppLanguage.en).liveUsernameCopied), findsOne);
       await tester.pump(const Duration(seconds: 5));
       await _leave(tester);
     });

@@ -1,5 +1,6 @@
 export 'components/k_avatar.dart';
 export 'components/k_badge.dart';
+export 'components/k_bidi_rich_text.dart';
 export 'components/k_button.dart';
 export 'components/k_cherry.dart';
 export 'components/k_chip.dart';

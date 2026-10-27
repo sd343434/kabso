@@ -664,6 +664,10 @@ class FakeLiveRepository implements LiveRepository {
   /// A failure for the next `sendChat` (then cleared).
   AppFailure? chatFailure;
 
+  /// D141: the next [chatFailureTimes] `sendChat` calls throw this.
+  AppFailure? chatFailureRepeated;
+  int chatFailureTimes = 0;
+
   /// Every chat call, e.g. `send:hello`, `delete:m-1`, `mute:huda`.
   final List<String> chatCalls = [];
   List<LiveChatMute> chatMuteList = [];
@@ -694,6 +698,10 @@ class FakeLiveRepository implements LiveRepository {
     if (failure != null) {
       chatFailure = null;
       throw failure;
+    }
+    if (chatFailureRepeated case final repeated? when chatFailureTimes > 0) {
+      chatFailureTimes--;
+      throw repeated;
     }
     return LiveChatEntry(
       id: 'sent-${_chatSerial++}',

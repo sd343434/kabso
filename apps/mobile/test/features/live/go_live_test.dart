@@ -33,6 +33,7 @@ import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
@@ -107,6 +108,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   GoldenViewport viewport = GoldenViewport.phone,
   LevelsRepository? levels,
   FakeLiveGiftRepository? gifts,
+  FakeLiveScheduleRepository? schedule,
 }) async {
   final live =
       repo ??
@@ -133,7 +135,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
         FakeLiveBlockedWordsRepository(),
       ),
       liveScheduleRepositoryProvider.overrideWithValue(
-        FakeLiveScheduleRepository(),
+        schedule ?? FakeLiveScheduleRepository(),
       ),
       // A person's card reads their profile.
       profileRepositoryProvider.overrideWithValue(
@@ -770,9 +772,10 @@ void main() {
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
       // Owner (2026-10-26): no mic button in the bar; the host mutes and
-      // unmutes on their own picture. The toolbox and gift box show.
+      // unmutes on their own picture. D141: games (in place of the
+      // toolbox) and the gift box show.
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
-      expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
+      expect(find.byKey(GoLiveScreen.audioGamesKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
       // CP-020: the host's gift panel (to people on the mic; the catalogue
       // is empty here, as in production today).
@@ -962,7 +965,7 @@ void main() {
       final handle = tester.ensureSemantics();
       for (final key in [
         AudioSeatRing.seatKey(0),
-        GoLiveScreen.audioToolboxKey,
+        GoLiveScreen.audioGamesKey,
         GoLiveScreen.audioGiftKey,
         GoLiveScreen.closeKey,
         GoLiveScreen.minimizeKey,
@@ -1477,15 +1480,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(KLiveGiftSheet), findsOneWidget);
         await closeSheet(tester);
-        for (final key in [
-          GoLiveScreen.audioMoreKey,
-          GoLiveScreen.audioToolboxKey,
-        ]) {
-          await tester.tap(find.byKey(key));
-          await tester.pumpAndSettle();
-          expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
-          await closeSheet(tester);
-        }
+        await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
+        await closeSheet(tester);
+        // D141: games are not there yet — the button says so, no list.
+        await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
+        await tester.pump();
+        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+        ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
         await tester.pump();
         expect(find.text(l10n.goLivePkSoon), findsOneWidget);
@@ -1530,6 +1535,96 @@ void main() {
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
       await _startAudio(tester);
     }
+
+    for (final audio in [false, true]) {
+      testWidgets('D141: ≡ «Live time» is a working host tool '
+          '(${audio ? 'audio' : 'video'}): it opens the live schedule, which '
+          'adds and removes a slot', (tester) async {
+        final schedule = FakeLiveScheduleRepository([
+          LiveScheduleSlot(
+            id: 'a',
+            title: 'Morning chat',
+            startsAt: DateTime.now().add(const Duration(hours: 2)),
+          ),
+        ]);
+        final (repo, _) = await _pump(tester, schedule: schedule);
+        if (audio) {
+          await audioLive(tester, repo);
+          await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+          await tester.pumpAndSettle();
+        } else {
+          await _goLive(tester);
+          await _openTools(tester);
+        }
+        final l10n = _l10n(tester);
+        final tool = find.byKey(GoLiveKeys.tool('time'));
+        expect(tool, findsOneWidget);
+        // No "Soon" any more.
+        expect(
+          find.bySemanticsLabel('${l10n.liveToolLiveTime}, ${l10n.liveSoon}'),
+          findsNothing,
+        );
+        await tester.ensureVisible(tool);
+        await tester.tap(tool);
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveScheduleKeys.count), findsOneWidget);
+        await tester.tap(find.byKey(LiveScheduleKeys.add));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(LiveScheduleKeys.title),
+          'Evening songs',
+        );
+        await tester.tap(find.byKey(LiveScheduleKeys.pick));
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 2; i++) {
+          final ok = MaterialLocalizations.of(
+            tester.element(find.byType(Dialog).last),
+          ).okButtonLabel;
+          await tester.tap(find.text(ok).last);
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.byKey(LiveScheduleKeys.save));
+        await tester.pumpAndSettle();
+        expect(schedule.created.single.title, 'Evening songs');
+        await tester.tap(find.byKey(LiveScheduleKeys.remove('a')));
+        await tester.pumpAndSettle();
+        expect(schedule.removed, ['a']);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('D141: the audio bar uses the owner art — gift and PK as on '
+        'the video bar, games (in place of the toolbox) says it is coming, '
+        "and the seat button shows the video bar's ∞", (tester) async {
+      final (repo, _) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await audioLive(tester, repo);
+      for (final (key, art) in [
+        (GoLiveScreen.audioGiftKey, 'assets/live_bar/bar_gift.png'),
+        (GoLiveScreen.audioPkKey, 'assets/live_bar/bar_pk.png'),
+        (GoLiveScreen.audioGamesKey, 'assets/live_bar/bar_games.png'),
+      ]) {
+        final image = tester.widget<Image>(
+          find.descendant(of: find.byKey(key), matching: find.byType(Image)),
+        );
+        expect((image.image as AssetImage).assetName, art);
+        expect(image.width, KAudioRoom.barArt);
+        expect(tester.getSize(find.byKey(key)).width, greaterThanOrEqualTo(48));
+      }
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveKeys.tool('requests')),
+          matching: find.byIcon(Icons.all_inclusive_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(l10n.liveGames), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
+      await tester.pump();
+      expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+      await _snackGone(tester);
+      await _leave(tester);
+    });
 
     testWidgets('setup Settings (ref 71): Share copies the invitation; the '
         'features without a server are greyed "Soon"', (tester) async {
@@ -1589,7 +1684,15 @@ void main() {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await audioLive(tester, repo);
-      await tester.tap(find.byKey(LiveAudioRoomHeader.barKey));
+      // The card's cover (D141: its @username copies instead).
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byKey(LiveAudioRoomHeader.barKey),
+              matching: find.byType(ClipRRect),
+            )
+            .first,
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(LiveRoomInfoKeys.sheet), findsOneWidget);
       expect(find.text(l10n.liveRoomInfoChange), findsOneWidget);
@@ -1800,12 +1903,12 @@ void main() {
             expect(level.left, greaterThan(rank.right - 0.5));
             expect(timer.left, greaterThan(level.right));
           }
-          // The room ID beside the name, in the host pill (D135); a tap
-          // copies it.
+          // D141: the host's @username beside the name, in the host pill
+          // (not the room number); a tap copies it.
           expect(
             find.descendant(
               of: find.byType(KHostPill),
-              matching: find.byKey(KHostPill.roomIdKey),
+              matching: find.byKey(KLiveUsernameTag.tagKey),
             ),
             findsOneWidget,
           );
@@ -1857,9 +1960,18 @@ void main() {
       await tester.tap(find.byKey(GoLiveKeys.tool('wish')));
       await tester.pumpAndSettle();
       expect(find.byKey(LiveWishSheetKeys.sheet), findsOneWidget);
+      // D141: the gift panel's category tabs; a gift is on its own tab.
       for (final code in ['rose', 'crown', 'cake', 'confetti', 'lantern']) {
-        await tester.ensureVisible(find.byKey(LiveWishSheetKeys.gift(code)));
-        await tester.tap(find.byKey(LiveWishSheetKeys.gift(code)));
+        final gift = find.byKey(LiveWishSheetKeys.gift(code));
+        for (final c in GiftCategory.values) {
+          if (gift.evaluate().isNotEmpty) break;
+          final tab = find.byKey(KLiveGiftSheet.tabKey(c.wire));
+          if (tab.evaluate().isEmpty) continue;
+          await tester.tap(tab);
+          await tester.pump();
+        }
+        await tester.ensureVisible(gift);
+        await tester.tap(gift);
         await tester.pump();
       }
       // The fifth is refused (4 at most); crown moves first; cake removed.

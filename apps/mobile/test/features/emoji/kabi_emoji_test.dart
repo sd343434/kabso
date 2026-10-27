@@ -134,7 +134,10 @@ void main() {
           find.bySemanticsLabel(RegExp(l10n.emojiKabiLove)),
           findsOneWidget,
         );
-        expect(find.textContaining(':kabi_nope:'), findsOneWidget);
+        expect(
+          find.textContaining(':kabi_nope:', findRichText: true),
+          findsOneWidget,
+        );
         handle.dispose();
       });
     }

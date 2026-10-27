@@ -174,13 +174,19 @@ abstract final class KMetrics {
   // Kabso values; none is taken from a reference image.
 
   /// HL-L2 host pill visual height (grows with text scale). D131 (ref 158,
-  /// 73 px = 31.1 pt).
-  static const double hostPillHeight = 31;
+  /// 73 px = 31.1 pt); D141 (owner: "a slight enlargement") 35 pt.
+  static const double hostPillHeight = 35;
+
+  /// D141 (owner: "the top bar is too close to the clock"): the visible
+  /// top of every live room's header (the video host pill, the audio room
+  /// card) sits this far under the status bar / notch inset — one value
+  /// for audio and video, host and viewer.
+  static const double liveHeaderGap = 10;
 
   /// HL-L2 follow capsule inside its 48 dp hit area. D131 (ref 158: a
   /// 31.5 × 23.8 pt cyan capsule with a "+").
-  static const double followChipHeight = 23.8;
-  static const double followChipWidth = 31.5;
+  static const double followChipHeight = 26.5;
+  static const double followChipWidth = 35;
 
   /// HL-L2: after following, the check stays this long, then fades out.
   static const Duration followConfirmDuration = Duration(seconds: 1);

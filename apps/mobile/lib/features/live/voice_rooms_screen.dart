@@ -577,6 +577,9 @@ class _VoiceRoomsLiveButtonState extends State<VoiceRoomsLiveButton> {
       child: IconButton(
         key: VoiceRoomsLiveButton.buttonKey,
         tooltip: label,
+        // D141 (owner): no grey circle on press — the icon's own animation
+        // is the feedback.
+        style: noInkIconButtonStyle,
         constraints: const BoxConstraints.tightFor(
           width: KSizes.minTouchTarget,
           height: KSizes.minTouchTarget,

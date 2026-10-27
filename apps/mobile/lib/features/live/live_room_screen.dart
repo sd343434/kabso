@@ -235,8 +235,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   final _chatFocus = FocusNode();
   bool _writing = false;
 
+  /// D141: this visit's rules line place, forgotten when the room closes
+  /// (the next visit gets its own).
+  late final Map<String, LiveChatVisit> _visits;
+
+  @override
+  void initState() {
+    super.initState();
+    _visits = ref.read(liveChatVisitsProvider);
+  }
+
   @override
   void dispose() {
+    endLiveChatVisit(_visits, widget.room.id);
     _chat.dispose();
     _chatFocus.dispose();
     super.dispose();
@@ -421,10 +432,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       final count = math.max(room.viewerCount, 1);
       return LiveViewersStack(
         key: LiveRoomScreen.viewersKey,
-        avatarSize: video ? 25.6 : LiveViewersStack.size,
-        pitch: video ? 30.6 : LiveViewersStack.size - 7,
-        countHeight: video ? 25 : LiveViewersStack.size,
-        countMinWidth: video ? 31 : null,
+        avatarSize: video ? 28.5 : LiveViewersStack.size,
+        pitch: video ? 33.5 : LiveViewersStack.size - 7,
+        countHeight: video ? 28 : LiveViewersStack.size,
+        countMinWidth: video ? 34 : null,
         avatars: const [],
         count: KFormat.compact(count, l10n),
         label: l10n.liveViewers(count, KFormat.grouped(count)),
@@ -435,18 +446,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final more = preview.next == null || n > preview.items.length ? '' : '+';
     return LiveViewersStack(
       key: LiveRoomScreen.viewersKey,
-      // D131 (ref 158): 25.6 pt pictures 30.6 pt apart, a 25 pt count.
-      avatarSize: video ? 25.6 : LiveViewersStack.size,
-      pitch: video ? 30.6 : LiveViewersStack.size - 7,
-      countHeight: video ? 25 : LiveViewersStack.size,
-      countMinWidth: video ? 31 : null,
+      // D131 (ref 158: 25.6 pt pictures 30.6 pt apart, a 25 pt count);
+      // D141: about 12 % larger.
+      avatarSize: video ? 28.5 : LiveViewersStack.size,
+      pitch: video ? 33.5 : LiveViewersStack.size - 7,
+      countHeight: video ? 28 : LiveViewersStack.size,
+      countMinWidth: video ? 34 : null,
       avatars: [
         for (final v in preview.items)
           if (v.user case final u?)
             KAvatar(
               name: u.displayName,
               imageUrl: u.avatarUrl,
-              size: video ? 25.6 : LiveViewersStack.size,
+              size: video ? 28.5 : LiveViewersStack.size,
             ),
       ],
       count: '${KFormat.compact(n, l10n)}$more',
@@ -740,8 +752,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(
-        // D135: the room ID beside the name (copy on tap).
-        roomId: room.roomNumber?.toString(),
+        // D141 (owner): the host's @username beside the name (copy on tap).
+        username: host.username,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -792,7 +804,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? null
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
-      sideEnd: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
+      sidePromo: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
       chat: ended
           ? null
           : Align(
@@ -927,8 +939,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       } else {
         seatButton = LiveRoundButton(
           key: AudioRoomViewKeys.request,
-          icon: Icons.weekend_rounded,
-          asset: 'assets/live_bar/seat.png',
+          // D141 (owner): the video bar's ∞ icon.
+          icon: Icons.all_inclusive_rounded,
           bare: true,
           label: l10n.liveSeatRequest,
           onTap: () =>
@@ -958,11 +970,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
                   title: room.title,
                   level: room.roomLevel,
-                  // CP-016 G (ref 83): the room number, else the username.
-                  subtitle: switch (room.roomNumber) {
-                    final n? => l10n.liveRoomNumber('$n'),
-                    null => '@${host.username}',
-                  },
+                  // D141 (owner): the host's @username (copy on tap), not
+                  // the room number.
+                  username: host.username,
                   onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
@@ -1073,7 +1083,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   LiveRoundButton(
                     key: AudioRoomViewKeys.gift,
                     icon: Icons.card_giftcard_rounded,
-                    asset: 'assets/live_bar/gift.png',
+                    // D135/D141: the owner's colourful gift box.
+                    asset: 'assets/live_bar/bar_gift.png',
+                    art: true,
                     bare: true,
                     label: l10n.liveGifts,
                     onTap: () => unawaited(_openGifts()),

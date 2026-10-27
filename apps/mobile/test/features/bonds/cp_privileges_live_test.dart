@@ -388,7 +388,10 @@ void main() {
       expect(find.byKey(LiveCpEntranceLayer.bannerKey), findsNothing);
       // The chat line is unchanged.
       expect(
-        find.textContaining(en.chatJoined(KFormat.bidiIsolate('Lina'))),
+        find.textContaining(
+          en.chatJoined(KFormat.bidiIsolate('Lina')),
+          findRichText: true,
+        ),
         findsOneWidget,
       );
 

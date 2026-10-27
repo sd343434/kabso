@@ -82,36 +82,42 @@ Future<(FakeLiveRepository, FakeProfileRepository, FakeLiveMediaEngine)> _pump(
 void main() {
   final en = l10nFor(AppLanguage.en);
 
-  testWidgets("host pill: 31 pt, the cherry and this live's points, then "
-      'its taps every 3 s; the cyan "+" capsule', (tester) async {
-    await _pump(tester);
-    final pill = find.descendant(
-      of: find.byType(KHostPill),
-      matching: find.byType(Material),
-    );
-    expect(tester.getSize(pill.first).height, closeTo(31, 0.5));
-    expect(
-      find.descendant(
-        of: find.byKey(LiveRoomScreen.scoreKey),
-        matching: find.byType(KCherryIcon),
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('1,956,007'), findsOneWidget);
-    expect(find.byKey(LiveRoomScreen.tapsKey), findsNothing);
-    await tester.pump(KHostPill.lineTime);
-    await tester.pumpAndSettle();
-    expect(find.byKey(LiveRoomScreen.tapsKey), findsOneWidget);
-    expect(find.textContaining('532'), findsOneWidget);
-    await tester.pump(KHostPill.lineTime);
-    await tester.pumpAndSettle();
-    expect(find.byKey(LiveRoomScreen.scoreKey), findsOneWidget);
-    // The follow capsule (announced "Follow").
-    final follow = find.bySemanticsLabel(en.liveFollow);
-    expect(follow, findsOneWidget);
-    expect(tester.getSize(follow).width, greaterThanOrEqualTo(48));
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+  testWidgets(
+    "host pill: 35 pt (D141, was 31), the cherry and this live's points, then "
+    'its taps every 3 s; the cyan "+" capsule',
+    (tester) async {
+      await _pump(tester);
+      final pill = find.descendant(
+        of: find.byType(KHostPill),
+        matching: find.byType(Material),
+      );
+      expect(
+        tester.getSize(pill.first).height,
+        closeTo(KMetrics.hostPillHeight, 0.5),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomScreen.scoreKey),
+          matching: find.byType(KCherryIcon),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('1,956,007'), findsOneWidget);
+      expect(find.byKey(LiveRoomScreen.tapsKey), findsNothing);
+      await tester.pump(KHostPill.lineTime);
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.tapsKey), findsOneWidget);
+      expect(find.textContaining('532'), findsOneWidget);
+      await tester.pump(KHostPill.lineTime);
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveRoomScreen.scoreKey), findsOneWidget);
+      // The follow capsule (announced "Follow").
+      final follow = find.bySemanticsLabel(en.liveFollow);
+      expect(follow, findsOneWidget);
+      expect(tester.getSize(follow).width, greaterThanOrEqualTo(48));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('the tap lane: 30 pt characters 5 pt from the right edge, '
       'over the gift button, starting above the bar', (tester) async {

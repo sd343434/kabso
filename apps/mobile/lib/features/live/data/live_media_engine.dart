@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -257,13 +258,49 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   @override
   bool get frontCamera => _front;
 
+  /// D141 (owner's phone: Flip only mirrored the picture). On Android and
+  /// iOS the capture itself switches between the front and back cameras in
+  /// place (`Helper.switchCamera`: the same track, so the preview and — once
+  /// published — the viewers follow without a new track); the answer says
+  /// which camera is on, and the preview mirrors only the front one. The
+  /// web restarts the track with the other camera (LiveKit). The capture
+  /// options follow, so a later restart keeps the camera.
   @override
   Future<void> flipCamera() async {
-    _front = !_front;
-    await _video?.setCameraPosition(
-      _front ? lk.CameraPosition.front : lk.CameraPosition.back,
-    );
+    final video = _video;
+    final want = !_front;
+    if (video == null) {
+      _front = want;
+      _changes.ping();
+      return;
+    }
+    final position = want ? lk.CameraPosition.front : lk.CameraPosition.back;
+    if (kIsWeb) {
+      await video.setCameraPosition(position);
+      _front = want;
+    } else {
+      final front = await cameraSwitch(video.mediaStreamTrack);
+      _front = front ?? want;
+      final options = video.currentOptions;
+      if (options is lk.CameraCaptureOptions) {
+        video.currentOptions = options.copyWith(
+          cameraPosition: _front
+              ? lk.CameraPosition.front
+              : lk.CameraPosition.back,
+        );
+      }
+    }
+    _changes.ping();
   }
+
+  /// Switches a native camera track to the other camera; the answer is
+  /// whether the front camera is now on (null: unknown). A seam for tests.
+  @visibleForTesting
+  static Future<bool?> Function(rtc.MediaStreamTrack track) cameraSwitch =
+      (track) async {
+        final front = await rtc.Helper.switchCamera(track);
+        return front;
+      };
 
   @override
   bool get micEnabled => _mic;

@@ -364,10 +364,6 @@
   "liveClose": "إغلاق",
   "liveCommentHint": "قل شيئًا…",
   "liveGifts": "الهدايا",
-  "liveToolbox": "صندوق الأدوات",
-  "@liveToolbox": {
-    "description": "The audio room bar's toolbox button (owner pack): opens the room tools."
-  },
   "liveShare": "مشاركة",
   "liveVideoPlaceholder": "فيديو البث",
   "@liveVideoPlaceholder": {
@@ -7534,8 +7530,6 @@
   "@liveQuickHostFollow": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
   "liveQuickHostShare": "شاركوا البث 🔥",
   "@liveQuickHostShare": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
-  "liveRoomIdCopied": "تم نسخ معرّف الغرفة",
-  "@liveRoomIdCopied": {"description": "D135: the room ID beside the host's name (copy)."},
   "liveRoomIdCopyHint": "انقر للنسخ",
   "@liveRoomIdCopyHint": {"description": "D135: the room ID beside the host's name (copy)."},
   "liveWishTitle": "قائمة الأمنيات",
@@ -7563,5 +7557,19 @@
   "liveSeatEmoji": "إيموجي على مقعدي",
   "@liveSeatEmoji": {"description": "D138: an emoji played once on one's own seat in an audio room."},
   "liveSeatEmojiHint": "يظهر على مقعدك مرة واحدة ويراه الجميع",
-  "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."}
+  "@liveSeatEmojiHint": {"description": "D138: an emoji played once on one's own seat in an audio room."},
+  "liveWishNoteTitle": "أمنيات",
+  "@liveWishNoteTitle": {"description": "D141: the owner's device feedback on the live rooms."},
+  "liveWishChosenCount": "تم اختيار {count} من 4",
+  "@liveWishChosenCount": {"description": "D141: the owner's device feedback on the live rooms.", "placeholders": {"count": {"type": "int"}}},
+  "liveUsernameCopied": "تم النسخ",
+  "@liveUsernameCopied": {"description": "D141: the owner's device feedback on the live rooms."},
+  "liveChatTooFast": "أُرسلت بسرعة كبيرة. اضغط لإعادة المحاولة",
+  "@liveChatTooFast": {"description": "D141: the owner's device feedback on the live rooms."},
+  "liveBulletTime": "أُرسلت {time}",
+  "@liveBulletTime": {"description": "D141: the owner's device feedback on the live rooms.", "placeholders": {"time": {"type": "String"}}},
+  "liveGames": "الألعاب",
+  "@liveGames": {"description": "D141: the owner's device feedback on the live rooms."},
+  "liveGamesSoon": "الألعاب قريباً",
+  "@liveGamesSoon": {"description": "D141: the owner's device feedback on the live rooms."}
 }

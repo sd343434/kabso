@@ -607,9 +607,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGifts => 'الهدايا';
 
   @override
-  String get liveToolbox => 'صندوق الأدوات';
-
-  @override
   String get liveShare => 'مشاركة';
 
   @override
@@ -6205,9 +6202,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveQuickHostShare => 'شاركوا البث 🔥';
 
   @override
-  String get liveRoomIdCopied => 'تم نسخ معرّف الغرفة';
-
-  @override
   String get liveRoomIdCopyHint => 'انقر للنسخ';
 
   @override
@@ -6255,4 +6249,29 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveSeatEmojiHint => 'يظهر على مقعدك مرة واحدة ويراه الجميع';
+
+  @override
+  String get liveWishNoteTitle => 'أمنيات';
+
+  @override
+  String liveWishChosenCount(int count) {
+    return 'تم اختيار $count من 4';
+  }
+
+  @override
+  String get liveUsernameCopied => 'تم النسخ';
+
+  @override
+  String get liveChatTooFast => 'أُرسلت بسرعة كبيرة. اضغط لإعادة المحاولة';
+
+  @override
+  String liveBulletTime(String time) {
+    return 'أُرسلت $time';
+  }
+
+  @override
+  String get liveGames => 'الألعاب';
+
+  @override
+  String get liveGamesSoon => 'الألعاب قريباً';
 }

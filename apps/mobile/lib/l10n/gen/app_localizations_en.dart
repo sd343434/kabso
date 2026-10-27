@@ -583,9 +583,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveGifts => 'Gifts';
 
   @override
-  String get liveToolbox => 'Toolbox';
-
-  @override
   String get liveShare => 'Share';
 
   @override
@@ -6183,9 +6180,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveQuickHostShare => 'Share the live 🔥';
 
   @override
-  String get liveRoomIdCopied => 'Room ID copied';
-
-  @override
   String get liveRoomIdCopyHint => 'Tap to copy';
 
   @override
@@ -6234,4 +6228,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get liveSeatEmojiHint =>
       'Plays once on your seat, for everyone in the room';
+
+  @override
+  String get liveWishNoteTitle => 'Wishes';
+
+  @override
+  String liveWishChosenCount(int count) {
+    return '$count of 4 chosen';
+  }
+
+  @override
+  String get liveUsernameCopied => 'Copied';
+
+  @override
+  String get liveChatTooFast => 'Sent too fast. Tap to retry';
+
+  @override
+  String liveBulletTime(String time) {
+    return 'Sent $time';
+  }
+
+  @override
+  String get liveGames => 'Games';
+
+  @override
+  String get liveGamesSoon => 'Games are coming soon';
 }
