@@ -407,7 +407,7 @@ class _Points extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      KPointsIcon(size: size + 1),
+      KCherryIcon(size: size + 1),
       const SizedBox(width: 2),
       Text(
         KFormat.compact(points, context.l10n),

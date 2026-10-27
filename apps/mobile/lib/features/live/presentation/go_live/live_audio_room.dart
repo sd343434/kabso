@@ -717,7 +717,7 @@ class LiveScoreChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const KPointsIcon(size: 13),
+            const KCherryIcon(size: 13),
             const SizedBox(width: 4),
             Text(text),
           ],

@@ -1040,7 +1040,7 @@ class _PointsPill extends StatelessWidget {
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const KPointsIcon(size: 11),
+        const KCherryIcon(size: 11),
         const SizedBox(width: 3),
         // A long score shrinks to the tile's width (D118: the host is
         // always a 72 pt tile now).

@@ -545,7 +545,7 @@ class _PointsPopoverState extends ConsumerState<_PointsPopover> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const KPointsIcon(size: 26),
+                              const KCherryIcon(size: 26),
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(

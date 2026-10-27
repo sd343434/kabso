@@ -130,7 +130,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(LiveRankingsKeys.entry('u4')),
-        matching: find.byType(KPointsIcon),
+        matching: find.byType(KCherryIcon),
       ),
       findsOneWidget,
     );

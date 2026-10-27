@@ -5,6 +5,7 @@
 
 import 'dart:async';
 
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
@@ -20,6 +21,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
   KabsoBattleEmoji.enabled = false;
   KGiftEffect.animate = false;
+  // D134: the animated cherry decodes outside fake time.
+  KCherryIcon.animate = false;
   KabsoProfileHeaderArt.animate = false;
   CpRisingHearts.animate = false;
   CpPairFx.animate = false;
