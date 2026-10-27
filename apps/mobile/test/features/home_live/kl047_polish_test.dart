@@ -15,7 +15,6 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/app/router/app_router.dart';
@@ -776,8 +775,8 @@ void main() {
                 .copyWith(textScaler: TextScaler.linear(scale)),
             child: Scaffold(
               body: screen,
-              bottomNavigationBar: KBottomNav(
-                items: shellNavItems(context.l10n),
+              bottomNavigationBar: KTabBar(
+                items: shellTabItems(context.l10n),
                 currentIndex: 3,
                 onSelect: (_) {},
               ),
@@ -951,7 +950,7 @@ void main() {
 
     for (final language in ['en', 'ar']) {
       testWidgets('$language: order mirrors, 48 dp targets, icon sizes, '
-          'Create pill', (tester) async {
+          'Create button', (tester) async {
         setViewport(tester, GoldenViewport.phone);
         await _pumpApp(tester, language: language);
         final xs = [for (final k in keys) tester.getCenter(find.byKey(k)).dx];
@@ -963,26 +962,34 @@ void main() {
           expect(size.width, greaterThanOrEqualTo(KSizes.minTouchTarget));
           expect(size.height, greaterThanOrEqualTo(KSizes.minTouchTarget));
         }
-        final nav = find.byType(KBottomNav);
-        final icons = find.descendant(
-          of: nav,
-          matching: find.byType(SvgPicture),
-        );
-        // D49: four 28 dp icons and the 54×36 Create pill.
-        expect(icons, findsNWidgets(5));
+        // D130: the owner's painted icons (26 dp) and the 52 dp camera button.
         for (final k in keys) {
+          if (k == const Key('nav.create')) continue;
           final icon = find.descendant(
             of: find.byKey(k),
-            matching: find.byType(SvgPicture),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is SizedBox &&
+                  w.width == KTabBar.iconSize &&
+                  w.height == KTabBar.iconSize,
+            ),
           );
           expect(
             tester.getSize(icon),
-            k == const Key('nav.create')
-                ? KNavIcons.createSize
-                : const Size.square(KNavIcons.iconSize),
+            const Size.square(KTabBar.iconSize),
             reason: '$k',
           );
         }
+        final plus = find.descendant(
+          of: find.byKey(const Key('nav.create')),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is Container &&
+                w.constraints ==
+                    BoxConstraints.tight(const Size.square(KTabBar.createSize)),
+          ),
+        );
+        expect(tester.getSize(plus), const Size.square(KTabBar.createSize));
         expect(_selected(tester, find.byKey(keys.first)), isTrue);
       });
     }
@@ -1000,7 +1007,7 @@ void main() {
       for (final key in [const Key('nav.home'), const Key('nav.reels')]) {
         await tester.tap(find.byKey(key));
         await tester.pumpAndSettle();
-        final nav = tester.getRect(find.byType(KBottomNav));
+        final nav = tester.getRect(find.byType(KTabBar));
         expect(nav.bottom, 852);
         final visible = find.byWidgetPredicate((w) => w is CustomScrollView);
         final region = tester.getRect(visible.first);

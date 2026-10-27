@@ -2208,7 +2208,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get levelsLoadError => 'Couldn\'t load your levels';
 
   @override
-  String get navPosts => 'Posts';
+  String get navMoments => 'Moments';
 
   @override
   String get navMessages => 'Messages';
@@ -5757,4 +5757,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get familiesActiveLabel => 'Active this week:';
+
+  @override
+  String navMessagesUnread(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count unread messages',
+      one: '$count unread message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get navMessagesUnreadMany => 'more than 99 unread messages';
+
+  @override
+  String get navMomentsNew => 'new stories';
+
+  @override
+  String get liveHubParty => 'Party';
 }

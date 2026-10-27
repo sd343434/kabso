@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
@@ -112,7 +113,8 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 }
 
 /// D124: the hub's top bar: the Kabso title at the reading start, search
-/// (Discover) and the notifications bell at the end.
+/// (Discover), the party button (D130) and the notifications bell at the
+/// end.
 class LiveHubTopBar extends StatelessWidget {
   const new({super.key, this.showNotifications = true});
 
@@ -161,9 +163,58 @@ class LiveHubTopBar extends StatelessWidget {
                 color: p.textPrimary,
               ),
             ),
+            // D130: the owner's party button next to the bell (its function
+            // comes later: it says Soon).
+            const LiveHubPartyButton(),
             if (showNotifications) const NotificationsBell(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// D130: the owner's party popper in the hub's top bar, beside the bell
+/// (owner: "its function comes later"). It does not pretend to work: a tap
+/// plays the pop and says "Party: coming soon", like the app's other Soon
+/// tools; screen readers hear "Party, Soon".
+class LiveHubPartyButton extends StatefulWidget {
+  const new({super.key});
+
+  static const buttonKey = Key('liveHub.party');
+
+  @override
+  State<LiveHubPartyButton> createState() => _LiveHubPartyButtonState();
+}
+
+class _LiveHubPartyButtonState extends State<LiveHubPartyButton> {
+  final GlobalKey<KPartyIconState> _icon = GlobalKey();
+
+  void _tap() {
+    unawaited(HapticFeedback.selectionClick());
+    _icon.currentState?.play();
+    final l10n = context.l10n;
+    KSnack.info(context, l10n.liveUserBoxSoon(l10n.liveHubParty));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = '${l10n.liveHubParty}, ${l10n.liveSoon}';
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: _tap,
+      excludeSemantics: true,
+      child: IconButton(
+        key: LiveHubPartyButton.buttonKey,
+        tooltip: label,
+        constraints: const BoxConstraints.tightFor(
+          width: KSizes.minTouchTarget,
+          height: KSizes.minTouchTarget,
+        ),
+        onPressed: _tap,
+        icon: KPartyIcon(key: _icon),
       ),
     );
   }

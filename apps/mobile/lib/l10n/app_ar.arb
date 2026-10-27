@@ -2261,7 +2261,7 @@
   "@levelsLoadError": {
     "description": "D72: levels (CP-005)."
   },
-  "navPosts": "المنشورات",
+  "navMoments": "اللحظات",
   "navMessages": "الرسائل",
   "demoDataTitle": "بيانات تجريبية",
   "demoDataBody": "لنسخ التجربة فقط: تعرض الشاشات المصمَّمة ببيانات تجريبية معلَّمة حيث لا توجد خدمة بعد. إيقافها يخرج من الحساب التجريبي.",
@@ -7287,5 +7287,13 @@
   "familiesMonthPointsLabel": "نقاط هذا الشهر:",
   "@familiesMonthPointsLabel": {"description": "D127: a list row, before the points gained this calendar month."},
   "familiesActiveLabel": "نشطون هذا الأسبوع:",
-  "@familiesActiveLabel": {"description": "D127: a list row, before the members active this week."}
+  "@familiesActiveLabel": {"description": "D127: a list row, before the members active this week."},
+  "navMessagesUnread": "{count, plural, =1{رسالة واحدة غير مقروءة} =2{رسالتان غير مقروءتين} few{{count} رسائل غير مقروءة} many{{count} رسالة غير مقروءة} other{{count} رسالة غير مقروءة}}",
+  "@navMessagesUnread": {"description": "D130: the Messages tab's badge, read by screen readers after the tab's name.", "placeholders": {"count": {"type": "int"}}},
+  "navMessagesUnreadMany": "أكثر من 99 رسالة غير مقروءة",
+  "@navMessagesUnreadMany": {"description": "D130: the Messages tab's badge above 99 (shown as 99+)."},
+  "navMomentsNew": "قصص جديدة",
+  "@navMomentsNew": {"description": "D130: the Moments tab's dot (unseen stories from followed accounts), read by screen readers."},
+  "liveHubParty": "حفلة",
+  "@liveHubParty": {"description": "D130: the party button in the Live hub's top bar (owner's icon; its function comes later, so it says Soon)."}
 }

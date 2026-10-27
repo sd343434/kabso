@@ -3968,11 +3968,11 @@ abstract class AppLocalizations {
   /// **'تعذّر تحميل المستويات'**
   String get levelsLoadError;
 
-  /// No description provided for @navPosts.
+  /// No description provided for @navMoments.
   ///
   /// In ar, this message translates to:
-  /// **'المنشورات'**
-  String get navPosts;
+  /// **'اللحظات'**
+  String get navMoments;
 
   /// No description provided for @navMessages.
   ///
@@ -9985,6 +9985,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'نشطون هذا الأسبوع:'**
   String get familiesActiveLabel;
+
+  /// D130: the Messages tab's badge, read by screen readers after the tab's name.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =1{رسالة واحدة غير مقروءة} =2{رسالتان غير مقروءتين} few{{count} رسائل غير مقروءة} many{{count} رسالة غير مقروءة} other{{count} رسالة غير مقروءة}}'**
+  String navMessagesUnread(int count);
+
+  /// D130: the Messages tab's badge above 99 (shown as 99+).
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من 99 رسالة غير مقروءة'**
+  String get navMessagesUnreadMany;
+
+  /// D130: the Moments tab's dot (unseen stories from followed accounts), read by screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'قصص جديدة'**
+  String get navMomentsNew;
+
+  /// D130: the party button in the Live hub's top bar (owner's icon; its function comes later, so it says Soon).
+  ///
+  /// In ar, this message translates to:
+  /// **'حفلة'**
+  String get liveHubParty;
 }
 
 class _AppLocalizationsDelegate

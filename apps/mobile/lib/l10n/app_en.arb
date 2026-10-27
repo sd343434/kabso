@@ -774,9 +774,9 @@
   "levelsLadder": "All levels",
   "levelsCurrent": "You're here",
   "levelsLoadError": "Couldn't load your levels",
-  "navPosts": "Posts",
-  "@navPosts": {
-    "description": "D86 bottom bar: Posts and Reels tab."
+  "navMoments": "Moments",
+  "@navMoments": {
+    "description": "D86 bottom bar: the posts and reels tab, named Moments (D130)."
   },
   "navMessages": "Messages",
   "@navMessages": {
@@ -1791,5 +1791,9 @@
   "familiesActivityMonthly": "Monthly ranking\nFamily prestige",
   "familiesRowMembers": "Members: {count}/{capacity}",
   "familiesMonthPointsLabel": "Points this month:",
-  "familiesActiveLabel": "Active this week:"
+  "familiesActiveLabel": "Active this week:",
+  "navMessagesUnread": "{count, plural, =1{{count} unread message} other{{count} unread messages}}",
+  "navMessagesUnreadMany": "more than 99 unread messages",
+  "navMomentsNew": "new stories",
+  "liveHubParty": "Party"
 }

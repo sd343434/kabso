@@ -2238,7 +2238,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get levelsLoadError => 'تعذّر تحميل المستويات';
 
   @override
-  String get navPosts => 'المنشورات';
+  String get navMoments => 'اللحظات';
 
   @override
   String get navMessages => 'الرسائل';
@@ -5781,4 +5781,27 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get familiesActiveLabel => 'نشطون هذا الأسبوع:';
+
+  @override
+  String navMessagesUnread(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count رسالة غير مقروءة',
+      many: '$count رسالة غير مقروءة',
+      few: '$count رسائل غير مقروءة',
+      two: 'رسالتان غير مقروءتين',
+      one: 'رسالة واحدة غير مقروءة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get navMessagesUnreadMany => 'أكثر من 99 رسالة غير مقروءة';
+
+  @override
+  String get navMomentsNew => 'قصص جديدة';
+
+  @override
+  String get liveHubParty => 'حفلة';
 }

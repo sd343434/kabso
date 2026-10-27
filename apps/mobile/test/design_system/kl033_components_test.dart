@@ -1,7 +1,6 @@
 // KL-033 component refactors: primary tabs, chips, compact states, badge
 // additions and the bottom-nav styling.
 
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/app_shell.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -273,48 +272,46 @@ void main() {
     });
   });
 
-  group('KBottomNav (§2 styling)', () {
+  group('KTabBar (D130 styling)', () {
     Future<void> pumpNav(WidgetTester tester, int index) => pumpComponent(
       tester,
       Align(
         alignment: Alignment.bottomCenter,
-        child: KBottomNav(
-          items: shellNavItems(l10nFor(AppLanguage.en)),
+        child: KTabBar(
+          items: shellTabItems(l10nFor(AppLanguage.en)),
           currentIndex: index,
           onSelect: (_) {},
         ),
       ),
     );
 
-    testWidgets('D49: active = filled echo icon + textPrimary label; '
-        'inactive = outline icon + textSecondary; no dot', (tester) async {
+    testWidgets('D130: the selected label is primaryText, the others '
+        'textTertiary, on surfaceRaised; no dot or badge without a source', (
+      tester,
+    ) async {
       await pumpNav(tester, 0);
       const p = KPalette.dark;
       Color labelColor(String label) =>
           tester.widget<Text>(find.text(label)).style!.color!;
-      // D86: Live · Posts · Create · Messages · Me.
-      expect(labelColor('Live'), p.textPrimary);
-      for (final label in ['Posts', 'Messages', 'Me']) {
-        expect(labelColor(label), p.textSecondary);
+      // D86/D130: Live · Moments · Create · Messages · Me.
+      expect(labelColor('Live'), p.primaryText);
+      for (final label in ['Moments', 'Messages', 'Me']) {
+        expect(labelColor(label), p.textTertiary);
       }
-      final icons = {
-        for (final svg in tester.widgetList<SvgPicture>(
-          find.byType(SvgPicture),
-        ))
-          (svg.bytesLoader as SvgAssetLoader).assetName:
-              (svg.bytesLoader as SvgAssetLoader).theme?.currentColor,
-      };
-      expect(icons, {
-        KNavIcons.liveFilled: p.textPrimary,
-        KNavIcons.homeOutline: p.textSecondary,
-        KNavIcons.create: null,
-        KNavIcons.inboxOutline: p.textSecondary,
-        KNavIcons.profileOutline: p.textSecondary,
-      });
-      expect(find.byType(AnimatedOpacity), findsNothing);
+      final bar = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byType(KTabBar),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      expect((bar.decoration as BoxDecoration).color, p.surfaceRaised);
+      expect(find.byKey(KTabBarKeys.dot), findsNothing);
+      expect(find.byKey(KTabBarKeys.badge), findsNothing);
     });
 
-    testWidgets('Create keeps its label-less pill with a "Create" name', (
+    testWidgets('Create keeps its label-less + with a "Create" name', (
       tester,
     ) async {
       await pumpNav(tester, 2);

@@ -29,6 +29,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/core/storage/secure_token_store.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/application/home_feed_provider.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
@@ -84,8 +85,8 @@ Future<void> _pumpShellTab(
       child: Builder(
         builder: (context) => Scaffold(
           body: screen,
-          bottomNavigationBar: KBottomNav(
-            items: shellNavItems(context.l10n),
+          bottomNavigationBar: KTabBar(
+            items: shellTabItems(context.l10n),
             currentIndex: navIndex,
             onSelect: (_) {},
           ),
