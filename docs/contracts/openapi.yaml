@@ -125,6 +125,13 @@ info:
     gain `imageUrl` (PNG/WebP), `animationUrl` (SVGA 2.x) and `animationBytes`, public immutable URLs
     the app downloads on demand and caches (the bundled `assetKey` / `animationKey` stay the
     fallback), uploaded by `gift-admin --image` / `--animation-file` (CONVENTIONS §10.23).
+    **D128 (DRAFT v1.26.3-live)** lets the host, or someone seated, send a gift to themself in that
+    live (`sendLiveGift`; before: 400); it counts like any gift, charm and support included; no
+    shape change (CONVENTIONS §10.23).
+    **D129 (DRAFT v1.26.4-live)** adds `kind=audio|video` to `listLiveRooms` (the hub's voice rooms
+    apart from its video lives; the cursor is bound to it) and states that a live's score, which
+    orders `popular`, belongs to that one live: it starts at 0 and leaves the ranking when the live
+    ends (CONVENTIONS §10.4, §10.10).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -968,6 +975,11 @@ paths:
         returns an empty list (200). Rankings can change between pages; **clients dedupe by
         `id`** (HL-H5). CP-012: the room score changes while people tap, so rooms move between
         pages more often; v1.8-live cursors carry the score (cursors of an older format, any tab → 400).
+        *(v1.26.4-live, D129)* `kind` filters every tab like `category`: `audio` = `AUDIO` rooms
+        (voice rooms, podcasts included), `video` = `SOLO`, `PK` and `MULTI`; absent = all rooms. The
+        cursor is bound to it (a cursor of another kind → 400). The score that orders `popular`
+        belongs to one live: every go-live is a new room starting at 0, and an ended room is never
+        listed, so a host who ends a live loses that ranking (§10.10).
       parameters:
         - name: tab
           in: query
@@ -978,6 +990,11 @@ paths:
           required: false
           description: 'Category slug. Malformed → 400 `VALIDATION_FAILED` (`field "category"`).'
           schema: { $ref: '#/components/schemas/CategorySlug' }
+        - name: kind
+          in: query
+          required: false
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -1015,7 +1032,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -1559,19 +1576,21 @@ paths:
       description: |
         CONVENTIONS §10.23. A signed-in caller in this LIVE room now (the host, or in its media
         session), not kicked out of it. Each recipient (the host and/or people seated in the room
-        now; 1 … 25, never the caller) receives `quantity` of the gift. `source: COINS` charges
+        now; 1 … 25; v1.26.3-live, D128: the caller too when they are the host or seated)
+        receives `quantity` of the gift. `source: COINS` charges
         `priceCoins × quantity × recipients` coins (ledger `LIVE_GIFT`, it counts for the sender's
         family); `source: BAG` takes `quantity × recipients` of that gift from the caller's gift bag.
         Checks, in order: 401; 429 (120 / min per user); 404 for a room the caller may not see; 409
         `LIVE_ROOM_ENDED`; 400 for the body (`quantity` not one of `GiftCatalogue.quantities` →
         `quantity` / `invalid_value`; recipients missing, more than 25 or repeated); a retry with
         the same `clientId` → 200 (the first send, the current balance and bag quantity; nothing
-        charged, taken, credited or sent again); 403 `LIVE_KICKED`; 403 `LIVE_CHAT_NOT_IN_ROOM`; 400
-        `recipients` / `invalid_value` (the caller is a recipient); 409 `GIFT_UNAVAILABLE`; 409
+        charged, taken, credited or sent again); 403 `LIVE_KICKED`; 403 `LIVE_CHAT_NOT_IN_ROOM`;
+        409 `GIFT_UNAVAILABLE`; 409
         `LIVE_GIFT_RECIPIENT_UNAVAILABLE`; 409 `INSUFFICIENT_COINS` or `GIFT_BAG_INSUFFICIENT`.
         In the same transaction: the live score (`supportPoints`, 100 a coin), the host's
         popularity points, the caller's Contribution points in this live (100 a coin), the
-        recipients' charm and the caller's support levels. After the response every viewer gets a
+        recipients' charm and the caller's support levels (a gift to oneself gives that person
+        both, D128). After the response every viewer gets a
         `gift` data message on topic `gift` (`{"type":"gift","gift":LiveGift}`).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
@@ -8067,7 +8086,7 @@ components:
           maxItems: 25
           uniqueItems: true
           items: { type: string, minLength: 1, maxLength: 64 }
-          description: Usernames of the host and/or people seated in the room now; never the caller.
+          description: Usernames of the host and/or people seated in the room now; the caller may be one of them when they are the host or seated (v1.26.3-live, D128).
         source: { $ref: '#/components/schemas/LiveGiftSource' }
         clientId:
           type: string

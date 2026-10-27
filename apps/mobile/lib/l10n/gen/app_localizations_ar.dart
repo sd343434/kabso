@@ -5741,6 +5741,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveHubBrand => 'Kabso';
 
   @override
+  String get liveHubKindLabel => 'نوع البث';
+
+  @override
+  String get liveHubKindAudio => 'غرف صوتية';
+
+  @override
+  String get liveHubKindVideo => 'بث حي';
+
+  @override
   String get liveGridAudio => 'صوتي';
 
   @override

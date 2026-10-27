@@ -202,10 +202,17 @@ class DemoLiveRepository implements LiveRepository {
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) async {
     var rooms = _rooms();
+    if (kind != null) {
+      rooms = [
+        for (final r in rooms)
+          if (LiveRoomsKind.of(r.mode) == kind) r,
+      ];
+    }
     if (category != null) {
       rooms = [
         for (final r in rooms)

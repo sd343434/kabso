@@ -590,15 +590,11 @@ void main() {
           language: language,
         );
         final art = rectOf(tester, find.byKey(FamilyScreen.heroArtKey));
-        const slots = FamilyArt.hero;
         // The crest (x 1340 of 1860) centred, the right edges together.
         expect(art.right, closeTo(393, 0.5));
         expect(art.left + 1340 * art.width / 1860, closeTo(196.5, 0.5));
-        final ring = slots.circleIn(art);
-        final emblem = rectOf(tester, find.byKey(FamilyScreen.heroEmblemKey));
-        expect(emblem.center.dx, closeTo(ring.center.dx, 0.5));
-        expect(emblem.center.dy, closeTo(ring.center.dy, 0.5));
-        expect(emblem.center.dx, greaterThan(300));
+        // The art's ring stays empty (owner: one emblem on the page).
+        expect(find.byKey(FamilyScreen.heroEmblemKey), findsNothing);
         final chip = rectOf(tester, find.byType(FamilyLevelCrownChip));
         final number = rectOf(tester, find.byKey(FamilyScreen.numberKey));
         expect(chip.left, 14);
@@ -606,7 +602,7 @@ void main() {
         expect(chip.top, closeTo(55, 0.5));
         // The emblem in its ring on the sheet's edge (left, both
         // directions), the name beside it, the members on the right.
-        expect(find.byType(FamilyEmblem), findsNWidgets(2));
+        expect(find.byType(FamilyEmblem), findsOneWidget);
         final name = rectOf(tester, find.text('عائلة النجوم'));
         expect(name.left, closeTo(91, 0.5));
         final members = rectOf(

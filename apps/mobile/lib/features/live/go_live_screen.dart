@@ -1355,7 +1355,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  /// CP-020: the host's gift panel: to the people on a seat now.
+  /// CP-020: the host's gift panel: to the people on a seat now, and to
+  /// the host themself (D128).
   Future<void> _openGifts(LiveRoom room, {LiveGiftPreselect? preselect}) =>
       KLiveGiftSheet.show(
         context,

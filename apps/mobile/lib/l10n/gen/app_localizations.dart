@@ -9914,6 +9914,24 @@ abstract class AppLocalizations {
   /// **'Kabso'**
   String get liveHubBrand;
 
+  /// D129: the hub's voice rooms / live switch, announced as a group.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع البث'**
+  String get liveHubKindLabel;
+
+  /// D129: the hub filter showing voice (audio) rooms only, podcasts included.
+  ///
+  /// In ar, this message translates to:
+  /// **'غرف صوتية'**
+  String get liveHubKindAudio;
+
+  /// D129: the hub filter showing video lives only (solo, multi-guest, PK).
+  ///
+  /// In ar, this message translates to:
+  /// **'بث حي'**
+  String get liveHubKindVideo;
+
   /// No description provided for @liveGridAudio.
   ///
   /// In ar, this message translates to:

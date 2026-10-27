@@ -23,4 +23,8 @@ abstract final class PreferenceKeys {
   /// Set once this installation has shown the welcome screen (D65): later
   /// signed-out launches go straight to login. Not sensitive.
   static const welcomeSeen = 'pref.welcomeSeen';
+
+  /// D129: the live hub's last kind filter on this device (`audio` /
+  /// `video`). Not sensitive.
+  static const liveHubKind = 'pref.liveHubKind';
 }

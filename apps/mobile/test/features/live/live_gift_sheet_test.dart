@@ -1,7 +1,9 @@
 // CP-020: the live gift panel — tabs, gifts, recipients, quantity, sending
 // with coins and from the bag, combos, the clientId retry, refusals, the
 // empty catalogue, missing art, guests and the host; D117: the
-// sub-category chips; Arabic RTL and English at 360×800 with text scale 2.
+// sub-category chips; D128: the host or a seated guest gifting themself and
+// a Send that is never silent; Arabic RTL and English at 360×800 with text
+// scale 2.
 
 import 'dart:async';
 import 'dart:ui' show Tristate;
@@ -133,9 +135,24 @@ bool _selected(WidgetTester tester, Finder finder) =>
         .isSelected ==
     Tristate.isTrue;
 
+/// Send is lit (D128: a dimmed Send still takes taps, to say why).
 bool _sendEnabled(WidgetTester tester) =>
-    tester.widget<GestureDetector>(find.byKey(KLiveGiftSheet.sendKey)).onTap !=
-    null;
+    tester
+        .getSemantics(find.bySemanticsLabel(en.giftSend))
+        .getSemanticsData()
+        .flagsCollection
+        .isEnabled ==
+    Tristate.isTrue;
+
+/// The message over the grid (D128), or null.
+String? _toast(WidgetTester tester) {
+  final f = find.descendant(
+    of: find.byKey(KLiveGiftSheet.toastKey),
+    matching: find.byType(Text),
+  );
+  if (f.evaluate().isEmpty) return null;
+  return tester.widget<Text>(f).data;
+}
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
@@ -216,6 +233,13 @@ void main() {
     expect(_sendEnabled(tester), isFalse);
     expect(_reason(tester), isNull);
     expect(_sendHint(tester), en.liveGiftPickGift);
+    // D128: a tap on the dimmed Send says why (it never does nothing), and
+    // the message goes by itself.
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(_toast(tester), en.liveGiftPickGift);
+    await tester.pump(KLiveGiftSheet.toastTime);
+    await tester.pumpAndSettle();
+    expect(_toast(tester), isNull);
 
     await _tap(tester, _cell('rose'));
     expect(_sendEnabled(tester), isTrue);
@@ -228,6 +252,9 @@ void main() {
     await _tap(tester, omar);
     expect(_sendEnabled(tester), isFalse);
     expect(_reason(tester), en.liveGiftPickRecipient);
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(_toast(tester), en.liveGiftPickRecipient);
+    await tester.pump(KLiveGiftSheet.toastTime);
 
     await _tap(tester, find.byKey(KLiveGiftSheet.allKey));
     for (final f in [host, omar, nour]) {
@@ -332,6 +359,8 @@ void main() {
     await _tap(tester, _cell('crown'));
     await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
     expect(_reason(tester), en.liveGiftNotEnoughCoins);
+    // D128: never silent — the message also shows over the grid.
+    expect(_toast(tester), en.liveGiftNotEnoughCoins);
     expect(h.gifts.coins, 100);
     expect(h.live.walletReads, greaterThan(reads));
     expect(find.byKey(KLiveGiftSheet.comboKey), findsNothing);
@@ -347,6 +376,7 @@ void main() {
     );
     await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
     expect(_reason(tester), en.errorLiveGiftRecipientUnavailable);
+    expect(_toast(tester), en.errorLiveGiftRecipientUnavailable);
     expect(h.staleSeats, 1);
   });
 
@@ -467,30 +497,96 @@ void main() {
     expect(find.textContaining("isn't on the mic"), findsOneWidget);
   });
 
-  testWidgets('the host sends to the people on the mic only; nobody on it: '
-      'the reason', (tester) async {
+  testWidgets('D128: the host may gift themself — alone in the live, the '
+      'host is chosen and Send sends to them', (tester) async {
     final hostUser = testUser(username: 'sara', displayName: 'Sara');
-    await _pump(
-      tester,
-      user: hostUser.copyWith(id: 'user-sara'),
-      seated: const [_omar],
-    );
-    expect(find.byKey(KLiveGiftSheet.recipientKey('sara')), findsNothing);
-    expect(find.byKey(KLiveGiftSheet.recipientKey('omar')), findsOneWidget);
-    // One person: no All toggle.
-    expect(find.byKey(KLiveGiftSheet.allKey), findsNothing);
-    await _tap(tester, _cell('rose'));
-    expect(_reason(tester), en.liveGiftPickRecipient);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await _pump(
+    final h = await _pump(
       tester,
       user: hostUser.copyWith(id: 'user-sara'),
       seated: [],
     );
+    final me = find.byKey(KLiveGiftSheet.recipientKey('sara'));
+    expect(me, findsOneWidget);
+    expect(find.text(en.liveGiftHost), findsOneWidget);
+    expect(_selected(tester, me), isTrue);
+    // One person: no All toggle.
+    expect(find.byKey(KLiveGiftSheet.allKey), findsNothing);
     await _tap(tester, _cell('rose'));
-    expect(_reason(tester), en.liveGiftNoRecipients);
-    expect(_sendEnabled(tester), isFalse);
+    expect(_sendEnabled(tester), isTrue);
+    expect(_reason(tester), isNull);
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(h.gifts.sends.single.recipients, ['sara']);
+    expect(_reason(tester), isNull);
+    expect(_toast(tester), isNull);
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('D128: the host with people on the mic: themself by default, '
+      'the others too', (tester) async {
+    final hostUser = testUser(username: 'sara', displayName: 'Sara');
+    final h = await _pump(
+      tester,
+      user: hostUser.copyWith(id: 'user-sara'),
+      seated: const [_omar],
+    );
+    expect(
+      _selected(tester, find.byKey(KLiveGiftSheet.recipientKey('sara'))),
+      isTrue,
+    );
+    await _tap(tester, find.byKey(KLiveGiftSheet.recipientKey('omar')));
+    await _tap(tester, _cell('rose'));
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(h.gifts.sends.single.recipients, ['sara', 'omar']);
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('D128: a seated guest may gift themself', (tester) async {
+    final guest = testUser(username: 'omar', displayName: 'Omar');
+    final h = await _pump(
+      tester,
+      user: guest.copyWith(id: 'user-omar'),
+      seated: const [_omar],
+    );
+    final me = find.byKey(KLiveGiftSheet.recipientKey('omar'));
+    expect(me, findsOneWidget);
+    // The host stays the default.
+    expect(
+      _selected(tester, find.byKey(KLiveGiftSheet.recipientKey('sara'))),
+      isTrue,
+    );
+    await _tap(tester, find.byKey(KLiveGiftSheet.recipientKey('sara')));
+    await _tap(tester, me);
+    await _tap(tester, _cell('rose'));
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(h.gifts.sends.single.recipients, ['omar']);
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('D128: a viewer off the mic is never offered as a recipient', (
+    tester,
+  ) async {
+    // testUser() is not the host and not seated.
+    await _pump(tester, seated: const [_omar]);
+    expect(
+      find.byKey(KLiveGiftSheet.recipientKey(testUser().username)),
+      findsNothing,
+    );
+    expect(find.byKey(KLiveGiftSheet.recipientKey('sara')), findsOneWidget);
+    expect(find.byKey(KLiveGiftSheet.recipientKey('omar')), findsOneWidget);
+  });
+
+  testWidgets('D128: an unexpected failure is shown, never silent', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    await _tap(tester, _cell('rose'));
+    h.gifts.failNext['send'] = FakeLiveGiftRepository.conflict(
+      ErrorCode.liveRoomEnded,
+    );
+    await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+    expect(_reason(tester), isNotNull);
+    expect(_toast(tester), _reason(tester));
+    expect(find.byKey(KLiveGiftSheet.comboKey), findsNothing);
   });
 
   testWidgets('D117: chips "All" plus the open tab\'s tags filter the grid; '

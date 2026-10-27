@@ -17,6 +17,7 @@ import '../fixtures/live/live_api_fixtures.dart';
 typedef RoomsRequest = ({
   LiveRoomsTab tab,
   String? category,
+  LiveRoomsKind? kind,
   String? cursor,
   int limit,
 });
@@ -104,12 +105,14 @@ class FakeLiveRepository implements LiveRepository {
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
+    LiveRoomsKind? kind,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) async {
     final request = (
       tab: tab,
       category: category,
+      kind: kind,
       cursor: cursor,
       limit: limit,
     );
@@ -783,7 +786,26 @@ List<Override> liveOverrides(
   FakeLiveRepository repo, {
   AppLanguage language = AppLanguage.en,
   String? userId = 'user-me',
+  LiveRoomsKind kind = LiveRoomsKind.audio,
 }) => [
   liveRepositoryProvider.overrideWithValue(repo),
   liveScopeProvider.overrideWithValue((userId: userId, language: language)),
+  liveHubKindProvider.overrideWith(() => MemoryLiveHubKind(kind)),
 ];
+
+/// D129: the hub's kind switch without device storage (starts at [initial];
+/// a selection is kept in memory only).
+class MemoryLiveHubKind extends LiveHubKindController {
+  new([this.initial = LiveRoomsKind.audio]);
+
+  final LiveRoomsKind initial;
+
+  /// Every saved choice, in order.
+  final List<LiveRoomsKind> saved = [];
+
+  @override
+  String? readSaved() => initial.wire;
+
+  @override
+  Future<void> save(LiveRoomsKind kind) async => saved.add(kind);
+}

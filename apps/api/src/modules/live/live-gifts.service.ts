@@ -154,10 +154,10 @@ export class LiveGiftsService {
    * visible room (404; a block with the host too), LIVE (409 LIVE_ROOM_ENDED), the body (400), a
    * retry with the same `clientId` by the same sender → the first send with the current balance
    * and bag quantity (`created` false), not kicked out of this live (403 LIVE_KICKED), in the room
-   * (403 LIVE_CHAT_NOT_IN_ROOM; the host always is), not to oneself (400 `recipients` /
-   * `invalid_value`), an enabled catalogue gift (409 GIFT_UNAVAILABLE), every recipient the host or
-   * seated now, ACTIVE and without a block either way with the sender (409
-   * LIVE_GIFT_RECIPIENT_UNAVAILABLE), then the charge: 409 INSUFFICIENT_COINS (COINS) or 409
+   * (403 LIVE_CHAT_NOT_IN_ROOM; the host always is), an enabled catalogue gift (409
+   * GIFT_UNAVAILABLE), every recipient the host or seated now, ACTIVE and without a block either way
+   * with the sender (409 LIVE_GIFT_RECIPIENT_UNAVAILABLE; D128: the caller may be a recipient when
+   * they are the host or seated), then the charge: 409 INSUFFICIENT_COINS (COINS) or 409
    * GIFT_BAG_INSUFFICIENT (BAG), nothing stored, charged or sent.
    */
   async send(
@@ -182,10 +182,9 @@ export class LiveGiftsService {
       }
     }
 
+    // D128 (owner): the caller may be among the recipients — the host, or someone seated, gifting
+    // themself; a viewer who is not seated is refused below like any recipient who is not seated.
     const recipients = await this.resolveRecipients(input.recipients);
-    if (recipients.some((r) => r?.id === callerId)) {
-      throw AppException.validation([{ field: 'recipients', issue: 'invalid_value' }]);
-    }
     const gift = await this.prisma.gift.findUnique({ where: { code: input.giftCode } });
     if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     if (recipients.some((r) => r === null)) {
@@ -399,7 +398,8 @@ export class LiveGiftsService {
   /**
    * The CP-005 credits of the send (§10.18, §10.23), in the send's transaction: for each recipient
    * a normal gift worth `perRecipientCoins` coins ({@link qualify}: charm `ATTRACTIVENESS` for the
-   * recipient as `GIFT_RECEIVED`, support `SUPPORT` for the sender as `GIFT_SENT`); points =
+   * recipient as `GIFT_RECEIVED`, support `SUPPORT` for the sender as `GIFT_SENT`; D128: both for
+   * the caller when they gift themself); points =
    * floor(coins × the category's published multiplier). The source id is
    * `gift:<giftId>:<recipientId>`, so nothing is credited twice. User states are locked in a fixed
    * (user, category) order, after the room row, like the levels inbox. Nothing is credited while a
@@ -426,7 +426,8 @@ export class LiveGiftsService {
           value: BigInt(send.perRecipientCoins),
           lucky: false,
         },
-        { luckyGiftsCountAsSupport: false },
+        // D128: a gift to oneself (host or seated) earns like any gift.
+        { luckyGiftsCountAsSupport: false, selfGiftsEarn: true },
       );
       if (typeof result === 'string') continue;
       for (const credit of result) credits.push({ ...credit, source: `gift:${send.giftId}:${r.id}` });

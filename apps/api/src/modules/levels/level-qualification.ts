@@ -37,6 +37,12 @@ export interface Credit {
 export interface QualificationPolicy {
   /** SUPPORT's `luckyGiftsCountAsSupport` (CP-005 §5, default false). */
   readonly luckyGiftsCountAsSupport: boolean;
+  /**
+   * D128 (owner): a gift to oneself earns like any gift (charm and support for that one person).
+   * Only live gifts set it, where the sender is the host or seated and pays the full price
+   * (CONVENTIONS §10.23); everywhere else a gift to oneself earns nothing.
+   */
+  readonly selfGiftsEarn?: boolean;
 }
 
 /** Why an activity event earns nothing at all. */
@@ -51,7 +57,7 @@ export type DisqualifiedReason = 'non_positive_value' | 'self_gift';
  *   policy says so — Wizard is the value of lucky gifts SENT, never their winnings;
  * - game spend → GAMING (spender) — never winnings, prizes or rewards.
  *
- * A gift to oneself earns nothing (anti-fraud).
+ * A gift to oneself earns nothing (anti-fraud), unless the policy says `selfGiftsEarn` (D128).
  */
 export function qualify(
   event: GiftCommittedEvent | GameSpendCommittedEvent,
@@ -61,7 +67,7 @@ export function qualify(
   if (event.type === 'GAME_SPEND_COMMITTED') {
     return [{ userId: event.userId, category: 'GAMING', sourceType: 'GAME_SPEND', value: event.value }];
   }
-  if (event.senderUserId === event.recipientUserId) return 'self_gift';
+  if (event.senderUserId === event.recipientUserId && policy.selfGiftsEarn !== true) return 'self_gift';
   const credits: Credit[] = [
     {
       userId: event.recipientUserId,

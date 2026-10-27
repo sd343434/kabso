@@ -661,7 +661,8 @@ class _FamilyBodyState extends ConsumerState<_FamilyBody> {
 
 /// The top of the page (D127, the owner's mockup measured at 393 pt): the
 /// picture at full bleed — the leader's cover, else the owner's default
-/// art (D125) with the family emblem in its gold ring — under the top bar
+/// art (D125; its gold ring stays empty: owner, one emblem on the page,
+/// the one over the sheet's edge) — under the top bar
 /// (back left, title centred, share and ⋯ right), the level chip (top
 /// left) and the family number box (top right); the white sheet with
 /// rounded corners over the picture's lower edge, the emblem in its ring
@@ -726,7 +727,6 @@ class _Top extends ConsumerWidget {
         art.size.width * s,
         art.size.height * s,
       );
-      final ring = art.circleIn(drawn);
       picture = [
         Positioned(
           left: 0,
@@ -757,14 +757,6 @@ class _Top extends ConsumerWidget {
                     key: FamilyScreen.heroArtKey,
                     fit: BoxFit.fill,
                     excludeFromSemantics: true,
-                  ),
-                ),
-                Positioned.fromRect(
-                  rect: ring,
-                  child: FamilyEmblem(
-                    key: FamilyScreen.heroEmblemKey,
-                    url: family.emblemUrl,
-                    size: ring.width,
                   ),
                 ),
               ],

@@ -24,6 +24,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
@@ -153,8 +154,16 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    // The live hub with demo rooms.
+    // The live hub with demo rooms. D129: it opens on voice rooms and the
+    // demo data has video lives only, so switch to Live first.
     expect(find.byType(LiveScreen), findsOneWidget);
+    await tapVisible(
+      tester,
+      find.byKey(LiveHubKindSwitch.segmentKey(LiveRoomsKind.video)),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.textContaining('(test)'), findsWidgets);
     // Messages: the designed list.
     await tester.tap(find.byKey(const Key('nav.messages')));

@@ -37,6 +37,7 @@ import 'package:kabso_live/features/home/presentation/widgets/home_reel.dart';
 import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_kind_switch.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -238,7 +239,17 @@ void main() {
               brightness: brightness,
               screen: FeedTabsScaffold(
                 centerTabs: true,
-                topBar: const LiveHubTopBar(showNotifications: false),
+                // D129: the fixture rooms are video lives (PK, multi-guest).
+                topBar: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const LiveHubTopBar(showNotifications: false),
+                    LiveHubKindSwitch(
+                      selected: LiveRoomsKind.video,
+                      onSelected: (_) {},
+                    ),
+                  ],
+                ),
                 pageBuilder: (context, tab, selectTab) => LiveHubBody(
                   tab: tab,
                   content: AsyncData(FeedItems(hubRooms(language))),
@@ -258,6 +269,69 @@ void main() {
               navIndex: _liveIndex,
             );
           });
+        }
+
+        // D129: the real hub on each side of the voice rooms · live switch,
+        // the server answering `kind` (rooms 0–5 voice, 6–11 video), in the
+        // dark and the light theme.
+        for (final kind in LiveRoomsKind.values) {
+          for (final brightness in Brightness.values) {
+            final suffix = brightness == Brightness.light ? '.light' : '';
+            final name = 'live_hub.kind_${kind.wire}$suffix';
+            testWidgets('$name ($vp)', (tester) async {
+              final ar = language == AppLanguage.ar;
+              final rooms = [
+                for (final (i, room) in apiRooms(
+                  12,
+                  ar: ar,
+                  categories: apiCategories(ar: ar),
+                ).indexed)
+                  room.copyWith(
+                    mode: i < 6
+                        ? LiveRoomMode.audio
+                        : const [
+                            LiveRoomMode.solo,
+                            LiveRoomMode.multi,
+                            LiveRoomMode.pk,
+                          ][i % 3],
+                    viewerCount: const [
+                      128,
+                      0,
+                      2400,
+                      37,
+                      910,
+                      5,
+                      15300,
+                      0,
+                      642,
+                      88,
+                      1200,
+                      9,
+                    ][i],
+                  ),
+              ];
+              await golden(
+                tester,
+                name,
+                brightness: brightness,
+                screen: const LiveScreen(),
+                navIndex: _liveIndex,
+                overrides: liveOverrides(
+                  FakeLiveRepository(
+                    categories: apiCategories(ar: ar),
+                    rooms: (request) => apiPage([
+                      for (final room in rooms)
+                        if (request.kind == null ||
+                            LiveRoomsKind.of(room.mode) == request.kind)
+                          room,
+                    ]),
+                  ),
+                  language: language,
+                  kind: kind,
+                ),
+              );
+            });
+          }
         }
 
         // KL-038: what the v1.3 API returns today when hosting is on —
