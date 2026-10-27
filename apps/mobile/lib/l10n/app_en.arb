@@ -1994,5 +1994,8 @@
   "liveStatsLoadFailed": "Couldn't load your live's data",
   "@liveStatsLoadFailed": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."},
   "liveStatsLoadFailedBody": "Check your connection and try again.",
-  "@liveStatsLoadFailedBody": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."}
+  "@liveStatsLoadFailedBody": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."},
+  "liveComboLabel": "Combo",
+  "liveComboSemantics": "Send {gift} again, combo ×{count}",
+  "liveComboBalance": "Balance {coins} coins"
 }

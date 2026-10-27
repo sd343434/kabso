@@ -15,6 +15,7 @@ import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/levels/presentation/level_badge.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
+import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
 import 'package:kabso_live/features/live/data/gift_art_cache.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
@@ -391,17 +392,29 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       // D131: Recent (this phone).
       ref.read(recentGiftsProvider.notifier).add(intent.code);
       if (!mounted) return true;
-      // D132: what the draws paid (the balance above already has it).
-      if (result.luckyResult case final lucky?) {
-        _showToast(
-          lucky.coinsWon > 0
-              ? l10n.liveLuckyWon(
-                  KFormat.bidiIsolate(KFormat.grouped(lucky.coinsWon)),
-                  KFormat.grouped(lucky.topMultiplier ?? 0),
-                )
-              : l10n.liveLuckyNoWin,
-          error: false,
-        );
+      // D145 (owner: lucky gifts only): the panel closes and the room's
+      // Combo button sends the same again; its chip shows what the draws
+      // paid (the balance has it). Taps of Send still waiting go with it.
+      if (intent.lucky && result.luckyResult != null) {
+        final pending = _queued;
+        _queued = 0;
+        final art = ref.read(giftCatalogueProvider).value?.byCode(intent.code);
+        ref
+            .read(liveLuckyComboProvider(room.roomId).notifier)
+            .start(
+              LuckyComboGift(
+                code: intent.code,
+                quantity: intent.quantity,
+                recipients: intent.recipients,
+                unitPrice: result.gift.unitPrice,
+                assetKey: result.gift.assetKey,
+                imageUrl: result.gift.imageUrl ?? art?.imageUrl,
+              ),
+              result,
+              pending: pending,
+            );
+        Navigator.of(context).maybePop();
+        return true;
       }
       final window = ref.read(giftCatalogueProvider).value?.comboWindowSeconds;
       setState(() {

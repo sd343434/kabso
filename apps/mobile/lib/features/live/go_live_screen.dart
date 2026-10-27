@@ -48,6 +48,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.da
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -1345,7 +1346,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   body,
                 // CP-020: gift banners and effects over the live.
                 if (onAir && room != null)
-                  LiveGiftEffectsLayer(roomId: room.id),
+                  LiveGiftEffectsLayer(
+                    roomId: room.id,
+                    onSender: (u) => unawaited(_person(room.id, u.username)),
+                  ),
+                // D145: the lucky combo button after a lucky gift is sent.
+                if (onAir && room != null)
+                  LuckyComboLayer(
+                    roomId: room.id,
+                    hostUsername: room.host.username,
+                    // Over the audio bar, or over the video live's quick
+                    // replies.
+                    bottom: audioOnAir
+                        ? LuckyComboLayer.audioBottom
+                        : LuckyComboLayer.videoBottom,
+                  ),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
                 if (_countdown case final n?)

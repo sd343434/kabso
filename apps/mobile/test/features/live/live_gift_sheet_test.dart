@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -57,14 +58,21 @@ class _Opener extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: TextButton(
-        key: _open,
-        onPressed: () => unawaited(
-          KLiveGiftSheet.show(context, room: room, preselect: preselect),
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: TextButton(
+            key: _open,
+            onPressed: () => unawaited(
+              KLiveGiftSheet.show(context, room: room, preselect: preselect),
+            ),
+            child: const SizedBox.square(dimension: 40),
+          ),
         ),
-        child: const SizedBox.square(dimension: 40),
-      ),
+        // D145: the room's lucky combo layer.
+        LuckyComboLayer(roomId: room.roomId),
+      ],
     ),
   );
 }
@@ -152,6 +160,16 @@ String? _toast(WidgetTester tester) {
   );
   if (f.evaluate().isEmpty) return null;
   return tester.widget<Text>(f).data;
+}
+
+/// A tap, then 1.2 s of frames (the D145 combo ring would run out under
+/// pumpAndSettle).
+Future<void> _tapShort(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 300));
+  }
 }
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
@@ -825,13 +843,21 @@ void main() {
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await _tap(tester, _cell('lucky_clover'));
-      await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+      await _tapShort(tester, find.byKey(KLiveGiftSheet.sendKey));
       expect(repo.sends.single.source, LiveGiftSource.coins);
-      expect(_toast(tester), en.liveLuckyWon('\u20681,000\u2069', '100'));
+      // D145: the panel closes; the combo shows the win and the balance.
+      expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(LuckyComboLayer.resultKey),
+          matching: find.text(en.liveLuckyWon('\u20681,000\u2069', '100')),
+        ),
+        findsOneWidget,
+      );
       // 1000 − 10 + 1000.
       expect(
         find.descendant(
-          of: find.byKey(KLiveGiftSheet.balanceKey),
+          of: find.byKey(LuckyComboLayer.balanceKey),
           matching: find.text('1,990'),
         ),
         findsOneWidget,
@@ -851,10 +877,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.sends, isEmpty);
       await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
-      await _tap(tester, find.byKey(KLiveGiftSheet.ageConfirmKey));
+      await _tapShort(tester, find.byKey(KLiveGiftSheet.ageConfirmKey));
       expect(repo.calls, contains('confirmLuckyAge'));
       expect(repo.sends, hasLength(1));
-      expect(_toast(tester), en.liveLuckyNoWin);
+      expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(LuckyComboLayer.resultKey),
+          matching: find.text(en.liveLuckyNoWin),
+        ),
+        findsOneWidget,
+      );
       await tester.pump(const Duration(seconds: 6));
     });
 

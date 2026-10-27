@@ -135,6 +135,45 @@ class KGiftImage extends StatelessWidget {
   }
 }
 
+/// D145 (owner: «big gift animations are larger than the screen and cut
+/// off»): an effect's movie is drawn whole — its view box scaled to
+/// *contain* inside the safe area (aspect kept, centred, never cropped) on
+/// any phone, and nothing it draws leaves that box. The player used to get
+/// the whole screen with sprites allowed past the view box, so a movie
+/// whose art runs over its box (or a screen narrower than the movie's
+/// aspect) was cut at the edges.
+class KGiftMovieFrame extends StatelessWidget {
+  const new({required this.viewBox, required this.child, super.key});
+
+  /// The movie's own size (SVGA `viewBoxWidth` × `viewBoxHeight`).
+  final Size viewBox;
+  final Widget child;
+
+  /// The rect [viewBox] takes inside [area]: contained and centred.
+  static Rect fit(Size viewBox, Rect area) {
+    if (viewBox.isEmpty || area.isEmpty) return area;
+    final size = applyBoxFit(BoxFit.contain, viewBox, area.size).destination;
+    return Alignment.center.inscribe(size, area);
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: LayoutBuilder(
+      builder: (context, box) {
+        final rect = fit(viewBox, Offset.zero & box.biggest);
+        return Stack(
+          children: [
+            Positioned.fromRect(
+              rect: rect,
+              child: ClipRect(child: child),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
 /// The large effect of a big gift. The image pops in the centre at once
 /// (grows in, holds, fades out over [duration]); when the gift has an SVGA
 /// — the hosted [animationUrl] (D126, from the device cache or downloaded
@@ -318,7 +357,15 @@ class _KGiftEffectState extends State<KGiftEffect>
   Widget build(BuildContext context) {
     final svga = _svga;
     if (svga != null) {
-      return IgnorePointer(child: SizedBox.expand(child: SVGAImage(svga)));
+      final params = svga.videoItem?.params;
+      return IgnorePointer(
+        child: KGiftMovieFrame(
+          viewBox: params == null
+              ? Size.zero
+              : Size(params.viewBoxWidth, params.viewBoxHeight),
+          child: SVGAImage(svga, allowDrawingOverflow: false),
+        ),
+      );
     }
     return IgnorePointer(
       child: Center(

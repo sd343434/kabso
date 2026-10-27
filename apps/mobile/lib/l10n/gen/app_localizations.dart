@@ -10939,6 +10939,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
   String get liveStatsLoadFailedBody;
+
+  /// D145: the lucky combo button's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كومبو'**
+  String get liveComboLabel;
+
+  /// D145: the lucky combo button for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل {gift} مجدداً، كومبو ×{count}'**
+  String liveComboSemantics(String gift, int count);
+
+  /// D145: the coin balance under the combo button.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك {coins} عملة'**
+  String liveComboBalance(String coins);
 }
 
 class _AppLocalizationsDelegate

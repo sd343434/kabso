@@ -7601,5 +7601,11 @@
   "liveStatsLoadFailed": "تعذّر تحميل بيانات البث",
   "@liveStatsLoadFailed": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."},
   "liveStatsLoadFailedBody": "تحقّق من اتصالك ثم حاول مجدداً.",
-  "@liveStatsLoadFailedBody": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."}
+  "@liveStatsLoadFailedBody": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."},
+  "liveComboLabel": "كومبو",
+  "@liveComboLabel": {"description": "D145: the lucky combo button's label."},
+  "liveComboSemantics": "أرسل {gift} مجدداً، كومبو ×{count}",
+  "@liveComboSemantics": {"description": "D145: the lucky combo button for screen readers.", "placeholders": {"gift": {"type": "String"}, "count": {"type": "int"}}},
+  "liveComboBalance": "رصيدك {coins} عملة",
+  "@liveComboBalance": {"description": "D145: the coin balance under the combo button.", "placeholders": {"coins": {"type": "String"}}}
 }

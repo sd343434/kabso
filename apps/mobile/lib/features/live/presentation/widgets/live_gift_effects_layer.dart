@@ -14,11 +14,26 @@ import 'package:material_ui/material_ui.dart';
 /// The gifts sent in a live, over the room (CP-020, §10.23): a banner per
 /// combo (sender → recipients, the gift, ×quantity and the combo count)
 /// and a large centred effect for an animated or big gift. Names come from
-/// the cached catalogue by `giftCode`. Never takes taps.
+/// the cached catalogue by `giftCode`.
+///
+/// D145 (owner: «the room only shows the gift's picture, no strip»): the
+/// strips slide in at the reading start, above the middle (clear of the
+/// open gift panel, which normal gifts keep open), up to
+/// [LiveGiftEffects.maxBanners] at once with the newest on top, each for
+/// [LiveGiftEffects.bannerTime] after its combo's last send, drawn over the
+/// large effect so a full-screen animation never hides them. A tap on a
+/// strip opens the sender's card ([onSender]); nothing else takes taps.
 class LiveGiftEffectsLayer extends ConsumerWidget {
-  const new({required this.roomId, super.key});
+  const new({required this.roomId, super.key, this.onSender});
 
   final String roomId;
+
+  /// Opens the sender's card (D145); null: the strips take no taps.
+  final ValueChanged<UserSummary>? onSender;
+
+  /// Where the strips sit: the reading start, above the middle, so three
+  /// strips still end above the open gift panel (360×740 and up).
+  static const bannerAlignment = AlignmentDirectional(-1, -0.3);
 
   static Key bannerKey(String comboId) => Key('gift.banner.$comboId');
   static const effectKey = Key('gift.effect');
@@ -31,66 +46,80 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
     final effects = ref.watch(liveGiftEffectsProvider(roomId));
     final catalogue = ref.watch(giftCatalogueProvider).value;
     final big = effects.big;
-    return IgnorePointer(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Align(
-            alignment: const AlignmentDirectional(-1, -0.4),
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(start: KSpacing.sm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final gift in effects.banners)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: KSpacing.xs),
-                      child: LiveGiftBanner(
-                        key: bannerKey(gift.combo.id),
-                        gift: gift,
-                        name: catalogue?.byCode(gift.giftCode)?.name,
-                        imageUrl:
-                            gift.imageUrl ?? _art(catalogue, gift)?.imageUrl,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          if (effects.lucky case final win?)
-            Align(
-              alignment: const Alignment(0, -0.62),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
-                child: LiveLuckyWinBanner(
-                  key: luckyKey,
-                  win: win,
-                  name: catalogue?.byCode(win.giftCode)?.name,
+    final onSender = this.onSender;
+    final strips = Align(
+      alignment: bannerAlignment,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: KSpacing.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The newest on top.
+            for (final gift in effects.banners.reversed)
+              Padding(
+                key: ValueKey('strip.${gift.combo.id}'),
+                padding: const EdgeInsets.only(bottom: KSpacing.xs),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSender == null ? null : () => onSender(gift.sender),
+                  child: LiveGiftBanner(
+                    key: bannerKey(gift.combo.id),
+                    gift: gift,
+                    name: catalogue?.byCode(gift.giftCode)?.name,
+                    imageUrl: gift.imageUrl ?? _art(catalogue, gift)?.imageUrl,
+                  ),
                 ),
               ),
-            ),
-          if (big != null)
-            Positioned.fill(
-              key: effectKey,
-              child: KGiftEffect(
-                key: ValueKey(big.id),
-                assetKey: big.assetKey,
-                animationKey: big.animationKey,
-                imageUrl: big.imageUrl ?? _art(catalogue, big)?.imageUrl,
-                animationUrl:
-                    big.animationUrl ?? _art(catalogue, big)?.animationUrl,
-                duration: LiveGiftEffects.bigTime,
-                onHold: () => ref
-                    .read(liveGiftEffectsProvider(roomId).notifier)
-                    .bigHold(big.id),
-                onDone: () => ref
-                    .read(liveGiftEffectsProvider(roomId).notifier)
-                    .bigDone(big.id),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        IgnorePointer(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (effects.lucky case final win?)
+                Align(
+                  alignment: const Alignment(0, -0.62),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: KSpacing.lg,
+                    ),
+                    child: LiveLuckyWinBanner(
+                      key: luckyKey,
+                      win: win,
+                      name: catalogue?.byCode(win.giftCode)?.name,
+                    ),
+                  ),
+                ),
+              if (big != null)
+                Positioned.fill(
+                  key: effectKey,
+                  child: KGiftEffect(
+                    key: ValueKey(big.id),
+                    assetKey: big.assetKey,
+                    animationKey: big.animationKey,
+                    imageUrl: big.imageUrl ?? _art(catalogue, big)?.imageUrl,
+                    animationUrl:
+                        big.animationUrl ?? _art(catalogue, big)?.animationUrl,
+                    duration: LiveGiftEffects.bigTime,
+                    onHold: () => ref
+                        .read(liveGiftEffectsProvider(roomId).notifier)
+                        .bigHold(big.id),
+                    onDone: () => ref
+                        .read(liveGiftEffectsProvider(roomId).notifier)
+                        .bigDone(big.id),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (onSender == null) IgnorePointer(child: strips) else strips,
+      ],
     );
   }
 }

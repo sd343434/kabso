@@ -6308,4 +6308,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveStatsLoadFailedBody => 'Check your connection and try again.';
+
+  @override
+  String get liveComboLabel => 'Combo';
+
+  @override
+  String liveComboSemantics(String gift, int count) {
+    return 'Send $gift again, combo ×$count';
+  }
+
+  @override
+  String liveComboBalance(String coins) {
+    return 'Balance $coins coins';
+  }
 }

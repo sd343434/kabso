@@ -6329,4 +6329,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
+
+  @override
+  String get liveComboLabel => 'كومبو';
+
+  @override
+  String liveComboSemantics(String gift, int count) {
+    return 'أرسل $gift مجدداً، كومبو ×$count';
+  }
+
+  @override
+  String liveComboBalance(String coins) {
+    return 'رصيدك $coins عملة';
+  }
 }
