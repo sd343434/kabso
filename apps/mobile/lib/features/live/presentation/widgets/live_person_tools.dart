@@ -32,6 +32,7 @@ class LivePersonScope {
     this.seat,
     this.onSeatMute,
     this.onGift,
+    this.onMention,
     this.selfMic,
   });
 
@@ -57,6 +58,9 @@ class LivePersonScope {
   /// CP-020: opens the gift panel with this person chosen.
   final ValueChanged<LiveGiftPreselect>? onGift;
 
+  /// D135: puts `@username` into the chat box and opens it ([insertMention]).
+  final ValueChanged<String>? onMention;
+
   /// Your own card when you are on the mic (owner, 2026-10-26: a tap on
   /// your seat opens your card; you mute yourself here): whether your mic
   /// is on now, and how to turn it on or off.
@@ -70,6 +74,18 @@ class LivePersonScope {
     LivePersonRole.moderator => target == LivePersonRole.viewer,
     LivePersonRole.viewer => false,
   };
+}
+
+/// D135: adds `@username ` to the end of the chat box [field] (after a
+/// space when the text does not end with one) and puts the cursor after it.
+void insertMention(TextEditingController field, String username) {
+  final text = field.text;
+  final sep = text.isEmpty || text.endsWith(' ') ? '' : ' ';
+  final next = '$text$sep@$username ';
+  field.value = TextEditingValue(
+    text: next,
+    selection: TextSelection.collapsed(offset: next.length),
+  );
 }
 
 abstract final class LivePersonToolKeys {

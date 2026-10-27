@@ -84,6 +84,10 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static final Key themeKey = GoLiveKeys.tool('theme');
   static final Key liveGuestsKey = GoLiveKeys.tool('guests');
   static const Key guestsChipKey = GoLiveKeys.guestsChip;
+
+  /// D135: the host's quick replies over the host bar.
+  static const hostQuickRepliesKey = Key('goLive.quickReplies');
+
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
   static const shareKey = Key('goLive.share');
@@ -437,6 +441,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final roomChat = room == null || chat == null
         ? null
         : LiveRoomChatLines(
+            // D135: a bright theme darkens the rules line's fill a little.
+            brightNotice: LiveRoomRulesNotice.isBrightTheme(state.theme),
             roomId: room.id,
             role: LiveChatViewerRole.host,
             onProfile: (username) => _person(room.id, username),
@@ -1489,6 +1495,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         // The recording's Room Tools in its order: ours where they exist,
         // the rest "Soon" (D99); our other tools stay in the same sheet.
         room: [
+          // D135 (owner: "minimize is in ≡ at the bottom, not at the top").
+          GoLiveTool(
+            id: 'minimize',
+            icon: Icons.picture_in_picture_alt_rounded,
+            label: l10n.goLiveMinimize,
+            onTap: live ? _minimize : null,
+          ),
           GoLiveTool(
             id: 'share',
             icon: Icons.share_rounded,
@@ -1578,9 +1591,19 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ),
     );
     final micOff = !state.micEnabled;
+    // D135: the host's own charm level and points (`GET /levels/me`).
+    final charm = ref
+        .watch(myLevelsProvider)
+        .value
+        ?.where(
+          (l) => l.category == LevelCategory.attractiveness && l.available,
+        )
+        .firstOrNull;
     return KLiveRoomScaffold(
       video: background,
       header: KHostPill(
+        // D135: the room ID beside the name (copy on tap).
+        roomId: room.roomNumber?.toString(),
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [
@@ -1629,6 +1652,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               avatarSize: 25.6,
               pitch: 30.6,
               countHeight: 25,
+              countMinWidth: 31,
               avatars: [
                 for (final v in viewers.items)
                   if (v.user case final u?)
@@ -1647,48 +1671,56 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               onTap: () => unawaited(_openAudience(room, liveSeats)),
             ),
-      trailing: KRoomIconButton(
-        key: GoLiveScreen.minimizeKey,
-        icon: Icons.picture_in_picture_alt_rounded,
-        label: l10n.goLiveMinimize,
-        onPressed: live ? _minimize : null,
-        iconSize: 19,
-        bare: true,
-      ),
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
-      roomInfo: Row(
-        children: [
-          _HostElapsed(since: state.liveSince),
-          const SizedBox(width: 6),
-          Expanded(
-            child: KRoomChipsRow(
-              level: room.roomLevel,
-              roomNumber: room.roomNumber,
-            ),
-          ),
-        ],
+      // D135 (owner: "the charm level is in the wrong place"): the board
+      // chip and the charm level chip with the host's points against the
+      // next level at the start; the LIVE timer and the room ID at the end.
+      roomInfo: KRoomChipsRow(
+        level: charm?.level?.levelNumber ?? room.roomLevel,
+        points: charm?.points.toInt(),
+        target: charm?.nextLevel?.requiredPoints.toInt(),
+        elapsed: _HostElapsed(since: state.liveSince),
       ),
       stage: stage,
       chat: Align(alignment: AlignmentDirectional.bottomStart, child: roomChat),
       actionBar:
           composer ??
-          KHostBar(
-            chatKey: GoLiveScreen.videoChatKey,
-            onChat: openChat,
-            onBeauty: openBeauty,
-            onTools: openTools,
-            beautyOn: state.beauty.enabled,
-            requests: liveSeats?.pendingRequests ?? 0,
-            // In a multi-guest live: requests and seats; a solo live has no
-            // seats to join (switching mid-live has no backend yet).
-            onGuests: state.mode.hasSeats
-                ? () =>
-                      unawaited(_openViewers(room.id, liveSeats, guests: true))
-                : () => KSnack.info(context, l10n.liveHostGuestsSoon),
-            onPk: () => KSnack.info(context, l10n.goLivePkSoon),
-            onGift: () => unawaited(_openGifts(room)),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // D135 (ref 158 §4.7): the host's quick replies over the bar
+              // while the chat is on (each one an ordinary chat message).
+              if (chat != null && chat.enabled) ...[
+                KQuickReplies(
+                  key: GoLiveScreen.hostQuickRepliesKey,
+                  host: true,
+                  onSend: (text) => unawaited(
+                    sendLiveChatText(context, ref, roomId: room.id, text: text),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+              KHostBar(
+                chatKey: GoLiveScreen.videoChatKey,
+                onChat: openChat,
+                onBeauty: openBeauty,
+                onTools: openTools,
+                beautyOn: state.beauty.enabled,
+                requests: liveSeats?.pendingRequests ?? 0,
+                // In a multi-guest live: requests and seats; a solo live has no
+                // seats to join (switching mid-live has no backend yet).
+                onGuests: state.mode.hasSeats
+                    ? () => unawaited(
+                        _openViewers(room.id, liveSeats, guests: true),
+                      )
+                    : () => KSnack.info(context, l10n.liveHostGuestsSoon),
+                onPk: () => KSnack.info(context, l10n.goLivePkSoon),
+                onGift: () => unawaited(_openGifts(room)),
+              ),
+            ],
           ),
     );
   }
@@ -1778,6 +1810,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             _openGifts(room, preselect: person),
           ),
           _ => null,
+        },
+        // D135: Mention — "@username" in the host's chat box, opened.
+        onMention: (username) {
+          if (!mounted) return;
+          insertMention(_chat, username);
+          setState(() {
+            _writing = true;
+            _emojiMode = false;
+          });
+          _chatFocus.requestFocus();
         },
       ),
     );
@@ -2169,7 +2211,7 @@ class _HostElapsed extends StatelessWidget {
         height: KViewerRoom.chipHeight,
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
-          color: KLiveColors.chatScrim,
+          color: KLiveColors.glass,
           borderRadius: BorderRadius.circular(KRadius.pill),
         ),
         child: Row(

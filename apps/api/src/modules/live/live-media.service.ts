@@ -236,7 +236,10 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
       category = { id, slug: categorySlug };
     }
     if (seatCount !== undefined || theme !== undefined) {
-      await this.seats.updateSettings(room.id, { seatCount, theme });
+      // D135: a new theme reaches everyone in the room through `roomInfoVersion`.
+      if (await this.seats.updateSettings(room.id, { seatCount, theme })) {
+        await this.metadata.infoChanged(room.id);
+      }
     }
     if (title !== undefined || category !== undefined || topic !== undefined) {
       const version = await this.rooms.editInfo(

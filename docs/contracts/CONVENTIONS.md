@@ -485,6 +485,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.2-live (draft) | 2026-10-27 | **D135 (owner, staging device: "the host's new background does not reach the others"; "the support the others received does not show under their mic"):** a real `theme` change in `PATCH /live/rooms/{roomId}` now increases the room info version (`roomInfoVersion`), like `title`, `categorySlug` and `topic`; `LiveSeat.points` (required: the gift points a seated person received in this live, 0 for empty and locked seats); a gift to someone seated raises the seat `version`. §10.9, §10.12. | **Additive** (a new response field older apps ignore; one more reason for existing version moves). |
 | v1.27.1-live (draft) | 2026-10-27 | **D133 (owner: the Live hub's filters become Nearby · Popular ▾ · Featured · Explore, and a party page):** `listLiveRooms` takes `scope=nearby` (token required; rooms whose host's country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET`), `featured=true` (rooms of hosts featured now, ordered by feature rank, then score, startedAt, id) and the kinds `solo` (`SOLO`, `PK`), `multi` (`MULTI`), `party` (`AUDIO`, `MULTI`); cursors are bound to every filter. `Me.country` and `updateMe` `{locale?, country?}` (at least one; `locale` no longer required). Featured hosts are managed only by the `feature-admin` CLI (audit `live.feature.add`, `live.feature.remove`). Explore is `tab=new` (unchanged). §10.4, §10.28. | **Additive** (new query values and optional fields; a request without them behaves as before; `updateMe` accepts more). |
 | v1.27-live (draft) | 2026-10-27 | **D132 (owner: real lucky gifts):** `GiftCategory` `LUCKY` (listed only while `LUCKY_GIFTS_ENABLED`); `LiveGiftResult.luckyResult` (`LuckyGiftResult`, `LuckyGiftWin`; only on LUCKY sends); data message `lucky-win` on topic `lucky`; `getLuckyGiftOdds` (`GET /live/gifts/lucky/odds`, `LuckyGiftOdds`, `LuckyGiftOutcome`, `LuckyGiftEligibility`; guests too); `confirmLuckyGiftAge` (`PUT /me/lucky-gifts/age-confirmation`); codes `LUCKY_GIFT_AGE_UNCONFIRMED`, `LUCKY_GIFT_REGION_UNAVAILABLE` (403); wallet ledger reasons `LUCKY_GIFT` (the charge; 10 % counts for the family) and `LUCKY_GIFT_WIN`; server config `LUCKY_GIFT_*`; CLI `gift-admin … --category LUCKY`, `lucky-wins`, `lucky-day`; audit `lucky.age_confirm`. §4, §7, §10.23, §10.27. | **Additive.** Old apps drop gifts of an unknown category (catalogue and bag) and ignore unknown fields and data message types, so they neither show nor crash on lucky gifts; using them needs the app update. |
 | v1.26.4-live (draft) | 2026-10-27 | **D129 (owner: voice rooms apart from video lives on the hub; a host who ends a live loses its ranking):** `listLiveRooms` takes `kind` (`audio` = `AUDIO` rooms, podcasts included; `video` = `SOLO`, `PK`, `MULTI`; absent = all), on every tab like `category`; the cursor is bound to it (`k`, only when a kind is given). The `popular` score belongs to one live: every go-live is a new room starting at 0 and an ended room is never listed, so ending a live drops its ranking; the ended room keeps its own final score (§10.10). Room level (charm), the popularity boards and every other point system are unchanged. §10.4, §10.10. | **Additive** (an optional parameter; requests and cursors without `kind` are unchanged). The ranking rule is the existing behaviour, now stated. |
@@ -907,7 +908,16 @@ until a media provider is wired in.
 - **Locks and resizing:** an occupied seat cannot be locked; `seatCount` cannot shrink below an
   occupied seat (409 `LIVE_SEAT_UNAVAILABLE`).
 - **Themes:** `theme` is a slug from `LiveConfig.themes` (the first is the default). The art
-  ships in the app; an unknown slug shows the default.
+  ships in the app; an unknown slug shows the default. *(v1.27.2-live, D135)* A real theme change
+  while live increases the room info version (§10.12, `roomInfoVersion`), so everyone in the room
+  re-reads the room and sees the new theme at once; setting the current theme changes nothing.
+- **Seat points** *(v1.27.2-live, D135)*: `LiveSeat.points` is, for a TAKEN seat, the points its
+  person received from gifts in this live (every send that named them, whoever sent it): 100 for
+  every counted coin of their share — the same count as the live score (a LUCKY gift counts its
+  host share, §10.27). 0 for EMPTY and LOCKED. A gift whose recipients include someone seated now
+  (other than the host) raises the seat `version` in the send's transaction; the metadata follows
+  with the score's write (at most 2 s later), so every app re-reads the seats. The host's tile keeps
+  showing the live score.
 - **Hub:** `LiveRoomSummary.seatCount` and `occupiedSeats` let cards show the mode and how
   many guests are on.
 - **CP couples on seats** *(v1.23.3-live, DRAFT — D111)*: `LiveSeats.couples` lists the CP
@@ -1046,7 +1056,8 @@ until a media provider is wired in.
   `U+2029` → `invalid_format`), §6 text hygiene; `null` or `""` (after trimming) removes it.
   `LiveRoomSummary.topic` is the topic or `null`; the app shows it in the room and on hub cards
   (owner D97). A new live starts without a topic.
-- **Reaching the room:** every change to `title`, `categorySlug` or `topic` increases the room's
+- **Reaching the room:** every change to `title`, `categorySlug`, `topic` or *(v1.27.2-live, D135)*
+  `theme` increases the room's
   info version in the same transaction and writes `{"roomInfoVersion": n}` into the media room's
   metadata (next to `seatsVersion` and `score`); apps re-read `GET /live/rooms/{roomId}` when it
   moves. A `PATCH` that changes nothing does not move it. Edits are audited (`live.room.edit`).

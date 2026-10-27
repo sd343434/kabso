@@ -267,7 +267,13 @@ describe('CP-011 multi-guest and audio rooms', () => {
         mode: 'AUDIO',
         version: 0,
         seatCount: 5,
-        seats: [1, 2, 3, 4].map((index) => ({ index, state: 'EMPTY', user: null, mutedByHost: false })),
+        seats: [1, 2, 3, 4].map((index) => ({
+          index,
+          state: 'EMPTY',
+          user: null,
+          mutedByHost: false,
+          points: 0,
+        })),
         moderators: [],
         couples: [],
         pendingRequests: 0,
@@ -694,7 +700,13 @@ describe('CP-011 multi-guest and audio rooms', () => {
       const locked = await call('post', `${roomId}/seats/3/lock`, h, { locked: true });
       expect(locked.status).toBe(200);
       expectContract(locked, 'lockLiveSeat');
-      expect(locked.body.seats[2]).toEqual({ index: 3, state: 'LOCKED', user: null, mutedByHost: false });
+      expect(locked.body.seats[2]).toEqual({
+        index: 3,
+        state: 'LOCKED',
+        user: null,
+        mutedByHost: false,
+        points: 0,
+      });
       expectError(await ask(roomId, b, { seatIndex: 3 }), 409, 'LIVE_SEAT_UNAVAILABLE', 'requestLiveSeat');
       expectError(
         await call('post', `${roomId}/seats/1/lock`, h, { locked: true }),
@@ -891,9 +903,16 @@ describe('CP-011 multi-guest and audio rooms', () => {
       expect(await ctx.prisma.liveRoomSeat.count({ where: { roomId, seatIndex: { gte: 4 } } })).toBe(0);
       const after = await seats(roomId);
       expect(after.body.seats.map((s: { state: string }) => s.state)).toEqual(['EMPTY', 'TAKEN', 'EMPTY']);
-      expect(media.metadata.get(roomId)).toBe(JSON.stringify({ seatsVersion: v + 1, score: 0 }));
+      // D135: the new theme moved the room info version too (everyone re-reads the room).
+      expect(media.metadata.get(roomId)).toBe(
+        JSON.stringify({ seatsVersion: v + 1, score: 0, roomInfoVersion: 1 }),
+      );
       const themeOnly = await call('patch', roomId, h, { theme: 'classic' });
       expect(themeOnly.body.theme).toBe('classic');
+      expect(await version(roomId)).toBe(v + 1);
+      expect(media.metadata.get(roomId)).toBe(
+        JSON.stringify({ seatsVersion: v + 1, score: 0, roomInfoVersion: 2 }),
+      );
 
       const solo = await goLive(h2, {});
       const soloResize = await call('patch', solo, h2, { seatCount: 4 });

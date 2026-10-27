@@ -16,6 +16,8 @@ bar (host and viewer).
 | `pk.png` | Host: PK (says "soon"; PK is not in the contract yet) |
 | `toolbox.png` | Host: the room tools too (owner, 2026-10-26: "make it show") |
 | `gift.png` | Viewer and host: the gift box (preview: nothing can be sent until a wallet exists, B5) |
+| `bar_pk.png` | Owner-supplied 2026-10-27 (D135, Kabso's own art: red/blue boxing gloves with "PK"; original in chat, 256×256 transparent, trimmed with ≈ 6 % margin, not otherwise modified; the original stays outside git): the host's PK button on the video live, drawn 33 pt with no circle |
+| `bar_gift.png` | Owner-supplied 2026-10-27 (D135, Kabso's own art: a pink gift box with a gold bow; 256×256 transparent, trimmed with ≈ 6 % margin): the gift button of the video live (host and viewer), 33 pt with no circle |
 
 The host's mic button left the bar (owner, 2026-10-26): the host and a seated guest mute and unmute
 themselves by tapping their own picture.

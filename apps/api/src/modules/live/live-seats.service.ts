@@ -23,6 +23,7 @@ import {
 } from './live-rooms.service.js';
 import { bumpSeatsVersionIn, releaseUserIn, type ReleasedUser } from './live-seats.store.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
+import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
 import {
   isSeatedMode,
   isUuid,
@@ -47,6 +48,8 @@ export interface LiveSeatDto {
   state: 'EMPTY' | 'LOCKED' | 'TAKEN';
   user: UserSummaryDto | null;
   mutedByHost: boolean;
+  /** v1.27.2-live (D135): gift points the seated person received in this live (0 unless TAKEN). */
+  points: number;
 }
 
 export interface LiveSeatRequestDto {
@@ -424,15 +427,25 @@ export class LiveSeatsService {
       }),
     ]);
     const byIndex = new Map(rows.map((r) => [r.seatIndex, r]));
+    const points = await this.receivedPoints(
+      roomId,
+      rows.flatMap((r) => (r.user && r.seatIndex < seatCount ? [r.user.id] : [])),
+    );
     const seats: LiveSeatDto[] = [];
     for (let index = 1; index < seatCount; index += 1) {
       const row = byIndex.get(index);
       if (row?.user) {
-        seats.push({ index, state: 'TAKEN', user: userSummary(row.user), mutedByHost: row.mutedByHost });
+        seats.push({
+          index,
+          state: 'TAKEN',
+          user: userSummary(row.user),
+          mutedByHost: row.mutedByHost,
+          points: points.get(row.user.id) ?? 0,
+        });
       } else if (row?.locked) {
-        seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false });
+        seats.push({ index, state: 'LOCKED', user: null, mutedByHost: false, points: 0 });
       } else {
-        seats.push({ index, state: 'EMPTY', user: null, mutedByHost: false });
+        seats.push({ index, state: 'EMPTY', user: null, mutedByHost: false, points: 0 });
       }
     }
     const dto: LiveSeatsDto = {
@@ -471,6 +484,25 @@ export class LiveSeatsService {
       invite: invite ? inviteDto(invite) : null,
     };
     return dto;
+  }
+
+  /**
+   * v1.27.2-live (D135, §10.9): the gift points each of [userIds] received in this live — 100 for
+   * every counted coin of their share, as the live score counts them (a LUCKY send counts the host
+   * share stored with its draw, §10.27).
+   */
+  private async receivedPoints(roomId: string, userIds: readonly string[]): Promise<Map<string, number>> {
+    if (userIds.length === 0) return new Map();
+    const rows = await this.prisma.$queryRaw<{ user_id: string; coins: bigint }[]>`
+      SELECT r.user_id::text AS user_id,
+             SUM(CASE WHEN d.gift_id IS NULL THEN r.coins
+                      ELSE (r.coins * (d.odds->>'hostShareBps')::bigint) / 10000 END)::bigint AS coins
+        FROM live_gift_recipients r
+        JOIN live_gifts g ON g.id = r.gift_id
+        LEFT JOIN lucky_gift_draws d ON d.gift_id = g.id
+       WHERE g.room_id = ${roomId}::uuid AND r.user_id = ANY(${[...userIds]}::uuid[])
+       GROUP BY r.user_id`;
+    return new Map(rows.map((r) => [r.user_id, Number(r.coins) * POINTS_PER_SUPPORT_COIN]));
   }
 
   /**
@@ -897,9 +929,11 @@ export class LiveSeatsService {
   /**
    * `PATCH /live/rooms/{roomId}` with `seatCount` and/or `theme` (the host; checked by the caller).
    * Shrinking below an occupied seat → 409; locked seats beyond the new count are dropped.
+   * v1.27.2-live (D135): a real theme change moves the room info version (§10.12) so everyone in
+   * the room re-reads it; returns whether it did (the caller writes the metadata).
    */
-  async updateSettings(roomId: string, input: { seatCount?: number; theme?: string }): Promise<void> {
-    await this.change(roomId, async (tx) => {
+  async updateSettings(roomId: string, input: { seatCount?: number; theme?: string }): Promise<boolean> {
+    return this.change(roomId, async (tx) => {
       let version: number | null = null;
       if (input.seatCount !== undefined) {
         const room = await this.lockRoom(tx, roomId);
@@ -913,10 +947,15 @@ export class LiveSeatsService {
           version = await this.bump(tx, roomId);
         }
       }
+      let themeChanged = false;
       if (input.theme !== undefined) {
-        await tx.liveRoom.update({ where: { id: roomId }, data: { theme: input.theme } });
+        const changed = await tx.liveRoom.updateMany({
+          where: { id: roomId, theme: { not: input.theme } },
+          data: { theme: input.theme, infoVersion: { increment: 1 } },
+        });
+        themeChanged = changed.count > 0;
       }
-      return { result: undefined, version, effects: [] };
+      return { result: themeChanged, version, effects: [] };
     });
   }
 

@@ -3723,9 +3723,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorLiveChatClosed => 'The host turned the chat off.';
 
   @override
-  String get liveChatEmpty => 'No messages yet. Say hi.';
-
-  @override
   String get liveChatOff => 'Chat is off';
 
   @override
@@ -6166,4 +6163,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goLiveCategoriesAll => 'All topics';
+
+  @override
+  String get liveUserMention => 'Mention';
+
+  @override
+  String get liveQuickHostWelcome => 'Welcome to my live 👋';
+
+  @override
+  String get liveQuickHostThanks => 'Thanks for the support 🌹';
+
+  @override
+  String get liveQuickHostFollow => 'Follow me ❤️';
+
+  @override
+  String get liveQuickHostShare => 'Share the live 🔥';
+
+  @override
+  String get liveRoomIdCopied => 'Room ID copied';
+
+  @override
+  String get liveRoomIdCopyHint => 'Tap to copy';
 }

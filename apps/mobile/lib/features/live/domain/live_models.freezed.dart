@@ -4004,7 +4004,9 @@ $UserSummaryCopyWith<$Res>? get user {
 /// @nodoc
 mixin _$LiveSeat {
 
- int get index;@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState get state; UserSummary? get user; bool get mutedByHost;
+ int get index;@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState get state; UserSummary? get user; bool get mutedByHost;/// v1.27.2-live (D135): the gift points this seated person received in
+/// this live (0 for empty and locked seats, and from older servers).
+ int get points;
 /// Create a copy of LiveSeat
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -4018,20 +4020,20 @@ $LiveSeatCopyWith<LiveSeat> get copyWith => _$LiveSeatCopyWithImpl<LiveSeat>(thi
 @override
 bool operator ==(Object other) {
   final _this = this as LiveSeat;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeat&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.mutedByHost, _this.mutedByHost) || other.mutedByHost == _this.mutedByHost));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LiveSeat&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.mutedByHost, _this.mutedByHost) || other.mutedByHost == _this.mutedByHost)&&(identical(other.points, _this.points) || other.points == _this.points));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as LiveSeat;
-  return Object.hash(runtimeType,_this.index,_this.state,_this.user,_this.mutedByHost);
+  return Object.hash(runtimeType,_this.index,_this.state,_this.user,_this.mutedByHost,_this.points);
 }
 
 @override
 String toString() {
   final _this = this as LiveSeat;
-  return 'LiveSeat(index: ${_this.index}, state: ${_this.state}, user: ${_this.user}, mutedByHost: ${_this.mutedByHost})';
+  return 'LiveSeat(index: ${_this.index}, state: ${_this.state}, user: ${_this.user}, mutedByHost: ${_this.mutedByHost}, points: ${_this.points})';
 }
 
 
@@ -4042,7 +4044,7 @@ abstract mixin class $LiveSeatCopyWith<$Res>  {
   factory $LiveSeatCopyWith(LiveSeat value, $Res Function(LiveSeat) _then) = _$LiveSeatCopyWithImpl;
 @useResult
 $Res call({
- int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost
+ int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost, int points
 });
 
 
@@ -4059,13 +4061,14 @@ class _$LiveSeatCopyWithImpl<$Res>
 
 /// Create a copy of LiveSeat
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,Object? points = null,}) {
   return _then(LiveSeat(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as LiveSeatState,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as UserSummary?,mutedByHost: null == mutedByHost ? _self.mutedByHost : mutedByHost // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of LiveSeat
@@ -4162,10 +4165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost,  int points)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LiveSeat() when $default != null:
-return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost,_that.points);case _:
   return orElse();
 
 }
@@ -4183,10 +4186,10 @@ return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost,  int points)  $default,) {final _that = this;
 switch (_that) {
 case _LiveSeat():
-return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost,_that.points);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -4203,10 +4206,10 @@ return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index, @JsonKey(unknownEnumValue: LiveSeatState.empty)  LiveSeatState state,  UserSummary? user,  bool mutedByHost,  int points)?  $default,) {final _that = this;
 switch (_that) {
 case _LiveSeat() when $default != null:
-return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
+return $default(_that.index,_that.state,_that.user,_that.mutedByHost,_that.points);case _:
   return null;
 
 }
@@ -4218,13 +4221,16 @@ return $default(_that.index,_that.state,_that.user,_that.mutedByHost);case _:
 @JsonSerializable()
 
 class _LiveSeat implements LiveSeat {
-  const _LiveSeat({required this.index, @JsonKey(unknownEnumValue: LiveSeatState.empty) required this.state, required this.user, this.mutedByHost = false});
+  const _LiveSeat({required this.index, @JsonKey(unknownEnumValue: LiveSeatState.empty) required this.state, required this.user, this.mutedByHost = false, this.points = 0});
   factory _LiveSeat.fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);
 
 @override final  int index;
 @override@JsonKey(unknownEnumValue: LiveSeatState.empty) final  LiveSeatState state;
 @override final  UserSummary? user;
 @override@JsonKey() final  bool mutedByHost;
+/// v1.27.2-live (D135): the gift points this seated person received in
+/// this live (0 for empty and locked seats, and from older servers).
+@override@JsonKey() final  int points;
 
 /// Create a copy of LiveSeat
 /// with the given fields replaced by the non-null parameter values.
@@ -4239,18 +4245,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeat&&(identical(other.index, index) || other.index == index)&&(identical(other.state, state) || other.state == state)&&(identical(other.user, user) || other.user == user)&&(identical(other.mutedByHost, mutedByHost) || other.mutedByHost == mutedByHost));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LiveSeat&&(identical(other.index, index) || other.index == index)&&(identical(other.state, state) || other.state == state)&&(identical(other.user, user) || other.user == user)&&(identical(other.mutedByHost, mutedByHost) || other.mutedByHost == mutedByHost)&&(identical(other.points, points) || other.points == points));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,index,state,user,mutedByHost);
+    return Object.hash(runtimeType,index,state,user,mutedByHost,points);
 }
 
 @override
 String toString() {
-    return 'LiveSeat(index: $index, state: $state, user: $user, mutedByHost: $mutedByHost)';
+    return 'LiveSeat(index: $index, state: $state, user: $user, mutedByHost: $mutedByHost, points: $points)';
 }
 
 
@@ -4261,7 +4267,7 @@ abstract mixin class _$LiveSeatCopyWith<$Res> implements $LiveSeatCopyWith<$Res>
   factory _$LiveSeatCopyWith(_LiveSeat value, $Res Function(_LiveSeat) _then) = __$LiveSeatCopyWithImpl;
 @override @useResult
 $Res call({
- int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost
+ int index,@JsonKey(unknownEnumValue: LiveSeatState.empty) LiveSeatState state, UserSummary? user, bool mutedByHost, int points
 });
 
 
@@ -4278,13 +4284,14 @@ class __$LiveSeatCopyWithImpl<$Res>
 
 /// Create a copy of LiveSeat
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? state = null,Object? user = freezed,Object? mutedByHost = null,Object? points = null,}) {
   return _then(_LiveSeat(
 index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
 as int,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as LiveSeatState,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as UserSummary?,mutedByHost: null == mutedByHost ? _self.mutedByHost : mutedByHost // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,points: null == points ? _self.points : points // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

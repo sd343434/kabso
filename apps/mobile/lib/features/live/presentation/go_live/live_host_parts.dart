@@ -86,13 +86,17 @@ class KHostBar extends StatelessWidget {
         ),
         KViewerBarButton(
           key: pkKey,
-          asset: 'assets/live_bar/pk.png',
+          // D135: the owner's colourful PK art (boxing gloves).
+          asset: 'assets/live_bar/bar_pk.png',
+          art: true,
           label: l10n.goLivePk,
           onTap: onPk,
         ),
         KViewerBarButton(
           key: giftKey,
-          asset: 'assets/live_bar/gift.png',
+          // D135: the owner's colourful gift box.
+          asset: 'assets/live_bar/bar_gift.png',
+          art: true,
           label: l10n.liveGifts,
           onTap: onGift,
         ),

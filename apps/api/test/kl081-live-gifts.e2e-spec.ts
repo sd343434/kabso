@@ -524,6 +524,42 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expect((await roomScore(roomId, h)).parts.supportPoints).toBe(59_400 + 600 + 6_000);
     });
 
+    it('D135: each seat carries the points its person received in this live; a gift to a seated guest moves the seat version', async () => {
+      const { h, s1, s2, viewer, roomId } = await scene();
+      const code = await gift({ priceCoins: 3 });
+      const seats = async (u: TestUser | null = viewer) => {
+        const req = ctx.http.get(`/api/v1/live/rooms/${roomId}/seats`);
+        if (u) void req.set(auth(u));
+        const res = await req;
+        expect(res.status, JSON.stringify(res.body)).toBe(200);
+        expectContract(res, 'getLiveRoomSeats');
+        return res.body as { version: number; seats: { index: number; state: string; points: number }[] };
+      };
+      const first = await seats();
+      expect(first.seats.filter((x) => x.index <= 3).map((x) => [x.index, x.state, x.points])).toEqual([
+        [1, 'TAKEN', 0],
+        [2, 'TAKEN', 0],
+        [3, 'EMPTY', 0],
+      ]);
+      // To the host only: the seats do not move.
+      expect((await send(roomId, viewer, body(code, [h]))).status).toBe(201);
+      expect((await seats()).version).toBe(first.version);
+      // To two guests and the host, then one guest again from another guest.
+      expect((await send(roomId, viewer, body(code, [s1, s2, h], { quantity: 10 }))).status).toBe(201);
+      expect((await send(roomId, s2, body(code, [s1]))).status).toBe(201);
+      const after = await seats(null);
+      expect(after.version).toBeGreaterThan(first.version);
+      expect(after.seats.filter((x) => x.index <= 2).map((x) => [x.index, x.points])).toEqual([
+        [1, (30 + 3) * 100],
+        [2, 30 * 100],
+      ]);
+      // The metadata follows with the score's next write (the 2 s throttle, on the fake clock).
+      clock.advance(3);
+      expect((await send(roomId, viewer, body(code, [h]))).status).toBe(201);
+      const meta = JSON.parse(media.metadata.get(roomId) ?? '{}') as { seatsVersion?: number };
+      expect(meta.seatsVersion).toBe(after.version);
+    });
+
     it('counts for the sender family like other spending', async () => {
       const { h, viewer, roomId } = await scene();
       const created = await ctx.http

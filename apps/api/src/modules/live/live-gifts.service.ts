@@ -43,6 +43,7 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { POINTS_PER_SUPPORT_COIN } from './live-taps.js';
+import { bumpSeatsVersionIn } from './live-seats.store.js';
 import { liveGiftSendSchema } from './live.schemas.js';
 import { LIVE_MEDIA_PROVIDER, type LiveMediaProvider } from './media/live-media.provider.js';
 
@@ -423,6 +424,15 @@ export class LiveGiftsService {
           await tx.$executeRaw`
             UPDATE live_rooms SET info_version = info_version + 1, updated_at = now()
              WHERE id = ${row.id}::uuid`;
+        }
+        // v1.27.2-live (D135, §10.9): a seated recipient's points under their seat moved — the seat
+        // version moves so every app re-reads the seats (the metadata follows the score's write).
+        const guests = to.filter((r) => r.id !== room.host_user_id).map((r) => r.id);
+        if (
+          guests.length > 0 &&
+          (await tx.liveRoomSeat.count({ where: { roomId: row.id, userId: { in: guests } } })) > 0
+        ) {
+          await bumpSeatsVersionIn(tx, [row.id]);
         }
 
         const stored = await tx.liveGift.findUniqueOrThrow({ where: { id: giftId }, include: GIFT_INCLUDE });

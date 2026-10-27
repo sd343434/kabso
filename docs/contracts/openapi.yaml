@@ -5892,7 +5892,7 @@ components:
       type: object
       minProperties: 1
       additionalProperties: false
-      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`); `chatEnabled` is CP-013; `title`, `categorySlug` and `topic` are CP-014.
+      description: At least one field. `seatCount` and `theme` are CP-011 (MULTI and AUDIO rooms only for `seatCount`); `chatEnabled` is CP-013; `title`, `categorySlug` and `topic` are CP-014. A real change of `title`, `categorySlug`, `topic` or *(v1.27.2-live, D135)* `theme` increases the room's `roomInfoVersion` in the media room's metadata, so everyone in the room re-reads it (§10.12).
       properties:
         title: { $ref: '#/components/schemas/LiveRoomTitle' }
         categorySlug:
@@ -5979,9 +5979,19 @@ components:
         seatIndex: { type: integer, minimum: 1, maximum: 24 }
     LiveSeat:
       type: object
-      required: [index, state, user, mutedByHost]
+      required: [index, state, user, mutedByHost, points]
       properties:
         index: { type: integer, minimum: 1, maximum: 24, description: "1 … seatCount-1; the host is tile 0 and not listed." }
+        points:
+          type: integer
+          minimum: 0
+          description: |
+            v1.27.2-live (D135, CONVENTIONS §10.9): TAKEN only — the points the seated person received
+            from gifts in this live (every send that named them, whoever sent it, while seated or not):
+            100 for every counted coin of their share, exactly as the live score counts gifts (a LUCKY
+            gift counts its host share). 0 for EMPTY and LOCKED seats. A gift to someone seated raises
+            `LiveSeats.version`, so every app re-reads the seats. Clients that do not know the field
+            ignore it.
         state: { type: string, enum: [EMPTY, LOCKED, TAKEN] }
         user:
           description: TAKEN only.

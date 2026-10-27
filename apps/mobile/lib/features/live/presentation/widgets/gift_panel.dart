@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -268,10 +269,10 @@ class _GiftCell extends StatelessWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(
-                                Icons.monetization_on,
+                              // D135: the owner's gold coin.
+                              const KabsoArtIcon(
+                                KabsoArt.coin,
                                 size: KMetrics.iconXs,
-                                color: KBrandColors.gold,
                               ),
                               const SizedBox(width: KSpacing.xxs),
                               Text(

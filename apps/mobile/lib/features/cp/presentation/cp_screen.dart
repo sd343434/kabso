@@ -393,7 +393,7 @@ class _CoupleState extends ConsumerState<_Couple> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Image.asset(
-                            'assets/art/kabso_coin.webp',
+                            'assets/currency/kabso_coin.png',
                             width: 18,
                             height: 18,
                             excludeFromSemantics: true,

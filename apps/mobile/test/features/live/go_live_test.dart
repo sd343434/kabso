@@ -23,6 +23,8 @@ import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/create/create_mode_bar.dart';
+import 'package:kabso_live/features/levels/data/levels_repository.dart';
+import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -37,6 +39,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_part
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
@@ -47,6 +50,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.da
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -95,6 +99,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   FakeLiveMediaEngine? engine,
   FakeLiveRepository? repo,
   GoldenViewport viewport = GoldenViewport.phone,
+  LevelsRepository? levels,
 }) async {
   final live =
       repo ??
@@ -126,6 +131,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
       profileRepositoryProvider.overrideWithValue(
         FakeProfileRepository(apiProfile()),
       ),
+      if (levels != null) levelsRepositoryProvider.overrideWithValue(levels),
     ],
   );
   await tester.pumpAndSettle();
@@ -176,6 +182,40 @@ Future<void> _openTools(WidgetTester tester) async {
 
 AppLocalizations _l10n(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(GoLiveScreen)));
+
+/// D135: the host's own levels (`GET /levels/me`): charm 12, 3 510 of the
+/// 5 000 points level 13 needs.
+class _Levels implements LevelsRepository {
+  @override
+  Future<List<LevelSummary>> getMyLevels() async => [
+    LevelSummary(
+      category: LevelCategory.attractiveness,
+      available: true,
+      name: 'Charm',
+      description: '',
+      points: BigInt.from(3510),
+      level: LevelBrief(
+        levelNumber: 12,
+        name: '12',
+        requiredPoints: BigInt.from(3000),
+      ),
+      nextLevel: LevelBrief(
+        levelNumber: 13,
+        name: '13',
+        requiredPoints: BigInt.from(5000),
+      ),
+      pointsToNext: BigInt.from(1490),
+      progressPercent: 70.2,
+    ),
+  ];
+
+  @override
+  Future<LevelDetail> getMyLevel(LevelCategory category) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<PublicLevel>> getUserLevels(String username) async => const [];
+}
 
 void main() {
   group('gates', () {
@@ -360,7 +400,7 @@ void main() {
       expect(repo.tokenRequests, [(roomId: 'room-host', guestId: null)]);
       expect(camera.published?.token, 'token-room-host');
       expect(find.byKey(GoLiveScreen.elapsedKey), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
+      expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.startKey), findsNothing);
       expect(find.byType(GoLiveModePager), findsNothing);
       // D131: the viewer's frame — the host pill, not the title.
@@ -479,7 +519,7 @@ void main() {
       repo.heartbeatFailure = null;
       await tester.pump(const Duration(seconds: 15));
       expect(repo.heartbeats, hasLength(2));
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
+      expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
       await _leave(tester);
     });
 
@@ -520,7 +560,7 @@ void main() {
       await _goLive(tester);
       expect(repo.endRequests, ['room-host']);
       expect(find.byKey(GoLiveScreen.startKey), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
+      expect(find.byKey(KHostBar.toolsKey), findsNothing);
       await tester.pump(const Duration(seconds: 30));
       expect(repo.heartbeats, isEmpty);
       await _leave(tester);
@@ -877,8 +917,9 @@ void main() {
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       // 💬 opens the chat box in place of the buttons; the host's message
-      // goes to the room chat (CP-013) and shows in the room.
-      expect(find.textContaining(l10n.liveChatEmpty), findsOneWidget);
+      // goes to the room chat (CP-013) and shows in the room. (D135: the
+      // rules line is the first line of the visit.)
+      expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
       await tester.tap(find.byKey(GoLiveScreen.audioChatKey));
       await tester.pumpAndSettle();
       expect(find.byKey(LiveChatComposer.fieldKey), findsOneWidget);
@@ -1211,7 +1252,10 @@ void main() {
       tester,
     ) async {
       final (repo, camera, _) = await pumpApp(tester);
-      await tester.tap(find.byKey(GoLiveScreen.minimizeKey));
+      // D135: minimize is in ≡ (Room Tools).
+      await tester.tap(find.byKey(KHostBar.toolsKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(GoLiveKeys.tool('minimize')));
       await tester.pumpAndSettle();
       expect(find.text('home'), findsOneWidget);
       expect(find.byType(GoLiveScreen), findsNothing);
@@ -1226,7 +1270,7 @@ void main() {
       await tester.tap(find.byKey(LiveMiniWindow.windowKey));
       await tester.pumpAndSettle();
       expect(find.byType(GoLiveScreen), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsOneWidget);
+      expect(find.byKey(KHostBar.toolsKey), findsOneWidget);
       expect(find.byKey(LiveMiniWindow.windowKey), findsNothing);
       expect(camera.previewStarts, 1);
       expect(repo.startRequests, hasLength(1));
@@ -1255,7 +1299,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.endRequests, ['room-host']);
       expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
-      expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
+      expect(find.byKey(KHostBar.toolsKey), findsNothing);
       expect(find.byKey(LiveMiniWindow.windowKey), findsNothing);
       await _leave(tester);
     });
@@ -1652,6 +1696,107 @@ void main() {
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
       await _leave(tester);
     });
+
+    for (final language in AppLanguage.values) {
+      for (final (top, bottom) in [(59.0, 34.0), (24.0, 48.0)]) {
+        testWidgets('D135 (${language.name}, insets $top/$bottom): nothing '
+            'under the status bar; the second row is board + charm level '
+            'with points/target at the start, the timer at the end, the room '
+            'ID beside the name; '
+            'host quick replies send', (tester) async {
+          final pad = FakeViewPadding(top: top * 3, bottom: bottom * 3);
+          tester.view
+            ..padding = pad
+            ..viewPadding = pad;
+          final repo = FakeLiveRepository(categories: _categories)
+            ..startRoomLevel = 12
+            ..startRoomNumber = 120345678;
+          await _pump(
+            tester,
+            language: language,
+            repo: repo,
+            levels: _Levels(),
+          );
+          await _goLive(tester);
+          final l10n = _l10n(tester);
+          final ar = language == AppLanguage.ar;
+          // Nothing drawn above the inset: the 48 pt targets of the host
+          // pill, ✕ and minimize start at most 8 pt above it, their drawn
+          // pill and glyphs below it.
+          for (final f in [
+            find.byType(KHostPill),
+            find.byKey(GoLiveScreen.closeKey),
+          ]) {
+            expect(tester.getRect(f).top + 8, greaterThanOrEqualTo(top));
+          }
+          // The bar above the bottom inset.
+          expect(
+            tester.getRect(find.byKey(KHostBar.giftKey)).bottom,
+            lessThanOrEqualTo(852 - bottom + 0.5),
+          );
+          // The level chip: the charm badge and 3,510/5,000, right after
+          // the board chip; no other charm level chip on the screen.
+          final chip = find.byKey(KRoomChipsRow.levelKey);
+          expect(chip, findsOneWidget);
+          expect(
+            find.descendant(of: chip, matching: find.byType(CharmLevelBadge)),
+            findsOneWidget,
+          );
+          expect(find.byType(CharmLevelBadge), findsOneWidget);
+          expect(
+            find.descendant(of: chip, matching: find.textContaining('/')),
+            findsOneWidget,
+          );
+          final rank = tester.getRect(find.byType(LiveRankChip));
+          final level = tester.getRect(chip);
+          final timer = tester.getRect(find.byKey(GoLiveScreen.elapsedKey));
+          if (ar) {
+            expect(rank.left, greaterThan(level.right - 0.5));
+            expect(level.left, greaterThan(timer.right));
+          } else {
+            expect(level.left, greaterThan(rank.right - 0.5));
+            expect(timer.left, greaterThan(level.right));
+          }
+          // The room ID beside the name, in the host pill (D135); a tap
+          // copies it.
+          expect(
+            find.descendant(
+              of: find.byType(KHostPill),
+              matching: find.byKey(KHostPill.roomIdKey),
+            ),
+            findsOneWidget,
+          );
+          expect(find.byKey(KRoomChipsRow.numberKey), findsNothing);
+          // No minimize at the top (D135: it is in ≡).
+          expect(find.byKey(GoLiveScreen.minimizeKey), findsNothing);
+          // The owner's colourful PK and gift art, 33 pt, 48 pt targets.
+          for (final (key, art) in [
+            (KHostBar.pkKey, 'assets/live_bar/bar_pk.png'),
+            (KHostBar.giftKey, 'assets/live_bar/bar_gift.png'),
+          ]) {
+            final image = tester.widget<Image>(
+              find.descendant(
+                of: find.byKey(key),
+                matching: find.byType(Image),
+              ),
+            );
+            expect((image.image as AssetImage).assetName, art);
+            expect(image.width, KViewerBarButton.artSize);
+            expect(
+              tester.getSize(find.byKey(key)).width,
+              greaterThanOrEqualTo(48),
+            );
+          }
+          // Host quick replies: one tap sends it as a chat message.
+          final replies = find.byKey(GoLiveScreen.hostQuickRepliesKey);
+          expect(replies, findsOneWidget);
+          await tester.tap(find.byKey(KQuickReplies.chipKey(0)));
+          await tester.pumpAndSettle();
+          expect(repo.chatCalls, contains('send:${l10n.liveQuickHostWelcome}'));
+          await _leave(tester);
+        });
+      }
+    }
 
     testWidgets('≡ keeps every tool: flip and mic work; the missing ones say '
         'Soon', (tester) async {

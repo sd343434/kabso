@@ -386,6 +386,34 @@ class AudioSeatRing extends StatelessWidget {
     );
   }
 
+  /// D135 (owner: "the support the others received does not show under
+  /// their mic"): under a taken seat, the points its person received in
+  /// this live ([LiveSeat.points], the cherry, as under the host) in the
+  /// space the host's points take; an empty or locked seat keeps that space
+  /// empty so every row has the same height.
+  Widget _guestExtra(BuildContext context, int i) {
+    final seat = seats.where((s) => s.index == i).firstOrNull;
+    if (seat == null ||
+        seat.state != LiveSeatState.taken ||
+        seat.user == null ||
+        hostPoints == null) {
+      return _hostExtra();
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 4),
+        _PointsPill(
+          KFormat.compact(seat.points, context.l10n),
+          key: seatPointsKey(i),
+        ),
+      ],
+    );
+  }
+
+  /// D135: the points under seat [index] (1 … count-1).
+  static Key seatPointsKey(int index) => Key('audioSeat.$index.points');
+
   /// Owner D100, D118: every size in rows of [rowSize] — the host is the
   /// first tile, then seats 1 … count-1, in reading order (start to end, so
   /// mirrored in Arabic). D123 (owner: avatar frames show on the seats and
@@ -409,7 +437,7 @@ class AudioSeatRing extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _guest(i, ghost: ghost),
-                      _hostExtra(),
+                      if (ghost) _hostExtra() else _guestExtra(context, i),
                     ],
                   ),
           ),
@@ -1024,9 +1052,10 @@ class _HostSeat extends StatelessWidget {
   }
 }
 
-/// The live's points under the host's name.
+/// The live's points under the host's name, and (D135) the points a
+/// seated person received under theirs.
 class _PointsPill extends StatelessWidget {
-  const new(this.points);
+  const new(this.points, {super.key});
 
   final String points;
 

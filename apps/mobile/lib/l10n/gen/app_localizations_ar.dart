@@ -3753,9 +3753,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorLiveChatClosed => 'أوقف المضيف الدردشة.';
 
   @override
-  String get liveChatEmpty => 'لا رسائل بعد. قل مرحباً.';
-
-  @override
   String get liveChatOff => 'الدردشة متوقفة';
 
   @override
@@ -6188,4 +6185,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveCategoriesAll => 'كل المواضيع';
+
+  @override
+  String get liveUserMention => 'منشن';
+
+  @override
+  String get liveQuickHostWelcome => 'أهلاً بكم في البث 👋';
+
+  @override
+  String get liveQuickHostThanks => 'شكراً على الدعم 🌹';
+
+  @override
+  String get liveQuickHostFollow => 'تابعوني ❤️';
+
+  @override
+  String get liveQuickHostShare => 'شاركوا البث 🔥';
+
+  @override
+  String get liveRoomIdCopied => 'تم نسخ معرّف الغرفة';
+
+  @override
+  String get liveRoomIdCopyHint => 'انقر للنسخ';
 }

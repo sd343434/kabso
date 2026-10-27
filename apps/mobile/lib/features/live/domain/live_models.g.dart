@@ -325,6 +325,7 @@ _LiveSeat _$LiveSeatFromJson(Map<String, dynamic> json) => _LiveSeat(
       ? null
       : UserSummary.fromJson(json['user'] as Map<String, dynamic>),
   mutedByHost: json['mutedByHost'] as bool? ?? false,
+  points: (json['points'] as num?)?.toInt() ?? 0,
 );
 
 Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
@@ -332,6 +333,7 @@ Map<String, dynamic> _$LiveSeatToJson(_LiveSeat instance) => <String, dynamic>{
   'state': _$LiveSeatStateEnumMap[instance.state]!,
   'user': instance.user,
   'mutedByHost': instance.mutedByHost,
+  'points': instance.points,
 };
 
 const _$LiveSeatStateEnumMap = {

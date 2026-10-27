@@ -32,7 +32,9 @@ abstract final class KAudioRoom {
   /// round top buttons 35 %, the chips 45 %.
   static const bar = Color(0x54000000);
   static const topButton = Color(0x55000000);
-  static const chip = Color(0x73000000);
+
+  /// D135: the lighter live glass (was 45 % black).
+  static const Color chip = KLiveColors.glass;
 
   /// Chat bubbles.
   static const bubble = Color(0xB3222260);
@@ -911,6 +913,7 @@ class LiveChip extends StatelessWidget {
                 height: 1,
                 color: KAudioRoom.text,
                 fontWeight: FontWeight.w600,
+                shadows: KLiveColors.glassShadow,
               ),
               child: child,
             ),
@@ -1209,7 +1212,12 @@ class LiveViewersStack extends StatelessWidget {
     this.avatarSize = size,
     this.pitch = size - 7,
     this.countHeight = size,
+    this.countMinWidth,
   });
+
+  /// D135 (ref 158 §4.2): the count pill's width at least (31 pt on the
+  /// video live); else as wide as tall.
+  final double? countMinWidth;
 
   final List<Widget> avatars;
   final String count;
@@ -1267,9 +1275,13 @@ class LiveViewersStack extends StatelessWidget {
             const SizedBox(width: 4),
             // Ref 147: the count is a chip like the room rank's.
             Container(
-              constraints: BoxConstraints(minWidth: countHeight),
+              constraints: BoxConstraints(
+                minWidth: countMinWidth ?? countHeight,
+              ),
               height: countHeight,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: countMinWidth == null ? 8 : 6,
+              ),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: KAudioRoom.chip,
@@ -1282,6 +1294,7 @@ class LiveViewersStack extends StatelessWidget {
                   height: 1,
                   color: KAudioRoom.text,
                   fontWeight: FontWeight.w700,
+                  shadows: KLiveColors.glassShadow,
                 ),
               ),
             ),

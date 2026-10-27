@@ -324,18 +324,35 @@ describe('CP-014 editing a live and the Contribution list', () => {
       expect(await infoVersion(roomId)).toBe(0);
     });
 
-    it('the ended room keeps its last title and topic; seat and theme changes keep the info version', async () => {
+    it('the ended room keeps its last title and topic; a theme change moves the info version, a seat change does not', async () => {
       const owner = await host();
       const roomId = await goLive(owner, { mode: 'AUDIO', seatCount: 5 });
       await patch(roomId, owner, { topic: 'Before end', theme: 'ice-palace' });
-      // A theme change alone does not move the seat version (CP-011).
-      expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 0, roomInfoVersion: 1 });
+      // D135: the theme moves the info version (everyone re-reads the room), not the seat version.
+      expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 0, roomInfoVersion: 2 });
+      expect((await room(roomId)).body.theme).toBe('ice-palace');
       const seats = await patch(roomId, owner, { seatCount: 10 });
       expect(seats.status).toBe(200);
-      expect(meta(roomId)).toEqual({ seatsVersion: 1, score: 0, roomInfoVersion: 1 });
+      expect(meta(roomId)).toEqual({ seatsVersion: 1, score: 0, roomInfoVersion: 2 });
       const ended = await end(roomId, owner);
       expect(ended.body).toMatchObject({ status: 'ENDED', topic: 'Before end' });
       expect((await room(roomId)).body.topic).toBe('Before end');
+    });
+
+    it('D135: a theme change alone reaches the room (info version + metadata); the same theme again changes nothing', async () => {
+      const owner = await host();
+      const roomId = await goLive(owner, { mode: 'AUDIO', seatCount: 5 });
+      expect((await patch(roomId, owner, { theme: 'rose-garden' })).status).toBe(200);
+      expect(await infoVersion(roomId)).toBe(1);
+      expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 0, roomInfoVersion: 1 });
+      const before = writes(roomId).length;
+      expect((await patch(roomId, owner, { theme: 'rose-garden' })).status).toBe(200);
+      expect(await infoVersion(roomId)).toBe(1);
+      expect(writes(roomId).length).toBe(before);
+      expect((await patch(roomId, owner, { theme: 'galaxy' })).status).toBe(200);
+      expect(meta(roomId)).toEqual({ seatsVersion: 0, score: 0, roomInfoVersion: 2 });
+      expect((await room(roomId)).body.theme).toBe('galaxy');
+      await end(roomId, owner);
     });
 
     it('reconciliation repairs metadata that lost the info version', async () => {

@@ -370,6 +370,10 @@ abstract class LiveSeat with _$LiveSeat {
     required LiveSeatState state,
     required UserSummary? user,
     @Default(false) bool mutedByHost,
+
+    /// v1.27.2-live (D135): the gift points this seated person received in
+    /// this live (0 for empty and locked seats, and from older servers).
+    @Default(0) int points,
   }) = _LiveSeat;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveSeatFromJson(json);

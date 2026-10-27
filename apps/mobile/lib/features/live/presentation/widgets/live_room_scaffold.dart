@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -66,10 +67,13 @@ class KLiveRoomScaffold extends StatelessWidget {
 
   static const closeKey = Key('room.close');
 
-  /// The header row's top for a top inset of [inset] (D131, ref 158): 12 pt
-  /// above a notched phone's 59 pt inset, 4 pt above a plain status bar.
-  static double headerTop(double inset) =>
-      math.max(0, inset >= 44 ? inset - 12 : inset - 4);
+  /// The header row's top for a top inset of [inset]. D135 (owner: "leave
+  /// the phone's status bar free"): nothing is drawn under the status bar
+  /// or the notch — the 48 pt row starts 4 pt above the inset, so its
+  /// 31 pt pill (8.5 pt into the row) starts 4.5 pt below it; only the
+  /// invisible edge of the touch target reaches higher. (D131 had the pill
+  /// 4 pt under the inset of a notched phone, as on ref 158.)
+  static double headerTop(double inset) => math.max(0, inset - 4);
 
   @override
   Widget build(BuildContext context) {
@@ -93,9 +97,9 @@ class KLiveRoomScaffold extends StatelessWidget {
             SafeArea(
               top: false,
               child: Padding(
-                // D131 (ref 158): the header row's centre 12 pt under the
-                // top inset of a notched phone (the pill's top at 55 pt on
-                // a 59 pt inset), the bar on the bottom safe edge.
+                // D135: the header row below the status bar ([headerTop]),
+                // the bar on the bottom safe edge (above the home
+                // indicator or the navigation bar).
                 padding: EdgeInsetsDirectional.only(
                   start: KSpacing.sm,
                   top: headerTop(MediaQuery.paddingOf(context).top),
@@ -179,6 +183,57 @@ class KLiveRoomScaffold extends StatelessWidget {
             ?cover,
             ?overlay,
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D135: the room ID beside the host's name; a tap copies the number.
+class _RoomIdTag extends StatelessWidget {
+  const new({required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = l10n.liveRoomNumber(KFormat.bidiIsolate(id));
+    return Semantics(
+      button: true,
+      label: '$label. ${l10n.liveRoomIdCopyHint}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: KHostPill.roomIdKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          unawaited(Clipboard.setData(ClipboardData(text: id)));
+          KSnack.info(context, l10n.liveRoomIdCopied);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                style: context.textStyles.caption.copyWith(
+                  fontSize: 8.5,
+                  height: 1.2,
+                  color: const Color(0xCCFFFFFF),
+                  fontWeight: FontWeight.w600,
+                  shadows: KLiveColors.glassShadow,
+                ),
+              ),
+              const SizedBox(width: 2),
+              const Icon(
+                Icons.copy_rounded,
+                size: 8.5,
+                color: Color(0xCCFFFFFF),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -291,7 +346,14 @@ class KHostPill extends StatefulWidget {
     this.following = false,
     this.onFollow,
     this.onTap,
+    this.roomId,
   });
+
+  /// D135 (owner: "the room ID next to the name, and copyable"): the
+  /// room's ID ("ID: 120345678") beside the name; a tap copies it.
+  final String? roomId;
+
+  static const roomIdKey = Key('hostPill.roomId');
 
   final String hostName;
   final ImageProvider? avatar;
@@ -454,16 +516,28 @@ class _KHostPillState extends State<KHostPill> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.hostName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.label.copyWith(
-                        color: p.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.hostName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.label.copyWith(
+                              color: p.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                              shadows: KLiveColors.glassShadow,
+                            ),
+                          ),
+                        ),
+                        if (widget.roomId case final id?) ...[
+                          const SizedBox(width: 4),
+                          _RoomIdTag(id: id),
+                        ],
+                      ],
                     ),
                     if (second != null)
                       KeyedSubtree(key: KHostPill.lineKey, child: second),
@@ -485,7 +559,8 @@ class _KHostPillState extends State<KHostPill> {
 
     final onTap = widget.onTap;
     final pill = Material(
-      color: KLiveColors.chatScrim,
+      // D135: the lighter glass.
+      color: KLiveColors.glass,
       shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: onTap == null ? body : InkWell(onTap: onTap, child: body),

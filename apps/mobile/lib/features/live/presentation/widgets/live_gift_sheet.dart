@@ -94,6 +94,9 @@ class KLiveGiftSheet extends ConsumerStatefulWidget {
   /// The short message over the grid (D128): why Send did nothing, or why
   /// a send was refused. It goes by itself after [toastTime].
   static const toastKey = Key('gift.toast');
+
+  /// D135: a gift cell's picture.
+  static Key giftImageKey(String code) => Key('gift.image.$code');
   static const toastTime = Duration(seconds: 3);
   static Key tabKey(String id) => Key('gift.tab.$id');
   static Key cellKey(String code, {bool bag = false}) =>
@@ -136,7 +139,10 @@ abstract final class _Sheet {
   /// Unselected tabs, carets and chip labels (`#858487`).
   static const muted = Color(0xFF858487);
   static const name = Color(0xFFAFAEB1);
-  static const price = Color(0xFF878988);
+
+  /// D135: the price in the bigger cells, a lighter gold-grey that reads
+  /// at 10 sp on the panel (≥ 4.5:1 on `#2A282B`).
+  static const priceText = Color(0xFFD8C79A);
   static const bagIcon = Color(0xFFBEBCC1);
   static const label = Color(0xFF47474C);
   static const chipOn = Color(0xFF3F4346);
@@ -169,9 +175,15 @@ abstract final class _Sheet {
   static const double height = 369.8 / 852;
   static const double radius = 18;
 
-  /// 4 columns 95.7 pt apart on 393 pt; cells 91.5 pt tall (E ±1).
+  /// 4 columns 95.7 pt apart on 393 pt; cells 91.5 pt tall (E ±1) in the
+  /// reference. D135 (owner: "the gifts are small, make them bigger"):
+  /// pictures 70 pt (was 54, +30 %), 10 sp names and prices, so cells
+  /// 112 pt tall; the panel grows by the two rows' difference so two rows
+  /// still show.
   static const double edge = 5.1;
-  static const double cellHeight = 91.5;
+  static const double refCellHeight = 91.5;
+  static const double cellHeight = 112;
+  static const double giftImage = 70;
 
   /// The bottom row: the quantity pill and Send 29.4 pt tall, Send
   /// 63.9 pt wide 11.5 pt from the end; 4.5 pt above the home inset.
@@ -451,7 +463,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    var height = media.size.height * _Sheet.height;
+    var height =
+        media.size.height * _Sheet.height +
+        2 * (_Sheet.cellHeight - _Sheet.refCellHeight);
     // Several people can receive: their row comes first (ref 161 is a
     // solo live and has none).
     if (_candidates().length > 1) height += _Person.size + 9;
@@ -924,9 +938,10 @@ class _Cell {
   final int? bagQuantity;
 }
 
-/// The recipients row (29 high): the host (a "Host" label) and the people
-/// on the mic, each a picture, full when selected and dimmed when not; when
-/// there is more than one, a divider and the "All" toggle at the end.
+/// The recipients row (48 high, D135; it scrolls when many): the host (a
+/// "Host" label) and the people on the mic, each a picture, full with a
+/// cyan ring when selected and dimmed when not; when there is more than
+/// one, a divider and the "All" toggle at the end.
 class _Recipients extends StatelessWidget {
   const new({
     required this.candidates,
@@ -960,7 +975,7 @@ class _Recipients extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsetsDirectional.only(start: 12.6),
               itemCount: candidates.length,
-              separatorBuilder: (_, _) => const SizedBox(width: KSpacing.sm),
+              separatorBuilder: (_, _) => const SizedBox(width: KSpacing.xs),
               itemBuilder: (context, i) {
                 final u = candidates[i];
                 return _Person(
@@ -1041,8 +1056,14 @@ class _Person extends StatelessWidget {
     super.key,
   });
 
-  /// The picture: 29 (reference 28.9), the label its lowest 11.
-  static const double size = 29;
+  /// D135 (owner: "with several people the pictures are too small to pick
+  /// from"): a 48 pt square target (the row's height) around a 40 pt
+  /// picture (D117's 29 pt was the reference's size).
+  static const double size = 48;
+  static const double avatar = 40;
+
+  /// The selected ring (Send's cyan) and its check.
+  static const ring = Color(0xFF26E4DA);
 
   final UserSummary user;
   final bool isHost;
@@ -1053,6 +1074,7 @@ class _Person extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final text = context.textStyles;
+    final motion = KMotion.of(context, KMotion.fast);
     return Semantics(
       button: true,
       selected: selected,
@@ -1063,47 +1085,86 @@ class _Person extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedOpacity(
-          duration: KMotion.of(context, KMotion.fast),
-          opacity: selected ? 1 : 0.45,
-          child: SizedBox.square(
-            dimension: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                KAvatar(
-                  name: user.displayName,
-                  imageUrl: user.avatarUrl,
-                  size: size,
-                ),
-                PositionedDirectional(
-                  start: 0,
-                  end: 0,
-                  bottom: 0,
-                  child: Container(
-                    height: 11.2,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                    decoration: BoxDecoration(
-                      color: _Sheet.label,
-                      borderRadius: BorderRadius.circular(KRadius.pill),
+        child: SizedBox.square(
+          dimension: size,
+          child: Center(
+            child: SizedBox.square(
+              dimension: avatar,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedOpacity(
+                    duration: motion,
+                    opacity: selected ? 1 : 0.5,
+                    child: KAvatar(
+                      name: user.displayName,
+                      imageUrl: user.avatarUrl,
+                      size: avatar,
                     ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        isHost ? l10n.liveGiftHost : user.displayName,
-                        maxLines: 1,
-                        style: text.caption.copyWith(
-                          color: _Sheet.white,
-                          fontSize: 9.6,
-                          height: 1.1,
-                          fontWeight: FontWeight.w700,
+                  ),
+                  // Selected: a cyan ring around the picture.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedContainer(
+                        duration: motion,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected ? ring : const Color(0x00000000),
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  if (selected)
+                    const PositionedDirectional(
+                      top: -2,
+                      end: -2,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: ring,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(1.5),
+                          child: Icon(
+                            Icons.check_rounded,
+                            size: 10,
+                            color: Color(0xFF0B2B2A),
+                          ),
+                        ),
+                      ),
+                    ),
+                  PositionedDirectional(
+                    start: 0,
+                    end: 0,
+                    bottom: -3,
+                    child: Container(
+                      height: 13,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: _Sheet.label,
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          isHost ? l10n.liveGiftHost : user.displayName,
+                          maxLines: 1,
+                          style: text.caption.copyWith(
+                            color: _Sheet.white,
+                            fontSize: 9.6,
+                            height: 1.1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1561,9 +1622,10 @@ class _GiftTile extends StatelessWidget {
                   child: Column(
                     children: [
                       KGiftImage(
+                        key: KLiveGiftSheet.giftImageKey(gift.code),
                         gift.assetKey,
                         imageUrl: gift.imageUrl,
-                        size: 54,
+                        size: _Sheet.giftImage,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1573,9 +1635,9 @@ class _GiftTile extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: text.caption.copyWith(
                           color: selected ? _Sheet.white : _Sheet.name,
-                          fontSize: 8.5,
+                          fontSize: 10,
                           height: 1.25,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1586,15 +1648,15 @@ class _GiftTile extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const KabsoArtIcon(KabsoArt.coin, size: 9),
-                              const SizedBox(width: 2.5),
+                              const KabsoArtIcon(KabsoArt.coin, size: 12),
+                              const SizedBox(width: 3),
                               Text(
                                 price,
                                 style: text.caption.copyWith(
-                                  color: _Sheet.price,
-                                  fontSize: 9,
+                                  color: _Sheet.priceText,
+                                  fontSize: 10,
                                   height: 1.21,
-                                  fontWeight: FontWeight.w400,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],

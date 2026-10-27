@@ -48,6 +48,12 @@ class CharmLevelBadge extends StatelessWidget {
   final int level;
   final double height;
 
+  /// D135 (owner: "the charm badge in the chat is bigger than the room
+  /// level's"): the one size of the badge in a line of text — the chat
+  /// rows and the room's level chip — so its creature (1.55 ×, 15.5 pt)
+  /// matches the other badges of the row (14–16 pt).
+  static const double lineHeight = 10;
+
   static const badgeKey = Key('live.roomLevel');
 
   @override

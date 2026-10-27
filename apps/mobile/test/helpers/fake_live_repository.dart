@@ -168,6 +168,9 @@ class FakeLiveRepository implements LiveRepository {
   /// CP-016 D: the room level `startRoom` answers with.
   int? startRoomLevel;
 
+  /// CP-016 G: the room number `startRoom` answers with.
+  int? startRoomNumber;
+
   /// Answers `viewers`.
   List<LiveViewer> viewerList = [];
 
@@ -212,6 +215,7 @@ class FakeLiveRepository implements LiveRepository {
       seatCount: seatCount,
       theme: theme ?? LiveThemes.classic,
       roomLevel: startRoomLevel,
+      roomNumber: startRoomNumber,
     );
     if (mode.hasSeats) {
       seatState = LiveSeats(

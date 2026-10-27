@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
@@ -130,8 +131,6 @@ Finder _hostPill(AppLocalizations l, String host) => find.bySemanticsLabel(
 );
 
 /// A chat line (rich text with an icon).
-Finder _chat(String text) => find.textContaining(text, findRichText: true);
-
 /// Every visible text (Text and rich text) in the tree.
 List<String> _texts(WidgetTester tester) => [
   for (final element in find.byType(RichText).evaluate())
@@ -318,9 +317,12 @@ void main() {
       expect(find.text('Sara'), findsOneWidget);
       expect(find.byKey(LiveRoomScreen.scoreKey), findsOneWidget);
       expect(find.byType(KRoomChipsRow), findsOneWidget);
-      // Chat (CP-013): the room's chat, empty so far; the old comment
+      // Chat (CP-013): the room's chat, empty so far — D135: only the
+      // pinned rules line, no "no messages yet" line; the old comment
       // field is gone.
-      expect(_chat(l10n.liveChatEmpty), findsOneWidget);
+      expect(find.byKey(LiveRoomChatLines.noticeKey), findsOneWidget);
+      expect(find.textContaining('No messages yet'), findsNothing);
+      expect(find.textContaining('لا رسائل بعد'), findsNothing);
       expect(find.text(l10n.liveCommentHint), findsNothing);
       expect(_label(l10n.liveCommentHint), findsNothing);
       // Gifts only; no share (no room link domain yet).
@@ -345,7 +347,7 @@ void main() {
         expect(find.byKey(const Key('room.ended')), findsOneWidget);
         expect(find.text(l10n.liveRoomEndedTitle), findsOneWidget);
         expect(find.text(text), findsOneWidget);
-        expect(_chat(l10n.liveChatEmpty), findsNothing);
+        expect(find.byKey(LiveRoomChatLines.noticeKey), findsNothing);
         expect(find.byType(KRoomActionBar), findsNothing);
         expect(find.byKey(_hostAway), findsNothing);
         expect(find.byKey(const Key('room.back')), findsOneWidget);
@@ -507,18 +509,22 @@ void main() {
     });
 
     testWidgets('no Follow for yourself or a private account', (tester) async {
-      await _pumpRoom(tester, profile: apiProfile(isSelf: true));
+      await _pumpRoom(
+        tester,
+        profile: apiProfile(isSelf: true),
+        user: testUser(),
+      );
       expect(_label(l10n.liveFollow), findsNothing);
       await _pumpRoom(tester, profile: apiProfile(isPrivate: true));
       expect(_label(l10n.liveFollow), findsNothing);
     });
 
-    testWidgets('the host pill opens the profile sheet: unfollow from there', (
-      tester,
-    ) async {
-      final (_, profiles) = await _pumpRoom(
+    testWidgets("D135: the card's bottom row — Gift, Mention, Message for "
+        'someone I follow', (tester) async {
+      await _pumpRoom(
         tester,
         profile: apiProfile(isFollowing: true),
+        user: testUser(),
       );
       // Already following: no chip in the pill.
       expect(_label(l10n.liveFollow), findsNothing);
@@ -529,28 +535,72 @@ void main() {
       expect(find.text('@host0'), findsOneWidget);
       expect(find.text('Arabic music every evening'), findsOneWidget);
       _expectNoDimming(tester);
-
-      // The card shows following and followers counts too, so the button
-      // is found by its key.
-      final follow = find.byKey(const Key('room.follow'));
+      final gift = find.byKey(const Key('room.userCard.gift'));
+      final mention = find.byKey(const Key('room.userCard.mention'));
+      final message = find.byKey(const Key('room.userCard.message'));
+      expect(gift, findsOneWidget);
+      expect(mention, findsOneWidget);
+      expect(message, findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.follow')), findsNothing);
+      // In reading order: Gift, Mention, Message.
+      final ar = Directionality.of(tester.element(sheet)) == TextDirection.rtl;
+      final xs = [
+        for (final f in [gift, mention, message]) tester.getCenter(f).dx,
+      ];
       expect(
-        find.descendant(of: follow, matching: find.text(l10n.liveFollowing)),
-        findsOneWidget,
+        ar ? xs[0] > xs[1] && xs[1] > xs[2] : xs[0] < xs[1] && xs[1] < xs[2],
+        isTrue,
       );
+      for (final f in [gift, mention, message]) {
+        final size = tester.getSize(f);
+        expect(size.height, greaterThanOrEqualTo(48));
+        expect(size.width, greaterThanOrEqualTo(48));
+      }
+    });
+
+    testWidgets("D135: not followed — Follow in Message's place; it follows "
+        'and turns into Message; Mention puts @username in the chat box', (
+      tester,
+    ) async {
+      final (_, profiles) = await _pumpRoom(
+        tester,
+        profile: apiProfile(),
+        user: testUser(),
+      );
+      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.pumpAndSettle();
+      final follow = find.byKey(const Key('room.userCard.follow'));
+      expect(follow, findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.message')), findsNothing);
       await tester.ensureVisible(follow);
       await tester.pumpAndSettle();
       await tester.tap(follow);
       await tester.pumpAndSettle();
-      expect(profiles.calls.last, 'DELETE host0');
-      expect(
-        find.descendant(of: follow, matching: find.text(l10n.liveFollow)),
-        findsOneWidget,
-      );
-      // The pill offers Follow again (the card is tall: tap above it).
-      await tester.tapAt(const Offset(200, 20));
+      expect(profiles.calls.last, 'PUT host0');
+      expect(follow, findsNothing);
+      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
+      // Mention closes the card and opens the chat box with "@host0 ".
+      final mention = find.byKey(const Key('room.userCard.mention'));
+      await tester.ensureVisible(mention);
       await tester.pumpAndSettle();
-      expect(sheet, findsNothing);
-      expect(_label(l10n.liveFollow), findsOneWidget);
+      await tester.tap(mention);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room.hostSheet')), findsNothing);
+      final field = tester.widget<TextField>(
+        find.byKey(LiveChatComposer.fieldKey),
+      );
+      expect(field.controller!.text, '@host0 ');
+    });
+
+    testWidgets('D135: my own card has no Gift, Mention, Message or Follow', (
+      tester,
+    ) async {
+      await _pumpRoom(tester, profile: apiProfile(isSelf: true));
+      await tester.tap(_hostPill(l10n, 'Sara'));
+      await tester.pumpAndSettle();
+      for (final k in ['gift', 'mention', 'message', 'follow']) {
+        expect(find.byKey(Key('room.userCard.$k')), findsNothing, reason: k);
+      }
     });
   });
 
@@ -860,7 +910,8 @@ void main() {
     testWidgets('a real viewer count from the API is shown as is', (
       tester,
     ) async {
-      // No one in the viewer list (yet): the room's count, no faces, no list.
+      // No one in the viewer list (yet): the room's count, no faces; D135:
+      // the list opens all the same.
       await _pumpRoom(tester, room: (id) => apiRoom(id: id, viewerCount: 3));
       final stack = find.byKey(LiveRoomScreen.viewersKey);
       expect(stack, findsOneWidget);
@@ -872,7 +923,7 @@ void main() {
         find.descendant(of: stack, matching: find.byType(KAvatar)),
         findsNothing,
       );
-      expect(tester.widget<LiveViewersStack>(stack).onTap, isNull);
+      expect(tester.widget<LiveViewersStack>(stack).onTap, isNotNull);
     });
 
     testWidgets('no decorative controls: every room button acts', (
@@ -964,7 +1015,9 @@ void main() {
         final pill = tester.getCenter(find.byType(KHostPill)).dx;
         final close = tester.getCenter(_label(l.liveClose)).dx;
         final gift = tester.getCenter(_label(l.liveGifts)).dx;
-        final chat = tester.getCenter(_chat(l.liveChatEmpty)).dx;
+        final chat = tester
+            .getCenter(find.byKey(LiveRoomChatLines.noticeKey))
+            .dx;
         // D131: the board chip starts the second row.
         final info = tester.getCenter(find.byType(LiveRankChip)).dx;
         const mid = 393 / 2;
@@ -1273,6 +1326,102 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets("D135: the host changes the theme — every viewer's room "
+        'follows when roomInfoVersion moves', (tester) async {
+      var theme = 'classic';
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo = FakeLiveRepository(
+        room: (id) => apiRoom(id: id)
+            .copyWith(mode: LiveRoomMode.audio, seatCount: 10, theme: theme),
+      )..seatState = seats(mode: LiveRoomMode.audio, count: 10);
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      Finder background(String slug) => find.byWidgetPredicate(
+        (w) => w is LiveThemeBackground && w.theme == slug,
+      );
+      expect(find.byType(LiveAudioRoomBackground), findsOneWidget);
+      expect(background('galaxy'), findsNothing);
+      // The host picks Galaxy: the server moves roomInfoVersion.
+      theme = 'galaxy';
+      engine
+        ..infoVersion = 1
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(background('galaxy'), findsOneWidget);
+      expect(find.byType(LiveAudioRoomBackground), findsNothing);
+      // And back.
+      theme = 'classic';
+      engine
+        ..infoVersion = 2
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(find.byType(LiveAudioRoomBackground), findsOneWidget);
+    });
+
+    testWidgets('D135: the points each seated person received show under '
+        'their seat (the cherry) and follow the seats', (tester) async {
+      LiveSeat taken(int i, String name, int points) => LiveSeat(
+        index: i,
+        state: LiveSeatState.taken,
+        user: UserSummary(
+          id: 'u-$name',
+          username: name,
+          displayName: name,
+          avatarUrl: null,
+        ),
+        points: points,
+      );
+      final engine = FakeLiveMediaEngine()..present.add('user-0');
+      final repo =
+          FakeLiveRepository(
+              room: (id) =>
+                  apiRoom(id: id)
+                      .copyWith(mode: LiveRoomMode.audio, seatCount: 10),
+            )
+            ..seatState = seats(
+              mode: LiveRoomMode.audio,
+              count: 10,
+              list: [
+                taken(1, 'huda', 1500),
+                taken(2, 'omar', 0),
+                for (var i = 3; i < 10; i++)
+                  LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+              ],
+            );
+      await _pumpRoom(tester, repo: repo, engine: engine, user: testUser());
+      final l = lookupAppLocalizations(const Locale('en'));
+      Finder pill(int i) => find.byKey(AudioSeatRing.seatPointsKey(i));
+      String text(int i) => tester
+          .widgetList<Text>(
+            find.descendant(of: pill(i), matching: find.byType(Text)),
+          )
+          .single
+          .data!;
+      expect(text(1), KFormat.compact(1500, l));
+      expect(text(2), KFormat.compact(0, l));
+      // Empty seats keep the space, no points.
+      expect(pill(3), findsNothing);
+      // A gift to Omar: the seats move and everyone reads them again.
+      repo.seatState = repo.seatState!.copyWith(
+        version: 2,
+        seats: [
+          taken(1, 'huda', 1500),
+          taken(2, 'omar', 12000),
+          for (var i = 3; i < 10; i++)
+            LiveSeat(index: i, state: LiveSeatState.empty, user: null),
+        ],
+      );
+      engine
+        ..version = 2
+        ..ping();
+      await tester.pumpAndSettle();
+      expect(text(2), KFormat.compact(12000, l));
+      // The pill sits under the name, like the host's.
+      expect(
+        tester.getTopLeft(pill(1)).dy,
+        greaterThan(tester.getBottomLeft(find.text('huda')).dy - 1),
+      );
+    });
+
     testWidgets('audio room: a viewer taps someone on a seat and sees their '
         'card (owner, 2026-10-26)', (tester) async {
       final repo =
@@ -1316,8 +1465,11 @@ void main() {
       expect(find.byKey(LivePersonToolKeys.mute), findsNothing);
       expect(find.byKey(LivePersonToolKeys.admin), findsNothing);
       expect(find.byKey(const Key('room.userCard.invite')), findsNothing);
-      // Message instead of View profile; the picture opens the profile.
-      expect(find.byKey(const Key('room.userCard.message')), findsOneWidget);
+      // D135: not followed — Gift, Mention and Follow (Message once
+      // followed); the picture opens the profile.
+      expect(find.byKey(const Key('room.userCard.follow')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.mention')), findsOneWidget);
+      expect(find.byKey(const Key('room.userCard.message')), findsNothing);
       expect(find.byKey(const Key('room.userCard.profile')), findsOneWidget);
       // Family, relationship, gift wall and medals do not exist yet: each
       // says so.

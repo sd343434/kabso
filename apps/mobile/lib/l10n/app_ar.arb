@@ -4301,10 +4301,6 @@
   "@errorLiveChatClosed": {
     "description": "LIVE_CHAT_CLOSED (409, CP-013)."
   },
-  "liveChatEmpty": "لا رسائل بعد. قل مرحباً.",
-  "@liveChatEmpty": {
-    "description": "Room chat with no messages (CP-013)."
-  },
   "liveChatOff": "الدردشة متوقفة",
   "@liveChatOff": {
     "description": "Chat pill when the host turned the chat off (CP-013)."
@@ -7525,5 +7521,19 @@
   "goLiveToolsLess": "أقل",
   "@goLiveToolsLess": {"description": "Go-live setup: fold the second row of tools."},
   "goLiveCategoriesAll": "كل المواضيع",
-  "@goLiveCategoriesAll": {"description": "Go-live setup: open every live category."}
+  "@goLiveCategoriesAll": {"description": "Go-live setup: open every live category."},
+  "liveUserMention": "منشن",
+  "@liveUserMention": {"description": "D135: the person card's Mention action (puts @username into the live chat box)."},
+  "liveQuickHostWelcome": "أهلاً بكم في البث 👋",
+  "@liveQuickHostWelcome": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostThanks": "شكراً على الدعم 🌹",
+  "@liveQuickHostThanks": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostFollow": "تابعوني ❤️",
+  "@liveQuickHostFollow": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveQuickHostShare": "شاركوا البث 🔥",
+  "@liveQuickHostShare": {"description": "D135: a host quick reply on their own live (sent as a chat message)."},
+  "liveRoomIdCopied": "تم نسخ معرّف الغرفة",
+  "@liveRoomIdCopied": {"description": "D135: the room ID beside the host's name (copy)."},
+  "liveRoomIdCopyHint": "انقر للنسخ",
+  "@liveRoomIdCopyHint": {"description": "D135: the room ID beside the host's name (copy)."}
 }

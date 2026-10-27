@@ -219,6 +219,79 @@ void main() {
     expect(_cell('kabi_dance'), findsOneWidget);
   });
 
+  testWidgets('D135: bigger gifts (70 pt, 4 columns, two rows showing), the '
+      'gold coin on prices and the balance, 48 pt recipients that scroll', (
+    tester,
+  ) async {
+    final many = [
+      for (var i = 0; i < 8; i++)
+        UserSummary(
+          id: 'u-$i',
+          username: 'guest$i',
+          displayName: 'Guest $i',
+          avatarUrl: null,
+        ),
+    ];
+    for (final viewport in [GoldenViewport.android, GoldenViewport.phone]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pump(tester, seated: many);
+      if (viewport == GoldenViewport.phone) {
+        setViewport(tester, viewport);
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull, reason: viewport.name);
+      // The picture: 70 pt (was 54).
+      final image = tester.getSize(
+        find.byKey(KLiveGiftSheet.giftImageKey('rose')),
+      );
+      expect(image.width, closeTo(70, 0.5), reason: viewport.name);
+      // Four in a row, and the second row is on screen too.
+      final y = tester.getCenter(_cell('rose')).dy;
+      for (final code in ['heart_balloon', 'crown', 'sports_car']) {
+        expect(tester.getCenter(_cell(code)).dy, y);
+      }
+      // Every coin is the owner's gold coin.
+      final coins = find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/currency/kabso_coin.png',
+      );
+      expect(coins, findsAtLeastNWidgets(5));
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName.contains('kabso_coin.webp'),
+        ),
+        findsNothing,
+      );
+      // Recipients: 48 pt targets with 40 pt pictures; the row scrolls.
+      final host = find.byKey(KLiveGiftSheet.recipientKey('sara'));
+      final size = tester.getSize(host);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+      final last = find.byKey(KLiveGiftSheet.recipientKey('guest7'));
+      final row = find
+          .ancestor(of: host, matching: find.byType(Scrollable))
+          .first
+          .evaluate()
+          .single;
+      await tester.scrollUntilVisible(
+        last,
+        80,
+        scrollable: find.byElementPredicate((e) => e == row),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(last);
+      await tester.pumpAndSettle();
+      expect(_selected(tester, last), isTrue);
+      expect(tester.takeException(), isNull, reason: viewport.name);
+    }
+  });
+
   testWidgets('recipients: the host by default with the Host chip; several '
       'at once; All on mic and back', (tester) async {
     await _pump(tester);
