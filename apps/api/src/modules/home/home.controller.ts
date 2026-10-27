@@ -1,4 +1,5 @@
-import { Controller, Get, Req, Res } from '@nestjs/common';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { AppException } from '../../common/errors/app-exception.js';
 import type { Response } from 'express';
 import { languageFromAcceptLanguage } from '../../common/http/content-language.js';
 import type { AppRequest, AuthContext } from '../../common/http/request-context.js';
@@ -24,10 +25,16 @@ export class HomeController {
     @CurrentAuth() auth: AuthContext,
     @Req() req: AppRequest,
     @Res({ passthrough: true }) res: Response,
+    @Query('placement') placementParam?: unknown,
   ): Promise<{ data: HomeBannerDto[] }> {
+    // v1.27.4-live (D137): `placement=home` (default) or `room` (the promo box inside a live).
+    if (placementParam !== undefined && placementParam !== 'home' && placementParam !== 'room') {
+      throw AppException.validation([{ field: 'placement', issue: 'invalid_value' }]);
+    }
+    const placement = placementParam === 'room' ? 'ROOM' : 'HOME';
     const language =
       languageFromAcceptLanguage(req.headers['accept-language']) ?? (await this.users.getLocale(auth.userId));
-    const data = await this.home.listBanners(language);
+    const data = await this.home.listBanners(language, placement);
     res.setHeader('Cache-Control', HOME_BANNERS_CACHE_CONTROL);
     res.setHeader('Vary', 'Authorization, Accept-Language');
     return { data };

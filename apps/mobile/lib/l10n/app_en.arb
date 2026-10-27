@@ -1943,5 +1943,7 @@
   "liveWishEditLabel": "Edit the wish list",
   "@liveWishEditLabel": {"description": "D136/D137: the wish list and the in-room promo box."},
   "liveToolWish": "Wish list",
-  "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."}
+  "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "livePromoClose": "Hide the promo",
+  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."}
 }

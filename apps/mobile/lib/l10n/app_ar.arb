@@ -7555,5 +7555,7 @@
   "liveWishEditLabel": "تعديل قائمة الأمنيات",
   "@liveWishEditLabel": {"description": "D136/D137: the wish list and the in-room promo box."},
   "liveToolWish": "الأمنيات",
-  "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."}
+  "@liveToolWish": {"description": "D136/D137: the wish list and the in-room promo box."},
+  "livePromoClose": "إخفاء الإعلان",
+  "@livePromoClose": {"description": "D136/D137: the wish list and the in-room promo box."}
 }

@@ -9,8 +9,9 @@ import 'package:kabso_live/features/live/domain/home_banner.dart';
 /// `home`). Every method throws an `AppFailure`.
 abstract interface class HomeBannersRepository {
   /// `GET /home/banners`: the active banners in server order (possibly
-  /// empty; at most 10).
-  Future<List<HomeBanner>> listBanners();
+  /// empty; at most 10). D137: [room] lists the in-room promo box's
+  /// (`placement=room`, 3:4 pictures) instead of the hub's.
+  Future<List<HomeBanner>> listBanners({bool room = false});
 }
 
 class HomeBannersRepositoryImpl implements HomeBannersRepository {
@@ -19,14 +20,18 @@ class HomeBannersRepositoryImpl implements HomeBannersRepository {
   final Dio _dio;
 
   @override
-  Future<List<HomeBanner>> listBanners() => guardApiCall(() async {
-    final res = await _dio.get<Map<String, dynamic>>('/home/banners');
-    final data = res.data!['data']! as List<dynamic>;
-    return [
-      for (final item in data)
-        HomeBanner.fromJson(item as Map<String, dynamic>),
-    ];
-  });
+  Future<List<HomeBanner>> listBanners({bool room = false}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/home/banners',
+          queryParameters: room ? const {'placement': 'room'} : null,
+        );
+        final data = res.data!['data']! as List<dynamic>;
+        return [
+          for (final item in data)
+            HomeBanner.fromJson(item as Map<String, dynamic>),
+        ];
+      });
 }
 
 /// Demo mode (test builds) has no banners: nothing is invented (D39).
@@ -34,7 +39,7 @@ class _NoBanners implements HomeBannersRepository {
   const new();
 
   @override
-  Future<List<HomeBanner>> listBanners() async => const [];
+  Future<List<HomeBanner>> listBanners({bool room = false}) async => const [];
 }
 
 final homeBannersRepositoryProvider = Provider<HomeBannersRepository>(

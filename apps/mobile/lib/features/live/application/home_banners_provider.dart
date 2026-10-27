@@ -11,3 +11,21 @@ final homeBannersProvider = FutureProvider<List<HomeBanner>>((ref) {
   ref.watch(liveScopeProvider);
   return ref.watch(homeBannersRepositoryProvider).listBanners();
 });
+
+/// D137: the in-room promo box's banners (`placement=room`). A failure
+/// shows no box.
+final FutureProvider<List<HomeBanner>> roomBannersProvider =
+    FutureProvider.autoDispose<List<HomeBanner>>((ref) async {
+      try {
+        return await ref
+            .watch(homeBannersRepositoryProvider)
+            .listBanners(room: true);
+      } on Object {
+        return const [];
+      }
+    });
+
+/// D137: the rooms whose promo box was closed with "–" in this app run.
+final Provider<Set<String>> closedRoomPromosProvider = Provider<Set<String>>(
+  (ref) => <String>{},
+);

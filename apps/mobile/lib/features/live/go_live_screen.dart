@@ -1685,11 +1685,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
               onTap: () => unawaited(_openAudience(room, liveSeats)),
             ),
-      // D136: the wish list (a tap changes it).
+      // D136: the wish list (a tap changes it); D137: the promo box.
       sideStart: LiveWishCard(
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
+      sideEnd: live ? LiveRoomPromoBox(roomId: room.id) : null,
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,

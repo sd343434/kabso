@@ -6243,4 +6243,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolWish => 'الأمنيات';
+
+  @override
+  String get livePromoClose => 'إخفاء الإعلان';
 }

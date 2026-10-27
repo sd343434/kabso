@@ -42,6 +42,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.overlay,
     this.trailing,
     this.sideStart,
+    this.sideEnd,
     this.closeButtonKey = closeKey,
     this.closeLabel,
   });
@@ -65,6 +66,9 @@ class KLiveRoomScaffold extends StatelessWidget {
 
   /// D136: the wish list card, floating at the reading start (left middle).
   final Widget? sideStart;
+
+  /// D137: the promo box, floating at the end under the top rows.
+  final Widget? sideEnd;
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   final Key closeButtonKey;
@@ -189,6 +193,13 @@ class KLiveRoomScaffold extends StatelessWidget {
               PositionedDirectional(
                 start: KLiveSideCards.wishStart,
                 top: MediaQuery.paddingOf(context).top + KLiveSideCards.wishTop,
+                child: side,
+              ),
+            if (sideEnd case final side?)
+              PositionedDirectional(
+                end: KLiveSideCards.promoEnd,
+                top:
+                    MediaQuery.paddingOf(context).top + KLiveSideCards.promoTop,
                 child: side,
               ),
             ?cover,

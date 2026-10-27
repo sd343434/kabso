@@ -11,6 +11,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
@@ -49,11 +50,12 @@ const _wishes = [
 Future<FakeHomeBannersRepository> _pump(
   WidgetTester tester, {
   List<LiveWishGift> wishes = _wishes,
+  List<HomeBanner> roomBanners = const [],
   AppLanguage language = AppLanguage.en,
   bool signedIn = true,
 }) async {
   setViewport(tester, GoldenViewport.phone);
-  final banners = FakeHomeBannersRepository();
+  final banners = FakeHomeBannersRepository(roomBanners: roomBanners);
   await tester.pumpWidget(const SizedBox.shrink());
   await pumpScreen(
     tester,
@@ -134,6 +136,59 @@ void main() {
     testWidgets('no wishes: no card', (tester) async {
       await _pump(tester, wishes: const []);
       expect(find.byKey(LiveWishCard.cardKey), findsNothing);
+      await _leave(tester);
+    });
+  });
+
+  group('D137 promo box', () {
+    final room = [
+      for (var i = 0; i < 2; i++)
+        HomeBanner(
+          id: 'room-banner-$i',
+          imageUrl: 'https://media.example.test/media/r$i/600.webp',
+          link: '/families',
+          width: 600,
+          height: 800,
+        ),
+    ];
+
+    for (final language in AppLanguage.values) {
+      testWidgets('ROOM banners in a 3:4 box at the end, opposite the wish '
+          'list; "–" hides it for this live (${language.name})', (
+        tester,
+      ) async {
+        final banners = await _pump(
+          tester,
+          roomBanners: room,
+          language: language,
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        final box = find.byKey(LiveRoomPromoBox.boxKey);
+        expect(box, findsOneWidget);
+        final rect = tester.getRect(box);
+        expect(rect.width, closeTo(LiveRoomPromoBox.width, 0.5));
+        expect(rect.height, closeTo(LiveRoomPromoBox.height, 0.5));
+        final wish = tester.getRect(find.byKey(LiveWishCard.cardKey));
+        final ar = language == AppLanguage.ar;
+        expect(ar ? rect.left < wish.left : rect.left > wish.left, isTrue);
+        expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-0')), findsOne);
+        // Every 4 s the next one.
+        await tester.pump(LiveRoomPromoBox.interval);
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveRoomPromoBox.pageKey('room-banner-1')), findsOne);
+        expect(banners.calls, greaterThan(0));
+        await tester.tap(find.byKey(LiveRoomPromoBox.closeKey));
+        await tester.pump();
+        expect(box, findsNothing);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('no ROOM banner, or a guest: no box', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(LiveRoomPromoBox.boxKey), findsNothing);
+      await _pump(tester, roomBanners: room, signedIn: false);
+      expect(find.byKey(LiveRoomPromoBox.boxKey), findsNothing);
       await _leave(tester);
     });
   });

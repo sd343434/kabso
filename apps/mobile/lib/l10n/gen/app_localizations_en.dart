@@ -6221,4 +6221,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveToolWish => 'Wish list';
+
+  @override
+  String get livePromoClose => 'Hide the promo';
 }

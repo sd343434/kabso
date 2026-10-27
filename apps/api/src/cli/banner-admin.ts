@@ -9,11 +9,15 @@
  *   pnpm banner:admin add (--image <file> --owner <email> | --media <mediaId>) --link <link>
  *                   [--title-ar <text>] [--title-en <text>] [--text-side left|right]
  *                   [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled]
+ *                   [--placement home|room]
  *   pnpm banner:admin list            # every banner: `+` shown now, `-` disabled, `~` outside its window
  *   pnpm banner:admin disable <id>
  *   pnpm banner:admin enable <id>
  *   pnpm banner:admin remove <id>     # deletes the banner and its picture
  *
+ * `--placement room` (v1.27.4-live, D137) makes it the promo box inside a live: `--image` is then
+ * cover-cropped to 3:4 (600 × 800 and 240 × 320; design it at 600 × 800 px, shown ≈ 82 × 109 pt)
+ * and `--media` is refused (a `HOME_BANNER` upload is 3:1).
  * `--image` reads a JPEG, PNG or WebP file, cover-crops it to 3:1 around the centre and stores
  * 1 500 × 500 and 320 × 107 WebP variants in object storage (it needs the `S3_*` settings and
  * `MEDIA_PUBLIC_BASE_URL` of the API); the picture is owned by the `--owner` account. `--media`
@@ -52,7 +56,7 @@ function fail(message: string): never {
 const USAGE = [
   'Usage: pnpm banner:admin add (--image <file> --owner <email> | --media <mediaId>) --link <link>',
   '         [--title-ar <text>] [--title-en <text>] [--text-side left|right]',
-  '         [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled]',
+  '         [--starts <ISO time>] [--ends <ISO time>] [--sort <n>] [--disabled] [--placement home|room]',
   '       pnpm banner:admin list',
   '       pnpm banner:admin disable|enable|remove <bannerId>',
 ].join('\n');
@@ -73,6 +77,7 @@ const OPTIONS = {
   ends: { type: 'string' },
   sort: { type: 'string' },
   disabled: { type: 'boolean' },
+  placement: { type: 'string' },
 } as const;
 
 /** Object storage from the API's own settings, or null when they are not all set. */
@@ -113,6 +118,7 @@ async function add(args: readonly string[]): Promise<void> {
     ends?: string;
     sort?: string;
     disabled?: boolean;
+    placement?: string;
   };
   try {
     ({ values } = parseArgs({ args: [...args], options: OPTIONS, strict: true, allowPositionals: false }));
@@ -128,6 +134,8 @@ async function add(args: readonly string[]): Promise<void> {
   if (values.link === undefined) fail(`Missing --link.\n${USAGE}`);
   const side = (values['text-side'] ?? 'right').toUpperCase();
   if (side !== 'LEFT' && side !== 'RIGHT') fail('--text-side is left or right.');
+  const placement = (values.placement ?? 'home').toUpperCase();
+  if (placement !== 'HOME' && placement !== 'ROOM') fail('--placement is home or room.');
   const sort = values.sort ?? '0';
   if (!/^(0|[1-9][0-9]{0,6})$/.test(sort)) fail('--sort is a whole number 0–1000000.');
   const fields: BannerFields = {
@@ -139,6 +147,7 @@ async function add(args: readonly string[]): Promise<void> {
     endsAt: values.ends === undefined ? null : date(values.ends, '--ends'),
     sortOrder: Number(sort),
     enabled: values.disabled !== true,
+    placement,
   };
   // Every field is checked before anything is uploaded.
   const problems = bannerFieldProblems(fields);
@@ -164,7 +173,7 @@ async function add(args: readonly string[]): Promise<void> {
     if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES)
       fail('The image is empty or larger than 15 MiB.');
     try {
-      mediaId = (await storeBannerImage(prisma, storage, owner.id, bytes)).id;
+      mediaId = (await storeBannerImage(prisma, storage, owner.id, bytes, placement)).id;
     } catch (err) {
       if (err instanceof BannerError) fail(err.message);
       throw err;
@@ -178,7 +187,7 @@ async function add(args: readonly string[]): Promise<void> {
     throw err;
   }
   process.stdout.write(
-    `+${banner.id} ${banner.link} (media ${banner.mediaId}, sort ${String(banner.sortOrder)}` +
+    `+${banner.id} ${banner.placement.toLowerCase()} ${banner.link} (media ${banner.mediaId}, sort ${String(banner.sortOrder)}` +
       `${banner.enabled ? '' : ', disabled'}).\n`,
   );
 }
@@ -199,7 +208,7 @@ async function list(): Promise<void> {
   for (const b of banners) {
     const mark = active.has(b.id) ? '+' : b.enabled ? '~' : '-';
     process.stdout.write(
-      `${mark} ${b.id} sort=${String(b.sortOrder)} ${b.startsAt.toISOString()}..${b.endsAt?.toISOString() ?? 'open'} ` +
+      `${mark} ${b.id} ${b.placement.toLowerCase()} sort=${String(b.sortOrder)} ${b.startsAt.toISOString()}..${b.endsAt?.toISOString() ?? 'open'} ` +
         `link=${b.link} text=${b.titleSide.toLowerCase()} "${b.titleAr ?? ''}" / "${b.titleEn ?? ''}" ` +
         `image=${base}/${b.media.largeKey}\n`,
     );

@@ -777,7 +777,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       onClose: () => unawaited(_leave()),
       roomInfo: ended ? null : KRoomChipsRow(level: room.roomLevel),
       // D136: the host's wish list (a row opens the gift panel with that
-      // gift and the host).
+      // gift and the host); D137: the promo box.
       sideStart: ended
           ? null
           : LiveWishCard(
@@ -786,6 +786,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ? null
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
+      sideEnd: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
       chat: ended
           ? null
           : Align(

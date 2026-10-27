@@ -342,4 +342,43 @@ describe('D124 home banners', { timeout: 240_000 }, () => {
     const id = bannerAdmin('add', '--media', asset.id, '--link', 'https://kabso.app/gifts');
     expect(id).toMatch(/^\+/);
   });
+
+  it('D137: ROOM banners are 3:4 (600 × 800), listed only with placement=room; HOME stays the default', async () => {
+    await clear();
+    const home = await add('--link', '/families');
+    const bytes = await sharp({ create: { width: 900, height: 900, channels: 3, background: '#a35' } })
+      .png()
+      .toBuffer();
+    const asset = await withMigrationClient((c) => storeBannerImage(c, storage, admin.id, bytes, 'ROOM'));
+    expect([asset.width, asset.height]).toEqual([600, 800]);
+    expect(asset.largeKey).toMatch(/\/600\.webp$/);
+    const thumb = await sharp(storage.objects.get(asset.thumbKey)!.body).metadata();
+    expect([thumb.width, thumb.height]).toEqual([240, 320]);
+    const out = bannerAdmin('add', '--media', asset.id, '--link', '/cp/space', '--placement', 'room');
+    const room = /^\+([0-9a-f-]{36}) room /.exec(out)?.[1];
+    expect(room, out).toBeDefined();
+    // A 3:1 upload cannot be a ROOM banner, and a 3:4 picture cannot be a HOME one.
+    const wide = await upload(admin);
+    expect(() =>
+      bannerAdmin('add', '--media', wide.id, '--link', '/families', '--placement', 'room'),
+    ).toThrow();
+    expect(() =>
+      bannerAdmin('add', '--media', wide.id, '--link', '/families', '--placement', 'side'),
+    ).toThrow();
+    expect(await ids()).toEqual([home]);
+    const res = await ctx.http
+      .get('/api/v1/home/banners?placement=room')
+      .set(auth(viewer))
+      .set('Accept-Language', 'en');
+    expect(res.status).toBe(200);
+    expectContract(res, 'listHomeBanners');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({ id: room, width: 600, height: 800, link: '/cp/space' });
+    const homeExplicit = await ctx.http.get('/api/v1/home/banners?placement=home').set(auth(viewer));
+    expect(homeExplicit.body.data.map((b: { id: string }) => b.id)).toEqual([home]);
+    const bad = await ctx.http.get('/api/v1/home/banners?placement=side').set(auth(viewer));
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.details).toEqual([{ field: 'placement', issue: 'invalid_value' }]);
+    expect(bannerAdmin('list')).toContain(`${room} room`);
+  });
 });

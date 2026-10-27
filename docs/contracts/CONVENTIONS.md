@@ -485,6 +485,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.4-live (draft) | 2026-10-27 | **D137 (owner: the promo box at the top end of a live):** `HomeBanner` placement — `listHomeBanners` takes `placement` (`home` default, `room`); `banner-admin add … --placement room` (3:4, 600 × 800); migration `20261129090000_live_wish_gifts_room_banners` (`home_banners.placement`). §10.26. | **Additive** (an optional parameter; existing banners are HOME). |
 | v1.27.3-live (draft) | 2026-10-27 | **D136 (owner: the host's wish list):** `StartLiveRoomRequest.wishGifts`, `UpdateLiveRoomRequest.wishGifts` (`WishGiftCodes`, ≤ 4 distinct, sendable now), `LiveRoom.wishGifts` (`LiveWishGift` `{giftCode, name, priceCoins, assetKey, imageUrl, received}`), `GiftCode`; a change, or a wished gift sent to the host, moves `roomInfoVersion`; migration `live_rooms.wish_gifts`. §10.29. | **Additive** (optional request fields, a new response field older apps ignore). |
 | v1.27.2-live (draft) | 2026-10-27 | **D135 (owner, staging device: "the host's new background does not reach the others"; "the support the others received does not show under their mic"):** a real `theme` change in `PATCH /live/rooms/{roomId}` now increases the room info version (`roomInfoVersion`), like `title`, `categorySlug` and `topic`; `LiveSeat.points` (required: the gift points a seated person received in this live, 0 for empty and locked seats); a gift to someone seated raises the seat `version`. §10.9, §10.12. | **Additive** (a new response field older apps ignore; one more reason for existing version moves). |
 | v1.27.1-live (draft) | 2026-10-27 | **D133 (owner: the Live hub's filters become Nearby · Popular ▾ · Featured · Explore, and a party page):** `listLiveRooms` takes `scope=nearby` (token required; rooms whose host's country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET`), `featured=true` (rooms of hosts featured now, ordered by feature rank, then score, startedAt, id) and the kinds `solo` (`SOLO`, `PK`), `multi` (`MULTI`), `party` (`AUDIO`, `MULTI`); cursors are bound to every filter. `Me.country` and `updateMe` `{locale?, country?}` (at least one; `locale` no longer required). Featured hosts are managed only by the `feature-admin` CLI (audit `live.feature.add`, `live.feature.remove`). Explore is `tab=new` (unchanged). §10.4, §10.28. | **Additive** (new query values and optional fields; a request without them behaves as before; `updateMe` accepts more). |
@@ -1793,6 +1794,16 @@ Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaul
 - **App** *(owner)*: the carousel sits full width after the 4th live card (after the last card when
   fewer), radius 12, auto-advances every 4 s (not with reduce motion), pauses while touched, shows
   page dots when there is more than one, and opens the link on tap.
+
+- *(v1.27.4-live, DRAFT — D137)* **In-room promo box:** a banner has a `placement`: `HOME` (the
+  default, the live hub, 3:1) or `ROOM` (the promo box at the top end of a live, under the top rows).
+  `GET /home/banners?placement=room` lists the active ROOM banners with the same rules (window,
+  order, at most 10, link allowlist, cache); any other value → 400 `placement` / `invalid_value`.
+  A ROOM picture is 3:4, cover-cropped to **600 × 800** (thumb 240 × 320) by `banner-admin add
+  --image <file> --placement room …` (`--media` is refused for ROOM: an upload is 3:1). The app
+  rotates them every 4 s, a tap opens an in-app link (an https link is not tappable yet), and "–"
+  hides the box for the rest of that live on that device. Migration
+  `20261129090000_live_wish_gifts_room_banners` (`placement`, CHECK `home_banners_placement_values`).
 
 ### 10.27 Lucky gifts *(v1.27-live, DRAFT — D132)*
 

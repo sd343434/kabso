@@ -3486,11 +3486,19 @@ paths:
         latest `startsAt`, then `id`; at most 10. **Empty** when none is active (the app then shows
         no banner). `title` is the overlay text in the language of `Accept-Language`, else the
         caller's locale (§10.1), or null when the banner has none in that language (no fallback to
-        the other language). `link` is one of the in-app routes `/cp/space`, `/families`,
+        the other language). *(v1.27.4-live, D137)* `placement=room` lists the banners of the promo
+        box inside a live instead (3:4 pictures, 600 × 800); the default `home` is the live hub's
+        (3:1). `link` is one of the in-app routes `/cp/space`, `/families`,
         `/live?tab=trending|new|following`, `/home/room/{roomId}`, `/users/{username}` or an
         `https://` URL; a stored link that no longer passes these rules is left out. Signed-in
         callers only; the default per-user rate limit. The response carries
         `Cache-Control: private, max-age=60` and `Vary: Authorization, Accept-Language`.
+      parameters:
+        - name: placement
+          in: query
+          required: false
+          description: "v1.27.4-live (D137): `home` (default, the live hub) or `room` (the promo box in a live). Anything else → 400 `placement` / `invalid_value`."
+          schema: { type: string, enum: [home, room], default: home }
       responses:
         '200':
           description: The active banners (possibly empty).
@@ -3517,6 +3525,7 @@ paths:
                         title: فضاء الثنائيات
                         titleSide: RIGHT
                         link: /cp/space
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/cp/config:

@@ -10795,6 +10795,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الأمنيات'**
   String get liveToolWish;
+
+  /// D136/D137: the wish list and the in-room promo box.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الإعلان'**
+  String get livePromoClose;
 }
 
 class _AppLocalizationsDelegate

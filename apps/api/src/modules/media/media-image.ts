@@ -18,6 +18,10 @@ export const THUMB_SIDE = 320;
 /** D124: a home banner is always 1 500 × 500 (3:1), cover-cropped around the centre. */
 export const BANNER_WIDTH = 1500;
 export const BANNER_HEIGHT = 500;
+/** v1.27.4-live (D137): an in-room promo banner is always 600 × 800 (3:4), thumb 240 × 320. */
+export const ROOM_BANNER_WIDTH = 600;
+export const ROOM_BANNER_HEIGHT = 800;
+export const ROOM_BANNER_THUMB_WIDTH = 240;
 
 /**
  * How the variants are shaped: `inside` (the long side bounded, never enlarged), `square` (a live
@@ -25,7 +29,7 @@ export const BANNER_HEIGHT = 500;
  * home banner, cover-cropped to exactly 3:1 around the centre — 1 500 × 500 and 320 × 107 —
  * enlarged when smaller, so every banner has the same size).
  */
-export type ImageShape = 'inside' | 'square' | 'banner';
+export type ImageShape = 'inside' | 'square' | 'banner' | 'roomBanner';
 
 /** Why an upload is not an acceptable image (never shown to clients; they get MEDIA_INVALID). */
 export class InvalidImageError extends Error {}
@@ -100,6 +104,14 @@ export async function processImage(
   const base = () =>
     sharp(bytes, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: 'error' }).rotate().toColorspace('srgb');
   const resize = (side: number) => {
+    if (shape === 'roomBanner') {
+      const width = side === THUMB_SIDE ? ROOM_BANNER_THUMB_WIDTH : ROOM_BANNER_WIDTH;
+      return [
+        width,
+        Math.round((width * ROOM_BANNER_HEIGHT) / ROOM_BANNER_WIDTH),
+        { fit: 'cover', position: 'centre' },
+      ] as const;
+    }
     if (shape === 'banner') {
       const width = side === THUMB_SIDE ? THUMB_SIDE : BANNER_WIDTH;
       return [
@@ -114,7 +126,7 @@ export async function processImage(
   };
   try {
     const large = await base()
-      .resize(...resize(shape === 'banner' ? BANNER_WIDTH : largeSide))
+      .resize(...resize(shape === 'banner' || shape === 'roomBanner' ? BANNER_WIDTH : largeSide))
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     const thumb = await base()

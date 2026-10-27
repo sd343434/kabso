@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/application/home_banners_provider.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
+import 'package:kabso_live/features/live/domain/home_banner.dart';
+import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
@@ -480,4 +484,187 @@ class _SmallButton extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// D137 (owner, ref 158 R4): the in-room promo box at the top end — the
+/// active ROOM banners (3:4) in a see-through frame, one every 4 s (not
+/// with reduced motion), page dots when there are several. A tap opens an
+/// in-app link (an https link or a hub tab is not tappable here); "–"
+/// hides the box for the rest of this live on this device. Nothing when
+/// there is no ROOM banner.
+class LiveRoomPromoBox extends ConsumerStatefulWidget {
+  const new({required this.roomId, super.key});
+
+  final String roomId;
+
+  /// Ref 158 R4's card: 81.7 pt wide; the picture is 3:4.
+  static const double width = 82;
+  static const double height = width * 4 / 3;
+  static const Duration interval = Duration(seconds: 4);
+
+  static const boxKey = Key('live.promoBox');
+  static const closeKey = Key('live.promoBox.close');
+  static Key pageKey(String id) => Key('live.promoBox.page.$id');
+
+  @override
+  ConsumerState<LiveRoomPromoBox> createState() => _LiveRoomPromoBoxState();
+}
+
+class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
+  final _controller = PageController();
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _schedule(int count) {
+    if (_timer != null || count < 2) return;
+    _timer = Timer.periodic(LiveRoomPromoBox.interval, (_) {
+      if (!mounted || !_controller.hasClients) return;
+      if (MediaQuery.disableAnimationsOf(context)) return;
+      final next = (_page + 1) % count;
+      _controller.animateToPage(
+        next,
+        duration: KMotion.of(context, KMotion.base),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  void _open(HomeBanner banner) {
+    if (HomeBannerTarget.parse(banner.link) case final HomeBannerRoute r) {
+      unawaited(context.push(r.location));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final closed = ref.watch(closedRoomPromosProvider);
+    if (closed.contains(widget.roomId)) return const SizedBox.shrink();
+    final banners = ref.watch(roomBannersProvider).value ?? const [];
+    if (banners.isEmpty) return const SizedBox.shrink();
+    _schedule(banners.length);
+    final count = banners.length;
+    return SizedBox(
+      key: LiveRoomPromoBox.boxKey,
+      width: LiveRoomPromoBox.width,
+      height: LiveRoomPromoBox.height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: KLiveColors.glass,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x4DFFFFFF)),
+              ),
+              padding: const EdgeInsets.all(2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: PageView.builder(
+                  controller: _controller,
+                  itemCount: count,
+                  onPageChanged: (p) => setState(() => _page = p),
+                  itemBuilder: (context, i) {
+                    final b = banners[i];
+                    final can =
+                        HomeBannerTarget.parse(b.link) is HomeBannerRoute;
+                    final title = b.title;
+                    return Semantics(
+                      key: LiveRoomPromoBox.pageKey(b.id),
+                      button: can,
+                      label: title == null || title.trim().isEmpty
+                          ? l10n.homeBannerSemantics(i + 1, count)
+                          : l10n.homeBannerTitledSemantics(title, i + 1, count),
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: can ? () => _open(b) : null,
+                        child: Image.network(
+                          b.imageUrl,
+                          fit: BoxFit.cover,
+                          excludeFromSemantics: true,
+                          errorBuilder: (_, _, _) =>
+                              const ColoredBox(color: Color(0x33000000)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          if (count > 1)
+            PositionedDirectional(
+              start: 0,
+              end: 0,
+              bottom: 5,
+              child: ExcludeSemantics(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < count; i++)
+                      Container(
+                        width: 4,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _page
+                              ? const Color(0xFFFFFFFF)
+                              : const Color(0x80FFFFFF),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          // Ref 158: a small "–" at the top end hides the box.
+          PositionedDirectional(
+            top: -8,
+            end: -8,
+            child: Semantics(
+              button: true,
+              label: l10n.livePromoClose,
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: LiveRoomPromoBox.closeKey,
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  ref.read(closedRoomPromosProvider).add(widget.roomId);
+                  setState(() {});
+                },
+                child: SizedBox.square(
+                  dimension: 28,
+                  child: Center(
+                    child: Container(
+                      width: 15,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        color: const Color(0x99000000),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0x80FFFFFF)),
+                      ),
+                      child: const Icon(
+                        Icons.remove_rounded,
+                        size: 11,
+                        color: Color(0xFFFFFFFF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
