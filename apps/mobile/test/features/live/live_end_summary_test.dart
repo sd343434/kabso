@@ -64,6 +64,7 @@ Future<void> _pump(
   bool loading = false,
   bool failed = false,
   VoidCallback? onRetry,
+  bool hostCpFrame = false,
   AppLanguage language = AppLanguage.en,
   Size size = const Size(393, 852),
   double textScale = 1,
@@ -85,6 +86,7 @@ Future<void> _pump(
           failed: failed,
           onRetry: onRetry,
           hostName: 'Sara',
+          hostCpFrame: hostCpFrame,
           onDone: () {},
           doneKey: const Key('done'),
         ),
@@ -224,6 +226,87 @@ void main() {
     final third = tester.getCenter(find.text('huda'));
     expect(second.dx, lessThan(first.dx));
     expect(third.dx, greaterThan(first.dx));
+    // D140b: each of the three wears the frame of their place.
+    for (final rank in [1, 2, 3]) {
+      final frame = find.byKey(GoLiveSummary.rankFrameKey(rank));
+      expect(frame, findsOneWidget);
+      final art = tester.widget<Image>(
+        find.descendant(of: frame, matching: find.byType(Image)).last,
+      );
+      expect(
+        (art.image as AssetImage).assetName,
+        'assets/leaderboard/podium_frame_$rank.webp',
+      );
+    }
+    // The first frame is the largest.
+    expect(
+      tester.getSize(find.byKey(GoLiveSummary.rankFrameKey(1))).width,
+      greaterThan(
+        tester.getSize(find.byKey(GoLiveSummary.rankFrameKey(2))).width,
+      ),
+    );
+  });
+
+  testWidgets('countries as a ring chart with the total in its centre', (
+    tester,
+  ) async {
+    await _pump(tester, stats: _stats());
+    await tester.scrollUntilVisible(find.byKey(GoLiveSummary.donutKey), 200);
+    expect(
+      find.descendant(
+        of: find.byKey(GoLiveSummary.donutKey),
+        matching: find.text('11'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the hero: a turning ring, or the host CP frame (D112)', (
+    tester,
+  ) async {
+    await _pump(tester, stats: _stats());
+    expect(find.byKey(GoLiveSummary.hostFrameKey), findsNothing);
+    await _pump(tester, stats: _stats(), hostCpFrame: true);
+    expect(find.byKey(GoLiveSummary.hostFrameKey), findsOneWidget);
+  });
+
+  testWidgets('a tiny share reads <1%, never 0%', (tester) async {
+    final base = _stats();
+    await _pump(
+      tester,
+      stats: LiveRoomStats(
+        roomId: base.roomId,
+        ended: true,
+        startedAt: base.startedAt,
+        endedAt: base.endedAt,
+        duration: base.duration,
+        total: 801,
+        tapPoints: 1,
+        supportPoints: 800,
+        hostOwnPoints: 801,
+        supporters: 0,
+        topSupporters: const [],
+        giftCount: 2,
+        chatMessages: 0,
+        newFollowers: 0,
+        viewers: base.viewers,
+        viewerCountries: base.viewerCountries,
+      ),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(GoLiveSummary.tapsKey),
+        matching: find.text('<1%'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(GoLiveSummary.giftsKey),
+        matching: find.text('>99%'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('no viewers: a quiet line and no countries; no supporters: a '

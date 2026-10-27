@@ -12,6 +12,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
@@ -56,6 +57,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.da
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -705,6 +707,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       body = _Ended(
         state: state,
         hostName: user?.displayName ?? '',
+        hostUsername: user?.username,
         hostAvatarUrl: user?.avatarUrl,
         onDone: _close,
       );
@@ -2268,12 +2271,16 @@ class _Ended extends ConsumerWidget {
   const new({
     required this.state,
     required this.hostName,
+    required this.hostUsername,
     required this.hostAvatarUrl,
     required this.onDone,
   });
 
   final GoLiveState state;
   final String hostName;
+
+  /// Reads the host's profile for the CP Special Frame (D112).
+  final String? hostUsername;
   final String? hostAvatarUrl;
   final VoidCallback onDone;
 
@@ -2293,6 +2300,13 @@ class _Ended extends ConsumerWidget {
         ?.where((l) => l.category == LevelCategory.attractiveness)
         .firstOrNull;
     final value = stats?.value;
+    final username = hostUsername;
+    // D140b: the host's own avatar frame (the CP Special Frame) in the hero.
+    final framed =
+        username != null &&
+        cpWearsSpecialFrame(
+          ref.watch(profileStatsProvider(username)).value?.cp,
+        );
     return Semantics(
       key: GoLiveScreen.endedKey,
       container: true,
@@ -2309,6 +2323,7 @@ class _Ended extends ConsumerWidget {
             : () => ref.invalidate(liveRoomStatsProvider(room.id)),
         hostName: hostName,
         hostAvatarUrl: hostAvatarUrl,
+        hostCpFrame: framed,
         charm: charm,
         onDone: onDone,
         doneKey: GoLiveScreen.doneKey,
