@@ -23,6 +23,8 @@ export interface MeDto {
   canHost: boolean;
   /** CP-015: the host's live cover (640 px square), or null (the avatar is shown). */
   liveCoverUrl: string | null;
+  /** v1.27.1-live (D133): the caller's own country (ISO alpha-2), or null (D45: user-chosen). */
+  country: string | null;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -61,6 +63,8 @@ export interface UserWithProfile {
     bio: string | null;
     avatarUrl: string | null;
     locale: string;
+    /** v1.27.1-live (D133). Absent in older selects: null. */
+    countryCode?: string | null;
   } | null;
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
@@ -83,6 +87,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     createdAt: user.createdAt.toISOString(),
     canHost: Boolean(user.liveHost),
     liveCoverUrl: user.liveHost?.coverUrl ?? null,
+    country: user.profile.countryCode ?? null,
   };
 }
 
@@ -341,7 +346,21 @@ export class UsersService {
 
   /** PATCH /me (contract v1.2, KL-018): persists an explicit locale choice. */
   async updateLocale(userId: string, locale: 'ar' | 'en'): Promise<MeDto | null> {
-    const updated = await this.prisma.userProfile.updateMany({ where: { userId }, data: { locale } });
+    return this.updateMe(userId, { locale });
+  }
+
+  /** `PATCH /me`: the fields given (v1.2 `locale`; v1.27.1-live `country`, null clears it). */
+  async updateMe(
+    userId: string,
+    fields: { locale?: 'ar' | 'en' | undefined; country?: string | null | undefined },
+  ): Promise<MeDto | null> {
+    const updated = await this.prisma.userProfile.updateMany({
+      where: { userId },
+      data: {
+        ...(fields.locale !== undefined ? { locale: fields.locale } : {}),
+        ...(fields.country !== undefined ? { countryCode: fields.country } : {}),
+      },
+    });
     return updated.count === 0 ? null : this.getMe(userId);
   }
 }

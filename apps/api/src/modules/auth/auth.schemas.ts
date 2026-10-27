@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCountryCode } from '../users/country.js';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
 import { passwordPolicyIssue } from './password-policy.js';
@@ -111,7 +112,30 @@ export type RegisterVerifyInput = z.output<typeof registerVerifySchema>;
 
 export const registerResendSchema = z.strictObject({ email: emailSchema });
 
-export const updateMeSchema = z.strictObject({ locale: localeSchema });
+/**
+ * `PATCH /me`: v1.2 `locale`; v1.27.1-live (D133) `country` (ISO 3166-1 alpha-2, any case,
+ * stored upper case; null clears it). At least one of them.
+ */
+export const updateMeSchema = z
+  .strictObject({
+    locale: localeSchema.optional(),
+    country: z
+      .string()
+      .transform((v) => v.toUpperCase())
+      .refine(isCountryCode, { params: { issue: 'invalid_value' } })
+      .nullable()
+      .optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.locale === undefined && body.country === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['body'],
+        params: { issue: 'required' },
+        message: 'nothing to update',
+      });
+    }
+  });
 export const resetPasswordSchema = z.strictObject({ token: opaqueToken, newPassword: passwordSchema });
 
 export type DeviceInfo = z.output<typeof deviceInfoSchema>;

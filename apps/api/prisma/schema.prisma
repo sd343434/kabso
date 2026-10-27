@@ -149,6 +149,8 @@ model User {
   familyChatDeleted  FamilyChatMessage[]    @relation("FamilyChatDeleter")
   familyChatMutes    FamilyChatMute[]       @relation("FamilyChatMuted")
   familyChatMutesBy  FamilyChatMute[]       @relation("FamilyChatMutedBy")
+  // v1.27.1-live (D133): featured on the live hub.
+  liveFeatured       LiveFeaturedHost?
 
   @@map("users")
 }
@@ -162,6 +164,9 @@ model UserProfile {
   bio         String?  @db.VarChar(300)
   avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
   locale      String   @default("ar") @db.VarChar(8)
+  /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
+  /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
+  countryCode String?  @map("country_code") @db.Char(2)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -2352,4 +2357,19 @@ model HomeBanner {
 
   @@index([sortOrder, startsAt], map: "home_banners_enabled_idx", where: raw("enabled"))
   @@map("home_banners")
+}
+
+/// v1.27.1-live (D133, CONVENTIONS §10.28): a host featured on the live hub (`featured=true`).
+/// Managed only by the `feature-admin` CLI. CHECK `live_featured_hosts_rank_range`: 0 … 1 000 000.
+model LiveFeaturedHost {
+  userId    String    @id @map("user_id") @db.Uuid
+  rank      Int       @default(100)
+  /// After this time the row no longer counts (null: no end).
+  until     DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("live_featured_hosts")
 }

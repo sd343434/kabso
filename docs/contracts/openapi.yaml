@@ -132,6 +132,12 @@ info:
     apart from its video lives; the cursor is bound to it) and states that a live's score, which
     orders `popular`, belongs to that one live: it starts at 0 and leaves the ranking when the live
     ends (CONVENTIONS §10.4, §10.10).
+    **D133 (DRAFT v1.27.1-live)** adds to `listLiveRooms`: `scope=nearby` (rooms whose host's
+    country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET` when the caller has none),
+    `featured=true` (rooms of featured hosts, ordered by feature rank then like `popular`; featured
+    hosts are managed by the `feature-admin` CLI) and the kinds `solo` (`SOLO`, `PK`), `multi`
+    (`MULTI`) and `party` (`AUDIO`, `MULTI`); and the caller's own country (`Me.country`, set
+    with `updateMe`) (CONVENTIONS §10.4, §10.28).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -495,17 +501,28 @@ paths:
     patch:
       tags: [me]
       operationId: updateMe
-      summary: "Update the caller's preferences (v1.2: locale)"
+      summary: "Update the caller's preferences (v1.2: locale; v1.27.1-live: country)"
+      description: |
+        v1.27.1-live (D133): `locale` is no longer required and `country` is added; at least one of
+        them must be sent (an empty object → 400 `body` / `required`). `country` is an ISO 3166-1
+        alpha-2 code (two letters; lower case is accepted and stored upper case; `XK` and groupings
+        such as `EU` are not countries here), or null to clear it;
+        another value → 400 (`field "country"`, `issue "invalid_value"`). It is the caller's own
+        statement (no check by IP) and only decides `scope=nearby` of `listLiveRooms`.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [locale]
+              minProperties: 1
               additionalProperties: false
               properties:
                 locale: { $ref: '#/components/schemas/Locale' }
+                country:
+                  type: [string, 'null']
+                  pattern: '^[A-Za-z]{2}$'
+                  description: v1.27.1-live (D133). ISO 3166-1 alpha-2; null clears it.
       responses:
         '200':
           description: Updated user.
@@ -980,6 +997,16 @@ paths:
         cursor is bound to it (a cursor of another kind → 400). The score that orders `popular`
         belongs to one live: every go-live is a new room starting at 0, and an ended room is never
         listed, so a host who ends a live loses that ranking (§10.10).
+        *(v1.27.1-live, D133)* `kind` also takes `solo` (`SOLO` and `PK`: the hub's lives), `multi`
+        (`MULTI`) and `party` (`AUDIO` and `MULTI`: the party page). `scope=nearby` keeps the rooms
+        whose host's country (`Me.country`, set by the host) is the caller's; it needs a token
+        (guest → 401, like `following`); a caller with no country gets 200 with an empty page and
+        `emptyReason` `COUNTRY_NOT_SET` (no country is ever guessed, e.g. from the IP). `featured=true`
+        keeps the rooms of currently featured hosts (admin `feature-admin` CLI) and **orders them by
+        feature rank ascending, then score desc, startedAt desc, id desc on every tab** (`tab` still
+        filters `following`). `scope`, `featured`, `kind` and `category` combine freely and filter every
+        tab; the cursor is bound to all of them (and, for `nearby`, to the caller and their country:
+        a cursor issued before the caller's country changed → 400). Explore is `tab=new` (unchanged).
       parameters:
         - name: tab
           in: query
@@ -993,8 +1020,18 @@ paths:
         - name: kind
           in: query
           required: false
-          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
-          schema: { type: string, enum: [audio, video] }
+          description: '(v1.26.4-live, D129) `audio`: voice rooms (`mode` `AUDIO`); `video`: `SOLO`, `PK` and `MULTI`. (v1.27.1-live, D133) `solo`: `SOLO` and `PK`; `multi`: `MULTI`; `party`: `AUDIO` and `MULTI`. Absent: every room. Another value → 400 `VALIDATION_FAILED` (`field "kind"`).'
+          schema: { type: string, enum: [audio, video, solo, multi, party] }
+        - name: scope
+          in: query
+          required: false
+          description: '(v1.27.1-live, D133) `nearby`: only rooms whose host has the same country as the caller (`Me.country`). Needs a token (else 401). A caller without a country → 200, empty page, `emptyReason` `COUNTRY_NOT_SET`. Absent: every country. Another value → 400 (`field "scope"`).'
+          schema: { type: string, enum: [nearby] }
+        - name: featured
+          in: query
+          required: false
+          description: '(v1.27.1-live, D133) `true`: only rooms of hosts featured now, ordered by feature rank ascending, then score desc, startedAt desc, id desc (on every tab). `false` or absent: no filter, the tab''s order. Another value → 400 (`field "featured"`).'
+          schema: { type: string, enum: ['true', 'false'] }
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -1032,7 +1069,7 @@ paths:
                         topic: null
                     page: { nextCursor: eyJ2IjoxLCJ0IjoibmV3In0.q2Fm0b7xT1sYg8aE3k9Lzw, hasMore: true }
         '400':
-          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
+          description: VALIDATION_FAILED — bad `tab`, malformed `category`, bad `kind`, `scope` or `featured` (v1.27.1-live), `limit` out of range, or a malformed, tampered or mismatched `cursor` (`field "cursor"`, `issue "invalid_value"`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -5424,7 +5461,7 @@ components:
         tokens: { $ref: '#/components/schemas/TokenPair' }
     Me:
       type: object
-      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl]
+      required: [id, email, emailVerified, username, displayName, locale, role, isPrivate, createdAt, canHost, liveCoverUrl, country]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -5442,6 +5479,15 @@ components:
           type: [string, 'null']
           format: uri
           description: "CP-015: the host's live cover (WebP, 640 px square), or null (the avatar is used)."
+        country:
+          type: [string, 'null']
+          pattern: '^[A-Z]{2}$'
+          description: |
+            v1.27.1-live (D133): the caller's country (ISO 3166-1 alpha-2, upper case), chosen by the caller
+            with `updateMe`, or null (not set; every account starts with none). It decides `scope=nearby` of
+            `listLiveRooms` (a host's rooms are nearby for callers of the same country). Never inferred from
+            the IP (owner D45: the user chooses their country, location is never inferred; XK is not offered).
+            Not shown on public profiles. Always present; older apps ignore it.
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -5727,6 +5773,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/LiveRoomSummary' }
         page: { $ref: '#/components/schemas/PageInfo' }
+        emptyReason:
+          type: [string, 'null']
+          enum: [COUNTRY_NOT_SET, null]
+          description: |
+            v1.27.1-live (D133): present only on `scope=nearby` responses. `COUNTRY_NOT_SET`: the caller has
+            no country (`Me.country` null), so the page is empty and the app asks them to set it; null
+            otherwise. Clients that do not know the field ignore it; unknown values are treated as null.
     StartLiveRoomRequest:
       type: object
       required: [title]

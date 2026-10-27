@@ -761,6 +761,25 @@ a `CONNECTION LIMIT`.
 - Apps cache `GET /home/banners` for up to a minute (`Cache-Control: private, max-age=60`) and
   reload it on pull to refresh, so a change shows within about a minute.
 
+### 5.12 Nearby and Featured on the live hub (migration `20261128090000_live_nearby_featured`; D133) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): a nullable `user_profiles.country_code` (every account
+  starts with none; users set it with `PATCH /me`) and the table `live_featured_hosts`. No GRANT, no
+  backfill, no new server config.
+- Featured hosts are managed only with the `feature-admin` CLI (migration role, audited
+  `live.feature.add` / `live.feature.remove`):
+
+  ```bash
+  FEATURE="docker compose --profile jobs run --rm migrate node dist/cli/feature-admin.js"
+  $FEATURE add --user host@example.com --rank 10                       # or --user <username>
+  $FEATURE add --user layla.k --rank 5 --until 2026-11-30T00:00:00Z     # ends on its own
+  $FEATURE add --user layla.k --until none                              # remove the end
+  $FEATURE remove --user layla.k
+  $FEATURE list                                                         # expired rows marked -
+  ```
+
+  Locally: `pnpm feature:admin …`. Lower ranks come first; equal ranks follow the popular order.
+
 ## 6. Observability baseline
 
 | Item | Status |

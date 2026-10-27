@@ -14,7 +14,13 @@ import { UsersService, violatedUniqueIndex } from '../users/users.service.js';
 import { LiveRankingsService } from './live-rankings.service.js';
 import { LiveScheduleService } from './live-schedule.service.js';
 import { LiveCategoriesService, localizedCategory, type LiveCategoryDto } from './live-categories.service.js';
-import { cursorScope, LiveCursorCodec, type CursorPosition, type LiveTab } from './live-cursor.js';
+import {
+  cursorScope,
+  LIVE_KIND_MODES,
+  LiveCursorCodec,
+  type CursorPosition,
+  type LiveTab,
+} from './live-cursor.js';
 import { awardLiveMedalsForRoomsIn } from '../medals/medal-awards.js';
 import { clearEndedRoomSeatsIn, releaseUserIn } from './live-seats.store.js';
 import {
@@ -104,6 +110,8 @@ export interface LiveRoomDto extends LiveRoomSummaryDto {
 export interface LiveRoomPageDto {
   data: LiveRoomSummaryDto[];
   page: { nextCursor: string | null; hasMore: boolean };
+  /** v1.27.1-live (D133): only on `scope=nearby` responses. */
+  emptyReason?: 'COUNTRY_NOT_SET' | null;
 }
 
 export interface LiveConfigDto {
@@ -304,6 +312,18 @@ export function orderBy(tab: LiveTab): Prisma.Sql {
   return tab === 'popular'
     ? Prisma.sql`r.score DESC, r.started_at DESC, r.id DESC`
     : Prisma.sql`r.started_at DESC, r.id DESC`;
+}
+
+/**
+ * v1.27.1-live (D133): `featured=true` orders by feature rank ascending, then like `popular`, on
+ * every tab; rows strictly after `position` in that order.
+ */
+export const FEATURED_ORDER = Prisma.sql`fh.rank ASC, r.score DESC, r.started_at DESC, r.id DESC`;
+
+export function featuredKeysetAfter(position: CursorPosition): Prisma.Sql {
+  const startedAt = ts(position.startedAt);
+  const rank = position.rank ?? 0;
+  return Prisma.sql`(fh.rank > ${rank}::int OR (fh.rank = ${rank}::int AND (r.score, r.started_at, r.id) < (${String(position.score)}::bigint, ${startedAt}::timestamptz, ${position.id}::uuid)))`;
 }
 
 /** Rows strictly after `position` in the tab's order (row-value comparison, all keys desc). */
@@ -705,10 +725,28 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     query: ListLiveRoomsQuery,
     lang: ContentLanguage,
   ): Promise<LiveRoomPageDto> {
-    if (callerId === null && query.tab === 'following') {
+    if (callerId === null && (query.tab === 'following' || query.scope === 'nearby')) {
       throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     }
-    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest', query.kind);
+    // v1.27.1-live (D133): nearby = the caller's own country; none set → an honest empty page.
+    let nearbyCountry: string | null = null;
+    if (query.scope === 'nearby') {
+      const profile = await this.prisma.userProfile.findUnique({
+        where: { userId: callerId ?? '' },
+        select: { countryCode: true },
+      });
+      nearbyCountry = profile?.countryCode ?? null;
+      if (nearbyCountry === null) {
+        if (query.cursor !== undefined)
+          throw AppException.validation([{ field: 'cursor', issue: 'invalid_value' }]);
+        return { data: [], page: { nextCursor: null, hasMore: false }, emptyReason: 'COUNTRY_NOT_SET' };
+      }
+    }
+    const featured = query.featured === true;
+    const scope = cursorScope(query.tab, query.category, callerId ?? 'guest', query.kind, {
+      nearbyCountry,
+      featured,
+    });
     let position: CursorPosition | null = null;
     if (query.cursor !== undefined) {
       position = this.cursors.decode(query.cursor, scope);
@@ -732,20 +770,33 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
     }
     if (query.kind !== undefined) {
       // v1.26.4-live (D129): voice rooms (podcasts included) apart from video lives (solo, PK, multi).
-      conditions.push(query.kind === 'audio' ? Prisma.sql`r.mode = 'AUDIO'` : Prisma.sql`r.mode <> 'AUDIO'`);
+      // v1.27.1-live (D133): solo (SOLO, PK), multi (MULTI), party (AUDIO, MULTI).
+      const modes = LIVE_KIND_MODES[query.kind].map((m) => Prisma.sql`${m}::live_room_mode`);
+      conditions.push(Prisma.sql`r.mode IN (${Prisma.join(modes)})`);
     }
+    if (nearbyCountry !== null) conditions.push(Prisma.sql`p.country_code = ${nearbyCountry}`);
     if (query.tab === 'following') {
       conditions.push(
         Prisma.sql`EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ${callerId ?? ''}::uuid AND f.followee_id = r.host_user_id)`,
       );
     }
-    if (position) conditions.push(keysetAfter(query.tab, position));
+    if (position)
+      conditions.push(featured ? featuredKeysetAfter(position) : keysetAfter(query.tab, position));
 
-    const rows = await this.prisma.$queryRaw<RoomRow[]>`
-      ${ROOM_SELECT}
-       WHERE ${Prisma.join(conditions, ' AND ')}
-       ORDER BY ${orderBy(query.tab)}
-       LIMIT ${query.limit + 1}`;
+    // v1.27.1-live (D133): featured = hosts featured now (`until` not passed), by rank first.
+    const rows = featured
+      ? await this.prisma.$queryRaw<(RoomRow & { feature_rank: number })[]>`
+          SELECT ${ROOM_COLUMNS}, fh.rank AS feature_rank ${ROOM_FROM}
+            JOIN live_featured_hosts fh ON fh.user_id = r.host_user_id
+                 AND (fh.until IS NULL OR fh.until > ${ts(now)}::timestamptz)
+           WHERE ${Prisma.join(conditions, ' AND ')}
+           ORDER BY ${FEATURED_ORDER}
+           LIMIT ${query.limit + 1}`
+      : await this.prisma.$queryRaw<RoomRow[]>`
+          ${ROOM_SELECT}
+           WHERE ${Prisma.join(conditions, ' AND ')}
+           ORDER BY ${orderBy(query.tab)}
+           LIMIT ${query.limit + 1}`;
 
     const hasMore = rows.length > query.limit;
     const page = rows.slice(0, query.limit);
@@ -759,10 +810,12 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
                 score: Number(last.score),
                 startedAt: last.started_at,
                 id: last.id,
+                ...('feature_rank' in last ? { rank: Number(last.feature_rank) } : {}),
               })
             : null,
         hasMore,
       },
+      ...(query.scope === 'nearby' ? { emptyReason: null } : {}),
     };
   }
 

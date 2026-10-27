@@ -23,7 +23,7 @@ export class UsersController {
     return me;
   }
 
-  /** v1.2 (KL-018): persist an explicit locale choice; 30 / hour / user. */
+  /** v1.2 (KL-018): persist an explicit locale choice; v1.27.1-live (D133) the country; 30 / hour / user. */
   @Patch('me')
   @HttpCode(200)
   @RateLimit({ bucket: 'update_me:user', rule: 'updateMeUser', key: (req) => req.auth?.userId ?? '' })
@@ -31,7 +31,7 @@ export class UsersController {
     @CurrentAuth() auth: AuthContext,
     @Body(new ZodValidationPipe(updateMeSchema)) body: z.output<typeof updateMeSchema>,
   ): Promise<MeDto> {
-    const me = await this.users.updateLocale(auth.userId, body.locale);
+    const me = await this.users.updateMe(auth.userId, body);
     if (!me) throw new AppException(ErrorCode.AUTH_UNAUTHENTICATED);
     return me;
   }

@@ -482,6 +482,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.27.1-live (draft) | 2026-10-27 | **D133 (owner: the Live hub's filters become Nearby · Popular ▾ · Featured · Explore, and a party page):** `listLiveRooms` takes `scope=nearby` (token required; rooms whose host's country is the caller's; `LiveRoomPage.emptyReason` `COUNTRY_NOT_SET`), `featured=true` (rooms of hosts featured now, ordered by feature rank, then score, startedAt, id) and the kinds `solo` (`SOLO`, `PK`), `multi` (`MULTI`), `party` (`AUDIO`, `MULTI`); cursors are bound to every filter. `Me.country` and `updateMe` `{locale?, country?}` (at least one; `locale` no longer required). Featured hosts are managed only by the `feature-admin` CLI (audit `live.feature.add`, `live.feature.remove`). Explore is `tab=new` (unchanged). §10.4, §10.28. | **Additive** (new query values and optional fields; a request without them behaves as before; `updateMe` accepts more). |
 | v1.26.4-live (draft) | 2026-10-27 | **D129 (owner: voice rooms apart from video lives on the hub; a host who ends a live loses its ranking):** `listLiveRooms` takes `kind` (`audio` = `AUDIO` rooms, podcasts included; `video` = `SOLO`, `PK`, `MULTI`; absent = all), on every tab like `category`; the cursor is bound to it (`k`, only when a kind is given). The `popular` score belongs to one live: every go-live is a new room starting at 0 and an ended room is never listed, so ending a live drops its ranking; the ended room keeps its own final score (§10.10). Room level (charm), the popularity boards and every other point system are unchanged. §10.4, §10.10. | **Additive** (an optional parameter; requests and cursors without `kind` are unchanged). The ranking rule is the existing behaviour, now stated. |
 | v1.26.3-live (draft) | 2026-10-27 | **D128 (owner: "the host can support himself"; the gift panel's Send "does nothing"):** `sendLiveGift` accepts the caller among `recipients` when the caller is the host or seated now (before: 400 `recipients` / `invalid_value`); a viewer who is not seated naming themself → 409 `LIVE_GIFT_RECIPIENT_UNAVAILABLE` like any unseated recipient. A gift to oneself counts like any gift: the score, the popularity board, the sender's Contribution points (the host still never listed), and both charm and support for that person (CP-005 `self_gift` stays for other gifts). §10.23. | **Behaviour only** (no shape change): a request that was refused with 400 now succeeds. |
 | v1.26.2-live (draft) | 2026-10-26 | **D126 (owner: big animated gifts are hosted, not bundled):** `Gift` (so `GiftBagItem`) and `LiveGift` gain `imageUrl`, `animationUrl` (public URLs under `MEDIA_PUBLIC_BASE_URL`, content-addressed `media/gifts/<code>/<sha256 prefix>.png\|webp\|svga`, immutable) and `animationBytes` (required in responses, null when absent); `GiftCatalogue.version` moves with them. `gift-admin add\|update … --image <file.png\|webp> --animation-file <file.svga>` (checked and uploaded to object storage with `Cache-Control: public, max-age=31536000, immutable`), `--image none` / `--animation-file none`. Migration `20261119090000_gift_art` (nullable columns, CHECKs `gifts_image_object_key_format`, `gifts_animation_object_key_format`, `gifts_animation_bytes_set`). §10.23. | **Additive** (new response fields older apps ignore; existing gifts have none and keep their bundled art). |
@@ -665,6 +666,16 @@ until a media provider is wired in.
   `audio` = rooms with `mode` `AUDIO` (voice rooms; there is no separate podcast type, a podcast is a
   voice room), `video` = `SOLO`, `PK` and `MULTI`; absent = all rooms. Another value → 400
   (`field "kind"`). The app's hub sends it on every tab (its "voice rooms · live" switch).
+- *(v1.27.1-live, owner D133: the hub's Nearby · Popular ▾ · Featured · Explore)* `kind` also takes
+  `solo` = `SOLO` and `PK` (the hub's lives), `multi` = `MULTI`, `party` = `AUDIO` and `MULTI` (the
+  party page). **`scope=nearby`** keeps the rooms whose host's country (`Me.country`, §10.28) equals
+  the caller's; it needs a token (a guest → 401, like `following`); a caller with no country gets 200
+  with an empty page and `emptyReason: "COUNTRY_NOT_SET"` (the field is present only on `nearby`
+  responses; null otherwise). No country is ever guessed (no IP lookup). **`featured=true`** keeps the
+  rooms of hosts featured now (§10.28) and orders them by **feature rank ascending, then score desc,
+  startedAt desc, id desc on every tab** (`following` still filters to followed hosts); `featured=false`
+  or absent = no filter. Another `scope` / `featured` value → 400 (`field "scope"` / `"featured"`).
+  All filters combine and filter every tab. Explore is `tab=new` (unchanged).
   - A malformed slug → 400 (`field "category"`).
   - A well-formed slug that is unknown or inactive → **200 with an empty list**. Categories can
     change between the client's category fetch and the list call, and an empty grid is the
@@ -680,7 +691,9 @@ until a media provider is wired in.
     - fails the tag check;
     - has an unknown version;
     - does not match the request's `tab`, `category`, `kind` *(v1.26.4-live; the payload has
-      `k` only when a kind was given)* or caller.
+      `k` only when a kind was given)*, `scope` and `featured` *(v1.27.1-live; `sc` with the caller's
+      country and `f` with the last row's feature rank, only when given — so a `nearby` cursor stops
+      working when the caller changes their country)* or caller (`following` and `nearby`).
   - The cursor contains nothing secret; the HMAC only stops crafted cursors from turning into
     arbitrary keyset queries.
 - **Ranking drift:** pages are keyset queries over live data. A room can move between pages (its
@@ -1764,6 +1777,25 @@ Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaul
 - **App** *(owner)*: the carousel sits full width after the 4th live card (after the last card when
   fewer), radius 12, auto-advances every 4 s (not with reduce motion), pauses while touched, shows
   page dots when there is more than one, and opens the link on tap.
+
+### 10.28 Country and featured hosts *(v1.27.1-live, DRAFT — D133)*
+
+- **A user's country:** `Me.country` — ISO 3166-1 alpha-2 (upper case) or null. **Every account
+  starts with none**: nothing asked it at sign-up, the profile had none and the boards are one region
+  for everyone (§10.15); the server never infers it from the IP. The user sets it with
+  `PATCH /me` `{"country": "SA"}` (lower case accepted; an unknown or malformed code, a grouping such
+  as `EU`, or `XK` → 400 `country` / `invalid_value`; null clears it). This follows the owner's D45
+  decision ("the user chooses their country, optional; location is never inferred; XK excluded")
+  and the field name of the approved, unmerged KL-048 contract (`country`). `PATCH /me` now takes `locale` and/or
+  `country` (at least one; `{}` → 400 `body` / `required`). It is not shown on profiles. It decides
+  `scope=nearby` (§10.4) and is one of the two inputs of the lucky-gift region list (§10.27).
+- **Featured hosts** *(owner: a Featured filter)*: `live_featured_hosts` (one row per host: `rank`
+  0–1 000 000, lower first, default 100; optional `until`, after which the row no longer counts).
+  Managed only with the `feature-admin` CLI (migration role): `add --user <email|username> [--rank N]
+  [--until <ISO time>]` (adds or updates), `remove --user …`, `list`; every change is audited
+  (`live.feature.add` with before / after, `live.feature.remove`). A featured host's rooms are listed
+  by `featured=true` while LIVE (§10.4); the ordering ties rooms of the same rank by the popular
+  order. There is no admin API.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

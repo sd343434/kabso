@@ -82,6 +82,9 @@ export enum AuditAction {
   BANNER_ENABLE = 'banner.enable',
   BANNER_DISABLE = 'banner.disable',
   BANNER_REMOVE = 'banner.remove',
+  /** v1.27.1-live (D133): featured hosts, changed only by the feature-admin CLI. */
+  LIVE_FEATURE_ADD = 'live.feature.add',
+  LIVE_FEATURE_REMOVE = 'live.feature.remove',
 }
 
 export interface AuditEntry {

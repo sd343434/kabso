@@ -36,7 +36,8 @@ describe('D129 contract coverage', () => {
       expect.objectContaining({
         in: 'query',
         required: false,
-        schema: { type: 'string', enum: ['audio', 'video'] },
+        // v1.27.1-live (D133) adds solo, multi and party (kl094 covers them).
+        schema: { type: 'string', enum: ['audio', 'video', 'solo', 'multi', 'party'] },
       }),
     );
   });
