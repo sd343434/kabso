@@ -61,6 +61,7 @@ class LuckyComboState {
     this.gift,
     this.visible = false,
     this.count = 0,
+    this.comboQuantity = 0,
     this.queued = 0,
     this.sending = false,
     this.ring = 0,
@@ -81,6 +82,10 @@ class LuckyComboState {
 
   /// The server's combo count of the last answer (`LiveGift.combo.count`).
   final int count;
+
+  /// D145a: the gifts per recipient in the server's combo so far
+  /// (`LiveGift.combo.quantity`): the one ×N the room shows.
+  final int comboQuantity;
 
   /// Taps waiting behind the one in flight.
   final int queued;
@@ -108,6 +113,7 @@ class LuckyComboState {
     LuckyComboGift? gift,
     bool? visible,
     int? count,
+    int? comboQuantity,
     int? queued,
     bool? sending,
     int? ring,
@@ -122,6 +128,7 @@ class LuckyComboState {
     gift: gift ?? this.gift,
     visible: visible ?? this.visible,
     count: count ?? this.count,
+    comboQuantity: comboQuantity ?? this.comboQuantity,
     queued: queued ?? this.queued,
     sending: sending ?? this.sending,
     ring: ring ?? this.ring,
@@ -182,6 +189,7 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       gift: gift,
       visible: true,
       count: first.gift.combo.count,
+      comboQuantity: first.gift.combo.quantity,
       ring: state.ring + 1,
       taps: state.taps,
       draws: lucky?.draws ?? 0,
@@ -311,6 +319,7 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       gift: state.gift,
       visible: state.visible,
       count: result.gift.combo.count,
+      comboQuantity: result.gift.combo.quantity,
       queued: state.queued,
       sending: epoch == _epoch && state.sending,
       ring: state.ring,

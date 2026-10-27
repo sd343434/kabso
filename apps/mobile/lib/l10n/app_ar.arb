@@ -377,7 +377,7 @@
       }
     }
   },
-  "chatGiftSent": "أرسل {name} {gift} ×{count}",
+  "chatGiftSent": "أرسل {name} {gift} ⁦×{count}⁩",
   "@chatGiftSent": {
     "placeholders": {
       "name": {
@@ -7454,7 +7454,7 @@
   "@liveLuckyOddsTitle": {"description": "Title of the odds sheet."},
   "liveLuckyOddsIntro": "كل هدية ترسلها سحبة واحدة. الربح يساوي المضاعف مضروباً في سعر الهدية بالعملات.",
   "@liveLuckyOddsIntro": {"description": "Odds sheet: how a draw works."},
-  "liveLuckyOddsRow": "×{multiplier}",
+  "liveLuckyOddsRow": "⁦×{multiplier}⁩",
   "@liveLuckyOddsRow": {"description": "Odds sheet: one multiplier.", "placeholders": {"multiplier": {"type": "String"}}},
   "liveLuckyOddsNoWin": "بلا ربح",
   "@liveLuckyOddsNoWin": {"description": "Odds sheet: the chance of no win."},
@@ -7476,11 +7476,11 @@
   "@liveLuckyRegion": {"description": "Lucky tab: region unavailable."},
   "liveLuckyOff": "هدايا الحظ متوقفة حالياً.",
   "@liveLuckyOff": {"description": "Lucky tab: disabled."},
-  "liveLuckyWon": "ربحت {coins} عملة، وأعلى مضاعف ×{multiplier}",
+  "liveLuckyWon": "ربحت {coins} عملة، وأعلى مضاعف ⁦×{multiplier}⁩",
   "@liveLuckyWon": {"description": "Lucky send result.", "placeholders": {"coins": {"type": "String"}, "multiplier": {"type": "String"}}},
   "liveLuckyNoWin": "لا ربح هذه المرة",
   "@liveLuckyNoWin": {"description": "Lucky send result: nothing won."},
-  "liveLuckyBanner": "{name} ربح ×{multiplier}: {coins} عملة",
+  "liveLuckyBanner": "{name} ربح ⁦×{multiplier}⁩: {coins} عملة",
   "@liveLuckyBanner": {"description": "Room banner for a big lucky win.", "placeholders": {"name": {"type": "String"}, "multiplier": {"type": "String"}, "coins": {"type": "String"}}},
   "errorLuckyGiftAgeUnconfirmed": "أكّد أن عمرك 18 عاماً أو أكثر لإرسال هدايا الحظ.",
   "@errorLuckyGiftAgeUnconfirmed": {"description": "Error LUCKY_GIFT_AGE_UNCONFIRMED."},
@@ -7604,7 +7604,7 @@
   "@liveStatsLoadFailedBody": {"description": "D140: the full-screen end-of-live summary (the live's statistics)."},
   "liveComboLabel": "كومبو",
   "@liveComboLabel": {"description": "D145: the lucky combo button's label."},
-  "liveComboSemantics": "أرسل {gift} مجدداً، كومبو ×{count}",
+  "liveComboSemantics": "أرسل {gift} مجدداً، كومبو ⁦×{count}⁩",
   "@liveComboSemantics": {"description": "D145: the lucky combo button for screen readers.", "placeholders": {"gift": {"type": "String"}, "count": {"type": "int"}}},
   "liveComboBalance": "رصيدك {coins} عملة",
   "@liveComboBalance": {"description": "D145: the coin balance under the combo button.", "placeholders": {"coins": {"type": "String"}}}

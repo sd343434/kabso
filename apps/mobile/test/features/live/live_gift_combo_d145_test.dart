@@ -21,16 +21,25 @@ import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/live_room_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -69,6 +78,13 @@ class _Room extends StatelessWidget {
           ),
         ),
         const LuckyComboLayer(roomId: 'room-0', hostUsername: 'sara'),
+        const Align(
+          alignment: AlignmentDirectional.bottomEnd,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 80),
+            child: LuckyComboCluster(roomId: 'room-0'),
+          ),
+        ),
       ],
     ),
   );
@@ -135,7 +151,7 @@ Future<void> _sendLucky(WidgetTester tester) async {
   await _run(tester, const Duration(milliseconds: 600));
 }
 
-final Finder _button = find.byKey(LuckyComboLayer.buttonKey);
+final Finder _button = find.byKey(LuckyComboCluster.buttonKey);
 
 Future<void> _combo(WidgetTester tester) async {
   await tester.tap(_button);
@@ -147,6 +163,26 @@ String? _text(WidgetTester tester, Key key) {
   if (f.evaluate().isEmpty) return null;
   return tester.widget<Text>(f.first).data;
 }
+
+LiveGiftReceived _strip(
+  String id,
+  String sender,
+  String code, {
+  int quantity = 1,
+  int count = 1,
+}) => LiveGiftReceived(
+  LiveGift.fromJson(
+    liveGiftJson(
+      id: id,
+      code: code,
+      quantity: quantity,
+      sender: giftUserJson(sender, sender),
+      recipients: [giftUserJson('sara', 'Sara')],
+      comboId: 'combo-$id',
+      comboCount: count,
+    ),
+  ),
+);
 
 ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(LuckyComboLayer)));
@@ -171,12 +207,12 @@ void main() {
       expect(h.gifts.sends, hasLength(2));
       expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
       expect(_button, findsOneWidget);
-      expect(find.byKey(LuckyComboLayer.ringKey), findsOneWidget);
-      expect(_text(tester, LuckyComboLayer.countKey), en.giftCombo(1));
+      expect(find.byKey(LuckyComboCluster.ringKey), findsOneWidget);
+      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(1));
       expect(find.text(en.liveComboLabel), findsOneWidget);
       // 1000 − 1 (rose) − 10 (clover).
-      expect(_text(tester, LuckyComboLayer.balanceKey), '989');
-      expect(_text(tester, LuckyComboLayer.resultKey), en.liveLuckyNoWin);
+      expect(_text(tester, LuckyComboCluster.balanceKey), '989');
+      expect(_text(tester, LuckyComboCluster.resultKey), '0');
       await _run(tester, const Duration(seconds: 5));
     });
 
@@ -199,8 +235,8 @@ void main() {
         expect(s.source, LiveGiftSource.coins);
       }
       expect({for (final s in h.gifts.sends) s.clientId}, hasLength(3));
-      expect(_text(tester, LuckyComboLayer.countKey), en.giftCombo(3));
-      expect(_text(tester, LuckyComboLayer.balanceKey), '970');
+      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(3));
+      expect(_text(tester, LuckyComboCluster.balanceKey), '970');
       await _run(tester, const Duration(milliseconds: 3500));
       expect(_button, findsOneWidget);
       await _run(tester, const Duration(milliseconds: 700));
@@ -241,12 +277,9 @@ void main() {
       expect({for (final s in h.gifts.sends) s.clientId}, hasLength(6));
       // 1000 − 6 × 10 + 50 won.
       expect(h.gifts.coins, 990);
-      expect(_text(tester, LuckyComboLayer.balanceKey), '990');
-      expect(_text(tester, LuckyComboLayer.countKey), en.giftCombo(6));
-      expect(
-        _text(tester, LuckyComboLayer.resultKey),
-        en.liveLuckyWon('\u206850\u2069', '5'),
-      );
+      expect(_text(tester, LuckyComboCluster.balanceKey), '990');
+      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(6));
+      expect(_text(tester, LuckyComboCluster.resultKey), '+50');
       await _run(tester, const Duration(seconds: 5));
     });
 
@@ -303,7 +336,7 @@ void main() {
       expect(h.gifts.sends[1].clientId, h.gifts.sends[2].clientId);
       expect(h.gifts.coins, 980);
       expect(_button, findsOneWidget);
-      expect(_text(tester, LuckyComboLayer.countKey), en.giftCombo(2));
+      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(2));
       await _run(tester, const Duration(seconds: 5));
     });
 
@@ -366,7 +399,7 @@ void main() {
       await _run(tester, const Duration(milliseconds: 500));
       final ring = tester.widget<CustomPaint>(
         find.descendant(
-          of: find.byKey(LuckyComboLayer.ringKey),
+          of: find.byKey(LuckyComboCluster.ringKey),
           matching: find.byType(CustomPaint),
         ),
       );
@@ -375,41 +408,171 @@ void main() {
       expect((ring.painter! as ComboRingPainter).remaining, lessThan(1));
       await _run(tester, const Duration(seconds: 5));
     });
+  });
 
-    for (final language in AppLanguage.values) {
-      for (final viewport in GoldenViewport.values) {
-        testWidgets('placement (${language.name}, ${viewport.name}, text 1.3): '
-            'centred over the bar, ×N on the reading end, inside the screen', (
-          tester,
-        ) async {
-          tester.platformDispatcher.textScaleFactorTestValue = 1.3;
-          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-          await _pump(tester, language: language, viewport: viewport);
-          await _sendLucky(tester);
-          final size = viewport.logicalSize;
-          final button = tester.getRect(_button);
-          expect((button.center.dx - size.width / 2).abs(), lessThan(1));
-          expect(button.width, LuckyComboLayer.size);
-          expect(button.bottom, lessThan(size.height - 60));
-          final count = tester.getRect(find.byKey(LuckyComboLayer.countKey));
-          if (language == AppLanguage.ar) {
-            expect(count.right, lessThanOrEqualTo(button.left + 1));
-          } else {
-            expect(count.left, greaterThanOrEqualTo(button.right - 1));
-          }
-          for (final key in [
-            LuckyComboLayer.resultKey,
-            LuckyComboLayer.balanceKey,
-          ]) {
-            final r = tester.getRect(find.byKey(key));
-            expect(r.left, greaterThanOrEqualTo(0));
-            expect(r.right, lessThanOrEqualTo(size.width));
-          }
-          expect(tester.takeException(), isNull);
-          await _run(tester, const Duration(seconds: 5));
-        });
+  group('D145a: placement in the real rooms', () {
+    for (final audio in [false, true]) {
+      for (final language in AppLanguage.values) {
+        for (final viewport in GoldenViewport.values) {
+          final kind = audio ? 'audio' : 'video';
+          testWidgets('$kind ${language.name} ${viewport.name} text 1.3: the '
+              'combo sits at the end over the gift button, beside the chat '
+              '(no overlap with chat, quick replies or seats); the strips '
+              'keep off the seats and the wish card; one ×N', (tester) async {
+            tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+            addTearDown(
+              tester.platformDispatcher.clearTextScaleFactorTestValue,
+            );
+            final size = viewport.logicalSize;
+            tester.view
+              ..physicalSize = size * 3
+              ..devicePixelRatio = 3
+              ..padding = const FakeViewPadding(top: 59 * 3, bottom: 34 * 3)
+              ..viewPadding = const FakeViewPadding(
+                top: 59 * 3,
+                bottom: 34 * 3,
+              );
+            addTearDown(tester.view.reset);
+            final ar = language == AppLanguage.ar;
+            final engine = FakeLiveMediaEngine()..present.add('user-0');
+            final gifts = FakeLiveGiftRepository(
+              codes: [...giftFixtureCodes, 'lucky_clover'],
+              ar: ar,
+            )..categories = const ['POPULAR', 'EVENT', 'FUN', 'LUCKY'];
+            await pumpScreen(
+              tester,
+              const LiveRoomScreen(roomId: 'room-0'),
+              language: language,
+              liveMediaEngine: engine,
+              liveGiftRepository: gifts,
+              overrides: [
+                liveRepositoryProvider.overrideWithValue(
+                  FakeLiveRepository(
+                    room: (id) {
+                      final r = apiRoom(id: id, ar: ar).copyWith(
+                        wishGifts: const [
+                          LiveWishGift(
+                            giftCode: 'rose',
+                            name: 'Rose',
+                            priceCoins: 1,
+                            assetKey: 'gift_rose',
+                          ),
+                        ],
+                      );
+                      return audio
+                          ? r.copyWith(mode: LiveRoomMode.audio, seatCount: 10)
+                          : r;
+                    },
+                  )..coins = 1000,
+                ),
+                profileRepositoryProvider.overrideWithValue(
+                  FakeProfileRepository(apiProfile()),
+                ),
+                currentUserProvider.overrideWithValue(testUser()),
+              ],
+            );
+            await tester.pumpAndSettle();
+            await tester.tap(
+              find.byKey(
+                audio ? AudioRoomViewKeys.gift : LiveRoomScreen.giftKey,
+              ),
+            );
+            await tester.pumpAndSettle();
+            await _sendLucky(tester);
+            await _combo(tester);
+            engine.chat
+              ..add(_strip('o1', 'omar', 'rose', quantity: 10, count: 7))
+              ..add(_strip('n1', 'nour', 'crown'));
+            await _run(tester, const Duration(milliseconds: 500));
+            expect(tester.takeException(), isNull);
+
+            final screen = Offset.zero & size;
+            final cluster = tester.getRect(find.byType(LuckyComboCluster));
+            final button = tester.getRect(_button);
+            final gift = tester.getRect(
+              find.byKey(
+                audio ? AudioRoomViewKeys.gift : LiveRoomScreen.giftKey,
+              ),
+            );
+            for (final key in [
+              LuckyComboCluster.resultKey,
+              LuckyComboCluster.countKey,
+              LuckyComboCluster.balanceKey,
+            ]) {
+              final r = tester.getRect(find.byKey(key));
+              expect(screen.contains(r.topLeft), isTrue, reason: '$key');
+              expect(screen.contains(r.bottomRight), isTrue, reason: '$key');
+            }
+            // The badge and the winnings do not overlap.
+            expect(
+              tester
+                  .getRect(find.byKey(LuckyComboCluster.countKey))
+                  .overlaps(
+                    tester.getRect(find.byKey(LuckyComboCluster.resultKey)),
+                  ),
+              isFalse,
+            );
+            // At the end, over the gift button.
+            expect(button.bottom, lessThanOrEqualTo(gift.top + 1));
+            expect(
+              ar ? button.left < size.width / 2 : button.right > size.width / 2,
+              isTrue,
+            );
+            expect((button.center.dx - gift.center.dx).abs(), lessThan(40));
+            // Never over the chat.
+            final chat = tester.getRect(find.byType(LiveRoomChatLines).first);
+            expect(chat.overlaps(cluster), isFalse);
+            if (!audio) {
+              expect(
+                tester.getRect(find.byType(KQuickReplies)).overlaps(cluster),
+                isFalse,
+              );
+            }
+            final strips = tester.getRect(find.byKey(LiveGiftStrips.stripsKey));
+            if (audio) {
+              final seats = tester.getRect(
+                find
+                    .ancestor(
+                      of: find.byKey(AudioSeatRing.seatKey(0)),
+                      matching: find.byType(Scrollable),
+                    )
+                    .first,
+              );
+              expect(seats.bottom, lessThanOrEqualTo(cluster.top + 0.5));
+              expect(strips.top, greaterThanOrEqualTo(seats.bottom - 0.5));
+            } else {
+              final wish = tester.getRect(find.byKey(LiveWishCard.cardKey));
+              expect(strips.overlaps(wish), isFalse);
+            }
+            // One count per strip: ×70 for 10 roses sent 7 times.
+            final omar = find.byKey(LiveGiftEffectsLayer.bannerKey('combo-o1'));
+            expect(
+              find
+                  .descendant(of: omar, matching: find.byType(Text))
+                  .evaluate()
+                  .where((e) => ((e.widget as Text).data ?? '').contains('×')),
+              hasLength(1),
+            );
+            expect(
+              find.descendant(of: omar, matching: find.textContaining('70')),
+              findsOneWidget,
+            );
+            await _run(tester, const Duration(seconds: 6));
+          });
+        }
       }
     }
+  });
+
+  test('D145a: ×N stays "×10" in Arabic sentences (an LTR isolate, never '
+      '"10×")', () {
+    final ar = l10nFor(AppLanguage.ar);
+    const iso = '\u2066×10\u2069';
+    expect(ar.liveLuckyWon('100', '10'), contains(iso));
+    expect(ar.liveLuckyBanner('هدى', '10', '1,000'), contains(iso));
+    expect(ar.giftCombo(10), iso);
+    expect(ar.liveComboSemantics('وردة', 10), contains(iso));
+    expect(ar.chatGiftSent('هدى', 'وردة', 10), contains(iso));
   });
 
   group('the gift strips', () {
@@ -447,6 +610,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(KGiftEffect), findsOneWidget);
       final strip = find.byKey(LiveGiftEffectsLayer.bannerKey('car'));

@@ -16,53 +16,53 @@ import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D145: the lucky combo over a live (audio and video, host and viewer):
-/// a round Combo button with the gift inside and a countdown ring, ×N
-/// beside it, the streak's winnings above it and the balance under it; each
-/// accepted tap bounces the button, buzzes and flies the gift up toward
-/// who receives it. When the combo stops on a refusal the reason shows
-/// where the button was for [LuckyComboLayer.messageTime].
+/// D145/D145a: the lucky combo's button and its chips, placed by the room
+/// in a slot of its own at the bottom end, over the bar near the gift
+/// button (mirrored in Arabic): the audio room's end slot (where the promo
+/// box sits, which steps aside meanwhile) or the video live's chat end
+/// (the chat narrows to make room). So it never covers the chat, the
+/// seats or the quick replies.
 ///
-/// [bottom] is the distance from the screen's bottom edge (inside the safe
-/// area) to the button's lower edge: just above the room's bar.
-class LuckyComboLayer extends ConsumerStatefulWidget {
-  const new({
-    required this.roomId,
-    super.key,
-    this.bottom = audioBottom,
-    this.hostUsername,
-  });
+/// From the top: the streak's winnings (compact: the coin and "+N", the
+/// best ×), the round button — the gift and «كومبو / Combo» on Kabso red,
+/// a gold rim, a gold → red countdown ring of [LuckyComboController
+/// .ringTime] — with the one ×N badge (the gifts per recipient in the
+/// server's combo, `combo.quantity`) at its top start, and the balance.
+/// Each accepted tap buzzes, bounces the button and flies the gift up
+/// ([LuckyComboLayer]). Nothing when no combo shows.
+class LuckyComboCluster extends ConsumerStatefulWidget {
+  const new({required this.roomId, super.key});
 
   final String roomId;
-  final double bottom;
-
-  /// The host: a combo to the host alone flies to the host's pill at the
-  /// top start; any other flies toward the seats in the upper middle.
-  final String? hostUsername;
 
   static const buttonKey = Key('combo.button');
   static const ringKey = Key('combo.ring');
   static const countKey = Key('combo.count');
   static const balanceKey = Key('combo.balance');
   static const resultKey = Key('combo.result');
-  static const messageKey = Key('combo.message');
-  static const flightKey = Key('combo.flight');
 
   /// The button's outer size (ring included); a 48 pt target and more.
   static const double size = 76;
 
-  /// [bottom] in an audio room (just over its bar) and in a video live
-  /// (over the quick replies above its bar).
-  static const double audioBottom = 60;
-  static const double videoBottom = 96;
-  static const messageTime = Duration(seconds: 3);
-  static const flightTime = Duration(milliseconds: 700);
+  /// The cluster's width (the button and its badge; the chips scale down
+  /// to it).
+  static const double width = 96;
+
+  static final _anchors = <String, GlobalKey>{};
+
+  /// The button of [roomId]'s combo (where flights start).
+  static GlobalKey anchorFor(String roomId) =>
+      _anchors.putIfAbsent(roomId, GlobalKey.new);
+
+  /// Whether [roomId]'s combo shows now (the room gives it its slot).
+  static bool shows(WidgetRef ref, String roomId) =>
+      ref.watch(liveLuckyComboProvider(roomId).select((s) => s.visible));
 
   @override
-  ConsumerState<LuckyComboLayer> createState() => _LuckyComboLayerState();
+  ConsumerState<LuckyComboCluster> createState() => _LuckyComboClusterState();
 }
 
-class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
+class _LuckyComboClusterState extends ConsumerState<LuckyComboCluster>
     with TickerProviderStateMixin {
   // The ring is the time left, not decoration: it runs at its real speed
   // with reduced motion too.
@@ -75,24 +75,12 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   );
-  String? _message;
-  Timer? _messageTimer;
-  final _flights = <int>[];
 
   @override
   void dispose() {
     _ring.dispose();
     _pulse.dispose();
-    _messageTimer?.cancel();
     super.dispose();
-  }
-
-  void _showMessage(String text) {
-    _messageTimer?.cancel();
-    _messageTimer = Timer(LuckyComboLayer.messageTime, () {
-      if (mounted) setState(() => _message = null);
-    });
-    setState(() => _message = text);
   }
 
   void _onTap() {
@@ -108,9 +96,186 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
       if (next.ring != previous?.ring && next.visible) {
         _ring.forward(from: 0);
       }
+    });
+    final combo = ref.watch(provider);
+    final gift = combo.gift;
+    if (!combo.visible || gift == null) {
+      if (_pulse.isAnimating) _pulse.stop();
+      return const SizedBox.shrink();
+    }
+    // The balance is kept read while the combo shows (its answers set it).
+    final coins = ref.watch(liveCoinsProvider).value;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (!reduce && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (reduce && _pulse.isAnimating) {
+      _pulse.stop();
+    }
+    if (!_ring.isAnimating && _ring.value == 0) _ring.forward(from: 0);
+    final catalogue = ref.watch(giftCatalogueProvider).value;
+    final name = catalogue?.byCode(gift.code)?.name;
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final media = MediaQuery.of(context);
+    return SizedBox(
+      width: LuckyComboCluster.width,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (combo.last case final last?)
+            _ResultChip(
+              key: LuckyComboCluster.resultKey,
+              id: combo.lastId,
+              coinsWon: combo.coinsWon,
+              topMultiplier: combo.topMultiplier,
+              lastWon: last.coinsWon,
+              scaler: scaler,
+            ),
+          const SizedBox(height: KSpacing.xxs),
+          SizedBox(
+            width: LuckyComboCluster.width,
+            height: LuckyComboCluster.size + 6,
+            child: Stack(
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.bottomEnd,
+                  child: Semantics(
+                    button: true,
+                    label: l10n.liveComboSemantics(
+                      KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
+                      combo.comboQuantity,
+                    ),
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      key: LuckyComboCluster.buttonKey,
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _onTap,
+                      child: KeyedSubtree(
+                        key: LuckyComboCluster.anchorFor(widget.roomId),
+                        child: _ComboButton(
+                          ring: _ring,
+                          pulse: _pulse,
+                          taps: combo.taps,
+                          reduce: reduce,
+                          assetKey: gift.assetKey,
+                          imageUrl: gift.imageUrl,
+                          label: l10n.liveComboLabel,
+                          scaler: scaler,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                PositionedDirectional(
+                  top: 0,
+                  start: 0,
+                  child: ExcludeSemantics(
+                    child: MediaQuery(
+                      data: media.copyWith(
+                        textScaler: scaler.clamp(maxScaleFactor: 1.15),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: KLiveColors.chatScrim,
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: KGiftComboCounter(
+                            key: LuckyComboCluster.countKey,
+                            count: combo.comboQuantity,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (coins != null) ...[
+            const SizedBox(height: 2),
+            _Balance(coins: coins, scaler: scaler),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// D145: what the combo shows over the room besides its button: the gift
+/// flying from the button up to who receives it on every accepted tap
+/// (none with reduced motion), and, when the combo stops on a refusal, the
+/// reason over the bar for [messageTime]. Takes no taps.
+class LuckyComboLayer extends ConsumerStatefulWidget {
+  const new({
+    required this.roomId,
+    super.key,
+    this.bottom = audioBottom,
+    this.hostUsername,
+  });
+
+  final String roomId;
+
+  /// The message's distance from the bottom safe edge (over the bar).
+  final double bottom;
+
+  /// The host: a combo to the host alone flies to the host's pill at the
+  /// top start; any other flies toward the seats in the upper middle.
+  final String? hostUsername;
+
+  /// [bottom] in an audio room (over its bar) and in a video live (over
+  /// the quick replies above its bar).
+  static const double audioBottom = 60;
+  static const double videoBottom = 100;
+
+  static const messageKey = Key('combo.message');
+  static const flightKey = Key('combo.flight');
+  static const messageTime = Duration(seconds: 3);
+  static const flightTime = Duration(milliseconds: 700);
+
+  @override
+  ConsumerState<LuckyComboLayer> createState() => _LuckyComboLayerState();
+}
+
+class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
+  String? _message;
+  Timer? _messageTimer;
+
+  /// Flights: id → where it starts (the button's centre then).
+  final _flights = <int, Offset>{};
+
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    super.dispose();
+  }
+
+  void _showMessage(String text) {
+    _messageTimer?.cancel();
+    _messageTimer = Timer(LuckyComboLayer.messageTime, () {
+      if (mounted) setState(() => _message = null);
+    });
+    setState(() => _message = text);
+  }
+
+  Offset? _buttonCentre() {
+    final anchor = LuckyComboCluster.anchorFor(widget.roomId).currentContext;
+    final mine = context.findRenderObject();
+    final box = anchor?.findRenderObject();
+    if (box is! RenderBox || mine is! RenderBox || !box.attached) return null;
+    return mine.globalToLocal(box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final provider = liveLuckyComboProvider(widget.roomId);
+    ref.listen(provider, (previous, next) {
       if (next.taps != (previous?.taps ?? 0) &&
           !MediaQuery.disableAnimationsOf(context)) {
-        setState(() => _flights.add(next.taps));
+        final from = _buttonCentre();
+        if (from != null) setState(() => _flights[next.taps] = from);
       }
       final stop = next.stop;
       if (stop != null && stop.id != previous?.stop?.id) {
@@ -121,120 +286,17 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
         );
       }
     });
-    final combo = ref.watch(provider);
-    // The balance is kept read while the combo shows (its answers set it).
-    final coins = combo.visible ? ref.watch(liveCoinsProvider).value : null;
-    final reduce = MediaQuery.disableAnimationsOf(context);
-    if (combo.visible && !reduce && !_pulse.isAnimating) {
-      _pulse.repeat(reverse: true);
-    } else if ((!combo.visible || reduce) && _pulse.isAnimating) {
-      _pulse.stop();
-    }
-    if (combo.visible && !_ring.isAnimating && _ring.value == 0) {
-      _ring.forward(from: 0);
-    }
-    final gift = combo.gift;
-    final catalogue = ref.watch(giftCatalogueProvider).value;
-    final name = gift == null ? null : catalogue?.byCode(gift.code)?.name;
+    final gift = ref.watch(provider.select((s) => s.gift));
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final media = MediaQuery.of(context);
-    final bottom = media.padding.bottom + widget.bottom;
-
     final children = <Widget>[];
-    if (combo.visible && gift != null) {
-      children.add(
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: bottom,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (combo.last case final last?)
-                _ResultChip(
-                  key: LuckyComboLayer.resultKey,
-                  id: combo.lastId,
-                  coinsWon: combo.coinsWon,
-                  topMultiplier: combo.topMultiplier,
-                  lastWon: last.coinsWon,
-                  scaler: scaler,
-                ),
-              const SizedBox(height: KSpacing.xs),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Balances the counter so the button stays centred.
-                  const SizedBox(width: 56),
-                  Semantics(
-                    button: true,
-                    label: l10n.liveComboSemantics(
-                      KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
-                      combo.count,
-                    ),
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      key: LuckyComboLayer.buttonKey,
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _onTap,
-                      child: _ComboButton(
-                        ring: _ring,
-                        pulse: _pulse,
-                        taps: combo.taps,
-                        reduce: reduce,
-                        assetKey: gift.assetKey,
-                        imageUrl: gift.imageUrl,
-                        label: l10n.liveComboLabel,
-                        scaler: scaler,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 56,
-                    child: Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                        start: KSpacing.xs,
-                      ),
-                      child: Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: MediaQuery(
-                          data: media.copyWith(textScaler: scaler),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: KLiveColors.chatScrim,
-                              borderRadius: BorderRadius.circular(KRadius.pill),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              child: KGiftComboCounter(
-                                key: LuckyComboLayer.countKey,
-                                count: combo.count,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (coins != null) ...[
-                const SizedBox(height: KSpacing.xxs),
-                _Balance(coins: coins, scaler: scaler),
-              ],
-            ],
-          ),
-        ),
-      );
-    }
     if (_message case final text?) {
       children.add(
         Positioned(
           left: KSpacing.lg,
           right: KSpacing.lg,
-          bottom: bottom + KSpacing.md,
+          bottom: media.padding.bottom + widget.bottom,
           child: Center(
             child: Semantics(
               liveRegion: true,
@@ -245,7 +307,7 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
                   vertical: KSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: KLiveColors.chatScrim,
+                  color: const Color(0xE6000000),
                   borderRadius: BorderRadius.circular(KRadius.pill),
                 ),
                 child: Text(
@@ -266,14 +328,11 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
       final toHost =
           gift.recipients.length == 1 &&
           gift.recipients.first == widget.hostUsername;
-      for (final id in _flights) {
+      for (final MapEntry(key: id, value: from) in _flights.entries) {
         children.add(
           _Flight(
             key: ValueKey('flight.$id'),
-            from: Offset(
-              media.size.width / 2,
-              media.size.height - bottom - LuckyComboLayer.size / 2,
-            ),
+            from: from,
             to: toHost
                 ? Offset(
                     Directionality.of(context) == TextDirection.rtl
@@ -291,7 +350,9 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer>
         );
       }
     }
-    return Stack(fit: StackFit.expand, children: children);
+    return IgnorePointer(
+      child: Stack(fit: StackFit.expand, children: children),
+    );
   }
 }
 
@@ -321,7 +382,7 @@ class _ComboButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = LuckyComboLayer.size;
+    const size = LuckyComboCluster.size;
     final face = Container(
       width: size - 12,
       height: size - 12,
@@ -361,7 +422,7 @@ class _ComboButton extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           AnimatedBuilder(
-            key: LuckyComboLayer.ringKey,
+            key: LuckyComboCluster.ringKey,
             animation: Listenable.merge([ring, pulse]),
             builder: (context, _) => CustomPaint(
               size: const Size.square(size),
@@ -452,8 +513,9 @@ class ComboRingPainter extends CustomPainter {
       old.remaining != remaining || old.glow != glow;
 }
 
-/// The streak's lucky winnings: "+N" (gold) and the best ×, or "No win"
-/// while nothing was won; it pops on every answer.
+/// The streak's lucky winnings, compact for the cluster's width: the coin,
+/// "+N" (gold) and the best × (or "0" while nothing was won); it pops on
+/// every answer. Screen readers hear the whole sentence.
 class _ResultChip extends StatelessWidget {
   const new({
     required this.id,
@@ -473,19 +535,20 @@ class _ResultChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final text = coinsWon > 0
+    final spoken = coinsWon > 0
         ? l10n.liveLuckyWon(
             KFormat.bidiIsolate(KFormat.grouped(coinsWon)),
             KFormat.grouped(topMultiplier ?? 0),
           )
         : l10n.liveLuckyNoWin;
+    final won = coinsWon > 0;
+    final style = context.textStyles.caption.copyWith(
+      color: won ? KBrandColors.gold : const Color(0xFFFFFFFF),
+      fontWeight: FontWeight.w800,
+      height: 1.2,
+    );
     final chip = Container(
-      padding: const EdgeInsetsDirectional.fromSTEB(
-        KSpacing.xs,
-        KSpacing.xxs,
-        KSpacing.sm,
-        KSpacing.xxs,
-      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(3, 2, 7, 2),
       decoration: BoxDecoration(
         color: KLiveColors.chatScrim,
         borderRadius: BorderRadius.circular(KRadius.pill),
@@ -497,32 +560,33 @@ class _ResultChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const KabsoArtIcon(KabsoArt.coin, size: 16),
-          const SizedBox(width: KSpacing.xxs),
-          Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: scaler,
-              style: context.textStyles.caption.copyWith(
-                color: coinsWon > 0
-                    ? KBrandColors.gold
-                    : const Color(0xFFFFFFFF),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          const KabsoArtIcon(KabsoArt.coin, size: 14),
+          const SizedBox(width: 3),
+          Text(
+            // Digits and signs read left to right in both languages.
+            won ? '+${KFormat.grouped(coinsWon)}' : '0',
+            textDirection: TextDirection.ltr,
+            textScaler: scaler,
+            style: style,
           ),
+          if (won && topMultiplier != null) ...[
+            const SizedBox(width: 4),
+            Text(
+              l10n.giftCombo(topMultiplier!),
+              textScaler: scaler,
+              style: style.copyWith(color: const Color(0xFFFFFFFF)),
+            ),
+          ],
         ],
       ),
     );
     final pop = KMotion.of(context, KMotion.giftComboBump);
     return Semantics(
       liveRegion: true,
-      label: text,
+      label: spoken,
       excludeSemantics: true,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 300),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
         child: pop == Duration.zero
             ? chip
             : TweenAnimationBuilder<double>(
@@ -550,7 +614,7 @@ class _Balance extends StatelessWidget {
     label: context.l10n.liveComboBalance(KFormat.grouped(coins)),
     excludeSemantics: true,
     child: Container(
-      key: LuckyComboLayer.balanceKey,
+      key: LuckyComboCluster.balanceKey,
       padding: const EdgeInsets.symmetric(horizontal: KSpacing.xs, vertical: 2),
       decoration: BoxDecoration(
         color: KLiveColors.chatScrim,

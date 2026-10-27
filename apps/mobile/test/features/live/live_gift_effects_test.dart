@@ -118,13 +118,14 @@ void main() {
     await _show(tester);
     expect(find.byType(LiveGiftBanner), findsOneWidget);
     expect(find.byType(KGiftComboCounter), findsOneWidget);
-    expect(find.text(en.giftCombo(3)), findsOneWidget);
+    // D145a: one count — the gifts each recipient got in the combo (10 × 3).
+    expect(find.text(en.giftCombo(30)), findsOneWidget);
     // Each send of the combo keeps the banner up.
     await tester.pump(const Duration(seconds: 2));
     engine.chat.add(_gift(id: 'g4', comboId: 'g1', comboCount: 4));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
-    expect(find.text(en.giftCombo(4)), findsOneWidget);
+    expect(find.text(en.giftCombo(40)), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(find.byType(LiveGiftBanner), findsNothing);

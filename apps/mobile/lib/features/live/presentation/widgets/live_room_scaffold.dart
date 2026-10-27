@@ -43,6 +43,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.trailing,
     this.sideStart,
     this.sidePromo,
+    this.chatEnd,
     this.closeButtonKey = closeKey,
     this.closeLabel,
   });
@@ -70,6 +71,11 @@ class KLiveRoomScaffold extends StatelessWidget {
   /// D137/D141: the promo box, in the same column right above the wish
   /// list.
   final Widget? sidePromo;
+
+  /// D145a: beside the chat at the end, bottom-aligned over the bar's quick
+  /// replies (the lucky combo): the chat narrows for it, so it covers
+  /// neither the chat nor the quick replies.
+  final Widget? chatEnd;
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   final Key closeButtonKey;
@@ -179,15 +185,33 @@ class KLiveRoomScaffold extends StatelessWidget {
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
-                      child: chat == null
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: AlignmentDirectional.bottomStart,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(maxHeight: chatCap),
-                                child: chat,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: chat == null
+                                ? const SizedBox.shrink()
+                                : Align(
+                                    alignment: AlignmentDirectional.bottomStart,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxHeight: chatCap,
+                                      ),
+                                      child: chat,
+                                    ),
+                                  ),
+                          ),
+                          if (chatEnd case final end?) ...[
+                            const SizedBox(width: KSpacing.xs),
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                end: KSpacing.xs,
                               ),
+                              child: end,
                             ),
+                          ],
+                        ],
+                      ),
                     ),
                     if (actionBar != null) ...[
                       const SizedBox(height: KSpacing.sm),

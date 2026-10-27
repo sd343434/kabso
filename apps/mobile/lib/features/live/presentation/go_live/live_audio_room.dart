@@ -8,7 +8,6 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
     show KLiveUsernameTag;
-import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -133,7 +132,16 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.composer,
     this.barLead,
     this.promo,
+    this.combo,
+    this.strips,
   });
+
+  /// D145a: the lucky combo's button and chips, in the promo box's place
+  /// (at the end over the gift button) while it shows.
+  final Widget? combo;
+
+  /// D145a: the gift strips, between the seats and the chat.
+  final Widget? strips;
 
   /// D141a (owner): the room's promo box, low at the end over the bar's
   /// gift button (the last of [barEnd]); the chat keeps clear of it and the
@@ -172,7 +180,8 @@ class LiveAudioRoomLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = this.chips;
     final composer = this.composer;
-    final promo = composer == null ? this.promo : null;
+    // D145a: while the lucky combo shows it takes the promo box's place.
+    final slot = composer == null ? (combo ?? promo) : null;
     return Padding(
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -217,49 +226,61 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: stage,
                       ),
                     ),
-                    if (chat.isNotEmpty || promo != null)
+                    // D145a: the gift strips between the seats and the
+                    // chat (they never cover a seat).
+                    if (strips case final strips?)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Align(
+                          alignment: AlignmentDirectional.bottomStart,
+                          child: strips,
+                        ),
+                      ),
+                    if (chat.isNotEmpty || slot != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: box.maxHeight * 0.4,
-                          // The seats end above the promo box.
-                          minHeight: promo == null
-                              ? 0
-                              : LiveRoomPromoBox.audioHeight + promoGap,
                         ),
-                        child: Stack(
-                          alignment: AlignmentDirectional.bottomStart,
+                        // The end slot (promo box or combo) beside the
+                        // chat: the chat narrows for it and the seats end
+                        // above it.
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Padding(
-                              padding: EdgeInsetsDirectional.fromSTEB(
-                                8,
-                                0,
-                                promo == null
-                                    ? 8
-                                    : promoEnd +
-                                          LiveRoomPromoBox.audioWidth +
-                                          promoGap,
-                                6,
-                              ),
-                              child: SingleChildScrollView(
-                                reverse: true,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    for (final line in chat)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: line,
-                                      ),
-                                  ],
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(
+                                  8,
+                                  0,
+                                  slot == null ? 8 : promoGap,
+                                  6,
+                                ),
+                                child: SingleChildScrollView(
+                                  reverse: true,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      for (final line in chat)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: line,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                            if (promo != null)
-                              PositionedDirectional(
-                                end: promoEnd,
-                                bottom: promoGap,
-                                child: promo,
+                            if (slot != null)
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: promoEnd,
+                                  bottom: promoGap,
+                                ),
+                                child: slot,
                               ),
                           ],
                         ),

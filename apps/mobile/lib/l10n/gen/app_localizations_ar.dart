@@ -619,7 +619,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String chatGiftSent(String name, String gift, int count) {
-    return 'أرسل $name $gift ×$count';
+    return 'أرسل $name $gift ⁦×$count⁩';
   }
 
   @override
@@ -6076,7 +6076,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyOddsRow(String multiplier) {
-    return '×$multiplier';
+    return '⁦×$multiplier⁩';
   }
 
   @override
@@ -6117,7 +6117,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyWon(String coins, String multiplier) {
-    return 'ربحت $coins عملة، وأعلى مضاعف ×$multiplier';
+    return 'ربحت $coins عملة، وأعلى مضاعف ⁦×$multiplier⁩';
   }
 
   @override
@@ -6125,7 +6125,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyBanner(String name, String multiplier, String coins) {
-    return '$name ربح ×$multiplier: $coins عملة';
+    return '$name ربح ⁦×$multiplier⁩: $coins عملة';
   }
 
   @override
@@ -6335,7 +6335,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveComboSemantics(String gift, int count) {
-    return 'أرسل $gift مجدداً، كومبو ×$count';
+    return 'أرسل $gift مجدداً، كومبو ⁦×$count⁩';
   }
 
   @override

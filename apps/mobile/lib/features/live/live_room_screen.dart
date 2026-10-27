@@ -694,6 +694,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveGiftEffectsLayer(
                 roomId: room.id,
                 onSender: (u) => _person(u.username),
+                // D145a: an audio room draws the strips between its seats
+                // and its chat; a video live beside the wish column.
+                showStrips: room.mode != LiveRoomMode.audio,
+                stripsAt: room.mode == LiveRoomMode.audio
+                    ? null
+                    : LiveGiftEffectsLayer.videoStripsAt(
+                        context,
+                        sideColumn:
+                            room.wishGifts.isNotEmpty ||
+                            LiveRoomPromoBox.shows(ref, room.id),
+                      ),
               ),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
@@ -820,6 +831,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   : (w) => unawaited(_openGifts(preselectGift: w.giftCode)),
             ),
       sidePromo: ended || me == null ? null : LiveRoomPromoBox(roomId: room.id),
+      // D145a: the lucky combo beside the chat, over the quick replies.
+      chatEnd: !ended && LuckyComboCluster.shows(ref, room.id)
+          ? LuckyComboCluster(roomId: room.id)
+          : null,
       chat: ended
           ? null
           : Align(
@@ -977,6 +992,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             children: [
               _video(session, engine),
               LiveAudioRoomLayout(
+                // D145a: the combo in the promo box's place; the strips
+                // between the seats and the chat.
+                combo: LuckyComboCluster.shows(ref, room.id)
+                    ? LuckyComboCluster(roomId: room.id)
+                    : null,
+                strips: LiveGiftStrips(
+                  roomId: room.id,
+                  onSender: (u) => _person(u.username),
+                ),
                 // D141a (owner): the promo box over the gift button.
                 promo:
                     signedIn &&

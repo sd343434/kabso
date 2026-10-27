@@ -1067,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatGiftSent.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل {name} {gift} ×{count}'**
+  /// **'أرسل {name} {gift} ⁦×{count}⁩'**
   String chatGiftSent(String name, String gift, int count);
 
   /// No description provided for @giftPanelTitle.
@@ -10499,7 +10499,7 @@ abstract class AppLocalizations {
   /// Odds sheet: one multiplier.
   ///
   /// In ar, this message translates to:
-  /// **'×{multiplier}'**
+  /// **'⁦×{multiplier}⁩'**
   String liveLuckyOddsRow(String multiplier);
 
   /// Odds sheet: the chance of no win.
@@ -10565,7 +10565,7 @@ abstract class AppLocalizations {
   /// Lucky send result.
   ///
   /// In ar, this message translates to:
-  /// **'ربحت {coins} عملة، وأعلى مضاعف ×{multiplier}'**
+  /// **'ربحت {coins} عملة، وأعلى مضاعف ⁦×{multiplier}⁩'**
   String liveLuckyWon(String coins, String multiplier);
 
   /// Lucky send result: nothing won.
@@ -10577,7 +10577,7 @@ abstract class AppLocalizations {
   /// Room banner for a big lucky win.
   ///
   /// In ar, this message translates to:
-  /// **'{name} ربح ×{multiplier}: {coins} عملة'**
+  /// **'{name} ربح ⁦×{multiplier}⁩: {coins} عملة'**
   String liveLuckyBanner(String name, String multiplier, String coins);
 
   /// Error LUCKY_GIFT_AGE_UNCONFIRMED.
@@ -10949,7 +10949,7 @@ abstract class AppLocalizations {
   /// D145: the lucky combo button for screen readers.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل {gift} مجدداً، كومبو ×{count}'**
+  /// **'أرسل {gift} مجدداً، كومبو ⁦×{count}⁩'**
   String liveComboSemantics(String gift, int count);
 
   /// D145: the coin balance under the combo button.

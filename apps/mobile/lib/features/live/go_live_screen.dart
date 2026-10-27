@@ -912,6 +912,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
+        // D145a: the combo in the promo box's place; the strips between
+        // the seats and the chat.
+        combo: room != null && LuckyComboCluster.shows(ref, room.id)
+            ? LuckyComboCluster(roomId: room.id)
+            : null,
+        strips: room == null
+            ? null
+            : LiveGiftStrips(
+                roomId: room.id,
+                onSender: (u) => unawaited(_person(room.id, u.username)),
+              ),
         // D141a (owner): the promo box over the gift button.
         promo: live && room != null && LiveRoomPromoBox.shows(ref, room.id)
             ? LiveRoomPromoBox(
@@ -1352,6 +1363,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   LiveGiftEffectsLayer(
                     roomId: room.id,
                     onSender: (u) => unawaited(_person(room.id, u.username)),
+                    // D145a: an audio room draws the strips between its
+                    // seats and its chat; a video live beside the wish
+                    // column.
+                    showStrips: !audioOnAir,
+                    stripsAt: audioOnAir
+                        ? null
+                        : LiveGiftEffectsLayer.videoStripsAt(
+                            context,
+                            sideColumn:
+                                room.wishGifts.isNotEmpty ||
+                                LiveRoomPromoBox.shows(ref, room.id),
+                          ),
                   ),
                 // D145: the lucky combo button after a lucky gift is sent.
                 if (onAir && room != null)
@@ -1764,6 +1787,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
       sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      // D145a: the lucky combo beside the chat, over the quick replies.
+      chatEnd: LuckyComboCluster.shows(ref, room.id)
+          ? LuckyComboCluster(roomId: room.id)
+          : null,
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,

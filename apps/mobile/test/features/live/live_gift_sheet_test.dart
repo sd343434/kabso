@@ -72,6 +72,10 @@ class _Opener extends StatelessWidget {
         ),
         // D145: the room's lucky combo layer.
         LuckyComboLayer(roomId: room.roomId),
+        Align(
+          alignment: AlignmentDirectional.bottomEnd,
+          child: LuckyComboCluster(roomId: room.roomId),
+        ),
       ],
     ),
   );
@@ -849,15 +853,17 @@ void main() {
       expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
       expect(
         find.descendant(
-          of: find.byKey(LuckyComboLayer.resultKey),
-          matching: find.text(en.liveLuckyWon('\u20681,000\u2069', '100')),
+          of: find.byKey(LuckyComboCluster.resultKey),
+          matching: find.bySemanticsLabel(
+            en.liveLuckyWon('\u20681,000\u2069', '100'),
+          ),
         ),
         findsOneWidget,
       );
       // 1000 − 10 + 1000.
       expect(
         find.descendant(
-          of: find.byKey(LuckyComboLayer.balanceKey),
+          of: find.byKey(LuckyComboCluster.balanceKey),
           matching: find.text('1,990'),
         ),
         findsOneWidget,
@@ -883,8 +889,8 @@ void main() {
       expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
       expect(
         find.descendant(
-          of: find.byKey(LuckyComboLayer.resultKey),
-          matching: find.text(en.liveLuckyNoWin),
+          of: find.byKey(LuckyComboCluster.resultKey),
+          matching: find.bySemanticsLabel(en.liveLuckyNoWin),
         ),
         findsOneWidget,
       );
