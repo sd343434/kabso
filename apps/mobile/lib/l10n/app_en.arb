@@ -1792,6 +1792,7 @@
   "navMessagesUnreadMany": "more than 99 unread messages",
   "navMomentsNew": "new stories",
   "liveVoiceRoomsTitle": "Voice rooms",
+  "liveVoiceRoomsToLive": "Live",
   "liveHubFilterLabel": "Filters",
   "liveHubFilterNearby": "Nearby",
   "liveHubFilterPopular": "Popular",

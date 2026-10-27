@@ -5767,6 +5767,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveVoiceRoomsTitle => 'Voice rooms';
 
   @override
+  String get liveVoiceRoomsToLive => 'Live';
+
+  @override
   String get liveHubFilterLabel => 'Filters';
 
   @override

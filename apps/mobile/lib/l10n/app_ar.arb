@@ -7286,6 +7286,8 @@
   "@navMomentsNew": {"description": "D130: the Moments tab's dot (unseen stories from followed accounts), read by screen readers."},
   "liveVoiceRoomsTitle": "الغرف الصوتية",
   "@liveVoiceRoomsTitle": {"description": "D131: the Voice rooms screen title and the Live hub party button's name (it opens the voice rooms)."},
+  "liveVoiceRoomsToLive": "البث المباشر",
+  "@liveVoiceRoomsToLive": {"description": "D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name."},
   "liveHubFilterLabel": "عوامل التصفية",
   "@liveHubFilterLabel": {"description": "D131: the Live hub filter row, announced as a group."},
   "liveHubFilterNearby": "القريبة",

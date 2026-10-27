@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
@@ -265,23 +267,42 @@ class _Header extends ConsumerWidget {
                         container: true,
                         explicitChildNodes: true,
                         label: l10n.liveVoiceRoomsTitle,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsetsDirectional.only(
-                            start: KSpacing.xs,
-                          ),
-                          children: [
-                            for (final (i, t) in FeedTab.values.indexed) ...[
-                              if (i > 0)
-                                const SizedBox(width: KVoiceRoomsHeader.tabGap),
-                              _TopTab(
-                                key: VoiceRoomsScreen.tabKey(t),
-                                label: tabs[t]!,
-                                selected: t == tab,
-                                onTap: () => onTab(t),
+                        // D139: with the Live button the three tabs can be
+                        // wider than their space (Arabic at 360 pt, large
+                        // text): they shrink to fit instead of scrolling
+                        // the last one out of sight (scale 1 when they fit).
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                              start: KSpacing.xs,
+                            ),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: SizedBox(
+                                height: KMetrics.topBarHeight,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (final (i, t)
+                                        in FeedTab.values.indexed) ...[
+                                      if (i > 0)
+                                        const SizedBox(
+                                          width: KVoiceRoomsHeader.tabGap,
+                                        ),
+                                      _TopTab(
+                                        key: VoiceRoomsScreen.tabKey(t),
+                                        label: tabs[t]!,
+                                        selected: t == tab,
+                                        onTap: () => onTab(t),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ],
-                          ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -298,6 +319,10 @@ class _Header extends ConsumerWidget {
                         color: p.textPrimary,
                       ),
                     ),
+                    // D139: the owner's Live icon where the hub has the party
+                    // button (between search and the bell): back to the
+                    // live hub.
+                    const VoiceRoomsLiveButton(),
                     const NotificationsBell(),
                     const SizedBox(width: KSpacing.xs),
                   ],
@@ -502,6 +527,66 @@ class _SectionRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// D139 (owner: «اعمل أيقونة هناك ترجعنا للبث بنفس الطريقة»): the mirror of
+/// the hub's party button (D130/D131) in the voice rooms' top bar, in the
+/// party button's place (between search and the bell, same 48 pt target,
+/// same 24 pt icon). A tap plays the owner's animated Live icon (a screen
+/// with a LIVE badge, `KLiveIcon`) with the same light haptic, waits the
+/// same lead, then returns to the live hub ([returnToLiveHub]: a pop when
+/// the hub is under this page, else a `go`). Screen readers hear "Live".
+class VoiceRoomsLiveButton extends StatefulWidget {
+  const new({super.key});
+
+  static const buttonKey = Key('voiceRooms.live');
+
+  @override
+  State<VoiceRoomsLiveButton> createState() => _VoiceRoomsLiveButtonState();
+}
+
+class _VoiceRoomsLiveButtonState extends State<VoiceRoomsLiveButton> {
+  final GlobalKey<KLiveIconState> _icon = GlobalKey();
+  bool _leaving = false;
+
+  Future<void> _tap() async {
+    if (_leaving) return;
+    _leaving = true;
+    unawaited(HapticFeedback.selectionClick());
+    _icon.currentState?.play();
+    final lead = KMotion.of(context, LiveHubPartyButton.popLead);
+    if (lead > Duration.zero) await Future<void>.delayed(lead);
+    _leaving = false;
+    if (!mounted) return;
+    returnToLiveHub(GoRouter.of(context));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.l10n.liveVoiceRoomsToLive;
+    final p = context.palette;
+    final light = Theme.of(context).brightness == Brightness.light;
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: () => unawaited(_tap()),
+      excludeSemantics: true,
+      child: IconButton(
+        key: VoiceRoomsLiveButton.buttonKey,
+        tooltip: label,
+        constraints: const BoxConstraints.tightFor(
+          width: KSizes.minTouchTarget,
+          height: KSizes.minTouchTarget,
+        ),
+        onPressed: () => unawaited(_tap()),
+        // The screen's inside is the header's own surface.
+        icon: KLiveIcon(
+          key: _icon,
+          surfaceColor: light ? p.surfaceRaised : p.surface,
+        ),
       ),
     );
   }

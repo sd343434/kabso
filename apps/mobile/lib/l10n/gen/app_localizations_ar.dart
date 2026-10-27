@@ -5794,6 +5794,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceRoomsTitle => 'الغرف الصوتية';
 
   @override
+  String get liveVoiceRoomsToLive => 'البث المباشر';
+
+  @override
   String get liveHubFilterLabel => 'عوامل التصفية';
 
   @override

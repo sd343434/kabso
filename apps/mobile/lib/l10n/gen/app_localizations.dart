@@ -9986,6 +9986,12 @@ abstract class AppLocalizations {
   /// **'الغرف الصوتية'**
   String get liveVoiceRoomsTitle;
 
+  /// D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get liveVoiceRoomsToLive;
+
   /// D131: the Live hub filter row, announced as a group.
   ///
   /// In ar, this message translates to:
