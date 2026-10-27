@@ -6,17 +6,28 @@ import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dar
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Geometry of the live hub grid (D124).
+/// Geometry of the live hub grid (D124; D131 measured on ref 165 at
+/// 393 pt: cards 423 × 473 px, 30 px from the sides, 17 px apart across and
+/// 14 px down).
 abstract final class KLiveGrid {
-  /// Side padding of the grid and the banner.
-  static const double inset = 16;
+  /// Side padding of the grid and the banner (30 px = 12.8 pt; 13 keeps
+  /// the banner's page width whole on a 360 pt screen).
+  static const double inset = 13;
 
-  /// Gap between cards (both axes) and around the banner.
-  static const double gap = 8;
-  static const double radius = KRadius.md;
+  /// Gap between cards across (17 px = 7.2 pt) and around the banner.
+  static const double gap = 7.2;
 
-  /// Portrait cards, width : height.
-  static const double cardAspect = 0.75;
+  /// Gap between card rows (14 px = 6 pt).
+  static const double rowGap = 6;
+
+  /// Corner radius (≈ 10–12 px; E).
+  static const double radius = 5;
+
+  /// Cards, width : height (180 × 201.4 pt).
+  static const double cardAspect = 0.894;
+
+  /// The live mark's teal (sampled `#18D6C3`).
+  static const Color liveMark = Color(0xFF18D6C3);
 
   /// The banner sits after this many cards.
   static const int bannerAfter = 4;
@@ -34,11 +45,12 @@ abstract final class KLiveGrid {
 /// - Picture: the live cover (CP-015); else the host's photo filling the
 ///   card; else the host's initial on the brand gradient. A picture that
 ///   fails to load falls back the same way, with no error text (VG-13).
-/// - Top start: the animated live mark ([KLiveEqualizer]) and the room type
-///   (Audio, PK or Video). Top end: the viewer count with a person icon, or
-///   "New" below 1 viewer (VG-11: a count is never invented).
-/// - Bottom, over a scrim: the title (1 line), then the host's name and the
-///   category pill when the room has one.
+/// - Top start: the animated live mark ([KLiveEqualizer], teal) and, for
+///   PK and multi-guest lives, the room type (ref 165 labels only those).
+///   Top end: the viewer count with a person icon, or "New" below 1 viewer
+///   (VG-11: a count is never invented).
+/// - Bottom, over a scrim: the title (1 line, bold). The host's name and
+///   the category are announced, not drawn (ref 165).
 /// - Press: scales to 0.98 (instant with reduce motion).
 ///
 /// Announced as "{host}, live, {n viewers | New}, {title}[, {type}]
@@ -51,7 +63,6 @@ class KLiveGridCard extends StatelessWidget {
 
   static const typeKey = Key('liveGrid.type');
   static const viewersKey = Key('liveGrid.viewers');
-  static const categoryKey = Key('liveGrid.category');
   static const initialKey = Key('liveGrid.initial');
 
   @override
@@ -67,7 +78,10 @@ class KLiveGridCard extends StatelessWidget {
         ? l10n.liveGridAudio
         : room.inPk
         ? l10n.pkBadge
+        : room.isMulti
+        ? l10n.goLiveModeMulti
         : l10n.liveGridVideo;
+    final showType = room.inPk || room.isMulti;
     final base = l10n.liveCardSemantics(
       room.hostName,
       isNew
@@ -84,8 +98,6 @@ class KLiveGridCard extends StatelessWidget {
     final semantics = hasCategory
         ? l10n.liveCardSemanticsCategory(withType, category)
         : withType;
-    final fallback = _Fallback(room: room);
-    final cover = room.cover;
 
     return Semantics(
       button: onTap != null,
@@ -95,115 +107,91 @@ class KLiveGridCard extends StatelessWidget {
         child: _Frame(
           onTap: onTap,
           children: [
-            if (cover == null)
-              fallback
-            else
-              Image(
-                image: cover,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                errorBuilder: (_, _, _) => fallback,
-              ),
+            KLiveRoomPicture(room: room),
             const _Scrims(),
             MediaQuery.withClampedTextScaling(
               maxScaleFactor: KLiveGrid.maxTextScale,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // Ref 165: the mark 10.6 pt in, the row centred 15 pt
+                  // down; the count's end 9.4 pt in.
                   PositionedDirectional(
-                    top: KSpacing.sm,
-                    start: KSpacing.sm,
-                    end: KSpacing.sm,
-                    child: Row(
-                      children: [
-                        KLiveEqualizer(color: white),
-                        const SizedBox(width: KSpacing.xs),
-                        Flexible(
-                          child: Text(
-                            type,
-                            key: typeKey,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: t.caption.copyWith(
-                              color: white,
-                              fontWeight: FontWeight.w700,
-                              shadows: shadows,
-                            ),
+                    top: 6,
+                    start: 10,
+                    end: 9,
+                    child: SizedBox(
+                      height: 18,
+                      child: Row(
+                        children: [
+                          const KLiveEqualizer(
+                            color: KLiveGrid.liveMark,
+                            size: 10,
                           ),
-                        ),
-                        const SizedBox(width: KSpacing.xs),
-                        Row(
-                          key: viewersKey,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!isNew) ...[
-                              Icon(
-                                Icons.person_outline_rounded,
-                                size: KMetrics.iconXs + 2,
-                                color: white,
-                                shadows: shadows,
-                              ),
-                              const SizedBox(width: KSpacing.xxs),
-                            ],
-                            Text(
-                              isNew
-                                  ? l10n.liveCardNew
-                                  : KFormat.compact(room.viewerCount, l10n),
-                              maxLines: 1,
-                              style: t.caption.copyWith(
-                                color: white,
-                                fontWeight: FontWeight.w700,
-                                shadows: shadows,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  PositionedDirectional(
-                    start: KSpacing.sm,
-                    end: KSpacing.sm,
-                    bottom: KSpacing.sm,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          room.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.bodyStrong.copyWith(
-                            color: white,
-                            shadows: shadows,
-                          ),
-                        ),
-                        const SizedBox(height: KSpacing.xxs),
-                        Row(
-                          children: [
+                          if (showType) ...[
+                            const SizedBox(width: KSpacing.xs),
                             Flexible(
                               child: Text(
-                                room.hostName,
+                                type,
+                                key: typeKey,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: t.caption.copyWith(
-                                  color: white.withValues(alpha: 0.85),
+                                  color: white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
                                   shadows: shadows,
                                 ),
                               ),
                             ),
-                            if (hasCategory) ...[
-                              const SizedBox(width: KSpacing.xs),
-                              Flexible(
-                                child: _CategoryPill(
-                                  key: categoryKey,
-                                  name: category,
+                          ],
+                          const Spacer(),
+                          Row(
+                            key: viewersKey,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!isNew) ...[
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 13,
+                                  color: white,
+                                  shadows: shadows,
+                                ),
+                                const SizedBox(width: KSpacing.xxs),
+                              ],
+                              Text(
+                                isNew
+                                    ? l10n.liveCardNew
+                                    : KFormat.compact(room.viewerCount, l10n),
+                                maxLines: 1,
+                                style: t.caption.copyWith(
+                                  color: white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: shadows,
                                 ),
                               ),
                             ],
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Ref 165: the title 8.5 pt in, its baseline 10.6 pt up.
+                  PositionedDirectional(
+                    start: 8.5,
+                    end: 8.5,
+                    bottom: 8,
+                    child: Text(
+                      room.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.bodyStrong.copyWith(
+                        color: white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        shadows: shadows,
+                      ),
                     ),
                   ),
                 ],
@@ -341,37 +329,6 @@ class _EqualizerPainter extends CustomPainter {
       old.phase != phase || old.color != color;
 }
 
-class _CategoryPill extends StatelessWidget {
-  const new({required this.name, super.key});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: const Color(0x59000000),
-      borderRadius: BorderRadius.circular(KRadius.pill),
-      border: Border.all(color: const Color(0x40FFFFFF), width: 0.5),
-    ),
-    child: Padding(
-      padding: const EdgeInsetsDirectional.symmetric(
-        horizontal: KSpacing.xs + 2,
-        vertical: 1,
-      ),
-      child: Text(
-        name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: context.textStyles.caption.copyWith(
-          color: KPalette.dark.textPrimary,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
-  );
-}
-
 /// A soft scrim at the top (badges) and a stronger one at the bottom
 /// (title and host), so white text reads over any picture.
 class _Scrims extends StatelessWidget {
@@ -395,6 +352,28 @@ class _Scrims extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A room's picture filling its box: the live cover (CP-015); else the
+/// host's photo; else the host's initial on the brand gradient. A picture
+/// that fails to load falls back the same way (VG-13).
+class KLiveRoomPicture extends StatelessWidget {
+  const new({required this.room, super.key});
+
+  final LiveRoomCardData room;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = _Fallback(room: room);
+    final cover = room.cover;
+    if (cover == null) return fallback;
+    return Image(
+      image: cover,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => fallback,
+    );
+  }
 }
 
 /// No (working) cover: the host's photo filling the card, else their

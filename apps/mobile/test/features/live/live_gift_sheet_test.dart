@@ -278,8 +278,8 @@ void main() {
     );
     await _tap(tester, _cell('heart_balloon'));
     await _tap(tester, find.byKey(KLiveGiftSheet.recipientKey('omar')));
-    await _tap(tester, find.byKey(KLiveGiftSheet.quantityKey));
-    await _tap(tester, find.byKey(KLiveGiftSheet.quantityOptionKey(10)).last);
+    // D131 (ref 161): the quantities sit in the pill, one tap each.
+    await _tap(tester, find.byKey(KLiveGiftSheet.quantityOptionKey(10)));
     expect(
       find.descendant(
         of: find.byKey(KLiveGiftSheet.quantityKey),
@@ -415,8 +415,8 @@ void main() {
     );
     // Too many for the bag.
     await _tap(tester, find.byKey(KLiveGiftSheet.allKey));
-    await _tap(tester, find.byKey(KLiveGiftSheet.quantityKey));
-    await _tap(tester, find.byKey(KLiveGiftSheet.quantityOptionKey(10)).last);
+    // D131 (ref 161): the quantities sit in the pill, one tap each.
+    await _tap(tester, find.byKey(KLiveGiftSheet.quantityOptionKey(10)));
     await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
     expect(_reason(tester), en.errorGiftBagInsufficient);
     await tester.pump(const Duration(seconds: 6));
@@ -505,11 +505,8 @@ void main() {
       user: hostUser.copyWith(id: 'user-sara'),
       seated: [],
     );
-    final me = find.byKey(KLiveGiftSheet.recipientKey('sara'));
-    expect(me, findsOneWidget);
-    expect(find.text(en.liveGiftHost), findsOneWidget);
-    expect(_selected(tester, me), isTrue);
-    // One person: no All toggle.
+    // D131 (ref 161): one possible recipient, no row; the host is it.
+    expect(find.byKey(KLiveGiftSheet.recipientKey('sara')), findsNothing);
     expect(find.byKey(KLiveGiftSheet.allKey), findsNothing);
     await _tap(tester, _cell('rose'));
     expect(_sendEnabled(tester), isTrue);
@@ -661,5 +658,146 @@ void main() {
       expect(find.text(l10n.liveGiftBagEmptyTitle), findsOneWidget);
       expect(tester.takeException(), isNull, reason: language.name);
     }
+  });
+
+  group('D131 (ref 161): Recent, price order, the bottom row', () {
+    testWidgets('Recent lists what this phone sent, newest first', (
+      tester,
+    ) async {
+      await _pump(tester, seated: const []);
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('RECENT')));
+      expect(find.text(en.liveGiftRecentEmptyTitle), findsOneWidget);
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('POPULAR')));
+      for (final code in ['rose', 'crown']) {
+        await _tap(tester, _cell(code));
+        await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+        await tester.pump(const Duration(seconds: 6));
+      }
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('RECENT')));
+      expect(_cell('crown'), findsOneWidget);
+      expect(_cell('rose'), findsOneWidget);
+      expect(
+        tester.getCenter(_cell('crown')).dx,
+        lessThan(tester.getCenter(_cell('rose')).dx),
+      );
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('Price sorting: off → low to high → high to low', (
+      tester,
+    ) async {
+      await _pump(tester);
+      double x(String code) => tester.getCenter(_cell(code)).dx;
+      // Catalogue order: rose 1, heart_balloon 10, crown 299, car 5000.
+      await _tap(tester, find.byKey(KLiveGiftSheet.priceSortKey));
+      expect(x('rose'), lessThan(x('crown')));
+      await _tap(tester, find.byKey(KLiveGiftSheet.priceSortKey));
+      expect(x('sports_car'), lessThan(x('crown')));
+      expect(x('crown'), lessThan(x('rose')));
+      await _tap(tester, find.byKey(KLiveGiftSheet.priceSortKey));
+      expect(x('rose'), lessThan(x('sports_car')));
+    });
+
+    testWidgets('the quantities sit in the pill beside Send; every one is '
+        'reachable on a 360 pt phone', (tester) async {
+      await _pump(tester);
+      final send = tester.getRect(find.byKey(KLiveGiftSheet.sendKey));
+      for (final q in const [1, 10, 66, 99, 188, 520, 1314]) {
+        final option = find.byKey(KLiveGiftSheet.quantityOptionKey(q));
+        await tester.ensureVisible(option);
+        await tester.pumpAndSettle();
+        expect(tester.getRect(option).right, lessThanOrEqualTo(send.left));
+      }
+      expect(tester.getSize(find.byKey(KLiveGiftSheet.sendKey)).height, 44);
+    });
+  });
+
+  group('D132 lucky gifts', () {
+    FakeLiveGiftRepository lucky({bool confirmed = true, String? reason}) {
+      final repo =
+          FakeLiveGiftRepository(codes: [...giftFixtureCodes, 'lucky_clover'])
+            ..categories = const ['POPULAR', 'EVENT', 'FUN', 'LUCKY']
+            ..ageConfirmed = confirmed;
+      if (reason != null) {
+        repo.odds = ({required ageConfirmed}) => luckyOddsJson(reason: reason);
+      }
+      return repo;
+    }
+
+    testWidgets('no Lucky tab without lucky gifts', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(KLiveGiftSheet.tabKey('LUCKY')), findsNothing);
+    });
+
+    testWidgets('the Lucky tab, its odds, and a win shown with the balance', (
+      tester,
+    ) async {
+      final repo = lucky()
+        ..nextLucky = {
+          'draws': 1,
+          'wins': [
+            {'multiplier': 100, 'count': 1, 'coins': 1000},
+          ],
+          'coinsWon': 1000,
+          'topMultiplier': 100,
+          'downgraded': 0,
+        };
+      await _pump(tester, gifts: repo, seated: const []);
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('LUCKY')));
+      expect(_cell('lucky_clover'), findsOneWidget);
+      await _tap(tester, find.byKey(KLiveGiftSheet.luckyOddsKey));
+      expect(find.text(en.liveLuckyOddsTitle), findsOneWidget);
+      expect(find.byKey(KLiveGiftSheet.oddsRowKey(500)), findsOneWidget);
+      expect(find.text('0.0034%'), findsOneWidget);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await _tap(tester, _cell('lucky_clover'));
+      await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+      expect(repo.sends.single.source, LiveGiftSource.coins);
+      expect(_toast(tester), en.liveLuckyWon('\u20681,000\u2069', '100'));
+      // 1000 − 10 + 1000.
+      expect(
+        find.descendant(
+          of: find.byKey(KLiveGiftSheet.balanceKey),
+          matching: find.text('1,990'),
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('18+: asked once before the first lucky gift; Cancel sends '
+        'nothing', (tester) async {
+      final repo = lucky(confirmed: false);
+      await _pump(tester, gifts: repo, seated: const []);
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('LUCKY')));
+      await _tap(tester, _cell('lucky_clover'));
+      await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+      expect(find.byKey(KLiveGiftSheet.ageDialogKey), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(repo.sends, isEmpty);
+      await _tap(tester, find.byKey(KLiveGiftSheet.sendKey));
+      await _tap(tester, find.byKey(KLiveGiftSheet.ageConfirmKey));
+      expect(repo.calls, contains('confirmLuckyAge'));
+      expect(repo.sends, hasLength(1));
+      expect(_toast(tester), en.liveLuckyNoWin);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('not in this country: the tab says so and Send stays off', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        gifts: lucky(reason: 'REGION_UNAVAILABLE'),
+        seated: const [],
+      );
+      await _tap(tester, find.byKey(KLiveGiftSheet.tabKey('LUCKY')));
+      expect(find.byKey(KLiveGiftSheet.luckyBlockedKey), findsOneWidget);
+      expect(find.text(en.liveLuckyRegion), findsOneWidget);
+      expect(_cell('lucky_clover'), findsNothing);
+      expect(find.byKey(KLiveGiftSheet.luckyOddsKey), findsOneWidget);
+    });
   });
 }

@@ -61,6 +61,9 @@ abstract final class AppRoutes {
   /// CP-010: go live (camera preview, then on air).
   static const goLive = '/live/new';
 
+  /// D131: the voice rooms (the Live hub's party button), above the shell.
+  static const voiceRooms = '/live/voice';
+
   /// CP-008: your story archive.
   static const storyArchive = '/me/stories';
 

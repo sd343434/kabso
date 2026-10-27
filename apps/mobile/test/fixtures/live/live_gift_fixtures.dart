@@ -32,6 +32,9 @@ const _gifts = <String, (String, int, String, String?, String, String)>{
   'cake': ('EVENT', 520, 'EVENT', null, 'كعكة', 'Cake'),
   'confetti': ('FUN', 5, 'NONE', null, 'قصاصات ملونة', 'Confetti'),
   'kabi_dance': ('FUN', 66, 'NEW', null, 'رقصة كابي', 'Kabi dance'),
+  // v1.27-live (D132): a lucky gift (not in [giftFixtureCodes]; tests that
+  // need it list it and the LUCKY tab).
+  'lucky_clover': ('LUCKY', 10, 'NONE', null, 'برسيم الحظ', 'Lucky clover'),
 };
 
 /// The test sub-categories (D117): only POPULAR gifts carry one, so the
@@ -155,4 +158,43 @@ Map<String, Object?> liveGiftResultJson({
   required Map<String, Object?> gift,
   int coins = 80,
   int bagQuantity = 0,
-}) => {'gift': gift, 'coins': coins, 'bagQuantity': bagQuantity};
+  Map<String, Object?>? luckyResult,
+}) => {
+  'gift': gift,
+  'coins': coins,
+  'bagQuantity': bagQuantity,
+  'luckyResult': ?luckyResult,
+};
+
+/// `LuckyGiftOdds` (the contract's example; [reason] null = eligible).
+Map<String, Object?> luckyOddsJson({
+  bool enabled = true,
+  String? reason,
+  bool ageConfirmed = true,
+  bool guest = false,
+}) => {
+  'enabled': enabled,
+  'drawsPerGift': 1,
+  'returnPercent': 85,
+  'hostSharePercent': 10,
+  'outcomes': [
+    {'multiplier': 5, 'chancePerMillion': 68000, 'probability': 0.068},
+    {'multiplier': 10, 'chancePerMillion': 21250, 'probability': 0.02125},
+    {'multiplier': 50, 'chancePerMillion': 2550, 'probability': 0.00255},
+    {'multiplier': 100, 'chancePerMillion': 850, 'probability': 0.00085},
+    {'multiplier': 500, 'chancePerMillion': 34, 'probability': 0.000034},
+  ],
+  'noWinChancePerMillion': 907316,
+  'noWinProbability': 0.907316,
+  'bigWinMultiplier': 100,
+  'dailyProtection': true,
+  'dayTimeZone': 'Asia/Riyadh',
+  'minimumAge': 18,
+  'caller': guest
+      ? null
+      : {
+          'eligible': reason == null && enabled,
+          'reason': reason ?? (enabled ? null : 'DISABLED'),
+          'ageConfirmed': ageConfirmed,
+        },
+};

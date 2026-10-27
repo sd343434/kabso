@@ -48,11 +48,18 @@ LiveChatEntry _entry(
   createdAt: DateTime.utc(2026, 10, 24, 20),
 );
 
-/// The lines' texts; the rules line (D118) only where [notice].
-List<String> _texts(LiveChatState state, {bool notice = false}) => [
+/// The lines' texts; the rules line (D118) only where [notice]; D131's join
+/// lines (the video live's rows) only where [joins].
+List<String> _texts(
+  LiveChatState state, {
+  bool notice = false,
+  bool joins = false,
+}) => [
   for (final item in state.items)
-    if (notice || item is! LiveChatNoticeLine)
+    if ((notice || item is! LiveChatNoticeLine) &&
+        (joins || item is! LiveChatJoinItem))
       switch (item) {
+        LiveChatJoinItem(:final join) => '+${join.user.username}',
         LiveChatPosted(:final entry) => entry.text,
         LiveChatPending(:final text, :final failed) =>
           failed ? '!$text' : '…$text',
@@ -109,9 +116,27 @@ void main() {
       ..add(const LiveChatJoined(_huda))
       ..add(const LiveChatDeleted('m1'));
     await pumpEventQueue();
-    // D119: a join is not a line; it is the chat's latest join.
+    // D119: a join is the chat's latest join (the audio room's strip);
+    // D131: and a join line for the video live's rows.
     expect(_texts(state()), ['hi', 'welcome']);
     expect(state().latestJoin?.user, _huda);
+    expect(_texts(state(), joins: true), [
+      'hi',
+      'welcome',
+      '+${_huda.username}',
+    ]);
+  });
+
+  test('D131: join lines keep their own budget of four and never push out '
+      'a message', () async {
+    await attach();
+    engine.chat.add(LiveChatReceived(_entry('m1', 'first')));
+    for (var i = 0; i < 6; i++) {
+      engine.chat.add(LiveChatJoined(i.isEven ? _huda : _omar));
+    }
+    await pumpEventQueue();
+    expect(state().items.whereType<LiveChatJoinItem>(), hasLength(4));
+    expect(_texts(state()), ['first']);
   });
 
   test('D119: each join replaces the latest; quick ones add up (+N); '

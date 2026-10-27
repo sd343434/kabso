@@ -28,6 +28,10 @@ abstract class User with _$User {
     /// CP-015: the host's live cover, reused by every live; null → the
     /// avatar is shown.
     String? liveCoverUrl,
+
+    /// v1.27.1-live (D133): the person's own country (ISO 3166-1 alpha-2,
+    /// upper case), or null. It decides the live hub's Nearby.
+    String? country,
   }) = _User;
 }
 

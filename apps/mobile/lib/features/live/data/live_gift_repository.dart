@@ -29,6 +29,14 @@ abstract interface class LiveGiftRepository {
     required LiveGiftSource source,
     required String clientId,
   });
+
+  /// `GET /live/gifts/lucky/odds` (v1.27-live, D132): the published odds and
+  /// whether the caller may send lucky gifts now. Never cached.
+  Future<LuckyGiftOdds> luckyOdds();
+
+  /// `PUT /me/lucky-gifts/age-confirmation` `{adult: true}` (v1.27-live,
+  /// D132): the caller states once that they are 18 or older.
+  Future<void> confirmLuckyAge();
 }
 
 class LiveGiftRepositoryImpl implements LiveGiftRepository {
@@ -89,6 +97,20 @@ class LiveGiftRepositoryImpl implements LiveGiftRepository {
       },
     );
     return LiveGiftResult.fromJson(res.data!);
+  });
+
+  @override
+  Future<LuckyGiftOdds> luckyOdds() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/live/gifts/lucky/odds');
+    return LuckyGiftOdds.fromJson(res.data!);
+  });
+
+  @override
+  Future<void> confirmLuckyAge() => guardApiCall(() async {
+    await _dio.put<Map<String, dynamic>>(
+      '/me/lucky-gifts/age-confirmation',
+      data: {'adult': true},
+    );
   });
 }
 

@@ -23,7 +23,10 @@ class LiveRoomCardData {
     this.roomId,
     this.score = 0,
     this.isAudio = false,
+    this.isMulti = false,
     this.hostId,
+    this.seatCount,
+    this.occupiedSeats = 0,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -46,7 +49,10 @@ class LiveRoomCardData {
       roomId: room.id,
       score: room.score,
       isAudio: room.mode == LiveRoomMode.audio,
+      isMulti: room.mode == LiveRoomMode.multi,
       hostId: room.host.id,
+      seatCount: room.seatCount,
+      occupiedSeats: room.occupiedSeats,
     );
   }
 
@@ -88,9 +94,18 @@ class LiveRoomCardData {
   /// grid card names the room type next to the live mark.
   final bool isAudio;
 
+  /// D131: a multi-guest video live (CP-011 `MULTI`).
+  final bool isMulti;
+
   /// D124: the host's user id (API rooms only), so the in-room swipe never
   /// moves a host away from their own live.
   final String? hostId;
+
+  /// CP-011: the tiles of a MULTI or AUDIO room (host included), or `null`.
+  final int? seatCount;
+
+  /// CP-011: guests seated now.
+  final int occupiedSeats;
 }
 
 /// A line in the live chat overlay.

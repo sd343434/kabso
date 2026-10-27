@@ -8,7 +8,6 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
-import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -27,37 +26,11 @@ final liveScopeProvider = Provider<LiveScope>(
   ),
 );
 
-/// D129: the hub's "voice rooms · live" switch. Voice rooms first (the
-/// owner named them first); the last choice is kept on this device.
-class LiveHubKindController extends Notifier<LiveRoomsKind> {
-  @override
-  LiveRoomsKind build() =>
-      LiveRoomsKind.tryParse(readSaved()) ?? LiveRoomsKind.audio;
-
-  /// Shows [kind] on every tab (each reloads from its first page) and
-  /// remembers it.
-  Future<void> select(LiveRoomsKind kind) async {
-    if (kind == state) return;
-    state = kind;
-    await save(kind);
-  }
-
-  /// The choice saved on this device (tests replace the storage).
-  @protected
-  String? readSaved() => ref
-      .watch(sharedPreferencesProvider)
-      .getString(PreferenceKeys.liveHubKind);
-
-  @protected
-  Future<void> save(LiveRoomsKind kind) => ref
-      .read(sharedPreferencesProvider)
-      .setString(PreferenceKeys.liveHubKind, kind.wire);
-}
-
-final liveHubKindProvider =
-    NotifierProvider<LiveHubKindController, LiveRoomsKind>(
-      LiveHubKindController.new,
-    );
+/// D133: the person's own country (`Me.country`); Nearby reloads when
+/// it changes.
+final liveCountryProvider = Provider<String?>(
+  (ref) => ref.watch(currentUserProvider.select((u) => u?.country)),
+);
 
 extension FeedTabLiveRooms on FeedTab {
   /// The `tab` query value of `GET /live/rooms` for this hub tab.
@@ -68,23 +41,71 @@ extension FeedTabLiveRooms on FeedTab {
   };
 }
 
-/// One Live hub tab: config switch, categories (Popular only) and the
-/// cursor-paginated room list (HL-H3–H6).
+/// One room list of live discovery (D131): which tab of `GET /live/rooms`,
+/// which kind, and the filters. Two equal queries share one list.
+@immutable
+class LiveRoomsQuery {
+  const new({
+    required this.tab,
+    this.kind = LiveRoomsKind.video,
+    this.category,
+    this.nearby = false,
+    this.featured = false,
+  });
+
+  final FeedTab tab;
+
+  /// The server's `kind` filter: the hub lists `video`, the Voice rooms
+  /// screen `audio`.
+  final LiveRoomsKind kind;
+
+  /// A category slug (`null`: every category).
+  final String? category;
+
+  /// D133 `scope=nearby`: hosts of the caller's country.
+  final bool nearby;
+
+  /// D133 `featured=true`: featured hosts, by feature rank.
+  final bool featured;
+
+  LiveRoomsQuery copyWith({FeedTab? tab, String? Function()? category}) =>
+      LiveRoomsQuery(
+        tab: tab ?? this.tab,
+        kind: kind,
+        category: category == null ? this.category : category(),
+        nearby: nearby,
+        featured: featured,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiveRoomsQuery &&
+      other.tab == tab &&
+      other.kind == kind &&
+      other.category == category &&
+      other.nearby == nearby &&
+      other.featured == featured;
+
+  @override
+  int get hashCode => Object.hash(tab, kind, category, nearby, featured);
+
+  @override
+  String toString() =>
+      'LiveRoomsQuery(${tab.name}, ${kind.wire}, $category, '
+      'nearby: $nearby, featured: $featured)';
+}
+
+/// One room list: the config switch and the cursor-paginated rooms
+/// (HL-H3–H6).
 @freezed
 abstract class LiveHubState with _$LiveHubState {
   const factory({
     /// `GET /live/config` `hostingEnabled`. While `false` nobody can go live,
-    /// so the tab shows the honest unavailable state and lists nothing.
+    /// so the list shows the honest unavailable state and lists nothing.
     required bool hostingEnabled,
 
     /// When this state was loaded from the first page.
     required DateTime fetchedAt,
-
-    /// Active categories (Popular only; empty elsewhere).
-    @Default(<LiveCategory>[]) List<LiveCategory> categories,
-
-    /// Selected category slug; `null` is "All".
-    String? category,
 
     /// Rooms in server order, deduplicated by id across pages.
     @Default(<LiveRoomSummary>[]) List<LiveRoomSummary> rooms,
@@ -97,11 +118,9 @@ abstract class LiveHubState with _$LiveHubState {
     /// The last next-page request failed (inline footer error + retry).
     AppFailure? loadMoreError,
 
-    /// The first page is reloading for a new category (grid skeletons).
-    @Default(false) bool reloading,
-
-    /// Reloading the first page for a new category failed.
-    AppFailure? reloadError,
+    /// D133: Nearby answered `COUNTRY_NOT_SET` (the person has no country:
+    /// the list asks them to set it).
+    @Default(false) bool countryNotSet,
   }) = _LiveHubState;
 
   const new _();
@@ -112,34 +131,23 @@ abstract class LiveHubState with _$LiveHubState {
       hasMore &&
       nextCursor != null &&
       !loadingMore &&
-      loadMoreError == null &&
-      !reloading &&
-      reloadError == null;
+      loadMoreError == null;
 }
 
-/// Loads and paginates one Live hub tab against the v1.3 API.
+/// Loads and paginates one room list ([LiveRoomsQuery]) against the API.
 ///
 /// - `GET /live/config` first: `hostingEnabled == false` → unavailable
 ///   (no list calls). Re-checked on every [refresh].
-/// - Popular: `GET /live/categories`, and the selected category is sent with
-///   the list call. Other tabs never send a category (HL-H3).
-/// - D129: every list call carries the hub's kind (`liveHubKindProvider`);
-///   switching it reloads the tab from its first page (the category stays).
-/// - `GET /live/rooms` from the first cursor, then [loadMore] page by page;
-///   rooms are deduplicated by id (ranking drift, §10.4).
+/// - `GET /live/rooms` with the query's tab, kind, category and the D133
+///   filters, from the first cursor, then [loadMore] page by page; rooms
+///   are deduplicated by id (ranking drift, §10.4).
 /// - A rejected cursor (400 `VALIDATION_FAILED`, field `cursor`) restarts
 ///   from the first page once; a second consecutive rejection shows the
 ///   footer error.
 class LiveRoomsController extends AsyncNotifier<LiveHubState> {
-  new(this.tab);
+  new(this.query);
 
-  final FeedTab tab;
-
-  /// Survives rebuilds (locale change, retry, kind switch) of this tab.
-  String? _category;
-
-  /// D129: the kind this state was loaded for (set by [build]).
-  LiveRoomsKind _kind = LiveRoomsKind.audio;
+  final LiveRoomsQuery query;
 
   /// Bumped by every first-page load; late responses of older loads are
   /// dropped.
@@ -149,55 +157,47 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
 
   LiveRepository get _repo => ref.read(liveRepositoryProvider);
 
-  String? get _categoryParam => tab == FeedTab.popular ? _category : null;
+  Future<LiveRoomPage> _page({String? cursor}) => _repo.listRooms(
+    tab: query.tab.liveRoomsTab,
+    category: query.category,
+    kind: query.kind,
+    nearby: query.nearby,
+    featured: query.featured,
+    cursor: cursor,
+  );
 
   @override
   Future<LiveHubState> build() {
     ref
       ..watch(liveScopeProvider)
       ..watch(liveRepositoryProvider);
-    _kind = ref.watch(liveHubKindProvider);
+    // D133: Nearby depends on the person's country.
+    if (query.nearby) ref.watch(liveCountryProvider);
     _generation++;
     _restartedForBadCursor = false;
     return _loadAll();
   }
 
   Future<LiveHubState> _loadAll() async {
-    final repo = _repo;
-    final config = await repo.getConfig();
+    final config = await _repo.getConfig();
     final now = clock.now();
     if (!config.hostingEnabled) {
       return LiveHubState(hostingEnabled: false, fetchedAt: now);
     }
-    var categories = const <LiveCategory>[];
-    if (tab == FeedTab.popular) {
-      categories = List.unmodifiable(await repo.listCategories());
-      final selected = _category;
-      if (selected != null && !categories.any((c) => c.slug == selected)) {
-        // The category was deactivated meanwhile: back to "All".
-        _category = null;
-      }
-    }
-    final page = await repo.listRooms(
-      tab: tab.liveRoomsTab,
-      category: _categoryParam,
-      kind: _kind,
-    );
+    final page = await _page();
     return LiveHubState(
       hostingEnabled: true,
       fetchedAt: now,
-      categories: categories,
-      category: _categoryParam,
       rooms: _dedupe(const [], page.data),
       nextCursor: page.page.nextCursor,
       hasMore: _hasMore(page),
+      countryNotSet: page.emptyReason == LiveRoomsEmptyReason.countryNotSet,
     );
   }
 
-  /// Pull-to-refresh, tab re-select and resume: reloads config, categories
-  /// and the first page, keeping the category. On failure the current state
-  /// is kept and the `AppFailure` is rethrown (the caller decides whether to
-  /// show it).
+  /// Pull-to-refresh, tab re-select and resume: reloads config and the
+  /// first page. On failure the current state is kept and the `AppFailure`
+  /// is rethrown (the caller decides whether to show it).
   Future<void> refresh() async {
     final generation = ++_generation;
     _restartedForBadCursor = false;
@@ -206,67 +206,8 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
     state = AsyncData(next);
   }
 
-  /// Selects a category chip (Popular only); `null` is "All". Reloads the
-  /// list from the first cursor.
-  Future<void> selectCategory(String? slug) async {
-    final current = state.value;
-    if (tab != FeedTab.popular || current == null) return;
-    if (!current.hostingEnabled || slug == current.category) return;
-    _category = slug;
-    await _reloadFirstPage(current);
-  }
-
-  /// "Try again" on the tab's error state.
-  Future<void> retry() async {
-    final current = state.value;
-    if (current != null && current.reloadError != null && !state.hasError) {
-      await _reloadFirstPage(current);
-    } else {
-      ref.invalidateSelf();
-    }
-  }
-
-  Future<void> _reloadFirstPage(LiveHubState current) async {
-    final generation = ++_generation;
-    _restartedForBadCursor = false;
-    state = AsyncData(
-      current.copyWith(
-        category: _categoryParam,
-        rooms: const [],
-        nextCursor: null,
-        hasMore: false,
-        loadingMore: false,
-        loadMoreError: null,
-        reloading: true,
-        reloadError: null,
-      ),
-    );
-    try {
-      final page = await _repo.listRooms(
-        tab: tab.liveRoomsTab,
-        category: _categoryParam,
-        kind: _kind,
-      );
-      if (!ref.mounted || generation != _generation) return;
-      state = AsyncData(
-        state.requireValue.copyWith(
-          fetchedAt: clock.now(),
-          rooms: _dedupe(const [], page.data),
-          nextCursor: page.page.nextCursor,
-          hasMore: _hasMore(page),
-          reloading: false,
-        ),
-      );
-    } on Object catch (e) {
-      if (!ref.mounted || generation != _generation) return;
-      state = AsyncData(
-        state.requireValue.copyWith(
-          reloading: false,
-          reloadError: toAppFailure(e),
-        ),
-      );
-    }
-  }
+  /// "Try again" on the list's error state.
+  void retry() => ref.invalidateSelf();
 
   /// Loads the next page if one exists and nothing is in flight or failed
   /// (prefetch calls this freely).
@@ -276,12 +217,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
     final generation = _generation;
     state = AsyncData(current.copyWith(loadingMore: true));
     try {
-      final page = await _repo.listRooms(
-        tab: tab.liveRoomsTab,
-        category: current.category,
-        kind: _kind,
-        cursor: current.nextCursor,
-      );
+      final page = await _page(cursor: current.nextCursor);
       if (!ref.mounted || generation != _generation) return;
       _restartedForBadCursor = false;
       final latest = state.requireValue;
@@ -319,11 +255,7 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
   /// (CONVENTIONS §5), replacing what is shown.
   Future<void> _restartFromFirstPage(int generation) async {
     try {
-      final page = await _repo.listRooms(
-        tab: tab.liveRoomsTab,
-        category: state.requireValue.category,
-        kind: _kind,
-      );
+      final page = await _page();
       if (!ref.mounted || generation != _generation) return;
       state = AsyncData(
         state.requireValue.copyWith(
@@ -367,19 +299,37 @@ class LiveRoomsController extends AsyncNotifier<LiveHubState> {
   }
 }
 
-/// Live rooms for one Live hub tab, from the real v1.3 API (D37): never
-/// sample rooms. Tests supply data through `liveRepositoryProvider`.
-final AsyncNotifierProviderFamily<LiveRoomsController, LiveHubState, FeedTab>
+/// One room list of live discovery, from the real API (D37): never sample
+/// rooms. Tests supply data through `liveRepositoryProvider`.
+final AsyncNotifierProviderFamily<
+  LiveRoomsController,
+  LiveHubState,
+  LiveRoomsQuery
+>
 liveRoomsProvider = AsyncNotifierProvider.family(LiveRoomsController.new);
 
-/// Refreshes every Live hub tab that is currently loaded, ignoring
-/// failures (the shown state is kept). Used on app resume.
-Future<void> refreshLoadedLiveTabs(ProviderContainer container) async {
+/// The active live categories (`GET /live/categories`, localized by the
+/// server), for the hub's Popular menu and the Voice rooms' second row.
+final FutureProvider<List<LiveCategory>> liveDiscoveryCategoriesProvider =
+    FutureProvider<List<LiveCategory>>((ref) {
+      ref.watch(liveScopeProvider);
+      return ref
+          .watch(liveRepositoryProvider)
+          .listCategories()
+          .then(List<LiveCategory>.unmodifiable);
+    });
+
+/// Refreshes each of [queries] that is loaded, ignoring failures (the shown
+/// state is kept). Used on app resume.
+Future<void> refreshLoadedLiveTabs(
+  ProviderContainer container,
+  Iterable<LiveRoomsQuery> queries,
+) async {
   await Future.wait([
-    for (final tab in FeedTab.values)
-      if (container.exists(liveRoomsProvider(tab)))
+    for (final query in queries)
+      if (container.exists(liveRoomsProvider(query)))
         container
-            .read(liveRoomsProvider(tab).notifier)
+            .read(liveRoomsProvider(query).notifier)
             .refresh()
             .catchError((Object _) {}),
   ]);

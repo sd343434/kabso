@@ -14,8 +14,9 @@ class LiveTapBatcher {
   /// Sends one batch of `count` taps.
   final Future<LiveTapsResult> Function(int count) send;
 
-  /// The room's score after a batch.
-  final void Function(int total) onScore;
+  /// The room's score after a batch (D131: with its parts, so a screen can
+  /// show the live's taps).
+  final void Function(LiveScore score) onScore;
 
   /// A batch failed (best effort: a lost batch only loses points).
   final void Function(Object error)? onError;
@@ -41,7 +42,7 @@ class LiveTapBatcher {
     _pending -= count;
     try {
       final result = await send(count);
-      if (!_closed) onScore(result.score.total);
+      if (!_closed) onScore(result.score);
     } on Object catch (e) {
       if (!_closed) onError?.call(e);
     }

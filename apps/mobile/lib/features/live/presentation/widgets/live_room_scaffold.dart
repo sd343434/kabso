@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:intl/intl.dart' show Bidi;
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
@@ -36,6 +38,9 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.actionBar,
     this.cover,
     this.overlay,
+    this.trailing,
+    this.closeButtonKey = closeKey,
+    this.closeLabel,
   });
 
   final Widget? video;
@@ -51,6 +56,20 @@ class KLiveRoomScaffold extends StatelessWidget {
   final Widget? actionBar;
   final Widget? cover;
   final Widget? overlay;
+
+  /// D131 (host): a button between [viewers] and ✕ (minimize).
+  final Widget? trailing;
+
+  /// ✕'s key and spoken label (the host's ✕ ends the live).
+  final Key closeButtonKey;
+  final String? closeLabel;
+
+  static const closeKey = Key('room.close');
+
+  /// The header row's top for a top inset of [inset] (D131, ref 158): 12 pt
+  /// above a notched phone's 59 pt inset, 4 pt above a plain status bar.
+  static double headerTop(double inset) =>
+      math.max(0, inset >= 44 ? inset - 12 : inset - 4);
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +91,15 @@ class KLiveRoomScaffold extends StatelessWidget {
             video ?? const KLiveVideoPlaceholder(),
             const _LegibilityGradients(),
             SafeArea(
+              top: false,
               child: Padding(
-                padding: const EdgeInsets.all(KSpacing.sm),
+                // D131 (ref 158): the header row's centre 12 pt under the
+                // top inset of a notched phone (the pill's top at 55 pt on
+                // a 59 pt inset), the bar on the bottom safe edge.
+                padding: EdgeInsetsDirectional.only(
+                  start: KSpacing.sm,
+                  top: headerTop(MediaQuery.paddingOf(context).top),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -89,19 +115,28 @@ class KLiveRoomScaffold extends StatelessWidget {
                           const SizedBox(width: KSpacing.xs),
                           viewers,
                         ],
+                        // Ref 158: a bare ✕ (10.6 pt ink); its centre 24 pt
+                        // from the end (ref 18.3) to keep a 48 pt target.
+                        ?trailing,
                         KRoomIconButton(
+                          key: closeButtonKey,
                           icon: Icons.close,
-                          label: l10n.liveClose,
+                          label: closeLabel ?? l10n.liveClose,
                           onPressed: onClose,
-                          visualSize: KMetrics.closeVisual,
-                          iconSize: KMetrics.closeIcon,
+                          iconSize: 19,
+                          bare: true,
                         ),
                       ],
                     ),
                     if (roomInfo != null)
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: roomInfo,
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: KSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: roomInfo,
+                        ),
                       ),
                     if (statusChip != null) ...[
                       const SizedBox(height: KSpacing.sm),
@@ -109,7 +144,12 @@ class KLiveRoomScaffold extends StatelessWidget {
                     ],
                     if (stage != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      stage,
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          end: KSpacing.sm,
+                        ),
+                        child: stage,
+                      ),
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
@@ -125,7 +165,12 @@ class KLiveRoomScaffold extends StatelessWidget {
                     ),
                     if (actionBar != null) ...[
                       const SizedBox(height: KSpacing.sm),
-                      actionBar,
+                      // Ref 158: the last circle 7.2 pt from the end (its
+                      // 48 pt target reaches 0.6 pt further).
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 0.6),
+                        child: actionBar,
+                      ),
                     ],
                   ],
                 ),
@@ -222,13 +267,18 @@ class KLiveVideoPlaceholder extends StatelessWidget {
   }
 }
 
-/// Host header (G-08, HL-L2): avatar, name, an optional second line (only
-/// with API data) and the follow chip, on a 40 dp scrim pill.
+/// Host header (G-08, HL-L2; D131 measured on ref 158): a 31 pt stadium on
+/// the scrim with the host's 26.6 pt picture, the name (11 sp bold) and a
+/// second line, and at the end the follow capsule.
 ///
-/// Follow: a 28 dp `primary` "+ Follow" chip while [following] is false and
-/// [onFollow] is set. When [following] turns true the chip shows a check for
+/// Second line: [lines] take turns every [lineTime] with a fade (the first
+/// stays with reduce motion); else [subtitle]; else one line.
+///
+/// Follow: a 31.5 × 23.8 pt cyan capsule with a white "+" (announced
+/// "Follow") while [following] is false and [onFollow] is set. When
+/// [following] turns true it shows a check for
 /// `KMetrics.followConfirmDuration`, then fades out (instant with reduce
-/// motion). If the follow is rolled back, the chip returns. With
+/// motion). If the follow is rolled back, the capsule returns. With
 /// [onFollow] `null` there is no follow control (state unknown, yourself,
 /// or a private account).
 class KHostPill extends StatefulWidget {
@@ -237,6 +287,7 @@ class KHostPill extends StatefulWidget {
     super.key,
     this.avatar,
     this.subtitle,
+    this.lines = const [],
     this.following = false,
     this.onFollow,
     this.onTap,
@@ -247,11 +298,27 @@ class KHostPill extends StatefulWidget {
 
   /// Second line (e.g. the follower count); `null` → one line.
   final String? subtitle;
+
+  /// D131: second lines shown in turn (e.g. this live's points, then its
+  /// taps); they win over [subtitle].
+  final List<Widget> lines;
   final bool following;
   final VoidCallback? onFollow;
 
   /// Opens the host's profile sheet; `null` → the pill is not a button.
   final VoidCallback? onTap;
+
+  /// How long each of [lines] shows.
+  static const lineTime = Duration(seconds: 3);
+
+  /// Ref 158: the follow capsule's gradient (`#23E1DA` → `#0BD6E1`).
+  static const followGradient = [Color(0xFF23E1DA), Color(0xFF0BD6E1)];
+
+  /// Ref 158: the points line's yellow.
+  static const points = Color(0xFFF5C542);
+
+  static const avatarSize = 26.6;
+  static const lineKey = Key('hostPill.line');
 
   @override
   State<KHostPill> createState() => _KHostPillState();
@@ -260,10 +327,34 @@ class KHostPill extends StatefulWidget {
 class _KHostPillState extends State<KHostPill> {
   bool _confirming = false;
   Timer? _timer;
+  Timer? _lines;
+  int _line = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLines();
+  }
+
+  void _syncLines() {
+    if (widget.lines.length < 2) {
+      _lines?.cancel();
+      _lines = null;
+      _line = 0;
+      return;
+    }
+    _lines ??= Timer.periodic(KHostPill.lineTime, (_) {
+      if (!mounted) return;
+      if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+      setState(() => _line = (_line + 1) % widget.lines.length);
+    });
+  }
 
   @override
   void didUpdateWidget(KHostPill oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncLines();
+    if (_line >= widget.lines.length) _line = 0;
     if (!oldWidget.following && widget.following) {
       _timer?.cancel();
       _confirming = true;
@@ -279,6 +370,7 @@ class _KHostPillState extends State<KHostPill> {
   @override
   void dispose() {
     _timer?.cancel();
+    _lines?.cancel();
     super.dispose();
   }
 
@@ -307,68 +399,102 @@ class _KHostPillState extends State<KHostPill> {
     } else {
       chip = const SizedBox.shrink(key: ValueKey('none'));
     }
+    final hasChip = !widget.following && onFollow != null || _confirming;
+    final lines = widget.lines;
+    final second = lines.isNotEmpty
+        ? AnimatedSwitcher(
+            duration: KMotion.of(context, KMotion.base),
+            layoutBuilder: (current, previous) => Stack(
+              alignment: AlignmentDirectional.centerStart,
+              children: [...previous, ?current],
+            ),
+            child: KeyedSubtree(
+              key: ValueKey(_line),
+              child: lines[_line.clamp(0, lines.length - 1)],
+            ),
+          )
+        : subtitle == null
+        ? null
+        : Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textScaler: scaler,
+            // White, not textSecondary: secondary grey on the scrim over a
+            // white frame is 4.2:1 (below 4.5).
+            style: text.caption.copyWith(
+              color: p.textPrimary,
+              fontSize: 10,
+              height: 1.2,
+            ),
+          );
 
     final body = Container(
       constraints: const BoxConstraints(minHeight: KMetrics.hostPillHeight),
-      padding: const EdgeInsetsDirectional.only(
-        start: KSpacing.xs,
-        end: KSpacing.xs,
-      ),
+      padding: const EdgeInsetsDirectional.only(start: 2.2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           KAvatar(
             name: widget.hostName,
             image: widget.avatar,
-            size: KSizes.avatarSm,
+            size: KHostPill.avatarSize,
           ),
-          const SizedBox(width: KSpacing.sm),
+          const SizedBox(width: 5),
           Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.hostName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textScaler: scaler,
-                  style: text.label.copyWith(color: p.textPrimary),
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: scaler),
+              child: DefaultTextStyle.merge(
+                style: text.caption.copyWith(
+                  color: p.textPrimary,
+                  fontSize: 10,
+                  height: 1.2,
                 ),
-                if (subtitle != null)
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textScaler: scaler,
-                    // White, not textSecondary: secondary grey on the scrim
-                    // over a white frame is 4.2:1 (below 4.5).
-                    style: text.caption.copyWith(color: p.textPrimary),
-                  ),
-              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.hostName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.label.copyWith(
+                        color: p.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                    ),
+                    if (second != null)
+                      KeyedSubtree(key: KHostPill.lineKey, child: second),
+                  ],
+                ),
+              ),
             ),
           ),
-          AnimatedSwitcher(
-            duration: KMotion.of(context, KMotion.base),
-            child: chip,
+          // The capsule's room; the capsule and its 48 pt target are laid
+          // over it (below), so the pill stays 31 pt tall.
+          SizedBox(
+            width: hasChip
+                ? KSpacing.xs + KMetrics.followChipWidth + 5.3
+                : KSpacing.md,
           ),
-          const SizedBox(width: KSpacing.xs),
         ],
       ),
     );
 
     final onTap = widget.onTap;
     final pill = Material(
-      color: p.scrim,
+      color: KLiveColors.chatScrim,
       shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: onTap == null ? body : InkWell(onTap: onTap, child: body),
     );
-    return Semantics(
+    final host = Semantics(
       container: true,
       button: onTap != null,
       label: onTap != null ? l10n.liveRoomHostSemantics(widget.hostName) : null,
-      // The visual pill is 40 dp; the hit area keeps 48 dp.
+      // The visual pill is 31 dp; the hit area keeps 48 dp.
       child: onTap == null
           ? pill
           : GestureDetector(
@@ -382,10 +508,28 @@ class _KHostPillState extends State<KHostPill> {
               ),
             ),
     );
+    // The follow capsule over the pill's end, in a 48 × 48 pt target.
+    return Stack(
+      alignment: AlignmentDirectional.centerEnd,
+      children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: KSizes.minTouchTarget),
+          child: Center(heightFactor: 1, widthFactor: 1, child: host),
+        ),
+        PositionedDirectional(
+          end: 5.3 + KMetrics.followChipWidth / 2 - KSizes.minTouchTarget / 2,
+          child: AnimatedSwitcher(
+            duration: KMotion.of(context, KMotion.base),
+            child: chip,
+          ),
+        ),
+      ],
+    );
   }
 }
 
-/// 28 dp follow chip inside a 48 dp hit area.
+/// The follow capsule (ref 158: 31.5 × 23.8 pt, cyan, a white "+", 5.3 pt
+/// from the pill's end) inside a 48 dp hit area that overflows the pill.
 class _FollowChip extends StatelessWidget {
   const new({
     required this.label,
@@ -402,31 +546,16 @@ class _FollowChip extends StatelessWidget {
   Widget build(BuildContext context) {
     const p = KPalette.dark;
     final visual = Container(
+      width: KMetrics.followChipWidth,
       height: KMetrics.followChipHeight,
-      padding: EdgeInsetsDirectional.symmetric(
-        horizontal: following ? KSpacing.xs : KSpacing.sm,
-      ),
       decoration: BoxDecoration(
-        color: p.primary,
+        gradient: const LinearGradient(colors: KHostPill.followGradient),
         borderRadius: BorderRadius.circular(KRadius.pill),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            following ? Icons.check_rounded : Icons.add_rounded,
-            size: KMetrics.iconSm,
-            color: p.onPrimary,
-          ),
-          if (!following) ...[
-            const SizedBox(width: KSpacing.xxs),
-            Text(
-              label,
-              textScaler: TextScaler.noScaling,
-              style: context.textStyles.label.copyWith(color: p.onPrimary),
-            ),
-          ],
-        ],
+      child: Icon(
+        following ? Icons.check_rounded : Icons.add_rounded,
+        size: 16,
+        color: p.onPrimary,
       ),
     );
     return Semantics(
@@ -435,20 +564,49 @@ class _FollowChip extends StatelessWidget {
       toggled: following,
       label: label,
       child: ExcludeSemantics(
-        child: InkResponse(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: onTap,
-          radius: KSizes.minTouchTarget / 2,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: KSizes.minTouchTarget,
-              minWidth: KSizes.minTouchTarget,
-            ),
-            child: Center(widthFactor: 1, child: visual),
+          child: SizedBox.square(
+            dimension: KSizes.minTouchTarget,
+            child: Center(child: visual),
           ),
         ),
       ),
     );
   }
+}
+
+/// A host pill line: an icon and a count (D131: this live's points with
+/// the cherry, or its taps with a heart).
+class KHostPillLine extends StatelessWidget {
+  const new({required this.icon, required this.text, super.key, this.color});
+
+  final Widget icon;
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      icon,
+      const SizedBox(width: 2),
+      Flexible(
+        child: Text(
+          KFormat.bidiIsolate(text),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color ?? KHostPill.points,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// Loading stand-in for [KHostPill].
@@ -699,6 +857,7 @@ class KRoomIconButton extends StatelessWidget {
     this.color,
     this.visualSize = KMetrics.roomIconVisual,
     this.iconSize = KMetrics.iconMd,
+    this.bare = false,
   });
 
   final IconData icon;
@@ -707,6 +866,9 @@ class KRoomIconButton extends StatelessWidget {
   final Color? color;
   final double visualSize;
   final double iconSize;
+
+  /// D131: the icon alone (a soft shadow, no circle), e.g. the room's ✕.
+  final bool bare;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -726,14 +888,19 @@ class KRoomIconButton extends StatelessWidget {
               child: Container(
                 width: visualSize,
                 height: visualSize,
-                decoration: BoxDecoration(
-                  color: KPalette.dark.scrim,
-                  shape: BoxShape.circle,
-                ),
+                decoration: bare
+                    ? null
+                    : BoxDecoration(
+                        color: KPalette.dark.scrim,
+                        shape: BoxShape.circle,
+                      ),
                 child: Icon(
                   icon,
                   size: iconSize,
                   color: color ?? KPalette.dark.textPrimary,
+                  shadows: bare
+                      ? const [Shadow(color: Color(0x66000000), blurRadius: 3)]
+                      : null,
                 ),
               ),
             ),

@@ -25,10 +25,15 @@ abstract interface class LiveRepository {
 
   /// `GET /live/rooms?tab&category&cursor&limit`.
   /// D129: [kind] lists voice rooms or video lives only (`null`: all).
+  /// D133 (v1.27.1-live): [nearby] sends `scope=nearby` (the caller's
+  /// country; `emptyReason` `COUNTRY_NOT_SET` without one) and [featured]
+  /// sends `featured=true` (featured hosts, by feature rank).
   Future<LiveRoomPage> listRooms({
     required LiveRoomsTab tab,
     String? category,
     LiveRoomsKind? kind,
+    bool nearby = false,
+    bool featured = false,
     String? cursor,
     int limit = defaultPageSize,
   });
@@ -248,6 +253,8 @@ class LiveRepositoryImpl implements LiveRepository {
     required LiveRoomsTab tab,
     String? category,
     LiveRoomsKind? kind,
+    bool nearby = false,
+    bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) => guardApiCall(() async {
@@ -257,6 +264,8 @@ class LiveRepositoryImpl implements LiveRepository {
         'tab': tab.wire,
         'category': ?category,
         'kind': ?kind?.wire,
+        if (nearby) 'scope': 'nearby',
+        if (featured) 'featured': 'true',
         'cursor': ?cursor,
         'limit': limit,
       },

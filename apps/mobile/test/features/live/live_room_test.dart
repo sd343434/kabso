@@ -5,7 +5,6 @@
 
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show Tristate;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +29,7 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_room_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
@@ -45,6 +45,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -180,6 +181,10 @@ void main() {
 
       await tester.tap(_label(l10n.liveClose));
       await tester.pumpAndSettle();
+      // D131 (ref 160): not following the host yet: the leave prompt.
+      expect(find.byType(KLeavePrompt), findsOneWidget);
+      await tester.tap(find.byKey(KLeavePrompt.exitKey));
+      await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
       expect(find.byType(KLiveGridCard), findsWidgets);
@@ -191,8 +196,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsOneWidget);
 
-      // The Android back button.
+      // The Android back button: D131, the leave prompt first (the
+      // viewer does not follow the host); Back again keeps watching.
       await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(KLeavePrompt), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(KLeavePrompt), findsNothing);
+      expect(find.byType(LiveRoomScreen), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(KLeavePrompt.exitKey));
       await tester.pumpAndSettle();
       expect(find.byType(LiveRoomScreen), findsNothing);
       expect(find.byKey(const Key('nav.home')), findsOneWidget);
@@ -297,12 +312,12 @@ void main() {
       );
       expect(find.byKey(_hostAway), findsOneWidget);
       expect(find.text(l10n.liveHostAway), findsOneWidget);
-      // Room detail: title and category; host from the room, follower
-      // count from the public profile.
-      expect(find.text('Arabic music night'), findsOneWidget);
-      expect(find.text('Music'), findsOneWidget);
+      // D131 (ref 158): the host from the room, this live's points in the
+      // pill, the board chip; the title and category are announced on the
+      // cards and the host's sheet, not drawn here.
       expect(find.text('Sara'), findsOneWidget);
-      expect(find.text('1,234 followers'), findsOneWidget);
+      expect(find.byKey(LiveRoomScreen.scoreKey), findsOneWidget);
+      expect(find.byType(KRoomChipsRow), findsOneWidget);
       // Chat (CP-013): the room's chat, empty so far; the old comment
       // field is gone.
       expect(_chat(l10n.liveChatEmpty), findsOneWidget);
@@ -462,7 +477,6 @@ void main() {
       // Optimistic: following and +1 before the server answers.
       expect(_label(l10n.liveFollow), findsNothing);
       expect(_label(l10n.liveFollowing), findsOneWidget);
-      expect(find.text('1,235 followers'), findsOneWidget);
       expect(profiles.calls.last, 'PUT host0');
 
       profiles.gate!.complete();
@@ -473,7 +487,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(_label(l10n.liveFollowing), findsNothing);
       expect(_label(l10n.liveFollow), findsNothing);
-      expect(find.text('1,235 followers'), findsOneWidget);
     });
 
     testWidgets('a failed follow rolls back and explains', (tester) async {
@@ -485,13 +498,11 @@ void main() {
       // The chip cross-fade (the 1 s confirmation timer is not reached).
       await tester.pumpAndSettle();
       expect(_label(l10n.liveFollowing), findsOneWidget);
-      expect(find.text('1,235 followers'), findsOneWidget);
 
       profiles.gate!.complete();
       await tester.pumpAndSettle();
       expect(_label(l10n.liveFollow), findsOneWidget);
       expect(_label(l10n.liveFollowing), findsNothing);
-      expect(find.text('1,234 followers'), findsOneWidget);
       expect(find.text(l10n.errorRateLimited), findsOneWidget);
     });
 
@@ -553,9 +564,8 @@ void main() {
       _expectNoDimming(tester);
       expect(find.text(l10n.liveGiftEmptyTitle), findsOneWidget);
       expect(find.byType(KGiftImage), findsNothing);
-      // The host is the default recipient.
-      expect(find.byKey(KLiveGiftSheet.recipientKey('host0')), findsOneWidget);
-      expect(find.text(l10n.liveGiftHost), findsOneWidget);
+      // D131 (ref 161): the host is the only recipient, so no row.
+      expect(find.byKey(KLiveGiftSheet.recipientKey('host0')), findsNothing);
       // Send is dimmed; D128: a tap on it says why and sends nothing.
       final send = tester.widget<Semantics>(
         find
@@ -627,21 +637,10 @@ void main() {
       await tester.tap(find.byKey(const Key('room.userCard.gift')));
       await tester.pumpAndSettle();
       expect(find.byType(KLiveGiftSheet), findsOneWidget);
-      expect(
-        tester
-            .getSemantics(
-              find
-                  .descendant(
-                    of: find.byKey(KLiveGiftSheet.recipientKey('host0')),
-                    matching: find.byType(Semantics),
-                  )
-                  .first,
-            )
-            .getSemanticsData()
-            .flagsCollection
-            .isSelected,
-        Tristate.isTrue,
-      );
+      // D131 (ref 161): the host is the only one who can receive here, so
+      // the panel shows no recipients row and no "not on the mic" line.
+      expect(find.byKey(KLiveGiftSheet.recipientKey('host0')), findsNothing);
+      expect(find.textContaining(l10n.liveGiftNotOnMic('')), findsNothing);
     });
 
     testWidgets('a gift data message in the room: the banner with the '
@@ -674,6 +673,41 @@ void main() {
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
       expect(find.byType(LiveGiftBanner), findsNothing);
+    });
+
+    testWidgets('D132: a lucky-win message of ×100 or more shows the room '
+        'banner; a smaller one does not', (tester) async {
+      final engine = FakeLiveMediaEngine();
+      await _pumpRoom(
+        tester,
+        user: testUser(),
+        engine: engine,
+        gifts: FakeLiveGiftRepository(codes: giftFixtureCodes),
+      );
+      LiveChatEvent? win(int multiplier, String id) => LiveChatEvent.parse({
+        'type': 'lucky-win',
+        'win': {
+          'giftId': id,
+          'roomId': 'room-0',
+          'giftCode': 'lucky_clover',
+          'sender': giftUserJson('lina', 'Lina'),
+          'multiplier': multiplier,
+          'coinsWon': multiplier * 10,
+          'createdAt': '2026-10-27T18:30:00.000Z',
+        },
+      });
+      engine.chat.add(win(50, 'g-1')!);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(LiveLuckyWinBanner), findsNothing);
+      engine.chat.add(win(500, 'g-2')!);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byType(LiveLuckyWinBanner), findsOneWidget);
+      expect(find.textContaining('×500'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(find.byType(LiveLuckyWinBanner), findsNothing);
     });
   });
 
@@ -848,9 +882,17 @@ void main() {
       final buttons = tester.widgetList<KRoomIconButton>(
         find.byType(KRoomIconButton),
       );
-      expect(buttons, hasLength(2)); // close + gifts
+      expect(buttons, hasLength(1)); // close
       for (final button in buttons) {
         expect(button.onPressed, isNotNull, reason: button.label);
+      }
+      // D131: the bar's round buttons (the gift box).
+      final bar = tester.widgetList<KViewerBarButton>(
+        find.byType(KViewerBarButton),
+      );
+      expect(bar, hasLength(1));
+      for (final button in bar) {
+        expect(button.onTap, isNotNull, reason: button.label);
       }
       // Fixture-only states never appear in production paths.
       for (final type in [
@@ -923,7 +965,8 @@ void main() {
         final close = tester.getCenter(_label(l.liveClose)).dx;
         final gift = tester.getCenter(_label(l.liveGifts)).dx;
         final chat = tester.getCenter(_chat(l.liveChatEmpty)).dx;
-        final info = tester.getCenter(find.byType(KRoomInfoRow)).dx;
+        // D131: the board chip starts the second row.
+        final info = tester.getCenter(find.byType(LiveRankChip)).dx;
         const mid = 393 / 2;
         expect(ar ? pill > close : pill < close, isTrue, reason: language.name);
         expect(ar ? gift < mid : gift > mid, isTrue, reason: language.name);
@@ -1074,7 +1117,14 @@ void main() {
         engine: engine,
         user: testUser(),
       );
-      expect(find.byKey(LiveRoomScreen.scoreKey), findsNothing);
+      // D131: this live's points sit in the host pill from the start.
+      expect(
+        find.descendant(
+          of: find.byKey(LiveRoomScreen.scoreKey),
+          matching: find.textContaining('0'),
+        ),
+        findsOneWidget,
+      );
       for (var i = 0; i < 3; i++) {
         await tester.tap(find.byKey(LiveTapLayer.tapKey));
         await tester.pump(const Duration(milliseconds: 50));
@@ -1088,7 +1138,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),
-          matching: find.text('3'),
+          matching: find.textContaining('3'),
         ),
         findsOneWidget,
       );
@@ -1102,7 +1152,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(LiveRoomScreen.scoreKey),
-          matching: find.text('12.4K'),
+          matching: find.textContaining('12,400'),
         ),
         findsOneWidget,
       );

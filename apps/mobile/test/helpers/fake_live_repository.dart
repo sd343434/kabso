@@ -18,6 +18,8 @@ typedef RoomsRequest = ({
   LiveRoomsTab tab,
   String? category,
   LiveRoomsKind? kind,
+  bool nearby,
+  bool featured,
   String? cursor,
   int limit,
 });
@@ -106,6 +108,8 @@ class FakeLiveRepository implements LiveRepository {
     required LiveRoomsTab tab,
     String? category,
     LiveRoomsKind? kind,
+    bool nearby = false,
+    bool featured = false,
     String? cursor,
     int limit = LiveRepository.defaultPageSize,
   }) async {
@@ -113,6 +117,8 @@ class FakeLiveRepository implements LiveRepository {
       tab: tab,
       category: category,
       kind: kind,
+      nearby: nearby,
+      featured: featured,
       cursor: cursor,
       limit: limit,
     );
@@ -405,8 +411,11 @@ class FakeLiveRepository implements LiveRepository {
     );
   }
 
+  /// What `kicks` returns.
+  List<LiveKick> kickList = const [];
+
   @override
-  Future<List<LiveKick>> kicks(String roomId) async => const [];
+  Future<List<LiveKick>> kicks(String roomId) async => kickList;
 
   @override
   Future<void> unkick(String roomId, String username) async =>
@@ -786,26 +795,9 @@ List<Override> liveOverrides(
   FakeLiveRepository repo, {
   AppLanguage language = AppLanguage.en,
   String? userId = 'user-me',
-  LiveRoomsKind kind = LiveRoomsKind.audio,
+  String? country,
 }) => [
   liveRepositoryProvider.overrideWithValue(repo),
   liveScopeProvider.overrideWithValue((userId: userId, language: language)),
-  liveHubKindProvider.overrideWith(() => MemoryLiveHubKind(kind)),
+  liveCountryProvider.overrideWithValue(country),
 ];
-
-/// D129: the hub's kind switch without device storage (starts at [initial];
-/// a selection is kept in memory only).
-class MemoryLiveHubKind extends LiveHubKindController {
-  new([this.initial = LiveRoomsKind.audio]);
-
-  final LiveRoomsKind initial;
-
-  /// Every saved choice, in order.
-  final List<LiveRoomsKind> saved = [];
-
-  @override
-  String? readSaved() => initial.wire;
-
-  @override
-  Future<void> save(LiveRoomsKind kind) async => saved.add(kind);
-}

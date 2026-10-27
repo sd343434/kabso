@@ -9914,24 +9914,6 @@ abstract class AppLocalizations {
   /// **'Kabso'**
   String get liveHubBrand;
 
-  /// D129: the hub's voice rooms / live switch, announced as a group.
-  ///
-  /// In ar, this message translates to:
-  /// **'نوع البث'**
-  String get liveHubKindLabel;
-
-  /// D129: the hub filter showing voice (audio) rooms only, podcasts included.
-  ///
-  /// In ar, this message translates to:
-  /// **'غرف صوتية'**
-  String get liveHubKindAudio;
-
-  /// D129: the hub filter showing video lives only (solo, multi-guest, PK).
-  ///
-  /// In ar, this message translates to:
-  /// **'بث حي'**
-  String get liveHubKindVideo;
-
   /// No description provided for @liveGridAudio.
   ///
   /// In ar, this message translates to:
@@ -10004,11 +9986,719 @@ abstract class AppLocalizations {
   /// **'قصص جديدة'**
   String get navMomentsNew;
 
-  /// D130: the party button in the Live hub's top bar (owner's icon; its function comes later, so it says Soon).
+  /// D131: the Voice rooms screen title and the Live hub party button's name (it opens the voice rooms).
   ///
   /// In ar, this message translates to:
-  /// **'حفلة'**
-  String get liveHubParty;
+  /// **'الغرف الصوتية'**
+  String get liveVoiceRoomsTitle;
+
+  /// D131: the Live hub filter row, announced as a group.
+  ///
+  /// In ar, this message translates to:
+  /// **'عوامل التصفية'**
+  String get liveHubFilterLabel;
+
+  /// D131: hub filter, lives from hosts in the person's own country (D133 scope=nearby).
+  ///
+  /// In ar, this message translates to:
+  /// **'القريبة'**
+  String get liveHubFilterNearby;
+
+  /// D131: hub filter in popular order; its menu picks Following or a category.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرائج'**
+  String get liveHubFilterPopular;
+
+  /// D131: hub filter, hosts featured from admin (D133 featured=true).
+  ///
+  /// In ar, this message translates to:
+  /// **'المميزة'**
+  String get liveHubFilterFeatured;
+
+  /// D131: hub filter, the newest lives (tab=new).
+  ///
+  /// In ar, this message translates to:
+  /// **'استكشاف'**
+  String get liveHubFilterExplore;
+
+  /// D131: screen-reader hint of the selected Popular filter pill.
+  ///
+  /// In ar, this message translates to:
+  /// **'يفتح قائمة: المتابَعون أو الفئات'**
+  String get liveHubPopularMenuHint;
+
+  /// D133: Nearby when the person has no country (COUNTRY_NOT_SET).
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّد بلدك لترى البثوث القريبة'**
+  String get liveNearbyNoCountryTitle;
+
+  /// D133: body of the no-country state.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعرض «القريبة» بثوث المضيفين من بلدك. بلدك لا يظهر في ملفك العام.'**
+  String get liveNearbyNoCountryBody;
+
+  /// D133: button opening the country list.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدّد بلدك'**
+  String get liveNearbySetCountry;
+
+  /// D133: secondary action on an empty Nearby list.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير البلد'**
+  String get liveNearbyChangeCountry;
+
+  /// D133: Nearby with a country but no rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث من {country} الآن'**
+  String liveNearbyEmptyTitle(String country);
+
+  /// D133: body of an empty Nearby list.
+  ///
+  /// In ar, this message translates to:
+  /// **'عد لاحقًا أو جرّب «الرائج».'**
+  String get liveNearbyEmptyBody;
+
+  /// D133: Featured with no rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا بثوث مميزة الآن'**
+  String get liveFeaturedEmptyTitle;
+
+  /// D133: body of an empty Featured list.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا بثوث المضيفين الذين يختارهم فريق Kabso Live.'**
+  String get liveFeaturedEmptyBody;
+
+  /// D131: Voice rooms top tab, rooms of followed hosts (tab=following).
+  ///
+  /// In ar, this message translates to:
+  /// **'المتابَعون'**
+  String get liveVoiceTabFollow;
+
+  /// D131: Voice rooms top tab, popular order (tab=popular).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرائجة'**
+  String get liveVoiceTabHot;
+
+  /// D131: Voice rooms top tab, newest (tab=new).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجديدة'**
+  String get liveVoiceTabNew;
+
+  /// D131: Voice rooms second row, every voice room (the default).
+  ///
+  /// In ar, this message translates to:
+  /// **'المقترحة'**
+  String get liveVoiceRecommended;
+
+  /// D131: Voice rooms section title above the list.
+  ///
+  /// In ar, this message translates to:
+  /// **'الغرف'**
+  String get liveVoiceSection;
+
+  /// D131: switch to the list layout.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض كقائمة'**
+  String get liveVoiceListView;
+
+  /// D131: switch to the grid layout.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض كشبكة'**
+  String get liveVoiceGridView;
+
+  /// D131: a voice room row's seats taken over seats (CP-011).
+  ///
+  /// In ar, this message translates to:
+  /// **'{taken}/{total}'**
+  String liveVoiceSeats(int taken, int total);
+
+  /// D131: an empty voice room list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا غرف صوتية الآن'**
+  String get liveVoiceEmptyTitle;
+
+  /// D131: body of an empty voice room list.
+  ///
+  /// In ar, this message translates to:
+  /// **'عد لاحقًا أو جرّب فئة أخرى.'**
+  String get liveVoiceEmptyBody;
+
+  /// D133: the country list sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلدك'**
+  String get countryPickerTitle;
+
+  /// D133: the country list sheet explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'يحدّد بثوث «القريبة». لا يظهر في ملفك العام.'**
+  String get countryPickerBody;
+
+  /// D133: the country list search hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن بلد'**
+  String get countryPickerSearch;
+
+  /// D133: clears the person's country.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة البلد'**
+  String get countryPickerClear;
+
+  /// D133: settings row for the person's own country.
+  ///
+  /// In ar, this message translates to:
+  /// **'البلد'**
+  String get settingsCountry;
+
+  /// D133: settings row value without a country.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محدّد'**
+  String get settingsCountryNotSet;
+
+  /// D131: the server refused the recipients (400 VALIDATION_FAILED, field recipients), e.g. a server without D128 refusing a host's gift to themself.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال الهدية إلى هذا المستلم هنا الآن.'**
+  String get liveGiftRecipientRefused;
+
+  /// D131: the leave prompt's question (ref 160), when the viewer can follow and does not.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعجبك البث؟ تابِع المضيف قبل أن تغادر'**
+  String get liveLeaveTitle;
+
+  /// D131: leave prompt primary: follow the host, then leave.
+  ///
+  /// In ar, this message translates to:
+  /// **'تابِع واخرج'**
+  String get liveLeaveFollow;
+
+  /// D131: leave prompt secondary: leave without following.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخروج من البث'**
+  String get liveLeaveExit;
+
+  /// D131: screen-reader text of the host pill's points line (cherry).
+  ///
+  /// In ar, this message translates to:
+  /// **'نقاط هذا البث {points}'**
+  String liveHostPillPoints(String points);
+
+  /// D131: screen-reader text of the host pill's taps line (heart).
+  ///
+  /// In ar, this message translates to:
+  /// **'نقرات هذا البث {taps}'**
+  String liveHostPillTaps(String taps);
+
+  /// D131: the video live's chat pill hint (ref 158).
+  ///
+  /// In ar, this message translates to:
+  /// **'قل مرحبًا…'**
+  String get liveChatSayHi;
+
+  /// D131: a quick reply sent as a chat message (ref 158).
+  ///
+  /// In ar, this message translates to:
+  /// **'مرحبًا 😊'**
+  String get liveQuickHello;
+
+  /// D131: a quick reply sent as a chat message.
+  ///
+  /// In ar, this message translates to:
+  /// **'🔥🔥🔥'**
+  String get liveQuickFire;
+
+  /// D131: a quick reply sent as a chat message.
+  ///
+  /// In ar, this message translates to:
+  /// **'أجواء جميلة~'**
+  String get liveQuickNiceMood;
+
+  /// D131: a quick reply sent as a chat message (no exclamation mark, T3).
+  ///
+  /// In ar, this message translates to:
+  /// **'أسرتني'**
+  String get liveQuickGotMe;
+
+  /// D131: screen-reader label of a quick reply chip.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال: {text}'**
+  String liveQuickReplyLabel(String text);
+
+  /// Room tools: the camera flash (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'الفلاش'**
+  String get liveToolFlash;
+
+  /// Room tools: both cameras at once (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'كاميرتان'**
+  String get liveToolDual;
+
+  /// Room tools: high-definition video (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'جودة عالية'**
+  String get liveToolHd;
+
+  /// Room tools: stickers on the video (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملصقات'**
+  String get liveToolSticker;
+
+  /// Room tools: the live's info and topic.
+  ///
+  /// In ar, this message translates to:
+  /// **'المعلومات'**
+  String get liveToolInfo;
+
+  /// Room tools: a paid boost (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الزيارات'**
+  String get liveToolTrafficCard;
+
+  /// Beautification tools: face effects (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'مؤثرات'**
+  String get liveToolMagic;
+
+  /// Beautification tools: a screen light (not available yet).
+  ///
+  /// In ar, this message translates to:
+  /// **'إضاءة'**
+  String get liveToolFillLight;
+
+  /// Beautification tools: opens the voice settings.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصوت'**
+  String get liveToolMixer;
+
+  /// Title of the host's beautification sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدوات التجميل'**
+  String get liveBeautyToolsTitle;
+
+  /// Host bar: invite viewers to join on a seat.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتصال الضيوف'**
+  String get liveHostGuests;
+
+  /// Host bar: guest connection in a SOLO live.
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن للضيوف الانضمام في البث متعدد الضيوف. في البث الفردي ستتوفر لاحقاً.'**
+  String get liveHostGuestsSoon;
+
+  /// Host bar: opens the room tools.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأدوات'**
+  String get liveHostTools;
+
+  /// Title of the host's user management sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'إدارة المستخدمين'**
+  String get liveManageTitle;
+
+  /// User management: people muted in this live's chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'المكتومون في الدردشة'**
+  String get liveManageMuted;
+
+  /// User management: people removed from this live.
+  ///
+  /// In ar, this message translates to:
+  /// **'المطرودون من البث'**
+  String get liveManageKicked;
+
+  /// User management: this live's moderators.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشرفون'**
+  String get liveManageModerators;
+
+  /// User management: how to add a moderator.
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح بطاقة الشخص لتعيينه مشرفاً.'**
+  String get liveManageModeratorsHint;
+
+  /// User management: switch that stops people without an account from watching.
+  ///
+  /// In ar, this message translates to:
+  /// **'للمسجلين فقط'**
+  String get liveManageSignedInOnly;
+
+  /// User management: the switch's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يستطيع من ليس لديه حساب المشاهدة.'**
+  String get liveManageSignedInOnlyBody;
+
+  /// User management: an empty list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا أحد بعد'**
+  String get liveManageEmpty;
+
+  /// User management: unmute someone in the chat.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الكتم'**
+  String get liveManageUnmute;
+
+  /// User management: let a removed person come back.
+  ///
+  /// In ar, this message translates to:
+  /// **'السماح بالعودة'**
+  String get liveManageLetBack;
+
+  /// User management: remove a moderator.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get liveManageRemove;
+
+  /// End-of-live summary: duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة البث'**
+  String get goLiveSummaryTime;
+
+  /// End-of-live summary: this live's points (cherries).
+  ///
+  /// In ar, this message translates to:
+  /// **'النقاط'**
+  String get goLiveSummaryPoints;
+
+  /// End-of-live summary: points from taps.
+  ///
+  /// In ar, this message translates to:
+  /// **'من النقرات'**
+  String get goLiveSummaryTaps;
+
+  /// End-of-live summary: points from gifts.
+  ///
+  /// In ar, this message translates to:
+  /// **'من الهدايا'**
+  String get goLiveSummaryGifts;
+
+  /// End-of-live summary: people who gave this live points.
+  ///
+  /// In ar, this message translates to:
+  /// **'الداعمون'**
+  String get goLiveSummarySupporters;
+
+  /// End-of-live summary: the viewer count when the live ended.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون عند الانتهاء'**
+  String get goLiveSummaryViewers;
+
+  /// End-of-live summary: the host's charm level.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الجاذبية {level}'**
+  String goLiveSummaryCharm(String level);
+
+  /// End-of-live summary: points to the next charm level.
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} للمستوى التالي'**
+  String goLiveSummaryCharmNext(String points);
+
+  /// End-of-live summary: the section title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات البث'**
+  String get goLiveSummaryData;
+
+  /// Gift panel tab: gifts sent recently from this phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأخيرة'**
+  String get liveGiftTabRecent;
+
+  /// Gift panel tab: lucky gifts (D132).
+  ///
+  /// In ar, this message translates to:
+  /// **'الحظ'**
+  String get liveGiftTabLucky;
+
+  /// Gift panel, Recent tab empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا هدايا حديثة'**
+  String get liveGiftRecentEmptyTitle;
+
+  /// Gift panel, Recent tab empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'تظهر هنا الهدايا التي ترسلها من هذا الهاتف.'**
+  String get liveGiftRecentEmptyMessage;
+
+  /// Gift panel: sort the gifts by price.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر'**
+  String get liveGiftPriceSort;
+
+  /// Gift panel: price sorting off (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'الترتيب حسب السعر'**
+  String get liveGiftPriceSortOff;
+
+  /// Gift panel: ascending price (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر من الأقل إلى الأعلى'**
+  String get liveGiftPriceSortUp;
+
+  /// Gift panel: descending price (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر من الأعلى إلى الأقل'**
+  String get liveGiftPriceSortDown;
+
+  /// Gift panel: the sender's SUPPORT level.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستوى الثروة {level}'**
+  String liveGiftWealthLevel(String level);
+
+  /// Gift panel: wealth points to the next level.
+  ///
+  /// In ar, this message translates to:
+  /// **'{points} للمستوى التالي'**
+  String liveGiftWealthToNext(String points);
+
+  /// Gift panel, Lucky tab: opens the published odds.
+  ///
+  /// In ar, this message translates to:
+  /// **'احتمالات الربح'**
+  String get liveLuckyOdds;
+
+  /// Title of the odds sheet.
+  ///
+  /// In ar, this message translates to:
+  /// **'احتمالات الربح في هدايا الحظ'**
+  String get liveLuckyOddsTitle;
+
+  /// Odds sheet: how a draw works.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل هدية ترسلها سحبة واحدة. الربح يساوي المضاعف مضروباً في سعر الهدية بالعملات.'**
+  String get liveLuckyOddsIntro;
+
+  /// Odds sheet: one multiplier.
+  ///
+  /// In ar, this message translates to:
+  /// **'×{multiplier}'**
+  String liveLuckyOddsRow(String multiplier);
+
+  /// Odds sheet: the chance of no win.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا ربح'**
+  String get liveLuckyOddsNoWin;
+
+  /// Odds sheet: the return percentage.
+  ///
+  /// In ar, this message translates to:
+  /// **'العائد المتوقع: {percent} من العملات المنفقة'**
+  String liveLuckyOddsReturn(String percent);
+
+  /// Odds sheet: the host share.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُحتسب {percent} من قيمة الهدية للمضيف.'**
+  String liveLuckyOddsHostShare(String percent);
+
+  /// Odds sheet: the daily protection.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا تتجاوز أرباح اليوم العائد المتوقع من هدايا الحظ في ذلك اليوم؛ والربح الذي يتجاوزه يُدفع أقل أو لا يُدفع.'**
+  String get liveLuckyOddsProtection;
+
+  /// Odds sheet: the age limit.
+  ///
+  /// In ar, this message translates to:
+  /// **'لمن هم في سن 18 عاماً أو أكثر فقط.'**
+  String get liveLuckyOddsAge;
+
+  /// 18+ confirmation dialog title.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل عمرك 18 عاماً أو أكثر؟'**
+  String get liveLuckyAgeTitle;
+
+  /// 18+ confirmation dialog body.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ لعبة حظ تُلعب بالعملات. أكّد أن عمرك 18 عاماً أو أكثر لإرسالها.'**
+  String get liveLuckyAgeBody;
+
+  /// 18+ confirmation button.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمري 18 عاماً أو أكثر'**
+  String get liveLuckyAgeConfirm;
+
+  /// Lucky tab: region unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ غير متاحة في بلدك.'**
+  String get liveLuckyRegion;
+
+  /// Lucky tab: disabled.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ متوقفة حالياً.'**
+  String get liveLuckyOff;
+
+  /// Lucky send result.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربحت {coins} عملة، وأعلى مضاعف ×{multiplier}'**
+  String liveLuckyWon(String coins, String multiplier);
+
+  /// Lucky send result: nothing won.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا ربح هذه المرة'**
+  String get liveLuckyNoWin;
+
+  /// Room banner for a big lucky win.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} ربح ×{multiplier}: {coins} عملة'**
+  String liveLuckyBanner(String name, String multiplier, String coins);
+
+  /// Error LUCKY_GIFT_AGE_UNCONFIRMED.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد أن عمرك 18 عاماً أو أكثر لإرسال هدايا الحظ.'**
+  String get errorLuckyGiftAgeUnconfirmed;
+
+  /// Error LUCKY_GIFT_REGION_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدايا الحظ غير متاحة في بلدك.'**
+  String get errorLuckyGiftRegionUnavailable;
+
+  /// Live composer: show the emoji panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرموز التعبيرية'**
+  String get liveEmojiPanel;
+
+  /// Live composer: show the keyboard instead of the emoji panel.
+  ///
+  /// In ar, this message translates to:
+  /// **'لوحة المفاتيح'**
+  String get liveEmojiKeyboard;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجوه'**
+  String get liveEmojiSmileys;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأيدي والأشخاص'**
+  String get liveEmojiPeople;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحب'**
+  String get liveEmojiLove;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحيوانات والطبيعة'**
+  String get liveEmojiAnimals;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطعام والشراب'**
+  String get liveEmojiFood;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأنشطة'**
+  String get liveEmojiActivities;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'السفر والأماكن'**
+  String get liveEmojiTravel;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأشياء'**
+  String get liveEmojiObjects;
+
+  /// Emoji group.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرموز'**
+  String get liveEmojiSymbols;
+
+  /// Go-live setup: show the second row of tools.
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get goLiveToolsMore;
+
+  /// Go-live setup: fold the second row of tools.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل'**
+  String get goLiveToolsLess;
+
+  /// Go-live setup: open every live category.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل المواضيع'**
+  String get goLiveCategoriesAll;
 }
 
 class _AppLocalizationsDelegate

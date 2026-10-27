@@ -19,7 +19,11 @@ enum GiftCategory {
   @JsonValue('EVENT')
   event('EVENT'),
   @JsonValue('FUN')
-  fun('FUN');
+  fun('FUN'),
+
+  /// v1.27-live (D132, §10.27): lucky gifts (listed only while they are on).
+  @JsonValue('LUCKY')
+  lucky('LUCKY');
 
   new(this.wire);
 
@@ -192,7 +196,117 @@ abstract class LiveGiftResult with _$LiveGiftResult {
     required LiveGift gift,
     required int coins,
     required int bagQuantity,
+
+    /// v1.27-live (D132): the draws of a LUCKY send (absent otherwise).
+    LuckyGiftResult? luckyResult,
   }) = _LiveGiftResult;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveGiftResultFromJson(json);
+}
+
+/// `LuckyGiftWin` (v1.27-live, D132): the draws of one send that paid one
+/// multiplier.
+@freezed
+abstract class LuckyGiftWin with _$LuckyGiftWin {
+  const factory({
+    required int multiplier,
+    required int count,
+    required int coins,
+  }) = _LuckyGiftWin;
+
+  factory fromJson(Map<String, dynamic> json) => _$LuckyGiftWinFromJson(json);
+}
+
+/// `LuckyGiftResult` (v1.27-live, D132, §10.27): one draw per gift
+/// (`quantity × recipients`); the coins won are already in the balance.
+@freezed
+abstract class LuckyGiftResult with _$LuckyGiftResult {
+  const factory({
+    required int draws,
+    required List<LuckyGiftWin> wins,
+    required int coinsWon,
+    required int? topMultiplier,
+    required int downgraded,
+  }) = _LuckyGiftResult;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LuckyGiftResultFromJson(json);
+}
+
+/// `LuckyGiftOutcome`: one winning multiplier and its chance per draw.
+@freezed
+abstract class LuckyGiftOutcome with _$LuckyGiftOutcome {
+  const factory({
+    required int multiplier,
+    required int chancePerMillion,
+    required double probability,
+  }) = _LuckyGiftOutcome;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LuckyGiftOutcomeFromJson(json);
+}
+
+/// Why the caller may not send lucky gifts now; unknown values read as
+/// [unknown] ("not eligible").
+enum LuckyGiftIneligibility {
+  @JsonValue('DISABLED')
+  disabled,
+  @JsonValue('REGION_UNAVAILABLE')
+  regionUnavailable,
+  @JsonValue('AGE_UNCONFIRMED')
+  ageUnconfirmed,
+  unknown,
+}
+
+/// `LuckyGiftEligibility`: the signed-in caller's standing.
+@freezed
+abstract class LuckyGiftEligibility with _$LuckyGiftEligibility {
+  const factory({
+    required bool eligible,
+    @JsonKey(unknownEnumValue: LuckyGiftIneligibility.unknown)
+    required LuckyGiftIneligibility? reason,
+    required bool ageConfirmed,
+  }) = _LuckyGiftEligibility;
+
+  factory fromJson(Map<String, dynamic> json) =>
+      _$LuckyGiftEligibilityFromJson(json);
+}
+
+/// `LuckyGiftOdds` (`GET /live/gifts/lucky/odds`, v1.27-live, D132): the
+/// published odds; [caller] is null for a guest.
+@freezed
+abstract class LuckyGiftOdds with _$LuckyGiftOdds {
+  const factory({
+    required bool enabled,
+    required int drawsPerGift,
+    required double returnPercent,
+    required double hostSharePercent,
+    required List<LuckyGiftOutcome> outcomes,
+    required int noWinChancePerMillion,
+    required double noWinProbability,
+    required int bigWinMultiplier,
+    required bool dailyProtection,
+    required String dayTimeZone,
+    required int minimumAge,
+    required LuckyGiftEligibility? caller,
+  }) = _LuckyGiftOdds;
+
+  factory fromJson(Map<String, dynamic> json) => _$LuckyGiftOddsFromJson(json);
+}
+
+/// The `lucky-win` data message (topic `lucky`, v1.27-live, D132): a send
+/// whose best win reached the room's big-win multiplier.
+@freezed
+abstract class LuckyWin with _$LuckyWin {
+  const factory({
+    required String giftId,
+    required String roomId,
+    required String giftCode,
+    required UserSummary sender,
+    required int multiplier,
+    required int coinsWon,
+    required DateTime createdAt,
+  }) = _LuckyWin;
+
+  factory fromJson(Map<String, dynamic> json) => _$LuckyWinFromJson(json);
 }

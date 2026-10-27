@@ -4,17 +4,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show Tristate;
 
 import 'package:clock/clock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/shell/feed_region.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -104,11 +103,11 @@ void main() {
 
     testWidgets('a long page prefetches only when 2 screens or less of '
         'cards remain', (tester) async {
-      // 40 cards: 20 rows of about 243 dp.
+      // 40 cards: 20 rows of about 207 dp (D131).
       final live = FakeLiveRepository(rooms: _paged(3, size: 40));
       await _pump(tester, live);
       expect(_cursors(live), [null]);
-      await _scrollBy(tester, 1000);
+      await _scrollBy(tester, 600);
       expect(_cursors(live), [null]);
       await _scrollBy(tester, 2600);
       expect(_cursors(live), [null, 'c1']);
@@ -137,7 +136,7 @@ void main() {
           if (r.cursor != null && fail) {
             throw const NetworkFailure.offline();
           }
-          return _paged(2, size: 6)(r);
+          return _paged(2, size: 10)(r);
         },
       );
       await _pump(tester, live);
@@ -151,7 +150,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byKey(LiveHubGrid.cardKey(5)), findsOneWidget);
+      expect(find.byKey(LiveHubGrid.cardKey(9)), findsOneWidget);
       // No automatic retry loop.
       final calls = live.requests.length;
       await _scrollBy(tester, -400);
@@ -165,7 +164,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(FeedRegion.loadMoreErrorKey), findsNothing);
       await _scrollToEnd(tester);
-      expect(find.byKey(LiveHubGrid.cardKey(11)), findsOneWidget);
+      expect(find.byKey(LiveHubGrid.cardKey(19)), findsOneWidget);
     });
 
     testWidgets('end of list: no progress footer or error under the grid', (
@@ -185,80 +184,79 @@ void main() {
     });
   });
 
-  group('categories (HL-H3)', () {
+  group("categories (HL-H3; D131: in Popular's menu)", () {
     for (final language in AppLanguage.values) {
-      testWidgets('All + server chips, interactive, filter sent '
-          '(${language.name})', (tester) async {
+      testWidgets('Following, All + the server categories; the filter is '
+          'sent (${language.name})', (tester) async {
         final ar = language == AppLanguage.ar;
         final live = FakeLiveRepository(
           categories: apiCategories(ar: ar),
           rooms: (_) => apiPage(apiRooms(4, ar: ar)),
         );
         await _pump(tester, live, language: language);
-        final chips = find.byType(KChip);
-        expect(chips, findsNWidgets(4));
-        expect(
-          find.descendant(of: chips, matching: find.byType(InkWell)),
-          findsNWidgets(4),
+        final popular = find.byKey(
+          LiveHubFilterBar.pillKey(LiveHubFilter.popular),
         );
-        final all = find.byKey(const ValueKey('live.chip.all'));
-        final music = find.byKey(const ValueKey('live.chip.music'));
-        // The row starts at the reading start (RTL: from the right).
-        if (ar) {
+        await tester.tap(popular);
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsOneWidget);
+        expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
+        for (final c in apiCategories(ar: ar)) {
           expect(
-            tester.getCenter(all).dx,
-            greaterThan(tester.getCenter(music).dx),
-          );
-        } else {
-          expect(
-            tester.getCenter(all).dx,
-            lessThan(tester.getCenter(music).dx),
+            find.byKey(LiveHubFilterBar.menuCategoryKey(c.slug)),
+            findsOneWidget,
           );
         }
         expect(find.text(ar ? 'موسيقى' : 'Music'), findsOneWidget);
-
-        await tester.tap(music);
+        await tester.tap(find.byKey(LiveHubFilterBar.menuCategoryKey('music')));
         await tester.pumpAndSettle();
         expect(live.requests.last.category, 'music');
         expect(live.requests.last.cursor, isNull);
-        bool selected(Finder f) =>
-            tester
-                .getSemantics(f)
-                .getSemanticsData()
-                .flagsCollection
-                .isSelected ==
-            Tristate.isTrue;
-        expect(selected(music), isTrue);
-        expect(selected(all), isFalse);
-
-        await tester.tap(all);
+        await tester.tap(popular);
         await tester.pumpAndSettle();
-        expect(live.requests.last.category, isNull);
+        await tester.tap(find.byKey(LiveHubFilterBar.menuAllKey));
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: popular,
+            matching: find.text(l10nFor(language).liveHubFilterPopular),
+          ),
+          findsOneWidget,
+        );
       });
     }
 
-    testWidgets('no categories: a single non-interactive All', (tester) async {
+    testWidgets('no categories: the menu has Following and All only', (
+      tester,
+    ) async {
       await _pump(tester, FakeLiveRepository());
-      expect(find.byType(KChip), findsOneWidget);
+      await tester.tap(
+        find.byKey(LiveHubFilterBar.pillKey(LiveHubFilter.popular)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(PopupMenuItem<Object>), findsNothing);
+      expect(find.byKey(LiveHubFilterBar.menuFollowingKey), findsOneWidget);
+      expect(find.byKey(LiveHubFilterBar.menuAllKey), findsOneWidget);
       expect(
-        find.descendant(of: find.byType(KChip), matching: find.byType(InkWell)),
+        find.byKey(LiveHubFilterBar.menuCategoryKey('music')),
         findsNothing,
       );
     });
   });
 
   group('freshness (HL-H5)', () {
-    testWidgets('re-tapping the selected tab re-fetches it', (tester) async {
+    testWidgets('re-tapping the selected filter re-fetches it (Popular '
+        'opens its menu instead)', (tester) async {
       final live = FakeLiveRepository(rooms: (_) => apiPage(apiRooms(2)));
       await _pump(tester, live);
+      final featured = find.byKey(
+        LiveHubFilterBar.pillKey(LiveHubFilter.featured),
+      );
+      await tester.tap(featured);
+      await tester.pumpAndSettle();
       final configs = live.configCalls;
       final lists = live.requests.length;
-      await tester.tap(
-        find.descendant(
-          of: find.byType(KPrimaryTabs),
-          matching: find.text(l10n.feedTabPopular),
-        ),
-      );
+      await tester.tap(featured);
       await tester.pumpAndSettle();
       expect(live.configCalls, configs + 1);
       expect(live.requests, hasLength(lists + 1));
@@ -319,7 +317,11 @@ void main() {
       );
       final card = find.byType(KLiveGridCard);
       expect(card, findsOneWidget);
-      expect(find.text('Sara'), findsOneWidget); // host displayName
+      // D131 (ref 165): the host's name is announced, the title drawn.
+      expect(
+        find.bySemanticsLabel(RegExp('^Sara, live, New, Arabic music night')),
+        findsOneWidget,
+      );
       expect(find.text('Arabic music night'), findsOneWidget);
       expect(
         find.descendant(of: card, matching: find.text(l10n.liveCardNew)),

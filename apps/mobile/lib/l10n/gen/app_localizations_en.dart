@@ -5717,15 +5717,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveHubBrand => 'Kabso';
 
   @override
-  String get liveHubKindLabel => 'Room type';
-
-  @override
-  String get liveHubKindAudio => 'Voice rooms';
-
-  @override
-  String get liveHubKindVideo => 'Live';
-
-  @override
   String get liveGridAudio => 'Audio';
 
   @override
@@ -5776,5 +5767,403 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navMomentsNew => 'new stories';
 
   @override
-  String get liveHubParty => 'Party';
+  String get liveVoiceRoomsTitle => 'Voice rooms';
+
+  @override
+  String get liveHubFilterLabel => 'Filters';
+
+  @override
+  String get liveHubFilterNearby => 'Nearby';
+
+  @override
+  String get liveHubFilterPopular => 'Popular';
+
+  @override
+  String get liveHubFilterFeatured => 'Featured';
+
+  @override
+  String get liveHubFilterExplore => 'Explore';
+
+  @override
+  String get liveHubPopularMenuHint => 'Opens a menu: Following or a category';
+
+  @override
+  String get liveNearbyNoCountryTitle =>
+      'Set your country to see lives near you';
+
+  @override
+  String get liveNearbyNoCountryBody =>
+      'Nearby shows lives from hosts in your country. Your country isn\'t shown on your profile.';
+
+  @override
+  String get liveNearbySetCountry => 'Set your country';
+
+  @override
+  String get liveNearbyChangeCountry => 'Change country';
+
+  @override
+  String liveNearbyEmptyTitle(String country) {
+    return 'No lives from $country right now';
+  }
+
+  @override
+  String get liveNearbyEmptyBody => 'Check back later or try Popular.';
+
+  @override
+  String get liveFeaturedEmptyTitle => 'No featured lives right now';
+
+  @override
+  String get liveFeaturedEmptyBody =>
+      'Lives from hosts the Kabso Live team picks show up here.';
+
+  @override
+  String get liveVoiceTabFollow => 'Follow';
+
+  @override
+  String get liveVoiceTabHot => 'Hot';
+
+  @override
+  String get liveVoiceTabNew => 'New';
+
+  @override
+  String get liveVoiceRecommended => 'Recommendations';
+
+  @override
+  String get liveVoiceSection => 'Rooms';
+
+  @override
+  String get liveVoiceListView => 'List view';
+
+  @override
+  String get liveVoiceGridView => 'Grid view';
+
+  @override
+  String liveVoiceSeats(int taken, int total) {
+    return '$taken/$total';
+  }
+
+  @override
+  String get liveVoiceEmptyTitle => 'No voice rooms right now';
+
+  @override
+  String get liveVoiceEmptyBody => 'Check back later or try another category.';
+
+  @override
+  String get countryPickerTitle => 'Your country';
+
+  @override
+  String get countryPickerBody =>
+      'It decides Nearby lives. It isn\'t shown on your profile.';
+
+  @override
+  String get countryPickerSearch => 'Search countries';
+
+  @override
+  String get countryPickerClear => 'Remove my country';
+
+  @override
+  String get settingsCountry => 'Country';
+
+  @override
+  String get settingsCountryNotSet => 'Not set';
+
+  @override
+  String get liveGiftRecipientRefused =>
+      'This gift can\'t go to that recipient here right now.';
+
+  @override
+  String get liveLeaveTitle =>
+      'Enjoying the live? Follow the host before you go';
+
+  @override
+  String get liveLeaveFollow => 'Follow and exit';
+
+  @override
+  String get liveLeaveExit => 'Exit live room';
+
+  @override
+  String liveHostPillPoints(String points) {
+    return 'This live\'s points $points';
+  }
+
+  @override
+  String liveHostPillTaps(String taps) {
+    return 'This live\'s taps $taps';
+  }
+
+  @override
+  String get liveChatSayHi => 'Say Hi…';
+
+  @override
+  String get liveQuickHello => 'Hello 😊';
+
+  @override
+  String get liveQuickFire => '🔥🔥🔥';
+
+  @override
+  String get liveQuickNiceMood => 'Nice mood~';
+
+  @override
+  String get liveQuickGotMe => 'You got me';
+
+  @override
+  String liveQuickReplyLabel(String text) {
+    return 'Send: $text';
+  }
+
+  @override
+  String get liveToolFlash => 'Flash';
+
+  @override
+  String get liveToolDual => 'Dual';
+
+  @override
+  String get liveToolHd => 'HD';
+
+  @override
+  String get liveToolSticker => 'Sticker';
+
+  @override
+  String get liveToolInfo => 'Info';
+
+  @override
+  String get liveToolTrafficCard => 'Traffic card';
+
+  @override
+  String get liveToolMagic => 'Magic';
+
+  @override
+  String get liveToolFillLight => 'Fill light';
+
+  @override
+  String get liveToolMixer => 'Mixer';
+
+  @override
+  String get liveBeautyToolsTitle => 'Beautification tools';
+
+  @override
+  String get liveHostGuests => 'Guest connection';
+
+  @override
+  String get liveHostGuestsSoon =>
+      'Guests can join a multi-guest live. In a solo live this is coming later.';
+
+  @override
+  String get liveHostTools => 'Tools';
+
+  @override
+  String get liveManageTitle => 'User management';
+
+  @override
+  String get liveManageMuted => 'Muted in chat';
+
+  @override
+  String get liveManageKicked => 'Removed from the live';
+
+  @override
+  String get liveManageModerators => 'Moderators';
+
+  @override
+  String get liveManageModeratorsHint =>
+      'Open someone\'s card to make them a moderator.';
+
+  @override
+  String get liveManageSignedInOnly => 'Signed-in viewers only';
+
+  @override
+  String get liveManageSignedInOnlyBody =>
+      'People without an account can\'t watch.';
+
+  @override
+  String get liveManageEmpty => 'No one yet';
+
+  @override
+  String get liveManageUnmute => 'Unmute';
+
+  @override
+  String get liveManageLetBack => 'Let back in';
+
+  @override
+  String get liveManageRemove => 'Remove';
+
+  @override
+  String get goLiveSummaryTime => 'Live time';
+
+  @override
+  String get goLiveSummaryPoints => 'Points';
+
+  @override
+  String get goLiveSummaryTaps => 'From taps';
+
+  @override
+  String get goLiveSummaryGifts => 'From gifts';
+
+  @override
+  String get goLiveSummarySupporters => 'Supporters';
+
+  @override
+  String get goLiveSummaryViewers => 'Viewers at the end';
+
+  @override
+  String goLiveSummaryCharm(String level) {
+    return 'Charm level $level';
+  }
+
+  @override
+  String goLiveSummaryCharmNext(String points) {
+    return '$points to the next level';
+  }
+
+  @override
+  String get goLiveSummaryData => 'Live data';
+
+  @override
+  String get liveGiftTabRecent => 'Recent';
+
+  @override
+  String get liveGiftTabLucky => 'Lucky';
+
+  @override
+  String get liveGiftRecentEmptyTitle => 'No recent gifts';
+
+  @override
+  String get liveGiftRecentEmptyMessage =>
+      'Gifts you send from this phone show here.';
+
+  @override
+  String get liveGiftPriceSort => 'Price';
+
+  @override
+  String get liveGiftPriceSortOff => 'Sort by price';
+
+  @override
+  String get liveGiftPriceSortUp => 'Price, low to high';
+
+  @override
+  String get liveGiftPriceSortDown => 'Price, high to low';
+
+  @override
+  String liveGiftWealthLevel(String level) {
+    return 'Wealth level $level';
+  }
+
+  @override
+  String liveGiftWealthToNext(String points) {
+    return '$points to the next level';
+  }
+
+  @override
+  String get liveLuckyOdds => 'Odds';
+
+  @override
+  String get liveLuckyOddsTitle => 'Lucky gift odds';
+
+  @override
+  String get liveLuckyOddsIntro =>
+      'Every gift you send is one draw. A win pays the multiplier times the gift\'s price in coins.';
+
+  @override
+  String liveLuckyOddsRow(String multiplier) {
+    return '×$multiplier';
+  }
+
+  @override
+  String get liveLuckyOddsNoWin => 'No win';
+
+  @override
+  String liveLuckyOddsReturn(String percent) {
+    return 'Expected return: $percent of the coins spent';
+  }
+
+  @override
+  String liveLuckyOddsHostShare(String percent) {
+    return '$percent of the gift\'s value counts for the host.';
+  }
+
+  @override
+  String get liveLuckyOddsProtection =>
+      'A day\'s wins never pass the expected return of that day\'s lucky gifts; a win that would pass it pays less or nothing.';
+
+  @override
+  String get liveLuckyOddsAge => 'For people 18 or older only.';
+
+  @override
+  String get liveLuckyAgeTitle => 'Are you 18 or older?';
+
+  @override
+  String get liveLuckyAgeBody =>
+      'Lucky gifts are a game of chance played with coins. Confirm that you are 18 or older to send them.';
+
+  @override
+  String get liveLuckyAgeConfirm => 'I\'m 18 or older';
+
+  @override
+  String get liveLuckyRegion =>
+      'Lucky gifts aren\'t available in your country.';
+
+  @override
+  String get liveLuckyOff => 'Lucky gifts are off right now.';
+
+  @override
+  String liveLuckyWon(String coins, String multiplier) {
+    return 'You won $coins coins, best ×$multiplier';
+  }
+
+  @override
+  String get liveLuckyNoWin => 'No win this time';
+
+  @override
+  String liveLuckyBanner(String name, String multiplier, String coins) {
+    return '$name won ×$multiplier: $coins coins';
+  }
+
+  @override
+  String get errorLuckyGiftAgeUnconfirmed =>
+      'Confirm that you are 18 or older to send lucky gifts.';
+
+  @override
+  String get errorLuckyGiftRegionUnavailable =>
+      'Lucky gifts aren\'t available in your country.';
+
+  @override
+  String get liveEmojiPanel => 'Emoji';
+
+  @override
+  String get liveEmojiKeyboard => 'Keyboard';
+
+  @override
+  String get liveEmojiSmileys => 'Smileys';
+
+  @override
+  String get liveEmojiPeople => 'Hands and people';
+
+  @override
+  String get liveEmojiLove => 'Love';
+
+  @override
+  String get liveEmojiAnimals => 'Animals and nature';
+
+  @override
+  String get liveEmojiFood => 'Food and drink';
+
+  @override
+  String get liveEmojiActivities => 'Activities';
+
+  @override
+  String get liveEmojiTravel => 'Travel and places';
+
+  @override
+  String get liveEmojiObjects => 'Objects';
+
+  @override
+  String get liveEmojiSymbols => 'Symbols';
+
+  @override
+  String get goLiveToolsMore => 'More';
+
+  @override
+  String get goLiveToolsLess => 'Less';
+
+  @override
+  String get goLiveCategoriesAll => 'All topics';
 }

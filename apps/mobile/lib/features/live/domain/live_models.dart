@@ -239,10 +239,24 @@ abstract class LiveKick with _$LiveKick {
 /// `LiveRoomPage`: one cursor page of `GET /live/rooms`.
 @freezed
 abstract class LiveRoomPage with _$LiveRoomPage {
-  const factory({required List<LiveRoomSummary> data, required PageInfo page}) =
-      _LiveRoomPage;
+  const factory({
+    required List<LiveRoomSummary> data,
+    required PageInfo page,
+
+    /// v1.27.1-live (D133), `scope=nearby` only: `COUNTRY_NOT_SET` when the
+    /// caller has no country (the page is empty). Unknown values read as
+    /// null.
+    @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)
+    LiveRoomsEmptyReason? emptyReason,
+  }) = _LiveRoomPage;
 
   factory fromJson(Map<String, dynamic> json) => _$LiveRoomPageFromJson(json);
+}
+
+/// `LiveRoomPage.emptyReason` (v1.27.1-live, D133).
+enum LiveRoomsEmptyReason {
+  @JsonValue('COUNTRY_NOT_SET')
+  countryNotSet,
 }
 
 /// The `tab` query value of `GET /live/rooms`.
@@ -261,15 +275,33 @@ enum LiveRoomsTab {
 /// room) or video lives (`SOLO`, `PK`, `MULTI`).
 enum LiveRoomsKind {
   audio('audio'),
-  video('video');
+  video('video'),
+
+  /// v1.27.1-live (D133): `SOLO` and `PK`.
+  solo('solo'),
+
+  /// v1.27.1-live (D133): `MULTI`.
+  multi('multi'),
+
+  /// v1.27.1-live (D133): `AUDIO` and `MULTI`.
+  party('party');
 
   new(this.wire);
 
   final String wire;
 
-  /// The kind a room of [mode] is listed under.
+  /// The kind a room of [mode] is listed under (audio or video).
   static LiveRoomsKind of(LiveRoomMode mode) =>
       mode == LiveRoomMode.audio ? audio : video;
+
+  /// Whether a room of [mode] is listed under this kind.
+  bool includes(LiveRoomMode mode) => switch (this) {
+    audio => mode == LiveRoomMode.audio,
+    video => mode != LiveRoomMode.audio,
+    solo => mode == LiveRoomMode.solo || mode == LiveRoomMode.pk,
+    multi => mode == LiveRoomMode.multi,
+    party => mode == LiveRoomMode.audio || mode == LiveRoomMode.multi,
+  };
 
   /// [wire] back to a kind; anything else is `null`.
   static LiveRoomsKind? tryParse(String? wire) {

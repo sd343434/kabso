@@ -32,6 +32,9 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   }) : held = Map.of(held);
 
   List<String> codes;
+
+  /// The catalogue's tabs (add `LUCKY` with a lucky gift, D132).
+  List<String> categories = const ['POPULAR', 'EVENT', 'FUN'];
   final Map<String, int> held;
   int coins;
   final bool ar;
@@ -43,6 +46,17 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
 
   /// While set, a send waits for it (an answer still on its way).
   Completer<void>? sendGate;
+
+  /// v1.27-live (D132): the odds served; the caller's age confirmation
+  /// (a LUCKY send before it is refused with 403 AGE_UNCONFIRMED); the
+  /// next lucky send's draws (none won by default).
+  Map<String, Object?> Function({required bool ageConfirmed}) odds =
+      ({required ageConfirmed}) => luckyOddsJson(
+        reason: ageConfirmed ? null : 'AGE_UNCONFIRMED',
+        ageConfirmed: ageConfirmed,
+      );
+  bool ageConfirmed = true;
+  Map<String, Object?>? nextLucky;
 
   final Map<String, LiveGiftResult> _byClientId = {};
   String? _comboKey;
@@ -65,7 +79,9 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   @override
   Future<GiftCatalogue> catalogue() async {
     _record('catalogue');
-    return GiftCatalogue.fromJson(giftCatalogueJson(codes: codes, ar: ar));
+    return GiftCatalogue.fromJson(
+      giftCatalogueJson(codes: codes, ar: ar, categories: categories),
+    );
   }
 
   @override
@@ -103,6 +119,15 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
     if (!codes.contains(giftCode) && !held.containsKey(giftCode)) {
       throw conflict(ErrorCode.giftUnavailable);
     }
+    final lucky = giftJson(giftCode)['category'] == 'LUCKY';
+    if (lucky && !ageConfirmed) {
+      throw const ServerFailure(
+        code: ErrorCode.luckyGiftAgeUnconfirmed,
+        rawCode: 'LUCKY_GIFT_AGE_UNCONFIRMED',
+        debugMessage: 'x',
+        statusCode: 403,
+      );
+    }
     final total = giftFixturePrice(giftCode) * quantity * recipients.length;
     if (source == LiveGiftSource.coins) {
       if (coins < total) throw conflict(ErrorCode.insufficientCoins);
@@ -133,14 +158,40 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
       comboId: _comboId,
       comboCount: _comboCount,
     );
+    final draws = quantity * recipients.length;
+    final luckyJson = !lucky
+        ? null
+        : (nextLucky ??
+              {
+                'draws': draws,
+                'wins': <Object?>[],
+                'coinsWon': 0,
+                'topMultiplier': null,
+                'downgraded': 0,
+              });
+    nextLucky = null;
+    if (luckyJson != null) coins += (luckyJson['coinsWon']! as num).toInt();
     final result = LiveGiftResult.fromJson(
       liveGiftResultJson(
         gift: json,
         coins: coins,
         bagQuantity: held[giftCode] ?? 0,
+        luckyResult: luckyJson,
       ),
     );
     _byClientId[clientId] = result;
     return result;
+  }
+
+  @override
+  Future<LuckyGiftOdds> luckyOdds() async {
+    _record('luckyOdds');
+    return LuckyGiftOdds.fromJson(odds(ageConfirmed: ageConfirmed));
+  }
+
+  @override
+  Future<void> confirmLuckyAge() async {
+    _record('confirmLuckyAge');
+    ageConfirmed = true;
   }
 }

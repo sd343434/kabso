@@ -193,8 +193,9 @@ void main() {
     // The action bar's share and comment are fixture-only (no room chat
     // contract yet). The audio room's share copies the real invite, like the
     // host's (live_room_test covers it), so only the action bar is checked.
+    // D131: the viewer bar (KViewerBar) replaced it in the room; any use
+    // left must still not offer them.
     final bar = RegExp(r'KRoomActionBar\(');
-    expect(bar.hasMatch(room), isTrue);
     for (final call in bar.allMatches(room)) {
       var depth = 0;
       var end = call.end - 1;

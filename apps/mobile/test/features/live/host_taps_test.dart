@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
@@ -191,8 +192,8 @@ void main() {
     expect(find.byType(LiveTapCharacter), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
     expect(repo.tapBatches.single.count, 1);
-    // The tools bar keeps its taps.
-    await tester.tap(find.byKey(GoLiveScreen.micKey));
+    // The host bar keeps its taps (D131).
+    await tester.tap(find.byKey(KHostBar.pkKey));
     await tester.pump(const Duration(seconds: 2));
     expect(repo.tapBatches, hasLength(1));
     await tester.pumpAndSettle();

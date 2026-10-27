@@ -13,13 +13,17 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/home/feed_screen.dart';
+import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
+import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/features/stories/domain/story_models.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../fixtures/live/live_api_fixtures.dart';
 import '../helpers/component_harness.dart';
+import '../helpers/fake_live_repository.dart';
 import '../helpers/fakes.dart';
 import '../helpers/pump_app.dart';
 
@@ -341,12 +345,31 @@ void main() {
     }
   });
 
-  group('Live hub party button (D130)', () {
+  group('Live hub party button (D130, D131: opens the voice rooms)', () {
     for (final language in ['en', 'ar']) {
-      testWidgets('$language: next to the bell; a tap plays and says Soon', (
-        tester,
-      ) async {
-        await _pumpShell(tester, language: language);
+      testWidgets('$language: next to the bell; a tap pops, then opens the '
+          'voice rooms (kind=audio); back returns to the hub', (tester) async {
+        final live = FakeLiveRepository(
+          rooms: (r) => apiPage([
+            for (final room in apiRooms(4))
+              if (r.kind == LiveRoomsKind.audio)
+                room.copyWith(mode: LiveRoomMode.audio)
+              else
+                room,
+          ]),
+        );
+        await pumpKabsoApp(
+          tester,
+          language: language,
+          liveRepository: live,
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              FakeAuthRepository(storedUser: testUser()),
+            ),
+            secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
+          ],
+        );
+        await tester.pumpAndSettle();
         final l10n = language == 'ar' ? ar : en;
         final party = find.byKey(LiveHubPartyButton.buttonKey);
         expect(party, findsOneWidget);
@@ -358,19 +381,22 @@ void main() {
         final rect = tester.getRect(party);
         expect(rect.size, bell.size);
         expect((rect.center.dx - bell.center.dx).abs(), 48);
-        expect(
-          find.bySemanticsLabel('${l10n.liveHubParty}, ${l10n.liveSoon}'),
-          findsOneWidget,
-        );
+        expect(find.bySemanticsLabel(l10n.liveVoiceRoomsTitle), findsWidgets);
+        // The hub lists video lives only.
+        expect(live.requests.map((r) => r.kind).toSet(), {LiveRoomsKind.video});
 
+        live.requests.clear();
         await tester.tap(party);
         await tester.pump();
-        expect(
-          find.text(l10n.liveUserBoxSoon(l10n.liveHubParty)),
-          findsOneWidget,
-        );
-        // It does nothing else: still the hub.
+        // The pop plays first; the voice rooms open after it.
+        expect(find.byType(VoiceRoomsScreen), findsNothing);
         await tester.pumpAndSettle();
+        expect(find.byType(VoiceRoomsScreen), findsOneWidget);
+        expect(live.requests, isNotEmpty);
+        expect(live.requests.map((r) => r.kind).toSet(), {LiveRoomsKind.audio});
+        await tester.tap(find.byKey(VoiceRoomsScreen.backKey));
+        await tester.pumpAndSettle();
+        expect(find.byType(VoiceRoomsScreen), findsNothing);
         expect(find.byType(LiveScreen), findsOneWidget);
       });
     }

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
+import 'package:kabso_live/core/countries/countries.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
@@ -13,11 +14,39 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/auth_controller.dart';
+import 'package:kabso_live/features/auth/presentation/country_picker.dart';
 import 'package:kabso_live/features/auth/presentation/locale_sync.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/debug/demo_entry.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+
+/// D133: "Country" with the person's country (or "Not set"); opens the
+/// country list.
+class _CountryTile extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final arabic = ref.watch(languageControllerProvider) == AppLanguage.ar;
+    final country = KCountries.byCode(
+      ref.watch(currentUserProvider.select((u) => u?.country)),
+    );
+    return ListTile(
+      key: SettingsScreen.countryKey,
+      leading: const Icon(Icons.place_outlined),
+      title: Text(l10n.settingsCountry),
+      subtitle: Text(
+        country == null
+            ? l10n.settingsCountryNotSet
+            : '${KCountries.flag(country.code)} '
+                  '${KCountries.name(country, arabic: arabic)}',
+      ),
+      onTap: () => showCountryPicker(context),
+    );
+  }
+}
 
 /// Theme, language, active sessions and sign-out.
 class SettingsScreen extends ConsumerWidget {
@@ -30,6 +59,7 @@ class SettingsScreen extends ConsumerWidget {
   static const mutedKey = Key('settings.muted');
   static const storyArchiveKey = Key('settings.storyArchive');
   static const notificationsKey = Key('settings.notifications');
+  static const countryKey = Key('settings.country');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -103,6 +133,11 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
           ),
+          // D133: the person's own country (the live hub's Nearby).
+          if (ref.watch(currentUserProvider) != null) ...[
+            const SizedBox(height: KSpacing.sm),
+            const _CountryTile(),
+          ],
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsSessions),
           const _SessionsSection(),

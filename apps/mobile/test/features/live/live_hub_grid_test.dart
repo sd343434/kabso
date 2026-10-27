@@ -23,8 +23,10 @@ import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/home_banner_carousel.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
+import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_room_swipe.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -33,6 +35,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
+import '../../helpers/component_harness.dart';
 import '../../helpers/fake_home_banners_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
 import '../../helpers/fake_live_repository.dart';
@@ -106,16 +109,17 @@ void main() {
         final first = tester.getRect(find.byKey(LiveHubGrid.cardKey(0)));
         final second = tester.getRect(find.byKey(LiveHubGrid.cardKey(1)));
         final third = tester.getRect(find.byKey(LiveHubGrid.cardKey(2)));
-        expect(first.width, moreOrLessEquals((393 - 40) / 2));
-        expect(first.height, moreOrLessEquals(first.width / 0.75));
+        // D131 (ref 165): 13 pt sides, 7.2 pt across, 6 pt down, 0.894.
+        expect(first.width, moreOrLessEquals((393 - 26 - 7.2) / 2));
+        expect(first.height, moreOrLessEquals(first.width / 0.894));
         expect(first.top, second.top);
-        expect(third.top - first.bottom, moreOrLessEquals(8));
+        expect(third.top - first.bottom, moreOrLessEquals(6));
         if (language == AppLanguage.ar) {
-          expect(first.right, moreOrLessEquals(393 - 16));
-          expect(first.left - second.right, moreOrLessEquals(8));
+          expect(first.right, moreOrLessEquals(393 - 13));
+          expect(first.left - second.right, moreOrLessEquals(7.2));
         } else {
-          expect(first.left, moreOrLessEquals(16));
-          expect(second.left - first.right, moreOrLessEquals(8));
+          expect(first.left, moreOrLessEquals(13));
+          expect(second.left - first.right, moreOrLessEquals(7.2));
         }
         // Title at the reading start of the top bar.
         final title = tester.getRect(find.byKey(LiveHubTopBar.titleKey));
@@ -127,16 +131,56 @@ void main() {
       });
     }
 
-    testWidgets('room type next to the live mark', (tester) async {
+    testWidgets('D131 (ref 165): PK and multi-guest lives name their type '
+        'next to the live mark; a solo live shows the mark alone', (
+      tester,
+    ) async {
       final l10n = l10nFor(AppLanguage.en);
       await _pumpHub(tester, rooms: 1);
       expect(
         find.descendant(
           of: find.byKey(LiveHubGrid.cardKey(0)),
-          matching: find.text(l10n.liveGridVideo),
+          matching: find.byKey(KLiveGridCard.typeKey),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(LiveHubGrid.cardKey(0)),
+          matching: find.byType(KLiveEqualizer),
         ),
         findsOneWidget,
       );
+      await pumpComponent(
+        tester,
+        Center(
+          child: Row(
+            children: [
+              for (final card in [
+                const LiveRoomCardData(
+                  hostName: 'A',
+                  title: 'pk',
+                  viewerCount: 3,
+                  inPk: true,
+                ),
+                const LiveRoomCardData(
+                  hostName: 'B',
+                  title: 'multi',
+                  viewerCount: 3,
+                  isMulti: true,
+                ),
+              ])
+                SizedBox(
+                  width: 180,
+                  height: 201,
+                  child: KLiveGridCard(room: card),
+                ),
+            ],
+          ),
+        ),
+      );
+      expect(find.text(l10n.pkBadge), findsOneWidget);
+      expect(find.text(l10n.goLiveModeMulti), findsOneWidget);
     });
   });
 
@@ -150,11 +194,11 @@ void main() {
       final pager = tester.getRect(
         find.descendant(of: carousel, matching: find.byType(PageView)),
       );
-      expect(pager.left, moreOrLessEquals(16));
-      expect(pager.width, moreOrLessEquals(393 - 32));
-      expect(pager.height, moreOrLessEquals((393 - 32) / 3));
+      expect(pager.left, moreOrLessEquals(13));
+      expect(pager.width, moreOrLessEquals(393 - 26));
+      expect(pager.height, moreOrLessEquals((393 - 26) / 3));
       final fourth = tester.getRect(find.byKey(LiveHubGrid.cardKey(3)));
-      expect(pager.top - fourth.bottom, moreOrLessEquals(8));
+      expect(pager.top - fourth.bottom, moreOrLessEquals(7.2));
       await tester.drag(
         find.byType(CustomScrollView).first,
         const Offset(0, -400),
@@ -405,14 +449,22 @@ void main() {
       router.pop();
       await tester.pumpAndSettle();
 
-      // Following tab, then the talents banner (third) → Popular.
-      await tester.tap(
+      // D131: Popular ▾ Following, then the talents banner (third) →
+      // Popular.
+      final popular = find.byKey(
+        LiveHubFilterBar.pillKey(LiveHubFilter.popular),
+      );
+      await tester.tap(popular);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LiveHubFilterBar.menuFollowingKey));
+      await tester.pumpAndSettle();
+      expect(
         find.descendant(
-          of: find.byType(KPrimaryTabs),
+          of: popular,
           matching: find.text(l10n.feedTabFollowing),
         ),
+        findsOneWidget,
       );
-      await tester.pumpAndSettle();
       final carousel = find.byKey(KHomeBannerCarousel.carouselKey);
       for (var i = 0; i < 2; i++) {
         await tester.drag(
@@ -425,19 +477,18 @@ void main() {
         find.byKey(KHomeBannerCarousel.pageKey('banner-2')).hitTestable(),
       );
       await tester.pumpAndSettle();
-      bool selected(String label) =>
-          tester
-              .getSemantics(
-                find.descendant(
-                  of: find.byType(KPrimaryTabs),
-                  matching: find.text(label),
-                ),
-              )
-              .getSemanticsData()
-              .flagsCollection
-              .isSelected ==
-          Tristate.isTrue;
-      expect(selected(l10n.feedTabPopular), isTrue);
+      expect(
+        find.descendant(of: popular, matching: find.text(l10n.feedTabPopular)),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSemantics(popular)
+            .getSemanticsData()
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
     });
 
     testWidgets('top bar: search opens Discover, the bell the notifications', (

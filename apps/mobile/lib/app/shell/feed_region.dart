@@ -237,13 +237,15 @@ class FeedRegion<T> extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: KSpacing.lg)),
       ],
     );
+    // Prefetch only measures a list of items: the loading skeleton's
+    // (short) metrics would otherwise ask for page 2 before page 1 shows.
     final region = switch (onLoadMore) {
-      null => scroll,
-      final load => _Prefetch(
+      final load? when content.value is FeedItems<T> => _Prefetch(
         content: content,
         onLoadMore: load,
         child: scroll,
       ),
+      _ => scroll,
     };
     if (!refreshable) return region;
     return RefreshIndicator(

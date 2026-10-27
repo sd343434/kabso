@@ -44,6 +44,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -77,6 +78,10 @@ class LiveRoomScreen extends ConsumerWidget {
 
   /// CP-012: the live's points next to the viewer count.
   static const scoreKey = Key('room.score');
+
+  /// D131: the host pill's taps line and the bar's gift button.
+  static const tapsKey = Key('room.taps');
+  static const giftKey = Key('room.gift');
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
@@ -233,6 +238,45 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   Future<void> _setFollowing({required bool follow}) =>
       setHostFollowing(context, ref, _username, follow: follow);
 
+  /// D131 (owner, ref 160): leaving asks to follow first when this viewer
+  /// can follow the host and does not (signed in, not the host, a live
+  /// room); otherwise it leaves at once.
+  bool get _askBeforeLeaving {
+    final room = widget.room;
+    if (room.status != LiveRoomStatus.live) return false;
+    final me = ref.read(currentUserProvider);
+    if (me == null || me.id == room.host.id) return false;
+    final profile = ref.read(publicProfileProvider(_username)).value;
+    return profile != null && profile.canFollow && !profile.isFollowing;
+  }
+
+  /// ✕ and Back: the leave prompt when [_askBeforeLeaving]. "Follow and
+  /// exit" follows, then leaves; a failed follow says why and stays.
+  Future<void> _leave() async {
+    if (!_askBeforeLeaving) return widget.onClose();
+    final room = widget.room;
+    final choice = await showLiveLeavePrompt(
+      context,
+      hostName: room.host.displayName,
+      avatar: _networkImage(room.host.avatarUrl),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == LiveLeaveChoice.followAndExit) {
+      try {
+        await ref
+            .read(publicProfileProvider(_username).notifier)
+            .setFollowing(follow: true);
+      } on Object catch (e) {
+        if (mounted) {
+          KSnack.error(context, failureMessage(context.l10n, toAppFailure(e)));
+        }
+        return;
+      }
+      if (!mounted) return;
+    }
+    widget.onClose();
+  }
+
   LiveRoomSession get _session =>
       ref.read(liveRoomSessionProvider(widget.room.id).notifier);
 
@@ -324,7 +368,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
   /// opening the list read-only. Until the list arrives (or when it cannot
   /// be read or shows nobody) the room's own `viewerCount`, without faces or
   /// a list.
-  Widget? _viewers(LiveRoomSessionState session) {
+  Widget? _viewers(LiveRoomSessionState session, {bool video = false}) {
     final l10n = context.l10n;
     final room = widget.room;
     if (room.status != LiveRoomStatus.live) return null;
@@ -333,6 +377,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       if (room.viewerCount < 1) return null;
       return LiveViewersStack(
         key: LiveRoomScreen.viewersKey,
+        avatarSize: video ? 25.6 : LiveViewersStack.size,
+        pitch: video ? 30.6 : LiveViewersStack.size - 7,
+        countHeight: video ? 25 : LiveViewersStack.size,
         avatars: const [],
         count: KFormat.compact(room.viewerCount, l10n),
         label: l10n.liveViewers(
@@ -345,13 +392,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     final more = preview.next == null ? '' : '+';
     return LiveViewersStack(
       key: LiveRoomScreen.viewersKey,
+      // D131 (ref 158): 25.6 pt pictures 30.6 pt apart, a 25 pt count.
+      avatarSize: video ? 25.6 : LiveViewersStack.size,
+      pitch: video ? 30.6 : LiveViewersStack.size - 7,
+      countHeight: video ? 25 : LiveViewersStack.size,
       avatars: [
         for (final v in preview.items)
           if (v.user case final u?)
             KAvatar(
               name: u.displayName,
               imageUrl: u.avatarUrl,
-              size: LiveViewersStack.size,
+              size: video ? 25.6 : LiveViewersStack.size,
             ),
       ],
       count: '${KFormat.compact(n, l10n)}$more',
@@ -379,7 +430,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     return LiveChatViewerRole.member;
   }
 
-  Future<void> _openChat(({bool canWrite, String hint}) composer) async {
+  /// D131 (ref 162): the chat box opened from 😊 shows the emoji panel.
+  bool _emojiMode = false;
+
+  Future<void> _openChat(
+    ({bool canWrite, String hint}) composer, {
+    bool emoji = false,
+  }) async {
     final chat = ref.read(liveChatProvider(widget.room.id));
     if (!composer.canWrite && chat.muted && chat.enabled) {
       // The mute may have been lifted: nothing tells the room live.
@@ -396,8 +453,11 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       KSnack.info(context, composer.hint);
       return;
     }
-    setState(() => _writing = true);
-    _chatFocus.requestFocus();
+    setState(() {
+      _writing = true;
+      _emojiMode = emoji;
+    });
+    if (!emoji) _chatFocus.requestFocus();
   }
 
   void _sendChat() => unawaited(
@@ -432,6 +492,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             }),
             child: LiveRoomComposer(
               roomId: widget.room.id,
+              emoji: _emojiMode,
               // CP-017: a seated guest's mic pauses while a clip records.
               liveMic: _session.engine,
               controller: _chat,
@@ -562,20 +623,29 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       return LiveRoomScreen.kickedMessage(l10n, widget.onClose);
     }
     final engine = _session.engine;
+    // D131: Back asks before leaving like ✕ (the leave prompt).
+    ref.watch(publicProfileProvider(_username));
+    final ask = _askBeforeLeaving;
     // CP-017: bullets from every live show in the chat (owner, 2026-10-26).
-    return ListenableBuilder(
-      listenable: engine.changes,
-      builder: (context, _) => Stack(
-        fit: StackFit.expand,
-        children: [
-          _scaffold(context, session, engine),
-          // CP-020: gift banners and effects over the room.
-          if (room.status == LiveRoomStatus.live)
-            LiveGiftEffectsLayer(roomId: room.id),
-          // CP-021 (D112): the CP Entrance Effect.
-          if (room.status == LiveRoomStatus.live)
-            LiveCpEntranceLayer(roomId: room.id),
-        ],
+    return PopScope(
+      canPop: !ask,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_leave());
+      },
+      child: ListenableBuilder(
+        listenable: engine.changes,
+        builder: (context, _) => Stack(
+          fit: StackFit.expand,
+          children: [
+            _scaffold(context, session, engine),
+            // CP-020: gift banners and effects over the room.
+            if (room.status == LiveRoomStatus.live)
+              LiveGiftEffectsLayer(roomId: room.id),
+            // CP-021 (D112): the CP Entrance Effect.
+            if (room.status == LiveRoomStatus.live)
+              LiveCpEntranceLayer(roomId: room.id),
+          ],
+        ),
       ),
     );
   }
@@ -616,26 +686,52 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         composer: composer,
       );
     }
+    // D131 (owner): the host pill's second line takes turns between this
+    // live's points (the cherry) and its taps (a heart), when known.
+    final taps = session.scoreParts?.tapPoints ?? room.scoreParts?.tapPoints;
     return KLiveRoomScaffold(
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
           : LiveTapLayer(
               onTap: canTap ? _session.tap : null,
-              // D120: the lane starts just above the chat input.
-              laneBottomInset: 120,
+              // D131 (ref 159): the characters start 37 pt above the bar,
+              // right over the gift button.
+              laneBottomInset: 59,
               child: _video(session, engine),
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(
         hostName: host.displayName,
         avatar: avatar,
-        subtitle: profile == null
-            ? null
-            : l10n.liveRoomFollowers(
-                profile.followerCount,
-                KFormat.compact(profile.followerCount, l10n),
-              ),
+        lines: ended
+            ? const []
+            : [
+                Semantics(
+                  label: l10n.liveHostPillPoints(KFormat.grouped(score)),
+                  excludeSemantics: true,
+                  child: KHostPillLine(
+                    key: LiveRoomScreen.scoreKey,
+                    icon: const KCherryIcon(size: 11),
+                    text: KFormat.grouped(score),
+                  ),
+                ),
+                if (taps != null)
+                  Semantics(
+                    label: l10n.liveHostPillTaps(KFormat.grouped(taps)),
+                    excludeSemantics: true,
+                    child: KHostPillLine(
+                      key: LiveRoomScreen.tapsKey,
+                      icon: const Icon(
+                        Icons.favorite_rounded,
+                        size: 11,
+                        color: Color(0xFFFF6B9A),
+                      ),
+                      text: KFormat.grouped(taps),
+                      color: const Color(0xFFFFFFFF),
+                    ),
+                  ),
+              ],
         following: following,
         onFollow: canFollow
             ? () => unawaited(_setFollowing(follow: true))
@@ -643,34 +739,22 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         onTap: profile == null ? null : () => _person(_username),
       ),
       // Presence does not exist yet: a count only when the API has one.
-      viewers: switch (ended ? null : _viewers(session)) {
-        final watching? => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (score > 0) ...[
-              KScoreChip(key: LiveRoomScreen.scoreKey, score: score),
-              const SizedBox(width: KSpacing.xs),
-            ],
-            watching,
-          ],
-        ),
-        null when score > 0 => KScoreChip(
-          key: LiveRoomScreen.scoreKey,
-          score: score,
-        ),
-        null => null,
-      },
-      onClose: widget.onClose,
-      roomInfo: KRoomInfoRow(
-        title: room.title,
-        category: room.category?.name,
-        level: room.roomLevel,
-      ),
+      viewers: ended ? null : _viewers(session, video: true),
+      onClose: () => unawaited(_leave()),
+      roomInfo: ended
+          ? null
+          : KRoomChipsRow(level: room.roomLevel, roomNumber: room.roomNumber),
       chat: ended
           ? null
           : Align(
               alignment: AlignmentDirectional.bottomStart,
-              child: _roomChat(session, bubble: KLiveColors.chatScrim),
+              child: LiveRoomChatLines(
+                roomId: widget.room.id,
+                role: _chatRole(session),
+                bubble: KLiveColors.chatScrim,
+                onProfile: _person,
+                inline: true,
+              ),
             ),
       actionBar: ended
           ? null
@@ -696,14 +780,39 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   ),
                   const SizedBox(height: KSpacing.sm),
                 ],
-                _chatComposer(composer) ??
-                    LiveChatPill(
-                      key: AudioRoomViewKeys.chat,
-                      hint: composer.hint,
-                      onTap: () => unawaited(_openChat(composer)),
+                // D131 (ref 158): quick replies over the bar, for someone
+                // who may write.
+                if (composer.canWrite && !_writing) ...[
+                  KQuickReplies(
+                    onSend: (text) => unawaited(
+                      sendLiveChatText(
+                        context,
+                        ref,
+                        roomId: widget.room.id,
+                        text: text,
+                      ),
                     ),
-                const SizedBox(height: KSpacing.sm),
-                KRoomActionBar(onGift: () => unawaited(_openGifts())),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                _chatComposer(composer) ??
+                    KViewerBar(
+                      pillKey: AudioRoomViewKeys.chat,
+                      hint: composer.canWrite
+                          ? l10n.liveChatSayHi
+                          : composer.hint,
+                      onChat: () => unawaited(_openChat(composer)),
+                      onEmoji: () =>
+                          unawaited(_openChat(composer, emoji: true)),
+                      actions: [
+                        KViewerBarButton(
+                          key: LiveRoomScreen.giftKey,
+                          asset: 'assets/live_bar/gift.png',
+                          label: l10n.liveGifts,
+                          onTap: () => unawaited(_openGifts()),
+                        ),
+                      ],
+                    ),
               ],
             ),
       cover: ended
@@ -824,7 +933,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   onShare: () => unawaited(_share(room.title, host.username)),
                   endKey: AudioRoomViewKeys.close,
                   endTooltip: l10n.liveClose,
-                  onEnd: widget.onClose,
+                  onEnd: () => unawaited(_leave()),
                 ),
                 chips: Row(
                   children: [
@@ -873,7 +982,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                     asset: 'assets/live_bar/emoji.png',
                     bare: true,
                     label: l10n.livePreviewEmoji,
-                    onTap: () => unawaited(_openChat(composer)),
+                    onTap: () => unawaited(_openChat(composer, emoji: true)),
                   ),
                 ],
                 barEnd: [

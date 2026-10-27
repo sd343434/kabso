@@ -160,6 +160,9 @@ sealed class LiveChatEvent {
         'gift' => LiveGiftReceived(
           LiveGift.fromJson(json['gift']! as Map<String, dynamic>),
         ),
+        'lucky-win' => LuckyWinReceived(
+          LuckyWin.fromJson(json['win']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -249,4 +252,11 @@ final class LiveGiftReceived extends LiveChatEvent {
   const new(this.gift);
 
   final LiveGift gift;
+}
+
+/// v1.27-live (D132, §10.27): a big lucky win in this live (topic `lucky`).
+final class LuckyWinReceived extends LiveChatEvent {
+  const new(this.win);
+
+  final LuckyWin win;
 }

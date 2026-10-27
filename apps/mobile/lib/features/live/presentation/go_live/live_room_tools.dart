@@ -21,11 +21,29 @@ Future<void> showLiveRoomTools(
   builder: (sheet) => _ToolsSheet(room: room, other: other),
 );
 
+/// D131: one titled grid of tools in the same white sheet (the host's
+/// Beautification tools).
+Future<void> showLiveToolGrid(
+  BuildContext context, {
+  required String title,
+  required List<GoLiveTool> tools,
+}) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: const Color(0x00000000),
+  barrierColor: const Color(0x00000000),
+  builder: (sheet) =>
+      _ToolsSheet(room: tools, other: const [], roomTitle: title),
+);
+
 class _ToolsSheet extends StatelessWidget {
-  const new({required this.room, required this.other});
+  const new({required this.room, required this.other, this.roomTitle});
 
   final List<GoLiveTool> room;
   final List<GoLiveTool> other;
+
+  /// The first section's title (default "Room tools").
+  final String? roomTitle;
 
   static const ink = Color(0xFF1C1B2E);
 
@@ -77,7 +95,8 @@ class _ToolsSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (room.isNotEmpty) section(l10n.liveToolsRoom, room),
+              if (room.isNotEmpty)
+                section(roomTitle ?? l10n.liveToolsRoom, room),
               if (other.isNotEmpty)
                 section(l10n.liveToolsOther, other, first: room.isEmpty),
             ],
