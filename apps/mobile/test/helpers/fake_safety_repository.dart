@@ -90,11 +90,13 @@ class FakeSafetyRepository implements SafetyRepository {
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
+    MentionPolicy? whoCanMessage,
   }) async {
     _step(
       'updatePrivacy:${whoCanMention?.wire ?? ''}:'
       '${defaultWhoCanComment?.wire ?? ''}'
-      '${showActivityStatus == null ? '' : ':activity=$showActivityStatus'}',
+      '${showActivityStatus == null ? '' : ':activity=$showActivityStatus'}'
+      '${whoCanMessage == null ? '' : ':message=${whoCanMessage.wire}'}',
     );
     return privacySettings = PrivacySettings(
       whoCanMention: whoCanMention ?? privacySettings.whoCanMention,
@@ -102,6 +104,7 @@ class FakeSafetyRepository implements SafetyRepository {
           defaultWhoCanComment ?? privacySettings.defaultWhoCanComment,
       showActivityStatus:
           showActivityStatus ?? privacySettings.showActivityStatus,
+      whoCanMessage: whoCanMessage ?? privacySettings.whoCanMessage,
     );
   }
 }

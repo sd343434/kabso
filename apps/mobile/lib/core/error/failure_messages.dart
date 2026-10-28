@@ -68,6 +68,10 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.premiumUsernamePriceChanged =>
       l10n.errorPremiumUsernamePriceChanged,
     ErrorCode.premiumUsernameActive => l10n.errorPremiumUsernameActive,
+    ErrorCode.dmNotAllowed => l10n.errorDmNotAllowed,
+    ErrorCode.dmRequestLimit => l10n.errorDmRequestLimit,
+    ErrorCode.dmRequestTextOnly => l10n.errorDmRequestTextOnly,
+    ErrorCode.dmDeleteWindowPassed => l10n.errorDmDeleteWindowPassed,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

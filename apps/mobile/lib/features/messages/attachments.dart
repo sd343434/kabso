@@ -89,7 +89,10 @@ final mediaAttachmentPickerProvider = Provider<MediaAttachmentPicker>(
 );
 
 /// Asks where the attachment comes from; null when dismissed.
-Future<AttachmentSource?> showAttachmentSheet(BuildContext context) {
+Future<AttachmentSource?> showAttachmentSheet(
+  BuildContext context, {
+  bool allowVideo = true,
+}) {
   final l10n = context.l10n;
   return showModalBottomSheet<AttachmentSource>(
     context: context,
@@ -109,11 +112,12 @@ Future<AttachmentSource?> showAttachmentSheet(BuildContext context) {
               Icons.photo_camera_outlined,
               l10n.attachTakePhoto,
             ),
-            (
-              AttachmentSource.cameraVideo,
-              Icons.videocam_outlined,
-              l10n.attachRecordVideo,
-            ),
+            if (allowVideo)
+              (
+                AttachmentSource.cameraVideo,
+                Icons.videocam_outlined,
+                l10n.attachRecordVideo,
+              ),
           ])
             ListTile(
               key: AttachmentButton.sourceKey(source),
@@ -132,7 +136,12 @@ Future<AttachmentSource?> showAttachmentSheet(BuildContext context) {
 /// then [onPicked] receives the photo or video. Disabled when [onPicked]
 /// is null (no API to send it).
 class AttachmentButton extends ConsumerWidget {
-  const new({required this.onPicked, super.key, this.outlined = false});
+  const new({
+    required this.onPicked,
+    super.key,
+    this.outlined = false,
+    this.allowVideo = true,
+  });
 
   static Key sourceKey(AttachmentSource s) => Key('attach.${s.name}');
 
@@ -141,6 +150,10 @@ class AttachmentButton extends ConsumerWidget {
   /// A round outlined "+" (the chat composer, D68) instead of the photo
   /// icon.
   final bool outlined;
+
+  /// D155: false leaves "record a video" out of the sheet (direct messages
+  /// carry pictures, not videos).
+  final bool allowVideo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,7 +171,10 @@ class AttachmentButton extends ConsumerWidget {
       onPressed: onPicked == null
           ? null
           : () async {
-              final source = await showAttachmentSheet(context);
+              final source = await showAttachmentSheet(
+                context,
+                allowVideo: allowVideo,
+              );
               if (source == null || !context.mounted) return;
               try {
                 final media = await ref

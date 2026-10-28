@@ -64,6 +64,14 @@ abstract interface class MediaRepository {
   /// like the live cover).
   Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType);
 
+  /// D155: a direct message's voice note ([voice], `DM_VOICE`, `audio/mp4`,
+  /// at most [maxVoiceBytes]) or picture (`DM_IMAGE`). Returns the asset id.
+  Future<String> uploadDmMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  });
+
   /// CP-022: a family's cover (`FAMILY_COVER`, processed like a post image).
   Future<MediaAsset> uploadFamilyCover(Uint8List bytes, String contentType);
 }
@@ -105,6 +113,17 @@ class MediaRepositoryImpl implements MediaRepository {
     contentType,
     kind: voice ? 'LIVE_CHAT_VOICE' : 'LIVE_CHAT_IMAGE',
   );
+
+  @override
+  Future<String> uploadDmMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) async => (await _upload(
+    bytes,
+    contentType,
+    kind: voice ? 'DM_VOICE' : 'DM_IMAGE',
+  )).id;
 
   @override
   Future<MediaAsset> uploadFamilyEmblem(Uint8List bytes, String contentType) =>

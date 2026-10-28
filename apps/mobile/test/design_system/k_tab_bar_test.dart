@@ -99,7 +99,8 @@ void main() {
       await tester.tap(find.byKey(const Key('nav.messages')));
       await tester.pumpAndSettle();
       expect(_selected(tester, const Key('nav.messages')), isTrue);
-      expect(find.text(en.conversationsUnavailableTitle), findsOneWidget);
+      // D155: the real conversation list (no conversations in the fake).
+      expect(find.text(en.conversationsEmptyTitle), findsOneWidget);
     });
 
     testWidgets('the camera button opens Create (bar hidden there), Close '

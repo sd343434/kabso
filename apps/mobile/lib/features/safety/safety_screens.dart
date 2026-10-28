@@ -33,6 +33,7 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
+    MentionPolicy? whoCanMessage,
   }) async {
     final next = await ref
         .read(safetyRepositoryProvider)
@@ -40,6 +41,7 @@ class PrivacyController extends AsyncNotifier<PrivacySettings> {
           whoCanMention: whoCanMention,
           defaultWhoCanComment: defaultWhoCanComment,
           showActivityStatus: showActivityStatus,
+          whoCanMessage: whoCanMessage,
         );
     if (ref.mounted) state = AsyncData(next);
   }
@@ -59,6 +61,10 @@ class PrivacyScreen extends ConsumerWidget {
   static Key mentionKey(MentionPolicy p) => Key('privacy.mention.${p.name}');
   static Key commentKey(WhoCanComment w) => Key('privacy.comment.${w.name}');
   static const activityKey = Key('privacy.activityStatus');
+
+  /// D155: «من يستطيع مراسلتك».
+  static Key messageKey(MentionPolicy p) => Key('privacy.message.${p.name}');
+  static const messageHintKey = Key('privacy.message.hint');
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -153,6 +159,46 @@ class PrivacyScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
               child: Text(
                 l10n.privacyCommentHint,
+                style: context.textStyles.caption.copyWith(
+                  color: p.textSecondary,
+                ),
+              ),
+            ),
+            // v1.40-social (D155, §11.13): who can send direct messages;
+            // strangers send requests, messages last 24 hours.
+            header(l10n.privacyMessageTitle),
+            RadioGroup<MentionPolicy>(
+              groupValue: value.whoCanMessage,
+              onChanged: (v) {
+                if (v == null || v == value.whoCanMessage) return;
+                unawaited(
+                  save(
+                    () => ref
+                        .read(privacyProvider.notifier)
+                        .change(whoCanMessage: v),
+                  ),
+                );
+              },
+              child: Column(
+                children: [
+                  for (final (m, label) in [
+                    (MentionPolicy.everyone, l10n.privacyMentionEveryone),
+                    (MentionPolicy.following, l10n.privacyMentionFollowing),
+                    (MentionPolicy.nobody, l10n.privacyMentionNobody),
+                  ])
+                    RadioListTile<MentionPolicy>(
+                      key: messageKey(m),
+                      value: m,
+                      title: Text(label),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              key: messageHintKey,
+              padding: const EdgeInsets.symmetric(horizontal: KSpacing.lg),
+              child: Text(
+                l10n.privacyMessageHint,
                 style: context.textStyles.caption.copyWith(
                   color: p.textSecondary,
                 ),

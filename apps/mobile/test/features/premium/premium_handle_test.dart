@@ -19,6 +19,7 @@ import 'package:kabso_live/features/follows/domain/follow_list_models.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
@@ -28,6 +29,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/component_harness.dart';
+import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fake_premium_repository.dart';
 import '../../helpers/fakes.dart';
@@ -260,7 +262,13 @@ void main() {
         ),
         premium: FakePremiumRepository(user: _regular),
         language: lang,
+        // D155: the conversation reads the DM API (a fake here).
+        overrides: [
+          dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+          sharedPreferencesProvider.overrideWithValue(await testPrefs()),
+        ],
       );
+      await tester.pumpAndSettle();
       expect(find.text('${_lri}1$_pdi'), findsNWidgets(2));
       expect(find.textContaining('@1'), findsNothing);
 
@@ -269,7 +277,12 @@ void main() {
         const ChatScreen(username: 'sara_2026', displayName: 'Sara'),
         premium: FakePremiumRepository(user: _regular),
         language: lang,
+        overrides: [
+          dmRepositoryProvider.overrideWithValue(FakeDmRepository()),
+          sharedPreferencesProvider.overrideWithValue(await testPrefs()),
+        ],
       );
+      await tester.pumpAndSettle();
       expect(find.text(l10n.profileUsername('sara_2026')), findsNWidgets(2));
     });
 

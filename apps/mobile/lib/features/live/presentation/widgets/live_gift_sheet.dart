@@ -36,13 +36,39 @@ class LiveGiftRoom {
     required this.host,
     required this.seated,
     this.onSeatsStale,
+    this.direct,
   });
+
+  /// D155: the panel inside a direct conversation — [host] is the person,
+  /// nobody else can receive, and [direct] sends (`POST /dm/gifts`) instead
+  /// of the room: no effect plays here, the gift shows in the conversation.
+  const new conversation({required UserSummary peer, required DmGiftSend send})
+    : roomId = '',
+      host = peer,
+      seated = _nobody,
+      onSeatsStale = null,
+      direct = send;
+
+  static List<UserSummary> _nobody(WidgetRef _) => const [];
 
   final String roomId;
   final UserSummary host;
   final List<UserSummary> Function(WidgetRef ref) seated;
   final VoidCallback? onSeatsStale;
+
+  /// D155: sends in a direct conversation (null: in the live [roomId]).
+  final DmGiftSend? direct;
 }
+
+/// D155: a gift sent in a direct conversation; the balance, the bag and a
+/// lucky gift's draws after it.
+typedef DmGiftSend =
+    Future<({int coins, int bagQuantity, LuckyGiftResult? lucky})> Function({
+      required String giftCode,
+      required int quantity,
+      required LiveGiftSource source,
+      required String clientId,
+    });
 
 /// The live gift panel (CP-020, §10.23). D117: the owner's reference
 /// layout with its measured sizes (at 430 × 932; third-party, outside git)
@@ -399,6 +425,10 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ? _pending!.clientId
         : newClientId();
     _pending = (intent: key, clientId: clientId);
+    final direct = room.direct;
+    if (direct != null) {
+      return await _sendDirect(direct, intent, clientId, asked);
+    }
     try {
       final result = await ref
           .read(liveGiftRepositoryProvider)
@@ -498,6 +528,64 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         _error = message;
         _resetCombo();
       });
+      _showToast(message);
+      return false;
+    }
+  }
+
+  /// D155: a send in a direct conversation. The gift shows in the
+  /// conversation (the panel closes); a lucky gift's draws are in the
+  /// balance and on the gift's message.
+  Future<bool> _sendDirect(
+    DmGiftSend direct,
+    _Intent intent,
+    String clientId,
+    bool askedAge,
+  ) async {
+    final l10n = context.l10n;
+    try {
+      final result = await direct(
+        giftCode: intent.code,
+        quantity: intent.quantity,
+        source: intent.source,
+        clientId: clientId,
+      );
+      _pending = null;
+      if (ref.exists(liveCoinsProvider)) {
+        ref.read(liveCoinsProvider.notifier).set(result.coins);
+      }
+      if (intent.source == LiveGiftSource.bag) {
+        ref
+            .read(giftBagProvider.notifier)
+            .setQuantity(intent.code, result.bagQuantity);
+      }
+      ref.read(recentGiftsProvider.notifier).add(intent.code);
+      if (mounted) await Navigator.of(context).maybePop();
+      return true;
+    } on Object catch (e) {
+      final failure = toAppFailure(e);
+      if (failure is ServerFailure) _pending = null;
+      if (!mounted) return false;
+      final code = failure.code;
+      if (code == ErrorCode.luckyGiftAgeUnconfirmed && !askedAge) {
+        if (await _askAge()) return await _sendOnce(intent, askedAge: true);
+        return false;
+      }
+      if (code == ErrorCode.luckyGiftRegionUnavailable) {
+        ref.invalidate(luckyOddsProvider);
+      }
+      if (code == ErrorCode.insufficientCoins) {
+        ref.invalidate(liveCoinsProvider);
+      } else if (code == ErrorCode.giftUnavailable) {
+        unawaited(ref.read(giftCatalogueProvider.notifier).reload());
+        ref.invalidate(giftBagProvider);
+      } else if (code == ErrorCode.giftBagInsufficient) {
+        ref.invalidate(giftBagProvider);
+      }
+      final message = code == ErrorCode.insufficientCoins
+          ? l10n.liveGiftNotEnoughCoins
+          : failureMessage(l10n, failure);
+      setState(() => _error = message);
       _showToast(message);
       return false;
     }

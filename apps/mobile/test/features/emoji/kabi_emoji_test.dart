@@ -16,6 +16,7 @@ import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/pump_app.dart';
 
 void _phone(WidgetTester tester) {
@@ -278,10 +279,26 @@ void main() {
     expect(find.text(l10n.commentsSheetTitle(5)), findsOneWidget);
   });
 
-  testWidgets('the real chat shows the emoji button disabled with the '
-      'composer (no messaging API, CP-003)', (tester) async {
-    await pumpScreen(tester, const ChatScreen(username: 'nour'));
+  testWidgets('D155: the real chat sends a pack emoji alone as an EMOJI '
+      'message (shown big)', (tester) async {
+    final dm = FakeDmRepository();
+    await pumpScreen(
+      tester,
+      const ChatScreen(username: 'nour'),
+      dmRepository: dm,
+    );
+    await tester.pumpAndSettle();
     final button = tester.widget<IconButton>(find.byKey(ChatScreen.emojiKey));
-    expect(button.onPressed, isNull);
+    expect(button.onPressed, isNotNull);
+    final lol = KabsoEmoji.kabi('lol');
+    await tester.enterText(find.byKey(ChatScreen.composerKey), lol.token);
+    await tester.pump();
+    await tester.tap(find.byKey(ChatScreen.sendKey));
+    // The sent emoji loops: pump, never settle.
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(dm.calls, contains('send:nour:emoji:${lol.token}'));
+    expect(_emoji(lol, size: KKabiEmoji.big), findsOneWidget);
   });
 }

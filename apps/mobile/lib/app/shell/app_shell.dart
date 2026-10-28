@@ -59,7 +59,7 @@ class AppShell extends ConsumerWidget {
               onSelect: (index) => _onSelect(ref, index),
               items: shellTabItems(
                 context.l10n,
-                // D130: real sources only — no messaging API yet (0, hidden)
+                // D130: real sources only — unread direct messages (D155)
                 // and unseen stories of followed accounts.
                 unreadMessages: ref.watch(unreadMessagesProvider),
                 newStories: ref.watch(unseenFollowedStoriesProvider),

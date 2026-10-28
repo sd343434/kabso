@@ -6852,11 +6852,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pushOpenSettings => 'Open settings';
 
   @override
-  String get notifSettingMessages => 'Family chat messages';
+  String get notifSettingMessages => 'Messages';
 
   @override
   String get notifSettingMessagesBody =>
-      'A notification on your phone for new messages in your family chat';
+      'A notification on your phone for new messages in your family chat and your direct messages';
 
   @override
   String get liveMaxXGuaranteed => 'Guaranteed';
@@ -6870,4 +6870,197 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name won ×$multiplier in $room';
   }
+
+  @override
+  String get dmTabChats => 'Chats';
+
+  @override
+  String get dmTabRequests => 'Requests';
+
+  @override
+  String dmTabRequestsCount(String count) {
+    return 'Requests ($count)';
+  }
+
+  @override
+  String get dmRequestsEmptyTitle => 'No message requests';
+
+  @override
+  String get dmRequestsHint =>
+      'Messages from people you don\'t follow wait here. They won\'t know you\'ve seen them until you accept.';
+
+  @override
+  String get dmRetentionNotice =>
+      'Messages are deleted automatically 24 hours after they are sent.';
+
+  @override
+  String get dmNoRecentMessages => 'No messages in the last 24 hours.';
+
+  @override
+  String get dmLastPhoto => '📷 Photo';
+
+  @override
+  String get dmPreviewVoice => '🎤 Voice message';
+
+  @override
+  String get dmPreviewSticker => 'Sticker';
+
+  @override
+  String dmPreviewGift(String count) {
+    return '🎁 Gift ×$count';
+  }
+
+  @override
+  String get dmPreviewExpired => 'Messages expired';
+
+  @override
+  String dmPreviewYou(String text) {
+    return 'You: $text';
+  }
+
+  @override
+  String get dmPreviewUnsupported => 'A message this version can\'t show';
+
+  @override
+  String dmRequestBanner(String name) {
+    return '$name wants to send you messages. Accept to move the chat to your messages.';
+  }
+
+  @override
+  String get dmAccept => 'Accept';
+
+  @override
+  String get dmDecline => 'Delete';
+
+  @override
+  String dmRequestLeft(String name, String count) {
+    return 'Until $name replies you can send $count more';
+  }
+
+  @override
+  String dmRequestLimit(String name) {
+    return 'Wait for $name to reply before sending more.';
+  }
+
+  @override
+  String dmNotAllowed(String name) {
+    return '$name doesn\'t accept messages from you.';
+  }
+
+  @override
+  String get dmUnavailable => 'This conversation isn\'t available.';
+
+  @override
+  String get dmMenu => 'Conversation options';
+
+  @override
+  String get dmMute => 'Mute';
+
+  @override
+  String get dmUnmute => 'Unmute';
+
+  @override
+  String get dmMuted => 'Conversation muted';
+
+  @override
+  String get dmUnmuted => 'Conversation unmuted';
+
+  @override
+  String get dmDeleteConversation => 'Delete conversation';
+
+  @override
+  String get dmDeleteConversationTitle => 'Delete this conversation?';
+
+  @override
+  String get dmDeleteConversationBody =>
+      'It disappears for you only. A new message brings it back.';
+
+  @override
+  String get dmReportPerson => 'Report';
+
+  @override
+  String get dmDeleteForMe => 'Delete for me';
+
+  @override
+  String get dmDeleteForEveryone => 'Delete for everyone';
+
+  @override
+  String get dmReportMessage => 'Report message';
+
+  @override
+  String get dmReported => 'Thanks. We\'ll review it.';
+
+  @override
+  String get dmVideoNotSupported =>
+      'Videos can\'t be sent in messages. Send a photo instead.';
+
+  @override
+  String get dmPhotoUnsupported =>
+      'This photo type can\'t be sent. Choose a JPEG, PNG or WebP photo.';
+
+  @override
+  String get dmSending => 'Sending…';
+
+  @override
+  String get dmGiftRequestTitle => 'Send a gift as a message request?';
+
+  @override
+  String dmGiftRequestBody(String name) {
+    return '$name hasn\'t accepted your messages yet. The gift is paid now and counts as one of your request messages, even if they never accept.';
+  }
+
+  @override
+  String get dmGiftContinue => 'Continue';
+
+  @override
+  String dmGiftMine(String count) {
+    return 'Your gift ×$count';
+  }
+
+  @override
+  String dmGiftTheirs(String name, String count) {
+    return 'Gift from $name ×$count';
+  }
+
+  @override
+  String dmLuckyWon(String coins, String multiplier) {
+    return 'Won $coins coins (×$multiplier)';
+  }
+
+  @override
+  String get dmLuckyNoWin => 'No win this time';
+
+  @override
+  String dmVoiceNote(String length) {
+    return 'Voice message, $length';
+  }
+
+  @override
+  String get dmPhoto => 'Photo';
+
+  @override
+  String get dmStartConversation => 'Send a message to start the conversation.';
+
+  @override
+  String get privacyMessageTitle => 'Who can message you';
+
+  @override
+  String get privacyMessageHint =>
+      'People you don\'t follow send message requests. Messages are deleted 24 hours after they are sent.';
+
+  @override
+  String get errorDmNotAllowed =>
+      'This person doesn\'t accept messages from you.';
+
+  @override
+  String get errorDmRequestLimit =>
+      'Wait for a reply before sending more messages.';
+
+  @override
+  String get errorDmRequestTextOnly =>
+      'Only text, stickers and gifts can be sent until your request is accepted.';
+
+  @override
+  String get errorDmDeleteWindowPassed =>
+      'This message can no longer be deleted for everyone.';
 }

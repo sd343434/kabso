@@ -11843,13 +11843,13 @@ abstract class AppLocalizations {
   /// D152: push notifications (permission, settings).
   ///
   /// In ar, this message translates to:
-  /// **'رسائل العائلة'**
+  /// **'الرسائل'**
   String get notifSettingMessages;
 
   /// D152: push notifications (permission, settings).
   ///
   /// In ar, this message translates to:
-  /// **'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك'**
+  /// **'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك ورسائلك الخاصة'**
   String get notifSettingMessagesBody;
 
   /// D148: the small label over a MAX X win the guarantee paid (×5 after 15 losing draws in a row).
@@ -11869,6 +11869,324 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{name} ربح ×{multiplier} في غرفة {room}'**
   String liveLuckyTicker(String name, String multiplier, String room);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشات'**
+  String get dmTabChats;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المراسلة'**
+  String get dmTabRequests;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبات المراسلة ({count})'**
+  String dmTabRequestsCount(String count);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات مراسلة'**
+  String get dmRequestsEmptyTitle;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل الأشخاص الذين لا تتابعهم تنتظر هنا. لن يعرفوا أنك رأيتها حتى تقبل.'**
+  String get dmRequestsHint;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسائل تُحذف تلقائياً بعد 24 ساعة من إرسالها.'**
+  String get dmRetentionNotice;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد رسائل خلال آخر 24 ساعة.'**
+  String get dmNoRecentMessages;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'📷 صورة'**
+  String get dmLastPhoto;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'🎤 رسالة صوتية'**
+  String get dmPreviewVoice;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'ملصق'**
+  String get dmPreviewSticker;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'🎁 هدية ×{count}'**
+  String dmPreviewGift(String count);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت صلاحية الرسائل'**
+  String get dmPreviewExpired;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت: {text}'**
+  String dmPreviewYou(String text);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة لا يعرضها هذا الإصدار'**
+  String get dmPreviewUnsupported;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} يريد مراسلتك. اقبل لنقل المحادثة إلى رسائلك.'**
+  String dmRequestBanner(String name);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'قبول'**
+  String get dmAccept;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف'**
+  String get dmDecline;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى يرد {name} يمكنك إرسال {count} رسائل أخرى'**
+  String dmRequestLeft(String name, String count);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتظر رد {name} قبل إرسال المزيد.'**
+  String dmRequestLimit(String name);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} لا يستقبل رسائل منك.'**
+  String dmNotAllowed(String name);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه المحادثة غير متاحة.'**
+  String get dmUnavailable;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'خيارات المحادثة'**
+  String get dmMenu;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم'**
+  String get dmMute;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء الكتم'**
+  String get dmUnmute;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم كتم المحادثة'**
+  String get dmMuted;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إلغاء كتم المحادثة'**
+  String get dmUnmuted;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف المحادثة'**
+  String get dmDeleteConversation;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف هذه المحادثة؟'**
+  String get dmDeleteConversationTitle;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'تُحذف من عندك فقط. ستعود إذا وصلت رسالة جديدة.'**
+  String get dmDeleteConversationBody;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'إبلاغ'**
+  String get dmReportPerson;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف لدي'**
+  String get dmDeleteForMe;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'حذف لدى الجميع'**
+  String get dmDeleteForEveryone;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبلاغ عن الرسالة'**
+  String get dmReportMessage;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'شكراً. سنراجع البلاغ.'**
+  String get dmReported;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال الفيديو في الرسائل. أرسل صورة بدلاً منه.'**
+  String get dmVideoNotSupported;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن إرسال هذا النوع من الصور. اختر صورة JPEG أو PNG أو WebP.'**
+  String get dmPhotoUnsupported;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الإرسال…'**
+  String get dmSending;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال هدية كطلب مراسلة؟'**
+  String get dmGiftRequestTitle;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يقبل {name} رسائلك بعد. تُدفع الهدية الآن وتُحسب من رسائل طلبك حتى لو لم يقبل.'**
+  String dmGiftRequestBody(String name);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get dmGiftContinue;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'هديتك ×{count}'**
+  String dmGiftMine(String count);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية من {name} ×{count}'**
+  String dmGiftTheirs(String name, String count);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح {coins} كوينز (×{multiplier})'**
+  String dmLuckyWon(String coins, String multiplier);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا ربح هذه المرة'**
+  String get dmLuckyNoWin;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسالة صوتية، {length}'**
+  String dmVoiceNote(String length);
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة'**
+  String get dmPhoto;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل رسالة لبدء المحادثة.'**
+  String get dmStartConversation;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'من يستطيع مراسلتك'**
+  String get privacyMessageTitle;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'من لا تتابعهم يرسلون طلبات مراسلة. الرسائل تُحذف بعد 24 ساعة من إرسالها.'**
+  String get privacyMessageHint;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الشخص لا يستقبل رسائل منك.'**
+  String get errorDmNotAllowed;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'انتظر الرد قبل إرسال المزيد من الرسائل.'**
+  String get errorDmRequestLimit;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكن إرسال النصوص والملصقات والهدايا فقط حتى يُقبل طلبك.'**
+  String get errorDmRequestTextOnly;
+
+  /// D155: direct messages (CONVENTIONS §11.13).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يعد بالإمكان حذف هذه الرسالة لدى الجميع.'**
+  String get errorDmDeleteWindowPassed;
 }
 
 class _AppLocalizationsDelegate

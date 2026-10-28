@@ -14,9 +14,11 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
+import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
+import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
@@ -27,6 +29,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../fixtures/live/live_fixtures.dart';
+import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -250,24 +253,25 @@ void main() {
     }
   }
 
-  testWidgets('D61: the chat screen is not connected: empty, notice, '
-      'composer and Send disabled', (tester) async {
+  testWidgets('D155: the chat screen is connected: the person, the 24-hour '
+      'notice, a working composer', (tester) async {
     setViewport(tester, GoldenViewport.phone);
+    final dm = FakeDmRepository()
+      ..people['host0'] = dmPerson('host0', name: 'Sara');
     await pumpScreen(
       tester,
       const ChatScreen(username: 'host0', displayName: 'Sara'),
+      dmRepository: dm,
     );
     await tester.pumpAndSettle();
     expect(find.text('Sara'), findsWidgets);
-    expect(find.text(_en.chatUnavailable), findsOneWidget);
+    expect(find.text(_en.dmRetentionNotice), findsOneWidget);
+    expect(find.text(_en.chatUnavailable), findsNothing);
     expect(
       tester.widget<TextField>(find.byKey(ChatScreen.composerKey)).enabled,
-      isFalse,
+      isTrue,
     );
-    expect(
-      tester.widget<IconButton>(find.byKey(ChatScreen.sendKey)).onPressed,
-      isNull,
-    );
+    expect(dm.calls, contains('peer:host0'));
   });
 
   testWidgets("a post's author opens their public profile", (tester) async {
@@ -354,6 +358,12 @@ void main() {
           profileRepositoryProvider.overrideWithValue(
             FakeProfileRepository(apiProfile()),
           ),
+          // D155: the conversation reads the DM API (a fake here).
+          dmRepositoryProvider.overrideWithValue(
+            FakeDmRepository()
+              ..people['host0'] = dmPerson('host0', name: 'Sara'),
+          ),
+          sharedPreferencesProvider.overrideWithValue(await testPrefs()),
         ],
         child: MaterialApp.router(
           routerConfig: router,
