@@ -4117,9 +4117,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolSounds => 'Sounds';
 
   @override
-  String get liveToolFluent => 'Fluent';
-
-  @override
   String get liveToolProgramList => 'Program list';
 
   @override
@@ -5920,9 +5917,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolDual => 'Dual';
 
   @override
-  String get liveToolHd => 'HD';
-
-  @override
   String get liveToolSticker => 'Sticker';
 
   @override
@@ -7243,4 +7237,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get liveAssistantKindQuestion =>
       'Suggest a question when the chat is quiet';
+
+  @override
+  String get liveToolQuality => 'Quality';
+
+  @override
+  String get liveQualitySmooth => 'Smooth';
+
+  @override
+  String get liveQualitySmoothDetail => '480p, lighter on a weak connection';
+
+  @override
+  String get liveQualityNormal => 'Normal';
+
+  @override
+  String get liveQualityNormalDetail => '720p, the default';
+
+  @override
+  String get liveQualityConnExcellent => 'Connection excellent';
+
+  @override
+  String get liveQualityConnGood => 'Connection good';
+
+  @override
+  String get liveQualityConnPoor => 'Connection weak';
+
+  @override
+  String get liveQualityConnLost => 'Connection lost, retrying';
+
+  @override
+  String get liveQualityConnUnknown => 'Measuring the connection';
+
+  @override
+  String get liveQualityFailed =>
+      'Couldn\'t change the quality, it stays as it was';
+
+  @override
+  String get liveQualitySuggest => 'Your connection is weak, switch to Smooth?';
+
+  @override
+  String get liveQualitySuggestAction => 'Switch';
+
+  @override
+  String get liveQualitySmoothOn => 'Smooth is on';
 }

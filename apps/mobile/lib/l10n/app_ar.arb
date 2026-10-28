@@ -4903,10 +4903,6 @@
   "@liveToolSounds": {
     "description": "Room tools sheet tile (owner ref 84)"
   },
-  "liveToolFluent": "السلاسة",
-  "@liveToolFluent": {
-    "description": "Room tools sheet tile (owner ref 84)"
-  },
   "liveToolProgramList": "قائمة البرامج",
   "@liveToolProgramList": {
     "description": "Room tools sheet tile (owner ref 84)"
@@ -7378,8 +7374,6 @@
   "@liveQuickReplyLabel": {"description": "D131: screen-reader label of a quick reply chip.", "placeholders": {"text": {"type": "String"}}},
   "liveToolDual": "كاميرتان",
   "@liveToolDual": {"description": "Room tools: both cameras at once (not available yet)."},
-  "liveToolHd": "جودة عالية",
-  "@liveToolHd": {"description": "Room tools: high-definition video (not available yet)."},
   "liveToolSticker": "ملصقات",
   "@liveToolSticker": {"description": "Room tools: stickers on the video (not available yet)."},
   "liveToolInfo": "المعلومات",
@@ -8115,5 +8109,33 @@
   "liveAssistantKindRest": "استراحة في البث الطويل",
   "@liveAssistantKindRest": {"description": "D154f: a hint kind."},
   "liveAssistantKindQuestion": "اقتراح سؤال عند هدوء الدردشة",
-  "@liveAssistantKindQuestion": {"description": "D154f: a hint kind."}
+  "@liveAssistantKindQuestion": {"description": "D154f: a hint kind."},
+  "liveToolQuality": "الجودة",
+  "@liveToolQuality": {"description": "D154g Room Tools: the picture quality and the connection (replaces HD and Fluent)."},
+  "liveQualitySmooth": "سلس",
+  "@liveQualitySmooth": {"description": "D154g: 480p at 15 fps."},
+  "liveQualitySmoothDetail": "480p، أخف على الاتصال الضعيف",
+  "@liveQualitySmoothDetail": {"description": "D154g: smooth option detail."},
+  "liveQualityNormal": "عادي",
+  "@liveQualityNormal": {"description": "D154g: 720p (default)."},
+  "liveQualityNormalDetail": "720p، الجودة الافتراضية",
+  "@liveQualityNormalDetail": {"description": "D154g: normal option detail."},
+  "liveQualityConnExcellent": "الاتصال ممتاز",
+  "@liveQualityConnExcellent": {"description": "D154g: connection indicator."},
+  "liveQualityConnGood": "الاتصال جيد",
+  "@liveQualityConnGood": {"description": "D154g: connection indicator."},
+  "liveQualityConnPoor": "الاتصال ضعيف",
+  "@liveQualityConnPoor": {"description": "D154g: connection indicator."},
+  "liveQualityConnLost": "انقطع الاتصال، جارٍ إعادة المحاولة",
+  "@liveQualityConnLost": {"description": "D154g: connection indicator."},
+  "liveQualityConnUnknown": "جارٍ قياس الاتصال",
+  "@liveQualityConnUnknown": {"description": "D154g: connection indicator before LiveKit rates it."},
+  "liveQualityFailed": "تعذّر تغيير الجودة، بقيت كما كانت",
+  "@liveQualityFailed": {"description": "D154g: the camera could not restart."},
+  "liveQualitySuggest": "اتصالك ضعيف، فعّل السلاسة؟",
+  "@liveQualitySuggest": {"description": "D154g: suggestion after a weak connection for a while."},
+  "liveQualitySuggestAction": "فعّل",
+  "@liveQualitySuggestAction": {"description": "D154g: the suggestion's action."},
+  "liveQualitySmoothOn": "تم تفعيل السلاسة",
+  "@liveQualitySmoothOn": {"description": "D154g: after switching from the suggestion."}
 }

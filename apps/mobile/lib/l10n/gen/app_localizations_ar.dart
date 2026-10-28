@@ -4145,9 +4145,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolSounds => 'المؤثرات';
 
   @override
-  String get liveToolFluent => 'السلاسة';
-
-  @override
   String get liveToolProgramList => 'قائمة البرامج';
 
   @override
@@ -5945,9 +5942,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolDual => 'كاميرتان';
 
   @override
-  String get liveToolHd => 'جودة عالية';
-
-  @override
   String get liveToolSticker => 'ملصقات';
 
   @override
@@ -7284,4 +7278,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveAssistantKindQuestion => 'اقتراح سؤال عند هدوء الدردشة';
+
+  @override
+  String get liveToolQuality => 'الجودة';
+
+  @override
+  String get liveQualitySmooth => 'سلس';
+
+  @override
+  String get liveQualitySmoothDetail => '480p، أخف على الاتصال الضعيف';
+
+  @override
+  String get liveQualityNormal => 'عادي';
+
+  @override
+  String get liveQualityNormalDetail => '720p، الجودة الافتراضية';
+
+  @override
+  String get liveQualityConnExcellent => 'الاتصال ممتاز';
+
+  @override
+  String get liveQualityConnGood => 'الاتصال جيد';
+
+  @override
+  String get liveQualityConnPoor => 'الاتصال ضعيف';
+
+  @override
+  String get liveQualityConnLost => 'انقطع الاتصال، جارٍ إعادة المحاولة';
+
+  @override
+  String get liveQualityConnUnknown => 'جارٍ قياس الاتصال';
+
+  @override
+  String get liveQualityFailed => 'تعذّر تغيير الجودة، بقيت كما كانت';
+
+  @override
+  String get liveQualitySuggest => 'اتصالك ضعيف، فعّل السلاسة؟';
+
+  @override
+  String get liveQualitySuggestAction => 'فعّل';
+
+  @override
+  String get liveQualitySmoothOn => 'تم تفعيل السلاسة';
 }

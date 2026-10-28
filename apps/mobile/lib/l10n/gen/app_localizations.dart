@@ -7301,12 +7301,6 @@ abstract class AppLocalizations {
   /// Room tools sheet tile (owner ref 84)
   ///
   /// In ar, this message translates to:
-  /// **'السلاسة'**
-  String get liveToolFluent;
-
-  /// Room tools sheet tile (owner ref 84)
-  ///
-  /// In ar, this message translates to:
   /// **'قائمة البرامج'**
   String get liveToolProgramList;
 
@@ -10262,12 +10256,6 @@ abstract class AppLocalizations {
   /// **'كاميرتان'**
   String get liveToolDual;
 
-  /// Room tools: high-definition video (not available yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'جودة عالية'**
-  String get liveToolHd;
-
   /// Room tools: stickers on the video (not available yet).
   ///
   /// In ar, this message translates to:
@@ -12475,6 +12463,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اقتراح سؤال عند هدوء الدردشة'**
   String get liveAssistantKindQuestion;
+
+  /// D154g Room Tools: the picture quality and the connection (replaces HD and Fluent).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجودة'**
+  String get liveToolQuality;
+
+  /// D154g: 480p at 15 fps.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلس'**
+  String get liveQualitySmooth;
+
+  /// D154g: smooth option detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'480p، أخف على الاتصال الضعيف'**
+  String get liveQualitySmoothDetail;
+
+  /// D154g: 720p (default).
+  ///
+  /// In ar, this message translates to:
+  /// **'عادي'**
+  String get liveQualityNormal;
+
+  /// D154g: normal option detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'720p، الجودة الافتراضية'**
+  String get liveQualityNormalDetail;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال ممتاز'**
+  String get liveQualityConnExcellent;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال جيد'**
+  String get liveQualityConnGood;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال ضعيف'**
+  String get liveQualityConnPoor;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقطع الاتصال، جارٍ إعادة المحاولة'**
+  String get liveQualityConnLost;
+
+  /// D154g: connection indicator before LiveKit rates it.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ قياس الاتصال'**
+  String get liveQualityConnUnknown;
+
+  /// D154g: the camera could not restart.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تغيير الجودة، بقيت كما كانت'**
+  String get liveQualityFailed;
+
+  /// D154g: suggestion after a weak connection for a while.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتصالك ضعيف، فعّل السلاسة؟'**
+  String get liveQualitySuggest;
+
+  /// D154g: the suggestion's action.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل'**
+  String get liveQualitySuggestAction;
+
+  /// D154g: after switching from the suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تفعيل السلاسة'**
+  String get liveQualitySmoothOn;
 }
 
 class _AppLocalizationsDelegate

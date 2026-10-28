@@ -262,6 +262,29 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
   @override
   Stream<String> get seatInvites => _invites.stream;
 
+  /// D154g: the camera's quality (tests read it) and the connection (tests
+  /// set it, then [ping]).
+  LiveVideoQuality quality = LiveVideoQuality.normal;
+  LiveConnectionQuality connection = LiveConnectionQuality.unknown;
+
+  /// D154g: a camera that cannot restart.
+  bool qualityFails = false;
+
+  @override
+  LiveVideoQuality get videoQuality => quality;
+
+  @override
+  Future<void> setVideoQuality(LiveVideoQuality value) async {
+    if (qualityFails) {
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    }
+    quality = value;
+    ping();
+  }
+
+  @override
+  LiveConnectionQuality get connectionQuality => connection;
+
   /// CP-013: what the media room delivers to [chatEvents]; tests add to it.
   final chat = StreamController<LiveChatEvent>.broadcast();
 

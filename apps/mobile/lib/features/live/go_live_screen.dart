@@ -46,6 +46,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -113,6 +114,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
   static const minimizeKey = Key('goLive.minimize');
   static const viewersKey = Key('goLive.viewers');
+
+  /// D154g: the «السلاسة» suggestion on a weak connection.
+  static const smoothSuggestKey = Key('goLive.smoothSuggest');
   static const shareKey = Key('goLive.share');
   static const videoChatKey = Key('goLive.videoChat');
   static const audioChatKey = Key('goLive.audio.chat');
@@ -399,11 +403,53 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
   }
 
+  /// D154g: a weak connection for a while with the normal picture suggests
+  /// «السلاسة» (at most every 5 min).
+  final _poorWatch = PoorConnectionWatch();
+
+  void _checkConnection() {
+    final engine = _host.engine;
+    if (!engine.videoEnabled) return;
+    if (!_poorWatch.feed(
+      engine.connectionQuality,
+      engine.videoQuality,
+      clock.now(),
+    )) {
+      return;
+    }
+    final l10n = context.l10n;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: GoLiveScreen.smoothSuggestKey,
+          content: Text(l10n.liveQualitySuggest),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: l10n.liveQualitySuggestAction,
+            onPressed: () => unawaited(_goSmooth()),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _goSmooth() async {
+    final l10n = context.l10n;
+    try {
+      await _host.engine.setVideoQuality(LiveVideoQuality.smooth);
+      if (mounted) KSnack.success(context, l10n.liveQualitySmoothOn);
+    } on LiveCaptureException {
+      if (mounted) KSnack.error(context, l10n.liveQualityFailed);
+    }
+  }
+
   void _syncTicker(GoLiveState state) {
     final live = state.phase == GoLivePhase.live;
     if (live && _tick == null) {
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (mounted) setState(() {});
+        if (!mounted) return;
+        setState(() {});
+        _checkConnection();
       });
     } else if (!live && _tick != null) {
       _tick!.cancel();
@@ -932,11 +978,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   ? null
                   : () =>
                         unawaited(showLiveSoundboard(context, roomId: room.id)),
-            ),
-            GoLiveTool.soon(
-              id: 'fluent',
-              icon: Icons.speed_rounded,
-              label: l10n.liveToolFluent,
             ),
             // D154e: the live's program (everyone sees its card).
             GoLiveTool(
@@ -1731,7 +1772,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ?byId['fillLight'],
           ?byId['flip'],
           soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
-          soon('hd', Icons.hd_rounded, l10n.liveToolHd),
+          // D154g: «الجودة» (HD and «السلاسة» in one tool).
+          GoLiveTool(
+            id: 'quality',
+            icon: liveConnectionIcon(engine.connectionQuality),
+            label: l10n.liveToolQuality,
+            onTap: engine.videoEnabled
+                ? () => unawaited(showLiveQualitySheet(context, engine: engine))
+                : null,
+          ),
           soon('sticker', Icons.emoji_emotions_outlined, l10n.liveToolSticker),
           ?byId['mic'],
           soon('music', Icons.music_note_rounded, l10n.liveToolMusic),

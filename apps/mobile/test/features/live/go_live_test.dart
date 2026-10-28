@@ -47,6 +47,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.da
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
@@ -2026,6 +2027,8 @@ void main() {
         // D154e/D154f: the program list and the assistant work now.
         'program',
         'assistance',
+        // D154g: «الجودة» replaces HD (and audio rooms' Fluent).
+        'quality',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
@@ -2042,11 +2045,9 @@ void main() {
           reason: label,
         );
       }
-      for (final label in [
-        l10n.liveToolDual,
-        l10n.liveToolHd,
-        l10n.liveToolSticker,
-      ]) {
+      expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
+      expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+      for (final label in [l10n.liveToolDual, l10n.liveToolSticker]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
           findsOneWidget,
@@ -2062,6 +2063,56 @@ void main() {
       expect(camera.micEnabled, isFalse);
       // Muted: the host pill says so.
       expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('D154g: «الجودة» shows the connection and switches to '
+        'Smooth; a weak connection for 20 s suggests it', (tester) async {
+      final (_, engine) = await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('quality')));
+      await tester.pumpAndSettle();
+      expect(find.text('Measuring the connection'), findsOneWidget);
+      engine
+        ..connection = LiveConnectionQuality.good
+        ..ping();
+      await tester.pump();
+      expect(find.text('Connection good'), findsOneWidget);
+      await tester.tap(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.smooth)),
+      );
+      await tester.pumpAndSettle();
+      expect(engine.quality, LiveVideoQuality.smooth);
+      // A camera that cannot restart keeps the quality and says so.
+      engine.qualityFails = true;
+      await tester.tap(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.normal)),
+      );
+      await tester.pumpAndSettle();
+      expect(engine.quality, LiveVideoQuality.smooth);
+      expect(
+        find.text("Couldn't change the quality, it stays as it was"),
+        findsOneWidget,
+      );
+      engine
+        ..qualityFails = false
+        ..quality = LiveVideoQuality.normal;
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      engine
+        ..connection = LiveConnectionQuality.poor
+        ..ping();
+      await tester.pump(const Duration(seconds: 10));
+      expect(find.byKey(GoLiveScreen.smoothSuggestKey), findsNothing);
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(GoLiveScreen.smoothSuggestKey), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.byType(SnackBarAction));
+      await tester.pump();
+      expect(engine.quality, LiveVideoQuality.smooth);
       await _leave(tester);
     });
 
