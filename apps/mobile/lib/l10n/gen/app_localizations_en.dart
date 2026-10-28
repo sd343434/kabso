@@ -6769,11 +6769,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveLuckyBigWin => 'BIG WIN';
 
   @override
-  String liveLuckyBigWinCoins(String coins) {
-    return '$coins coins';
-  }
-
-  @override
   String get livePermissionTitleVideo => 'Camera and microphone for your live';
 
   @override
@@ -7378,5 +7373,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String liveWatchNewSuggestion(String title) {
     return 'New suggestion: $title';
+  }
+
+  @override
+  String get liveWinTierWin => 'WIN';
+
+  @override
+  String get liveWinTierHuge => 'HUGE WIN';
+
+  @override
+  String liveWinBannerSemantics(
+    String label,
+    String name,
+    String multiplier,
+    String coins,
+  ) {
+    return '$label: $name won ×$multiplier, $coins coins';
   }
 }

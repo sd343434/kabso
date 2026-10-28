@@ -182,11 +182,21 @@ class MaxXWin {
   final int multiplier;
   final int coins;
 
-  /// D148: the server's guarantee paid it (`luckyResult.guaranteed`, ×5
-  /// after 15 losing draws in a row): the celebration says «ضمان».
+  /// D148: the guarantee paid this win's multiplier (×5 after 15 losing
+  /// draws in a row): the celebration says «ضمان».
   final bool guaranteed;
 
   /// The win in [result], or null when that send won nothing.
+  ///
+  /// D159 (owner's screenshot: «ضمان» over a ×100): `luckyResult
+  /// .guaranteed` says that *a* draw of the send was paid by the guarantee
+  /// (§10.27) — a send of many gifts is many draws, and a run of 15 losses
+  /// inside it makes one of them a guaranteed ×5 next to a ×100 the draws
+  /// won by themselves. The celebration shows the send's best multiplier,
+  /// so it says «ضمان» only when that multiplier is the guaranteed draw's:
+  /// every paid draw of the send paid the same multiplier (`wins` has one
+  /// entry). A guaranteed draw pays the guarantee's ×5 (or less, cut by the
+  /// day's protection), never more, so a bigger best is never it.
   static MaxXWin? of(LuckyGiftResult? result, {required int id}) {
     final top = result?.topMultiplier;
     if (result == null || top == null || top <= 0) return null;
@@ -194,7 +204,7 @@ class MaxXWin {
       id: id,
       multiplier: top,
       coins: result.coinsWon,
-      guaranteed: result.guaranteed,
+      guaranteed: result.guaranteed && result.wins.length == 1,
     );
   }
 }
@@ -259,6 +269,8 @@ class LuckyComboController extends Notifier<LuckyComboState> {
   void start(LuckyComboGift gift, LiveGiftResult first, {int pending = 0}) {
     _epoch++;
     final lucky = first.luckyResult;
+    // D159: the sender's own win gets its banner over the room (any tier).
+    ref.read(liveGiftEffectsProvider(roomId).notifier).showOwnWin(first);
     state = LuckyComboState(
       gift: gift,
       visible: true,
@@ -433,7 +445,10 @@ class LuckyComboController extends Notifier<LuckyComboState> {
     if (ref.exists(liveCoinsProvider)) {
       ref.read(liveCoinsProvider.notifier).set(result.coins);
     }
-    ref.read(liveGiftEffectsProvider(roomId).notifier).show(result.gift);
+    ref.read(liveGiftEffectsProvider(roomId).notifier)
+      ..show(result.gift)
+      // D159: the sender's own win gets its banner over the room.
+      ..showOwnWin(result);
     final lucky = result.luckyResult;
     final best = switch ((state.topMultiplier, lucky?.topMultiplier)) {
       (final a?, final b?) => a > b ? a : b,

@@ -49,6 +49,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_states.d
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.dart';
 import 'package:kabso_live/features/live/presentation/widgets/pk_layout.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/features/profile/domain/profile_models.dart';
@@ -761,15 +762,18 @@ void main() {
       engine.chat.add(win(50, 'g-1')!);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(LiveLuckyWinBanner), findsNothing);
+      expect(find.byType(LiveWinBanner), findsNothing);
       engine.chat.add(win(500, 'g-2')!);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byType(LiveLuckyWinBanner), findsOneWidget);
-      expect(find.textContaining('×500'), findsOneWidget);
+      expect(find.byType(LiveWinBanner), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(LiveWinBanner.numberKey)).data,
+        '×500',
+      );
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
-      expect(find.byType(LiveLuckyWinBanner), findsNothing);
+      expect(find.byType(LiveWinBanner), findsNothing);
     });
   });
 

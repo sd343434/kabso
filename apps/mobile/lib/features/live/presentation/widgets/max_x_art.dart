@@ -8,6 +8,7 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -113,13 +114,18 @@ class MaxXWinStyle {
     size,
   );
 
+  /// D159 (owner's tiered win frames): every celebration takes its
+  /// [LuckyWinTier]'s colours ([LuckyWinTierArt]) — sapphire ×5…×25, ruby
+  /// ×50…×100, amethyst ×250, onyx ×500…×1000: the jewel ribbon in a gold
+  /// rim, the owner's gold ×N, rays and rings in the tier's glow. The
+  /// length, the coins, the shake and the size stay D145d's per tier.
   static const all = [
     MaxXWinStyle(
       5,
       .9,
-      Color(0xFFFFD650),
-      [Color(0xFFFFFFFF), Color(0xFFFFE27A), Color(0xFFF0A81E)],
-      [Color(0xFFF0A81E), Color(0xFFB8780A)],
+      Color(0xFF4FA3FF),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF0255BE), Color(0xFF01214D)],
       0,
       6,
       0,
@@ -128,9 +134,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       10,
       1.1,
-      Color(0xFFFF50A0),
-      [Color(0xFFFFFFFF), Color(0xFFFFB0D8), Color(0xFFF0308A)],
-      [Color(0xFFFF4D9A), Color(0xFFB0105A)],
+      Color(0xFF4FA3FF),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF0255BE), Color(0xFF01214D)],
       0,
       12,
       0,
@@ -139,9 +145,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       25,
       1.25,
-      Color(0xFF3FE0C8),
-      [Color(0xFFFFFFFF), Color(0xFFC2FFF4), Color(0xFF14A893)],
-      [Color(0xFF3FE0C8), Color(0xFF0A7A6E)],
+      Color(0xFF4FA3FF),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF0255BE), Color(0xFF01214D)],
       0,
       18,
       .2,
@@ -150,9 +156,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       50,
       1.4,
-      Color(0xFFA05AFF),
-      [Color(0xFFFFFFFF), Color(0xFFE2C8FF), Color(0xFF8A3CF0)],
-      [Color(0xFF9A4DFF), Color(0xFF4A12A8)],
+      Color(0xFFFF3B4A),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFFB00102), Color(0xFF480000)],
       1,
       24,
       .4,
@@ -161,9 +167,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       100,
       1.8,
-      Color(0xFFFFC93C),
-      [Color(0xFFFFFFFF), Color(0xFFFFE27A), Color(0xFFFF9F1E)],
-      [Color(0xFFFFC93C), Color(0xFFB8780A)],
+      Color(0xFFFF3B4A),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFFB00102), Color(0xFF480000)],
       1.4,
       32,
       1,
@@ -172,9 +178,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       250,
       2.1,
-      Color(0xFFFF6E28),
-      [Color(0xFFFFFFFF), Color(0xFFFFD9A8), Color(0xFFFF6A2A)],
-      [Color(0xFFFF6A2A), Color(0xFFB81E00)],
+      Color(0xFFC77DFF),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF7C01BC), Color(0xFF33004C)],
       1.7,
       40,
       1.2,
@@ -183,9 +189,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       500,
       2.6,
-      Color(0xFFFF78C8),
-      [Color(0xFFFFFFFF), Color(0xFFFFE27A), Color(0xFFFF6FA5)],
-      null,
+      Color(0xFFFFD54A),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF504444), Color(0xFF211C1B)],
       2,
       48,
       1.6,
@@ -194,9 +200,9 @@ class MaxXWinStyle {
     MaxXWinStyle(
       1000,
       3.2,
-      Color(0xFFFFDC78),
-      [Color(0xFFFFFFFF), Color(0xFFFFF3B0), Color(0xFFFFC93C)],
-      null,
+      Color(0xFFFFD54A),
+      LuckyWinTierArt.numberColors,
+      [Color(0xFF504444), Color(0xFF211C1B)],
       2.6,
       64,
       2.2,
@@ -1127,12 +1133,7 @@ class MaxXWinPainter extends CustomPainter {
             Paint()
               ..style = PaintingStyle.stroke
               ..strokeWidth = 10 * (1 - q) + 1
-              ..color = HSLColor.fromAHSL(
-                1 - q,
-                (d * 400 + now * 200) % 360,
-                1,
-                .7,
-              ).toColor(),
+              ..color = w.color.withValues(alpha: 1 - q),
           );
         }
       }
@@ -1268,7 +1269,8 @@ class MaxXWinPainter extends CustomPainter {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2
-            ..color = const Color(0xFFFFFFFF).withValues(alpha: .85),
+            // D159: the frames' gold rim.
+            ..color = LuckyWinTierArt.gold.withValues(alpha: .95),
         );
       if (!still) {
         final sx = -rw / 2 + rw * 1.4 * ((wt * 1.2) % 1);
