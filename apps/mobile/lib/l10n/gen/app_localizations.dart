@@ -12854,6 +12854,36 @@ abstract class AppLocalizations {
   /// **'فعّل'**
   String get liveQualitySuggestAction;
 
+  /// D160: 1080p at 30 fps (only where the camera captures it).
+  ///
+  /// In ar, this message translates to:
+  /// **'عالي 1080p'**
+  String get liveQualityHigh;
+
+  /// D160: high option detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'1080p بـ 30 إطاراً، يعود إلى 720p تلقائياً إذا ضعف الاتصال'**
+  String get liveQualityHighDetail;
+
+  /// D160: high option disabled: the measured uplink is below ~4 Mbps.
+  ///
+  /// In ar, this message translates to:
+  /// **'سرعة الرفع الآن أقل من المطلوب لـ 1080p'**
+  String get liveQualityHighSlowUplink;
+
+  /// D160: the camera delivered less than 1080p after switching.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الكاميرا لا تلتقط 1080p، بقيت الجودة كما كانت'**
+  String get liveQualityHighUnsupported;
+
+  /// D160: 1080p fell back to 720p after a weak connection.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم خفض الجودة لضعف الاتصال'**
+  String get liveQualityHighFallback;
+
   /// D154g: after switching from the suggestion.
   ///
   /// In ar, this message translates to:
@@ -13021,6 +13051,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'عرض الفيديو'**
   String get liveWatchShow;
+
+  /// D160: the watch window's drag handle (video lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب لنقل نافذة الفيديو'**
+  String get liveWatchDrag;
 
   /// D154i: the embedded player failed.
   ///

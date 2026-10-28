@@ -2121,6 +2121,77 @@ void main() {
       await _leave(tester);
     });
 
+    testWidgets('D160: «عالي 1080p» on a 1080p camera; a weak connection for '
+        '10 s falls back to 720p and says so', (tester) async {
+      final (_, engine) = await _pump(tester);
+      engine
+        ..hd = true
+        ..connection = LiveConnectionQuality.good;
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('quality')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.high)),
+      );
+      await tester.pumpAndSettle();
+      expect(engine.quality, LiveVideoQuality.high);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      engine
+        ..connection = LiveConnectionQuality.poor
+        ..ping();
+      await tester.pump(const Duration(seconds: 5));
+      expect(engine.quality, LiveVideoQuality.high);
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(engine.quality, LiveVideoQuality.normal);
+      expect(
+        find.text('Quality lowered because of a weak connection'),
+        findsOneWidget,
+      );
+      // The host can pick it again.
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('quality')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.high)),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await _leave(tester);
+    });
+
+    testWidgets('D160: «يوتيوب» in a video live — the floating window over '
+        'the picture, clear of the chat and the bar; ✕ stops it', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveWatchSheet.linkKey),
+        'https://youtu.be/aaaaaaaaaaa',
+      );
+      await tester.tap(find.byKey(LiveWatchSheet.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
+      final pip = tester.getRect(find.byKey(LiveWatchLayer.pipKey));
+      final bar = tester.getRect(find.byKey(KHostBar.toolsKey));
+      expect(pip.bottom, lessThan(bar.top));
+      expect(pip.overlaps(bar), isFalse);
+      await tester.tap(find.byKey(LiveWatchLayer.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.pipKey), findsNothing);
+      await _leave(tester);
+    });
+
     testWidgets('D154e: the host sets the program from ≡; its card shows '
         'in the live', (tester) async {
       await _pump(tester);

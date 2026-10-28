@@ -278,12 +278,26 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
     if (qualityFails) {
       throw const LiveCaptureException(LiveCaptureProblem.unavailable);
     }
+    if (value == LiveVideoQuality.high && !hd) {
+      throw const LiveHdUnsupportedException();
+    }
     quality = value;
     ping();
   }
 
   @override
   LiveConnectionQuality get connectionQuality => connection;
+
+  /// D160: a camera that captures 1080p, and the measured uplink (tests set
+  /// them, then [ping]).
+  bool hd = false;
+  LiveUplink uplinkState = LiveUplink.unmeasured;
+
+  @override
+  bool get hdCapture => hd;
+
+  @override
+  LiveUplink get uplink => uplinkState;
 
   /// CP-013: what the media room delivers to [chatEvents]; tests add to it.
   final chat = StreamController<LiveChatEvent>.broadcast();
