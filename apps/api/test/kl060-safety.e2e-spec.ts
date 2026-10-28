@@ -394,6 +394,8 @@ describe('KL-060 safety', () => {
         defaultWhoCanComment: 'EVERYONE',
         // v1.25-live (CP-022): presence is visible by default.
         showActivityStatus: true,
+        // v1.40-social (D155): everyone may send direct messages by default.
+        whoCanMessage: 'EVERYONE',
       });
       const updated = await ctx.http
         .patch('/api/v1/me/privacy')
@@ -405,6 +407,7 @@ describe('KL-060 safety', () => {
         whoCanMention: 'FOLLOWING',
         defaultWhoCanComment: 'FOLLOWERS',
         showActivityStatus: true,
+        whoCanMessage: 'EVERYONE',
       });
       const partial = await ctx.http
         .patch('/api/v1/me/privacy')
@@ -414,6 +417,7 @@ describe('KL-060 safety', () => {
         whoCanMention: 'NOBODY',
         defaultWhoCanComment: 'FOLLOWERS',
         showActivityStatus: true,
+        whoCanMessage: 'EVERYONE',
       });
       const created = await ctx.http.get(`/api/v1/posts/${await post(me)}`).set(auth(me));
       expect(created.body.settings.whoCanComment).toBe('FOLLOWERS');

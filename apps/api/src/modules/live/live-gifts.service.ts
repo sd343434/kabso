@@ -608,6 +608,180 @@ export class LiveGiftsService {
   }
 
   /**
+   * v1.40-social (D155, CONVENTIONS §11.13): a gift sent in a **direct conversation** — the live
+   * pipeline without a room: one recipient, the catalogue gift and quantity, `COINS` or `BAG`
+   * (lucky: `COINS`, its switch and gates), the normal or lucky rate limit, the wallet charge and
+   * ledger (`DM_GIFT`, or `LUCKY_GIFT` / `LUCKY_GIFT_WIN`), the sender's family points, the lucky
+   * draws (guarantee and daily protection) and the level credits — the recipient's charm counts
+   * `GIFT_DM_RECIPIENT_SHARE_PERCENT` of the value (lucky: the lucky host share), the sender's
+   * support the full value (lucky: as in a live). No score, Contribution, wish list, data message
+   * or ticker. The caller (the messages module) checked the recipient, blocks, privacy and the
+   * request rules before; `hooks.before` runs first inside the transaction (after the sender's
+   * lock: it locks the pair, checks again and returns the conversation id) and `hooks.after` last
+   * (it writes the gift message). A refusal in either rolls everything back. Retries are answered
+   * by the caller (the message's `clientId`), and a concurrent retry fails on `live_gifts_client_once`.
+   */
+  async sendDirect<T>(
+    callerId: string,
+    recipientId: string,
+    input: { giftCode: string; quantity: number; source: 'COINS' | 'BAG'; clientId: string },
+    region: LuckyRegionInput,
+    hooks: {
+      before(tx: Prisma.TransactionClient): Promise<string>;
+      after(
+        tx: Prisma.TransactionClient,
+        sent: { giftId: string; at: Date; luckyResult: LuckyGiftResultDto | null },
+      ): Promise<T>;
+    },
+  ): Promise<{ extra: T; coins: number; bagQuantity: number; luckyResult: LuckyGiftResultDto | null }> {
+    const clientId = input.clientId.toLowerCase();
+    const gift = await this.prisma.gift.findUnique({ where: { code: input.giftCode } });
+    if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+    const isLucky = gift.category === 'LUCKY';
+    if (isLucky) {
+      if (!this.lucky.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+      if (input.source !== 'COINS')
+        throw AppException.validation([{ field: 'source', issue: 'invalid_value' }]);
+      await this.lucky.assertMaySend(callerId, region);
+    }
+    await this.limiter.consume(
+      isLucky ? 'live:gift:lucky' : 'live:gift',
+      callerId,
+      isLucky ? this.config.rateLimits.liveLuckyGiftBurstUser : this.config.rateLimits.liveGiftUser,
+    );
+    const winners = isLucky ? this.lucky.draw(input.quantity) : null;
+    const table = this.lucky.table;
+    const done = await this.oneAtATime(callerId, () =>
+      this.prisma.$transaction(async (tx) => {
+        await setLiveStatementTimeout(tx);
+        // The same first lock as a live send: one send of this sender at a time (the lucky streak).
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
+        const conversationId = await hooks.before(tx);
+        const now = this.clock.now();
+        const at = now.toISOString();
+        const giftId = uuidv7();
+        const isCoins = input.source === 'COINS';
+        const [state] = await tx.$queryRaw<
+          {
+            price_coins: number;
+            enabled: boolean;
+            category: string;
+            family_id: string | null;
+            losses: number | null;
+          }[]
+        >`
+          SELECT g.price_coins, g.enabled, g.category::text AS category,
+                 (SELECT family_id::text FROM family_members
+                   WHERE user_id = ${callerId}::uuid AND ${isCoins} FOR SHARE) AS family_id,
+                 (SELECT losses FROM lucky_gift_pity WHERE user_id = ${callerId}::uuid) AS losses
+            FROM gifts g WHERE g.code = ${gift.code} FOR SHARE`;
+        if (!state?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        if ((state.category === 'LUCKY') !== isLucky) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
+        const unitPrice = state.price_coins;
+        const amounts = giftAmounts(unitPrice, input.quantity, 1);
+        const shareBps = isLucky ? table.hostShareBps : this.config.dm.giftRecipientSharePercent * 100;
+        const charmCoins = shareOf(amounts.perRecipientCoins, shareBps);
+        let bagQuantity: number | null = null;
+        if (!isCoins) {
+          bagQuantity = await consumeStockIn(tx, callerId, gift.code, amounts.bagUnits);
+          if (bagQuantity === null) throw new AppException(ErrorCode.GIFT_BAG_INSUFFICIENT);
+        }
+        const familyCoins = isLucky ? shareOf(amounts.totalCoins, table.hostShareBps) : amounts.totalCoins;
+        const family = isCoins && state.family_id !== null && familyCoins > 0 ? state.family_id : null;
+        const [written] = await tx.$queryRaw<
+          { coins: bigint | null; family_points: bigint | null; family_level: number | null }[]
+        >`
+          WITH sent AS (
+            INSERT INTO live_gifts (id, sender_id, client_id, room_id, dm_conversation_id, gift_code, quantity,
+                                    source, unit_price, total_coins, coins_charged, recipients_key, combo_id,
+                                    combo_count, combo_quantity, created_at)
+            VALUES (${giftId}::uuid, ${callerId}::uuid, ${clientId}::uuid, NULL, ${conversationId}::uuid,
+                    ${gift.code}, ${input.quantity}, ${input.source}::live_gift_source, ${unitPrice},
+                    ${amounts.totalCoins}, ${isCoins ? amounts.totalCoins : 0}, ${recipientsKey([recipientId])},
+                    ${giftId}::uuid, 1, ${input.quantity}, ${at}::timestamptz)
+            RETURNING id),
+          recipients AS (
+            INSERT INTO live_gift_recipients (gift_id, user_id, position, coins)
+            SELECT sent.id, ${recipientId}::uuid, 0, ${amounts.perRecipientCoins} FROM sent
+            RETURNING 1),
+          debit AS (
+            UPDATE wallets SET coins = coins - ${amounts.totalCoins}, updated_at = now()
+             WHERE ${isCoins} AND user_id = ${callerId}::uuid AND coins >= ${amounts.totalCoins}
+            RETURNING coins),
+          ledger AS (
+            INSERT INTO wallet_ledger (id, user_id, delta, balance_after, reason, reference_id, created_at)
+            SELECT ${uuidv7()}::uuid, ${callerId}::uuid, ${-amounts.totalCoins}, debit.coins,
+                   ${isLucky ? 'LUCKY_GIFT' : 'DM_GIFT'}::wallet_ledger_reason, ${giftId},
+                   ${new Date().toISOString()}::timestamptz
+              FROM debit
+            RETURNING id),
+          family_entry AS (
+            INSERT INTO family_points_ledger (id, family_id, user_id, wallet_ledger_id, points, created_at)
+            SELECT ${uuidv7()}::uuid, ${family}::uuid, ${callerId}::uuid, ledger.id, ${familyCoins}, now()
+              FROM ledger WHERE ${family}::uuid IS NOT NULL
+            ON CONFLICT (wallet_ledger_id) DO NOTHING
+            RETURNING family_id),
+          family_member AS (
+            UPDATE family_members SET points = points + ${familyCoins}
+             WHERE user_id = ${callerId}::uuid AND EXISTS (SELECT 1 FROM family_entry)
+            RETURNING 1),
+          family_row AS (
+            UPDATE families SET points = LEAST(points + ${familyCoins}, 9007199254740991), updated_at = now()
+             WHERE id IN (SELECT family_id FROM family_entry)
+            RETURNING points, level)
+          SELECT (SELECT coins FROM debit) AS coins,
+                 (SELECT points FROM family_row) AS family_points,
+                 (SELECT level FROM family_row) AS family_level,
+                 (SELECT count(*) FROM recipients) + (SELECT count(*) FROM family_member) AS rows`;
+        if (isCoins && (written?.coins ?? null) === null)
+          throw new AppException(ErrorCode.INSUFFICIENT_COINS);
+        let coins: number | null = isCoins ? Number(written!.coins) : null;
+        if (written?.family_points !== null && written?.family_points !== undefined && family !== null) {
+          const level = familyLevelFor(written.family_points);
+          if (level !== written.family_level) {
+            await tx.$executeRaw`UPDATE families SET level = ${level} WHERE id = ${family}::uuid`;
+          }
+        }
+        await this.creditLevels(tx, {
+          giftId,
+          senderId: callerId,
+          hostId: recipientId,
+          recipients: [{ id: recipientId, username: '' }],
+          perRecipientCoins: amounts.perRecipientCoins,
+          lucky: isLucky,
+          countedPerRecipientCoins: charmCoins,
+          ...(isLucky ? {} : { supportPerRecipientCoins: amounts.perRecipientCoins }),
+        });
+        let luckyResult: LuckyGiftResultDto | null = null;
+        if (isLucky) {
+          const lucky = await this.settleLucky(tx, {
+            giftId,
+            senderId: callerId,
+            giftCode: gift.code,
+            unitPrice,
+            quantity: input.quantity,
+            recipients: 1,
+            totalCoins: amounts.totalCoins,
+            winners: winners ?? [],
+            lossesBefore: state.losses ?? 0,
+            now,
+          });
+          if (lucky.coins !== null) coins = lucky.coins;
+          luckyResult = lucky.result;
+        }
+        const extra = await hooks.after(tx, { giftId, at: now, luckyResult });
+        return { extra, coins, bagQuantity, luckyResult };
+      }, LIVE_TX_OPTIONS),
+    );
+    return {
+      extra: done.extra,
+      coins: done.coins ?? (await this.wallet.mine(callerId)).coins,
+      bagQuantity: done.bagQuantity ?? (await stockOf(this.prisma, callerId, gift.code)),
+      luckyResult: done.luckyResult,
+    };
+  }
+
+  /**
    * v1.27-live (D132, §10.27), D148: inside the send's transaction, after everything else: adds the
    * send to the day's lucky spend (locking the day row: lucky sends are serialized per day, so this
    * comes last), settles the draws in draw order with the sender's streak (the guarantee, D148) and
@@ -773,6 +947,12 @@ export class LiveGiftsService {
       lucky: boolean;
       /** The value counted for charm (and support, when switched on): the host share for lucky gifts. */
       countedPerRecipientCoins: number;
+      /**
+       * v1.40-social (D155): the value counted for the sender's support when it differs from the
+       * charm value (a gift in a conversation: charm counts the recipient's share, support the full
+       * value). Absent: `countedPerRecipientCoins`.
+       */
+      supportPerRecipientCoins?: number;
     },
   ): Promise<boolean> {
     // D148 (fewer round trips): every category a send can credit, share-locked and loaded at once
@@ -808,7 +988,12 @@ export class LiveGiftsService {
       if (typeof result === 'string') continue;
       for (const credit of result) {
         // v1.27-live (D132): Wizard counts the full value sent; charm and support the host share.
-        const value = credit.category === 'WIZARD' ? credit.value : BigInt(send.countedPerRecipientCoins);
+        const value =
+          credit.category === 'WIZARD'
+            ? credit.value
+            : credit.category === 'SUPPORT' && send.supportPerRecipientCoins !== undefined
+              ? BigInt(send.supportPerRecipientCoins)
+              : BigInt(send.countedPerRecipientCoins);
         if (value <= 0n) continue;
         credits.push({ ...credit, value, source: `gift:${send.giftId}:${r.id}` });
       }

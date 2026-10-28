@@ -385,6 +385,11 @@ export const envSchema = z
     RATE_LIMIT_CP_CONFESSION_USER: rateLimit('10/3600'),
     // v1.25-live (CP-022, D116): family chat messages, 30 / minute per user.
     RATE_LIMIT_FAMILY_CHAT_USER: rateLimit('30/60'),
+    // v1.40-social (D155, CONVENTIONS §7, §11.13): direct messages — sends, message requests (sent
+    // to people who do not follow the sender), and the other writes (read, accept, delete, mute).
+    RATE_LIMIT_DM_SEND_USER: rateLimit('30/60'),
+    RATE_LIMIT_DM_REQUEST_USER: rateLimit('20/3600'),
+    RATE_LIMIT_DM_WRITE_USER: rateLimit('300/3600'),
     RATE_LIMIT_FOLLOW_HOUR_USER: rateLimit('60/3600'),
     RATE_LIMIT_FOLLOW_DAY_USER: rateLimit('300/86400'),
     // v1.5-social (CONVENTIONS §11.8); every bucket is per user and replaces the default.
@@ -593,6 +598,19 @@ export const envSchema = z
     PUSH_GENERAL_GAP_SECONDS: intSetting(5, 0, 3600),
     /** D152: at most one message push per recipient per chat per this many seconds (0 = no limit). */
     PUSH_MESSAGES_GAP_SECONDS: intSetting(10, 0, 3600),
+    /** v1.40-social (D155, §11.13, owner): a direct message is deleted this many hours after it was sent. */
+    DM_RETENTION_HOURS: intSetting(24, 1, 720),
+    /** D155: period of the direct-message sweeper (expired messages and their media); 0 disables it (not in production). */
+    DM_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
+    /** D155: messages a sender may send in a message request before the recipient accepts or replies. */
+    DM_REQUEST_MAX_MESSAGES: intSetting(3, 1, 20),
+    /** D155: one's own message may be deleted for everyone within this many seconds of sending it. */
+    DM_DELETE_FOR_EVERYONE_SECONDS: intSetting(3600, 0, 86400),
+    /**
+     * D155 (owner: 50 %): the share of a (non-lucky) gift's coin value counted for the recipient's
+     * charm when it is sent in a direct conversation. Lucky gifts keep LUCKY_GIFT_HOST_SHARE_PERCENT.
+     */
+    GIFT_DM_RECIPIENT_SHARE_PERCENT: intSetting(50, 0, 100),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
@@ -790,6 +808,14 @@ export const envSchema = z
           code: 'custom',
           path: ['NOTIFICATIONS_SWEEP_INTERVAL_SECONDS'],
           message: 'the notifications sweeper cannot be disabled in production',
+        });
+      }
+      // D155 (owner): direct messages must really disappear after DM_RETENTION_HOURS.
+      if (env.DM_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['DM_SWEEP_INTERVAL_SECONDS'],
+          message: 'the direct-message sweeper cannot be disabled in production',
         });
       }
       if (env.SOCIAL_CURSOR_KEY !== undefined) {

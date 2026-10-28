@@ -66,8 +66,17 @@ export const MEDIA_KINDS = [
   // v1.26-live (D124): a home banner (1 500 × 500, cover-cropped to 3:1); attached only by the
   // banner-admin CLI.
   'HOME_BANNER',
+  // v1.40-social (D155): a direct message's picture (like a post image) and voice note (like a live
+  // chat voice clip); deleted with the message after 24 hours (§11.13).
+  'DM_IMAGE',
+  'DM_VOICE',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+/** The voice-clip kinds (CP-017 pipeline: `audio/mp4`, ≤ 1 MiB, ≤ 30 s). */
+export function isVoiceKind(kind: string): boolean {
+  return kind === 'LIVE_CHAT_VOICE' || kind === 'DM_VOICE';
+}
 
 /**
  * `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). CP-017: a
@@ -80,7 +89,7 @@ export const createMediaUploadSchema = z
     byteSize: z.number().int().min(1).max(MAX_IMAGE_BYTES),
   })
   .superRefine((value, ctx) => {
-    const voice = value.kind === 'LIVE_CHAT_VOICE';
+    const voice = isVoiceKind(value.kind);
     const audio = (AUDIO_CONTENT_TYPES as readonly string[]).includes(value.contentType);
     if (voice !== audio) {
       ctx.addIssue({ code: 'custom', path: ['contentType'], params: { issue: 'invalid_value' } });
@@ -127,6 +136,11 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     if (!this.config.media.uploadsEnabled) throw new AppException(ErrorCode.MEDIA_UPLOADS_UNAVAILABLE);
   }
 
+  /** `MEDIA_PUBLIC_BASE_URL` (D155: report snapshots build their file's URL from it). */
+  get publicBaseUrl(): string | undefined {
+    return this.config.media.publicBaseUrl;
+  }
+
   private publicUrl(key: string): string {
     return `${this.config.media.publicBaseUrl ?? ''}/${key}`;
   }
@@ -139,7 +153,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   ): MediaAssetDto {
     const dto: MediaAssetDto = {
       id: asset.id,
-      type: asset.kind === 'LIVE_CHAT_VOICE' ? 'AUDIO' : 'IMAGE',
+      type: isVoiceKind(asset.kind) ? 'AUDIO' : 'IMAGE',
       status: 'READY',
       width: asset.width,
       height: asset.height,
@@ -165,6 +179,17 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     await this.storage.delete(keys).catch((err: unknown) => {
       this.logger.warn({ count: keys.length, error: safeErrorLog(err) }, 'Media objects not deleted');
     });
+  }
+
+  /**
+   * v1.40-social (D155): copies a stored object to `toKey` (a report's own copy of a direct
+   * message's file, kept after the message is deleted). Returns false when the source is gone.
+   */
+  async copyObject(fromKey: string, toKey: string, contentType: string): Promise<boolean> {
+    const bytes = await this.storage.get(fromKey, 16 * 1024 * 1024);
+    if (!bytes) return false;
+    await this.storage.put(toKey, bytes, contentType, 'private, no-store');
+    return true;
   }
 
   /**
@@ -234,7 +259,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     if (!bytes || bytes.length !== upload.byteSize) return fail('size mismatch');
 
     const kind = MEDIA_KINDS.find((k) => k === upload.kind) ?? 'POST_IMAGE';
-    if (kind === 'LIVE_CHAT_VOICE') {
+    if (isVoiceKind(kind)) {
       let clip: { durationMs: number };
       try {
         clip = verifyVoiceClip(bytes);
@@ -242,7 +267,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
         if (err instanceof InvalidAudioError) return fail(err.message);
         throw err;
       }
-      return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs));
+      return this.toDto(await this.storeVoice(userId, upload, bytes, clip.durationMs, kind));
     }
     const shape: ImageShape =
       kind === 'HOME_BANNER'
@@ -308,6 +333,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     upload: { id: string; objectKey: string },
     bytes: Buffer,
     durationMs: number,
+    kind: MediaKind = 'LIVE_CHAT_VOICE',
   ): Promise<MediaAsset> {
     const key = `media/${upload.id}/voice.m4a`;
     await this.storage.put(key, bytes, 'audio/mp4', IMMUTABLE_CACHE);
@@ -317,7 +343,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
           {
             id: upload.id,
             ownerId: userId,
-            kind: 'LIVE_CHAT_VOICE',
+            kind,
             width: 0,
             height: 0,
             blurhash: null,

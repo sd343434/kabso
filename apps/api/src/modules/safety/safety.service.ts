@@ -7,6 +7,15 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { readableCpConfession, removeCpConfessionIn } from '../cp-space/cp-confessions.js';
 import { readableFamilyChatMessage, removeFamilyChatMessageIn } from '../families/family-chat.js';
+import { uuidv7 } from '../levels/uuidv7.js';
+import { MediaService } from '../media/media.service.js';
+import {
+  dmSnapshotDto,
+  removeDmMessageIn,
+  reportableDmMessage,
+  type DmSnapshot,
+  type DmSnapshotDto,
+} from '../messages/dm-reports.js';
 import { LiveChatService } from '../live/live-chat.service.js';
 import { LiveMediaService } from '../live/live-media.service.js';
 import { LiveRoomsService } from '../live/live-rooms.service.js';
@@ -44,7 +53,8 @@ export interface ReportDto {
     | 'LIVE_ROOM'
     | 'LIVE_CHAT_MESSAGE'
     | 'CP_CONFESSION'
-    | 'FAMILY_CHAT_MESSAGE';
+    | 'FAMILY_CHAT_MESSAGE'
+    | 'DM_MESSAGE';
   targetId: string;
   reason: string;
   note: string | null;
@@ -52,6 +62,8 @@ export interface ReportDto {
   createdAt: string;
   resolvedAt: string | null;
   reporter?: UserSummaryDto;
+  /** v1.40-social (D155): admin views of DM_MESSAGE reports. */
+  dmSnapshot?: DmSnapshotDto;
 }
 
 export interface PrivacyDto {
@@ -59,6 +71,8 @@ export interface PrivacyDto {
   defaultWhoCanComment: 'EVERYONE' | 'FOLLOWERS' | 'NOBODY';
   /** v1.25-live (CP-022): others may see when the user was last active (§10.25). */
   showActivityStatus: boolean;
+  /** v1.40-social (D155): who may send the user direct messages (§11.13). */
+  whoCanMessage: 'EVERYONE' | 'FOLLOWING' | 'NOBODY';
 }
 
 const REPORT_INCLUDE = {
@@ -86,6 +100,7 @@ export class SafetyService {
     private readonly liveMedia: LiveMediaService,
     private readonly liveSeats: LiveSeatsService,
     private readonly liveChat: LiveChatService,
+    private readonly media: MediaService,
   ) {}
 
   // ---------------------------------------------------------------------------------------------
@@ -243,13 +258,31 @@ export class SafetyService {
     const parsed = createReportSchema.safeParse(body ?? {});
     if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
     const input = parsed.data;
-    const target = await this.resolveTarget(reporterId, input);
+    // v1.40-social (D155): a direct message is kept as a snapshot (it is deleted after 24 h).
+    const dm =
+      input.targetType === 'DM_MESSAGE' && isUuid(input.targetId)
+        ? await reportableDmMessage(this.prisma, input.targetId.toLowerCase(), reporterId, new Date())
+        : null;
+    if (input.targetType === 'DM_MESSAGE' && !dm) throw new AppException(ErrorCode.NOT_FOUND);
+    const target = dm ? { targetDmMessageId: dm.id } : await this.resolveTarget(reporterId, input);
     const where: Prisma.ReportWhereInput = { reporterId, status: 'OPEN', ...target };
     const existing = await this.prisma.report.findFirst({ where, include: REPORT_INCLUDE });
     if (existing) return { report: this.toDto(existing, false), created: false };
+    const reportId = uuidv7();
+    let snapshot: DmSnapshot | null = null;
+    if (dm) {
+      let mediaKey: string | null = null;
+      if (dm.media) {
+        const key = `reports/dm/${reportId}.${dm.media.extension}`;
+        if (await this.media.copyObject(dm.media.key, key, dm.media.contentType)) mediaKey = key;
+      }
+      snapshot = { ...dm.snapshot, mediaKey, purged: false };
+    }
     try {
       const row = await this.prisma.report.create({
         data: {
+          id: reportId,
+          ...(snapshot ? { dmSnapshot: snapshot as unknown as Prisma.InputJsonValue } : {}),
           reporterId,
           targetType: input.targetType,
           reason: input.reason,
@@ -461,6 +494,11 @@ export class SafetyService {
           // CP-022: the message leaves the family chat (soft).
           await removeFamilyChatMessageIn(tx, report.targetFamilyChatMessageId, actor.userId, new Date());
         }
+        if (report.targetDmMessageId) {
+          // v1.40-social (D155): the message expires now (the sweeper deletes it and its file); the
+          // report keeps its snapshot.
+          await removeDmMessageIn(tx, report.targetDmMessageId, new Date());
+        }
         if (report.targetLiveRoomId) {
           // CP-010: the room ends with ADMIN; its media session closes after the commit.
           endedRooms.push(...(await this.liveRooms.endByAdminIn(tx, { roomId: report.targetLiveRoomId })));
@@ -481,7 +519,9 @@ export class SafetyService {
                   ? { targetCpConfessionId: report.targetCpConfessionId }
                   : report.targetFamilyChatMessageId
                     ? { targetFamilyChatMessageId: report.targetFamilyChatMessageId }
-                    : { targetUserId: report.targetUserId };
+                    : report.targetDmMessageId
+                      ? { targetDmMessageId: report.targetDmMessageId }
+                      : { targetUserId: report.targetUserId };
       const closed = await tx.report.updateMany({
         where: { ...target, status: 'OPEN' },
         data: {
@@ -503,6 +543,7 @@ export class SafetyService {
           report.targetLiveChatMessageId ??
           report.targetCpConfessionId ??
           report.targetFamilyChatMessageId ??
+          report.targetDmMessageId ??
           report.targetUserId ??
           undefined,
         metadata: { reportId: id, action, reportsClosed: closed.count },
@@ -531,6 +572,7 @@ export class SafetyService {
         row.targetLiveChatMessageId ??
         row.targetCpConfessionId ??
         row.targetFamilyChatMessageId ??
+        row.targetDmMessageId ??
         row.targetUser?.profile?.username ??
         row.targetUserId ??
         '',
@@ -540,6 +582,9 @@ export class SafetyService {
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt?.toISOString() ?? null,
       ...(admin ? { reporter: userSummary(row.reporter) } : {}),
+      ...(admin && row.targetType === 'DM_MESSAGE'
+        ? { dmSnapshot: dmSnapshotDto(row.dmSnapshot, this.media.publicBaseUrl) ?? undefined }
+        : {}),
     };
   }
 
@@ -552,6 +597,7 @@ export class SafetyService {
       whoCanMention: row?.whoCanMention ?? 'EVERYONE',
       defaultWhoCanComment: row?.defaultWhoCanComment ?? 'EVERYONE',
       showActivityStatus: row?.showActivityStatus ?? true,
+      whoCanMessage: row?.whoCanMessage ?? 'EVERYONE',
     };
   }
 

@@ -88,6 +88,11 @@ describe('ErrorCode', () => {
         'PREMIUM_USERNAME_UNAVAILABLE',
         'PREMIUM_USERNAME_PRICE_CHANGED',
         'PREMIUM_USERNAME_ACTIVE',
+        // v1.40-social (DRAFT, D155)
+        'DM_NOT_ALLOWED',
+        'DM_REQUEST_LIMIT',
+        'DM_REQUEST_TEXT_ONLY',
+        'DM_DELETE_WINDOW_PASSED',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -146,6 +151,10 @@ describe('ErrorCode', () => {
       PREMIUM_USERNAME_UNAVAILABLE: 409,
       PREMIUM_USERNAME_PRICE_CHANGED: 409,
       PREMIUM_USERNAME_ACTIVE: 409,
+      DM_NOT_ALLOWED: 403,
+      DM_REQUEST_LIMIT: 403,
+      DM_REQUEST_TEXT_ONLY: 403,
+      DM_DELETE_WINDOW_PASSED: 409,
     });
   });
 
