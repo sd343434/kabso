@@ -185,7 +185,7 @@ void main() {
       setUp(() {
         opened.clear();
         // D160 probes the camera for 1080p before opening it; not under test.
-        LiveKitMediaEngine.hdProbe = ({required bool front}) async => null;
+        LiveKitMediaEngine.hdProbe = ({required front}) async => null;
         LiveKitMediaEngine.createCamera = (_) {
           final camera = Completer<lk.LocalVideoTrack>();
           opened.add(camera);
