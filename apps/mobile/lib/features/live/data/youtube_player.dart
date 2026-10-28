@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -30,13 +31,72 @@ final class YoutubePlayerStateChanged extends YoutubePlayerEvent {
   final int positionMs;
 }
 
-/// The player could not play the video (YouTube's error [code]: 2 bad id,
-/// 5 HTML5 error, 100 removed or private, 101 / 150 not embeddable).
+/// The player could not play the video (YouTube's error [code], see
+/// [YoutubePlayerFailure]).
 final class YoutubePlayerFailed extends YoutubePlayerEvent {
   const new(this.code);
 
   final int code;
+
+  YoutubePlayerFailure get failure => YoutubePlayerFailure.of(code);
 }
+
+/// What a YouTube player error means (D154k). The viewer sees the same
+/// honest «تعذّر تشغيل الفيديو على هذا الهاتف» for all of them; the log
+/// tells a video that cannot be shown here from a player we set up wrong.
+enum YoutubePlayerFailure {
+  /// 2: the id or a parameter is malformed.
+  invalidRequest,
+
+  /// 5: the HTML5 player failed on this phone.
+  html5,
+
+  /// 100 / 105: removed, private or not found.
+  notFound,
+
+  /// 101 / 150: the owner does not allow embedded playback (the server's
+  /// oEmbed check catches most of these first, D154i).
+  notEmbeddable,
+
+  /// 152 / 153 (shown as e.g. «152 - 4»): YouTube refused the embedder's
+  /// identity — no or a wrong Referer / origin (an app page claiming to be
+  /// youtube.com gets 152-4). Our configuration, not the video.
+  embedderRejected,
+
+  /// Any other code.
+  unknown;
+
+  static YoutubePlayerFailure of(int code) => switch (code) {
+    2 => invalidRequest,
+    5 => html5,
+    100 || 105 => notFound,
+    101 || 150 => notEmbeddable,
+    152 || 153 => embedderRejected,
+    _ => unknown,
+  };
+
+  /// The player's setup is at fault, not the video.
+  bool get isConfiguration => this == embedderRejected;
+}
+
+/// The https origin the embed page runs at, sent to YouTube as the
+/// Referer and as the `origin` / `widget_referrer` player parameters
+/// (D154k). YouTube identifies an app's embedded player by it and refuses
+/// a page with no Referer (153) or one that claims to be youtube.com
+/// itself (152-4, D154i's mistake), so a web-view app identifies itself
+/// with its own application id as `https://<app id>` — what
+/// android-youtube-player 13 does on Android. Lower case: it must equal
+/// the page's serialized origin, or the player's messages to the page are
+/// dropped. These must follow the Android `applicationId` and the iOS
+/// `PRODUCT_BUNDLE_IDENTIFIER` (a test checks them; the final id is B7).
+String youtubeEmbedOrigin([TargetPlatform? platform]) =>
+    switch (platform ?? defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => youtubeEmbedOriginIos,
+      _ => youtubeEmbedOriginAndroid,
+    };
+
+const youtubeEmbedOriginAndroid = 'https://com.kabso.kabso_live';
+const youtubeEmbedOriginIos = 'https://com.kabso.kabsolive';
 
 /// One official YouTube embedded player (D154i, CONVENTIONS §10.39: the
 /// YouTube IFrame player only, per YouTube's terms; the video streams
@@ -73,11 +133,15 @@ final Provider<YoutubePlayerFactory> youtubePlayerFactoryProvider =
     );
 
 /// [YoutubePlayer] on the YouTube IFrame Player API in a web view: the page
-/// is YouTube's own embed script; the app talks to it through a JavaScript
-/// channel (`Kabso`). Autoplay is allowed without a tap (the room follows
-/// the host). Not run in widget tests (no web view there).
+/// is YouTube's own embed script, loaded at [origin] (D154k); the app talks
+/// to it through a JavaScript channel (`Kabso`). Autoplay is allowed
+/// without a tap (the room follows the host): JavaScript on, Android's
+/// media without a user gesture, iOS inline with no media needing a tap.
+/// The web view's own user agent is kept (YouTube serves its mobile
+/// player to it). Not run in widget tests (no web view there).
 class WebViewYoutubePlayer implements YoutubePlayer {
-  new({required this.controls}) {
+  new({required this.controls, String? origin})
+    : origin = origin ?? youtubeEmbedOrigin() {
     final params = WebViewPlatform.instance is WebKitWebViewPlatform
         ? WebKitWebViewControllerCreationParams(
             allowsInlineMediaPlayback: true,
@@ -97,6 +161,9 @@ class WebViewYoutubePlayer implements YoutubePlayer {
   }
 
   final bool controls;
+
+  /// Where the embed page runs (its base URL), see [youtubeEmbedOrigin].
+  final String origin;
   late final WebViewController _controller;
   final _events = StreamController<YoutubePlayerEvent>.broadcast();
 
@@ -132,16 +199,20 @@ class WebViewYoutubePlayer implements YoutubePlayer {
   @override
   Widget view() => WebViewWidget(controller: _controller);
 
-  /// The embed page (the official IFrame API).
+  /// The embed page (the official IFrame API), to be loaded at [origin]:
+  /// the player's `origin` and `widget_referrer` name the page's own
+  /// origin, and the Referer sent with the player's request carries it.
   static String page({
     required String videoId,
     required int startSeconds,
     required bool autoplay,
     required bool controls,
+    required String origin,
   }) =>
       '''
 <!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <style>html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}#p{position:absolute;inset:0;width:100%;height:100%}</style>
 </head><body><div id="p"></div>
 <script>
@@ -150,7 +221,8 @@ function post(o){try{Kabso.postMessage(JSON.stringify(o));}catch(e){}}
 function onYouTubeIframeAPIReady(){
   player=new YT.Player('p',{width:'100%',height:'100%',videoId:'$videoId',
     playerVars:{playsinline:1,controls:${controls ? 1 : 0},disablekb:${controls ? 0 : 1},rel:0,fs:0,
-      iv_load_policy:3,start:$startSeconds,autoplay:${autoplay ? 1 : 0},origin:'https://www.youtube.com'},
+      iv_load_policy:3,start:$startSeconds,autoplay:${autoplay ? 1 : 0},enablejsapi:1,
+      origin:'$origin',widget_referrer:'$origin'},
     events:{
       onReady:function(){post({e:'ready'});${autoplay ? 'player.playVideo();' : ''}},
       onStateChange:function(ev){post({e:'state',s:ev.data,t:player.getCurrentTime()});},
@@ -177,8 +249,9 @@ function k(fn){if(player&&player[fn]){return true;}return false;}
         startSeconds: startMs ~/ 1000,
         autoplay: play,
         controls: controls,
+        origin: origin,
       ),
-      baseUrl: 'https://www.youtube.com',
+      baseUrl: origin,
     );
   }
 

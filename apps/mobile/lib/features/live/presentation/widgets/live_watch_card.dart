@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/logging/app_logger.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/youtube_player.dart';
@@ -223,7 +224,13 @@ class _PlayerState extends ConsumerState<_Player> {
             _controller.report(playing: playing, positionMs: positionMs),
           );
         }
-      case YoutubePlayerFailed():
+      case YoutubePlayerFailed(:final code, :final failure):
+        // The same honest overlay for all; the log says whose fault (D154k).
+        AppLogger.warning(
+          'YouTube player error $code (${failure.name}) for $_loaded'
+          '${failure.isConfiguration ? ': the embed identity was refused, '
+                    'check the player origin' : ''}',
+        );
         if (mounted) setState(() => _failed = true);
     }
   }
