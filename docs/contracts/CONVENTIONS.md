@@ -502,6 +502,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.31-live (draft) | 2026-10-28 | **D148 (owner: eight tiers, a guarantee, «لحظة الحظ», 100 lucky sends a second):** the lucky table is configured as chances per million (`LUCKY_GIFT_CHANCES_PER_MILLION`, default ×5 48 918 · ×10 15 451 · ×25 3 903 · ×50 1 464 · ×100 569 · ×250 130 · ×500 40 · ×1000 12; `LUCKY_GIFT_MULTIPLIERS` default `5,10,25,50,100,250,500,1000`; `LUCKY_GIFT_RTP_SHARES` removed — set, the server refuses to start); the per-sender guarantee (`LUCKY_PITY_AFTER` 15, `LUCKY_PITY_MULTIPLIER` 5: after 15 losing draws in a row the next draw pays at least ×5); `LuckyGiftOdds.pity` (`LuckyGiftPity`, nullable) and `returnPercent` now includes the guarantee (84.9999 with the defaults); `LuckyGiftResult.guaranteed`; data message `lucky-ticker` on topic `lucky` to every other LIVE room for a win ≥ `bigWinMultiplier`, at most one every 10 s (all instances), the biggest waiting one next; audit columns `lucky_gift_draws.losses_before`, `losses_after`, `guaranteed` and table `lucky_gift_pity`. §10.27. | **Additive** for clients (new fields and a new data message type; older apps ignore them). **Behaviour change** for lucky draws (new odds and the guarantee) — the published odds say so. A server configured with `LUCKY_GIFT_RTP_SHARES` must switch to `LUCKY_GIFT_CHANCES_PER_MILLION` before upgrading. |
 | v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
 | v1.29.2-live (draft) | 2026-10-28 | **D145d (owner: «100 lucky draws a second per user»):** `sendLiveGift` rate-limit defaults — every send 6000 / min per user (`live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` `6000/60`, was 600/60), a LUCKY gift 100 / s (`live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` `100/1`, was 10/1); a normal gift stays 120 / min (`live:gift`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
 | v1.29.1-live (draft) | 2026-10-28 | **D145c (owner, device: «too many attempts» after a number of lucky-gift taps):** `sendLiveGift` rate limits — every send 600 / min per user (`live:gift:any`), then a normal gift 120 / min (`live:gift`, unchanged) or a LUCKY gift 10 / s (`live:gift:lucky`); a `clientId` replay counts only against the first. Config `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` (`600/60`), `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` (`10/1`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
@@ -1829,7 +1830,7 @@ Owner decisions (D124, 2026-10-26) are marked *(owner)*; the rest are CTO defaul
   hides the box for the rest of that live on that device. Migration
   `20261129090000_live_wish_gifts_room_banners` (`placement`, CHECK `home_banners_placement_values`).
 
-### 10.27 Lucky gifts *(v1.27-live, DRAFT — D132)*
+### 10.27 Lucky gifts *(v1.27-live, DRAFT — D132; v1.31-live, D148)*
 
 Owner decisions (2026-10-27) are marked *(owner)*; every other number is a CTO default the owner may
 change in the server configuration (no app update). Odds, the age gate and the region list are
@@ -1838,47 +1839,84 @@ change in the server configuration (no app update). Odds, the age gate and the r
 - **What** *(owner)*: a gift of category **`LUCKY`** is sent like any live gift (§10.23) and, in
   addition, gives the sender a chance to win coins back: **every gift of the send is one draw**
   (`quantity × recipients` draws; a send of 99 to 2 people is 198 draws), each independent, against
-  one multiplier table; a draw that wins credits `multiplier × unitPrice` coins. Multipliers ×5, ×10,
-  ×50, ×100, ×500 *(owner)*, the big ones very rare. One draw per gift (not one per send) keeps the
-  return the same whatever quantity is picked and lets a combo feel like many tries.
+  one multiplier table; a draw that wins credits `multiplier × unitPrice` coins. *v1.31-live (D148,
+  owner):* eight multipliers ×5, ×10, ×25, ×50, ×100, ×250, ×500, ×1000 (D132 had ×5 ×10 ×50 ×100
+  ×500), the big ones very rare, plus the per-sender **guarantee** below. One draw per gift (not one
+  per send) keeps the return the same whatever quantity is picked and lets a combo feel like many
+  tries.
 - **Switch:** `LUCKY_GIFTS_ENABLED` (default false). While it is off, `LUCKY` is not in
   `GiftCatalogue.categories`, LUCKY gifts are neither in the catalogue nor in the bag, a send of one →
   409 `GIFT_UNAVAILABLE`, and the odds say `enabled: false` (the table is still published).
   `gift-admin add|update <code> --category LUCKY` works either way.
-- **The odds, from the return** *(owner: RTP 85 %)*: the configuration gives the return `R`
-  (`LUCKY_GIFT_RTP_PERCENT`, 85), the multipliers `m_i` (`LUCKY_GIFT_MULTIPLIERS`, `5,10,50,100,500`)
-  and how the return is split between them, `s_i` in whole percent summing to 100
-  (`LUCKY_GIFT_RTP_SHARES`, `40,25,15,12,8`). Each multiplier's chance, in draws per million, is
-  `c_i = floor(R_bps × s_i / m_i)` (R_bps = R × 100), i.e. `p_i = c_i / 10^6 ≈ R × s_i / m_i`, so
-  `Σ p_i × m_i = R × Σ s_i = R` (the floor can only lower it; the published `returnPercent` is the
-  exact `Σ c_i × m_i / 10^4`). No win: `c_0 = 10^6 − Σ c_i`. The default table:
+- **The odds** *(v1.31-live, D148; owner: RTP 85 % including the guarantee)*: the configuration
+  gives the multipliers `m_i` (`LUCKY_GIFT_MULTIPLIERS`) and each one's chance in draws per million
+  `c_i` (`LUCKY_GIFT_CHANCES_PER_MILLION`), so `p_i = c_i / 10^6`; no win: `c_0 = 10^6 − Σ c_i`
+  (`q = c_0 / 10^6`). The return `R` (`LUCKY_GIFT_RTP_PERCENT`, 85) is the target and the daily
+  protection's ceiling. *(D132 derived `c_i` from "shares" of the return; `LUCKY_GIFT_RTP_SHARES` is
+  gone: set, the server refuses to start.)* The default table:
 
-  | Multiplier | Chance per million | Probability | ≈ 1 in | Share of the return |
-  | ---------: | -----------------: | ----------: | -----: | ------------------: |
-  | ×5   | 68 000 | 6.8 %    | 15     | 34 points of 85 |
-  | ×10  | 21 250 | 2.125 %  | 47     | 21.25 |
-  | ×50  | 2 550  | 0.255 %  | 392    | 12.75 |
-  | ×100 | 1 020  | 0.102 %  | 980    | 10.2 |
-  | ×500 | 136    | 0.0136 % | 7 353  | 6.8 |
-  | no win | 907 044 | 90.7044 % | — | — |
+  | Multiplier | Chance per million | Probability | ≈ 1 in | Return (points of 100) |
+  | ---------: | -----------------: | ----------: | -----: | ---------------------: |
+  | ×5    | 48 918 | 4.8918 %  | 20     | 24.459 |
+  | ×10   | 15 451 | 1.5451 %  | 65     | 15.451 |
+  | ×25   | 3 903  | 0.3903 %  | 256    | 9.7575 |
+  | ×50   | 1 464  | 0.1464 %  | 683    | 7.32 |
+  | ×100  | 569    | 0.0569 %  | 1 757  | 5.69 |
+  | ×250  | 130    | 0.013 %   | 7 692  | 3.25 |
+  | ×500  | 40     | 0.004 %   | 25 000 | 2 |
+  | ×1000 | 12     | 0.0012 %  | 83 333 | 1.2 |
+  | no win | 929 513 | 92.9513 % | — | — |
 
-  Σ c_i × m_i = 340 000 + 212 500 + 127 500 + 102 000 + 68 000 = 850 000 per million = **85 %**
-  exactly. The server **refuses to start** when: R is not 1–99 (two decimals at most), the host share
-  is not 0–100 or R + host share > 100 (the platform would pay out more than it takes), the
-  multipliers are not 1–32 strictly ascending whole numbers 2–10 000, the shares are not whole
-  numbers ≥ 1 of the same count summing to 100, any `c_i` rounds to 0, `Σ c_i > 10^6`, the big-win
-  multiplier is not one of the multipliers, the time zone is not an IANA name, or a country is not
-  two letters.
+  The draws alone return Σ p_i m_i = **69.1275 %**; the guarantee adds the rest: **84.9999 %**
+  (exact, below). *How these numbers were set (D148):* the owner's proposal (×5 48 330 · ×10 15 304
+  · ×25 3 866 · ×50 1 450 · ×100 564 · ×250 129 · ×500 40 · ×1000 12) returns 68.449 % alone and
+  **84.457 %** with the guarantee as defined here (83.30 % if the guaranteed draw paid exactly ×5
+  instead of "at least ×5"), short of 85 %; every chance was scaled by the same factor 1.0096
+  (rounded per million), then ×5 raised by 124 per million to the largest table not above 85 %.
+  A seeded simulation of 10 000 000 draws by one sender (unit test `lucky-odds.spec`, sends of 100
+  draws, no budget limit) realises **85.16 %** (one standard deviation ≈ 0.21 points).
+- **The guarantee ("pity")** *(v1.31-live, D148, owner option B)*: the server keeps, per sender,
+  the number of **losing draws in a row** (`lucky_gift_pity.losses`; any room, any session, any
+  device). A draw made while that number is at least `N` (`LUCKY_PITY_AFTER`, 15) pays **at least**
+  `×P` (`LUCKY_PITY_MULTIPLIER`, 5; one of the multipliers): it is drawn as usual, and a draw that
+  lost (or drew less than `×P`) is paid `×P` × the unit price instead — so the 16th draw after 15
+  losses never comes away empty, and one that wins more on its own pays what it won. Any **paid**
+  draw (the guarantee's own included) resets the count to 0; a draw that pays nothing adds 1. The
+  count moves draw by draw inside a send (a send of 99 can hold several guarantees) and is read and
+  written in the send's transaction under the sender's lock (`live-gift:<userId>`), so concurrent
+  sends of one sender are counted exactly once each, in the order they commit. `LuckyGiftResult.
+  guaranteed` is true when a draw of the send was paid by it (`paid > drawn` in the audit row).
+  `LUCKY_PITY_AFTER=0` turns it off (then `pity` is null and the return is the table's alone).
+  *Exact return with the guarantee:* the losing streak `k` is a Markov chain — from `k < N` a draw
+  loses with `q` (→ `k + 1`) or wins (→ 0); at `k = N` the draw is guaranteed (→ 0). Its stationary
+  law is `π_k = q^k / Σ_{j=0}^{N} q^j`, so `π_N` = 3.415 % of draws are guarantee draws (π_N × q =
+  3.174 % are paid by the guarantee itself) and the return is `(1 − π_N) × Σ p_i m_i + π_N × (Σ_{m_i ≥ P}
+  p_i m_i + P × (q + Σ_{m_i < P} p_i))`. The server **refuses to start** when that exceeds `R` (the
+  daily protection would cut wins every day).
+- The server **refuses to start** when: R is not 1–99 (two decimals at most), the host share is not
+  0–100 or R + host share > 100 (the platform would pay out more than it takes), the multipliers are
+  not 1–32 strictly ascending whole numbers 2–10 000, the chances are not whole numbers 1–999 999,
+  one per multiplier, or add up to more than 10^6, the guarantee is not after 0 (off) or 1–1 000
+  draws or does not pay one of the multipliers, the return with the guarantee passes R,
+  `LUCKY_GIFT_RTP_SHARES` is set, the big-win multiplier is not one of the multipliers, the time zone
+  is not an IANA name, or a country is not two letters.
 - **Randomness:** each draw is `crypto.randomInt(0, 10^6)` (a CSPRNG; never `Math.random`), mapped
   onto the cumulative table. Draws are made by the server only.
 - **Daily protection** *(owner: "the app never loses")*: per day (midnight to midnight in
   `LUCKY_GIFT_DAY_TIME_ZONE`, default UTC) the server keeps the day's lucky spend `S` and the coins
-  paid `W`. A send first adds its price to `S`; then its winning draws, in draw order, are paid while
+  paid `W`. A send first adds its price to `S`; then its draws, in draw order, are paid while
   `W + win ≤ floor(S × R_bps / 10^4)`. A winning draw that does not fit is **downgraded** to the
   largest smaller multiplier that fits, or pays nothing; `LuckyGiftResult.downgraded` counts them.
   So the coins won in a day never exceed R % of that day's lucky spend (and, with the host share,
   never exceed what the senders paid). The realised return is therefore at most R and, early in a
-  day or on a quiet day, lower. The odds response says so (`dailyProtection: true`).
+  day or on a quiet day, lower. The odds response says so (`dailyProtection: true`). *v1.31-live
+  (D148): the guarantee is paid under the same rule.* A guaranteed `×P` that does not fit is cut
+  like any win (there is no smaller multiplier than ×5, so it pays nothing), counts in `downgraded`,
+  and is **not lost**: the draw paid nothing, so the sender's count keeps growing and their next
+  draw is guaranteed again — paid as soon as the day's budget allows (a later send of theirs; the
+  budget grows with every lucky send of the day). A big win cut to a smaller tier is still a win
+  (it resets the count). Example (unit test and e2e `kl093`): ×1000 due at 10 coins with 3 000 left
+  → pays ×250 (2 500).
 - **Sending** (`sendLiveGift`, §10.23; additions in order after 409 `GIFT_UNAVAILABLE`):
   - 400 `source` / `invalid_value`: a LUCKY gift is sent with `COINS` only (a bag send would draw for
     free); `gift-admin grant` refuses LUCKY gifts.
@@ -1896,11 +1934,25 @@ change in the server configuration (no app update). Odds, the age gate and the r
   charge (ledger **`LUCKY_GIFT`**, the full price), the day row (`S`, `W`) locked and updated, the win
   credited to the sender (ledger **`LUCKY_GIFT_WIN`**, reference = the send's id; none when nothing is
   won), an audit row of the draws (`lucky_gift_draws`: sender, gift, unit price, quantity, recipients,
-  the table used, every winning draw as `[index, drawn multiplier, paid multiplier]` — draws not
-  listed did not win —, coins won, downgraded, the day, the day's budget before and after, the day's
-  spend after), and the crediting below. A retry with the same `clientId` returns the first send
-  with the same `luckyResult` (read from that audit row) and never draws again; a refused send
-  stores, charges and draws nothing.
+  the table used — `{rtpBps, hostShareBps, outcomes: [[multiplier, chance], …], pity: [N, P] | null}`
+  —, every paid or cut draw as `[index, drawn multiplier, paid multiplier]` — draws not listed lost
+  and were not guaranteed; paid > drawn is the guarantee —, coins won, downgraded, the day, the
+  day's budget before and after, the day's spend after and, D148, the sender's losing streak before
+  and after and how many draws the guarantee paid), the sender's new streak (`lucky_gift_pity`), and
+  the crediting below. A retry with the same `clientId` returns the first send with the same
+  `luckyResult` (read from that audit row) and never draws again; a refused send stores, charges and
+  draws nothing and leaves the streak as it was.
+- **Throughput** *(D148, owner: 100 lucky sends a second per user)*: sends of one sender are
+  serialized (their combo and their streak follow the previous send): in each API process they wait
+  in a per-sender queue (FIFO) without holding a database connection, then take the sender's
+  advisory lock (which orders them across processes). Each send is one transaction of about 16
+  statements: one reads and locks what it needs (the room, then the gift and the family membership,
+  the seats, the previous send, a send with the same `clientId`, the streak), one writes the send,
+  its recipients, the charge, the family points, the score, the host's points, the Contribution
+  row and the room's versions; the levels; then, last (it locks the one day row every lucky send
+  shares), the day row and one statement for the win, the audit row and the streak. Level
+  categories are re-read only when their row changed (a digest of the row, under the same share
+  lock). Measured on the dev box: see the board (D148).
 - **Crediting** *(owner: host share 10 %; `LUCKY_GIFT_HOST_SHARE_PERCENT`, default 10)*: let `V` =
   the send's value (`unitPrice × quantity × recipients`, `LiveGift.totalCoins`, unchanged) and
   `v_r = floor(unitPrice × quantity × share)` per recipient, `C = floor(V × share)` for the send.
@@ -1916,22 +1968,38 @@ change in the server configuration (no app update). Odds, the age gate and the r
   charm share and the Wizard value). The coins the recipients would earn (B5, earnings) are not
   built yet; when they are, they use the same share.
 - **Response:** `LiveGiftResult.luckyResult` = `{draws, wins: [{multiplier, count, coins}]
-  (multipliers paid, ascending), coinsWon, topMultiplier (null without a win), downgraded}`; `coins`
-  is the balance after the charge **and** the wins. Absent for every other gift.
+  (multipliers paid, ascending), coinsWon, topMultiplier (null without a win), downgraded,
+  guaranteed}` (*v1.31-live, D148:* `guaranteed` true when a draw was paid by the guarantee — the
+  app plays the normal ×5 celebration with a small «ضمان» / "Guaranteed" label); `coins` is the
+  balance after the charge **and** the wins. Absent for every other gift.
 - **Big wins:** when `topMultiplier ≥ LUCKY_GIFT_BIG_WIN_MULTIPLIER` (default 100) the server also
   sends the room a reliable data message on topic **`lucky`** after the response (best effort):
 
   | `type` | Payload |
   | ------ | ------- |
   | `lucky-win` | `{"type":"lucky-win","win":{"giftId","roomId","giftCode","sender":UserSummary,"multiplier","coinsWon","createdAt"}}` |
+  | `lucky-ticker` *(v1.31-live, D148)* | `{"type":"lucky-ticker","win":{… as lucky-win …},"room":{"id","title","host":UserSummary}}` |
 
-  The app shows a banner ("<name> won ×500 — 25 000 coins"); older apps ignore the type.
+  The room shows its big card (D145e: every ×100+ — ×100, ×250, ×500, ×1000). *«لحظة الحظ»
+  (v1.31-live, D148):* the same win is offered to the **global ticker**: every **other** LIVE room
+  (at most 5 000, newest first; its own room has the card) gets one `lucky-ticker` message — «فلان
+  ربح ×500 في غرفة …»; a tap opens `room.id`. At most **one ticker per 10 s** for the whole service
+  (a Redis gate shared by all API instances, `lucky:ticker:gate`, 10 s): a win offered inside the
+  gap waits (`lucky:ticker:pending`, at most 30 s); while it waits, a bigger win (multiplier, then
+  coins) replaces it and a smaller or equal one is dropped; when the gap ends the waiting win goes
+  out (the instance that kept it flushes it; any instance may). Best effort: Redis or the media
+  server down → no ticker, never a failed send. Blocks are applied by the app (it hides a ticker
+  whose sender or host the viewer blocked, from the block list the room's chat loads); a viewer
+  switch to hide tickers comes in D151 (the app already has the flag). Older apps ignore the type.
 - **The odds** (`GET /live/gifts/lucky/odds`, guests too) *(owner: publish the odds; store
   loot-box rules)*: `{enabled, drawsPerGift: 1, returnPercent, hostSharePercent, outcomes:
   [{multiplier, chancePerMillion, probability}], noWinChancePerMillion, noWinProbability,
-  bigWinMultiplier, dailyProtection: true, dayTimeZone, minimumAge: 18, caller}`; `caller` is null for
+  bigWinMultiplier, pity, dailyProtection: true, dayTimeZone, minimumAge: 18, caller}`; `caller` is null for
   a guest, else `{eligible, reason (DISABLED | REGION_UNAVAILABLE | AGE_UNCONFIRMED | null),
-  ageConfirmed}`. The app links it from the lucky tab and shows it before the first lucky send.
+  ageConfirmed}`. *v1.31-live (D148):* `pity` = `{after: 15, multiplier: 5}` (null when off) and
+  `returnPercent` is the exact return **with** the guarantee, four decimals (84.9999). The app links
+  it from the lucky tab and shows it before the first lucky send: the eight tiers and the guarantee
+  («×5 مضمون بعد 15 محاولة بدون ربح» / "×5 guaranteed after 15 draws without a win").
 - **18+ gate** *(owner)*: accounts have **no birth date**, so the minimal honest mechanism is a
   one-time statement: `PUT /me/lucky-gifts/age-confirmation` `{"adult": true}` → 200
   `{ageConfirmedAt}` (the first time is kept; audited `lucky.age_confirm`).
@@ -1943,8 +2011,9 @@ change in the server configuration (no app update). Odds, the age gate and the r
   with a win (time, sender, gift, draws, top multiplier, coins won, downgraded); `gift-admin
   lucky-day [YYYY-MM-DD]` prints a day's spend, paid, budget left and realised return. There is no
   admin API.
-- **Not in v1.27-live:** buying coins (B5), recipients' earnings, jackpots or pools, lucky gifts
-  outside a live, per-user loss limits, a history of one's own draws in the app.
+- **Not in v1.27-live / v1.31-live:** buying coins (B5), recipients' earnings, jackpots or pools,
+  lucky gifts outside a live, per-user loss limits, a history of one's own draws in the app, a
+  viewer switch for the ticker (D151).
 
 ### 10.28 Country and featured hosts *(v1.27.1-live, DRAFT — D133)*
 

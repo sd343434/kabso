@@ -11630,6 +11630,24 @@ abstract class AppLocalizations {
   /// **'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.'**
   String get liveEffectUnavailableFailed;
 
+  /// D145e: DeepAR's picture was black; the effect switched itself off.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.'**
+  String get liveEffectUnavailableBlack;
+
+  /// D145e: the title of the room's big lucky win card (x100 to x499).
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز كبير'**
+  String get liveLuckyBigWin;
+
+  /// D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String liveLuckyBigWinCoins(String coins);
+
   /// D144a: DeepAR status and camera/microphone permissions.
   ///
   /// In ar, this message translates to:
@@ -11767,6 +11785,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك'**
   String get notifSettingMessagesBody;
+
+  /// D148: the small label over a MAX X win the guarantee paid (×5 after 15 losing draws in a row).
+  ///
+  /// In ar, this message translates to:
+  /// **'ضمان'**
+  String get liveMaxXGuaranteed;
+
+  /// D148: the odds sheet's line for the per-sender guarantee (owner's wording).
+  ///
+  /// In ar, this message translates to:
+  /// **'×{multiplier} مضمون بعد {after} محاولة بدون ربح'**
+  String liveLuckyOddsPity(String multiplier, String after);
+
+  /// D148: the gold ticker of a big lucky win in another live («لحظة الحظ»); a tap opens that live.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} ربح ×{multiplier} في غرفة {room}'**
+  String liveLuckyTicker(String name, String multiplier, String room);
 }
 
 class _AppLocalizationsDelegate

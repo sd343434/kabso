@@ -229,7 +229,6 @@ void main() {
       framesIn: 300,
       fed: 280,
       busySkips: 20,
-      rendered: 600,
       delivered: 590,
       staleDropped: 300,
       framesOut: 290,
@@ -239,6 +238,9 @@ void main() {
       instances: 1,
       input: '1280x720@270',
       sdkVersion: '5.6.22',
+      inputLuma: 118,
+      outputLuma: 17,
+      blackMs: 1400,
     );
 
     testWidgets('state, frames in/out, average ms, timeouts and whether a '
@@ -258,6 +260,9 @@ void main() {
       expect(text, contains('in 300  fed 280  out 290  raw 10'));
       expect(text, contains('wait 12.5 ms  pack 4.0 ms'));
       expect(text, contains('input 1280x720@270'));
+      // D145e: input against output brightness, and the black run.
+      expect(text, contains('luma in 118  out 17  black 1.4 s'));
+      expect(text, isNot(contains('render ')));
       await tester.tap(overlay);
       await tester.pump();
       expect(find.text('FX ▸'), findsOneWidget);

@@ -9,7 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { z } from 'zod';
 import {
   drawWinners,
-  expectedReturnBps,
+  expectedReturnWithPity,
   LUCKY_CHANCE_SCALE,
   type LuckyRng,
   type LuckyTable,
@@ -36,6 +36,8 @@ export interface LuckyGiftOddsDto {
   noWinChancePerMillion: number;
   noWinProbability: number;
   bigWinMultiplier: number;
+  /** v1.30-live (D148): the per-sender guarantee, or null (off). */
+  pity: { after: number; multiplier: number } | null;
   dailyProtection: true;
   dayTimeZone: string;
   minimumAge: 18;
@@ -172,7 +174,8 @@ export class LuckyGiftsService {
     return {
       enabled: this.enabled,
       drawsPerGift: 1,
-      returnPercent: expectedReturnBps(t) / 100,
+      // D148: the exact expected return of a draw, the guarantee included (4 decimals).
+      returnPercent: Math.round(expectedReturnWithPity(t) * 1_000_000) / 10_000,
       hostSharePercent: t.hostShareBps / 100,
       outcomes: t.outcomes.map((o) => ({
         multiplier: o.multiplier,
@@ -182,6 +185,7 @@ export class LuckyGiftsService {
       noWinChancePerMillion: t.noWinChancePerMillion,
       noWinProbability: t.noWinChancePerMillion / LUCKY_CHANCE_SCALE,
       bigWinMultiplier: this.bigWinMultiplier,
+      pity: t.pity === null ? null : { after: t.pity.after, multiplier: t.pity.multiplier },
       dailyProtection: true,
       dayTimeZone: this.config.lucky.dayTimeZone,
       minimumAge: 18,

@@ -2,7 +2,7 @@ import { isIP } from 'node:net';
 import { ipv6Hextets } from '../common/http/request-context.js';
 import { availableParallelism } from 'node:os';
 import { z } from 'zod';
-import { luckyTable, percentToBps } from '../modules/gifts/lucky-odds.js';
+import { luckyTable, percentToBps, type PityRule } from '../modules/gifts/lucky-odds.js';
 import { MIN_SECRET_BYTES, productionSecretProblem } from './secret-strength.js';
 
 /** A rate-limit rule: at most `max` requests per `windowSeconds`. */
@@ -45,6 +45,16 @@ export const intSetting = (fallback: number, min: number, max: number = Number.M
 const positiveInt = (fallback: number) => intSetting(fallback, 1);
 
 /** At most this many gift quantities (LIVE_GIFT_QUANTITIES). */
+/** D148: the lucky guarantee of the configuration, or null when LUCKY_PITY_AFTER is 0 (off). */
+export function luckyPityOf(env: {
+  LUCKY_PITY_AFTER: number;
+  LUCKY_PITY_MULTIPLIER: number;
+}): PityRule | null {
+  return env.LUCKY_PITY_AFTER === 0
+    ? null
+    : { after: env.LUCKY_PITY_AFTER, multiplier: env.LUCKY_PITY_MULTIPLIER };
+}
+
 export const LIVE_GIFT_QUANTITIES_MAX = 12;
 /** The largest gift quantity. */
 export const LIVE_GIFT_QUANTITY_MAX = 9999;
@@ -449,10 +459,29 @@ export const envSchema = z
     LUCKY_GIFT_RTP_PERCENT: percentSetting('85'),
     /** The share of a lucky gift's value counted for charm, scores, boards and families (owner: 10). */
     LUCKY_GIFT_HOST_SHARE_PERCENT: percentSetting('10'),
-    /** The winning multipliers, strictly ascending (owner: ×5, ×10, ×50, ×100, ×500). */
-    LUCKY_GIFT_MULTIPLIERS: wholeNumberList('5,10,50,100,500'),
-    /** The share of the return each multiplier carries, whole percent, summing to 100. */
-    LUCKY_GIFT_RTP_SHARES: wholeNumberList('40,25,15,12,8'),
+    /**
+     * The winning multipliers, strictly ascending (D148 owner: ×5 ×10 ×25 ×50 ×100 ×250 ×500
+     * ×1000; D132 had ×5 ×10 ×50 ×100 ×500).
+     */
+    LUCKY_GIFT_MULTIPLIERS: wholeNumberList('5,10,25,50,100,250,500,1000'),
+    /**
+     * D148: the chance of each multiplier, draws per million, in the same order. The default returns
+     * 84.9999 % with the guarantee below (CONVENTIONS §10.27); the table's return, guarantee
+     * included, must not pass LUCKY_GIFT_RTP_PERCENT.
+     */
+    LUCKY_GIFT_CHANCES_PER_MILLION: wholeNumberList('48918,15451,3903,1464,569,130,40,12'),
+    /**
+     * D132's way of setting the odds, replaced in D148 by LUCKY_GIFT_CHANCES_PER_MILLION: set → the
+     * server refuses to start (so an old configuration is never read with a different meaning).
+     */
+    LUCKY_GIFT_RTP_SHARES: z.string().optional(),
+    /**
+     * D148 (owner, option B): after this many losing lucky draws in a row by one sender (any room,
+     * any session) their next draw pays at least LUCKY_PITY_MULTIPLIER. 0 turns the guarantee off.
+     */
+    LUCKY_PITY_AFTER: intSetting(15, 0, 1_000),
+    /** D148: what the guarantee pays at least (one of LUCKY_GIFT_MULTIPLIERS; owner: ×5). */
+    LUCKY_PITY_MULTIPLIER: intSetting(5, 2, 10_000),
     /** Sends whose best win is at least this multiplier are announced to the room (`lucky-win`). */
     LUCKY_GIFT_BIG_WIN_MULTIPLIER: intSetting(100, 2, 10_000),
     /** The daily protection's day starts at midnight in this IANA time zone. */
@@ -624,11 +653,19 @@ export const envSchema = z
   })
   .superRefine((env, ctx) => {
     // v1.27-live (D132): the lucky-gift table must be valid whether or not lucky gifts are on.
+    if (env.LUCKY_GIFT_RTP_SHARES !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LUCKY_GIFT_RTP_SHARES'],
+        message: 'was replaced by LUCKY_GIFT_CHANCES_PER_MILLION (D148); remove it',
+      });
+    }
     const lucky = luckyTable(
       env.LUCKY_GIFT_RTP_PERCENT,
       env.LUCKY_GIFT_HOST_SHARE_PERCENT,
       env.LUCKY_GIFT_MULTIPLIERS,
-      env.LUCKY_GIFT_RTP_SHARES,
+      env.LUCKY_GIFT_CHANCES_PER_MILLION,
+      luckyPityOf(env),
     );
     if (Array.isArray(lucky)) {
       for (const problem of lucky) {

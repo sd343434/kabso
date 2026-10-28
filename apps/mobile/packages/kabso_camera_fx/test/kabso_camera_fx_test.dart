@@ -123,7 +123,6 @@ void main() {
           'framesIn': 300,
           'fed': 280,
           'busySkips': 20,
-          'rendered': 600,
           'delivered': 590,
           'staleDropped': 300,
           'framesOut': 290,
@@ -136,6 +135,10 @@ void main() {
           'input': '1280x720@270',
           'sdkVersion': '5.6.22',
           'lastError': null,
+          'inputLuma': 118,
+          'outputLuma': 17,
+          'blackMs': 1250,
+          'probe': 'passthrough_ok',
         };
       });
       final d = (await KabsoCameraFx(supported: true).diagnostics())!;
@@ -145,7 +148,6 @@ void main() {
       expect(d.framesIn, 300);
       expect(d.fed, 280);
       expect(d.busySkips, 20);
-      expect(d.rendered, 600);
       expect(d.delivered, 590);
       expect(d.staleDropped, 300);
       expect(d.framesOut, 290);
@@ -155,7 +157,27 @@ void main() {
       expect(d.instances, 1);
       expect(d.input, '1280x720@270');
       expect(d.sdkVersion, '5.6.22');
+      // D145e: input vs output brightness, the black run and the probe.
+      expect(d.inputLuma, 118);
+      expect(d.outputLuma, 17);
+      expect(d.blackMs, 1250);
+      expect(d.probe, 'passthrough_ok');
       expect(await KabsoCameraFx(supported: false).diagnostics(), isNull);
+    });
+
+    test('D145e: no luma sample yet reads -1, not black', () {
+      final d = KabsoCameraFxDiagnostics.fromMap(const {'state': 'ready'});
+      expect(d.inputLuma, -1);
+      expect(d.outputLuma, -1);
+      expect(d.blackMs, 0);
+      expect(d.probe, isNull);
+      expect(
+        KabsoCameraFxStatus.fromMap(const {
+          'state': 'disabled',
+          'reason': 'black_output',
+        }),
+        const KabsoCameraFxStatus(KabsoCameraFxState.disabled, 'black_output'),
+      );
     });
   });
 

@@ -77,15 +77,14 @@ export class LevelProgressService {
   constructor(private readonly clock: Clock) {}
 
   private async lockState(tx: Tx, userId: string, categoryId: string): Promise<StateRow> {
-    await tx.$executeRaw`
+    // D148 (fewer round trips): one statement creates the row when missing and locks it either way
+    // (ON CONFLICT DO UPDATE locks the existing row like SELECT … FOR UPDATE; the no-op SET changes
+    // nothing). Was an INSERT … DO NOTHING then a SELECT … FOR UPDATE.
+    const rows = await tx.$queryRaw<StateRow[]>`
       INSERT INTO user_level_states (id, user_id, category_id, updated_at)
       VALUES (${uuidv7()}::uuid, ${userId}::uuid, ${categoryId}::uuid, now())
-      ON CONFLICT (user_id, category_id) DO NOTHING`;
-    const rows = await tx.$queryRaw<StateRow[]>`
-      SELECT id, total_points, lifetime_earned_points, current_level, version_id
-        FROM user_level_states
-       WHERE user_id = ${userId}::uuid AND category_id = ${categoryId}::uuid
-         FOR UPDATE`;
+      ON CONFLICT (user_id, category_id) DO UPDATE SET updated_at = user_level_states.updated_at
+      RETURNING id, total_points, lifetime_earned_points, current_level, version_id`;
     const row = rows[0];
     if (!row) throw new Error('user_level_states row missing after insert');
     return row;

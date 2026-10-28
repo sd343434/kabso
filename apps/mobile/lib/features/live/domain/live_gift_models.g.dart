@@ -205,6 +205,7 @@ _LuckyGiftResult _$LuckyGiftResultFromJson(Map<String, dynamic> json) =>
       coinsWon: (json['coinsWon'] as num).toInt(),
       topMultiplier: (json['topMultiplier'] as num?)?.toInt(),
       downgraded: (json['downgraded'] as num).toInt(),
+      guaranteed: json['guaranteed'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$LuckyGiftResultToJson(_LuckyGiftResult instance) =>
@@ -214,6 +215,7 @@ Map<String, dynamic> _$LuckyGiftResultToJson(_LuckyGiftResult instance) =>
       'coinsWon': instance.coinsWon,
       'topMultiplier': instance.topMultiplier,
       'downgraded': instance.downgraded,
+      'guaranteed': instance.guaranteed,
     };
 
 _LuckyGiftOutcome _$LuckyGiftOutcomeFromJson(Map<String, dynamic> json) =>
@@ -277,6 +279,9 @@ _LuckyGiftOdds _$LuckyGiftOddsFromJson(Map<String, dynamic> json) =>
           : LuckyGiftEligibility.fromJson(
               json['caller'] as Map<String, dynamic>,
             ),
+      pity: json['pity'] == null
+          ? null
+          : LuckyGiftPity.fromJson(json['pity'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$LuckyGiftOddsToJson(_LuckyGiftOdds instance) =>
@@ -293,7 +298,42 @@ Map<String, dynamic> _$LuckyGiftOddsToJson(_LuckyGiftOdds instance) =>
       'dayTimeZone': instance.dayTimeZone,
       'minimumAge': instance.minimumAge,
       'caller': instance.caller,
+      'pity': instance.pity,
     };
+
+_LuckyGiftPity _$LuckyGiftPityFromJson(Map<String, dynamic> json) =>
+    _LuckyGiftPity(
+      after: (json['after'] as num).toInt(),
+      multiplier: (json['multiplier'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$LuckyGiftPityToJson(_LuckyGiftPity instance) =>
+    <String, dynamic>{
+      'after': instance.after,
+      'multiplier': instance.multiplier,
+    };
+
+_LuckyTickerRoom _$LuckyTickerRoomFromJson(Map<String, dynamic> json) =>
+    _LuckyTickerRoom(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      host: UserSummary.fromJson(json['host'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$LuckyTickerRoomToJson(_LuckyTickerRoom instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'title': instance.title,
+      'host': instance.host,
+    };
+
+_LuckyTicker _$LuckyTickerFromJson(Map<String, dynamic> json) => _LuckyTicker(
+  win: LuckyWin.fromJson(json['win'] as Map<String, dynamic>),
+  room: LuckyTickerRoom.fromJson(json['room'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$LuckyTickerToJson(_LuckyTicker instance) =>
+    <String, dynamic>{'win': instance.win, 'room': instance.room};
 
 _LuckyWin _$LuckyWinFromJson(Map<String, dynamic> json) => _LuckyWin(
   giftId: json['giftId'] as String,

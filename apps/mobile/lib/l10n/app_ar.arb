@@ -7832,6 +7832,12 @@
   "@liveEffectUnavailableLicence": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "liveEffectUnavailableFailed": "المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.",
   "@liveEffectUnavailableFailed": {"description": "D144a: DeepAR status and camera/microphone permissions."},
+  "liveEffectUnavailableBlack": "المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.",
+  "@liveEffectUnavailableBlack": {"description": "D145e: DeepAR's picture was black; the effect switched itself off."},
+  "liveLuckyBigWin": "فوز كبير",
+  "@liveLuckyBigWin": {"description": "D145e: the title of the room's big lucky win card (x100 to x499)."},
+  "liveLuckyBigWinCoins": "{coins} عملة",
+  "@liveLuckyBigWinCoins": {"description": "D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.", "placeholders": {"coins": {"type": "String"}}},
   "livePermissionTitleVideo": "الكاميرا والميكروفون لبثّك",
   "@livePermissionTitleVideo": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionTitleAudio": "الميكروفون للغرفة الصوتية",
@@ -7877,5 +7883,11 @@
   "notifSettingMessages": "رسائل العائلة",
   "@notifSettingMessages": {"description": "D152: push notifications (permission, settings)."},
   "notifSettingMessagesBody": "إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك",
-  "@notifSettingMessagesBody": {"description": "D152: push notifications (permission, settings)."}
+  "@notifSettingMessagesBody": {"description": "D152: push notifications (permission, settings)."},
+  "liveMaxXGuaranteed": "ضمان",
+  "@liveMaxXGuaranteed": {"description": "D148: the small label over a MAX X win the guarantee paid (×5 after 15 losing draws in a row)."},
+  "liveLuckyOddsPity": "×{multiplier} مضمون بعد {after} محاولة بدون ربح",
+  "@liveLuckyOddsPity": {"description": "D148: the odds sheet's line for the per-sender guarantee (owner's wording).", "placeholders": {"multiplier": {"type": "String"}, "after": {"type": "String"}}},
+  "liveLuckyTicker": "{name} ربح ×{multiplier} في غرفة {room}",
+  "@liveLuckyTicker": {"description": "D148: the gold ticker of a big lucky win in another live («لحظة الحظ»); a tap opens that live.", "placeholders": {"name": {"type": "String"}, "multiplier": {"type": "String"}, "room": {"type": "String"}}}
 }

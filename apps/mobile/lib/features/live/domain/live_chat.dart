@@ -164,6 +164,8 @@ sealed class LiveChatEvent {
         'lucky-win' => LuckyWinReceived(
           LuckyWin.fromJson(json['win']! as Map<String, dynamic>),
         ),
+        // v1.30-live (D148): a big win in another live («لحظة الحظ»).
+        'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
         'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
         _ => null,
@@ -262,6 +264,14 @@ final class LuckyWinReceived extends LiveChatEvent {
   const new(this.win);
 
   final LuckyWin win;
+}
+
+/// v1.30-live (D148, §10.27): a big lucky win in another live (topic
+/// `lucky`, `lucky-ticker`), shown as the global gold ticker.
+final class LuckyTickerReceived extends LiveChatEvent {
+  const new(this.ticker);
+
+  final LuckyTicker ticker;
 }
 
 /// v1.27.5-live (D138, §10.30): someone played an emoji on their own seat.

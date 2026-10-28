@@ -103,6 +103,46 @@ export async function loadCategory(
   return toLoaded(row);
 }
 
+/** D148: categories as last read, by code, with the digest of their row then. */
+const shared = new Map<LevelCategoryCode, { readonly digest: string; readonly loaded: LoadedCategory }>();
+
+/**
+ * D148 (fewer round trips on the gift path): the seeded categories of `codes`, by code, share-locked
+ * in id order like {@link loadCategory}. One statement locks them and returns each row's digest
+ * (`md5` of the whole category row: its published version, switch, names …); a category whose
+ * digest matches the one cached with it is not read again. A published version never changes in
+ * place (only drafts are edited; publishing points the category at another version, which changes
+ * the digest), so the cached version, its multiplier and its levels stay exact.
+ */
+export async function loadCategories(
+  db: Db,
+  codes: readonly LevelCategoryCode[],
+): Promise<Map<LevelCategoryCode, LoadedCategory>> {
+  const rows = await db.$queryRaw<{ code: LevelCategoryCode; digest: string }[]>`
+    SELECT c.code::text AS code, md5(c::text) AS digest
+      FROM level_categories c
+     WHERE c.code = ANY(${[...codes]}::level_category_code[])
+     ORDER BY c.id
+       FOR SHARE`;
+  const result = new Map<LevelCategoryCode, LoadedCategory>();
+  const stale: LevelCategoryCode[] = [];
+  for (const row of rows) {
+    const hit = shared.get(row.code);
+    if (hit?.digest === row.digest) result.set(row.code, hit.loaded);
+    else stale.push(row.code);
+  }
+  if (stale.length > 0) {
+    const fresh = await db.levelCategory.findMany({ where: { code: { in: stale } }, include });
+    for (const row of fresh) {
+      const loaded = toLoaded(row);
+      result.set(row.code, loaded);
+      const digest = rows.find((r) => r.code === row.code)!.digest;
+      shared.set(row.code, { digest, loaded });
+    }
+  }
+  return result;
+}
+
 export async function loadAllCategories(db: Db): Promise<LoadedCategory[]> {
   const rows = await db.levelCategory.findMany({ include });
   const order = ['ATTRACTIVENESS', 'SUPPORT', 'WIZARD', 'GAMING'];

@@ -842,8 +842,18 @@ void main() {
       expect(_cell('lucky_clover'), findsOneWidget);
       await _tap(tester, find.byKey(KLiveGiftSheet.luckyOddsKey));
       expect(find.text(en.liveLuckyOddsTitle), findsOneWidget);
-      expect(find.byKey(KLiveGiftSheet.oddsRowKey(500)), findsOneWidget);
-      expect(find.text('0.0034%'), findsOneWidget);
+      // D148: the eight tiers, ×1000 the rarest, and the guarantee.
+      for (final m in [5, 10, 25, 50, 100, 250, 500, 1000]) {
+        expect(find.byKey(KLiveGiftSheet.oddsRowKey(m)), findsOneWidget);
+      }
+      expect(find.text('0.0012%'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(KLiveGiftSheet.oddsPityKey),
+          matching: find.text(en.liveLuckyOddsPity('5', '15')),
+        ),
+        findsOneWidget,
+      );
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await _tap(tester, _cell('lucky_clover'));

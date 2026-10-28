@@ -2204,6 +2204,12 @@
   "@liveEffectUnavailableLicence": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "liveEffectUnavailableFailed": "The effect isn't available right now: it didn't start on this device. Try it again in a moment.",
   "@liveEffectUnavailableFailed": {"description": "D144a: DeepAR status and camera/microphone permissions."},
+  "liveEffectUnavailableBlack": "The effect isn't available right now: its picture came out black, so the camera went on without it before viewers saw it. Try it again later.",
+  "@liveEffectUnavailableBlack": {"description": "D145e: DeepAR's picture was black; the effect switched itself off."},
+  "liveLuckyBigWin": "BIG WIN",
+  "@liveLuckyBigWin": {"description": "D145e: the title of the room's big lucky win card (x100 to x499)."},
+  "liveLuckyBigWinCoins": "{coins} coins",
+  "@liveLuckyBigWinCoins": {"description": "D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.", "placeholders": {"coins": {"type": "String"}}},
   "livePermissionTitleVideo": "Camera and microphone for your live",
   "@livePermissionTitleVideo": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionTitleAudio": "Microphone for your audio room",
@@ -2249,5 +2255,8 @@
   "notifSettingMessages": "Family chat messages",
   "@notifSettingMessages": {"description": "D152: push notifications (permission, settings)."},
   "notifSettingMessagesBody": "A notification on your phone for new messages in your family chat",
-  "@notifSettingMessagesBody": {"description": "D152: push notifications (permission, settings)."}
+  "@notifSettingMessagesBody": {"description": "D152: push notifications (permission, settings)."},
+  "liveMaxXGuaranteed": "Guaranteed",
+  "liveLuckyOddsPity": "×{multiplier} guaranteed after {after} draws without a win",
+  "liveLuckyTicker": "{name} won ×{multiplier} in {room}"
 }

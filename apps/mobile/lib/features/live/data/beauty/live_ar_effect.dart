@@ -56,6 +56,10 @@ enum LiveArProblem {
   /// DeepAR stopped giving new pictures, or hung.
   stopped,
 
+  /// D145e: DeepAR's picture was black while the camera's was not; it was
+  /// switched off before the viewers saw more of it (`black_output`).
+  blackPicture,
+
   /// DeepAR did not start (or failed otherwise).
   failed,
 }
@@ -78,7 +82,9 @@ class LiveArStatus {
     ),
     KabsoCameraFxState.disabled => LiveArStatus(
       LiveArState.unavailable,
-      problem: LiveArProblem.stopped,
+      problem: status.reason == 'black_output'
+          ? LiveArProblem.blackPicture
+          : LiveArProblem.stopped,
       code: status.reason,
     ),
     KabsoCameraFxState.error => LiveArStatus(

@@ -322,6 +322,10 @@ class LiveChatController extends Notifier<LiveChatState> {
     }
   }
 
+  /// D148: whether this person blocked [userId] (as loaded for this live;
+  /// best effort, like the chat's own filter).
+  bool isBlocked(String userId) => _blocked.contains(userId);
+
   /// The people this person blocked (`GET /me/blocks`): their live lines
   /// are hidden (the API already leaves them out of the last messages).
   Future<void> _loadBlocks() async {
@@ -399,7 +403,10 @@ class LiveChatController extends Notifier<LiveChatState> {
         // Hidden from people this person blocked (§10.19).
         if (_blocked.contains(bullet.sender.id)) return;
         _addBullet(bullet);
-      case LiveGiftReceived() || LuckyWinReceived() || LiveSeatEmojiReceived():
+      case LiveGiftReceived() ||
+          LuckyWinReceived() ||
+          LuckyTickerReceived() ||
+          LiveSeatEmojiReceived():
         // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
         // them (and D132's big lucky wins); D138's seat emojis play on the
         // seats (LiveSeatEmojis).

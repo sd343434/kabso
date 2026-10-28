@@ -201,6 +201,9 @@ class LuckyComboLayer extends ConsumerStatefulWidget {
   static const double audioBottom = 60;
   static const double videoBottom = 100;
 
+  /// D145e: wins waiting for their celebration behind the one on screen.
+  static const maxWaitingWins = 3;
+
   static const messageKey = Key('combo.message');
   static const flightKey = Key('combo.flight');
   static const messageTime = Duration(seconds: 3);
@@ -217,8 +220,14 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
   /// Flights: id → where it starts (the button's centre then).
   final _flights = <int, Offset>{};
 
-  /// D145d: win celebrations on screen: the win and where it plays.
-  final _wins = <MaxXWin, Offset>{};
+  /// D145d: the win celebration on screen and where it plays. D145e (owner:
+  /// two wins' banners overlapped each other and the orb): one at a time,
+  /// the others wait in [_winQueue] ([LuckyComboLayer.maxWaitingWins]; when
+  /// full, a bigger win takes the smallest one's place).
+  MaxXWin? _win;
+  Offset? _winAt;
+  Offset? _lastAt;
+  final _winQueue = <MaxXWin>[];
 
   @override
   void dispose() {
@@ -234,17 +243,59 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
     setState(() => _message = text);
   }
 
-  /// Plays [win]'s celebration at the button (after this frame when the
-  /// button is not laid out yet: the panel's own send starts the combo).
+  /// Queues [win]'s celebration; it plays when the one on screen is done.
+  void _enqueue(MaxXWin win) {
+    if (_win == null) {
+      _celebrate(win);
+      return;
+    }
+    if (_winQueue.length < LuckyComboLayer.maxWaitingWins) {
+      _winQueue.add(win);
+      return;
+    }
+    var smallest = 0;
+    for (var i = 1; i < _winQueue.length; i++) {
+      if (_winQueue[i].multiplier < _winQueue[smallest].multiplier) {
+        smallest = i;
+      }
+    }
+    if (win.multiplier > _winQueue[smallest].multiplier) {
+      _winQueue
+        ..removeAt(smallest)
+        ..add(win);
+    }
+  }
+
+  /// Plays [win]'s celebration (and its jingle) at the button — after this
+  /// frame when the button is not laid out yet: the panel's own send starts
+  /// the combo.
   void _celebrate(MaxXWin win, {bool retry = true}) {
-    final at = _buttonCentre();
+    // A queued win may come after the combo's button went: it plays where
+    // the button last was.
+    final at = _buttonCentre() ?? (retry ? null : _lastAt);
     if (at != null) {
-      setState(() => _wins[win] = at);
+      _lastAt = at;
+      ref.read(maxXSoundsProvider).win(win.multiplier);
+      setState(() {
+        _win = win;
+        _winAt = at;
+      });
     } else if (retry) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _celebrate(win, retry: false);
       });
+    } else {
+      _next();
     }
+  }
+
+  void _next() {
+    if (!mounted) return;
+    setState(() {
+      _win = null;
+      _winAt = null;
+    });
+    if (_winQueue.isNotEmpty) _celebrate(_winQueue.removeAt(0));
   }
 
   Offset? _buttonCentre() {
@@ -268,10 +319,7 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
       // D145d: a send the server answered with a win celebrates (and plays
       // its jingle) once, at the button.
       final win = next.win;
-      if (win != null && win.id != previous?.win?.id) {
-        ref.read(maxXSoundsProvider).win(win.multiplier);
-        _celebrate(win);
-      }
+      if (win != null && win.id != previous?.win?.id) _enqueue(win);
       final stop = next.stop;
       if (stop != null && stop.id != previous?.stop?.id) {
         _showMessage(
@@ -345,16 +393,14 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
         );
       }
     }
-    for (final MapEntry(key: win, value: at) in _wins.entries) {
+    if ((_win, _winAt) case (final win?, final at?)) {
       children.add(
         MaxXCelebration(
           key: ValueKey('maxx.win.${win.id}'),
           win: win,
           centre: at,
           radius: MaxXOrb.radiusOf(LuckyComboCluster.size),
-          onDone: () {
-            if (mounted) setState(() => _wins.remove(win));
-          },
+          onDone: _next,
         ),
       );
     }

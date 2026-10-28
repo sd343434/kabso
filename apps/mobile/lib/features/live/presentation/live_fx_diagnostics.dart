@@ -12,6 +12,12 @@ import 'package:material_ui/material_ui.dart';
 /// average wait and readback times, and whether a licence key is present
 /// (never the key). A tap folds it to a small chip.
 ///
+/// D145e: the `luma` line — brightness (0–255, video black is 16) of the
+/// frame fed to DeepAR (`in`) and of DeepAR's published picture (`out`),
+/// how long the output has been black against a lit camera, and after a
+/// `black_output` stop what DeepAR showed without the effect (`probe`).
+/// D144a's `render` count is gone: DeepAR 5.6.22 never reports it.
+///
 /// Technical read-out for the team, not product copy: not localized.
 class LiveFxDiagnostics extends StatefulWidget {
   const new({
@@ -118,8 +124,14 @@ List<String> liveFxDiagnosticsLines(
       'in ${d.framesIn}  fed ${d.fed}  out ${d.framesOut}  '
       'raw ${d.timeouts}  miss ${d.consecutiveMisses}';
   final renders =
-      'render ${d.rendered}  got ${d.delivered}  stale ${d.staleDropped}  '
-      'busy ${d.busySkips}';
+      'got ${d.delivered}  stale ${d.staleDropped}  busy ${d.busySkips}';
+  String luma(int v) => v < 0 ? '-' : '$v';
+  final black = d.blackMs > 0
+      ? '  black ${(d.blackMs / 1000).toStringAsFixed(1)} s'
+      : '';
+  final brightness =
+      'luma in ${luma(d.inputLuma)}  out ${luma(d.outputLuma)}$black'
+      '${d.probe == null ? '' : '  probe ${d.probe}'}';
   final times =
       'wait ${ms(d.avgWaitMs)} ms  pack ${ms(d.avgPackMs)} ms  '
       'inflight ${d.inFlightMs} ms';
@@ -131,6 +143,7 @@ List<String> liveFxDiagnosticsLines(
     state,
     frames,
     renders,
+    brightness,
     times,
     input,
     if (d.lastError case final e?)

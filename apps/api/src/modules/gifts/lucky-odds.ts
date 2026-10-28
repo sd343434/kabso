@@ -2,10 +2,12 @@
  * v1.27-live (D132, CONVENTIONS §10.27): the arithmetic of lucky gifts, as pure functions shared by
  * the configuration check (the server refuses to start on an invalid table), the API and the CLI.
  *
- * The odds come from the return `R` (RTP, basis points) and the share `s_i` (whole percent, Σ = 100)
- * of `R` that each multiplier `m_i` carries: the chance of `m_i` per million draws is
- * `c_i = floor(R_bps × s_i / m_i)`, so `Σ c_i × m_i ≤ R_bps × 100` (equal when nothing rounds), i.e.
- * `Σ p_i × m_i = R` with `p_i = c_i / 10^6`. No win: `10^6 − Σ c_i`.
+ * v1.30-live (D148, owner 2026-10-28): the table is configured as the chance of each multiplier
+ * `m_i` in draws per million, `c_i` (`LUCKY_GIFT_CHANCES_PER_MILLION`; the D132 "shares of the
+ * return" are gone), plus the per-sender guarantee ("pity"): after `N` losing draws in a row the
+ * sender's next draw pays at least `×P`. The expected return of one draw, guarantee included, is
+ * exact ({@link expectedReturnWithPity}) and must not exceed the configured return `R`, which is
+ * also the daily protection's ceiling.
  */
 
 /** Draws are integers in [0, LUCKY_CHANCE_SCALE): chances are "per million". */
@@ -14,6 +16,8 @@ export const LUCKY_CHANCE_SCALE = 1_000_000;
 export const BPS = 10_000;
 export const LUCKY_MAX_OUTCOMES = 32;
 export const LUCKY_MAX_MULTIPLIER = 10_000;
+/** D148: the guarantee comes after at most this many losing draws in a row. */
+export const LUCKY_MAX_PITY_AFTER = 1_000;
 
 export interface LuckyOutcome {
   readonly multiplier: number;
@@ -29,6 +33,17 @@ export interface LuckyTable {
   /** Ascending by multiplier, every chance ≥ 1. */
   readonly outcomes: readonly LuckyOutcome[];
   readonly noWinChancePerMillion: number;
+  /** D148: the per-sender guarantee, or null (off). */
+  readonly pity: PityRule | null;
+}
+
+/**
+ * D148 (owner, option B): after `after` losing draws in a row by one sender (any room, any session)
+ * that sender's next draw pays at least `multiplier` (a draw that wins more pays what it won).
+ */
+export interface PityRule {
+  readonly after: number;
+  readonly multiplier: number;
 }
 
 /**
@@ -44,14 +59,16 @@ export function percentToBps(raw: string): number | null {
 }
 
 /**
- * The table for `rtpBps`, `hostShareBps`, `multipliers` and `shares`, or every problem with them
- * (CONVENTIONS §10.27 lists the rules; the server refuses to start on any).
+ * The table for `rtpBps`, `hostShareBps`, `multipliers`, their `chances` per million and the
+ * guarantee `pity` (null: off), or every problem with them (CONVENTIONS §10.27 lists the rules;
+ * the server refuses to start on any).
  */
 export function luckyTable(
   rtpBps: number,
   hostShareBps: number,
   multipliers: readonly number[],
-  shares: readonly number[],
+  chances: readonly number[],
+  pity: PityRule | null,
 ): LuckyTable | string[] {
   const problems: string[] = [];
   if (!Number.isInteger(rtpBps) || rtpBps < 100 || rtpBps > 9_900) {
@@ -78,34 +95,76 @@ export function luckyTable(
     );
   }
   if (
-    shares.length !== multipliers.length ||
-    shares.some((s) => !Number.isInteger(s) || s < 1) ||
-    shares.reduce((a, b) => a + b, 0) !== 100
+    chances.length !== multipliers.length ||
+    chances.some((c) => !Number.isInteger(c) || c < 1 || c >= LUCKY_CHANCE_SCALE)
   ) {
-    problems.push('the return shares must be whole numbers ≥ 1, one per multiplier, summing to 100');
+    problems.push('the chances must be whole numbers ≥ 1 per million, one per multiplier');
+  } else if (chances.reduce((a, b) => a + b, 0) > LUCKY_CHANCE_SCALE) {
+    problems.push('the winning chances add up to more than 100 %');
+  }
+  if (
+    pity !== null &&
+    (!Number.isInteger(pity.after) ||
+      pity.after < 1 ||
+      pity.after > LUCKY_MAX_PITY_AFTER ||
+      !multipliers.includes(pity.multiplier))
+  ) {
+    problems.push(
+      `the guarantee must come after 1–${String(LUCKY_MAX_PITY_AFTER)} losing draws and pay one of the multipliers`,
+    );
   }
   if (problems.length > 0) return problems;
-  const outcomes = multipliers.map((multiplier, i) => ({
-    multiplier,
-    chancePerMillion: Math.floor((rtpBps * shares[i]!) / multiplier),
-  }));
-  const zero = outcomes.filter((o) => o.chancePerMillion < 1).map((o) => `×${String(o.multiplier)}`);
-  if (zero.length > 0)
-    problems.push(`the chance of ${zero.join(', ')} rounds to 0 per million; give it a larger share`);
+  const outcomes = multipliers.map((multiplier, i) => ({ multiplier, chancePerMillion: chances[i]! }));
   const total = outcomes.reduce((a, o) => a + o.chancePerMillion, 0);
-  if (total > LUCKY_CHANCE_SCALE) problems.push('the winning chances add up to more than 100 %');
-  if (problems.length > 0) return problems;
-  return Object.freeze({
+  const table: LuckyTable = Object.freeze({
     rtpBps,
     hostShareBps,
     outcomes: Object.freeze(outcomes.map((o) => Object.freeze(o))),
     noWinChancePerMillion: LUCKY_CHANCE_SCALE - total,
+    pity: pity === null ? null : Object.freeze({ ...pity }),
   });
+  if (expectedReturnWithPity(table) > rtpBps / BPS) {
+    problems.push(
+      `the chances return ${(expectedReturnWithPity(table) * 100).toFixed(4)} % with the guarantee, more than the configured ${String(rtpBps / 100)} % (the daily protection would cut wins every day)`,
+    );
+    return problems;
+  }
+  return table;
 }
 
 /** The exact expected return of `table`, in basis points: Σ c_i × m_i / 100. */
 export function expectedReturnBps(table: Pick<LuckyTable, 'outcomes'>): number {
   return table.outcomes.reduce((a, o) => a + o.chancePerMillion * o.multiplier, 0) / 100;
+}
+
+/**
+ * D148: the exact expected return of one draw (a fraction, 0.85 = 85 %), the guarantee included.
+ * A sender's losing streak `k` is a Markov chain: from `k < N` a draw loses with `q` (the no-win
+ * chance) → `k + 1`, else → 0; at `k = N` the draw is guaranteed (pays `max(drawn, P)`) → 0. Its
+ * stationary law is `π_k ∝ q^k` (k = 0 … N), so a draw is guaranteed with `π_N = q^N / Σ_{k≤N} q^k`
+ * and returns `(1 − π_N) × Σ p_i m_i + π_N × (Σ_{m_i ≥ P} p_i m_i + P × (q + Σ_{m_i < P} p_i))`.
+ */
+export function expectedReturnWithPity(table: Pick<LuckyTable, 'outcomes' | 'pity'>): number {
+  const p = (c: number) => c / LUCKY_CHANCE_SCALE;
+  const base = table.outcomes.reduce((a, o) => a + p(o.chancePerMillion) * o.multiplier, 0);
+  const pity = table.pity;
+  if (pity === null) return base;
+  const q = 1 - table.outcomes.reduce((a, o) => a + p(o.chancePerMillion), 0);
+  let sum = 0;
+  let qk = 1;
+  for (let k = 0; k <= pity.after; k += 1) {
+    sum += qk;
+    if (k < pity.after) qk *= q;
+  }
+  const guaranteedShare = qk / sum;
+  const below = table.outcomes
+    .filter((o) => o.multiplier < pity.multiplier)
+    .reduce((a, o) => a + p(o.chancePerMillion), 0);
+  const above = table.outcomes
+    .filter((o) => o.multiplier >= pity.multiplier)
+    .reduce((a, o) => a + p(o.chancePerMillion) * o.multiplier, 0);
+  const guaranteedReturn = above + pity.multiplier * (q + below);
+  return (1 - guaranteedShare) * base + guaranteedShare * guaranteedReturn;
 }
 
 /** A source of uniform integers in [0, maxExclusive); production: `crypto.randomInt` (lucky-rng.ts). */
@@ -146,20 +205,88 @@ export function budgetLeft(spend: bigint, paid: bigint, rtpBps: number): bigint 
   return left > 0n ? left : 0n;
 }
 
-/** One draw as audited: `[index, drawn multiplier, paid multiplier]` (paid 0: nothing). */
+/**
+ * One draw as audited: `[index, drawn multiplier, paid multiplier]`. Paid below drawn: cut by the
+ * daily protection (0: nothing); paid above drawn (drawn 0 or a smaller win): the D148 guarantee.
+ */
 export type AuditedWin = [number, number, number];
 
 export interface CappedWins {
   readonly wins: AuditedWin[];
   readonly coinsWon: bigint;
-  /** Winning draws paid less than drawn (or nothing). */
+  /** Draws paid less than they were due (or nothing) because of the daily protection. */
   readonly downgraded: number;
   readonly budgetAfter: bigint;
 }
 
+export interface SettledDraws extends CappedWins {
+  /** D148: draws the guarantee paid (paid above drawn). */
+  readonly guaranteed: number;
+  /** D148: the sender's losing draws in a row after this send. */
+  readonly lossesAfter: number;
+}
+
+/** The largest of `ascending` ≤ `due` whose coins fit in `left`, or 0. */
+function largestFitting(ascending: readonly number[], due: number, unit: bigint, left: bigint): number {
+  for (let i = ascending.length - 1; i >= 0; i -= 1) {
+    const m = ascending[i]!;
+    if (m <= due && BigInt(m) * unit <= left) return m;
+  }
+  return 0;
+}
+
 /**
- * The daily protection (§10.27): pays the winning draws in draw order while they fit in `budget`;
- * a draw that does not fit pays the largest smaller multiplier of `multipliers` that fits, or 0.
+ * Settles the `draws` of one send in draw order (§10.27, D148). A draw is due its drawn multiplier
+ * (0 when it lost) — or at least `pity.multiplier` when the sender already lost `pity.after` draws
+ * in a row (`lossesBefore`, then counted on through the send). The daily protection then pays the
+ * largest multiplier ≤ the due one that fits in `budget`, or 0. A draw that paid something resets
+ * the streak; one that paid 0 (a loss, or a win or guarantee the budget could not pay) extends it,
+ * so a guarantee that did not fit stays due on the next draw.
+ */
+export function settleDraws(
+  winners: readonly (readonly [number, number])[],
+  draws: number,
+  unitPrice: number,
+  multipliers: readonly number[],
+  budget: bigint,
+  pity: PityRule | null,
+  lossesBefore: number,
+): SettledDraws {
+  const ascending = [...multipliers].sort((a, b) => a - b);
+  const unit = BigInt(unitPrice);
+  const drawn = new Map<number, number>(winners.map(([i, m]) => [i, m]));
+  let left = budget;
+  let coinsWon = 0n;
+  let downgraded = 0;
+  let guaranteed = 0;
+  let losses = lossesBefore;
+  const wins: AuditedWin[] = [];
+  for (let index = 0; index < draws; index += 1) {
+    const m = drawn.get(index) ?? 0;
+    const due = pity !== null && losses >= pity.after && m < pity.multiplier ? pity.multiplier : m;
+    if (due === 0) {
+      losses += 1;
+      continue;
+    }
+    const paid = largestFitting(ascending, due, unit, left);
+    if (paid !== due) downgraded += 1;
+    if (paid > 0) {
+      const coins = BigInt(paid) * unit;
+      left -= coins;
+      coinsWon += coins;
+      losses = 0;
+      if (paid > m) guaranteed += 1;
+    } else {
+      losses += 1;
+    }
+    wins.push([index, m, paid]);
+  }
+  return { wins, coinsWon, downgraded, budgetAfter: left, guaranteed, lossesAfter: losses };
+}
+
+/**
+ * The daily protection alone (no guarantee): pays the winning draws in draw order while they fit
+ * in `budget`; a draw that does not fit pays the largest smaller multiplier that fits, or 0.
  */
 export function capWins(
   winners: readonly (readonly [number, number])[],
@@ -167,30 +294,14 @@ export function capWins(
   multipliers: readonly number[],
   budget: bigint,
 ): CappedWins {
-  const ascending = [...multipliers].sort((a, b) => a - b);
-  const unit = BigInt(unitPrice);
-  let left = budget;
-  let coinsWon = 0n;
-  let downgraded = 0;
-  const wins: AuditedWin[] = [];
-  for (const [index, drawn] of winners) {
-    let paid = 0;
-    for (let i = ascending.length - 1; i >= 0; i -= 1) {
-      const m = ascending[i]!;
-      if (m <= drawn && BigInt(m) * unit <= left) {
-        paid = m;
-        break;
-      }
-    }
-    if (paid !== drawn) downgraded += 1;
-    if (paid > 0) {
-      const coins = BigInt(paid) * unit;
-      left -= coins;
-      coinsWon += coins;
-    }
-    wins.push([index, drawn, paid]);
-  }
-  return { wins, coinsWon, downgraded, budgetAfter: left };
+  const draws = winners.reduce((a, [i]) => Math.max(a, i + 1), 0);
+  const settled = settleDraws(winners, draws, unitPrice, multipliers, budget, null, 0);
+  return {
+    wins: settled.wins,
+    coinsWon: settled.coinsWon,
+    downgraded: settled.downgraded,
+    budgetAfter: settled.budgetAfter,
+  };
 }
 
 /** `LuckyGiftWin`. */
@@ -207,6 +318,8 @@ export interface LuckyGiftResultDto {
   coinsWon: number;
   topMultiplier: number | null;
   downgraded: number;
+  /** D148: a draw of this send was paid by the guarantee (the app labels the win «ضمان»). */
+  guaranteed: boolean;
 }
 
 /** The response of a lucky send from its audited draws. */
@@ -227,6 +340,7 @@ export function luckyResultDto(
     coinsWon: list.reduce((a, w) => a + w.coins, 0),
     topMultiplier: list.length === 0 ? null : list.at(-1)!.multiplier,
     downgraded,
+    guaranteed: wins.some(([, drawn, paid]) => paid > drawn),
   };
 }
 

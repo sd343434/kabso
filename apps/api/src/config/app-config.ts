@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { envSchema, type Env, type RateLimitRule } from './env.schema.js';
+import { envSchema, luckyPityOf, type Env, type RateLimitRule } from './env.schema.js';
 import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -391,7 +391,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
         e.LUCKY_GIFT_RTP_PERCENT,
         e.LUCKY_GIFT_HOST_SHARE_PERCENT,
         e.LUCKY_GIFT_MULTIPLIERS,
-        e.LUCKY_GIFT_RTP_SHARES,
+        e.LUCKY_GIFT_CHANCES_PER_MILLION,
+        luckyPityOf(e),
       ) as LuckyTable,
       bigWinMultiplier: e.LUCKY_GIFT_BIG_WIN_MULTIPLIER,
       dayTimeZone: e.LUCKY_GIFT_DAY_TIME_ZONE,
