@@ -2,6 +2,7 @@
 // D121: `listUserFollowers`, `listUserFollowing`, `FollowListItem`;
 // v1.26.1-live, D125: `q`, `order`, `removeMyFollower`; CONVENTIONS §10.6).
 
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Which list of a user: who follows them, or whom they follow.
@@ -44,6 +45,7 @@ class FollowListItem {
     required this.isPrivate,
     required this.followedByMe,
     required this.followsMe,
+    this.premiumTier,
   });
 
   factory fromJson(Map<String, dynamic> json) => FollowListItem(
@@ -55,6 +57,7 @@ class FollowListItem {
     isPrivate: json['isPrivate'] as bool? ?? false,
     followedByMe: json['followedByMe'] as bool? ?? false,
     followsMe: json['followsMe'] as bool? ?? false,
+    premiumTier: premiumTierFromJson(json['premiumTier']),
   );
 
   final String id;
@@ -75,6 +78,10 @@ class FollowListItem {
   /// This account follows the reader ("Follow back").
   final bool followsMe;
 
+  /// v1.28-live (D146, via `UserSummary`): the premium username's tier, or
+  /// null for a regular username (D158: shown without «@»).
+  final PremiumTier? premiumTier;
+
   /// The name to show (the username when the display name is empty).
   String get name => displayName.isEmpty ? username : displayName;
 
@@ -91,5 +98,6 @@ class FollowListItem {
         isPrivate: isPrivate,
         followedByMe: followedByMe,
         followsMe: followsMe,
+        premiumTier: premiumTier,
       );
 }

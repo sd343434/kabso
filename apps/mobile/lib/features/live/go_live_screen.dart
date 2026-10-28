@@ -8,6 +8,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -321,8 +322,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// yet, nor a system share sheet in the app).
   Future<void> _shareLive(String title, String username) async {
     final l10n = context.l10n;
+    // D158: the host's own handle (a premium username has no «@»).
+    final handle = KHandle.plain(
+      username,
+      premiumTier: ref.read(currentUserProvider)?.premiumTier,
+    );
     await Clipboard.setData(
-      ClipboardData(text: l10n.goLiveShareText(title, username)),
+      ClipboardData(text: l10n.goLiveShareText(title, handle)),
     );
     if (mounted) KSnack.success(context, l10n.goLiveShareCopied);
   }

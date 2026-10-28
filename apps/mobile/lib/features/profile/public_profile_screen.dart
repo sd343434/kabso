@@ -5,6 +5,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -207,7 +208,13 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     switch (action) {
       case _More.copy:
         await Clipboard.setData(
-          ClipboardData(text: l10n.profileUsername(widget.username)),
+          // D158: what is shown is copied (a premium username has no «@»).
+          ClipboardData(
+            text: KHandle.plain(
+              profile.username,
+              premiumTier: profile.premiumTier,
+            ),
+          ),
         );
         if (mounted) KSnack.success(context, l10n.profileCopied);
       case _More.mute:
@@ -279,7 +286,10 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
               style: profileSecondaryButtonStyle(context),
               onPressed: () => context.push(
                 AppRoutes.chat(profile.username),
-                extra: profile.displayName,
+                extra: (
+                  displayName: profile.displayName,
+                  premiumTier: profile.premiumTier,
+                ),
               ),
               child: Text(l10n.profileMessage),
             ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -473,7 +474,7 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
               style: t.body.copyWith(color: _ink),
             ),
             subtitle: Text(
-              '@${u.username}',
+              KHandle.plain(u.username, premiumTier: u.premiumTier),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textDirection: TextDirection.ltr,

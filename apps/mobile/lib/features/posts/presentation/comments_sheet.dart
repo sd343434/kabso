@@ -7,6 +7,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
+import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -60,9 +61,23 @@ abstract final class KCommentsSheet {
 
 /// [text] with every `@username` wrapped in a left-to-right isolate, so a
 /// Latin handle keeps its `@` in front inside Arabic text (display only;
-/// what is sent stays as typed).
-String isolateHandles(String text) =>
-    text.replaceAllMapped(_handle, (m) => '\u2066${m.group(0)}\u2069');
+/// what is sent stays as typed). D158: a handle of one of the [mentions]
+/// that is a premium username shows without «@».
+String isolateHandles(String text, {List<UserSummary> mentions = const []}) {
+  final premium = {
+    for (final m in mentions)
+      if (m.premiumTier != null) m.username.toLowerCase(),
+  };
+  return text.replaceAllMapped(_handle, (m) {
+    final handle = m.group(0)!;
+    // A username ends before a trailing dot (end of a sentence).
+    final name = handle.substring(1).replaceFirst(_trailingDots, '');
+    if (!premium.contains(name.toLowerCase())) return '\u2066$handle\u2069';
+    return '\u2066$name\u2069${handle.substring(1 + name.length)}';
+  });
+}
+
+final RegExp _trailingDots = RegExp(r'\.+$');
 
 final RegExp _handle = RegExp(r'(?<![\p{L}\p{N}_])@[a-z0-9._]+', unicode: true);
 
@@ -668,7 +683,7 @@ class _CommentTile extends StatelessWidget {
                 ),
                 const SizedBox(height: KSpacing.xxs),
                 KabiEmojiText(
-                  isolateHandles(c.text),
+                  isolateHandles(c.text, mentions: c.mentions),
                   style: t.body.copyWith(
                     fontSize: KCommentsSheet.bodySize,
                     height: KCommentsSheet.bodyHeight,

@@ -165,11 +165,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.chatPattern,
         builder: (_, state) {
           final username = state.pathParameters['username']!;
-          final name = state.extra is String ? state.extra! as String : null;
+          // D158: the display name alone, or with the premium tier.
+          final (name, tier) = switch (state.extra) {
+            final String n => (n, null),
+            final ChatPeer peer => (peer.displayName, peer.premiumTier),
+            _ => (null, null),
+          };
           // D86: with Demo data the designed conversation (test data).
           return demoOn()
               ? MessagesPreviewScreen(peer: name ?? username)
-              : ChatScreen(username: username, displayName: name);
+              : ChatScreen(
+                  username: username,
+                  displayName: name,
+                  premiumTier: tier,
+                );
         },
       ),
       GoRoute(

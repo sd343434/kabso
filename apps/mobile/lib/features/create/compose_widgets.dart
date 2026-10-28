@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -661,7 +662,11 @@ class _MentionSearchState extends ConsumerState<_MentionSearch> {
                             ),
                             title: Text(u.displayName),
                             subtitle: Text(
-                              context.l10n.profileUsername(u.username),
+                              KHandle.text(
+                                context.l10n,
+                                u.username,
+                                premiumTier: u.premiumTier,
+                              ),
                             ),
                             onTap: () => Navigator.of(context).pop(u),
                           ),

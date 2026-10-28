@@ -8,6 +8,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -1069,7 +1070,15 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   onMinimize: null,
                   shareKey: AudioRoomViewKeys.share,
                   shareTooltip: l10n.goLiveShare,
-                  onShare: () => unawaited(_share(room.title, host.username)),
+                  onShare: () => unawaited(
+                    _share(
+                      room.title,
+                      KHandle.plain(
+                        host.username,
+                        premiumTier: host.premiumTier,
+                      ),
+                    ),
+                  ),
                   endKey: AudioRoomViewKeys.close,
                   endTooltip: l10n.liveClose,
                   onEnd: () => unawaited(_leave()),
@@ -1177,10 +1186,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     );
   }
 
-  Future<void> _share(String title, String username) async {
+  Future<void> _share(String title, String handle) async {
     final l10n = context.l10n;
     await Clipboard.setData(
-      ClipboardData(text: l10n.goLiveShareText(title, username)),
+      ClipboardData(text: l10n.goLiveShareText(title, handle)),
     );
     if (mounted) KSnack.success(context, l10n.goLiveShareCopied);
   }
@@ -1577,7 +1586,12 @@ class _HostSheet extends ConsumerWidget {
                 onTap: () {
                   unawaited(
                     Clipboard.setData(
-                      ClipboardData(text: '@${profile.username}'),
+                      ClipboardData(
+                        text: KHandle.plain(
+                          profile.username,
+                          premiumTier: profile.premiumTier,
+                        ),
+                      ),
                     ),
                   );
                   KSnack.info(context, l10n.profileCopied);
@@ -1782,7 +1796,10 @@ class _HostSheet extends ConsumerWidget {
                             () => unawaited(
                               context.push(
                                 AppRoutes.chat(profile.username),
-                                extra: profile.displayName,
+                                extra: (
+                                  displayName: profile.displayName,
+                                  premiumTier: profile.premiumTier,
+                                ),
                               ),
                             ),
                           ),

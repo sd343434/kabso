@@ -3706,8 +3706,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveShare => 'مشاركة';
 
   @override
-  String goLiveShareText(String title, String username) {
-    return 'أنا مباشر الآن على Kabso Live: «$title» — تابعني @$username';
+  String goLiveShareText(String title, String handle) {
+    return 'أنا مباشر الآن على Kabso Live: «$title» — تابعني $handle';
   }
 
   @override
@@ -6591,12 +6591,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String premiumRented(String username) {
-    return 'أصبحت الآن ‎@$username';
+    return 'أصبحت الآن ⁦$username⁩';
   }
 
   @override
   String premiumRenewed(String username) {
-    return 'تم تجديد ‎@$username';
+    return 'تم تجديد ⁦$username⁩';
   }
 
   @override
@@ -6629,7 +6629,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String premiumReleaseBody(String premium, String regular) {
-    return 'سيعود ‎@$premium إلى المتجر الآن وتعود إلى ‎@$regular. لا تُسترد العملات.';
+    return 'سيعود ⁦$premium⁩ إلى المتجر الآن وتعود إلى ‎@$regular. لا تُسترد العملات.';
   }
 
   @override
@@ -6684,7 +6684,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String premiumBadgeLabel(String tier, String username) {
-    return 'يوزر مميز $tier ‎@$username';
+    return 'يوزر مميز $tier ⁦$username⁩';
   }
 
   @override
@@ -6716,22 +6716,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String changeUsernameRentInstead(String username) {
-    return 'استأجر ‎@$username كيوزر مميز';
+    return 'استأجر ⁦$username⁩ كيوزر مميز';
   }
 
   @override
   String changeUsernamePremiumActive(String premium, String regular) {
-    return 'أنت تستخدم اليوزر المميز ‎@$premium. لتغيير يوزرك العادي (‎@$regular) أعِد اليوزر المميز أولاً.';
+    return 'أنت تستخدم اليوزر المميز ⁦$premium⁩. لتغيير يوزرك العادي (‎@$regular) أعِد اليوزر المميز أولاً.';
   }
 
   @override
   String notificationPremiumExpiring(String username, String left) {
-    return 'ينتهي يوزرك المميز ‎@$username خلال $left. جدّده لتحتفظ به.';
+    return 'ينتهي يوزرك المميز ⁦$username⁩ خلال $left. جدّده لتحتفظ به.';
   }
 
   @override
   String notificationPremiumExpired(String username) {
-    return 'انتهى يوزرك المميز ‎@$username، وهو محجوز لك لبضعة أيام.';
+    return 'انتهى يوزرك المميز ⁦$username⁩، وهو محجوز لك لبضعة أيام.';
   }
 
   @override

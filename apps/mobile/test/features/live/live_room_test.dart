@@ -1658,7 +1658,7 @@ void main() {
       expect(
         copied,
         l10nFor(AppLanguage.en)
-            .goLiveShareText(shown.title, shown.host.username),
+            .goLiveShareText(shown.title, '@${shown.host.username}'),
       );
       ScaffoldMessenger.of(tester.element(find.byType(LiveAudioRoomLayout)))
           .removeCurrentSnackBar();

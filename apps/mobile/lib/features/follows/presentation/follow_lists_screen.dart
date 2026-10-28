@@ -842,8 +842,10 @@ class FollowListRow extends ConsumerWidget {
           ),
           textStyle: t.bodyStrong,
         ),
-        onPressed: () =>
-            context.push(AppRoutes.chat(item.username), extra: item.name),
+        onPressed: () => context.push(
+          AppRoutes.chat(item.username),
+          extra: (displayName: item.name, premiumTier: item.premiumTier),
+        ),
         child: Text(
           l10n.profileMessage,
           maxLines: 1,
