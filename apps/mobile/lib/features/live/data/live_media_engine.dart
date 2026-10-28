@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
@@ -30,6 +31,10 @@ enum LiveCaptureProblem {
 
   /// No camera or microphone was found, or it is in use.
   unavailable,
+
+  /// D144a: refused for good — only the app's settings can allow it (the
+  /// system will not ask again).
+  blocked,
 }
 
 /// The camera, microphone and media session of the person going live
@@ -56,6 +61,14 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   /// Whether Magic's AR effects can run here (D144).
   LiveArSupport get arEffects;
+
+  /// D144a: the picked AR effect's state on the device — DeepAR switches
+  /// it off by itself (and says why) rather than freeze the picture.
+  ValueListenable<LiveArStatus> get arStatus;
+
+  /// D144a: the camera processor's state and counters for the non-release
+  /// diagnostics overlay; null where there is no processor.
+  Future<KabsoCameraFxDiagnostics?> arDiagnostics();
 
   /// Beauty on the camera picture, before and while live: what of it this
   /// device supports (skin, colour filter, AR effect).
@@ -194,6 +207,13 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   LiveArSupport get arEffects => _fx.effects;
+
+  @override
+  ValueListenable<LiveArStatus> get arStatus => _fx.status;
+
+  @override
+  Future<KabsoCameraFxDiagnostics?> arDiagnostics() =>
+      kIsWeb ? Future.value() : _fx.diagnostics();
 
   @override
   Future<void> setBeauty(LiveBeauty beauty) async {

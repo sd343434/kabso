@@ -1055,6 +1055,29 @@ the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays g
   initialization, watermark, orientation/mirroring on both cameras, latency, fps, battery
   and background pause/resume need the owner's device.
 - **Third-party notices:** `apps/mobile/packages/kabso_camera_fx/THIRD_PARTY_NOTICES.md`.
+- **D144a — no frozen picture, status and diagnostics:** the DeepAR stage publishes a render
+  only when DeepAR took a newer camera frame since the last one published (else the raw
+  frame), keeps one frame in flight, latches DeepAR's input size per instance and switches
+  the effect off by itself (raw camera, Magic says why) after 30 frames in a row without a
+  fresh render, 10 s without a first one, a stalled DeepAR thread, a licence error or a
+  failed start. **Diagnostics overlay** — debug and profile builds only (CI's APK is a debug
+  build), video lives on Android: a small black box under the host's top bar; tap folds it.
+  What to read on the device:
+  - `DeepAR ready licence yes` with `out` rising about as fast as `in`, few `raw`: working.
+  - `licence no`: the build has no key (`DEEPAR_LICENSE_ANDROID`).
+  - `fed` rising but `out` flat and `stale` rising: DeepAR re-draws without taking frames
+    (the D144 freeze case) — the effect turns off (`disabled (no_output)`) instead of freezing.
+  - `inflight` growing into seconds: DeepAR's thread is stuck (`disabled (stalled)`).
+  - `init no` for 10 s: `error (init_timeout)`; `licence_failed`: DeepAR refused the key.
+  - `render` = DeepAR's own render count, `got` = renders that reached the processor; `wait` /
+    `pack` = average ms per frame waiting for DeepAR / reading the camera back; `input` =
+    DeepAR's latched input (`1280x720@270` front camera); `#` = DeepAR instances (a new one
+    per camera flip).
+  The Kotlin rules are unit-tested (`./gradlew :kabso_camera_fx:testDebugUnitTest` in
+  `apps/mobile/android`, CI's Android job); none of this has run on a device yet.
+- **Camera/microphone permissions (D144a):** Android asks through the plugin's
+  `com.kabso/permissions` channel after the app's own explanation sheet, once; refused for
+  good → «فتح الإعدادات». Audio rooms and audio seats ask for the microphone only.
 
 ## 10. What is not verified
 

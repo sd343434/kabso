@@ -11581,6 +11581,102 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{count, plural, =0{لا منشورات هذا الأسبوع} =1{منشور واحد هذا الأسبوع} =2{منشوران هذا الأسبوع} few{{count} منشورات هذا الأسبوع} many{{count} منشورًا هذا الأسبوع} other{{count} منشور هذا الأسبوع}}'**
   String trendingHashtagWeekCount(int count);
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تشغيل المؤثر…'**
+  String get liveEffectStarting;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: توقّف عن إعطاء صورة جديدة، فعادت الكاميرا من دونه. جرّبه مرة أخرى بعد قليل.'**
+  String get liveEffectUnavailableStopped;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: لم يُقبل ترخيص المؤثرات في هذا الإصدار.'**
+  String get liveEffectUnavailableLicence;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.'**
+  String get liveEffectUnavailableFailed;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا والميكروفون لبثّك'**
+  String get livePermissionTitleVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون للغرفة الصوتية'**
+  String get livePermissionTitleAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'يستخدم Kabso Live الكاميرا والميكروفون فقط أثناء بثّك أو جلوسك على مقعد، ليراك الحاضرون ويسمعوك. سيسألك الجهاز مرة واحدة.'**
+  String get livePermissionBodyVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'يستخدم Kabso Live الميكروفون فقط أثناء وجودك في الغرفة الصوتية ليسمعك الحاضرون، ولا يحتاج الكاميرا هنا. سيسألك الجهاز مرة واحدة.'**
+  String get livePermissionBodyAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get livePermissionContinue;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس الآن'**
+  String get livePermissionNotNow;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الإعدادات'**
+  String get livePermissionOpenSettings;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالكاميرا والميكروفون.'**
+  String get livePermissionBlockedVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالميكروفون.'**
+  String get livePermissionBlockedAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح بالميكروفون'**
+  String get goLiveMicDeniedTitle;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاجه الغرفة الصوتية ليسمعك الحاضرون. اضغط «إعادة المحاولة» ليسألك الجهاز مرة أخرى.'**
+  String get goLiveMicDeniedBody;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن الجلوس على المقعد دون السماح بالوصول.'**
+  String get livePermissionSeatRefused;
 }
 
 class _AppLocalizationsDelegate

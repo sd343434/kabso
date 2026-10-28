@@ -16,37 +16,50 @@ import org.webrtc.SurfaceTextureHelper
 import org.webrtc.VideoFrame
 import org.webrtc.YuvHelper
 import java.nio.ByteBuffer
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
+import java.util.concurrent.atomic.AtomicLong
 
 /**
- * D144: the DeepAR stage of [CameraFxProcessor].
+ * D144: the DeepAR stage of [CameraFxProcessor]. D144a: it can no longer
+ * freeze the picture.
  *
- * Per frame (capture thread): texture frame → `toI420()` → NV21 (libyuv via
- * [YuvHelper], into one of two rotating direct buffers) → DeepAR's own thread
- * `receiveFrame` → DeepAR renders into a [Surface] owned by a WebRTC
- * [SurfaceTextureHelper] created on flutter_webrtc's root EGL context (the
- * capturer's and encoder's share group) → that texture frame (rotation 0:
- * DeepAR renders upright) is handed back. The output never leaves the GPU.
+ * Per frame (capture thread): texture frame → (crop/scale to the latched
+ * [InputGeometry]) → `toI420()` → NV21 (libyuv via [YuvHelper], two rotating
+ * direct buffers) → DeepAR's own thread `receiveFrame` → DeepAR renders into
+ * a [Surface] owned by a WebRTC [SurfaceTextureHelper] on flutter_webrtc's
+ * root EGL context → [FreshGate] → that texture frame (rotation 0: DeepAR
+ * renders upright, capture timestamp) is handed back. The output never leaves
+ * the GPU.
  *
- * Rules that keep it safe:
+ * Rules (D144a, after the owner's device froze on background blur with the
+ * watermark showing — DeepAR alive, the camera image no longer advancing):
+ * - **Only fresh output** ([FreshGate]): a render is published only if DeepAR
+ *   took a newer camera frame since the last one published; re-draws are
+ *   released at once. No fresh render within [RENDER_TIMEOUT_MS] → the raw
+ *   frame passes. Never a held or repeated picture.
+ * - **One frame in flight** to DeepAR: while it is busy no new frame is
+ *   queued behind it (D144 posted one per camera frame without bound).
+ * - **Fixed input geometry** per DeepAR instance ([InputGeometry]): WebRTC's
+ *   resolution changes are absorbed by a GPU crop/scale; the render surface
+ *   is set once. The other camera (rotation change) → a new instance.
+ * - **Safety net** ([OutputHealth]): no fresh render for [MAX_MISSES] frames
+ *   in a row (or none in the first [WARMUP_MS]), DeepAR's thread stuck for
+ *   [STALL_MS], a licence error or a failing `receiveFrame` → the effect turns
+ *   itself off (raw camera) and [onStatus] says why.
  * - No effect selected → [process] returns null (the frame passes untouched)
  *   and DeepAR is paused. DeepAR is initialized only when an effect is first
  *   picked (DeepAR counts monthly active users by initialization).
- * - The capture thread waits at most [RENDER_TIMEOUT_MS] for DeepAR's render,
- *   then the raw frame passes.
- * - Never hold a "latest output" frame: the helper owns ONE texture, so a
- *   held frame stops it rendering again (deadlock). The caller releases the
- *   frame [process] returns before the next call.
- * - Viewers get the true (unmirrored) picture: `mirror=false`. The host's
- *   preview still mirrors the front camera in its renderer.
+ * - Viewers get the true (unmirrored) picture: `mirror=false`.
  *
  * Adapted from voxa_deepar's DeepArBridgeFilter (MIT; see the package's
  * THIRD_PARTY_NOTICES.md).
  */
-internal class DeepArStage(private val activity: Activity) {
+internal class DeepArStage(
+    private val activity: Activity,
+    private val onStatus: (Map<String, Any?>) -> Unit,
+) {
 
     /** What [setEffect] can load. */
     sealed interface Effect {
@@ -57,8 +70,9 @@ internal class DeepArStage(private val activity: Activity) {
         data class Asset(val path: String) : Effect
     }
 
-    // DeepAR pins itself to the thread that initialized it: every call goes
-    // through this one, never the capture or main thread.
+    // DeepAR pins itself to the thread that first set its render surface:
+    // every DeepAR call goes through this one, never the capture or main
+    // thread.
     private val deepArThread = HandlerThread("KabsoDeepAr").apply { start() }
     private val deepAr = Handler(deepArThread.looper)
 
@@ -66,29 +80,54 @@ internal class DeepArStage(private val activity: Activity) {
 
     // Guarded by [lock].
     private var instance: DeepAR? = null
+    private var generation = 0
     private var licenseKey: String? = null
     private var effect: Effect? = null
     private var surfaceHelper: SurfaceTextureHelper? = null
     private var renderSurface: Surface? = null
-    private var surfaceWidth = 0
-    private var surfaceHeight = 0
-    private var surfaceRotation = -1
+    private var geometry: InputGeometry? = null
+    private var surfaceFor: InputGeometry? = null
     private var configuring = false
+    private var recreating = false
     private val inputBuffers = arrayOfNulls<ByteBuffer>(2)
     private var inputSlot = 0
 
-    /** An effect is selected: the only state in which frames are touched. */
+    /** An effect is selected and not given up on: frames go to DeepAR. */
     @Volatile private var active = false
-    private val initialized = AtomicBoolean(false)
+
+    /** Generation whose DeepAR said `initialized()` (-1: none). */
+    @Volatile private var initializedGen = -1
     private val disposed = AtomicBoolean(false)
 
-    private val slot = Slot()
+    // DeepAR's thread only.
+    private var blurOn = false
 
+    private val gate = FreshGate<VideoFrame> { it.release() }
+
+    // Capture thread only.
+    private val health = OutputHealth(MAX_MISSES, TimeUnit.MILLISECONDS.toNanos(WARMUP_MS))
+    @Volatile private var armPending = false
+    private var fedSeq = 0L
+    private val waitAvg = RollingAverage()
+    private val packAvg = RollingAverage()
     private var reportedTimeout = false
-    private var statFrames = 0
-    private var statRendered = 0
-    private var statWaitNanos = 0L
-    private var statWindowStart = 0L
+
+    // One frame in flight to DeepAR's thread.
+    private val inFlight = AtomicBoolean(false)
+    @Volatile private var inFlightSince = 0L
+
+    // Diagnostics (any thread).
+    private val framesIn = AtomicLong()
+    private val fed = AtomicLong()
+    private val busySkips = AtomicLong()
+    private val framesOut = AtomicLong()
+    private val misses = AtomicLong()
+    private val deepArRenders = AtomicLong()
+    private val instances = AtomicLong()
+    @Volatile private var state = STATE_OFF
+    @Volatile private var reason: String? = null
+    @Volatile private var lastError: String? = null
+    @Volatile private var sdkVersion: String? = null
 
     fun setLicenseKey(key: String) {
         synchronized(lock) { licenseKey = key }
@@ -97,7 +136,17 @@ internal class DeepArStage(private val activity: Activity) {
     /** `null`: no effect (pass-through, DeepAR paused). */
     fun setEffect(next: Effect?) {
         synchronized(lock) { effect = next }
-        active = next != null
+        if (next != null) {
+            gate.clear()
+            armPending = true
+            active = true
+            setState(STATE_INITIALIZING, null)
+        } else {
+            active = false
+            gate.clear()
+            // A failure stays visible (Dart shows why) until the next pick.
+            if (!isFailure(state)) setState(STATE_OFF, null)
+        }
         deepAr.post {
             if (next != null) startIfNeeded()
             applyEffect()
@@ -114,39 +163,92 @@ internal class DeepArStage(private val activity: Activity) {
         }
     }
 
+    /** What the diagnostics overlay shows (never the licence key). */
+    fun diagnostics(): Map<String, Any?> {
+        val (delivered, stale) = gate.counts()
+        val geo = synchronized(lock) { geometry }
+        val since = inFlightSince
+        return mapOf(
+            "state" to state,
+            "reason" to reason,
+            "lastError" to lastError,
+            "licencePresent" to !synchronized(lock) { licenseKey }.isNullOrEmpty(),
+            "sdkVersion" to sdkVersion,
+            "initialized" to (initializedGen >= 0),
+            "framesIn" to framesIn.get(),
+            "fed" to fed.get(),
+            "busySkips" to busySkips.get(),
+            "rendered" to deepArRenders.get(),
+            "delivered" to delivered,
+            "staleDropped" to stale,
+            "framesOut" to framesOut.get(),
+            "timeouts" to misses.get(),
+            "consecutiveMisses" to health.consecutiveMisses,
+            "avgWaitMs" to waitAvg.lastMs,
+            "avgPackMs" to packAvg.lastMs,
+            "inFlightMs" to if (inFlight.get() && since > 0) (System.nanoTime() - since) / 1_000_000 else 0L,
+            "input" to geo?.let { "${it.width}x${it.height}@${it.rotation}" },
+            "instances" to instances.get(),
+        )
+    }
+
     // ------------------------------------------------------------ DeepAR thread
 
     private fun startIfNeeded() {
-        val key: String
-        val created: DeepAR
+        val key: String?
+        var created: DeepAR? = null
+        var gen = 0
         synchronized(lock) {
             if (instance != null || disposed.get()) return
-            key = licenseKey ?: run {
-                Log.w(TAG, "an effect was picked before init(licenseKey): ignored")
-                return
+            key = licenseKey
+            if (!key.isNullOrEmpty()) {
+                created = DeepAR(activity)
+                generation++
+                gen = generation
+                instance = created
             }
-            created = DeepAR(activity)
-            instance = created
         }
-        created.setLicenseKey(key)
-        created.initialize(activity, Listener())
-        // Live mode: no still-capture pipeline kept warm.
-        created.changeLiveMode(true)
-        Log.i(TAG, "DeepAR initializing (SDK ${DeepAR.getSdkVersion()})")
+        val deepAR = created
+        if (key.isNullOrEmpty() || deepAR == null) {
+            Log.w(TAG, "an effect was picked before init(licenseKey): ignored")
+            fail(STATE_LICENCE_FAILED, "no_key")
+            return
+        }
+        instances.incrementAndGet()
+        try {
+            deepAR.setLicenseKey(key)
+            deepAR.initialize(activity, Listener(gen))
+            deepAR.setFrameRenderedCallback { deepArRenders.incrementAndGet() }
+            // Live mode: no still-capture pipeline kept warm.
+            deepAR.changeLiveMode(true)
+            sdkVersion = try {
+                DeepAR.getSdkVersion()
+            } catch (_: Throwable) {
+                null
+            }
+            Log.i(TAG, "DeepAR initializing (SDK $sdkVersion)")
+        } catch (error: Throwable) {
+            lastError = error.toString()
+            Log.w(TAG, "DeepAR could not start: $error")
+            fail(STATE_ERROR, "start_failed")
+        }
     }
 
     private fun applyEffect() {
         val deepAR: DeepAR
         val next: Effect?
+        val gen: Int
         synchronized(lock) {
             deepAR = instance ?: return
             next = effect
+            gen = generation
         }
-        if (!initialized.get()) return // re-applied from initialized()
+        if (initializedGen != gen) return // re-applied from initialized()
         try {
             when (next) {
                 null -> {
-                    deepAR.backgroundBlur(false, 0)
+                    if (blurOn) deepAR.backgroundBlur(false, 0)
+                    blurOn = false
                     deepAR.switchEffect(SLOT, null as String?)
                     deepAR.setPaused(true)
                 }
@@ -154,20 +256,26 @@ internal class DeepArStage(private val activity: Activity) {
                     deepAR.setPaused(false)
                     deepAR.switchEffect(SLOT, null as String?)
                     when (next.name) {
-                        "background_blur" -> deepAR.backgroundBlur(true, BLUR_STRENGTH)
+                        "background_blur" -> {
+                            deepAR.backgroundBlur(true, BLUR_STRENGTH)
+                            blurOn = true
+                        }
                         else -> Log.w(TAG, "unknown built-in effect ${next.name}")
                     }
                 }
                 is Effect.Asset -> {
                     deepAR.setPaused(false)
-                    deepAR.backgroundBlur(false, 0)
+                    if (blurOn) deepAR.backgroundBlur(false, 0)
+                    blurOn = false
                     activity.assets.open(next.path).use { stream ->
                         deepAR.switchEffect(SLOT, stream)
                     }
                 }
             }
         } catch (error: Throwable) {
+            lastError = error.toString()
             Log.w(TAG, "switching the effect failed: $error")
+            fail(STATE_ERROR, "effect_failed")
         }
     }
 
@@ -182,24 +290,37 @@ internal class DeepArStage(private val activity: Activity) {
             instance = null
             surfaceHelper = null
             renderSurface = null
-            surfaceRotation = -1
+            geometry = null
+            surfaceFor = null
+            configuring = false
             inputBuffers[0] = null
             inputBuffers[1] = null
         }
-        initialized.set(false)
-        slot.clear()
-        helper?.stopListening()
-        helper?.dispose()
-        surface?.release()
+        initializedGen = -1
+        blurOn = false
+        // The producer stops first, then its surface and consumer go.
         try {
             deepAR?.release()
         } catch (error: Throwable) {
             Log.w(TAG, "DeepAR release failed: $error")
         }
-        Log.i(TAG, "DeepAR released")
+        gate.clear()
+        helper?.stopListening()
+        helper?.dispose()
+        surface?.release()
+        if (deepAR != null) Log.i(TAG, "DeepAR released")
     }
 
-    private fun configureSurface(width: Int, height: Int, rotation: Int) {
+    /** The other camera: DeepAR keys to its first input; start a new one. */
+    private fun recreate() {
+        teardown()
+        synchronized(lock) { recreating = false }
+        if (!active) return
+        startIfNeeded()
+        applyEffect()
+    }
+
+    private fun configureSurface(geo: InputGeometry) {
         val oldHelper: SurfaceTextureHelper?
         val oldSurface: Surface?
         val deepAR: DeepAR?
@@ -207,13 +328,7 @@ internal class DeepArStage(private val activity: Activity) {
             oldHelper = surfaceHelper
             oldSurface = renderSurface
             deepAR = instance
-            surfaceHelper = null
-            renderSurface = null
         }
-        slot.clear()
-        oldHelper?.stopListening()
-        oldHelper?.dispose()
-        oldSurface?.release()
         if (deepAR == null) {
             synchronized(lock) { configuring = false }
             return
@@ -221,22 +336,28 @@ internal class DeepArStage(private val activity: Activity) {
         try {
             val helper = SurfaceTextureHelper.create("KabsoDeepArRender", EglUtils.getRootEglBaseContext())
                 ?: throw IllegalStateException("no SurfaceTextureHelper")
-            helper.setTextureSize(width, height)
+            helper.setTextureSize(geo.outWidth, geo.outHeight)
             val surface = Surface(helper.surfaceTexture)
             helper.startListening(::onRendered)
-            deepAR.setRenderSurface(surface, width, height)
+            // The new surface first, then the old one goes: DeepAR never
+            // renders into a released surface (D144 freed it first).
+            deepAR.setRenderSurface(surface, geo.outWidth, geo.outHeight)
             synchronized(lock) {
                 surfaceHelper = helper
                 renderSurface = surface
-                surfaceWidth = width
-                surfaceHeight = height
-                surfaceRotation = rotation
+                surfaceFor = geo
                 configuring = false
             }
-            Log.i(TAG, "render surface ${width}x$height")
+            gate.clear()
+            oldHelper?.stopListening()
+            oldHelper?.dispose()
+            oldSurface?.release()
+            Log.i(TAG, "render surface ${geo.outWidth}x${geo.outHeight} (input $geo)")
         } catch (error: Throwable) {
             synchronized(lock) { configuring = false }
+            lastError = error.toString()
             Log.w(TAG, "could not create the render surface: $error")
+            fail(STATE_ERROR, "surface_failed")
         }
     }
 
@@ -248,63 +369,175 @@ internal class DeepArStage(private val activity: Activity) {
      */
     fun process(frame: VideoFrame): VideoFrame? {
         if (!active) return null
-        val deepAR = synchronized(lock) { instance } ?: return null
-
-        val rotation = frame.rotation
-        val width = frame.buffer.width
-        val height = frame.buffer.height
-        val quarterTurn = rotation == 90 || rotation == 270
-        val outWidth = if (quarterTurn) height else width
-        val outHeight = if (quarterTurn) width else height
-
-        // Surface first, then the initialized gate: DeepAR signals
-        // initialized() from its render thread, which needs a surface.
-        if (!ensureSurface(outWidth, outHeight, rotation)) return null
-        if (!initialized.get()) return null
-
-        val input = packNv21(frame) ?: return null
-        deepAr.post {
-            try {
-                deepAR.receiveFrame(
-                    input, width, height, rotation, false, DeepARImageFormat.YUV_NV21, 1,
-                )
-            } catch (error: Throwable) {
-                Log.w(TAG, "receiveFrame failed: $error")
-            }
+        framesIn.incrementAndGet()
+        val now = System.nanoTime()
+        if (armPending) {
+            armPending = false
+            health.arm(now)
         }
 
+        // DeepAR's thread has been stuck on one frame: it will not recover.
+        val since = inFlightSince
+        if (inFlight.get() && since > 0 && now - since > TimeUnit.MILLISECONDS.toNanos(STALL_MS)) {
+            fail(STATE_DISABLED, "stalled")
+            return null
+        }
+
+        val deepAR: DeepAR
+        val gen: Int
+        val latched: InputGeometry?
+        synchronized(lock) {
+            deepAR = instance ?: return miss(now)
+            gen = generation
+            latched = geometry
+        }
+
+        val rotation = frame.rotation
+        val input: InputGeometry
+        if (latched == null) {
+            input = InputGeometry.latch(frame.buffer.width, frame.buffer.height, rotation, MAX_LONG_SIDE)
+            synchronized(lock) { if (generation == gen && geometry == null) geometry = input }
+        } else if (latched.rotation != rotation) {
+            requestRecreate(now)
+            return miss(now)
+        } else {
+            input = latched
+        }
+
+        // Surface first, then the initialized gate: DeepAR initializes on
+        // its first setRenderSurface.
+        if (!ensureSurface(input)) return miss(now)
+        if (initializedGen != gen) return miss(now)
+
+        feed(frame, deepAR, gen, input)
+
         val waitStart = System.nanoTime()
-        val rendered = slot.take(RENDER_TIMEOUT_MS)
-        record(rendered != null, System.nanoTime() - waitStart)
+        val rendered = gate.take(TimeUnit.MILLISECONDS.toNanos(RENDER_TIMEOUT_MS))
+        val done = System.nanoTime()
+        waitAvg.add(done - waitStart, done)
         if (rendered == null) {
             if (!reportedTimeout) {
                 reportedTimeout = true
-                Log.w(TAG, "no render within $RENDER_TIMEOUT_MS ms: raw frame passed (once)")
+                Log.w(TAG, "no fresh render within $RENDER_TIMEOUT_MS ms: raw frame passed (once)")
             }
-            return null
+            return miss(done)
         }
-        // The capture timestamp, not the render one: keeps A/V sync.
-        return VideoFrame(rendered.buffer, 0, frame.timestampNs)
+        health.onOutput()
+        framesOut.incrementAndGet()
+        if (state != STATE_READY) setState(STATE_READY, null)
+        return outputFor(rendered, frame, input)
     }
 
-    private fun ensureSurface(width: Int, height: Int, rotation: Int): Boolean {
-        synchronized(lock) {
-            if (surfaceHelper != null && surfaceWidth == width &&
-                surfaceHeight == height && surfaceRotation == rotation
-            ) {
-                return true
+    /** One frame to DeepAR's thread, unless the previous is still there. */
+    private fun feed(frame: VideoFrame, deepAR: DeepAR, gen: Int, geo: InputGeometry) {
+        if (!inFlight.compareAndSet(false, true)) {
+            // Still busy: wait below for the render of the one in flight.
+            busySkips.incrementAndGet()
+            return
+        }
+        val packStart = System.nanoTime()
+        val input = packNv21(frame, geo)
+        if (input == null) {
+            inFlight.set(false)
+            return
+        }
+        val packed = System.nanoTime()
+        packAvg.add(packed - packStart, packed)
+        val seq = ++fedSeq
+        inFlightSince = packed
+        val posted = deepAr.post {
+            try {
+                val current = synchronized(lock) { instance === deepAR && generation == gen }
+                if (current && active) {
+                    gate.feedStarted(seq)
+                    deepAR.receiveFrame(
+                        input, geo.width, geo.height, geo.rotation, false, DeepARImageFormat.YUV_NV21, 1,
+                    )
+                    gate.feedDone(seq)
+                    fed.incrementAndGet()
+                }
+            } catch (error: Throwable) {
+                // Wrong thread, not initialized, bad buffer: it will not get
+                // better frame by frame, and tags must not advance on input
+                // DeepAR never took.
+                lastError = error.toString()
+                Log.w(TAG, "receiveFrame failed: $error")
+                fail(STATE_ERROR, "feed_failed")
+            } finally {
+                inFlightSince = 0L
+                inFlight.set(false)
             }
+        }
+        if (!posted) {
+            inFlightSince = 0L
+            inFlight.set(false)
+        }
+    }
+
+    /** No effect on this frame; gives up when [health] says so. */
+    private fun miss(nowNanos: Long): VideoFrame? {
+        misses.incrementAndGet()
+        if (health.onMiss(nowNanos) == OutputHealth.Verdict.GIVE_UP) {
+            if (initializedGen < 0) {
+                fail(STATE_ERROR, "init_timeout")
+            } else {
+                fail(STATE_DISABLED, "no_output")
+            }
+        }
+        return null
+    }
+
+    private fun requestRecreate(nowNanos: Long) {
+        synchronized(lock) {
+            if (recreating) return
+            recreating = true
+        }
+        Log.i(TAG, "camera rotation changed: new DeepAR instance")
+        health.arm(nowNanos)
+        setState(STATE_INITIALIZING, null)
+        deepAr.post(::recreate)
+    }
+
+    /** DeepAR's upright render, cropped/scaled to what WebRTC sent now. */
+    private fun outputFor(rendered: VideoFrame, frame: VideoFrame, geo: InputGeometry): VideoFrame {
+        val wantW = frame.rotatedWidth
+        val wantH = frame.rotatedHeight
+        // The capture timestamp, not the render one: keeps A/V sync.
+        if (wantW == geo.outWidth && wantH == geo.outHeight) {
+            return VideoFrame(rendered.buffer, 0, frame.timestampNs)
+        }
+        val crop = InputGeometry.centreCrop(geo.outWidth, geo.outHeight, wantW, wantH)
+        val scaled = rendered.buffer.cropAndScale(crop.x, crop.y, crop.width, crop.height, wantW, wantH)
+        rendered.release()
+        return VideoFrame(scaled, 0, frame.timestampNs)
+    }
+
+    private fun ensureSurface(geo: InputGeometry): Boolean {
+        synchronized(lock) {
+            if (surfaceHelper != null && surfaceFor == geo) return true
             if (configuring) return false
             configuring = true
         }
-        deepAr.post { configureSurface(width, height, rotation) }
+        deepAr.post { configureSurface(geo) }
         return false
     }
 
     /** I420 → NV21 (Y plane, then V/U interleaved) in libyuv; 2 rotating buffers. */
-    private fun packNv21(frame: VideoFrame): ByteBuffer? {
+    private fun packNv21(frame: VideoFrame, geo: InputGeometry): ByteBuffer? {
+        val source = frame.buffer
+        val scaled = source.width != geo.width || source.height != geo.height
         val i420 = try {
-            frame.buffer.toI420()
+            if (scaled) {
+                val crop = geo.cropFor(source.width, source.height)
+                val sized = source.cropAndScale(crop.x, crop.y, crop.width, crop.height, geo.width, geo.height)
+                try {
+                    sized.toI420()
+                } finally {
+                    sized.release()
+                }
+            } else {
+                source.toI420()
+            }
         } catch (error: Throwable) {
             Log.w(TAG, "toI420 failed: $error")
             null
@@ -353,79 +586,62 @@ internal class DeepArStage(private val activity: Activity) {
         }
     }
 
-    /** Once a second: effective fps, share with the effect, average wait. */
-    private fun record(rendered: Boolean, waitNanos: Long) {
-        val now = System.nanoTime()
-        if (statWindowStart == 0L) statWindowStart = now
-        statFrames++
-        if (rendered) statRendered++
-        statWaitNanos += waitNanos
-        val elapsed = now - statWindowStart
-        if (elapsed < 1_000_000_000L) return
-        Log.i(
-            TAG,
-            String.format(
-                java.util.Locale.ROOT,
-                "%.1f fps, %d/%d with effect, wait %.1f ms",
-                statFrames / (elapsed / 1e9), statRendered, statFrames,
-                statWaitNanos / 1e6 / statFrames,
-            ),
-        )
-        statWindowStart = now
-        statFrames = 0
-        statRendered = 0
-        statWaitNanos = 0
-    }
-
     // ------------------------------------------------------- render (helper) thread
 
     private fun onRendered(frame: VideoFrame) {
         // The helper releases this frame when we return: retain to keep it.
+        // The gate releases it at once if it is a re-draw of an image already
+        // published, which also gives the helper's one texture back.
         frame.buffer.retain()
-        slot.offer(VideoFrame(frame.buffer, 0, frame.timestampNs))
+        gate.offer(VideoFrame(frame.buffer, 0, frame.timestampNs))
     }
 
-    /** One-deep handoff render thread → capture thread; holder releases. */
-    private class Slot {
-        private val lock = ReentrantLock()
-        private val filled = lock.newCondition()
-        private var frame: VideoFrame? = null
+    // ------------------------------------------------------------------ status
 
-        fun offer(next: VideoFrame) {
-            val stale = lock.withLock {
-                val previous = frame
-                frame = next
-                filled.signalAll()
-                previous
+    /** Turns the effect off for a reason Dart shows; the raw camera goes on. */
+    private fun fail(newState: String, why: String) {
+        active = false
+        gate.clear()
+        setState(newState, why)
+        Log.w(TAG, "effect off: $newState ($why)")
+        deepAr.post {
+            if (newState == STATE_LICENCE_FAILED || newState == STATE_ERROR) {
+                // Start clean on the next pick.
+                teardown()
+            } else {
+                pauseDeepAr()
             }
-            stale?.release()
-        }
-
-        fun take(timeoutMs: Long): VideoFrame? = lock.withLock {
-            var remaining = TimeUnit.MILLISECONDS.toNanos(timeoutMs)
-            try {
-                while (frame == null && remaining > 0) remaining = filled.awaitNanos(remaining)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
-            val taken = frame
-            frame = null
-            taken
-        }
-
-        fun clear() {
-            val stale = lock.withLock {
-                val previous = frame
-                frame = null
-                previous
-            }
-            stale?.release()
         }
     }
 
-    private inner class Listener : AREventListener {
+    private fun pauseDeepAr() {
+        val deepAR = synchronized(lock) { instance } ?: return
+        try {
+            if (blurOn) deepAR.backgroundBlur(false, 0)
+            blurOn = false
+            deepAR.setPaused(true)
+        } catch (error: Throwable) {
+            Log.w(TAG, "pausing DeepAR failed: $error")
+        }
+    }
+
+    private fun setState(next: String, why: String?) {
+        if (state == next && reason == why) return
+        state = next
+        reason = why
+        try {
+            onStatus(mapOf("state" to next, "reason" to why))
+        } catch (error: Throwable) {
+            Log.w(TAG, "status not delivered: $error")
+        }
+    }
+
+    private inner class Listener(private val gen: Int) : AREventListener {
+        private fun current() = synchronized(lock) { generation == gen && instance != null }
+
         override fun initialized() {
-            initialized.set(true)
+            if (!current()) return
+            initializedGen = gen
             Log.i(TAG, "DeepAR initialized")
             deepAr.post(::applyEffect)
         }
@@ -433,6 +649,12 @@ internal class DeepArStage(private val activity: Activity) {
         override fun error(type: ARErrorType?, message: String?) {
             // Licence problems land here (never contains the key).
             Log.w(TAG, "DeepAR $type: $message")
+            if (!current()) return
+            lastError = "$type: $message"
+            val text = message?.lowercase(Locale.ROOT).orEmpty()
+            if (type == ARErrorType.ERROR && (text.contains("licen") || text.contains("license"))) {
+                fail(STATE_LICENCE_FAILED, "licence")
+            }
         }
 
         override fun effectSwitched(slot: String?) {
@@ -450,10 +672,35 @@ internal class DeepArStage(private val activity: Activity) {
         override fun frameAvailable(image: Image?) {}
     }
 
-    private companion object {
-        const val TAG = "KabsoCameraFx"
-        const val SLOT = "effect"
-        const val RENDER_TIMEOUT_MS = 40L
-        const val BLUR_STRENGTH = 6
+    companion object {
+        private const val TAG = "KabsoCameraFx"
+        private const val SLOT = "effect"
+        private const val RENDER_TIMEOUT_MS = 40L
+        private const val BLUR_STRENGTH = 6
+
+        /** Fresh-render misses in a row (≈ 1 s at 30 fps) before giving up. */
+        const val MAX_MISSES = 30
+
+        /** Time to the first fresh render (initialization included). */
+        const val WARMUP_MS = 10_000L
+
+        /**
+         * One frame handed to DeepAR's thread and not taken for this long
+         * (queued behind an effect load included): the thread is stuck.
+         */
+        const val STALL_MS = 6_000L
+
+        /** DeepAR's input, long side (WebRTC's 720p camera is 1280). */
+        const val MAX_LONG_SIDE = 1280
+
+        const val STATE_OFF = "off"
+        const val STATE_INITIALIZING = "initializing"
+        const val STATE_READY = "ready"
+        const val STATE_LICENCE_FAILED = "licence_failed"
+        const val STATE_ERROR = "error"
+        const val STATE_DISABLED = "disabled"
+
+        fun isFailure(state: String) =
+            state == STATE_LICENCE_FAILED || state == STATE_ERROR || state == STATE_DISABLED
     }
 }

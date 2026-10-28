@@ -6702,4 +6702,61 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get liveEffectStarting => 'Starting the effect…';
+
+  @override
+  String get liveEffectUnavailableStopped =>
+      'The effect isn\'t available right now: it stopped giving new pictures, so the camera went on without it. Try it again in a moment.';
+
+  @override
+  String get liveEffectUnavailableLicence =>
+      'The effect isn\'t available right now: this build\'s effects licence was not accepted.';
+
+  @override
+  String get liveEffectUnavailableFailed =>
+      'The effect isn\'t available right now: it didn\'t start on this device. Try it again in a moment.';
+
+  @override
+  String get livePermissionTitleVideo => 'Camera and microphone for your live';
+
+  @override
+  String get livePermissionTitleAudio => 'Microphone for your audio room';
+
+  @override
+  String get livePermissionBodyVideo =>
+      'Kabso Live uses the camera and microphone only while you\'re live or on a seat, so people can see and hear you. Your phone will ask you once.';
+
+  @override
+  String get livePermissionBodyAudio =>
+      'Kabso Live uses the microphone only while you\'re in the audio room, so people can hear you. No camera is needed here. Your phone will ask you once.';
+
+  @override
+  String get livePermissionContinue => 'Continue';
+
+  @override
+  String get livePermissionNotNow => 'Not now';
+
+  @override
+  String get livePermissionOpenSettings => 'Open settings';
+
+  @override
+  String get livePermissionBlockedVideo =>
+      'You turned access off earlier and your phone won\'t ask again. Open Settings, then Permissions, and allow the camera and microphone.';
+
+  @override
+  String get livePermissionBlockedAudio =>
+      'You turned access off earlier and your phone won\'t ask again. Open Settings, then Permissions, and allow the microphone.';
+
+  @override
+  String get goLiveMicDeniedTitle => 'Allow the microphone';
+
+  @override
+  String get goLiveMicDeniedBody =>
+      'The audio room needs it so people can hear you. Tap Retry and your phone will ask again.';
+
+  @override
+  String get livePermissionSeatRefused =>
+      'You can\'t take a seat without allowing access.';
 }

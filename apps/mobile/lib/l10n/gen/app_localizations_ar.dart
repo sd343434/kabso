@@ -6749,4 +6749,61 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get liveEffectStarting => 'جارٍ تشغيل المؤثر…';
+
+  @override
+  String get liveEffectUnavailableStopped =>
+      'المؤثر غير متاح الآن: توقّف عن إعطاء صورة جديدة، فعادت الكاميرا من دونه. جرّبه مرة أخرى بعد قليل.';
+
+  @override
+  String get liveEffectUnavailableLicence =>
+      'المؤثر غير متاح الآن: لم يُقبل ترخيص المؤثرات في هذا الإصدار.';
+
+  @override
+  String get liveEffectUnavailableFailed =>
+      'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.';
+
+  @override
+  String get livePermissionTitleVideo => 'الكاميرا والميكروفون لبثّك';
+
+  @override
+  String get livePermissionTitleAudio => 'الميكروفون للغرفة الصوتية';
+
+  @override
+  String get livePermissionBodyVideo =>
+      'يستخدم Kabso Live الكاميرا والميكروفون فقط أثناء بثّك أو جلوسك على مقعد، ليراك الحاضرون ويسمعوك. سيسألك الجهاز مرة واحدة.';
+
+  @override
+  String get livePermissionBodyAudio =>
+      'يستخدم Kabso Live الميكروفون فقط أثناء وجودك في الغرفة الصوتية ليسمعك الحاضرون، ولا يحتاج الكاميرا هنا. سيسألك الجهاز مرة واحدة.';
+
+  @override
+  String get livePermissionContinue => 'متابعة';
+
+  @override
+  String get livePermissionNotNow => 'ليس الآن';
+
+  @override
+  String get livePermissionOpenSettings => 'فتح الإعدادات';
+
+  @override
+  String get livePermissionBlockedVideo =>
+      'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالكاميرا والميكروفون.';
+
+  @override
+  String get livePermissionBlockedAudio =>
+      'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالميكروفون.';
+
+  @override
+  String get goLiveMicDeniedTitle => 'اسمح بالميكروفون';
+
+  @override
+  String get goLiveMicDeniedBody =>
+      'تحتاجه الغرفة الصوتية ليسمعك الحاضرون. اضغط «إعادة المحاولة» ليسألك الجهاز مرة أخرى.';
+
+  @override
+  String get livePermissionSeatRefused =>
+      'لا يمكن الجلوس على المقعد دون السماح بالوصول.';
 }

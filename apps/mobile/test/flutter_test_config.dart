@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
@@ -28,6 +29,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   CpPairFx.animate = false;
   CpMicEffect.animate = false;
   KabsoPkBar.enabled = false;
+  // D144a: the permission channel has no handler in tests.
+  DeviceLivePermissions.enabled = false;
   KLiveEqualizer.animate = false;
   // D146: the special-ID badge's light sweep loops; never in tests.
   KSpecialUsername.motion = false;

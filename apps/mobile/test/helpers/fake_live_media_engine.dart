@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -67,6 +69,20 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
 
   @override
   LiveArSupport get arEffects => arSupport;
+
+  /// What [arStatus] holds (D144a): set its value to play DeepAR's reports.
+  final ValueNotifier<LiveArStatus> arStatusValue = ValueNotifier(
+    LiveArStatus.off,
+  );
+
+  @override
+  ValueListenable<LiveArStatus> get arStatus => arStatusValue;
+
+  /// What [arDiagnostics] answers (D144a).
+  KabsoCameraFxDiagnostics? diagnostics;
+
+  @override
+  Future<KabsoCameraFxDiagnostics?> arDiagnostics() async => diagnostics;
 
   @override
   Future<void> setBeauty(LiveBeauty beauty) async => this.beauty = beauty;
