@@ -432,9 +432,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// «السلاسة» (at most every 5 min).
   final _poorWatch = PoorConnectionWatch();
 
+  /// D160: 1080p falls back to 720p after a weak connection for 10 s.
+  final _hdFallback = HdFallbackWatch();
+
   void _checkConnection() {
     final engine = _host.engine;
     if (!engine.videoEnabled) return;
+    if (_hdFallback.feed(
+      engine.connectionQuality,
+      engine.videoQuality,
+      clock.now(),
+    )) {
+      unawaited(_fallBackFromHd());
+      return;
+    }
     if (!_poorWatch.feed(
       engine.connectionQuality,
       engine.videoQuality,
@@ -456,6 +467,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
         ),
       );
+  }
+
+  Future<void> _fallBackFromHd() async {
+    final l10n = context.l10n;
+    try {
+      await _host.engine.setVideoQuality(LiveVideoQuality.normal);
+      if (mounted) KSnack.info(context, l10n.liveQualityHighFallback);
+    } on Object {
+      // The camera keeps 1080p; the next weak spell tries again.
+    }
   }
 
   Future<void> _goSmooth() async {

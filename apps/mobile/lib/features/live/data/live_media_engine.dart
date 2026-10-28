@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
@@ -24,6 +26,15 @@ class LiveCaptureException implements Exception {
   String toString() => 'LiveCaptureException(${problem.name})';
 }
 
+/// D160: the camera delivered less than 1080p after switching to
+/// [LiveVideoQuality.high] (the quality went back to what it was).
+class LiveHdUnsupportedException implements Exception {
+  const new();
+
+  @override
+  String toString() => 'LiveHdUnsupportedException()';
+}
+
 /// Why the camera or microphone could not start.
 enum LiveCaptureProblem {
   /// The person refused access (or the system blocks it).
@@ -39,12 +50,120 @@ enum LiveCaptureProblem {
 
 /// D154g «الجودة»: the host's published picture. [normal] is LiveKit's
 /// default (720p, simulcast); [smooth] captures 480p at 15 fps for a weak
-/// connection. (1080p is not offered yet: the phone's support and the
-/// uplink are not measured.)
-enum LiveVideoQuality { smooth, normal }
+/// connection. D160: [high] captures 1080p at 30 fps with simulcast layers
+/// 1080 / 720 / 360 — offered only where this camera captures 1080p
+/// ([LiveMediaEngine.hdCapture]) and the uplink is not measured too slow
+/// ([LiveMediaEngine.uplink]). No 2K (owner: not recommended).
+enum LiveVideoQuality { smooth, normal, high }
 
 /// D154g: this phone's connection to the media server, as LiveKit rates it.
 enum LiveConnectionQuality { unknown, excellent, good, poor, lost }
+
+/// D160: the host's uplink as the publisher measures it (WebRTC's available
+/// outgoing bitrate on the media connection), sustained over
+/// [UplinkMeter.window].
+enum LiveUplink {
+  /// Not measured yet (the preview, the first seconds, or no such stat on
+  /// this platform): 1080p may be tried; it falls back by itself.
+  unmeasured,
+
+  /// At least [UplinkMeter.enoughBps] for the whole window.
+  sufficient,
+
+  /// Below it for the whole window: 1080p is not offered now.
+  insufficient,
+}
+
+/// D160: turns available-outgoing-bitrate samples into a [LiveUplink]: a
+/// verdict needs [window] in a row on one side of [enoughBps]; mixed samples
+/// keep the last verdict.
+class UplinkMeter {
+  static const enoughBps = 4000000;
+  static const window = Duration(seconds: 10);
+
+  LiveUplink _state = LiveUplink.unmeasured;
+  DateTime? _aboveSince;
+  DateTime? _belowSince;
+  int? _lastBps;
+
+  LiveUplink get state => _state;
+
+  /// The last sample, in bits per second.
+  int? get lastBps => _lastBps;
+
+  /// A sample at [now]; null (no stat) changes nothing.
+  LiveUplink feed(int? bps, DateTime now) {
+    if (bps == null) return _state;
+    _lastBps = bps;
+    if (bps >= enoughBps) {
+      _belowSince = null;
+      _aboveSince ??= now;
+      if (now.difference(_aboveSince!) >= window) {
+        _state = LiveUplink.sufficient;
+      }
+    } else {
+      _aboveSince = null;
+      _belowSince ??= now;
+      if (now.difference(_belowSince!) >= window) {
+        _state = LiveUplink.insufficient;
+      }
+    }
+    return _state;
+  }
+
+  void reset() {
+    _state = LiveUplink.unmeasured;
+    _aboveSince = null;
+    _belowSince = null;
+    _lastBps = null;
+  }
+}
+
+/// D160: whether a camera track's settings (flutter_webrtc: the capture
+/// format the phone picked; the web: what the browser reports) are 1080p
+/// or more, in either orientation.
+bool liveCaptures1080(Map<String, dynamic> settings) {
+  final w = settings['width'];
+  final h = settings['height'];
+  if (w is! num || h is! num) return false;
+  final long = w > h ? w : h;
+  final short = w > h ? h : w;
+  return long >= 1920 && short >= 1080;
+}
+
+/// D160: one simulcast layer's encoding: how much smaller than the capture,
+/// its bitrate cap and frame rate.
+typedef LiveLayerEncoding = ({
+  double scaleDown,
+  int maxBitrate,
+  int maxFramerate,
+});
+
+/// D160: the sender's layer [rid] (`f` full, `h` half, `q` quarter — or
+/// null: one layer) at [quality]. [LiveVideoQuality.high] publishes
+/// 1080p / 720p / 360p; the others LiveKit's 720p defaults (720 / 360 /
+/// 180, as D154g published them).
+LiveLayerEncoding liveLayerEncoding(LiveVideoQuality quality, String? rid) =>
+    switch ((quality, rid)) {
+      (LiveVideoQuality.high, 'q') => (
+        scaleDown: 3,
+        maxBitrate: 450000,
+        maxFramerate: 20,
+      ),
+      (LiveVideoQuality.high, 'h') => (
+        scaleDown: 1.5,
+        maxBitrate: 1700000,
+        maxFramerate: 30,
+      ),
+      (LiveVideoQuality.high, _) => (
+        scaleDown: 1,
+        maxBitrate: 3000000,
+        maxFramerate: 30,
+      ),
+      (_, 'q') => (scaleDown: 4, maxBitrate: 160000, maxFramerate: 15),
+      (_, 'h') => (scaleDown: 2, maxBitrate: 450000, maxFramerate: 20),
+      (_, _) => (scaleDown: 1, maxBitrate: 1700000, maxFramerate: 30),
+    };
 
 /// The camera, microphone and media session of the person going live
 /// (CP-010, LiveKit, D3), behind an interface so screens and tests do not
@@ -70,6 +189,13 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   /// D154g: this phone's connection, as the media server rates it.
   LiveConnectionQuality get connectionQuality;
+
+  /// D160: whether the camera on now captures 1080p (checked when the
+  /// camera first starts; false until then and for a camera not checked).
+  bool get hdCapture;
+
+  /// D160: the uplink while publishing ([LiveUplink.unmeasured] before).
+  LiveUplink get uplink;
 
   /// Whether beauty (skin smoothing, brightening) works on this device
   /// (D94).
@@ -228,6 +354,60 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   @override
   LiveConnectionQuality get connectionQuality => _connection;
 
+  /// D160: whether each camera (true: the front one) captures 1080p, once
+  /// checked.
+  final Map<bool, bool> _hd = {};
+  final UplinkMeter _uplink = UplinkMeter();
+  Timer? _uplinkTimer;
+  bool _sampling = false;
+
+  @override
+  bool get hdCapture => _hd[_front] ?? false;
+
+  @override
+  LiveUplink get uplink => _uplink.state;
+
+  /// D160: asks one camera (`front` or the back one) for 1080p at 30 fps
+  /// on its own (before the preview's track opens it) and reads the format
+  /// it gets —
+  /// flutter_webrtc reports the capture format the phone picked (Android
+  /// Camera2's closest output size, iOS's selected format), the web what
+  /// the browser delivers. Null: it could not tell. A seam for tests.
+  @visibleForTesting
+  static Future<bool?> Function({required bool front}) hdProbe = _probeHd;
+
+  static Future<bool?> _probeHd({required bool front}) async {
+    final stream = await rtc.navigator.mediaDevices.getUserMedia({
+      'audio': false,
+      'video': {
+        'facingMode': front ? 'user' : 'environment',
+        'width': 1920,
+        'height': 1080,
+        'frameRate': 30,
+      },
+    });
+    try {
+      final tracks = stream.getVideoTracks();
+      if (tracks.isEmpty) return null;
+      return liveCaptures1080(tracks.first.getSettings());
+    } finally {
+      for (final track in stream.getTracks()) {
+        await track.stop();
+      }
+      await stream.dispose();
+    }
+  }
+
+  Future<void> _checkHd() async {
+    if (_hd.containsKey(_front)) return;
+    try {
+      final hd = await hdProbe(front: _front);
+      if (hd != null) _hd[_front] = hd;
+    } on Object {
+      // Unknown: 1080p is not offered for this camera.
+    }
+  }
+
   /// The capture of [quality] (null: LiveKit's default, 720p).
   static lk.VideoParameters? _paramsOf(LiveVideoQuality quality) =>
       switch (quality) {
@@ -236,7 +416,78 @@ class LiveKitMediaEngine implements LiveMediaEngine {
           encoding: lk.VideoEncoding(maxBitrate: 600000, maxFramerate: 15),
         ),
         LiveVideoQuality.normal => null,
+        LiveVideoQuality.high => lk.VideoParametersPresets.h1080_169,
       };
+
+  /// D160: publishing at 1080p — 1080 / 720 / 360 simulcast layers, 30 fps.
+  static const _hdPublish = lk.VideoPublishOptions(
+    videoEncoding: lk.VideoEncoding(maxBitrate: 3000000, maxFramerate: 30),
+    videoSimulcastLayers: [
+      lk.VideoParametersPresets.h360_169,
+      lk.VideoParametersPresets.h720_169,
+    ],
+  );
+
+  /// D160: the published layers follow the quality (LiveKit computes them
+  /// once, at publish, for the capture of then): to and from 1080p each
+  /// layer's scale, bitrate cap and frame rate are set on the sender (the
+  /// viewers keep the same track: no republish, no gap).
+  Future<void> _applyEncodings(lk.LocalVideoTrack video) async {
+    final sender = video.sender;
+    if (sender == null) return;
+    final params = sender.parameters;
+    final encodings = params.encodings;
+    if (encodings == null || encodings.isEmpty) return;
+    for (final e in encodings) {
+      final layer = liveLayerEncoding(
+        _quality,
+        encodings.length == 1 ? null : e.rid,
+      );
+      e
+        ..scaleResolutionDownBy = layer.scaleDown
+        ..maxBitrate = layer.maxBitrate
+        ..maxFramerate = layer.maxFramerate;
+    }
+    params.encodings = encodings;
+    await sender.setParameters(params);
+  }
+
+  /// D160: the uplink every 2 s while publishing — WebRTC's
+  /// `availableOutgoingBitrate` of the media connection's active candidate
+  /// pair, from the camera sender's stats.
+  void _startUplink() {
+    _uplinkTimer?.cancel();
+    _uplink.reset();
+    _uplinkTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(_sampleUplink()),
+    );
+  }
+
+  Future<void> _sampleUplink() async {
+    final sender = _video?.sender;
+    if (sender == null || _sampling) return;
+    _sampling = true;
+    try {
+      int? best;
+      for (final report in await sender.getStats()) {
+        if (report.type != 'candidate-pair') continue;
+        final values = report.values;
+        final active =
+            values['nominated'] == true || values['state'] == 'succeeded';
+        final raw = values['availableOutgoingBitrate'];
+        final bps = raw is num ? raw : num.tryParse('$raw');
+        if (!active || bps == null) continue;
+        best = math.max(best ?? 0, bps.toInt());
+      }
+      final before = _uplink.state;
+      if (_uplink.feed(best, clock.now()) != before) _changes.ping();
+    } on Object {
+      // No stats this time.
+    } finally {
+      _sampling = false;
+    }
+  }
 
   lk.CameraCaptureOptions _cameraOptions() {
     final params = _paramsOf(_quality);
@@ -254,22 +505,45 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   Future<void> setVideoQuality(LiveVideoQuality quality) async {
     if (quality == _quality) return;
     final before = _quality;
-    _quality = quality;
-    final video = _video;
+    if (quality == LiveVideoQuality.high && !hdCapture) {
+      throw const LiveHdUnsupportedException();
+    }
     try {
-      if (video != null && video.sender != null) {
-        await video.restartTrack(_cameraOptions());
-        await _attachFx();
-      } else if (video != null) {
-        // Previewing: a new camera track at the new quality.
-        await _stopVideo();
-        await startPreview();
+      await _capture(quality, before);
+      // D160: what the camera really delivers (it may pick less).
+      final video = _video;
+      if (quality == LiveVideoQuality.high &&
+          video != null &&
+          !liveCaptures1080(video.mediaStreamTrack.getSettings())) {
+        _hd[_front] = false;
+        await _capture(before, quality);
+        throw const LiveHdUnsupportedException();
       }
+    } on LiveHdUnsupportedException {
+      rethrow;
     } on Object {
       _quality = before;
       throw const LiveCaptureException(LiveCaptureProblem.unavailable);
     } finally {
       _changes.ping();
+    }
+  }
+
+  /// Restarts the camera at [quality] (published: the same track and
+  /// sender; previewing: a new track).
+  Future<void> _capture(LiveVideoQuality quality, LiveVideoQuality from) async {
+    _quality = quality;
+    final video = _video;
+    if (video != null && video.sender != null) {
+      await video.restartTrack(_cameraOptions());
+      if (quality == LiveVideoQuality.high || from == LiveVideoQuality.high) {
+        await _applyEncodings(video);
+      }
+      await _attachFx();
+    } else if (video != null) {
+      // Previewing: a new camera track at the new quality.
+      await _stopVideo();
+      await startPreview();
     }
   }
 
@@ -308,6 +582,8 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   Future<void> startPreview({bool video = true}) async {
     try {
       if (video && _video == null) {
+        // D160: whether this camera captures 1080p, before it opens.
+        await _checkHd();
         final camera = await lk.LocalVideoTrack.createCameraTrack(
           _cameraOptions(),
         );
@@ -420,6 +696,14 @@ class LiveKitMediaEngine implements LiveMediaEngine {
         );
       }
     }
+    // D160: the other camera may not capture 1080p.
+    if (_quality == LiveVideoQuality.high && !hdCapture) {
+      try {
+        await setVideoQuality(LiveVideoQuality.normal);
+      } on Object {
+        // The camera keeps what it has.
+      }
+    }
     _changes.ping();
   }
 
@@ -522,7 +806,13 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     final audio = _audio;
     if (audio == null) throw StateError('startPreview() first');
     final room = await _connect(access);
-    if (video != null) await room.localParticipant!.publishVideoTrack(video);
+    if (video != null) {
+      await room.localParticipant!.publishVideoTrack(
+        video,
+        publishOptions: _quality == LiveVideoQuality.high ? _hdPublish : null,
+      );
+      _startUplink();
+    }
     await room.localParticipant!.publishAudioTrack(audio);
   }
 
@@ -690,6 +980,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
 
   @override
   Future<void> stop() async {
+    _uplinkTimer?.cancel();
+    _uplinkTimer = null;
+    _uplink.reset();
     final listener = _listener;
     _listener = null;
     await listener?.dispose();

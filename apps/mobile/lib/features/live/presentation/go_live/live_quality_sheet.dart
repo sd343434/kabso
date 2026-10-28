@@ -58,9 +58,35 @@ class PoorConnectionWatch {
   }
 }
 
+/// D160: when 1080p falls back to 720p by itself — the connection poor (or
+/// lost) for [after] in a row while publishing 1080p. Once per weak spell:
+/// the host can pick 1080p again.
+class HdFallbackWatch {
+  static const after = Duration(seconds: 10);
+
+  DateTime? _poorSince;
+
+  /// Feeds the connection at [now]; true: fall back now.
+  bool feed(LiveConnectionQuality q, LiveVideoQuality video, DateTime now) {
+    final poor =
+        q == LiveConnectionQuality.poor || q == LiveConnectionQuality.lost;
+    if (!poor || video != LiveVideoQuality.high) {
+      _poorSince = null;
+      return false;
+    }
+    _poorSince ??= now;
+    if (now.difference(_poorSince!) < after) return false;
+    _poorSince = null;
+    return true;
+  }
+}
+
 /// D154g «الجودة» (owner item 7, HD and «السلاسة» in one tool): the host's
 /// connection (green / yellow / red, from LiveKit) and the picture —
 /// «سلس» 480p at 15 fps for a weak connection, or «عادي» 720p (default).
+/// D160: «عالي 1080p» only where this camera captures 1080p; greyed (with
+/// why) while the measured uplink is too slow; tried when not measured yet
+/// (it falls back to 720p by itself, [HdFallbackWatch]).
 Future<void> showLiveQualitySheet(
   BuildContext context, {
   required LiveMediaEngine engine,
@@ -111,6 +137,8 @@ class _LiveQualitySheetState extends State<LiveQualitySheet> {
     setState(() => _busy = true);
     try {
       await widget.engine.setVideoQuality(q);
+    } on LiveHdUnsupportedException {
+      if (mounted) KSnack.error(context, l10n.liveQualityHighUnsupported);
     } on LiveCaptureException {
       if (mounted) KSnack.error(context, l10n.liveQualityFailed);
     } finally {
@@ -126,15 +154,21 @@ class _LiveQualitySheetState extends State<LiveQualitySheet> {
     const soft = Color(0xFF6E6E7A);
     final conn = widget.engine.connectionQuality;
     final current = widget.engine.videoQuality;
-    Widget option(LiveVideoQuality q, String title, String detail) {
+    Widget option(
+      LiveVideoQuality q,
+      String title,
+      String detail, {
+      bool enabled = true,
+    }) {
       final selected = q == current;
       return Semantics(
         selected: selected,
         button: true,
+        enabled: enabled,
         child: InkWell(
           key: LiveQualitySheet.optionKey(q),
           borderRadius: BorderRadius.circular(14),
-          onTap: _busy ? null : () => unawaited(_pick(q)),
+          onTap: _busy || !enabled ? null : () => unawaited(_pick(q)),
           child: Container(
             margin: const EdgeInsets.only(bottom: KSpacing.sm),
             padding: const EdgeInsets.all(KSpacing.md),
@@ -155,7 +189,12 @@ class _LiveQualitySheetState extends State<LiveQualitySheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: t.bodyStrong.copyWith(color: ink)),
+                      Text(
+                        title,
+                        style: t.bodyStrong.copyWith(
+                          color: enabled ? ink : soft,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(detail, style: t.caption.copyWith(color: soft)),
                     ],
@@ -173,6 +212,10 @@ class _LiveQualitySheetState extends State<LiveQualitySheet> {
       );
     }
 
+    // D160: a measured slow uplink greys 1080p (not while it is on).
+    final hdSlow =
+        widget.engine.uplink == LiveUplink.insufficient &&
+        current != LiveVideoQuality.high;
     return SafeArea(
       top: false,
       child: Padding(
@@ -219,6 +262,16 @@ class _LiveQualitySheetState extends State<LiveQualitySheet> {
               l10n.liveQualityNormal,
               l10n.liveQualityNormalDetail,
             ),
+            // D160: only where this camera captures 1080p.
+            if (widget.engine.hdCapture || current == LiveVideoQuality.high)
+              option(
+                LiveVideoQuality.high,
+                l10n.liveQualityHigh,
+                hdSlow
+                    ? l10n.liveQualityHighSlowUplink
+                    : l10n.liveQualityHighDetail,
+                enabled: !hdSlow,
+              ),
             if (_busy) const LinearProgressIndicator(),
           ],
         ),

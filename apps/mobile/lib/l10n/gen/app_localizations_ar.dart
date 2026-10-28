@@ -7510,6 +7510,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveQualitySuggestAction => 'فعّل';
 
   @override
+  String get liveQualityHigh => 'عالي 1080p';
+
+  @override
+  String get liveQualityHighDetail =>
+      '1080p بـ 30 إطاراً، يعود إلى 720p تلقائياً إذا ضعف الاتصال';
+
+  @override
+  String get liveQualityHighSlowUplink =>
+      'سرعة الرفع الآن أقل من المطلوب لـ 1080p';
+
+  @override
+  String get liveQualityHighUnsupported =>
+      'هذه الكاميرا لا تلتقط 1080p، بقيت الجودة كما كانت';
+
+  @override
+  String get liveQualityHighFallback => 'تم خفض الجودة لضعف الاتصال';
+
+  @override
   String get liveQualitySmoothOn => 'تم تفعيل السلاسة';
 
   @override

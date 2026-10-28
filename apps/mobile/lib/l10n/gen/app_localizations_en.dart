@@ -7472,6 +7472,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveQualitySuggestAction => 'Switch';
 
   @override
+  String get liveQualityHigh => 'High 1080p';
+
+  @override
+  String get liveQualityHighDetail =>
+      '1080p at 30 fps, back to 720p by itself if the connection weakens';
+
+  @override
+  String get liveQualityHighSlowUplink =>
+      'Your upload speed is below what 1080p needs right now';
+
+  @override
+  String get liveQualityHighUnsupported =>
+      'This camera doesn\'t capture 1080p, the quality stays as it was';
+
+  @override
+  String get liveQualityHighFallback =>
+      'Quality lowered because of a weak connection';
+
+  @override
   String get liveQualitySmoothOn => 'Smooth is on';
 
   @override
