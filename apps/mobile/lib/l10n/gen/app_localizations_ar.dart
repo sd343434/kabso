@@ -6816,11 +6816,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveLuckyBigWin => 'فوز كبير';
 
   @override
-  String liveLuckyBigWinCoins(String coins) {
-    return '$coins عملة';
-  }
-
-  @override
   String get livePermissionTitleVideo => 'الكاميرا والميكروفون لبثّك';
 
   @override
@@ -7608,5 +7603,31 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String liveWatchNewSuggestion(String title) {
     return 'اقتراح جديد: $title';
+  }
+
+  @override
+  String get liveWinTierWin => 'فوز';
+
+  @override
+  String get liveWinTierHuge => 'فوز ضخم';
+
+  @override
+  String liveWinBannerSemantics(
+    String label,
+    String name,
+    String multiplier,
+    String coins,
+  ) {
+    return '$label: $name ربح ⁦×$multiplier⁩، $coins عملة';
+  }
+
+  @override
+  String liveWinBannerSent(String name, String gift) {
+    return '$name أرسل $gift';
+  }
+
+  @override
+  String liveWinBannerWon(String multiplier, String coins) {
+    return 'ربح $multiplier وحصل على $coins';
   }
 }

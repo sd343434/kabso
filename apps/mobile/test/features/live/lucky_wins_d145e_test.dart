@@ -1,8 +1,7 @@
 // D145e (owner device test, 2026-10-28):
-// - the room's ×100+ lucky win was a small gold pill («Oz Nabulsi ربح ×100:
-//   1,300 عملة»): now a centred gold card in the MAX X look — avatar, name,
-//   ×N in big type, the coins counting up, a ~3 s moment; reduced motion
-//   shows it still;
+// - the room's ×100+ lucky win was a small gold pill: D145e made it a
+//   centred gold card; D159 replaced that with the owner's tier banner
+//   (win_banner_d159_test);
 // - two MAX X wins («×10 +550», «×100 +2,300») overlapped each other and the
 //   orb: one celebration at a time, the banner clear of the winnings chip;
 // - «ماكس 264» was cut: the label fits inside the orb;
@@ -15,15 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
-import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
-import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
-import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
@@ -169,182 +164,11 @@ List<MaxXWinPainter> _winPainters(WidgetTester tester) => tester
     .whereType<MaxXWinPainter>()
     .toList();
 
-LuckyWin _win({int multiplier = 100, int coins = 1300, String name = 'Oz'}) =>
-    LuckyWin(
-      giftId: 'g-$multiplier',
-      roomId: 'room-0',
-      giftCode: 'lucky_clover',
-      sender: UserSummary(
-        id: 'u-oz',
-        username: 'oz',
-        displayName: name,
-        avatarUrl: null,
-      ),
-      multiplier: multiplier,
-      coinsWon: coins,
-      createdAt: DateTime.utc(2026, 10, 28, 12),
-    );
-
-Future<void> _pumpCard(
-  WidgetTester tester,
-  LuckyWin win, {
-  AppLanguage language = AppLanguage.en,
-  GoldenViewport viewport = GoldenViewport.android,
-}) async {
-  setViewport(tester, viewport);
-  await pumpScreen(
-    tester,
-    Scaffold(
-      backgroundColor: const Color(0xFF101018),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Align(
-            alignment: const Alignment(0, -0.32),
-            child: LiveLuckyWinBanner(win: win, name: 'Clover'),
-          ),
-        ],
-      ),
-    ),
-    language: language,
-  );
-}
-
-String _coinsText(WidgetTester tester) =>
-    tester.widget<Text>(find.byKey(LiveLuckyWinBanner.coinsKey)).data!;
-
 void main() {
   setUp(() => MaxXSounds.foreground = () => true);
 
-  group('the room card for a ×100+ win', () {
-    for (final language in AppLanguage.values) {
-      for (final viewport in GoldenViewport.values) {
-        testWidgets('${language.name} ${viewport.name}: avatar, name, ×100 in '
-            'big type, the coins counting up; on screen, much larger than '
-            'the old pill; gone after ${LiveGiftEffects.luckyTime}', (
-          tester,
-        ) async {
-          await _pumpCard(
-            tester,
-            _win(name: 'Oz Nabulsi'),
-            language: language,
-            viewport: viewport,
-          );
-          await tester.pump(const Duration(milliseconds: 100));
-          expect(find.text('Oz Nabulsi'), findsOneWidget);
-          expect(find.byType(KAvatar), findsOneWidget);
-          final number = find.byKey(LiveLuckyWinBanner.numberKey);
-          expect(tester.widget<Text>(number).data, '×100');
-          expect(tester.getSize(number).height, greaterThanOrEqualTo(48));
-          final burst = tester
-              .widgetList<CustomPaint>(find.byType(CustomPaint))
-              .map((c) => c.painter)
-              .whereType<MaxXWinPainter>()
-              .single;
-          expect(burst.banner, isFalse);
-          expect(burst.style.tier, 100);
-          // Counting up: not all of it yet.
-          await tester.pump(const Duration(milliseconds: 400));
-          expect(_coinsText(tester), isNot(contains('1,300')));
-          await tester.pump(const Duration(milliseconds: 1000));
-          expect(_coinsText(tester), contains('+1,300'));
-          final screen = Offset.zero & viewport.logicalSize;
-          final card = tester.getRect(find.byType(LiveLuckyWinBanner));
-          expect(card.width, greaterThanOrEqualTo(280));
-          expect(card.height, greaterThanOrEqualTo(150));
-          expect(screen.contains(card.topLeft), isTrue);
-          expect(screen.contains(card.bottomRight), isTrue);
-          // Centred.
-          expect(
-            (card.center.dx - viewport.logicalSize.width / 2).abs(),
-            lessThan(1),
-          );
-          // Fades out by the end of its time.
-          await tester.pump(const Duration(milliseconds: 1750));
-          final opacity = tester.widget<Opacity>(
-            find
-                .descendant(
-                  of: find.byType(LiveLuckyWinBanner),
-                  matching: find.byType(Opacity),
-                )
-                .first,
-          );
-          expect(opacity.opacity, lessThan(.01));
-          expect(tester.takeException(), isNull);
-        });
-      }
-    }
-
-    testWidgets('JACKPOT at ×500, SUPER JACKPOT at ×1000 (Arabic too); a '
-        'long name stays on one line', (tester) async {
-      final en = l10nFor(AppLanguage.en);
-      final ar = l10nFor(AppLanguage.ar);
-      await _pumpCard(tester, _win(multiplier: 500, coins: 5000));
-      expect(find.text(en.liveMaxXJackpot), findsOneWidget);
-      await _pumpCard(
-        tester,
-        _win(
-          multiplier: 1000,
-          coins: 13000,
-          name: 'A very very long display name that goes on',
-        ),
-        language: AppLanguage.ar,
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text(ar.liveMaxXSuperJackpot), findsOneWidget);
-      expect(
-        tester.widget<Text>(find.byKey(LiveLuckyWinBanner.numberKey)).data,
-        '×1,000',
-      );
-      expect(tester.takeException(), isNull);
-      await _pumpCard(tester, _win());
-      expect(find.text(en.liveLuckyBigWin), findsOneWidget);
-    });
-
-    testWidgets('reduced motion: the card still, the whole amount at once, '
-        'no burst', (tester) async {
-      tester.platformDispatcher.accessibilityFeaturesTestValue =
-          const FakeAccessibilityFeatures(disableAnimations: true);
-      addTearDown(
-        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
-      );
-      await _pumpCard(tester, _win());
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(_coinsText(tester), contains('+1,300'));
-      expect(
-        tester
-            .widgetList<CustomPaint>(find.byType(CustomPaint))
-            .map((c) => c.painter)
-            .whereType<MaxXWinPainter>(),
-        isEmpty,
-      );
-      await tester.pump(const Duration(seconds: 2));
-      final opacity = tester.widget<Opacity>(
-        find
-            .descendant(
-              of: find.byType(LiveLuckyWinBanner),
-              matching: find.byType(Opacity),
-            )
-            .first,
-      );
-      expect(opacity.opacity, 1);
-    });
-
-    testWidgets('screen readers hear the whole sentence once', (tester) async {
-      final handle = tester.ensureSemantics();
-      await _pumpCard(tester, _win());
-      await tester.pump(const Duration(milliseconds: 100));
-      final label = tester
-          .getSemantics(find.byType(LiveLuckyWinBanner))
-          .getSemanticsData()
-          .label;
-      expect(label, contains('Oz'));
-      expect(label, contains('100'));
-      expect(label, contains('1,300'));
-      expect(label, contains('Clover'));
-      handle.dispose();
-    });
-  });
+  // D159: the room's card was replaced by the owner's tier banner
+  // (`LiveWinBanner`, tested in win_banner_d159_test).
 
   group('MAX X wins: one at a time, clear of the orb', () {
     testWidgets('×10 then ×100 at once: one celebration on screen, then the '

@@ -22,8 +22,9 @@ class LiveGiftEffectsState {
   /// The animated gift playing now, or null.
   final LiveGift? big;
 
-  /// D132: the big lucky win announced now (×[LiveGiftEffects.luckyBanner]
-  /// or more), or null.
+  /// D132: the lucky win announced now, or null: the room's big wins
+  /// (×[LiveGiftEffects.luckyBanner] or more) and, D159, the caller's own
+  /// wins of every tier.
   final LuckyWin? lucky;
 }
 
@@ -60,8 +61,13 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   static const luckyBanner = 100;
 
   /// D145e (owner: a short ~3 s moment): the card's whole life, entrance to
-  /// fade-out (was 4 s for the D132 pill).
-  static const luckyTime = Duration(milliseconds: 3200);
+  /// fade-out (was 4 s for the D132 pill). D159: the owner's win banner's
+  /// timeline, 3.5 s in his revision 2.
+  static const luckyTime = Duration(milliseconds: 3500);
+
+  /// D159: wins waiting for their banner behind the one on screen; a bigger
+  /// win takes the place of the smaller ones waiting.
+  static const maxLuckyWaiting = 3;
 
   StreamSubscription<LiveChatEvent>? _events;
   final _seen = <String>{};
@@ -98,16 +104,46 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
     });
   }
 
-  /// D132: announces [win] when it reaches [luckyBanner] (one at a time;
-  /// a send seen twice shows once).
+  /// D132: announces [win] (a `lucky-win` message of the room) when it
+  /// reaches [luckyBanner] — the server's rule (`bigWinMultiplier`, ×100):
+  /// the room only hears of those.
   void showLucky(LuckyWin win) {
     if (!ref.mounted || win.multiplier < luckyBanner) return;
+    _queueLucky(win);
+  }
+
+  /// D159: the caller's own lucky send [result] won: its banner, whatever
+  /// the tier (a ×5 gets the sapphire frame). The room's `lucky-win`
+  /// message for the same send (×100 and more) then shows nothing more.
+  void showOwnWin(LiveGiftResult result) {
+    final lucky = result.luckyResult;
+    final top = lucky?.topMultiplier;
+    if (!ref.mounted || lucky == null || top == null || top <= 0) return;
+    final gift = result.gift;
+    _queueLucky(
+      LuckyWin(
+        giftId: gift.id,
+        roomId: gift.roomId,
+        giftCode: gift.giftCode,
+        sender: gift.sender,
+        multiplier: top,
+        coinsWon: lucky.coinsWon,
+        createdAt: gift.createdAt,
+      ),
+    );
+  }
+
+  /// One banner at a time (a send seen twice shows once). D159: at most
+  /// [maxLuckyWaiting] wait; a bigger win replaces the smaller ones
+  /// waiting, and a win no bigger than any of a full queue is dropped.
+  void _queueLucky(LuckyWin win) {
     if (!_seen.add('lucky:${win.giftId}')) return;
-    if (state.lucky != null) {
-      if (_luckyWaiting.length < maxWaiting) _luckyWaiting.add(win);
+    if (state.lucky == null) {
+      _setLucky(win);
       return;
     }
-    _setLucky(win);
+    _luckyWaiting.removeWhere((w) => w.multiplier < win.multiplier);
+    if (_luckyWaiting.length < maxLuckyWaiting) _luckyWaiting.add(win);
   }
 
   void _setLucky(LuckyWin? win) {

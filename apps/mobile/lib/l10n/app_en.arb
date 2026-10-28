@@ -2216,9 +2216,7 @@
   "liveEffectUnavailableBlack": "The effect isn't available right now: its picture came out black, so the camera went on without it before viewers saw it. Try it again later.",
   "@liveEffectUnavailableBlack": {"description": "D145e: DeepAR's picture was black; the effect switched itself off."},
   "liveLuckyBigWin": "BIG WIN",
-  "@liveLuckyBigWin": {"description": "D145e: the title of the room's big lucky win card (x100 to x499)."},
-  "liveLuckyBigWinCoins": "{coins} coins",
-  "@liveLuckyBigWinCoins": {"description": "D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.", "placeholders": {"coins": {"type": "String"}}},
+  "@liveLuckyBigWin": {"description": "D159: the label of the ruby win banner (x50 to x100; D145e: the big win card)."},
   "livePermissionTitleVideo": "Camera and microphone for your live",
   "@livePermissionTitleVideo": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionTitleAudio": "Microphone for your audio room",
@@ -2476,5 +2474,10 @@
   "liveWatchHide": "Hide the video",
   "liveWatchShow": "Show the video",
   "liveWatchPlayerError": "The video couldn't play on this phone",
-  "liveWatchNewSuggestion": "New suggestion: {title}"
+  "liveWatchNewSuggestion": "New suggestion: {title}",
+  "liveWinTierWin": "WIN",
+  "liveWinTierHuge": "HUGE WIN",
+  "liveWinBannerSemantics": "{label}: {name} won ×{multiplier}, {coins} coins",
+  "liveWinBannerSent": "{name} sent {gift}",
+  "liveWinBannerWon": "won {multiplier} and got {coins}"
 }

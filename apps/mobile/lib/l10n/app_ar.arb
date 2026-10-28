@@ -7853,9 +7853,7 @@
   "liveEffectUnavailableBlack": "المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.",
   "@liveEffectUnavailableBlack": {"description": "D145e: DeepAR's picture was black; the effect switched itself off."},
   "liveLuckyBigWin": "فوز كبير",
-  "@liveLuckyBigWin": {"description": "D145e: the title of the room's big lucky win card (x100 to x499)."},
-  "liveLuckyBigWinCoins": "{coins} عملة",
-  "@liveLuckyBigWinCoins": {"description": "D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.", "placeholders": {"coins": {"type": "String"}}},
+  "@liveLuckyBigWin": {"description": "D159: the label of the ruby win banner (x50 to x100; D145e: the big win card)."},
   "livePermissionTitleVideo": "الكاميرا والميكروفون لبثّك",
   "@livePermissionTitleVideo": {"description": "D144a: DeepAR status and camera/microphone permissions."},
   "livePermissionTitleAudio": "الميكروفون للغرفة الصوتية",
@@ -8301,5 +8299,15 @@
   "liveWatchPlayerError": "تعذّر تشغيل الفيديو على هذا الهاتف",
   "@liveWatchPlayerError": {"description": "D154i: the embedded player failed."},
   "liveWatchNewSuggestion": "اقتراح جديد: {title}",
-  "@liveWatchNewSuggestion": {"description": "D154i: the host is told of a suggestion.", "placeholders": {"title": {"type": "String"}}}
+  "@liveWatchNewSuggestion": {"description": "D154i: the host is told of a suggestion.", "placeholders": {"title": {"type": "String"}}},
+  "liveWinTierWin": "فوز",
+  "@liveWinTierWin": {"description": "D159: the label of the sapphire win banner (x5 to x25)."},
+  "liveWinTierHuge": "فوز ضخم",
+  "@liveWinTierHuge": {"description": "D159: the label of the amethyst win banner (x250)."},
+  "liveWinBannerSemantics": "{label}: {name} ربح ⁦×{multiplier}⁩، {coins} عملة",
+  "@liveWinBannerSemantics": {"description": "D159: what screen readers hear for a win banner; coins is pre-formatted and isolated.", "placeholders": {"label": {"type": "String"}, "name": {"type": "String"}, "multiplier": {"type": "String"}, "coins": {"type": "String"}}},
+  "liveWinBannerSent": "{name} أرسل {gift}",
+  "@liveWinBannerSent": {"description": "D159 rev 2: the win banner's first line (the owner's «Oz Nabulsi أرسل عملة الحظ»); name and gift are drawn as separate pieces.", "placeholders": {"name": {"type": "String"}, "gift": {"type": "String"}}},
+  "liveWinBannerWon": "ربح {multiplier} وحصل على {coins}",
+  "@liveWinBannerWon": {"description": "D159 rev 2: the win banner's second line (the owner's «ربح x100 وحصل على 17,500 🪙»); multiplier (×N) and coins are drawn as separate gold pieces, the coin icon follows.", "placeholders": {"multiplier": {"type": "String"}, "coins": {"type": "String"}}}
 }

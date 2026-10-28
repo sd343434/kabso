@@ -51,6 +51,34 @@ abstract final class MaxXTiers {
   }
 }
 
+/// D159 (owner's win banner, `kabso_win_banner.dart`, 2026-10-28): every
+/// lucky win has its frame — sapphire «فوز» ×5…×25, ruby «فوز كبير»
+/// ×50…×100, amethyst «فوز ضخم» ×250, onyx «جاكبوت» ×500…×1000. The room's
+/// banner, the MAX X celebration and its winnings chip take their colours
+/// from it.
+enum LuckyWinTier {
+  sapphire(1),
+  ruby(50),
+  amethyst(250),
+  onyx(500);
+
+  new(this.from);
+
+  /// The first multiplier of this tier.
+  final int from;
+
+  /// The frame art (`assets/win_frames/PROVENANCE.md`).
+  String get frame => 'assets/win_frames/win_frame_$name.png';
+
+  static LuckyWinTier of(int multiplier) {
+    var tier = LuckyWinTier.sapphire;
+    for (final t in values) {
+      if (multiplier >= t.from) tier = t;
+    }
+    return tier;
+  }
+}
+
 /// D145d: the MAX X sounds — the owner's files in `assets/sounds/`
 /// (`PROVENANCE.md`): a pop on every tap and a jingle per win tier.
 abstract interface class MaxXSoundPlayer {

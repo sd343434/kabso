@@ -11690,17 +11690,11 @@ abstract class AppLocalizations {
   /// **'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.'**
   String get liveEffectUnavailableBlack;
 
-  /// D145e: the title of the room's big lucky win card (x100 to x499).
+  /// D159: the label of the ruby win banner (x50 to x100; D145e: the big win card).
   ///
   /// In ar, this message translates to:
   /// **'فوز كبير'**
   String get liveLuckyBigWin;
-
-  /// D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.
-  ///
-  /// In ar, this message translates to:
-  /// **'{coins} عملة'**
-  String liveLuckyBigWinCoins(String coins);
 
   /// D144a: DeepAR status and camera/microphone permissions.
   ///
@@ -13039,6 +13033,41 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'اقتراح جديد: {title}'**
   String liveWatchNewSuggestion(String title);
+
+  /// D159: the label of the sapphire win banner (x5 to x25).
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز'**
+  String get liveWinTierWin;
+
+  /// D159: the label of the amethyst win banner (x250).
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز ضخم'**
+  String get liveWinTierHuge;
+
+  /// D159: what screen readers hear for a win banner; coins is pre-formatted and isolated.
+  ///
+  /// In ar, this message translates to:
+  /// **'{label}: {name} ربح ⁦×{multiplier}⁩، {coins} عملة'**
+  String liveWinBannerSemantics(
+    String label,
+    String name,
+    String multiplier,
+    String coins,
+  );
+
+  /// D159 rev 2: the win banner's first line (the owner's «Oz Nabulsi أرسل عملة الحظ»); name and gift are drawn as separate pieces.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} أرسل {gift}'**
+  String liveWinBannerSent(String name, String gift);
+
+  /// D159 rev 2: the win banner's second line (the owner's «ربح x100 وحصل على 17,500 🪙»); multiplier (×N) and coins are drawn as separate gold pieces, the coin icon follows.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح {multiplier} وحصل على {coins}'**
+  String liveWinBannerWon(String multiplier, String coins);
 }
 
 class _AppLocalizationsDelegate

@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/application/live_wallet_controller.dart
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_win_banner.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -448,15 +449,41 @@ class _ResultChip extends StatelessWidget {
       fontWeight: FontWeight.w800,
       height: 1.2,
     );
+    // D159: once something was won, the chip is a small piece of the best
+    // win's frame — its tier's jewel in a gold rim (sapphire ×5…×25, ruby
+    // ×50…×100, amethyst ×250, onyx ×500…×1000).
+    final best = topMultiplier;
+    final art = won && best != null
+        ? LuckyWinTierArt.of(LuckyWinTier.of(best))
+        : null;
     final chip = Container(
       padding: const EdgeInsetsDirectional.fromSTEB(3, 2, 7, 2),
       decoration: BoxDecoration(
-        color: KLiveColors.chatScrim,
+        color: art == null ? KLiveColors.chatScrim : null,
+        gradient: art == null
+            ? null
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [art.panelTop, art.panelBottom],
+              ),
         borderRadius: BorderRadius.circular(KRadius.pill),
         border: Border.all(
-          color: lastWon > 0 ? KBrandColors.gold : const Color(0x33FFFFFF),
+          color: art != null
+              ? LuckyWinTierArt.gold
+              : lastWon > 0
+              ? KBrandColors.gold
+              : const Color(0x33FFFFFF),
           width: KMetrics.thinStroke,
         ),
+        boxShadow: art == null
+            ? null
+            : [
+                BoxShadow(
+                  color: art.glow.withValues(alpha: .55),
+                  blurRadius: 8,
+                ),
+              ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
