@@ -44,6 +44,12 @@ import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.se
 import { LiveDataCenterService, type MyLiveStatsDto } from './live-data-center.service.js';
 import { LiveProgramService, type LiveProgramDto } from './live-program.service.js';
 import {
+  LiveWatchService,
+  type LiveWatchDto,
+  type LiveWatchSuggestionDto,
+  type LiveWatchVideoDto,
+} from './live-watch.service.js';
+import {
   LiveStickersService,
   type LiveStickerArtDto,
   type LiveStickersDto,
@@ -141,6 +147,7 @@ export class LiveController {
     private readonly dataCenter: LiveDataCenterService,
     private readonly program: LiveProgramService,
     private readonly stickers: LiveStickersService,
+    private readonly watch: LiveWatchService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -607,6 +614,65 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveProgramDto> {
     return this.program.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): YouTube search for watch-together (needs the server's key). */
+  @Get('youtube/search')
+  async searchYoutube(
+    @Req() req: AppRequest,
+    @Query() query: Record<string, unknown>,
+  ): Promise<{ items: LiveWatchVideoDto[] }> {
+    return this.watch.search(query, await this.language(req));
+  }
+
+  /** v1.38-live (D154i): what the live watches together (anyone who can see the room). */
+  @Get('rooms/:roomId/watch')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getWatch(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveWatchDto> {
+    return this.watch.get(callerOf(req), roomId);
+  }
+
+  /** v1.38-live (D154i): the host's player state (video, playing, position). */
+  @Put('rooms/:roomId/watch')
+  @RateLimit({ bucket: 'live:watch', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  setWatch(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchDto> {
+    return this.watch.set(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): the host's waiting suggestions. */
+  @Get('rooms/:roomId/watch/suggestions')
+  listWatchSuggestions(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+  ): Promise<{ data: LiveWatchSuggestionDto[] }> {
+    return this.watch.suggestions(requireCaller(req), roomId);
+  }
+
+  /** v1.38-live (D154i): a viewer suggests a video. */
+  @Post('rooms/:roomId/watch/suggestions')
+  suggestWatch(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchSuggestionDto> {
+    return this.watch.suggest(requireCaller(req), roomId, body);
+  }
+
+  /** v1.38-live (D154i): the host plays or turns down a suggestion. */
+  @Post('rooms/:roomId/watch/suggestions/:suggestionId/decision')
+  @HttpCode(200)
+  decideWatchSuggestion(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Param('suggestionId') suggestionId: string,
+    @Body() body: unknown,
+  ): Promise<LiveWatchDto> {
+    return this.watch.decide(requireCaller(req), roomId, suggestionId, body);
   }
 
   /** v1.37-live (D154h): the sticker art the app may place on a live. */

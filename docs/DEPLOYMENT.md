@@ -1161,6 +1161,18 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   Kabi pack is built into the API). No GRANT, no backfill, no new config. Adding a pack later is an
   `INSERT INTO live_sticker_art (key, pack, sort_order)` once the app ships its art.
 
+### 5.23 YouTube watch-together «يوتيوب» (migration `20261209090000_live_watch`; D154i) — [IMPLEMENTED, draft contract v1.38-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): tables `live_watch`, `live_watch_suggestions`. No GRANT,
+  no backfill.
+- **Outbound HTTPS** from the API to `www.youtube.com` (oEmbed: every video a host plays or a viewer
+  suggests) and, with a key, `www.googleapis.com` (search). Allow both in the server's egress.
+- **`YOUTUBE_API_KEY`** (optional, a secret; never in git): a YouTube Data API v3 key from the Google
+  Cloud project `kabso` (APIs & Services → enable "YouTube Data API v3" → Credentials → API key,
+  restricted to that API and, if possible, to the server's IP). Unset: search answers 503
+  `YOUTUBE_SEARCH_UNAVAILABLE` and the app says «البحث غير مفعّل بعد» and takes links. The free quota
+  is 10,000 units a day; a search costs 100 (≈ 100 searches a day; the API caches each query 10 min).
+
 ## 6. Observability baseline
 
 | Item | Status |

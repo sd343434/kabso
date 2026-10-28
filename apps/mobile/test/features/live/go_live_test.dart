@@ -53,6 +53,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_room_info_she
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
@@ -63,6 +64,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -2590,6 +2592,60 @@ void main() {
       await tester.tap(blur, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(camera.beauty.effect, LiveArEffect.none);
+      await _leave(tester);
+    });
+
+    testWidgets('audio room ≡ (D154): the built tools work, the blocked ones '
+        'say Soon, Fluent is gone; YouTube shows a pasted link', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      for (final label in [
+        l10n.liveToolSounds,
+        l10n.liveToolProgramList,
+        l10n.liveToolYoutube,
+        l10n.liveToolAssistance,
+        l10n.liveToolNewcomers,
+        l10n.liveToolDataCenter,
+        l10n.liveToolTrafficCard,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
+      // Blocked at an honest boundary (D154): native audio mixing / DSP,
+      // the screen capture (owner: blocked), the clip buffer.
+      for (final label in [
+        l10n.liveToolMusic,
+        l10n.liveToolSinging,
+        l10n.liveToolShareScreen,
+        l10n.liveToolRecorder,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsOneWidget,
+          reason: label,
+        );
+      }
+      expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+      await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveWatchSheet.linkKey),
+        'https://youtu.be/aaaaaaaaaaa',
+      );
+      await tester.tap(find.byKey(LiveWatchSheet.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsOneWidget);
       await _leave(tester);
     });
 

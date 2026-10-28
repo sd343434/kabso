@@ -7305,4 +7305,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveStickersAddText => 'Add';
+
+  @override
+  String get errorYoutubeVideoUnavailable =>
+      'This video can\'t be played here. It may be private or blocked outside YouTube.';
+
+  @override
+  String get errorYoutubeSearchUnavailable =>
+      'YouTube search isn\'t available yet. Paste the video\'s link.';
+
+  @override
+  String get liveWatchTitle => 'YouTube';
+
+  @override
+  String get liveWatchLinkHint => 'Paste a YouTube link';
+
+  @override
+  String get liveWatchPlay => 'Watch together';
+
+  @override
+  String get liveWatchSearchHint => 'Search YouTube';
+
+  @override
+  String get liveWatchSearchOff => 'Search isn\'t on yet, paste a link';
+
+  @override
+  String get liveWatchNowPlaying => 'Now showing';
+
+  @override
+  String get liveWatchStop => 'Stop showing';
+
+  @override
+  String liveWatchSuggestions(int count) {
+    return 'Viewers\' suggestions ($count)';
+  }
+
+  @override
+  String get liveWatchNoSuggestions => 'No suggestions now';
+
+  @override
+  String get liveWatchApprove => 'Show it';
+
+  @override
+  String get liveWatchReject => 'Dismiss';
+
+  @override
+  String liveWatchSuggestedBy(String name) {
+    return 'Suggested by $name';
+  }
+
+  @override
+  String get liveWatchSuggest => 'Suggest a video';
+
+  @override
+  String get liveWatchSuggestSend => 'Send the suggestion';
+
+  @override
+  String get liveWatchSuggestSent => 'Your suggestion reached the host';
+
+  @override
+  String get liveWatchBadLink => 'That isn\'t a YouTube video link';
+
+  @override
+  String get liveWatchHide => 'Hide the video';
+
+  @override
+  String get liveWatchShow => 'Show the video';
+
+  @override
+  String get liveWatchPlayerError => 'The video couldn\'t play on this phone';
+
+  @override
+  String liveWatchNewSuggestion(String title) {
+    return 'New suggestion: $title';
+  }
 }

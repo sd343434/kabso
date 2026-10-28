@@ -25,6 +25,7 @@ import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
+import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -58,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.da
 import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_sticker_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
 import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
@@ -76,6 +78,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -392,6 +395,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveProgramProvider(room.id).notifier).attach(engine);
       // D154h: the live's stickers.
       ref.read(liveStickersProvider(room.id).notifier).attach(engine);
+      // D154i: watch-together (the host's suggestions too).
+      ref.read(liveWatchProvider(room.id).notifier)
+        ..onSuggestion = (s) {
+          if (mounted) {
+            KSnack.info(
+              context,
+              context.l10n.liveWatchNewSuggestion(s.video.title),
+            );
+          }
+        }
+        ..attach(engine, host: true);
       // D154f: the host's assistant (hints on this phone only).
       ref
           .read(liveAssistantProvider(room.id).notifier)
@@ -1004,10 +1018,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.screen_share_outlined,
               label: l10n.liveToolShareScreen,
             ),
-            GoLiveTool.soon(
+            // D154i: YouTube watch-together (the official player).
+            GoLiveTool(
               id: 'youtube',
               icon: Icons.smart_display_outlined,
               label: l10n.liveToolYoutube,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveWatchSheet(context, roomId: room.id)),
             ),
             GoLiveTool.soon(
               id: 'singing',
@@ -1555,6 +1574,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ? LuckyComboLayer.audioBottom
                         : LuckyComboLayer.videoBottom,
                   ),
+                // D154i: the video the live watches together.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveWatchLayer(roomId: room.id, host: true),
                 // D154f: the assistant's hint, for the host only.
                 if (room != null && state.phase == GoLivePhase.live)
                   LiveAssistantHintLayer(roomId: room.id),

@@ -95,6 +95,8 @@ describe('ErrorCode', () => {
         'BOOST_QUEUE_FULL',
         'BOOST_CARD_INSUFFICIENT',
         'BOOST_ROOM_BUSY',
+        'YOUTUBE_VIDEO_UNAVAILABLE',
+        'YOUTUBE_SEARCH_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -158,6 +160,8 @@ describe('ErrorCode', () => {
       BOOST_QUEUE_FULL: 409,
       BOOST_CARD_INSUFFICIENT: 409,
       BOOST_ROOM_BUSY: 409,
+      YOUTUBE_VIDEO_UNAVAILABLE: 422,
+      YOUTUBE_SEARCH_UNAVAILABLE: 503,
     });
   });
 

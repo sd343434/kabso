@@ -183,6 +183,14 @@ enum ErrorCode {
   /// waiting already.
   boostRoomBusy('BOOST_ROOM_BUSY'),
 
+  /// v1.38-live (D154i, §10.39, 422): the YouTube video is missing, private
+  /// or may not be played in other apps.
+  youtubeVideoUnavailable('YOUTUBE_VIDEO_UNAVAILABLE'),
+
+  /// v1.38-live (D154i, §10.39, 503): YouTube search is not set up on the
+  /// server (or failed); paste a link instead.
+  youtubeSearchUnavailable('YOUTUBE_SEARCH_UNAVAILABLE'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

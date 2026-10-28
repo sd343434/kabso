@@ -27,6 +27,7 @@ import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_stickers.dart';
+import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -58,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -348,6 +350,10 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref.read(liveProgramProvider(room.id).notifier).attach(_session.engine);
       // D154h: the live's stickers.
       ref.read(liveStickersProvider(room.id).notifier).attach(_session.engine);
+      // D154i: watch-together (late joiners start in the right place).
+      ref
+          .read(liveWatchProvider(room.id).notifier)
+          .attach(_session.engine, host: false);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -759,6 +765,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
               ),
+            // D154i: the video the live watches together.
+            if (room.status == LiveRoomStatus.live)
+              LiveWatchLayer(roomId: room.id, host: false),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
               LuckyComboLayer(

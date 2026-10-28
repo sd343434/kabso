@@ -14,6 +14,8 @@ import { LiveNewcomersService } from './live-newcomers.service.js';
 import { LiveDataCenterService } from './live-data-center.service.js';
 import { LiveProgramService } from './live-program.service.js';
 import { LiveStickersService } from './live-stickers.service.js';
+import { LiveWatchService } from './live-watch.service.js';
+import { HttpYoutubeClient, YOUTUBE_CLIENT } from './youtube/youtube.client.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatBadgesService } from './live-chat-badges.service.js';
 import { LiveChatService } from './live-chat.service.js';
@@ -90,6 +92,8 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveDataCenterService,
     LiveProgramService,
     LiveStickersService,
+    LiveWatchService,
+    { provide: YOUTUBE_CLIENT, useClass: HttpYoutubeClient },
     // v1.20-live (D105): kicking someone out of a live (§10.20).
     LiveKicksService,
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).

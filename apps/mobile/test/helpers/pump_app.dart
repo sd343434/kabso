@@ -20,6 +20,8 @@ import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
+import 'package:kabso_live/features/live/data/live_watch_repository.dart';
+import 'package:kabso_live/features/live/data/youtube_player.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -40,10 +42,12 @@ import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
 import 'fake_live_sticker_repository.dart';
+import 'fake_live_watch_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
 import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
+import 'fake_youtube_player.dart';
 
 /// Shared preferences with an explicit language.
 Future<SharedPreferences> testPrefs({
@@ -80,6 +84,8 @@ Future<void> pumpKabsoApp(
   LiveDataCenterRepository? liveDataCenterRepository,
   LiveProgramRepository? liveProgramRepository,
   LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  FakeYoutubePlayers? youtubePlayers,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -150,6 +156,13 @@ Future<void> pumpKabsoApp(
         liveStickerRepositoryProvider.overrideWithValue(
           liveStickerRepository ?? FakeLiveStickerRepository(),
         ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -195,6 +208,8 @@ Future<void> pumpScreen(
   LiveDataCenterRepository? liveDataCenterRepository,
   LiveProgramRepository? liveProgramRepository,
   LiveStickerRepository? liveStickerRepository,
+  LiveWatchRepository? liveWatchRepository,
+  FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
@@ -245,6 +260,13 @@ Future<void> pumpScreen(
         // D154h: never the network (no stickers).
         liveStickerRepositoryProvider.overrideWithValue(
           liveStickerRepository ?? FakeLiveStickerRepository(),
+        ),
+        // D154i: never the network, never a web view.
+        liveWatchRepositoryProvider.overrideWithValue(
+          liveWatchRepository ?? FakeLiveWatchRepository(),
+        ),
+        youtubePlayerFactoryProvider.overrideWithValue(
+          (youtubePlayers ?? FakeYoutubePlayers()).call,
         ),
         ...overrides,
       ],

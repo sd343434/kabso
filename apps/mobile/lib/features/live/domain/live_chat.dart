@@ -6,6 +6,7 @@ import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/domain/live_sticker.dart';
+import 'package:kabso_live/features/live/domain/live_watch.dart';
 
 part 'live_chat.freezed.dart';
 part 'live_chat.g.dart';
@@ -182,6 +183,15 @@ sealed class LiveChatEvent {
         'program' => LiveProgramChanged(
           LiveProgram.fromJson(json['program']! as Map<String, dynamic>),
         ),
+        // v1.38-live (D154i): watch-together's state / a viewer's suggestion.
+        'watch' => LiveWatchChanged(
+          LiveWatch.fromJson(json['watch']! as Map<String, dynamic>),
+        ),
+        'watch-suggestion' => LiveWatchSuggested(
+          LiveWatchSuggestion.fromJson(
+            json['suggestion']! as Map<String, dynamic>,
+          ),
+        ),
         // v1.37-live (D154h): the live's stickers changed.
         'stickers' => LiveStickersChanged(
           LiveStickers.fromJson(json['stickers']! as Map<String, dynamic>),
@@ -311,6 +321,21 @@ final class LiveStickersChanged extends LiveChatEvent {
   const new(this.stickers);
 
   final LiveStickers stickers;
+}
+
+/// v1.38-live (D154i, §10.39): the host's watch-together state (topic
+/// `watch`).
+final class LiveWatchChanged extends LiveChatEvent {
+  const new(this.watch);
+
+  final LiveWatch watch;
+}
+
+/// v1.38-live (D154i): a viewer suggested a video (the host lists it).
+final class LiveWatchSuggested extends LiveChatEvent {
+  const new(this.suggestion);
+
+  final LiveWatchSuggestion suggestion;
 }
 
 final class LuckyTickerReceived extends LiveChatEvent {

@@ -111,6 +111,10 @@ export enum ErrorCode {
   BOOST_CARD_INSUFFICIENT = 'BOOST_CARD_INSUFFICIENT',
   /** v1.33-live (DRAFT, D154b): this live already has a traffic card running or waiting. */
   BOOST_ROOM_BUSY = 'BOOST_ROOM_BUSY',
+  /** v1.38-live (DRAFT, D154i): the YouTube video does not exist or may not be played in other apps. */
+  YOUTUBE_VIDEO_UNAVAILABLE = 'YOUTUBE_VIDEO_UNAVAILABLE',
+  /** v1.38-live (DRAFT, D154i): YouTube search is not set up on this server (or YouTube is unreachable). */
+  YOUTUBE_SEARCH_UNAVAILABLE = 'YOUTUBE_SEARCH_UNAVAILABLE',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -176,6 +180,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.BOOST_QUEUE_FULL]: 409,
   [ErrorCode.BOOST_CARD_INSUFFICIENT]: 409,
   [ErrorCode.BOOST_ROOM_BUSY]: 409,
+  [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 422,
+  [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 503,
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
 };
@@ -245,6 +251,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.BOOST_QUEUE_FULL]: 'The featured slots are booked too far ahead; try a shorter card or later.',
   [ErrorCode.BOOST_CARD_INSUFFICIENT]: 'You have no traffic card of that length.',
   [ErrorCode.BOOST_ROOM_BUSY]: 'This live already has a traffic card running or waiting.',
+  [ErrorCode.YOUTUBE_VIDEO_UNAVAILABLE]: 'This YouTube video cannot be played here.',
+  [ErrorCode.YOUTUBE_SEARCH_UNAVAILABLE]: 'YouTube search is not available; paste a link instead.',
 };
 
 export interface ErrorDetail {

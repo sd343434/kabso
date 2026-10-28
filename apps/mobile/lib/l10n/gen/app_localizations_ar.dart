@@ -7344,4 +7344,78 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveStickersAddText => 'أضف';
+
+  @override
+  String get errorYoutubeVideoUnavailable =>
+      'لا يمكن تشغيل هذا الفيديو هنا، قد يكون خاصاً أو ممنوعاً من التشغيل خارج يوتيوب.';
+
+  @override
+  String get errorYoutubeSearchUnavailable =>
+      'البحث في يوتيوب غير مفعّل بعد، الصق رابط الفيديو.';
+
+  @override
+  String get liveWatchTitle => 'يوتيوب';
+
+  @override
+  String get liveWatchLinkHint => 'الصق رابط فيديو يوتيوب';
+
+  @override
+  String get liveWatchPlay => 'شاهدوا معاً';
+
+  @override
+  String get liveWatchSearchHint => 'ابحث في يوتيوب';
+
+  @override
+  String get liveWatchSearchOff => 'البحث غير مفعّل بعد، الصق رابطاً';
+
+  @override
+  String get liveWatchNowPlaying => 'يُعرض الآن';
+
+  @override
+  String get liveWatchStop => 'إيقاف العرض';
+
+  @override
+  String liveWatchSuggestions(int count) {
+    return 'اقتراحات المشاهدين ($count)';
+  }
+
+  @override
+  String get liveWatchNoSuggestions => 'لا اقتراحات الآن';
+
+  @override
+  String get liveWatchApprove => 'اعرضه';
+
+  @override
+  String get liveWatchReject => 'تجاهل';
+
+  @override
+  String liveWatchSuggestedBy(String name) {
+    return 'اقترحه $name';
+  }
+
+  @override
+  String get liveWatchSuggest => 'اقترح فيديو';
+
+  @override
+  String get liveWatchSuggestSend => 'أرسل الاقتراح';
+
+  @override
+  String get liveWatchSuggestSent => 'وصل اقتراحك للمضيف';
+
+  @override
+  String get liveWatchBadLink => 'هذا ليس رابط فيديو يوتيوب';
+
+  @override
+  String get liveWatchHide => 'إخفاء الفيديو';
+
+  @override
+  String get liveWatchShow => 'عرض الفيديو';
+
+  @override
+  String get liveWatchPlayerError => 'تعذّر تشغيل الفيديو على هذا الهاتف';
+
+  @override
+  String liveWatchNewSuggestion(String title) {
+    return 'اقتراح جديد: $title';
+  }
 }

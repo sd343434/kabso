@@ -74,6 +74,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.boostQueueFull: 409,
   ErrorCode.boostCardInsufficient: 409,
   ErrorCode.boostRoomBusy: 409,
+  ErrorCode.youtubeVideoUnavailable: 422,
+  ErrorCode.youtubeSearchUnavailable: 503,
 };
 
 DioException _badResponse(
@@ -171,6 +173,8 @@ void main() {
           'BOOST_QUEUE_FULL',
           'BOOST_CARD_INSUFFICIENT',
           'BOOST_ROOM_BUSY',
+          'YOUTUBE_VIDEO_UNAVAILABLE',
+          'YOUTUBE_SEARCH_UNAVAILABLE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

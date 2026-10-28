@@ -164,6 +164,7 @@ model User {
   liveSummaries      LiveSummary[]
   /// v1.32-live (D154): the free quips the user sent (one per live).
   freeQuips          LiveFreeQuip[]
+  watchSuggestions   LiveWatchSuggestion[]
   // v1.27.1-live (D133): featured on the live hub.
   liveFeatured       LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
@@ -503,6 +504,8 @@ model LiveRoom {
   summary      LiveSummary?
   program      LiveProgramItem[]
   stickers     LiveSticker[]
+  watch        LiveWatch?
+  watchSuggestions LiveWatchSuggestion[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2494,6 +2497,41 @@ model LiveProgramItem {
   @@id([roomId, position], map: "live_program_items_pkey")
   @@index([startsAt], map: "live_program_items_due_idx", where: raw("announced_at IS NULL"))
   @@map("live_program_items")
+}
+
+/// v1.38-live (D154i, CONVENTIONS §10.39): the YouTube video a live watches together (sync state only).
+model LiveWatch {
+  roomId     String   @id(map: "live_watch_pkey") @map("room_id") @db.Uuid
+  videoId    String   @map("video_id") @db.VarChar(11)
+  title      String   @db.VarChar(400)
+  channel    String?  @db.VarChar(200)
+  playing    Boolean
+  positionMs Int      @map("position_ms")
+  updatedAt  DateTime @map("updated_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("live_watch")
+}
+
+/// v1.38-live (D154i): a viewer's suggestion for watch-together (PENDING / APPROVED / REJECTED).
+model LiveWatchSuggestion {
+  id        String    @id(map: "live_watch_suggestions_pkey") @db.Uuid
+  roomId    String    @map("room_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  videoId   String    @map("video_id") @db.VarChar(11)
+  title     String    @db.VarChar(400)
+  channel   String?   @db.VarChar(200)
+  status    String    @default("PENDING") @db.VarChar(10)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  decidedAt DateTime? @map("decided_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt], map: "live_watch_suggestions_pending_idx", where: raw("status = 'PENDING'"))
+  @@index([userId], map: "live_watch_suggestions_user_idx")
+  @@map("live_watch_suggestions")
 }
 
 /// v1.37-live (D154h, CONVENTIONS §10.38): sticker art the app may place on a live (the catalogue).

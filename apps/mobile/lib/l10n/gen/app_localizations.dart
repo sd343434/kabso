@@ -12589,6 +12589,138 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أضف'**
   String get liveStickersAddText;
+
+  /// Error YOUTUBE_VIDEO_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تشغيل هذا الفيديو هنا، قد يكون خاصاً أو ممنوعاً من التشغيل خارج يوتيوب.'**
+  String get errorYoutubeVideoUnavailable;
+
+  /// Error YOUTUBE_SEARCH_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث في يوتيوب غير مفعّل بعد، الصق رابط الفيديو.'**
+  String get errorYoutubeSearchUnavailable;
+
+  /// D154i: the watch-together sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get liveWatchTitle;
+
+  /// D154i: the link field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصق رابط فيديو يوتيوب'**
+  String get liveWatchLinkHint;
+
+  /// D154i: the host starts the pasted video.
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهدوا معاً'**
+  String get liveWatchPlay;
+
+  /// D154i: the search field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في يوتيوب'**
+  String get liveWatchSearchHint;
+
+  /// D154i: no server key.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث غير مفعّل بعد، الصق رابطاً'**
+  String get liveWatchSearchOff;
+
+  /// D154i: the current video label.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُعرض الآن'**
+  String get liveWatchNowPlaying;
+
+  /// D154i: the host stops watch-together.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف العرض'**
+  String get liveWatchStop;
+
+  /// D154i: the host's list.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراحات المشاهدين ({count})'**
+  String liveWatchSuggestions(int count);
+
+  /// D154i: none waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا اقتراحات الآن'**
+  String get liveWatchNoSuggestions;
+
+  /// D154i: plays a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعرضه'**
+  String get liveWatchApprove;
+
+  /// D154i: turns a suggestion down.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get liveWatchReject;
+
+  /// D154i: who suggested.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترحه {name}'**
+  String liveWatchSuggestedBy(String name);
+
+  /// D154i: a viewer's button on the player.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترح فيديو'**
+  String get liveWatchSuggest;
+
+  /// D154i: sends a viewer's suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الاقتراح'**
+  String get liveWatchSuggestSend;
+
+  /// D154i: after a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصل اقتراحك للمضيف'**
+  String get liveWatchSuggestSent;
+
+  /// D154i: a link that is not YouTube.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا ليس رابط فيديو يوتيوب'**
+  String get liveWatchBadLink;
+
+  /// D154i: a viewer hides the player on their phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الفيديو'**
+  String get liveWatchHide;
+
+  /// D154i: shows the hidden player.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الفيديو'**
+  String get liveWatchShow;
+
+  /// D154i: the embedded player failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل الفيديو على هذا الهاتف'**
+  String get liveWatchPlayerError;
+
+  /// D154i: the host is told of a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح جديد: {title}'**
+  String liveWatchNewSuggestion(String title);
 }
 
 class _AppLocalizationsDelegate

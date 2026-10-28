@@ -410,7 +410,9 @@ class LiveChatController extends Notifier<LiveChatState> {
           LiveQuipReceived() ||
           LiveProgramChanged() ||
           LiveProgramSegmentStarted() ||
-          LiveStickersChanged():
+          LiveStickersChanged() ||
+          LiveWatchChanged() ||
+          LiveWatchSuggested():
         // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
         // them (and D132's big lucky wins); D138's seat emojis play on the
         // seats (LiveSeatEmojis); D154's quips play in LiveQuips (their

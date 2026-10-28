@@ -140,6 +140,8 @@ All non-2xx responses use one envelope:
 | 409 | `BOOST_QUEUE_FULL` | *(v1.33-live, DRAFT, D154b)* The traffic card would start more than `LIVE_BOOST_MAX_WAIT_MINUTES` (180) from now: every featured slot is booked too far ahead. Nothing was charged (§10.34). |
 | 409 | `BOOST_CARD_INSUFFICIENT` | *(v1.33-live, DRAFT, D154b)* `source: CARD` but the caller holds no traffic card of that length. Nothing was taken (§10.34). |
 | 409 | `BOOST_ROOM_BUSY` | *(v1.33-live, DRAFT, D154b)* This live already has a traffic card running or waiting (one at a time per live). Nothing was charged (§10.34). |
+| 422 | `YOUTUBE_VIDEO_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* The YouTube video does not exist, is private or may not be played in other apps (§10.39). |
+| 503 | `YOUTUBE_SEARCH_UNAVAILABLE` | *(v1.38-live, DRAFT, D154i)* YouTube search is not set up on this server (no `YOUTUBE_API_KEY`) or YouTube failed; paste a link instead (§10.39). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -475,6 +477,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
 | *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
 | *(v1.37-live)* Tables `live_stickers`, `live_sticker_art` | Backend — `live` module (`LiveStickersService`; the host writes the stickers; admins add art rows) | CTO |
+| *(v1.38-live)* Tables `live_watch`, `live_watch_suggestions` | Backend — `live` module (`LiveWatchService`; the host writes the state, viewers suggest) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -514,6 +517,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.38-live (draft) | 2026-10-28 | **D154i (owner: Room Tools item 10 «يوتيوب / YouTube», item 9):** `getLiveWatch` / `setLiveWatch`, `listLiveWatchSuggestions` / `suggestLiveWatch` / `decideLiveWatchSuggestion`, `searchYoutube` (`LiveWatch`, `LiveWatchVideo`, `LiveWatchSuggestion`, `SetLiveWatchRequest`); data messages `watch`, `watch-suggestion` on topic `watch`; error codes `YOUTUBE_VIDEO_UNAVAILABLE` (422), `YOUTUBE_SEARCH_UNAVAILABLE` (503); tables `live_watch`, `live_watch_suggestions` (migration `20261209090000_live_watch`); env `YOUTUBE_API_KEY` (optional secret). §4, §8, §10.39. | **Additive** (new operations, messages and codes). |
 | v1.37-live (draft) | 2026-10-28 | **D154h (owner: Room Tools item 8 «ملصقات / Stickers», item 3):** `listLiveStickerArt` (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT /live/rooms/{roomId}/stickers`, `LiveSticker`, `LiveStickers`, `LiveStickerArt`, `SetLiveStickersRequest`); data message `stickers` on topic `sticker`; tables `live_stickers`, `live_sticker_art` (migration `20261208090000_live_stickers`). §8, §10.38. | **Additive** (new operations and data message). |
 | v1.36-live (draft) | 2026-10-28 | **D154e (owner: Room Tools item 5 «قائمة البرامج / Program list», item 10):** `getLiveProgram` / `setLiveProgram` (`GET` / `PUT /live/rooms/{roomId}/program`, `SetLiveProgramRequest`, `LiveProgram`, `LiveProgramItem`); data messages `program` and `program-segment` on topic `program`; table `live_program_items` (migration `20261207090000_live_program`). §8, §10.37. | **Additive** (new operations and data messages). |
 | v1.35-live (draft) | 2026-10-28 | **D154d (owner: Room Tools item 4 «مركز البيانات / Data center», item 14; periods DAY / WEEK / MONTH / YEAR):** `getMyLiveStats` (`GET /live/stats/me?period=`, `MyLiveStats`, `LiveStatsPeriod`); `LiveRoomStats.giftCoins`, `earningsCoins` (required); table `live_summaries` (migration `20261206090000_live_summaries`), filled by a summariser for every ended live (older ones included). §8, §10.31, §10.36. | **Additive** (a new operation and new response fields). |
@@ -2427,6 +2431,37 @@ Owner decisions (2026-10-28, D154 item 3) are marked *(owner)*.
   enabled rows of `live_sticker_art` that admins add (SQL for now; an admin screen later). An app
   shows only art it can draw; a sticker of unknown art is skipped on that phone.
 - **Not in v1.37-live:** paid stickers *(owner: not now)*, viewers' stickers, uploaded images.
+
+### 10.39 YouTube watch-together «يوتيوب» *(v1.38-live, DRAFT — D154i)*
+
+Owner decisions (2026-10-28, D154 item 9) are marked *(owner)*.
+
+- **Playback** *(owner: the official YouTube embedded player only, per YouTube's terms; each phone
+  streams from YouTube; the server only relays the sync state)*: no video passes through Kabso. The
+  state is `LiveWatch` — `video` (`LiveWatchVideo`: id, title, channel, thumbnail) or null,
+  `playing`, `positionMs` at `updatedAt`, `serverTime` (to place the position on a phone whose clock
+  differs) and `searchEnabled`. A phone plays from `positionMs + (serverTime − updatedAt)` plus the
+  time since it received the state, while `playing`; it seeks when it drifts more than 2 s.
+- **The host** (`setLiveWatch`, `PUT /live/rooms/{roomId}/watch`): sends the player state on every
+  play, pause and seek and every 15 s while playing (the taps rule, bucket `live:watch`). `video` is
+  an 11-character id or a YouTube link (watch, youtu.be, shorts, embed, live, music, mobile); the
+  server asks YouTube (oEmbed) for its title and whether it may be embedded — 422
+  `YOUTUBE_VIDEO_UNAVAILABLE` otherwise *(owner: non-embeddable videos → an honest message)*. Null
+  stops watching. Every change reaches the room as `{"type":"watch","watch":LiveWatch}` on topic
+  **`watch`**; late joiners read `getLiveWatch` (guests too; no video once the live ended).
+- **Suggestions** *(owner: viewers suggest by link or search; the host approves or rejects; one per
+  60 s per viewer; titles through the blocked-words filter)*: `suggestLiveWatch` → `PENDING` (the room
+  gets `{"type":"watch-suggestion","suggestion":LiveWatchSuggestion}`; the host's app lists it, the
+  others ignore it); `listLiveWatchSuggestions` (host, oldest first, ≤ 50);
+  `decideLiveWatchSuggestion` `{approve}` — approve plays it from the start, reject turns it down.
+  Titles (the host's and the suggestions') are masked with the host's blocked words.
+- **Search** *(owner: a server-side YouTube Data API key; no key → paste a link, search «غير مفعّل
+  بعد»)*: `searchYoutube` (`GET /live/youtube/search?q=`, signed in) — embeddable videos, safe search
+  moderate, 10 results, cached 10 min per query (the free quota is about 100 searches a day); 503
+  `YOUTUBE_SEARCH_UNAVAILABLE` without `YOUTUBE_API_KEY` or when YouTube fails. The key is a server
+  secret, never in the app or in git.
+- **Not in v1.38-live:** a queue of several videos, viewers' own controls, YouTube Shorts' vertical
+  layout.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

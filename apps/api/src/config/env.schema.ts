@@ -553,6 +553,11 @@ export const envSchema = z
      */
     NEWCOMER_DAYS: intSetting(30, 1, 365),
     /**
+     * v1.38-live (D154i, CONVENTIONS §10.39): the YouTube Data API key for watch-together search
+     * (server-side only, a secret). Unset: search is off and hosts paste links.
+     */
+    YOUTUBE_API_KEY: z.string().min(20).max(200).optional(),
+    /**
      * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
      * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is
      * checked at start-up even while off (the server refuses to start on an invalid table).

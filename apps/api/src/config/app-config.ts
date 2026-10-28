@@ -191,6 +191,8 @@ export interface AppConfig {
   };
   /** v1.34-live (D154c): an account younger than this is a newcomer (CONVENTIONS §10.35). */
   readonly newcomerDays: number;
+  /** v1.38-live (D154i): the YouTube Data API key (search), or null (search off). */
+  readonly youtubeApiKey: string | null;
   /** v1.33-live (D154b) traffic cards (CONVENTIONS §10.34). */
   readonly boosts: {
     readonly prices: readonly BoostPrice[];
@@ -392,6 +394,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       quipMaxWaitMs: e.QUIP_QUEUE_MAX_WAIT_SECONDS * 1000,
     },
     newcomerDays: e.NEWCOMER_DAYS,
+    youtubeApiKey: e.YOUTUBE_API_KEY ?? null,
     boosts: {
       prices: e.LIVE_BOOST_PRICES,
       slots: e.LIVE_BOOST_SLOTS,

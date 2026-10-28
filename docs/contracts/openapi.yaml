@@ -197,6 +197,11 @@ info:
     (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT
     /live/rooms/{roomId}/stickers`, ≤ 3) and the data message `stickers` on topic `sticker`
     (CONVENTIONS §10.38).
+    **D154i (DRAFT v1.38-live)** adds YouTube watch-together «يوتيوب»: `getLiveWatch` / `setLiveWatch`
+    (`/live/rooms/{roomId}/watch`), viewers' suggestions (`listLiveWatchSuggestions`,
+    `suggestLiveWatch`, `decideLiveWatchSuggestion`), `searchYoutube` (`GET /live/youtube/search`),
+    the data messages `watch` and `watch-suggestion` on topic `watch`, and the error codes
+    `YOUTUBE_VIDEO_UNAVAILABLE` (422) and `YOUTUBE_SEARCH_UNAVAILABLE` (503) (CONVENTIONS §10.39).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1559,6 +1564,187 @@ paths:
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/youtube/search:
+    get:
+      tags: [live]
+      operationId: searchYoutube
+      summary: "Search YouTube for watch-together (D154i)"
+      description: |
+        v1.38-live, CONVENTIONS §10.39. Embeddable videos only, with the server's YouTube Data API key.
+        503 `YOUTUBE_SEARCH_UNAVAILABLE` when the server has no key (`LiveWatch.searchEnabled` false)
+        or YouTube fails: paste a link instead.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200':
+          description: Up to 10 videos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 10
+                    items: { $ref: '#/components/schemas/LiveWatchVideo' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/watch:
+    get:
+      tags: [live]
+      operationId: getLiveWatch
+      summary: "What a live watches together (D154i)"
+      description: |
+        v1.38-live, CONVENTIONS §10.39. Anyone who can see the room, guests too (404 otherwise); no
+        video once the live ended. A phone plays `video` from `positionMs` plus, while `playing`, the
+        time since `updatedAt` (measured with `serverTime`).
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The watch state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveWatch' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [live]
+      operationId: setLiveWatch
+      summary: "The host's player state (D154i)"
+      description: |
+        v1.38-live, CONVENTIONS §10.39. Sent on every play, pause and seek and now and then while
+        playing. `video` (an 11-character id or a YouTube link) changes the video, null stops watching,
+        absent keeps it (400 `video` / `required` when there is none). Checks: 401; 404; 403
+        `AUTH_FORBIDDEN` (not the host); 409 `LIVE_ROOM_ENDED`; 400 (`video` / `invalid_format`: not a
+        YouTube video); 422 `YOUTUBE_VIDEO_UNAVAILABLE` (missing, private or not embeddable); 503 when
+        YouTube cannot be reached. The title is masked with the host's blocked words. The room gets
+        `{"type":"watch","watch":LiveWatch}` on topic `watch`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetLiveWatchRequest' }
+            example: { video: 'https://youtu.be/dQw4w9WgXcQ', playing: true, positionMs: 0 }
+      responses:
+        '200':
+          description: The watch state now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveWatch' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/watch/suggestions:
+    get:
+      tags: [live]
+      operationId: listLiveWatchSuggestions
+      summary: "The host's waiting suggestions (D154i)"
+      description: v1.38-live, CONVENTIONS §10.39. The host only (403 otherwise); up to 50, the oldest first.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The waiting suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: '#/components/schemas/LiveWatchSuggestion' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [live]
+      operationId: suggestLiveWatch
+      summary: "A viewer suggests a video (D154i)"
+      description: |
+        v1.38-live, CONVENTIONS §10.39. A signed-in viewer of a LIVE room (the host: 403); one a minute
+        per viewer per live (429 with `Retry-After`; a refused video does not count). 400 `video` /
+        `invalid_format`, 422 `YOUTUBE_VIDEO_UNAVAILABLE`, 409 `LIVE_ROOM_ENDED`. The title is masked
+        with the host's blocked words. The room gets `{"type":"watch-suggestion","suggestion":…}`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [video]
+              additionalProperties: false
+              properties:
+                video: { type: string, minLength: 1, maxLength: 300, description: An 11-character id or a YouTube link. }
+      responses:
+        '201':
+          description: The suggestion, waiting.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveWatchSuggestion' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/live/rooms/{roomId}/watch/suggestions/{suggestionId}/decision:
+    post:
+      tags: [live]
+      operationId: decideLiveWatchSuggestion
+      summary: "The host plays or turns down a suggestion (D154i)"
+      description: |
+        v1.38-live, CONVENTIONS §10.39. `approve: true` plays it from the start (the room gets a `watch`
+        message); false turns it down. 404 when it is not waiting; 403 not the host; 409 ended.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+        - name: suggestionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approve]
+              additionalProperties: false
+              properties:
+                approve: { type: boolean }
+      responses:
+        '200':
+          description: The watch state now.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveWatch' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/stickers:
     get:
       tags: [live]
@@ -9483,6 +9669,50 @@ components:
               hour: { type: integer, minimum: 0, maximum: 23 }
               lives: { type: integer, minimum: 1 }
               viewers: { type: integer, format: int64, minimum: 0 }
+    LiveWatchVideo:
+      type: object
+      description: v1.38-live (D154i). A YouTube video (played in the official embedded player).
+      required: [videoId, title, channel, thumbnailUrl]
+      properties:
+        videoId: { type: string, pattern: '^[A-Za-z0-9_-]{11}$' }
+        title: { type: string }
+        channel: { type: [string, 'null'] }
+        thumbnailUrl: { type: string, format: uri }
+    LiveWatch:
+      type: object
+      description: v1.38-live (D154i, CONVENTIONS §10.39). What a live watches together.
+      required: [roomId, video, playing, positionMs, updatedAt, serverTime, searchEnabled]
+      properties:
+        roomId: { type: string, format: uuid }
+        video:
+          oneOf:
+            - $ref: '#/components/schemas/LiveWatchVideo'
+            - type: 'null'
+        playing: { type: boolean }
+        positionMs: { type: integer, minimum: 0, description: The position at updatedAt. }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        serverTime: { type: string, format: date-time }
+        searchEnabled: { type: boolean, description: Whether searchYoutube is set up on this server. }
+    SetLiveWatchRequest:
+      type: object
+      description: v1.38-live (D154i). The host's player state.
+      required: [playing, positionMs]
+      additionalProperties: false
+      properties:
+        video: { type: [string, 'null'], minLength: 1, maxLength: 300, description: "An id or a YouTube link; null stops; absent keeps." }
+        playing: { type: boolean }
+        positionMs: { type: integer, minimum: 0, maximum: 86400000 }
+    LiveWatchSuggestion:
+      type: object
+      description: v1.38-live (D154i). A viewer's suggestion.
+      required: [id, roomId, video, suggester, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        roomId: { type: string, format: uuid }
+        video: { $ref: '#/components/schemas/LiveWatchVideo' }
+        suggester: { $ref: '#/components/schemas/UserSummary' }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        createdAt: { type: string, format: date-time }
     LiveStickerArt:
       type: object
       description: v1.37-live (D154h). One sticker art (`<pack>_<id>`).
