@@ -768,7 +768,12 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               ),
             // D154i: the video the live watches together.
             if (room.status == LiveRoomStatus.live)
-              LiveWatchLayer(roomId: room.id, host: false),
+              LiveWatchLayer(
+                roomId: room.id,
+                host: false,
+                // D160: a floating window in a video live.
+                pip: room.mode != LiveRoomMode.audio,
+              ),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
               LuckyComboLayer(

@@ -13058,6 +13058,12 @@ abstract class AppLocalizations {
   /// **'عرض الفيديو'**
   String get liveWatchShow;
 
+  /// D160: the watch window's drag handle (video lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'اسحب لنقل نافذة الفيديو'**
+  String get liveWatchDrag;
+
   /// D154i: the embedded player failed.
   ///
   /// In ar, this message translates to:

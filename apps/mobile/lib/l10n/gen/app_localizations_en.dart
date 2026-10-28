@@ -7585,6 +7585,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveWatchShow => 'Show the video';
 
   @override
+  String get liveWatchDrag => 'Drag to move the video window';
+
+  @override
   String get liveWatchPlayerError => 'The video couldn\'t play on this phone';
 
   @override

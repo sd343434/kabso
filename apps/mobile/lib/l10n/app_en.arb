@@ -2480,6 +2480,7 @@
   "liveWatchBadLink": "That isn't a YouTube video link",
   "liveWatchHide": "Hide the video",
   "liveWatchShow": "Show the video",
+  "liveWatchDrag": "Drag to move the video window",
   "liveWatchPlayerError": "The video couldn't play on this phone",
   "liveWatchNewSuggestion": "New suggestion: {title}"
 }

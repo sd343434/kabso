@@ -7621,6 +7621,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveWatchShow => 'عرض الفيديو';
 
   @override
+  String get liveWatchDrag => 'اسحب لنقل نافذة الفيديو';
+
+  @override
   String get liveWatchPlayerError => 'تعذّر تشغيل الفيديو على هذا الهاتف';
 
   @override

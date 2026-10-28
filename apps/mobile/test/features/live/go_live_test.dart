@@ -2166,6 +2166,32 @@ void main() {
       await _leave(tester);
     });
 
+    testWidgets('D160: «يوتيوب» in a video live — the floating window over '
+        'the picture, clear of the chat and the bar; ✕ stops it', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveWatchSheet.linkKey),
+        'https://youtu.be/aaaaaaaaaaa',
+      );
+      await tester.tap(find.byKey(LiveWatchSheet.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsNothing);
+      final pip = tester.getRect(find.byKey(LiveWatchLayer.pipKey));
+      final bar = tester.getRect(find.byKey(KHostBar.toolsKey));
+      expect(pip.bottom, lessThan(bar.top));
+      expect(pip.overlaps(bar), isFalse);
+      await tester.tap(find.byKey(LiveWatchLayer.closeKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.pipKey), findsNothing);
+      await _leave(tester);
+    });
+
     testWidgets('D154e: the host sets the program from ≡; its card shows '
         'in the live', (tester) async {
       await _pump(tester);

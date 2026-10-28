@@ -8308,6 +8308,8 @@
   "@liveWatchHide": {"description": "D154i: a viewer hides the player on their phone."},
   "liveWatchShow": "عرض الفيديو",
   "@liveWatchShow": {"description": "D154i: shows the hidden player."},
+  "liveWatchDrag": "اسحب لنقل نافذة الفيديو",
+  "@liveWatchDrag": {"description": "D160: the watch window's drag handle (video lives)."},
   "liveWatchPlayerError": "تعذّر تشغيل الفيديو على هذا الهاتف",
   "@liveWatchPlayerError": {"description": "D154i: the embedded player failed."},
   "liveWatchNewSuggestion": "اقتراح جديد: {title}",
