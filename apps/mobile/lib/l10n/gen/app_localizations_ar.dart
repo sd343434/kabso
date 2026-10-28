@@ -299,6 +299,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get splashRestoreFailed => 'تعذّرت استعادة جلستك.';
 
   @override
+  String get splashSkip => 'تخطي';
+
+  @override
   String get navHome => 'الرئيسية';
 
   @override

@@ -20,14 +20,6 @@ import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
 
-class _Voice implements SplashVoice {
-  @override
-  Future<void> play() async {}
-
-  @override
-  Future<void> dispose() async {}
-}
-
 class _Ended extends SessionController {
   @override
   AuthState build() =>
@@ -46,7 +38,6 @@ Future<void> _pumpSignedOut(
     overrides: [
       authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
       secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
-      splashVoiceProvider.overrideWithValue(_Voice()),
     ],
   );
   await tester.pumpAndSettle();
@@ -309,7 +300,6 @@ void main() {
       overrides: [
         authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
-        splashVoiceProvider.overrideWithValue(_Voice()),
       ],
     );
     // Frame by frame through the splash until welcome is up.

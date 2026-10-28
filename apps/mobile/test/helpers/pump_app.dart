@@ -6,6 +6,7 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/join_screen.dart';
+import 'package:kabso_live/features/auth/presentation/splash_video.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
@@ -31,6 +32,7 @@ import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
 import 'fake_notifications_repository.dart';
 import 'fake_posts_repository.dart';
+import 'fake_splash_video.dart';
 import 'fake_stories_repository.dart';
 
 /// Shared preferences with an explicit language.
@@ -51,10 +53,14 @@ Future<SharedPreferences> testPrefs({
 /// off, the production state today) and the posts feeds to
 /// [postsRepository] (default: the API with no posts yet), never to the
 /// network. Create's media step never calls the device library plugin.
+/// The launch video (D156) is [splashVideo] (default: a fake that ends as
+/// soon as it plays) and the phone is not silent unless [silentMode] says.
 Future<void> pumpKabsoApp(
   WidgetTester tester, {
   required List<Override> overrides,
   String language = 'en',
+  SplashVideoController Function(String asset)? splashVideo,
+  DeviceSilentMode silentMode = const FakeSilentMode(),
   LiveRepository? liveRepository,
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
@@ -67,6 +73,11 @@ Future<void> pumpKabsoApp(
       retry: (_, _) => null,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(preferences),
+        // D156: never the video plugin (it has no test implementation).
+        splashVideoFactoryProvider.overrideWithValue(
+          splashVideo ?? (_) => FakeSplashVideo(endOnPlay: true),
+        ),
+        deviceSilentModeProvider.overrideWithValue(silentMode),
         liveRepositoryProvider.overrideWithValue(
           liveRepository ?? FakeLiveRepository(hostingEnabled: false),
         ),

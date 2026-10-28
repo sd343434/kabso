@@ -285,6 +285,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splashRestoreFailed => 'We couldn\'t restore your session.';
 
   @override
+  String get splashSkip => 'Skip';
+
+  @override
   String get navHome => 'Home';
 
   @override

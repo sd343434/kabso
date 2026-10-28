@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- D63: the launch animation's background, so the native launch window
-         and the Flutter splash have the same colour (no white flash). -->
-    <color name="launch_background">#FF0F0F0F</color>
+    <!-- D156: the launch video's first frame (median of its outer 40 px), so
+         the system splash, the launch window and the video have the same
+         colour (no flash). Same value in LaunchScreen.storyboard and
+         KSplash.videoBackground. -->
+    <color name="launch_background">#FF13100E</color>
     <!-- D152: the accent of pushes (Kabso red, design-tokens brand.red500). -->
     <color name="notification_accent">#FFE50914</color>
 </resources>
