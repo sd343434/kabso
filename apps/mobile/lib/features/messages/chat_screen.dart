@@ -1,3 +1,5 @@
+import 'package:kabso_live/core/format/k_handle.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -10,17 +12,25 @@ import 'package:material_ui/material_ui.dart';
 /// conversation is empty with a "start a conversation" header, the
 /// composer is disabled and a notice says messages are coming. No message
 /// is invented or "sent".
+///
+/// D158: a push may hand the peer's display name and premium tier as
+/// [ChatPeer] in `extra` (or the display name alone as a `String`); a
+/// premium username shows without «@».
 class ChatScreen extends StatelessWidget {
   const new({
     required this.username,
     super.key,
     this.displayName,
     this.avatarUrl,
+    this.premiumTier,
   });
 
   final String username;
   final String? displayName;
   final String? avatarUrl;
+
+  /// The peer's premium username tier (D146), or null for a regular one.
+  final PremiumTier? premiumTier;
 
   static const noticeKey = Key('chat.notice');
   static const composerKey = Key('chat.composer');
@@ -55,7 +65,7 @@ class ChatScreen extends StatelessWidget {
                     style: t.bodyStrong.copyWith(color: p.textPrimary),
                   ),
                   Text(
-                    l10n.profileUsername(username),
+                    KHandle.text(l10n, username, premiumTier: premiumTier),
                     maxLines: 1,
                     textDirection: TextDirection.ltr,
                     style: t.caption.copyWith(color: p.textSecondary),
@@ -87,7 +97,7 @@ class ChatScreen extends StatelessWidget {
                   style: t.title.copyWith(color: p.textPrimary),
                 ),
                 Text(
-                  l10n.profileUsername(username),
+                  KHandle.text(l10n, username, premiumTier: premiumTier),
                   textAlign: TextAlign.center,
                   textDirection: TextDirection.ltr,
                   style: t.body.copyWith(color: p.textSecondary),
@@ -124,3 +134,7 @@ class ChatScreen extends StatelessWidget {
     );
   }
 }
+
+/// D158: the `extra` of a push to `/messages/:username`: the peer's display
+/// name and premium username tier, so the handle shows right at once.
+typedef ChatPeer = ({String? displayName, PremiumTier? premiumTier});

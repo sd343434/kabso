@@ -1,5 +1,6 @@
 // D146: the owner's special-ID badge as `KSpecialUsername` — one medal and
-// pill per tier (LEGEND, RUBY, GOLD, SILVER) with `@username`, the light
+// pill per tier (LEGEND, RUBY, GOLD, SILVER) with the username (no «@»,
+// D158), the light
 // sweep only when motion is on (never in tests, never with reduced motion),
 // left-to-right in Arabic too, screen reader label, tap.
 
@@ -95,7 +96,9 @@ void main() {
     expect(tester.hasRunningAnimations, isFalse);
   });
 
-  testWidgets('Arabic: still @name left to right; label; tap', (tester) async {
+  testWidgets('Arabic: still the name left to right, no «@»; label; tap', (
+    tester,
+  ) async {
     final handle = tester.ensureSemantics();
     var taps = 0;
     await pumpComponent(
@@ -109,7 +112,9 @@ void main() {
       ),
       language: AppLanguage.ar,
     );
-    expect(find.bySemanticsLabel('@layla'), findsOneWidget);
+    // D158: a premium username is read without «@».
+    expect(find.bySemanticsLabel('layla'), findsOneWidget);
+    expect(find.bySemanticsLabel('@layla'), findsNothing);
     final dir = tester.widget<Directionality>(
       find
           .descendant(

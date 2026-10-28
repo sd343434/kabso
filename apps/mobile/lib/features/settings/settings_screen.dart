@@ -8,6 +8,7 @@ import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -203,7 +204,15 @@ class SettingsScreen extends ConsumerWidget {
             key: usernameKey,
             leading: const Icon(Icons.alternate_email_rounded),
             title: Text(l10n.settingsUsername),
-            subtitle: Text(KFormat.bidiIsolate('@${_username(ref)}')),
+            // D158: a premium username has no «@».
+            subtitle: Text(
+              KHandle.isolated(
+                _username(ref),
+                premiumTier: ref.watch(
+                  currentUserProvider.select((u) => u?.premiumTier),
+                ),
+              ),
+            ),
             onTap: () =>
                 GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
           ),

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -258,7 +259,7 @@ class _ResultCard extends StatelessWidget {
               Flexible(
                 child: tier == null
                     ? Text(
-                        KFormat.bidiIsolate('@${status.username}'),
+                        KHandle.isolated(status.username),
                         style: text.bodyStrong,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

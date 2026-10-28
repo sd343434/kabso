@@ -2,8 +2,9 @@
 // design (`kabso_special_id`, 2026-10-27; assets/special_id/PROVENANCE.md):
 // the tier's medal (owner art, PNG) overlapping a metallic pill drawn in
 // code — dark outer rim, the tier gradient, a glossy top layer, an inner
-// bevel, «@» and the outlined username, a gold diamond end-cap and a soft
-// tier glow. LEGEND's pill is a rainbow that slides and sparkles.
+// bevel, the outlined username, a gold diamond end-cap and a soft tier
+// glow. LEGEND's pill is a rainbow that slides and sparkles. D158 (owner:
+// «عدل يوزر مميز ولا تضع قبله @»): a premium username has no «@» in front.
 //
 // Motion: one soft light sweep across the pill every 2.6 s, only while
 // [KSpecialUsername.motion] (off in tests) and the widget's `animate` are
@@ -27,7 +28,6 @@ class KSpecialUsernameStyle {
     required this.text,
     required this.stroke,
     required this.glow,
-    required this.prefix,
   });
 
   final List<Color> pill;
@@ -35,7 +35,6 @@ class KSpecialUsernameStyle {
   final List<Color> text;
   final Color stroke;
   final Color glow;
-  final Color prefix;
 
   static const silver = KSpecialUsernameStyle(
     pill: [
@@ -49,7 +48,6 @@ class KSpecialUsernameStyle {
     text: [Color(0xFFFFFFFF), Color(0xFFDDE3EC), Color(0xFF9AA6BA)],
     stroke: Color(0xFF3A4352),
     glow: Color(0xFFC9D2E0),
-    prefix: Color(0xFF5A6478),
   );
 
   static const gold = KSpecialUsernameStyle(
@@ -64,7 +62,6 @@ class KSpecialUsernameStyle {
     text: [Color(0xFFFFFFFF), Color(0xFFFFF3C0), Color(0xFFFFD34D)],
     stroke: Color(0xFF5A2E00),
     glow: Color(0xFFFFC93C),
-    prefix: Color(0xFF6E3E04),
   );
 
   static const ruby = KSpecialUsernameStyle(
@@ -79,7 +76,6 @@ class KSpecialUsernameStyle {
     text: [Color(0xFFFFFFFF), Color(0xFFFFE9EA), Color(0xFFFFC1C5)],
     stroke: Color(0xFF4A0004),
     glow: Color(0xFFFF2D3A),
-    prefix: Color(0xFFFFC1C5),
   );
 
   static const legend = KSpecialUsernameStyle(
@@ -95,7 +91,6 @@ class KSpecialUsernameStyle {
     text: [Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFE9DBFF)],
     stroke: Color(0xFF2A0A60),
     glow: Color(0xFFB04DFF),
-    prefix: Color(0xFFF2E8FF),
   );
 
   static KSpecialUsernameStyle of(PremiumTier tier) => switch (tier) {
@@ -110,9 +105,9 @@ class KSpecialUsernameStyle {
 String kSpecialUsernameMedal(PremiumTier tier) =>
     'assets/special_id/medal_${tier.name}.png';
 
-/// A premium username: the tier's medal and pill with `@username`, in
-/// left-to-right order whatever the reading direction (it is a Latin
-/// handle). Pure display unless [onTap] is given.
+/// A premium username: the tier's medal and pill with the username (no
+/// «@», D158), in left-to-right order whatever the reading direction (it
+/// is a Latin handle). Pure display unless [onTap] is given.
 class KSpecialUsername extends StatefulWidget {
   const new({
     required this.username,
@@ -138,7 +133,7 @@ class KSpecialUsername extends StatefulWidget {
   final bool animate;
   final VoidCallback? onTap;
 
-  /// Read by screen readers instead of `@username`.
+  /// Read by screen readers instead of the username.
   final String? semanticLabel;
 
   /// Width and height of the badge for [username] at [height].
@@ -229,7 +224,7 @@ class _KSpecialUsernameState extends State<KSpecialUsername>
       ),
     );
     return Semantics(
-      label: widget.semanticLabel ?? '@${widget.username}',
+      label: widget.semanticLabel ?? widget.username,
       button: widget.onTap != null,
       excludeSemantics: true,
       child: GestureDetector(
@@ -248,13 +243,6 @@ class _KSpecialUsernameState extends State<KSpecialUsername>
 class _Layout {
   new(this.h, this.username, double medalScale)
     : md = h * 1.35 * medalScale,
-      prefixStyle = TextStyle(
-        fontFamily: KFonts.latin,
-        fontSize: h * .55,
-        fontWeight: FontWeight.w800,
-        fontStyle: FontStyle.italic,
-        height: 1,
-      ),
       nameStyle = TextStyle(
         fontFamily: KFonts.latin,
         fontSize: h * .64,
@@ -263,31 +251,23 @@ class _Layout {
         height: 1,
         letterSpacing: .2,
       ) {
-    final pre = TextPainter(
-      text: TextSpan(text: '@', style: prefixStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
     final name = TextPainter(
       text: TextSpan(text: username, style: nameStyle),
       textDirection: TextDirection.ltr,
     )..layout();
-    prefixW = pre.width;
     nameW = name.width;
-    pre.dispose();
     name.dispose();
     x0 = md * .5 + 1;
     y0 = (md - h) / 2 + 1;
     left = md * .56;
-    w = left + prefixW + 2.5 + nameW + h * .95;
+    w = left + nameW + h * .95;
     size = Size(x0 + w + 8, md + 2);
   }
 
   final double h;
   final double md;
   final String username;
-  final TextStyle prefixStyle;
   final TextStyle nameStyle;
-  late final double prefixW;
   late final double nameW;
   late final double x0;
   late final double y0;
@@ -395,19 +375,8 @@ class _PillPainter extends CustomPainter {
           ..strokeWidth = .8,
       );
 
-    // «@» then the outlined username.
-    final tx = x + l.left;
-    final pre = TextPainter(
-      text: TextSpan(
-        text: '@',
-        style: l.prefixStyle.copyWith(color: s.prefix.withValues(alpha: .95)),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    pre
-      ..paint(canvas, Offset(tx, y + h / 2 - pre.height / 2 + .4))
-      ..dispose();
-    final nx = tx + l.prefixW + 2.5;
+    // The outlined username (no «@», D158).
+    final nx = x + l.left;
     final stroke = TextPainter(
       text: TextSpan(
         text: l.username,

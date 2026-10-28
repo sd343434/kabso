@@ -3682,8 +3682,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goLiveShare => 'Share';
 
   @override
-  String goLiveShareText(String title, String username) {
-    return 'I\'m live on Kabso Live: “$title” — follow @$username';
+  String goLiveShareText(String title, String handle) {
+    return 'I\'m live on Kabso Live: “$title” — follow $handle';
   }
 
   @override
@@ -6576,12 +6576,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String premiumRented(String username) {
-    return 'You\'re now @$username';
+    return 'You\'re now $username';
   }
 
   @override
   String premiumRenewed(String username) {
-    return '@$username renewed';
+    return '$username renewed';
   }
 
   @override
@@ -6614,7 +6614,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String premiumReleaseBody(String premium, String regular) {
-    return '@$premium goes back to the store now and you become @$regular again. Coins aren\'t refunded.';
+    return '$premium goes back to the store now and you become @$regular again. Coins aren\'t refunded.';
   }
 
   @override
@@ -6642,7 +6642,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String premiumBadgeLabel(String tier, String username) {
-    return '$tier premium username @$username';
+    return '$tier premium username $username';
   }
 
   @override
@@ -6675,22 +6675,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String changeUsernameRentInstead(String username) {
-    return 'Rent @$username as a premium username';
+    return 'Rent $username as a premium username';
   }
 
   @override
   String changeUsernamePremiumActive(String premium, String regular) {
-    return 'You\'re using the premium username @$premium. To change your regular username (@$regular), give the premium one back first.';
+    return 'You\'re using the premium username $premium. To change your regular username (@$regular), give the premium one back first.';
   }
 
   @override
   String notificationPremiumExpiring(String username, String left) {
-    return 'Your premium username @$username ends in $left. Renew to keep it.';
+    return 'Your premium username $username ends in $left. Renew to keep it.';
   }
 
   @override
   String notificationPremiumExpired(String username) {
-    return 'Your premium username @$username ended. It\'s kept for you for a few days.';
+    return 'Your premium username $username ended. It\'s kept for you for a few days.';
   }
 
   @override

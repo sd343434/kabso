@@ -338,9 +338,11 @@ void main() {
         ),
         GoRoute(
           path: AppRoutes.chatPattern,
+          // D158: the display name and the premium tier (ChatPeer).
           builder: (_, state) => ChatScreen(
             username: state.pathParameters['username']!,
-            displayName: state.extra as String?,
+            displayName: (state.extra! as ChatPeer).displayName,
+            premiumTier: (state.extra! as ChatPeer).premiumTier,
           ),
         ),
       ],

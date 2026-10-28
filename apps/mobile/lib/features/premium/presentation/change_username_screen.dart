@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
-import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/domain/validators.dart';
@@ -153,7 +153,7 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
                 tier: tier,
               ),
               null => Text(
-                KFormat.bidiIsolate('@${user?.username ?? ''}'),
+                KHandle.isolated(user?.username ?? ''),
                 style: text.bodyStrong,
               ),
             },

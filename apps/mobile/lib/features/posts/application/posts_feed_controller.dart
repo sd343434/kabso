@@ -52,6 +52,10 @@ FeedPostData feedPostOf(Post post, {UserSummary? repostedBy}) {
     edited: post.editedAt != null,
     hashtags: {for (final t in post.hashtags) t.toLowerCase()},
     mentions: {for (final m in post.mentions) m.username.toLowerCase()},
+    premiumMentions: {
+      for (final m in post.mentions)
+        if (m.premiumTier != null) m.username.toLowerCase(),
+    },
     commentsOpen:
         post.isSelf ||
         (post.commentsEnabled && post.whoCanComment != WhoCanComment.nobody),

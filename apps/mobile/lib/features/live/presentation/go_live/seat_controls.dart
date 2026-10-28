@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -659,8 +660,9 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
               key: SeatControlKeys.moderatorUser(u.username),
               name: u.displayName,
               handle: _moderators.contains(u.username)
-                  ? '@${u.username} · ${l10n.liveSeatModeratorTag}'
-                  : '@${u.username}',
+                  ? '${KHandle.plain(u.username, premiumTier: u.premiumTier)}'
+                        ' · ${l10n.liveSeatModeratorTag}'
+                  : KHandle.plain(u.username, premiumTier: u.premiumTier),
               avatar: KAvatar(
                 name: u.displayName,
                 imageUrl: u.avatarUrl,
@@ -822,7 +824,10 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
             context,
             name: r.user.displayName,
             handle: r.seatIndex == null
-                ? '@${r.user.username}'
+                ? KHandle.plain(
+                    r.user.username,
+                    premiumTier: r.user.premiumTier,
+                  )
                 : l10n.goLiveSeat(r.seatIndex! + 1),
             avatar: KAvatar(
               name: r.user.displayName,
@@ -906,7 +911,10 @@ class _ViewersPanelState extends ConsumerState<_ViewersPanel> {
                   context,
                   key: SeatControlKeys.contributor(c.user.username),
                   name: c.user.displayName,
-                  handle: '@${c.user.username}',
+                  handle: KHandle.plain(
+                    c.user.username,
+                    premiumTier: c.user.premiumTier,
+                  ),
                   avatar: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

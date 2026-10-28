@@ -8,6 +8,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -57,6 +58,7 @@ class FeedPostData {
     this.commentsOpen = true,
     this.hashtags = const {},
     this.mentions = const {},
+    this.premiumMentions = const {},
   });
 
   final String authorName;
@@ -130,6 +132,10 @@ class FeedPostData {
   /// (usernames): only these are links (§11.6).
   final Set<String> hashtags;
   final Set<String> mentions;
+
+  /// D158: the linked mentions (lower case) that are premium usernames:
+  /// shown without «@».
+  final Set<String> premiumMentions;
 }
 
 /// Geometry of a post (D54, layout from the owner's reference; sizes on
@@ -297,6 +303,7 @@ class _FeedPostTileState extends State<FeedPostTile> {
               style: t.body,
               hashtags: post.hashtags,
               mentions: post.mentions,
+              premiumMentions: post.premiumMentions,
             ),
           ),
         Padding(
@@ -724,6 +731,7 @@ class _ExpandableText extends StatefulWidget {
     required this.style,
     this.hashtags = const {},
     this.mentions = const {},
+    this.premiumMentions = const {},
   });
 
   final String text;
@@ -731,6 +739,7 @@ class _ExpandableText extends StatefulWidget {
   final TextStyle style;
   final Set<String> hashtags;
   final Set<String> mentions;
+  final Set<String> premiumMentions;
 
   @override
   State<_ExpandableText> createState() => _ExpandableTextState();
@@ -782,10 +791,17 @@ class _ExpandableTextState extends State<_ExpandableText> {
           );
         _taps.add(tap);
       }
-      // A Latin handle keeps its `@` in front inside Arabic text.
+      // A Latin handle keeps its `@` in front inside Arabic text; a premium
+      // username shows without «@» (D158).
       out.add(
         TextSpan(
-          text: hash ? '#$name' : '\u2066@$name\u2069',
+          text: hash
+              ? '#$name'
+              : KHandle.ltr(
+                  widget.premiumMentions.contains(name.toLowerCase())
+                      ? name
+                      : '@$name',
+                ),
           style: accent,
           recognizer: tap,
         ),

@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
@@ -286,7 +287,8 @@ class KLiveUsernameTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final shown = '@$username';
+    // D158: a premium username has no «@» (shown, read and copied).
+    final shown = KHandle.plain(username, premiumTier: premiumTier);
     if (premiumTier case final tier?) {
       return Semantics(
         button: true,

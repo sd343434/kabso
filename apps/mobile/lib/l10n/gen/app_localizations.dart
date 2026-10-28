@@ -6563,8 +6563,8 @@ abstract class AppLocalizations {
   /// The invite copied by Share
   ///
   /// In ar, this message translates to:
-  /// **'أنا مباشر الآن على Kabso Live: «{title}» — تابعني @{username}'**
-  String goLiveShareText(String title, String username);
+  /// **'أنا مباشر الآن على Kabso Live: «{title}» — تابعني {handle}'**
+  String goLiveShareText(String title, String handle);
 
   /// After Share copied the invite
   ///
@@ -11411,13 +11411,13 @@ abstract class AppLocalizations {
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'أصبحت الآن ‎@{username}'**
+  /// **'أصبحت الآن ⁦{username}⁩'**
   String premiumRented(String username);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'تم تجديد ‎@{username}'**
+  /// **'تم تجديد ⁦{username}⁩'**
   String premiumRenewed(String username);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
@@ -11471,7 +11471,7 @@ abstract class AppLocalizations {
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'سيعود ‎@{premium} إلى المتجر الآن وتعود إلى ‎@{regular}. لا تُسترد العملات.'**
+  /// **'سيعود ⁦{premium}⁩ إلى المتجر الآن وتعود إلى ‎@{regular}. لا تُسترد العملات.'**
   String premiumReleaseBody(String premium, String regular);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
@@ -11507,7 +11507,7 @@ abstract class AppLocalizations {
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'يوزر مميز {tier} ‎@{username}'**
+  /// **'يوزر مميز {tier} ⁦{username}⁩'**
   String premiumBadgeLabel(String tier, String username);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
@@ -11561,25 +11561,25 @@ abstract class AppLocalizations {
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'استأجر ‎@{username} كيوزر مميز'**
+  /// **'استأجر ⁦{username}⁩ كيوزر مميز'**
   String changeUsernameRentInstead(String username);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'أنت تستخدم اليوزر المميز ‎@{premium}. لتغيير يوزرك العادي (‎@{regular}) أعِد اليوزر المميز أولاً.'**
+  /// **'أنت تستخدم اليوزر المميز ⁦{premium}⁩. لتغيير يوزرك العادي (‎@{regular}) أعِد اليوزر المميز أولاً.'**
   String changeUsernamePremiumActive(String premium, String regular);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'ينتهي يوزرك المميز ‎@{username} خلال {left}. جدّده لتحتفظ به.'**
+  /// **'ينتهي يوزرك المميز ⁦{username}⁩ خلال {left}. جدّده لتحتفظ به.'**
   String notificationPremiumExpiring(String username, String left);
 
   /// D146: premium usernames (يوزر مميز) and the regular username rule.
   ///
   /// In ar, this message translates to:
-  /// **'انتهى يوزرك المميز ‎@{username}، وهو محجوز لك لبضعة أيام.'**
+  /// **'انتهى يوزرك المميز ⁦{username}⁩، وهو محجوز لك لبضعة أيام.'**
   String notificationPremiumExpired(String username);
 
   /// D147: Bigo-style search home (trending searches, hot hashtags, lives).

@@ -9,6 +9,7 @@ import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
@@ -2078,7 +2079,11 @@ class _Requests extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                l10n.profileUsername(r.user.username),
+                KHandle.text(
+                  l10n,
+                  r.user.username,
+                  premiumTier: r.user.premiumTier,
+                ),
                 textDirection: TextDirection.ltr,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/error/failure_widgets.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
@@ -337,7 +338,7 @@ class _SafetyAccountsScreen extends ConsumerWidget {
                 ),
                 title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
-                  l10n.profileUsername(u.username),
+                  KHandle.text(l10n, u.username, premiumTier: u.premiumTier),
                   maxLines: 1,
                   textDirection: TextDirection.ltr,
                   textAlign: Directionality.of(context) == TextDirection.rtl

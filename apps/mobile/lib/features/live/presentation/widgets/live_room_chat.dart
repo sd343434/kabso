@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/format/k_handle.dart';
 import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -1024,7 +1025,10 @@ Future<void> showLiveChatActions(
   final canReport = me != null && !mine;
   final chat = ref.read(liveChatProvider(roomId).notifier);
   final name = entry.author.displayName;
-  final handle = '@${entry.author.username}';
+  final handle = KHandle.isolated(
+    entry.author.username,
+    premiumTier: entry.author.premiumTier,
+  );
 
   // Whether the author is muted now (only the host and moderators ask).
   var muted = false;

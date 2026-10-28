@@ -595,7 +595,7 @@ class _StoryPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(KRadius.md),
                   ),
                   child: Text(
-                    isolateHandles(story.text),
+                    isolateHandles(story.text, mentions: story.mentions),
                     textAlign: TextAlign.center,
                     style: t.body.copyWith(color: white),
                   ),

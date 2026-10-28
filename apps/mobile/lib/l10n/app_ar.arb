@@ -4242,7 +4242,7 @@
     "description": "Audio room bar: the short chat pill (opens the chat box)"
   },
   "goLiveShare": "مشاركة",
-  "goLiveShareText": "أنا مباشر الآن على Kabso Live: «{title}» — تابعني @{username}",
+  "goLiveShareText": "أنا مباشر الآن على Kabso Live: «{title}» — تابعني {handle}",
   "goLiveShareCopied": "نُسخت دعوة البث، الصقها لمن تريد",
   "@goLiveShare": {
     "description": "Audio room top bar: share the live"
@@ -4253,7 +4253,7 @@
       "title": {
         "type": "String"
       },
-      "username": {
+      "handle": {
         "type": "String"
       }
     }
@@ -7760,9 +7760,9 @@
   "@premiumSheetAfter": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
   "premiumNotEnoughCoins": "رصيدك من العملات لا يكفي.",
   "@premiumNotEnoughCoins": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
-  "premiumRented": "أصبحت الآن ‎@{username}",
+  "premiumRented": "أصبحت الآن ⁦{username}⁩",
   "@premiumRented": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
-  "premiumRenewed": "تم تجديد ‎@{username}",
+  "premiumRenewed": "تم تجديد ⁦{username}⁩",
   "@premiumRenewed": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
   "premiumMineTitle": "يوزرك المميز",
   "@premiumMineTitle": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
@@ -7780,7 +7780,7 @@
   "@premiumRelease": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
   "premiumReleaseTitle": "إعادة يوزرك المميز؟",
   "@premiumReleaseTitle": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
-  "premiumReleaseBody": "سيعود ‎@{premium} إلى المتجر الآن وتعود إلى ‎@{regular}. لا تُسترد العملات.",
+  "premiumReleaseBody": "سيعود ⁦{premium}⁩ إلى المتجر الآن وتعود إلى ‎@{regular}. لا تُسترد العملات.",
   "@premiumReleaseBody": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"premium": {"type": "String"}, "regular": {"type": "String"}}},
   "premiumReleased": "عدت إلى ‎@{username}",
   "@premiumReleased": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
@@ -7792,7 +7792,7 @@
   "@premiumLeftHours": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
   "premiumLeftDays": "{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يوماً} other{{days} يوم}} و{hours} س",
   "@premiumLeftDays": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"days": {"type": "int"}, "hours": {"type": "int"}}},
-  "premiumBadgeLabel": "يوزر مميز {tier} ‎@{username}",
+  "premiumBadgeLabel": "يوزر مميز {tier} ⁦{username}⁩",
   "@premiumBadgeLabel": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"tier": {"type": "String"}, "username": {"type": "String"}}},
   "settingsUsername": "اسم المستخدم",
   "@settingsUsername": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
@@ -7810,13 +7810,13 @@
   "@changeUsernameDone": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
   "changeUsernameNote": "يصبح اسمك القديم متاحاً للآخرين فوراً.",
   "@changeUsernameNote": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule."},
-  "changeUsernameRentInstead": "استأجر ‎@{username} كيوزر مميز",
+  "changeUsernameRentInstead": "استأجر ⁦{username}⁩ كيوزر مميز",
   "@changeUsernameRentInstead": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
-  "changeUsernamePremiumActive": "أنت تستخدم اليوزر المميز ‎@{premium}. لتغيير يوزرك العادي (‎@{regular}) أعِد اليوزر المميز أولاً.",
+  "changeUsernamePremiumActive": "أنت تستخدم اليوزر المميز ⁦{premium}⁩. لتغيير يوزرك العادي (‎@{regular}) أعِد اليوزر المميز أولاً.",
   "@changeUsernamePremiumActive": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"premium": {"type": "String"}, "regular": {"type": "String"}}},
-  "notificationPremiumExpiring": "ينتهي يوزرك المميز ‎@{username} خلال {left}. جدّده لتحتفظ به.",
+  "notificationPremiumExpiring": "ينتهي يوزرك المميز ⁦{username}⁩ خلال {left}. جدّده لتحتفظ به.",
   "@notificationPremiumExpiring": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}, "left": {"type": "String"}}},
-  "notificationPremiumExpired": "انتهى يوزرك المميز ‎@{username}، وهو محجوز لك لبضعة أيام.",
+  "notificationPremiumExpired": "انتهى يوزرك المميز ⁦{username}⁩، وهو محجوز لك لبضعة أيام.",
   "@notificationPremiumExpired": {"description": "D146: premium usernames (يوزر مميز) and the regular username rule.", "placeholders": {"username": {"type": "String"}}},
   "searchTryHint": "جرّب البحث: {term}",
   "@searchTryHint": {"description": "D147: Bigo-style search home (trending searches, hot hashtags, lives).", "placeholders": {"term": {"type": "String"}}},
