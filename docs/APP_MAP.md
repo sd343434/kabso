@@ -19,7 +19,7 @@ moves.
 | البث / Live | `/home` | `LiveScreen` (Following · Popular · New, categories) | **API** (`/live/config`, `/live/categories`, `/live/rooms`) | Demo hub: 8 test rooms (solo, PK 1v1, PK 2v2) |
 | المنشورات / Posts | `/reels` | `FeedScreen` (Posts · Reels, Trending · Following, stories) | **Honest** (no posts/reels/stories API) | Test posts, reels and stories |
 | + / Create | `/create` | `CreateScreen` | **Honest** | — |
-| الرسائل / Messages | `/messages` | `MessagesTab` | **Honest** (no messaging API) | Designed conversation list → conversation |
+| الرسائل / Messages | `/messages` | `MessagesTab` → `DmInboxScreen` (conversations · «طلبات المراسلة») | **API** (D155: `/dm/conversations`, `/dm/unread`; badge on the tab) | Designed conversation list → conversation (test builds only) |
 | أنا / Me | `/profile` | `ProfileScreen` (posts, reels, saved grids) | **API** for `/me` and counts; grids **Honest** | Test account, counts and grids |
 
 ## Above the bar
@@ -29,7 +29,7 @@ moves.
 | `/home/room/:roomId` | `LiveRoomScreen` | **API** (`/live/rooms/{id}`) | `demo-*` rooms open the designed live room (`LivePreviewScreen`: PK bar, gifts, viewers box, leaderboard, ranking list) |
 | `/discover` | `DiscoverScreen` (from the search buttons) | **Honest** | Designed Discover |
 | `/users/:username` | `PublicProfileScreen` | **API** (`/users/{username}`, follow) | Test profiles, local follow |
-| `/messages/:username` | `ChatScreen` | **Honest** (composer off) | Designed conversation |
+| `/messages/:username` | `ChatScreen` (text, pack emojis, pictures, voice notes, gifts; requests; 24-hour messages) | **API** (D155: `/dm/peers/{username}`, `/dm/conversations/{id}/messages`, `/dm/messages`, `/dm/gifts`) | Designed conversation (test builds only) |
 | `/profile/edit` | `EditProfileScreen` | **API** read; saving waits for the contract | — |
 | `/settings` | `SettingsScreen` (theme, language, sessions, levels, Demo data, logout) | **API** (sessions) | Demo data switch |
 | `/levels`, `/levels/:category` | `LevelsScreen`, `LevelDetailScreen` | **API** (KL-058) | — (needs the server) |

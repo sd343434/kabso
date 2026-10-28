@@ -61,8 +61,9 @@ void main() {
       expect(find.text(l10n.liveHubPopularUnavailableTitle), findsOneWidget);
 
       final expected = {
-        // D86: Messages has no API yet; Discover left the bar.
-        const Key('nav.messages'): l10n.conversationsUnavailableTitle,
+        // D155: Messages is the real list (no conversations yet); Discover
+        // left the bar (D86).
+        const Key('nav.messages'): l10n.conversationsEmptyTitle,
         // KL-060: Create is the post composer.
         const Key('nav.create'): l10n.createTitle,
         // KL-060: the posts API with no posts yet.

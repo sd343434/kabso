@@ -1,3 +1,4 @@
+import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/app_icons.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/design_system/design_system.dart';
@@ -27,8 +28,12 @@ abstract final class KChatComposer {
 /// as its token `:<pack>_<id>:` (CP-003) — at the cursor, and the bubble
 /// shows it animated ([KabiEmojiText]).
 ///
-/// With [onSend] null the whole composer is disabled (the real chat until
-/// a messaging API exists).
+/// With [onSend] null the whole composer is disabled.
+///
+/// D155: the real conversation passes [voice] (the microphone records a
+/// voice note: tap to start, tap again to send, × to cancel), hides the
+/// gift button unless [onGift] is given ([showGift]), and offers photos only
+/// ([allowVideo] false).
 class ChatComposer extends StatefulWidget {
   const new({
     super.key,
@@ -41,9 +46,26 @@ class ChatComposer extends StatefulWidget {
     this.emojiKey,
     this.attachKey,
     this.giftKey,
+    this.voice,
+    this.showGift = true,
+    this.allowVideo = true,
+    this.hintText,
   });
 
   final TextEditingController? controller;
+
+  /// D155: the voice note recorder's state and actions (null: the
+  /// microphone stays disabled).
+  final ChatVoiceControl? voice;
+
+  /// D155: false hides the gift button when [onGift] is null.
+  final bool showGift;
+
+  /// D155: false leaves "record a video" out of the attach sheet.
+  final bool allowVideo;
+
+  /// Overrides the field's hint.
+  final String? hintText;
   final VoidCallback? onSend;
   final ValueChanged<PickedMedia>? onMedia;
 
@@ -138,95 +160,103 @@ class _ChatComposerState extends State<ChatComposer> {
                   AttachmentButton(
                     key: widget.attachKey,
                     outlined: true,
-                    onPicked: enabled ? onMedia : null,
+                    allowVideo: widget.allowVideo,
+                    onPicked: enabled && widget.voice?.recording != true
+                        ? onMedia
+                        : null,
                   ),
                   // D75 (owner): the gift box sits next to "+", outside the
                   // field.
-                  SizedBox.square(
-                    dimension: KChatComposer.button,
-                    child: IconButton(
-                      key: widget.giftKey,
-                      tooltip: enabled && onGift != null
-                          ? l10n.chatGiftButton
-                          : l10n.giftSendComingSoon,
-                      onPressed: enabled ? onGift : null,
-                      padding: EdgeInsets.zero,
-                      icon: KabsoArtIcon(
-                        KabsoArt.giftBox,
-                        size: KChatComposer.button - 10,
-                        dimmed: !enabled || onGift == null,
+                  if (widget.showGift || onGift != null)
+                    SizedBox.square(
+                      dimension: KChatComposer.button,
+                      child: IconButton(
+                        key: widget.giftKey,
+                        tooltip: enabled && onGift != null
+                            ? l10n.chatGiftButton
+                            : l10n.giftSendComingSoon,
+                        onPressed: enabled ? onGift : null,
+                        padding: EdgeInsets.zero,
+                        icon: KabsoArtIcon(
+                          KabsoArt.giftBox,
+                          size: KChatComposer.button - 10,
+                          dimmed: !enabled || onGift == null,
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: KSpacing.xs),
-                  Expanded(
-                    child: TextField(
-                      key: widget.inputKey,
-                      controller: controller,
-                      focusNode: _focus,
-                      enabled: enabled,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSend?.call(),
-                      style: context.textStyles.body,
-                      decoration: InputDecoration(
-                        hintText: l10n.messagesPreviewHint,
-                        hintMaxLines: 1,
-                        filled: true,
-                        fillColor: p.surface,
-                        isDense: true,
-                        constraints: const BoxConstraints(
-                          minHeight: KChatComposer.fieldMinHeight,
-                        ),
-                        contentPadding: const EdgeInsetsDirectional.fromSTEB(
-                          KSpacing.md,
-                          KSpacing.sm + 2,
-                          KSpacing.xs,
-                          KSpacing.sm + 2,
-                        ),
-                        border: pill,
-                        enabledBorder: pill,
-                        disabledBorder: pill,
-                        focusedBorder: pill.copyWith(
-                          borderSide: BorderSide(
-                            color: p.focusRing,
-                            width: 1.5,
+                  if (widget.voice?.recording ?? false)
+                    Expanded(child: _Recording(voice: widget.voice!))
+                  else
+                    Expanded(
+                      child: TextField(
+                        key: widget.inputKey,
+                        controller: controller,
+                        focusNode: _focus,
+                        enabled: enabled,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => onSend?.call(),
+                        style: context.textStyles.body,
+                        decoration: InputDecoration(
+                          hintText: widget.hintText ?? l10n.messagesPreviewHint,
+                          hintMaxLines: 1,
+                          filled: true,
+                          fillColor: p.surface,
+                          isDense: true,
+                          constraints: const BoxConstraints(
+                            minHeight: KChatComposer.fieldMinHeight,
+                          ),
+                          contentPadding: const EdgeInsetsDirectional.fromSTEB(
+                            KSpacing.md,
+                            KSpacing.sm + 2,
+                            KSpacing.xs,
+                            KSpacing.sm + 2,
+                          ),
+                          border: pill,
+                          enabledBorder: pill,
+                          disabledBorder: pill,
+                          focusedBorder: pill.copyWith(
+                            borderSide: BorderSide(
+                              color: p.focusRing,
+                              width: 1.5,
+                            ),
+                          ),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                key: widget.emojiKey,
+                                tooltip: _emoji
+                                    ? l10n.liveEmojiKeyboard
+                                    : l10n.kabiEmojiButton,
+                                onPressed: emojiEnabled ? _toggleEmoji : null,
+                                icon: _emoji
+                                    ? Icon(
+                                        Icons.keyboard_rounded,
+                                        size: KChatComposer.icon,
+                                        color: p.textSecondary,
+                                      )
+                                    : AppIcon(
+                                        AppIcons.emoji,
+                                        size: KChatComposer.icon,
+                                        color: emojiEnabled
+                                            ? p.textSecondary
+                                            : p.textTertiary,
+                                      ),
+                              ),
+                            ],
                           ),
                         ),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              key: widget.emojiKey,
-                              tooltip: _emoji
-                                  ? l10n.liveEmojiKeyboard
-                                  : l10n.kabiEmojiButton,
-                              onPressed: emojiEnabled ? _toggleEmoji : null,
-                              icon: _emoji
-                                  ? Icon(
-                                      Icons.keyboard_rounded,
-                                      size: KChatComposer.icon,
-                                      color: p.textSecondary,
-                                    )
-                                  : AppIcon(
-                                      AppIcons.emoji,
-                                      size: KChatComposer.icon,
-                                      color: emojiEnabled
-                                          ? p.textSecondary
-                                          : p.textTertiary,
-                                    ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: KSpacing.xs),
                   _SendOrMic(
                     controller: controller,
                     onSend: onSend,
                     sendKey: widget.sendKey,
+                    voice: enabled ? widget.voice : null,
                   ),
                 ],
               ),
@@ -244,16 +274,88 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 }
 
+/// D155: the voice note recorder as the composer shows it.
+@immutable
+class ChatVoiceControl {
+  const new({
+    required this.recording,
+    required this.elapsed,
+    required this.onToggle,
+    required this.onCancel,
+    this.busy = false,
+  });
+
+  /// A note is being recorded (the field shows the time and ×).
+  final bool recording;
+  final Duration elapsed;
+
+  /// Starts recording, or stops and sends.
+  final VoidCallback onToggle;
+  final VoidCallback onCancel;
+
+  /// Uploading or sending: the microphone waits.
+  final bool busy;
+
+  static const cancelKey = Key('chat.voice.cancel');
+  static const recordingKey = Key('chat.voice.recording');
+}
+
+class _Recording extends StatelessWidget {
+  const new({required this.voice});
+
+  final ChatVoiceControl voice;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    return Container(
+      key: ChatVoiceControl.recordingKey,
+      constraints: const BoxConstraints(
+        minHeight: KChatComposer.fieldMinHeight,
+      ),
+      padding: const EdgeInsetsDirectional.only(start: KSpacing.md),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(KRadius.pill),
+        border: Border.all(color: p.primary),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.fiber_manual_record_rounded, size: 14, color: p.primary),
+          const SizedBox(width: KSpacing.xs),
+          Expanded(
+            child: Text(
+              l10n.liveVoiceRecording(KFormat.countdown(voice.elapsed)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.body.copyWith(color: p.textPrimary),
+            ),
+          ),
+          IconButton(
+            key: ChatVoiceControl.cancelKey,
+            tooltip: l10n.liveVoiceCancel,
+            onPressed: voice.onCancel,
+            icon: Icon(Icons.close_rounded, color: p.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SendOrMic extends StatelessWidget {
   const new({
     required this.controller,
     required this.onSend,
     required this.sendKey,
+    this.voice,
   });
 
   final TextEditingController? controller;
   final VoidCallback? onSend;
   final Key? sendKey;
+  final ChatVoiceControl? voice;
 
   @override
   Widget build(BuildContext context) {
@@ -269,14 +371,27 @@ class _SendOrMic extends StatelessWidget {
   Widget _button(BuildContext context, {required bool typed}) {
     final p = context.palette;
     final l10n = context.l10n;
-    final active = typed && onSend != null;
+    final voice = this.voice;
+    final recording = voice?.recording ?? false;
+    final mic = !typed && voice != null && !voice.busy;
+    final active = (typed && onSend != null && !recording) || mic;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return SizedBox.square(
       dimension: KChatComposer.button,
       child: IconButton.filled(
         key: sendKey,
-        tooltip: typed ? l10n.messagesPreviewSend : l10n.chatVoiceSoon,
-        onPressed: active ? onSend : null,
+        tooltip: typed && !recording
+            ? l10n.messagesPreviewSend
+            : recording
+            ? l10n.liveVoiceSend
+            : voice != null
+            ? l10n.liveVoiceRecord
+            : l10n.chatVoiceSoon,
+        onPressed: !active
+            ? null
+            : typed && !recording
+            ? onSend
+            : voice?.onToggle,
         style: IconButton.styleFrom(
           backgroundColor: p.primary,
           foregroundColor: p.onPrimary,
@@ -284,7 +399,7 @@ class _SendOrMic extends StatelessWidget {
           disabledForegroundColor: p.onPrimary.withValues(alpha: 0.8),
           padding: EdgeInsets.zero,
         ),
-        icon: typed
+        icon: typed || recording
             // The paper plane points along the reading direction.
             ? Transform.flip(
                 flipX: rtl,

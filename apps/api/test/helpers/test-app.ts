@@ -210,6 +210,11 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     // D152: no push outbox timer in tests (specs call NotificationPushDispatcher.dispatchOnce());
     // FIREBASE_CREDENTIALS_FILE is never set, so the real sender is off.
     PUSH_DISPATCH_INTERVAL_MS: '0',
+    // D155: specs call DmSweeper.sweep() with a fake clock; the DM limits are tested by their spec.
+    DM_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_DM_SEND_USER: GENEROUS,
+    RATE_LIMIT_DM_REQUEST_USER: GENEROUS,
+    RATE_LIMIT_DM_WRITE_USER: GENEROUS,
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

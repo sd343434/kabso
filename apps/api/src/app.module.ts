@@ -20,6 +20,7 @@ import { SafetyModule } from './modules/safety/safety.module.js';
 import { StoriesModule } from './modules/stories/stories.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { PushModule } from './modules/push/push.module.js';
+import { DmModule } from './modules/messages/dm.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
@@ -68,6 +69,8 @@ export class AppModule {
         NotificationsModule,
         // v1.30-live (DRAFT, D152): push notifications (PUT/DELETE /me/push-token).
         PushModule,
+        // v1.40-social (DRAFT, D155): direct messages.
+        DmModule,
         PublicProfileModule,
         // v1.19-live (DRAFT, CP-017).
         WalletModule,

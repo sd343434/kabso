@@ -93,6 +93,23 @@ class FakeMediaRepository implements MediaRepository {
     );
   }
 
+  /// D155: every direct message upload, e.g. `voice:audio/mp4:1234`.
+  final List<String> dmUploads = [];
+
+  @override
+  Future<String> uploadDmMedia(
+    Uint8List bytes,
+    String contentType, {
+    required bool voice,
+  }) async {
+    if (failWith case final e?) {
+      failWith = null;
+      throw e;
+    }
+    dmUploads.add('${voice ? 'voice' : 'image'}:$contentType:${bytes.length}');
+    return 'dm${dmUploads.length}';
+  }
+
   /// CP-017: every live chat upload, e.g. `voice:audio/mp4:1234`.
   final List<String> liveChatUploads = [];
 

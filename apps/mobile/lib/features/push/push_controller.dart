@@ -9,6 +9,7 @@ import 'package:kabso_live/core/config/app_config.dart';
 import 'package:kabso_live/core/demo/demo_mode.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/auth/presentation/splash_intro.dart';
+import 'package:kabso_live/features/messages/application/dm_providers.dart';
 import 'package:kabso_live/features/notifications/application/notifications_controller.dart';
 import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:kabso_live/features/push/open_conversation.dart';
@@ -123,6 +124,10 @@ class PushController {
   void onForeground(PushPayload push) {
     if (!_realUser) return;
     if (push.isMessage) {
+      // D155: the badge, the list and the open conversation read at once.
+      if (push.kind == PushPayload.kindDm) {
+        _ref.read(dmActivityProvider.notifier).ping();
+      }
       final conversation = push.conversation;
       if (conversation != null &&
           conversation == _ref.read(openConversationProvider)) {

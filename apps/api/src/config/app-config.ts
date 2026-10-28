@@ -108,6 +108,10 @@ export interface AppConfig {
     readonly cpConfessionUser: RateLimitRule;
     /** CP-022: family chat messages (per user). */
     readonly familyChatUser: RateLimitRule;
+    /** v1.40-social (D155): direct message sends, message requests, other writes (per user). */
+    readonly dmSendUser: RateLimitRule;
+    readonly dmRequestUser: RateLimitRule;
+    readonly dmWriteUser: RateLimitRule;
     readonly liveHeartbeatUser: RateLimitRule;
     readonly liveEndUser: RateLimitRule;
     readonly followHourUser: RateLimitRule;
@@ -173,6 +177,16 @@ export interface AppConfig {
     readonly dispatchIntervalMs: number;
     readonly generalGapSeconds: number;
     readonly messagesGapSeconds: number;
+  };
+  /** v1.40-social (D155) direct messages (CONVENTIONS §11.13). */
+  readonly dm: {
+    readonly retentionHours: number;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
+    readonly requestMaxMessages: number;
+    readonly deleteForEveryoneSeconds: number;
+    /** Percent of a non-lucky gift's value counted for the recipient's charm. */
+    readonly giftRecipientSharePercent: number;
   };
   /** v1.29-live (D147) search trends (CONVENTIONS §11.11). */
   readonly searchTrends: {
@@ -348,6 +362,9 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
       cpConfessionUser: e.RATE_LIMIT_CP_CONFESSION_USER,
       familyChatUser: e.RATE_LIMIT_FAMILY_CHAT_USER,
+      dmSendUser: e.RATE_LIMIT_DM_SEND_USER,
+      dmRequestUser: e.RATE_LIMIT_DM_REQUEST_USER,
+      dmWriteUser: e.RATE_LIMIT_DM_WRITE_USER,
       liveHeartbeatUser: e.RATE_LIMIT_LIVE_HEARTBEAT_USER,
       liveEndUser: e.RATE_LIMIT_LIVE_END_USER,
       followHourUser: e.RATE_LIMIT_FOLLOW_HOUR_USER,
@@ -405,6 +422,13 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       dispatchIntervalMs: e.PUSH_DISPATCH_INTERVAL_MS,
       generalGapSeconds: e.PUSH_GENERAL_GAP_SECONDS,
       messagesGapSeconds: e.PUSH_MESSAGES_GAP_SECONDS,
+    },
+    dm: {
+      retentionHours: e.DM_RETENTION_HOURS,
+      sweepIntervalSeconds: e.DM_SWEEP_INTERVAL_SECONDS,
+      requestMaxMessages: e.DM_REQUEST_MAX_MESSAGES,
+      deleteForEveryoneSeconds: e.DM_DELETE_FOR_EVERYONE_SECONDS,
+      giftRecipientSharePercent: e.GIFT_DM_RECIPIENT_SHARE_PERCENT,
     },
     searchTrends: {
       minSearchers: e.SEARCH_TRENDING_MIN_SEARCHERS,

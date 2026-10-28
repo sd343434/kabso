@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminGuard, AdminPermissions } from '../levels/admin.guard.js';
 import { LiveModule } from '../live/live.module.js';
+import { MediaModule } from '../media/media.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PostsModule } from '../posts/posts.module.js';
 import { UsersModule } from '../users/users.module.js';
@@ -12,7 +13,7 @@ import { SafetyService } from './safety.service.js';
  * `reports` and `privacy_settings`.
  */
 @Module({
-  imports: [LiveModule, NotificationsModule, PostsModule, UsersModule],
+  imports: [LiveModule, MediaModule, NotificationsModule, PostsModule, UsersModule],
   controllers: [SafetyController, AdminReportsController],
   providers: [SafetyService, AdminGuard, AdminPermissions],
 })

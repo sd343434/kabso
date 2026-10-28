@@ -57,142 +57,150 @@ model User {
   /// online = within the last 5 minutes. Shown only as CONVENTIONS §10.25 allows.
   lastActiveAt    DateTime?  @map("last_active_at") @db.Timestamptz(3)
 
-  profile            UserProfile?
-  settings           UserSettings?
-  sessions           Session[]
-  verificationTokens VerificationToken[]
-  auditLogs          AuditLog[]
-  liveRooms          LiveRoom[]
-  liveHost           LiveHost?              @relation("LiveHostUser")
-  liveHostsGranted   LiveHost[]             @relation("LiveHostGrantedBy")
-  liveViews          LiveRoomViewer[]
+  profile             UserProfile?
+  settings            UserSettings?
+  sessions            Session[]
+  verificationTokens  VerificationToken[]
+  auditLogs           AuditLog[]
+  liveRooms           LiveRoom[]
+  liveHost            LiveHost?                 @relation("LiveHostUser")
+  liveHostsGranted    LiveHost[]                @relation("LiveHostGrantedBy")
+  liveViews           LiveRoomViewer[]
   /// v1.27.6-live (D140): the lives this user watched (statistics only).
-  liveAudience       LiveRoomAudience[]
-  liveSeats          LiveRoomSeat[]
-  liveSeatRequests   LiveSeatRequest[]
-  liveSeatInvites    LiveSeatInvite[]       @relation("LiveSeatInvitee")
-  liveSeatInvitesBy  LiveSeatInvite[]       @relation("LiveSeatInviter")
-  liveModeratorOf    LiveRoomModerator[]
-  liveTaps           LiveRoomTapper[]
-  liveChatMessages   LiveChatMessage[]      @relation("LiveChatAuthor")
-  liveChatDeletions  LiveChatMessage[]      @relation("LiveChatDeleter")
-  liveChatMutes      LiveChatMute[]         @relation("LiveChatMuted")
-  liveChatMutesBy    LiveChatMute[]         @relation("LiveChatMutedBy")
-  liveKicks          LiveRoomKick[]         @relation("LiveKicked")
-  liveKicksBy        LiveRoomKick[]         @relation("LiveKickedBy")
-  following          Follow[]               @relation("FollowFollower")
-  followers          Follow[]               @relation("FollowFollowee")
-  levelStates        UserLevelState[]
-  pointsEntries      PointsLedgerEntry[]
-  levelHistory       LevelHistory[]
-  adminPermissions   UserAdminPermission[]
-  mediaUploads       MediaUpload[]
-  mediaAssets        MediaAsset[]
-  posts              Post[]
-  postLikes          PostLike[]
-  postSaves          PostSave[]
-  postReposts        PostRepost[]
-  postViews          PostView[]
-  postShareEvents    PostShareEvent[]
-  postPins           PostPin[]
-  postMentions       PostMention[]
-  comments           Comment[]
-  commentLikes       CommentLike[]
-  commentMentions    CommentMention[]
-  blocking           UserBlock[]            @relation("BlockBlocker")
-  blockedBy          UserBlock[]            @relation("BlockBlocked")
-  muting             UserMute[]             @relation("MuteMuter")
-  mutedBy            UserMute[]             @relation("MuteMuted")
-  postHides          PostHide[]
-  reportsMade        Report[]               @relation("ReportReporter")
-  reportsAgainst     Report[]               @relation("ReportTargetUser")
-  reportsResolved    Report[]               @relation("ReportResolver")
-  privacySettings    PrivacySettings?
-  stories            Story[]
-  storyViews         StoryView[]
-  storyMentions      StoryMention[]
-  notifications      Notification[]
-  notificationActs   NotificationActor[]
-  notificationPrefs  NotificationSettings?
-  livePointsHourly   LiveHostPointsHourly[] @relation("LiveHostPointsHourly")
-  liveScheduleSlots  LiveScheduleSlot[]     @relation("LiveScheduleSlots")
-  wallet             Wallet?
-  walletLedger       WalletLedgerEntry[]
-  liveBullets        LiveBullet[]
+  liveAudience        LiveRoomAudience[]
+  liveSeats           LiveRoomSeat[]
+  liveSeatRequests    LiveSeatRequest[]
+  liveSeatInvites     LiveSeatInvite[]          @relation("LiveSeatInvitee")
+  liveSeatInvitesBy   LiveSeatInvite[]          @relation("LiveSeatInviter")
+  liveModeratorOf     LiveRoomModerator[]
+  liveTaps            LiveRoomTapper[]
+  liveChatMessages    LiveChatMessage[]         @relation("LiveChatAuthor")
+  liveChatDeletions   LiveChatMessage[]         @relation("LiveChatDeleter")
+  liveChatMutes       LiveChatMute[]            @relation("LiveChatMuted")
+  liveChatMutesBy     LiveChatMute[]            @relation("LiveChatMutedBy")
+  liveKicks           LiveRoomKick[]            @relation("LiveKicked")
+  liveKicksBy         LiveRoomKick[]            @relation("LiveKickedBy")
+  following           Follow[]                  @relation("FollowFollower")
+  followers           Follow[]                  @relation("FollowFollowee")
+  levelStates         UserLevelState[]
+  pointsEntries       PointsLedgerEntry[]
+  levelHistory        LevelHistory[]
+  adminPermissions    UserAdminPermission[]
+  mediaUploads        MediaUpload[]
+  mediaAssets         MediaAsset[]
+  posts               Post[]
+  postLikes           PostLike[]
+  postSaves           PostSave[]
+  postReposts         PostRepost[]
+  postViews           PostView[]
+  postShareEvents     PostShareEvent[]
+  postPins            PostPin[]
+  postMentions        PostMention[]
+  comments            Comment[]
+  commentLikes        CommentLike[]
+  commentMentions     CommentMention[]
+  blocking            UserBlock[]               @relation("BlockBlocker")
+  blockedBy           UserBlock[]               @relation("BlockBlocked")
+  muting              UserMute[]                @relation("MuteMuter")
+  mutedBy             UserMute[]                @relation("MuteMuted")
+  postHides           PostHide[]
+  reportsMade         Report[]                  @relation("ReportReporter")
+  reportsAgainst      Report[]                  @relation("ReportTargetUser")
+  reportsResolved     Report[]                  @relation("ReportResolver")
+  privacySettings     PrivacySettings?
+  stories             Story[]
+  storyViews          StoryView[]
+  storyMentions       StoryMention[]
+  notifications       Notification[]
+  notificationActs    NotificationActor[]
+  notificationPrefs   NotificationSettings?
+  livePointsHourly    LiveHostPointsHourly[]    @relation("LiveHostPointsHourly")
+  liveScheduleSlots   LiveScheduleSlot[]        @relation("LiveScheduleSlots")
+  wallet              Wallet?
+  walletLedger        WalletLedgerEntry[]
+  liveBullets         LiveBullet[]
   // v1.21-live (CP-018, D106): families, CP couples and medals.
-  familyMember       FamilyMember?
-  familiesCreated    Family[]               @relation("FamilyCreatedBy")
-  familyJoinRequests FamilyJoinRequest[]    @relation("FamilyJoinRequester")
-  familyJoinHandled  FamilyJoinRequest[]    @relation("FamilyJoinHandler")
-  familyPoints       FamilyPointsEntry[]
-  cpRequestsSent     CpRequest[]            @relation("CpRequestSender")
-  cpRequestsReceived CpRequest[]            @relation("CpRequestReceiver")
-  cpCouplesA         CpCouple[]             @relation("CpCoupleA")
-  cpCouplesB         CpCouple[]             @relation("CpCoupleB")
-  cpCouplesEnded     CpCouple[]             @relation("CpCoupleEndedBy")
-  cpPartner          CpPartner?             @relation("CpPartnerUser")
-  cpPartnerOf        CpPartner[]            @relation("CpPartnerOther")
-  cpGiftsSent        CpGift[]               @relation("CpGiftSender")
-  cpGiftsReceived    CpGift[]               @relation("CpGiftReceiver")
-  cpCheckIns         CpCheckIn[]
-  cpTaskClaims       CpTaskClaim[]
-  cpConfessionsSent  CpConfession[]         @relation("CpConfessionAuthor")
-  cpConfessionsGot   CpConfession[]         @relation("CpConfessionRecipient")
-  cpConfessionsDel   CpConfession[]         @relation("CpConfessionDeleter")
-  medals             UserMedal[]
+  familyMember        FamilyMember?
+  familiesCreated     Family[]                  @relation("FamilyCreatedBy")
+  familyJoinRequests  FamilyJoinRequest[]       @relation("FamilyJoinRequester")
+  familyJoinHandled   FamilyJoinRequest[]       @relation("FamilyJoinHandler")
+  familyPoints        FamilyPointsEntry[]
+  cpRequestsSent      CpRequest[]               @relation("CpRequestSender")
+  cpRequestsReceived  CpRequest[]               @relation("CpRequestReceiver")
+  cpCouplesA          CpCouple[]                @relation("CpCoupleA")
+  cpCouplesB          CpCouple[]                @relation("CpCoupleB")
+  cpCouplesEnded      CpCouple[]                @relation("CpCoupleEndedBy")
+  cpPartner           CpPartner?                @relation("CpPartnerUser")
+  cpPartnerOf         CpPartner[]               @relation("CpPartnerOther")
+  cpGiftsSent         CpGift[]                  @relation("CpGiftSender")
+  cpGiftsReceived     CpGift[]                  @relation("CpGiftReceiver")
+  cpCheckIns          CpCheckIn[]
+  cpTaskClaims        CpTaskClaim[]
+  cpConfessionsSent   CpConfession[]            @relation("CpConfessionAuthor")
+  cpConfessionsGot    CpConfession[]            @relation("CpConfessionRecipient")
+  cpConfessionsDel    CpConfession[]            @relation("CpConfessionDeleter")
+  medals              UserMedal[]
   // v1.22-live (CP-019, D107): the bag (owned profile cards and later categories).
-  bagItems           UserBagItem[]
+  bagItems            UserBagItem[]
   // v1.23-live (CP-020, D108): live gifts and the gift bag.
-  giftStock          UserGiftStock[]
-  giftsSent          LiveGift[]
-  giftsReceived      LiveGiftRecipient[]
+  giftStock           UserGiftStock[]
+  giftsSent           LiveGift[]
+  giftsReceived       LiveGiftRecipient[]
   // v1.25-live (CP-022, D116): family chat.
-  familyChatMessages FamilyChatMessage[]    @relation("FamilyChatAuthor")
-  familyChatDeleted  FamilyChatMessage[]    @relation("FamilyChatDeleter")
-  familyChatMutes    FamilyChatMute[]       @relation("FamilyChatMuted")
-  familyChatMutesBy  FamilyChatMute[]       @relation("FamilyChatMutedBy")
+  familyChatMessages  FamilyChatMessage[]       @relation("FamilyChatAuthor")
+  familyChatDeleted   FamilyChatMessage[]       @relation("FamilyChatDeleter")
+  familyChatMutes     FamilyChatMute[]          @relation("FamilyChatMuted")
+  familyChatMutesBy   FamilyChatMute[]          @relation("FamilyChatMutedBy")
   // v1.27-live (D132): lucky gifts — the audit rows of the caller's lucky sends and the 18+ statement.
-  luckyDraws         LuckyGiftDraw[]
-  luckyAgeConfirm    LuckyGiftAgeConfirmation?
+  luckyDraws          LuckyGiftDraw[]
+  luckyAgeConfirm     LuckyGiftAgeConfirmation?
   /// v1.30-live (D148): the caller's losing lucky draws in a row (the guarantee).
-  luckyPity          LuckyGiftPity?
+  luckyPity           LuckyGiftPity?
   /// v1.33-live (D154b): traffic cards held, bought and received.
-  boostCards         LiveBoostCard[]
-  boostsBought       LiveBoost[]            @relation("LiveBoostBuyer")
-  boostsReceived     LiveBoost[]            @relation("LiveBoostHost")
+  boostCards          LiveBoostCard[]
+  boostsBought        LiveBoost[]               @relation("LiveBoostBuyer")
+  boostsReceived      LiveBoost[]               @relation("LiveBoostHost")
   /// v1.35-live (D154d): the summaries of the user's ended lives (the data center).
-  liveSummaries      LiveSummary[]
+  liveSummaries       LiveSummary[]
   /// v1.32-live (D154): the free quips the user sent (one per live).
-  freeQuips          LiveFreeQuip[]
-  watchSuggestions   LiveWatchSuggestion[]
+  freeQuips           LiveFreeQuip[]
+  watchSuggestions    LiveWatchSuggestion[]
   // v1.27.1-live (D133): featured on the live hub.
-  liveFeatured       LiveFeaturedHost?
+  liveFeatured        LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
-  premiumLeases      PremiumUsernameLease[]
-  premiumPayments    PremiumUsernamePayment[]
+  premiumLeases       PremiumUsernameLease[]
+  premiumPayments     PremiumUsernamePayment[]
   /// v1.30-live (D152): push tokens of the user's sessions.
-  deviceTokens       DeviceToken[]
+  deviceTokens        DeviceToken[]
+  // v1.40-social (D155): direct messages.
+  dmConversationsLow  DmConversation[]          @relation("DmConversationLow")
+  dmConversationsHigh DmConversation[]          @relation("DmConversationHigh")
+  dmParticipants      DmParticipant[]           @relation("DmParticipantUser")
+  dmPeerOf            DmParticipant[]           @relation("DmParticipantPeer")
+  dmSent              DmMessage[]               @relation("DmMessageSender")
+  dmReceived          DmMessage[]               @relation("DmMessageRecipient")
+  dmHides             DmMessageHide[]
 
   @@map("users")
 }
 
 model UserProfile {
-  userId      String   @id @map("user_id") @db.Uuid
+  userId      String               @id @map("user_id") @db.Uuid
   /// Lowercase; format enforced by CHECK constraint `user_profiles_username_format`.
-  username    String   @unique @db.VarChar(30)
+  username    String               @unique @db.VarChar(30)
   /// ≤ 100 code points, 1–50 grapheme clusters (contract v1.2 §6).
-  displayName String   @map("display_name") @db.VarChar(100)
-  bio         String?  @db.VarChar(300)
-  avatarUrl   String?  @map("avatar_url") @db.VarChar(2048)
-  locale      String   @default("ar") @db.VarChar(8)
+  displayName String               @map("display_name") @db.VarChar(100)
+  bio         String?              @db.VarChar(300)
+  avatarUrl   String?              @map("avatar_url") @db.VarChar(2048)
+  locale      String               @default("ar") @db.VarChar(8)
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
-  countryCode String?  @map("country_code") @db.Char(2)
+  countryCode String?              @map("country_code") @db.Char(2)
   /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
   /// `username` by the premium-usernames module); null for a regular username.
   premiumTier PremiumUsernameTier? @map("premium_tier")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -483,28 +491,28 @@ model LiveRoom {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  host         User                @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
-  category     LiveCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  viewers      LiveRoomViewer[]
-  audience     LiveRoomAudience[]
-  reports      Report[]
-  seats        LiveRoomSeat[]
-  seatRequests LiveSeatRequest[]
-  seatInvites  LiveSeatInvite[]
-  moderators   LiveRoomModerator[]
-  scoreParts   LiveRoomScore?
-  tappers      LiveRoomTapper[]
-  chatMessages LiveChatMessage[]
-  chatMutes    LiveChatMute[]
-  kicks        LiveRoomKick[]
-  bullets      LiveBullet[]
-  gifts        LiveGift[]
-  freeQuips    LiveFreeQuip[]
-  boosts       LiveBoost[]
-  summary      LiveSummary?
-  program      LiveProgramItem[]
-  stickers     LiveSticker[]
-  watch        LiveWatch?
+  host             User                  @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+  category         LiveCategory?         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  viewers          LiveRoomViewer[]
+  audience         LiveRoomAudience[]
+  reports          Report[]
+  seats            LiveRoomSeat[]
+  seatRequests     LiveSeatRequest[]
+  seatInvites      LiveSeatInvite[]
+  moderators       LiveRoomModerator[]
+  scoreParts       LiveRoomScore?
+  tappers          LiveRoomTapper[]
+  chatMessages     LiveChatMessage[]
+  chatMutes        LiveChatMute[]
+  kicks            LiveRoomKick[]
+  bullets          LiveBullet[]
+  gifts            LiveGift[]
+  freeQuips        LiveFreeQuip[]
+  boosts           LiveBoost[]
+  summary          LiveSummary?
+  program          LiveProgramItem[]
+  stickers         LiveSticker[]
+  watch            LiveWatch?
   watchSuggestions LiveWatchSuggestion[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
@@ -758,6 +766,8 @@ enum WalletLedgerReason {
   /// v1.28-live (D146): renting a premium username, and renewing it (reference: the payment).
   PREMIUM_USERNAME_RENT
   PREMIUM_USERNAME_RENEW
+  /// v1.40-social (D155): a (non-lucky) gift sent in a direct conversation (reference: the send).
+  DM_GIFT
   /// v1.33-live (D154b): a traffic card bought with coins, and its refund when it never ran.
   LIVE_BOOST
   LIVE_BOOST_REFUND
@@ -1248,6 +1258,8 @@ enum ReportTargetType {
   CP_CONFESSION
   /// CP-022 (D116): a message in a family's chat.
   FAMILY_CHAT_MESSAGE
+  /// v1.40-social (D155): a direct message (kept as a snapshot: messages live 24 h).
+  DM_MESSAGE
 
   @@map("report_target_type")
 }
@@ -1323,9 +1335,11 @@ model MediaAsset {
   /// CP-018: a family's emblem.
   familyEmblem Family?
   /// CP-022: a family's cover.
-  familyCover  Family? @relation("FamilyCover")
+  familyCover  Family?          @relation("FamilyCover")
   /// D124: a home banner's picture.
   homeBanner   HomeBanner?
+  /// D155: a direct message's picture or voice clip.
+  dmMessage    DmMessage?
 
   @@index([createdAt], map: "media_assets_unattached_idx", where: raw("attached_at IS NULL"))
   @@map("media_assets")
@@ -1614,38 +1628,42 @@ model PostHide {
 /// A report (§11.7). Exactly one target column is set (CHECK `reports_one_target`); one OPEN
 /// report per reporter and target (partial unique indexes in the migration).
 model Report {
-  id                      String           @id @default(uuid(7)) @db.Uuid
-  reporterId              String           @map("reporter_id") @db.Uuid
-  targetType              ReportTargetType @map("target_type")
-  targetPostId            String?          @map("target_post_id") @db.Uuid
-  targetCommentId         String?          @map("target_comment_id") @db.Uuid
-  targetUserId            String?          @map("target_user_id") @db.Uuid
-  targetStoryId           String?          @map("target_story_id") @db.Uuid
-  targetLiveRoomId        String?          @map("target_live_room_id") @db.Uuid
+  id                        String           @id @default(uuid(7)) @db.Uuid
+  reporterId                String           @map("reporter_id") @db.Uuid
+  targetType                ReportTargetType @map("target_type")
+  targetPostId              String?          @map("target_post_id") @db.Uuid
+  targetCommentId           String?          @map("target_comment_id") @db.Uuid
+  targetUserId              String?          @map("target_user_id") @db.Uuid
+  targetStoryId             String?          @map("target_story_id") @db.Uuid
+  targetLiveRoomId          String?          @map("target_live_room_id") @db.Uuid
   /// CP-013: a live chat message.
-  targetLiveChatMessageId String?          @map("target_live_chat_message_id") @db.Uuid
+  targetLiveChatMessageId   String?          @map("target_live_chat_message_id") @db.Uuid
   /// CP-021: a CP confession.
-  targetCpConfessionId    String?          @map("target_cp_confession_id") @db.Uuid
+  targetCpConfessionId      String?          @map("target_cp_confession_id") @db.Uuid
   /// CP-022: a family chat message.
-  targetFamilyChatMessageId String?        @map("target_family_chat_message_id") @db.Uuid
-  reason                  ReportReason
-  note                    String?          @db.VarChar(500)
-  status                  ReportStatus     @default(OPEN)
-  createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  resolvedAt              DateTime?        @map("resolved_at") @db.Timestamptz(3)
-  resolvedById            String?          @map("resolved_by_id") @db.Uuid
-  resolutionNote          String?          @map("resolution_note") @db.VarChar(500)
+  targetFamilyChatMessageId String?          @map("target_family_chat_message_id") @db.Uuid
+  /// v1.40-social (D155): a direct message — no foreign key: the message is deleted after 24 h and
+  /// the report keeps `dm_snapshot` (cleared 30 days after the report is resolved).
+  targetDmMessageId         String?          @map("target_dm_message_id") @db.Uuid
+  dmSnapshot                Json?            @map("dm_snapshot")
+  reason                    ReportReason
+  note                      String?          @db.VarChar(500)
+  status                    ReportStatus     @default(OPEN)
+  createdAt                 DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt                DateTime?        @map("resolved_at") @db.Timestamptz(3)
+  resolvedById              String?          @map("resolved_by_id") @db.Uuid
+  resolutionNote            String?          @map("resolution_note") @db.VarChar(500)
 
-  reporter              User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetPost            Post?            @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-  targetComment         Comment?         @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
-  targetUser            User?            @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  targetStory           Story?           @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
-  targetLiveRoom        LiveRoom?        @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
-  targetLiveChatMessage LiveChatMessage? @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
-  targetCpConfession    CpConfession?    @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
+  reporter                User               @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost              Post?              @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetComment           Comment?           @relation(fields: [targetCommentId], references: [id], onDelete: Cascade)
+  targetUser              User?              @relation("ReportTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetStory             Story?             @relation(fields: [targetStoryId], references: [id], onDelete: Cascade)
+  targetLiveRoom          LiveRoom?          @relation(fields: [targetLiveRoomId], references: [id], onDelete: Cascade)
+  targetLiveChatMessage   LiveChatMessage?   @relation(fields: [targetLiveChatMessageId], references: [id], onDelete: Cascade)
+  targetCpConfession      CpConfession?      @relation(fields: [targetCpConfessionId], references: [id], onDelete: Cascade)
   targetFamilyChatMessage FamilyChatMessage? @relation(fields: [targetFamilyChatMessageId], references: [id], onDelete: Cascade)
-  resolvedBy            User?            @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedBy              User?              @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@unique([reporterId, targetPostId], map: "reports_open_post_once", where: raw("status = 'OPEN'::report_status AND target_post_id IS NOT NULL"))
   @@unique([reporterId, targetCommentId], map: "reports_open_comment_once", where: raw("status = 'OPEN'::report_status AND target_comment_id IS NOT NULL"))
@@ -1655,6 +1673,7 @@ model Report {
   @@unique([reporterId, targetLiveChatMessageId], map: "reports_open_live_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_live_chat_message_id IS NOT NULL"))
   @@unique([reporterId, targetCpConfessionId], map: "reports_open_cp_confession_once", where: raw("status = 'OPEN'::report_status AND target_cp_confession_id IS NOT NULL"))
   @@unique([reporterId, targetFamilyChatMessageId], map: "reports_open_family_chat_message_once", where: raw("status = 'OPEN'::report_status AND target_family_chat_message_id IS NOT NULL"))
+  @@unique([reporterId, targetDmMessageId], map: "reports_open_dm_message_once", where: raw("status = 'OPEN'::report_status AND target_dm_message_id IS NOT NULL"))
   @@index([status, createdAt, id], map: "reports_status_created_idx")
   @@index([targetPostId], map: "reports_target_post_idx")
   @@index([targetCommentId], map: "reports_target_comment_idx")
@@ -1664,6 +1683,7 @@ model Report {
   @@index([targetLiveChatMessageId], map: "reports_target_live_chat_message_idx")
   @@index([targetCpConfessionId], map: "reports_target_cp_confession_idx")
   @@index([targetFamilyChatMessageId], map: "reports_target_family_chat_message_idx")
+  @@index([targetDmMessageId], map: "reports_target_dm_message_idx")
   @@map("reports")
 }
 
@@ -1673,6 +1693,8 @@ model PrivacySettings {
   defaultWhoCanComment WhoCanComment @default(EVERYONE) @map("default_who_can_comment")
   /// v1.25-live (CP-022, D116): others may see when this user was last active (§10.25).
   showActivityStatus   Boolean       @default(true) @map("show_activity_status")
+  /// v1.40-social (D155): who may send this user direct messages (§11.13).
+  whoCanMessage        WhoCanMessage @default(EVERYONE) @map("who_can_message")
   updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1788,13 +1810,13 @@ model Notification {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  recipient    User                @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  post         Post?               @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment      Comment?            @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  story        Story?              @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  liveSchedule LiveScheduleSlot?   @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
-  family       Family?             @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  medal        Medal?              @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+  recipient    User                  @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post         Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment      Comment?              @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  story        Story?                @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  liveSchedule LiveScheduleSlot?     @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
+  family       Family?               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  medal        Medal?                @relation(fields: [medalCode], references: [code], onDelete: Cascade)
   premiumLease PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
   actors       NotificationActor[]
 
@@ -2413,41 +2435,48 @@ model UserGiftStock {
 /// (unitPrice × quantity × recipients); `coinsCharged` is that for COINS and 0 for BAG. CHECKs
 /// `live_gifts_quantity_positive`, `live_gifts_amounts`, `live_gifts_combo`.
 model LiveGift {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  senderId      String         @map("sender_id") @db.Uuid
-  clientId      String         @map("client_id") @db.Uuid
-  /// The live it was sent in (null once that room is gone).
-  roomId        String?        @map("room_id") @db.Uuid
-  giftCode      String         @map("gift_code") @db.VarChar(40)
-  quantity      Int
-  source        LiveGiftSource
-  unitPrice     Int            @map("unit_price")
-  totalCoins    BigInt         @map("total_coins")
-  coinsCharged  BigInt         @map("coins_charged")
+  id               String         @id @default(uuid(7)) @db.Uuid
+  senderId         String         @map("sender_id") @db.Uuid
+  clientId         String         @map("client_id") @db.Uuid
+  /// The live it was sent in (null once that room is gone, and for a gift sent in a direct
+  /// conversation, D155).
+  roomId           String?        @map("room_id") @db.Uuid
+  /// v1.40-social (D155): the direct conversation it was sent in (null for live gifts).
+  dmConversationId String?        @map("dm_conversation_id") @db.Uuid
+  giftCode         String         @map("gift_code") @db.VarChar(40)
+  quantity         Int
+  source           LiveGiftSource
+  unitPrice        Int            @map("unit_price")
+  totalCoins       BigInt         @map("total_coins")
+  coinsCharged     BigInt         @map("coins_charged")
   /// The recipients' user ids, sorted and joined (combo matching).
-  recipientsKey String         @map("recipients_key")
+  recipientsKey    String         @map("recipients_key")
   /// The first send of the combo (its own id when it starts one).
-  comboId       String         @map("combo_id") @db.Uuid
-  comboCount    Int            @map("combo_count")
-  comboQuantity BigInt         @map("combo_quantity")
+  comboId          String         @map("combo_id") @db.Uuid
+  comboCount       Int            @map("combo_count")
+  comboQuantity    BigInt         @map("combo_quantity")
   /// v1.32-live (D154, §10.33): the recipients' earnings share of `total_coins` at the time of the send,
   /// in basis points (the category's GIFT_HOST_SHARE_PERCENTS; LUCKY: LUCKY_GIFT_HOST_SHARE_PERCENT).
-  hostShareBps  Int            @map("host_share_bps")
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  hostShareBps     Int            @map("host_share_bps")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  sender     User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  room       LiveRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  gift       Gift                @relation(fields: [giftCode], references: [code], onDelete: Restrict)
-  recipients LiveGiftRecipient[]
+  sender         User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room           LiveRoom?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  gift           Gift                @relation(fields: [giftCode], references: [code], onDelete: Restrict)
+  recipients     LiveGiftRecipient[]
   /// v1.27-live (D132): the draws of a LUCKY send (none for other gifts).
-  luckyDraw  LuckyGiftDraw?
+  luckyDraw      LuckyGiftDraw?
+  /// v1.40-social (D155).
+  dmConversation DmConversation?     @relation(fields: [dmConversationId], references: [id], onDelete: SetNull)
+  dmMessage      DmMessage?
   /// v1.32-live (D154): the free-quip row of a free QUIPS send.
-  freeQuip   LiveFreeQuip?
+  freeQuip       LiveFreeQuip?
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
   @@index([roomId, createdAt], map: "live_gifts_room_idx")
   @@index([giftCode], map: "live_gifts_gift_idx")
+  @@index([dmConversationId], map: "live_gifts_dm_conversation_idx")
   @@map("live_gifts")
 }
 
@@ -2915,4 +2944,126 @@ model SearchBlockedWord {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@map("search_blocked_words")
+}
+
+// ---- v1.40-social (DRAFT, D155): direct messages (CONVENTIONS §11.13) ------------------------
+
+/// v1.40-social (D155): who may send a user direct messages.
+enum WhoCanMessage {
+  EVERYONE
+  FOLLOWING
+  NOBODY
+
+  @@map("who_can_message")
+}
+
+/// D155: one side of a conversation — ACCEPTED, or REQUEST (a message request waiting for them).
+enum DmParticipantStatus {
+  ACCEPTED
+  REQUEST
+
+  @@map("dm_participant_status")
+}
+
+enum DmMessageKind {
+  TEXT
+  IMAGE
+  VOICE
+  EMOJI
+  GIFT
+
+  @@map("dm_message_kind")
+}
+
+/// D155: one conversation per pair of accounts (`user_low_id` < `user_high_id`, CHECK
+/// `dm_conversations_ordered`), created by the first message. Kept when its messages expire.
+model DmConversation {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userLowId     String   @map("user_low_id") @db.Uuid
+  userHighId    String   @map("user_high_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastMessageAt DateTime @map("last_message_at") @db.Timestamptz(3)
+
+  userLow      User            @relation("DmConversationLow", fields: [userLowId], references: [id], onDelete: Cascade)
+  userHigh     User            @relation("DmConversationHigh", fields: [userHighId], references: [id], onDelete: Cascade)
+  participants DmParticipant[]
+  messages     DmMessage[]
+  gifts        LiveGift[]
+
+  @@unique([userLowId, userHighId], map: "dm_conversations_pair_key")
+  @@index([userHighId], map: "dm_conversations_user_high_idx")
+  @@map("dm_conversations")
+}
+
+/// D155: a user's side of a conversation. `has_sent`: they wrote in it at least once (the privacy
+/// exception and the end of a request); `request_sent`: messages they sent while the other side had
+/// it as a REQUEST (≤ DM_REQUEST_MAX_MESSAGES; never reset). `read_at`: everything received up to
+/// then is read. `cleared_at`: deleted for this user up to then.
+model DmParticipant {
+  conversationId String              @map("conversation_id") @db.Uuid
+  userId         String              @map("user_id") @db.Uuid
+  peerId         String              @map("peer_id") @db.Uuid
+  status         DmParticipantStatus
+  muted          Boolean             @default(false)
+  hasSent        Boolean             @default(false) @map("has_sent")
+  requestSent    Int                 @default(0) @map("request_sent")
+  readAt         DateTime?           @map("read_at") @db.Timestamptz(3)
+  clearedAt      DateTime?           @map("cleared_at") @db.Timestamptz(3)
+  lastMessageAt  DateTime            @map("last_message_at") @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation DmConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User           @relation("DmParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  peer         User           @relation("DmParticipantPeer", fields: [peerId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId], map: "dm_participants_pkey")
+  @@unique([userId, peerId], map: "dm_participants_user_peer_key")
+  @@index([userId, status, lastMessageAt(sort: Desc), conversationId], map: "dm_participants_list_idx")
+  @@index([peerId], map: "dm_participants_peer_idx")
+  @@map("dm_participants")
+}
+
+/// D155: a direct message; hard-deleted by the sweeper at `expires_at` (sent + DM_RETENTION_HOURS)
+/// with its media. CHECK `dm_messages_content`: the column of its kind.
+model DmMessage {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  conversationId String        @map("conversation_id") @db.Uuid
+  senderId       String        @map("sender_id") @db.Uuid
+  recipientId    String        @map("recipient_id") @db.Uuid
+  clientId       String        @map("client_id") @db.Uuid
+  kind           DmMessageKind
+  text           String?       @db.VarChar(1000)
+  token          String?       @db.VarChar(64)
+  mediaId        String?       @unique(map: "dm_messages_media_id_key") @map("media_id") @db.Uuid
+  giftId         String?       @unique(map: "dm_messages_gift_id_key") @map("gift_id") @db.Uuid
+  asRequest      Boolean       @default(false) @map("as_request")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt      DateTime      @map("expires_at") @db.Timestamptz(3)
+
+  conversation DmConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User            @relation("DmMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient    User            @relation("DmMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  media        MediaAsset?     @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  gift         LiveGift?       @relation(fields: [giftId], references: [id], onDelete: SetNull)
+  hides        DmMessageHide[]
+
+  @@unique([senderId, clientId], map: "dm_messages_client_once")
+  @@index([conversationId, createdAt, id], map: "dm_messages_conversation_idx")
+  @@index([recipientId, createdAt], map: "dm_messages_recipient_idx")
+  @@index([expiresAt], map: "dm_messages_expires_idx")
+  @@map("dm_messages")
+}
+
+/// D155: a message deleted "for me" by one participant.
+model DmMessageHide {
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  message DmMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId], map: "dm_message_hides_pkey")
+  @@index([userId], map: "dm_message_hides_user_idx")
+  @@map("dm_message_hides")
 }

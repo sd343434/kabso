@@ -29,12 +29,17 @@ class PrivacySettings {
     required this.whoCanMention,
     required this.defaultWhoCanComment,
     this.showActivityStatus = true,
+    this.whoCanMessage = MentionPolicy.everyone,
   });
 
   factory fromJson(Map<String, dynamic> json) => PrivacySettings(
     whoCanMention: MentionPolicy.fromWire(json['whoCanMention']),
     defaultWhoCanComment: WhoCanComment.fromWire(json['defaultWhoCanComment']),
     showActivityStatus: json['showActivityStatus'] as bool? ?? true,
+    // v1.40-social (D155); absent from older servers: everyone.
+    whoCanMessage: json['whoCanMessage'] == null
+        ? MentionPolicy.everyone
+        : MentionPolicy.fromWire(json['whoCanMessage']),
   );
 
   final MentionPolicy whoCanMention;
@@ -46,6 +51,11 @@ class PrivacySettings {
   /// v1.25-live (CP-022, §10.25): family members may see when the caller was
   /// last active.
   final bool showActivityStatus;
+
+  /// v1.40-social (D155, §11.13): who may send the caller direct messages
+  /// («من يستطيع مراسلتك»): everyone (default), people the caller follows,
+  /// or no one. Same three values as [whoCanMention].
+  final MentionPolicy whoCanMessage;
 }
 
 /// Block, mute, reports of users and privacy (docs/contracts/openapi.yaml
@@ -75,6 +85,7 @@ abstract interface class SafetyRepository {
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
+    MentionPolicy? whoCanMessage,
   });
 }
 
@@ -145,6 +156,7 @@ class SafetyRepositoryImpl implements SafetyRepository {
     MentionPolicy? whoCanMention,
     WhoCanComment? defaultWhoCanComment,
     bool? showActivityStatus,
+    MentionPolicy? whoCanMessage,
   }) => guardApiCall(() async {
     final res = await _dio.patch<Map<String, dynamic>>(
       '/me/privacy',
@@ -152,6 +164,7 @@ class SafetyRepositoryImpl implements SafetyRepository {
         'whoCanMention': ?whoCanMention?.wire,
         'defaultWhoCanComment': ?defaultWhoCanComment?.wire,
         'showActivityStatus': ?showActivityStatus,
+        'whoCanMessage': ?whoCanMessage?.wire,
       },
     );
     return PrivacySettings.fromJson(res.data!);

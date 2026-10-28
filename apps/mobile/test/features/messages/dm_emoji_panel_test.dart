@@ -14,6 +14,7 @@ import 'package:kabso_live/features/messages/widgets/chat_composer.dart';
 import 'package:lottie/lottie.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/pump_app.dart';
 
 void _phone(WidgetTester tester, {Size size = const Size(393, 852)}) {
@@ -275,11 +276,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the real conversation keeps the emoji button disabled with '
-      'its composer (no messaging API)', (tester) async {
-    await pumpScreen(tester, const ChatScreen(username: 'nour'));
-    final button = tester.widget<IconButton>(find.byKey(ChatScreen.emojiKey));
-    expect(button.onPressed, isNull);
+  testWidgets('D155: the real conversation opens the emoji panel under '
+      'its field', (tester) async {
+    await pumpScreen(
+      tester,
+      const ChatScreen(username: 'nour'),
+      dmRepository: FakeDmRepository(),
+    );
+    await tester.pumpAndSettle();
     expect(find.byKey(ChatComposer.emojiPanelKey), findsNothing);
+    await tester.tap(find.byKey(ChatScreen.emojiKey));
+    // The panel's pack emojis are animations: pump, never settle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(ChatComposer.emojiPanelKey), findsOneWidget);
   });
 }

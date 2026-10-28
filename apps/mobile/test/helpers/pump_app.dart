@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/data/live_sticker_repository.dart';
 import 'package:kabso_live/features/live/data/live_watch_repository.dart';
 import 'package:kabso_live/features/live/data/youtube_player.dart';
+import 'package:kabso_live/features/messages/data/dm_repository.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -30,6 +31,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_dm_repository.dart';
 import 'fake_home_banners_repository.dart';
 import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_boost_repository.dart';
@@ -79,6 +81,7 @@ Future<void> pumpKabsoApp(
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
+  DmRepository? dmRepository,
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
@@ -131,6 +134,10 @@ Future<void> pumpKabsoApp(
         // CP-016 C: never the network.
         liveScheduleRepositoryProvider.overrideWithValue(
           FakeLiveScheduleRepository(),
+        ),
+        // D155: never the network (no conversations).
+        dmRepositoryProvider.overrideWithValue(
+          dmRepository ?? FakeDmRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(
@@ -211,6 +218,7 @@ Future<void> pumpScreen(
   LiveWatchRepository? liveWatchRepository,
   FakeYoutubePlayers? youtubePlayers,
   HomeBannersRepository? homeBannersRepository,
+  DmRepository? dmRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
   await tester.pumpWidget(
@@ -236,6 +244,10 @@ Future<void> pumpScreen(
         // D124: no promo banners unless a test adds them.
         homeBannersRepositoryProvider.overrideWithValue(
           homeBannersRepository ?? FakeHomeBannersRepository(),
+        ),
+        // D155: never the network (no conversations).
+        dmRepositoryProvider.overrideWithValue(
+          dmRepository ?? FakeDmRepository(),
         ),
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(

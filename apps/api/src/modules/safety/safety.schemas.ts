@@ -42,6 +42,8 @@ export const createReportSchema = z.strictObject({
     'LIVE_CHAT_MESSAGE',
     'CP_CONFESSION',
     'FAMILY_CHAT_MESSAGE',
+    // v1.40-social (D155): a direct message the reporter received (§11.13).
+    'DM_MESSAGE',
   ]),
   targetId: z.string().min(1).max(64),
   reason: z.enum(REPORT_REASONS),
@@ -63,6 +65,8 @@ export const updatePrivacySchema = z
     defaultWhoCanComment: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
     // v1.25-live (CP-022, D116): others may see when the user was last active (§10.25).
     showActivityStatus: z.boolean().optional(),
+    // v1.40-social (D155): who may send the user direct messages (§11.13).
+    whoCanMessage: z.enum(['EVERYONE', 'FOLLOWING', 'NOBODY']).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'too_small', params: { issue: 'too_small' } });
 

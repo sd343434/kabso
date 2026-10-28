@@ -11,6 +11,7 @@ import 'package:kabso_live/features/messages/attachments.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../helpers/fake_dm_repository.dart';
 import '../helpers/pump_app.dart';
 
 class _Picker implements MediaAttachmentPicker {
@@ -131,16 +132,29 @@ void main() {
     expect(find.byType(LocalMediaView), findsNothing);
   });
 
-  testWidgets('the real chat keeps the button disabled (CP-004)', (
+  testWidgets('D155: the real chat attaches photos only (no video)', (
     tester,
   ) async {
-    await pumpScreen(tester, const ChatScreen(username: 'nour'));
-    final button = tester.widget<IconButton>(
-      find.descendant(
-        of: find.byKey(ChatScreen.attachKey),
-        matching: find.byType(IconButton),
-      ),
+    await pumpScreen(
+      tester,
+      const ChatScreen(username: 'nour'),
+      dmRepository: FakeDmRepository(),
     );
-    expect(button.onPressed, isNull);
+    await tester.pumpAndSettle();
+    final attach = find.descendant(
+      of: find.byKey(ChatScreen.attachKey),
+      matching: find.byType(IconButton),
+    );
+    expect(tester.widget<IconButton>(attach).onPressed, isNotNull);
+    await tester.tap(attach);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(AttachmentButton.sourceKey(AttachmentSource.gallery)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(AttachmentButton.sourceKey(AttachmentSource.cameraVideo)),
+      findsNothing,
+    );
   });
 }

@@ -1,8 +1,8 @@
 import 'package:kabso_live/app/router/routes.dart';
 
 /// D152: a push as the app sees it — the FCM data the server sends
-/// (CONVENTIONS §11.12): `kind` `notification` (channel `general`) or
-/// `family_chat` (channel `messages`).
+/// (CONVENTIONS §11.12): `kind` `notification` (channel `general`),
+/// `family_chat` or (D155, §11.13) `dm` (channel `messages`).
 class PushPayload {
   const new(this.data);
 
@@ -12,18 +12,26 @@ class PushPayload {
   static const kindNotification = 'notification';
   static const kindFamilyChat = 'family_chat';
 
+  /// D155: a direct message (`conversationId`, `messageId`,
+  /// `senderUsername`).
+  static const kindDm = 'dm';
+
   String? get kind => data['kind'];
 
   /// The chat a `messages` push belongs to (the same id the open chat
   /// screen reports, [familyConversation]), or `null`.
   String? get conversation {
+    if (kind == kindDm) {
+      final id = data['conversationId'];
+      return id == null || id.isEmpty ? null : dmConversation(id);
+    }
     final family = data['familyId'];
     return kind == kindFamilyChat && family != null && family.isNotEmpty
         ? familyConversation(family)
         : null;
   }
 
-  bool get isMessage => kind == kindFamilyChat;
+  bool get isMessage => kind == kindFamilyChat || kind == kindDm;
 
   /// Where a tap goes: the family chat, or the notification's target as the
   /// inbox would open it (`NotificationRow.routeTo`), else the inbox. `null`
@@ -35,6 +43,11 @@ class PushPayload {
         return family == null || family.isEmpty
             ? null
             : AppRoutes.familyChat(family);
+      case kindDm:
+        final sender = data['senderUsername'];
+        return sender == null || sender.isEmpty
+            ? AppRoutes.messages
+            : AppRoutes.chat(sender);
       case kindNotification:
         return _notificationRoute() ?? AppRoutes.notifications;
       default:
@@ -72,3 +85,7 @@ class PushPayload {
 
 /// The conversation id of a family's chat (the server's Android tag).
 String familyConversation(String familyId) => 'family:$familyId';
+
+/// D155: the conversation id of a direct conversation (the server's
+/// Android tag).
+String dmConversation(String conversationId) => 'dm:$conversationId';

@@ -9,6 +9,7 @@ import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:kabso_live/features/messages/widgets/chat_gift_sheet.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_dm_repository.dart';
 import '../../helpers/pump_app.dart';
 
 void _phone(WidgetTester tester) {
@@ -114,14 +115,19 @@ void main() {
     });
   }
 
-  testWidgets('the real chat shows the gift button disabled', (tester) async {
-    await pumpScreen(tester, const ChatScreen(username: 'nour'));
-    final tip = l10nFor(AppLanguage.en).giftSendComingSoon;
+  testWidgets('D155: the real chat has a working gift button', (tester) async {
+    await pumpScreen(
+      tester,
+      const ChatScreen(username: 'nour'),
+      dmRepository: FakeDmRepository(),
+    );
+    await tester.pumpAndSettle();
+    final tip = l10nFor(AppLanguage.en).chatGiftButton;
     final gift = find.byWidgetPredicate(
       (w) => w is IconButton && w.tooltip == tip,
     );
     expect(gift, findsOneWidget);
-    expect(tester.widget<IconButton>(gift).onPressed, isNull);
+    expect(tester.widget<IconButton>(gift).onPressed, isNotNull);
     // D75: next to "+", outside the text field.
     expect(
       find.descendant(of: find.byType(TextField), matching: gift),

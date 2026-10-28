@@ -6893,11 +6893,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pushOpenSettings => 'فتح الإعدادات';
 
   @override
-  String get notifSettingMessages => 'رسائل العائلة';
+  String get notifSettingMessages => 'الرسائل';
 
   @override
   String get notifSettingMessagesBody =>
-      'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك';
+      'إشعار على الهاتف عند وصول رسائل جديدة في محادثة عائلتك ورسائلك الخاصة';
 
   @override
   String get liveMaxXGuaranteed => 'ضمان';
@@ -6911,6 +6911,197 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name ربح ×$multiplier في غرفة $room';
   }
+
+  @override
+  String get dmTabChats => 'الدردشات';
+
+  @override
+  String get dmTabRequests => 'طلبات المراسلة';
+
+  @override
+  String dmTabRequestsCount(String count) {
+    return 'طلبات المراسلة ($count)';
+  }
+
+  @override
+  String get dmRequestsEmptyTitle => 'لا توجد طلبات مراسلة';
+
+  @override
+  String get dmRequestsHint =>
+      'رسائل الأشخاص الذين لا تتابعهم تنتظر هنا. لن يعرفوا أنك رأيتها حتى تقبل.';
+
+  @override
+  String get dmRetentionNotice =>
+      'الرسائل تُحذف تلقائياً بعد 24 ساعة من إرسالها.';
+
+  @override
+  String get dmNoRecentMessages => 'لا توجد رسائل خلال آخر 24 ساعة.';
+
+  @override
+  String get dmLastPhoto => '📷 صورة';
+
+  @override
+  String get dmPreviewVoice => '🎤 رسالة صوتية';
+
+  @override
+  String get dmPreviewSticker => 'ملصق';
+
+  @override
+  String dmPreviewGift(String count) {
+    return '🎁 هدية ×$count';
+  }
+
+  @override
+  String get dmPreviewExpired => 'انتهت صلاحية الرسائل';
+
+  @override
+  String dmPreviewYou(String text) {
+    return 'أنت: $text';
+  }
+
+  @override
+  String get dmPreviewUnsupported => 'رسالة لا يعرضها هذا الإصدار';
+
+  @override
+  String dmRequestBanner(String name) {
+    return '$name يريد مراسلتك. اقبل لنقل المحادثة إلى رسائلك.';
+  }
+
+  @override
+  String get dmAccept => 'قبول';
+
+  @override
+  String get dmDecline => 'حذف';
+
+  @override
+  String dmRequestLeft(String name, String count) {
+    return 'حتى يرد $name يمكنك إرسال $count رسائل أخرى';
+  }
+
+  @override
+  String dmRequestLimit(String name) {
+    return 'انتظر رد $name قبل إرسال المزيد.';
+  }
+
+  @override
+  String dmNotAllowed(String name) {
+    return '$name لا يستقبل رسائل منك.';
+  }
+
+  @override
+  String get dmUnavailable => 'هذه المحادثة غير متاحة.';
+
+  @override
+  String get dmMenu => 'خيارات المحادثة';
+
+  @override
+  String get dmMute => 'كتم';
+
+  @override
+  String get dmUnmute => 'إلغاء الكتم';
+
+  @override
+  String get dmMuted => 'تم كتم المحادثة';
+
+  @override
+  String get dmUnmuted => 'تم إلغاء كتم المحادثة';
+
+  @override
+  String get dmDeleteConversation => 'حذف المحادثة';
+
+  @override
+  String get dmDeleteConversationTitle => 'حذف هذه المحادثة؟';
+
+  @override
+  String get dmDeleteConversationBody =>
+      'تُحذف من عندك فقط. ستعود إذا وصلت رسالة جديدة.';
+
+  @override
+  String get dmReportPerson => 'إبلاغ';
+
+  @override
+  String get dmDeleteForMe => 'حذف لدي';
+
+  @override
+  String get dmDeleteForEveryone => 'حذف لدى الجميع';
+
+  @override
+  String get dmReportMessage => 'الإبلاغ عن الرسالة';
+
+  @override
+  String get dmReported => 'شكراً. سنراجع البلاغ.';
+
+  @override
+  String get dmVideoNotSupported =>
+      'لا يمكن إرسال الفيديو في الرسائل. أرسل صورة بدلاً منه.';
+
+  @override
+  String get dmPhotoUnsupported =>
+      'لا يمكن إرسال هذا النوع من الصور. اختر صورة JPEG أو PNG أو WebP.';
+
+  @override
+  String get dmSending => 'جارٍ الإرسال…';
+
+  @override
+  String get dmGiftRequestTitle => 'إرسال هدية كطلب مراسلة؟';
+
+  @override
+  String dmGiftRequestBody(String name) {
+    return 'لم يقبل $name رسائلك بعد. تُدفع الهدية الآن وتُحسب من رسائل طلبك حتى لو لم يقبل.';
+  }
+
+  @override
+  String get dmGiftContinue => 'متابعة';
+
+  @override
+  String dmGiftMine(String count) {
+    return 'هديتك ×$count';
+  }
+
+  @override
+  String dmGiftTheirs(String name, String count) {
+    return 'هدية من $name ×$count';
+  }
+
+  @override
+  String dmLuckyWon(String coins, String multiplier) {
+    return 'ربح $coins كوينز (×$multiplier)';
+  }
+
+  @override
+  String get dmLuckyNoWin => 'لا ربح هذه المرة';
+
+  @override
+  String dmVoiceNote(String length) {
+    return 'رسالة صوتية، $length';
+  }
+
+  @override
+  String get dmPhoto => 'صورة';
+
+  @override
+  String get dmStartConversation => 'أرسل رسالة لبدء المحادثة.';
+
+  @override
+  String get privacyMessageTitle => 'من يستطيع مراسلتك';
+
+  @override
+  String get privacyMessageHint =>
+      'من لا تتابعهم يرسلون طلبات مراسلة. الرسائل تُحذف بعد 24 ساعة من إرسالها.';
+
+  @override
+  String get errorDmNotAllowed => 'هذا الشخص لا يستقبل رسائل منك.';
+
+  @override
+  String get errorDmRequestLimit => 'انتظر الرد قبل إرسال المزيد من الرسائل.';
+
+  @override
+  String get errorDmRequestTextOnly =>
+      'يمكن إرسال النصوص والملصقات والهدايا فقط حتى يُقبل طلبك.';
+
+  @override
+  String get errorDmDeleteWindowPassed =>
+      'لم يعد بالإمكان حذف هذه الرسالة لدى الجميع.';
 
   @override
   String get liveGiftTabQuips => 'إفيهات';

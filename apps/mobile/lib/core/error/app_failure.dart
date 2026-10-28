@@ -164,6 +164,20 @@ enum ErrorCode {
   /// time; give it back before changing the regular username).
   premiumUsernameActive('PREMIUM_USERNAME_ACTIVE'),
 
+  /// v1.40-social (D155, §11.13, 403): the person's «who can message you»
+  /// does not allow the caller.
+  dmNotAllowed('DM_NOT_ALLOWED'),
+
+  /// v1.40-social (D155, §11.13, 403): the request's messages are used up
+  /// until the person replies or accepts.
+  dmRequestLimit('DM_REQUEST_LIMIT'),
+
+  /// v1.40-social (D155, §11.13, 403): a picture or voice note in a request.
+  dmRequestTextOnly('DM_REQUEST_TEXT_ONLY'),
+
+  /// v1.40-social (D155, §11.13, 409): deleting for everyone after an hour.
+  dmDeleteWindowPassed('DM_DELETE_WINDOW_PASSED'),
+
   /// v1.32-live (D154, §10.33, 409): the caller's one free quip of this
   /// live was sent; paid quips are still available.
   quipFreeUsed('QUIP_FREE_USED'),

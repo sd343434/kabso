@@ -69,6 +69,11 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.premiumUsernameUnavailable: 409,
   ErrorCode.premiumUsernamePriceChanged: 409,
   ErrorCode.premiumUsernameActive: 409,
+  // v1.40-social (D155)
+  ErrorCode.dmNotAllowed: 403,
+  ErrorCode.dmRequestLimit: 403,
+  ErrorCode.dmRequestTextOnly: 403,
+  ErrorCode.dmDeleteWindowPassed: 409,
   ErrorCode.quipFreeUsed: 409,
   ErrorCode.quipQueueFull: 409,
   ErrorCode.boostQueueFull: 409,
@@ -168,6 +173,11 @@ void main() {
           'PREMIUM_USERNAME_UNAVAILABLE',
           'PREMIUM_USERNAME_PRICE_CHANGED',
           'PREMIUM_USERNAME_ACTIVE',
+          // v1.40-social (D155)
+          'DM_NOT_ALLOWED',
+          'DM_REQUEST_LIMIT',
+          'DM_REQUEST_TEXT_ONLY',
+          'DM_DELETE_WINDOW_PASSED',
           'QUIP_FREE_USED',
           'QUIP_QUEUE_FULL',
           'BOOST_QUEUE_FULL',

@@ -1172,6 +1172,62 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   restricted to that API and, if possible, to the server's IP). Unset: search answers 503
   `YOUTUBE_SEARCH_UNAVAILABLE` and the app says «البحث غير مفعّل بعد» and takes links. The free quota
   is 10,000 units a day; a search costs 100 (≈ 100 searches a day; the API caches each query 10 min).
+### 5.24 Direct messages (migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages`; D155) — [IMPLEMENTED, draft contract v1.40-social; not device-tested]
+
+Real 1:1 messages behind the Messages tab (CONVENTIONS §11.13): conversations, message requests,
+`whoCanMessage`, receipts, unread counts, pictures, voice notes, pack emojis, gifts in a
+conversation, block / report / mute / delete, pushes on `kabso_messages`. **Every message is
+hard-deleted 24 hours after it was sent** (owner).
+
+- **Migrations** with the usual `migrate` job (§5), after D154's (§5.17–§5.23: they are older and
+  apply first), in this order (the first adds enum values the second uses): `20261210090000_direct_messages_enums` (`wallet_ledger_reason` `DM_GIFT`,
+  `report_target_type` `DM_MESSAGE`) and `20261210100000_direct_messages` (enums
+  `who_can_message`, `dm_participant_status`, `dm_message_kind`; tables `dm_conversations`,
+  `dm_participants`, `dm_messages`, `dm_message_hides`; columns
+  `privacy_settings.who_can_message` (default `EVERYONE`), `live_gifts.dm_conversation_id`,
+  `reports.target_dm_message_id`, `reports.dm_snapshot`; the `reports_one_target`,
+  `media_assets_kind_known`, `media_assets_duration_shape` and `wallet_ledger_reason_sign` CHECKs
+  extended — the ledger CHECK keeps D154b's `LIVE_BOOST` / `LIVE_BOOST_REFUND`, §5.18). No GRANT
+  (default privileges), no backfill.
+- **Settings** (all optional; defaults shown):
+
+  | Variable | Default | Meaning |
+  | --- | --- | --- |
+  | `DM_RETENTION_HOURS` | `24` | A message is deleted this many hours after it was sent (owner: 24). 1–720 |
+  | `DM_SWEEP_INTERVAL_SECONDS` | `60` | The retention sweeper (expired messages, their picture / voice objects, report snapshots resolved > 30 days ago). **0 is refused in production** |
+  | `DM_REQUEST_MAX_MESSAGES` | `3` | Messages a stranger may send before the recipient accepts or replies |
+  | `DM_DELETE_FOR_EVERYONE_SECONDS` | `3600` | "Delete for everyone" window of one's own message |
+  | `GIFT_DM_RECIPIENT_SHARE_PERCENT` | `50` | Share of a (non-lucky) gift's value counted for the recipient's charm in a conversation (owner: 50 %). **Lucky gifts keep `LUCKY_GIFT_HOST_SHARE_PERCENT` (10 %)** — RTP 85 % + 50 % would exceed 100 % |
+  | `RATE_LIMIT_DM_SEND_USER` | `30/60` | `POST /dm/messages` per user |
+  | `RATE_LIMIT_DM_REQUEST_USER` | `20/3600` | Message-request messages (to strangers) per user |
+  | `RATE_LIMIT_DM_WRITE_USER` | `300/3600` | read / accept / delete / mute per user |
+
+  `POST /dm/gifts` uses the live gift limits (`RATE_LIMIT_LIVE_LUCKY_GIFT_USER`,
+  `RATE_LIMIT_LIVE_GIFT_USER`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER`). Pushes reuse
+  `PUSH_MESSAGES_GAP_SECONDS` (per recipient and conversation) and need the D152 key (§5.16).
+- **Media:** pictures (`DM_IMAGE`) and voice notes (`DM_VOICE`) go through the existing upload
+  pipeline, so they need `MEDIA_UPLOADS_ENABLED=true` and storage (§5.3); without it the app says
+  uploads are unavailable and text, emojis and gifts still work. Files of expired messages are
+  deleted with them. A reported message's file is copied to `reports/dm/<reportId>.<ext>` in the
+  same bucket (served like other media by an unguessable key) and deleted 30 days after the
+  report is resolved.
+- **Blocked words:** the server list of the `search-admin` CLI (`block-word add|remove|list`,
+  §5.15) is also masked in direct messages (and the recipient's own live blocked words).
+- **Gifts:** sends are rows of `live_gifts` with `room_id` NULL and `dm_conversation_id` set; ledger
+  `DM_GIFT` (lucky: `LUCKY_GIFT` / `LUCKY_GIFT_WIN`). They are permanent; the gift *message*
+  expires like any message. Lucky gifts follow `LUCKY_GIFTS_ENABLED` and its gates (§5.11). In a
+  conversation `GIFT_DM_RECIPIENT_SHARE_PERCENT` replaces the category's live share of
+  `GIFT_HOST_SHARE_PERCENTS` (§5.17) for every non-lucky gift, quips included, and is stored as the
+  send's `live_gifts.host_share_bps` (lucky: the lucky share). Paid quips can be sent in a
+  conversation (no room queue there); **free quips cannot** (`GIFT_UNAVAILABLE`: the one free quip
+  belongs to a live).
+- **Several instances:** the sweeper deletes by id with bounded batches and is safe to run on
+  more than one instance (a row deleted twice is a no-op).
+- **Rollback:** the API before D155 ignores the new tables and columns (the app's Messages tab then
+  shows errors — roll the app back too). Drop the four `dm_*` tables, the three enums and the new
+  columns to remove the data; `live_gifts` rows with `dm_conversation_id` keep their ledger rows.
+- **Not verified here:** on a device (sending pictures/voice from the phone, pushes, the badge in
+  the background), against real R2 storage, and with the production key. See the D155 row.
 
 ## 6. Observability baseline
 

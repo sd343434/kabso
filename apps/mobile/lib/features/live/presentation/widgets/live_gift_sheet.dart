@@ -38,19 +38,47 @@ class LiveGiftRoom {
     required this.host,
     required this.seated,
     this.onSeatsStale,
+    this.direct,
     this.soundboard,
   });
+
+  /// D155: the panel inside a direct conversation — [host] is the person,
+  /// nobody else can receive, and [direct] sends (`POST /dm/gifts`) instead
+  /// of the room: no effect plays here, the gift shows in the conversation.
+  const new conversation({required UserSummary peer, required DmGiftSend send})
+    : roomId = '',
+      host = peer,
+      seated = _nobody,
+      onSeatsStale = null,
+      direct = send,
+      // D154 × D155: no soundboard in a conversation (no room to hear it).
+      soundboard = null;
+
+  static List<UserSummary> _nobody(WidgetRef _) => const [];
 
   final String roomId;
   final UserSummary host;
   final List<UserSummary> Function(WidgetRef ref) seated;
   final VoidCallback? onSeatsStale;
 
+  /// D155: sends in a direct conversation (null: in the live [roomId]).
+  final DmGiftSend? direct;
+
   /// D154: whether the caller is the host or a moderator of this live now
   /// (read with the panel's `ref`): their free quips play from the
   /// soundboard (free, one every 2 s) instead of their one free quip.
   final bool Function(WidgetRef ref)? soundboard;
 }
+
+/// D155: a gift sent in a direct conversation; the balance, the bag and a
+/// lucky gift's draws after it.
+typedef DmGiftSend =
+    Future<({int coins, int bagQuantity, LuckyGiftResult? lucky})> Function({
+      required String giftCode,
+      required int quantity,
+      required LiveGiftSource source,
+      required String clientId,
+    });
 
 /// The live gift panel (CP-020, §10.23). D117: the owner's reference
 /// layout with its measured sizes (at 430 × 932; third-party, outside git)
@@ -261,6 +289,22 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
 
   LiveGiftRoom get room => widget.room;
 
+  /// D154 × D155: whether the panel offers [gift] here. In a direct
+  /// conversation the whole box is offered except the free quips (one free
+  /// quip per viewer per live: they belong to a live; the server refuses
+  /// them in a conversation with `GIFT_UNAVAILABLE`). Paid quips are sent
+  /// like any gift there.
+  bool _offered(Gift gift) =>
+      room.direct == null ||
+      gift.category != GiftCategory.quips ||
+      gift.priceCoins > 0;
+
+  /// The gifts of [category] this panel offers ([_offered]).
+  List<Gift> _offeredOf(GiftCatalogue catalogue, GiftCategory category) => [
+    for (final g in catalogue.of(category))
+      if (_offered(g)) g,
+  ];
+
   /// The catalogue version whose small animations were prefetched (D126).
   String? _prefetched;
 
@@ -410,6 +454,10 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ? _pending!.clientId
         : newClientId();
     _pending = (intent: key, clientId: clientId);
+    final direct = room.direct;
+    if (direct != null) {
+      return await _sendDirect(direct, intent, clientId, asked);
+    }
     try {
       if (intent.soundboard) {
         final quip = await ref
@@ -531,6 +579,64 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     }
   }
 
+  /// D155: a send in a direct conversation. The gift shows in the
+  /// conversation (the panel closes); a lucky gift's draws are in the
+  /// balance and on the gift's message.
+  Future<bool> _sendDirect(
+    DmGiftSend direct,
+    _Intent intent,
+    String clientId,
+    bool askedAge,
+  ) async {
+    final l10n = context.l10n;
+    try {
+      final result = await direct(
+        giftCode: intent.code,
+        quantity: intent.quantity,
+        source: intent.source,
+        clientId: clientId,
+      );
+      _pending = null;
+      if (ref.exists(liveCoinsProvider)) {
+        ref.read(liveCoinsProvider.notifier).set(result.coins);
+      }
+      if (intent.source == LiveGiftSource.bag) {
+        ref
+            .read(giftBagProvider.notifier)
+            .setQuantity(intent.code, result.bagQuantity);
+      }
+      ref.read(recentGiftsProvider.notifier).add(intent.code);
+      if (mounted) await Navigator.of(context).maybePop();
+      return true;
+    } on Object catch (e) {
+      final failure = toAppFailure(e);
+      if (failure is ServerFailure) _pending = null;
+      if (!mounted) return false;
+      final code = failure.code;
+      if (code == ErrorCode.luckyGiftAgeUnconfirmed && !askedAge) {
+        if (await _askAge()) return await _sendOnce(intent, askedAge: true);
+        return false;
+      }
+      if (code == ErrorCode.luckyGiftRegionUnavailable) {
+        ref.invalidate(luckyOddsProvider);
+      }
+      if (code == ErrorCode.insufficientCoins) {
+        ref.invalidate(liveCoinsProvider);
+      } else if (code == ErrorCode.giftUnavailable) {
+        unawaited(ref.read(giftCatalogueProvider.notifier).reload());
+        ref.invalidate(giftBagProvider);
+      } else if (code == ErrorCode.giftBagInsufficient) {
+        ref.invalidate(giftBagProvider);
+      }
+      final message = code == ErrorCode.insufficientCoins
+          ? l10n.liveGiftNotEnoughCoins
+          : failureMessage(l10n, failure);
+      setState(() => _error = message);
+      _showToast(message);
+      return false;
+    }
+  }
+
   /// D154: a quip waits for its turn in the room's queue: says when it
   /// starts (nothing to say when it starts at once).
   void _quipQueued(LiveQuip quip) {
@@ -614,9 +720,11 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         if (c != GiftCategory.popular &&
             (c != GiftCategory.lucky ||
                 (catalogue?.of(GiftCategory.lucky).isNotEmpty ?? false)) &&
-            // D154: «إفيهات» only when the catalogue has quips.
+            // D154: «إفيهات» only when the catalogue has quips (D155: in a
+            // conversation, paid ones).
             (c != GiftCategory.quips ||
-                (catalogue?.of(GiftCategory.quips).isNotEmpty ?? false)))
+                (catalogue != null &&
+                    _offeredOf(catalogue, GiftCategory.quips).isNotEmpty)))
           c.wire,
       KLiveGiftSheet.bagTab,
     ];
@@ -646,7 +754,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     if (!_wishApplied && catalogue != null) {
       _wishApplied = true;
       if (widget.preselectGift case final code?) {
-        if (catalogue.byCode(code) case final gift?) {
+        if (catalogue.byCode(code) case final gift? when _offered(gift)) {
           _tab = gift.category.wire;
           _selected = gift.code;
           if (gift.animationUrl case final url?) {
@@ -663,7 +771,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         ? tabs.first
         : tabs.firstWhere(
             (id) => switch (GiftCategory.fromWire(id)) {
-              final c? => catalogue.of(c).isNotEmpty,
+              final c? => _offeredOf(catalogue, c).isNotEmpty,
               null => false,
             },
             orElse: () => tabs.first,
@@ -693,12 +801,13 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
       // Gifts no longer in the catalogue drop out.
       tabCells = [
         for (final code in recent)
-          if (catalogue?.byCode(code) case final g?) _Cell(g),
+          if (catalogue?.byCode(code) case final g? when _offered(g)) _Cell(g),
       ];
     } else {
       tabCells = [
         if (catalogue != null)
-          for (final g in catalogue.of(GiftCategory.fromWire(tab)!)) _Cell(g),
+          for (final g in _offeredOf(catalogue, GiftCategory.fromWire(tab)!))
+            _Cell(g),
       ];
     }
     final tags = isRecent
@@ -980,7 +1089,10 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             _sort = _PriceSort.values[(_sort.index + 1) % 3];
           }),
           onOdds: isLuckyTab ? () => unawaited(showLuckyOdds(context)) : null,
-          quipsMuted: isQuipsTab ? ref.watch(quipsMutedProvider) : null,
+          // The local mute of the room's quips (none in a conversation).
+          quipsMuted: isQuipsTab && room.direct == null
+              ? ref.watch(quipsMutedProvider)
+              : null,
           onQuipsMute: () => ref.read(quipsMutedProvider.notifier).toggle(),
         ),
         Expanded(

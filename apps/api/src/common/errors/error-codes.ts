@@ -79,6 +79,11 @@ export enum ErrorCode {
   PREMIUM_USERNAME_UNAVAILABLE = 'PREMIUM_USERNAME_UNAVAILABLE',
   PREMIUM_USERNAME_PRICE_CHANGED = 'PREMIUM_USERNAME_PRICE_CHANGED',
   PREMIUM_USERNAME_ACTIVE = 'PREMIUM_USERNAME_ACTIVE',
+  // v1.40-social (DRAFT, D155): direct messages (CONVENTIONS §11.13).
+  DM_NOT_ALLOWED = 'DM_NOT_ALLOWED',
+  DM_REQUEST_LIMIT = 'DM_REQUEST_LIMIT',
+  DM_REQUEST_TEXT_ONLY = 'DM_REQUEST_TEXT_ONLY',
+  DM_DELETE_WINDOW_PASSED = 'DM_DELETE_WINDOW_PASSED',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
   /** v1.21-live (DRAFT, CP-018): the caller already has a pending CP request. */
@@ -166,6 +171,10 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.PREMIUM_USERNAME_UNAVAILABLE]: 409,
   [ErrorCode.PREMIUM_USERNAME_PRICE_CHANGED]: 409,
   [ErrorCode.PREMIUM_USERNAME_ACTIVE]: 409,
+  [ErrorCode.DM_NOT_ALLOWED]: 403,
+  [ErrorCode.DM_REQUEST_LIMIT]: 403,
+  [ErrorCode.DM_REQUEST_TEXT_ONLY]: 403,
+  [ErrorCode.DM_DELETE_WINDOW_PASSED]: 409,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
@@ -235,6 +244,10 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.PREMIUM_USERNAME_UNAVAILABLE]: 'This username cannot be rented now.',
   [ErrorCode.PREMIUM_USERNAME_PRICE_CHANGED]: 'The price of this username changed.',
   [ErrorCode.PREMIUM_USERNAME_ACTIVE]: 'You already have a premium username.',
+  [ErrorCode.DM_NOT_ALLOWED]: 'This person does not accept messages from you.',
+  [ErrorCode.DM_REQUEST_LIMIT]: 'Wait for a reply before sending more messages.',
+  [ErrorCode.DM_REQUEST_TEXT_ONLY]: 'Only text, emojis and gifts can be sent until the request is accepted.',
+  [ErrorCode.DM_DELETE_WINDOW_PASSED]: 'This message can no longer be deleted for everyone.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',

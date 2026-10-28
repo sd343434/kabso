@@ -354,7 +354,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(router.state.uri.path, AppRoutes.privacy);
       RadioGroup<MentionPolicy> group() =>
-          tester.widget(find.byType(RadioGroup<MentionPolicy>));
+          tester.widget(find.byType(RadioGroup<MentionPolicy>).first);
       expect(group().groupValue, MentionPolicy.everyone);
       await tester.tap(
         find.byKey(PrivacyScreen.mentionKey(MentionPolicy.following)),
@@ -381,6 +381,10 @@ void main() {
       // v1.25-live (CP-022): the activity status switch.
       final activity = find.byKey(PrivacyScreen.activityKey);
       await tester.scrollUntilVisible(activity, 100);
+      // D155: the list is longer (who can message you); the switch must not
+      // sit under the last change's snack bar.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
       expect(tester.widget<SwitchListTile>(activity).value, isTrue);
       await tester.tap(activity);
       await tester.pumpAndSettle();

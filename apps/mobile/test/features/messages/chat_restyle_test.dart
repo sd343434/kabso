@@ -8,9 +8,12 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/debug/conversations_preview_screen.dart';
 import 'package:kabso_live/features/debug/messages_preview_screen.dart';
+import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/messages/chat_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../helpers/fake_dm_repository.dart';
+import '../../helpers/fake_live_voice_recorder.dart';
 import '../../helpers/pump_app.dart';
 
 void _phone(WidgetTester tester) {
@@ -55,10 +58,19 @@ void main() {
       expect(_button(tester, MessagesPreviewScreen.sendKey).onPressed, isNull);
     });
 
-    testWidgets('the real chat shows the same composer, all disabled', (
-      tester,
-    ) async {
-      await pumpScreen(tester, const ChatScreen(username: 'nour'));
+    testWidgets('D155: the real chat shows the same composer, working: '
+        'the microphone records a voice note', (tester) async {
+      await pumpScreen(
+        tester,
+        const ChatScreen(username: 'nour'),
+        dmRepository: FakeDmRepository(),
+        overrides: [
+          liveVoiceRecorderProvider.overrideWithValue(
+            FakeLiveVoiceRecorder.new,
+          ),
+        ],
+      );
+      await tester.pumpAndSettle();
       for (final key in [
         ChatScreen.sendKey,
         ChatScreen.emojiKey,
@@ -71,13 +83,17 @@ void main() {
         );
         expect(
           tester.widget<IconButton>(button.first).onPressed,
-          isNull,
+          isNotNull,
           reason: '$key',
         );
       }
       expect(
         tester.widget<TextField>(find.byKey(ChatScreen.composerKey)).enabled,
-        isFalse,
+        isTrue,
+      );
+      expect(
+        _button(tester, ChatScreen.sendKey).tooltip,
+        l10nFor(AppLanguage.en).liveVoiceRecord,
       );
     });
 

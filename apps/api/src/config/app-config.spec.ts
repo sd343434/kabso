@@ -642,6 +642,30 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
     }
   });
 
+  it('D155: direct messages live 24 h; the sweeper runs by default and cannot be off in production', () => {
+    expect(loadConfig(base).dm).toEqual({
+      retentionHours: 24,
+      sweepIntervalSeconds: 60,
+      requestMaxMessages: 3,
+      deleteForEveryoneSeconds: 3600,
+      giftRecipientSharePercent: 50,
+    });
+    expect(loadConfig(base).rateLimits.dmSendUser).toEqual({ max: 30, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.dmRequestUser).toEqual({ max: 20, windowSeconds: 3600 });
+    expect(loadConfig(base).rateLimits.dmWriteUser).toEqual({ max: 300, windowSeconds: 3600 });
+    expect(loadConfig({ ...base, DM_SWEEP_INTERVAL_SECONDS: '0' }).dm.sweepIntervalSeconds).toBe(0);
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production', DM_SWEEP_INTERVAL_SECONDS: '0' })).toThrow(
+      /DM_SWEEP_INTERVAL_SECONDS/,
+    );
+    for (const [key, bad] of [
+      ['DM_RETENTION_HOURS', '0'],
+      ['GIFT_DM_RECIPIENT_SHARE_PERCENT', '101'],
+      ['DM_REQUEST_MAX_MESSAGES', '0'],
+    ] as const) {
+      expect(() => loadConfig({ ...base, [key]: bad }), key).toThrow(new RegExp(key));
+    }
+  });
+
   it('runs the CP-018 family and CP request sweeper by default and refuses disabling it in production', () => {
     expect(loadConfig(base).social.bondsSweepIntervalSeconds).toBe(300);
     expect(loadConfig({ ...base, BONDS_SWEEP_INTERVAL_SECONDS: '0' }).social.bondsSweepIntervalSeconds).toBe(
