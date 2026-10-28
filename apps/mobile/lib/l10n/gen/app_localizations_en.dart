@@ -4117,9 +4117,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolSounds => 'Sounds';
 
   @override
-  String get liveToolFluent => 'Fluent';
-
-  @override
   String get liveToolProgramList => 'Program list';
 
   @override
@@ -5920,9 +5917,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveToolDual => 'Dual';
 
   @override
-  String get liveToolHd => 'HD';
-
-  @override
   String get liveToolSticker => 'Sticker';
 
   @override
@@ -6869,5 +6863,520 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name won ×$multiplier in $room';
+  }
+
+  @override
+  String get liveGiftTabQuips => 'Quips';
+
+  @override
+  String get liveQuipFree => 'Free';
+
+  @override
+  String get liveQuipSoundboardFree => '∞ Free';
+
+  @override
+  String get liveQuipFreeOnce => 'One free quip for you in each live.';
+
+  @override
+  String get liveQuipSoundboardHint =>
+      'Free for you and your moderators — one sound every 2 seconds, heard by everyone.';
+
+  @override
+  String get liveQuipSoundEffectsOff =>
+      'Sound effects are off in Settings: you won\'t hear them, but the room will.';
+
+  @override
+  String get liveQuipSoundboardTitle => 'Sound effects';
+
+  @override
+  String get liveQuipSoundboardEmpty => 'No free sounds yet.';
+
+  @override
+  String get liveQuipMute => 'Mute quips';
+
+  @override
+  String get liveQuipUnmute => 'Unmute quips';
+
+  @override
+  String liveQuipQueued(int seconds) {
+    return 'Queued — starts in $seconds s';
+  }
+
+  @override
+  String liveQuipBubbleSemantics(String name, String words) {
+    return '$name: $words';
+  }
+
+  @override
+  String get errorQuipFreeUsed => 'You\'ve used your free quip in this live.';
+
+  @override
+  String get errorQuipQueueFull =>
+      'Too many quips are waiting. Try again in a moment.';
+
+  @override
+  String get liveBoostTitle => 'Traffic card';
+
+  @override
+  String liveBoostHint(int slots) {
+    return 'Your live shows at the top of the live list, marked «Featured». Only $slots places; when they\'re full it waits its turn.';
+  }
+
+  @override
+  String liveBoostGiftHint(String name) {
+    return 'A gift for $name: their live shows at the top of the list, marked «Featured». The host earns no coins from it.';
+  }
+
+  @override
+  String liveBoostMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String liveBoostPrice(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String liveBoostSave(int percent) {
+    return 'Save $percent%';
+  }
+
+  @override
+  String liveBoostHeld(int count) {
+    return 'You have $count';
+  }
+
+  @override
+  String get liveBoostStartsNow => 'Starts right away.';
+
+  @override
+  String liveBoostStartsIn(int minutes) {
+    return 'All places taken: starts within $minutes min at the latest.';
+  }
+
+  @override
+  String liveBoostUseCard(int count) {
+    return 'Use a card (you have $count)';
+  }
+
+  @override
+  String get liveBoostUseCardAction => 'Use the card';
+
+  @override
+  String liveBoostBuy(String coins) {
+    return 'Buy for $coins coins';
+  }
+
+  @override
+  String get liveBoostConfirmTitle => 'Traffic card';
+
+  @override
+  String liveBoostConfirmCoins(int minutes, String coins) {
+    return '$minutes minutes in the featured places for $coins coins?';
+  }
+
+  @override
+  String liveBoostConfirmCard(int minutes) {
+    return 'Use a $minutes-minute card?';
+  }
+
+  @override
+  String get liveBoostConfirmAction => 'Confirm';
+
+  @override
+  String get liveBoostDoneNow =>
+      'The live is featured at the top of the list now.';
+
+  @override
+  String liveBoostDoneWaiting(int minutes) {
+    return 'Queued: starts within $minutes min at the latest.';
+  }
+
+  @override
+  String liveBoostRunning(int minutes) {
+    return 'Featured now — ends in $minutes min.';
+  }
+
+  @override
+  String liveBoostWaiting(int minutes) {
+    return 'A card is queued — starts within $minutes min at the latest.';
+  }
+
+  @override
+  String get liveBoostLoadError => 'Couldn\'t load the traffic card';
+
+  @override
+  String get liveBoostFeatured => 'Featured';
+
+  @override
+  String get liveBoostGiftAction => 'Traffic card';
+
+  @override
+  String get errorBoostQueueFull =>
+      'The featured places are booked far ahead; try a shorter card or later.';
+
+  @override
+  String get errorBoostCardInsufficient => 'You have no card of that length.';
+
+  @override
+  String get errorBoostRoomBusy =>
+      'This live already has a traffic card running or queued.';
+
+  @override
+  String get liveNewcomerBadge => 'New 🌱';
+
+  @override
+  String liveNewcomersHint(int days) {
+    return 'Accounts less than $days days old, in this live now.';
+  }
+
+  @override
+  String get liveNewcomersEmpty => 'No newcomers in this live right now.';
+
+  @override
+  String get liveNewcomersLoadError => 'Couldn\'t load the newcomers';
+
+  @override
+  String get liveNewcomerWelcome => 'Welcome';
+
+  @override
+  String get liveNewcomerWelcomed => 'Welcomed ✓';
+
+  @override
+  String liveNewcomerWelcomeText(String username) {
+    return 'Welcome @$username 🌱 glad you\'re here';
+  }
+
+  @override
+  String get liveStatsGiftCoins => 'Gifts\' value';
+
+  @override
+  String get liveStatsEarnings => 'Your earnings (display only)';
+
+  @override
+  String liveDataDuration(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String get liveDataLoadError => 'Couldn\'t load the data center';
+
+  @override
+  String get liveDataLives => 'Lives';
+
+  @override
+  String get liveDataLiveTime => 'Live time';
+
+  @override
+  String get liveDataNewFollowers => 'New followers';
+
+  @override
+  String get liveDataViewers => 'Viewers';
+
+  @override
+  String get liveDataChartTitle => 'Live time over time';
+
+  @override
+  String get liveDataEmpty => 'No ended lives in this period.';
+
+  @override
+  String get liveDataBestHours => 'Best hours';
+
+  @override
+  String liveDataBestHourSemantics(String day, int hour) {
+    return 'Best time: $day at $hour:00';
+  }
+
+  @override
+  String get liveDataPeriodDay => 'Day';
+
+  @override
+  String get liveDataPeriodWeek => 'Week';
+
+  @override
+  String get liveDataPeriodMonth => 'Month';
+
+  @override
+  String get liveDataPeriodYear => 'Year';
+
+  @override
+  String get liveDataHint =>
+      'Your ended lives only; the live on now counts once it ends.';
+
+  @override
+  String get liveDataMon => 'Mon';
+
+  @override
+  String get liveDataTue => 'Tue';
+
+  @override
+  String get liveDataWed => 'Wed';
+
+  @override
+  String get liveDataThu => 'Thu';
+
+  @override
+  String get liveDataFri => 'Fri';
+
+  @override
+  String get liveDataSat => 'Sat';
+
+  @override
+  String get liveDataSun => 'Sun';
+
+  @override
+  String get liveProgramTitle => 'Program';
+
+  @override
+  String get liveProgramNow => 'Now';
+
+  @override
+  String liveProgramNext(String time) {
+    return 'Next at $time';
+  }
+
+  @override
+  String get liveProgramStarted => 'Starting now';
+
+  @override
+  String get liveProgramOpenHint => 'show the program';
+
+  @override
+  String get liveProgramEmpty => 'No segments yet';
+
+  @override
+  String get liveProgramEditorHint =>
+      'Up to 10 segments. Everyone in the room sees them, and each one is announced when it starts.';
+
+  @override
+  String get liveProgramTitleHint => 'Segment title';
+
+  @override
+  String liveProgramTimeLabel(String time) {
+    return 'Starts at $time, change it';
+  }
+
+  @override
+  String get liveProgramAdd => 'Add a segment';
+
+  @override
+  String get liveProgramRemove => 'Remove the segment';
+
+  @override
+  String get liveProgramSave => 'Save the program';
+
+  @override
+  String get liveProgramOrderError =>
+      'Put the segments in order of their start times';
+
+  @override
+  String liveAssistantWelcomeOne(String name) {
+    return 'Welcome $name, who just joined';
+  }
+
+  @override
+  String liveAssistantWelcomeMany(String name, int count) {
+    return 'Welcome $name and $count more who just joined';
+  }
+
+  @override
+  String liveAssistantThank(String name, String coins) {
+    return 'Thank $name for a gift worth $coins coins';
+  }
+
+  @override
+  String liveAssistantSilence(int minutes) {
+    return 'You haven\'t spoken for $minutes minutes, say something to the room';
+  }
+
+  @override
+  String liveAssistantRising(int before, int now) {
+    return 'More people are here: $before to $now. Keep going';
+  }
+
+  @override
+  String liveAssistantFalling(int before, int now) {
+    return 'Fewer people now: $before to $now. Try something new or a question';
+  }
+
+  @override
+  String liveAssistantRest(int hours) {
+    return 'You\'ve been live for $hours hours, take a short break';
+  }
+
+  @override
+  String get liveAssistantQuestion =>
+      'The chat is quiet, ask the room a question';
+
+  @override
+  String get liveAssistantDismiss => 'hide';
+
+  @override
+  String get liveAssistantAbout =>
+      'Light hints only you see during your live, from the room\'s own events. Nothing is sent anywhere.';
+
+  @override
+  String get liveAssistantOn => 'Assistant on';
+
+  @override
+  String get liveAssistantKindWelcome => 'Welcome people who join';
+
+  @override
+  String get liveAssistantKindThank => 'Thank big gifts';
+
+  @override
+  String get liveAssistantKindSilence => 'Remind me when I\'m quiet';
+
+  @override
+  String get liveAssistantKindAudience => 'Audience up or down';
+
+  @override
+  String get liveAssistantKindRest => 'Breaks in long lives';
+
+  @override
+  String get liveAssistantKindQuestion =>
+      'Suggest a question when the chat is quiet';
+
+  @override
+  String get liveToolQuality => 'Quality';
+
+  @override
+  String get liveQualitySmooth => 'Smooth';
+
+  @override
+  String get liveQualitySmoothDetail => '480p, lighter on a weak connection';
+
+  @override
+  String get liveQualityNormal => 'Normal';
+
+  @override
+  String get liveQualityNormalDetail => '720p, the default';
+
+  @override
+  String get liveQualityConnExcellent => 'Connection excellent';
+
+  @override
+  String get liveQualityConnGood => 'Connection good';
+
+  @override
+  String get liveQualityConnPoor => 'Connection weak';
+
+  @override
+  String get liveQualityConnLost => 'Connection lost, retrying';
+
+  @override
+  String get liveQualityConnUnknown => 'Measuring the connection';
+
+  @override
+  String get liveQualityFailed =>
+      'Couldn\'t change the quality, it stays as it was';
+
+  @override
+  String get liveQualitySuggest => 'Your connection is weak, switch to Smooth?';
+
+  @override
+  String get liveQualitySuggestAction => 'Switch';
+
+  @override
+  String get liveQualitySmoothOn => 'Smooth is on';
+
+  @override
+  String get liveStickersHint =>
+      'Up to 3 stickers everyone sees. Drag a sticker on the live to move it; use two fingers to resize and rotate it.';
+
+  @override
+  String liveStickersOnLive(int count, int max) {
+    return 'On the live ($count of $max)';
+  }
+
+  @override
+  String get liveStickersNone => 'No stickers yet';
+
+  @override
+  String get liveStickersFull =>
+      '3 stickers at most, remove one to add another';
+
+  @override
+  String get liveStickersRemove => 'Remove the sticker';
+
+  @override
+  String get liveStickersTextHint => 'Write a text sticker';
+
+  @override
+  String get liveStickersAddText => 'Add';
+
+  @override
+  String get errorYoutubeVideoUnavailable =>
+      'This video can\'t be played here. It may be private or blocked outside YouTube.';
+
+  @override
+  String get errorYoutubeSearchUnavailable =>
+      'YouTube search isn\'t available yet. Paste the video\'s link.';
+
+  @override
+  String get liveWatchTitle => 'YouTube';
+
+  @override
+  String get liveWatchLinkHint => 'Paste a YouTube link';
+
+  @override
+  String get liveWatchPlay => 'Watch together';
+
+  @override
+  String get liveWatchSearchHint => 'Search YouTube';
+
+  @override
+  String get liveWatchSearchOff => 'Search isn\'t on yet, paste a link';
+
+  @override
+  String get liveWatchNowPlaying => 'Now showing';
+
+  @override
+  String get liveWatchStop => 'Stop showing';
+
+  @override
+  String liveWatchSuggestions(int count) {
+    return 'Viewers\' suggestions ($count)';
+  }
+
+  @override
+  String get liveWatchNoSuggestions => 'No suggestions now';
+
+  @override
+  String get liveWatchApprove => 'Show it';
+
+  @override
+  String get liveWatchReject => 'Dismiss';
+
+  @override
+  String liveWatchSuggestedBy(String name) {
+    return 'Suggested by $name';
+  }
+
+  @override
+  String get liveWatchSuggest => 'Suggest a video';
+
+  @override
+  String get liveWatchSuggestSend => 'Send the suggestion';
+
+  @override
+  String get liveWatchSuggestSent => 'Your suggestion reached the host';
+
+  @override
+  String get liveWatchBadLink => 'That isn\'t a YouTube video link';
+
+  @override
+  String get liveWatchHide => 'Hide the video';
+
+  @override
+  String get liveWatchShow => 'Show the video';
+
+  @override
+  String get liveWatchPlayerError => 'The video couldn\'t play on this phone';
+
+  @override
+  String liveWatchNewSuggestion(String title) {
+    return 'New suggestion: $title';
   }
 }

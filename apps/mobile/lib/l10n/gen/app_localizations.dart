@@ -7301,12 +7301,6 @@ abstract class AppLocalizations {
   /// Room tools sheet tile (owner ref 84)
   ///
   /// In ar, this message translates to:
-  /// **'السلاسة'**
-  String get liveToolFluent;
-
-  /// Room tools sheet tile (owner ref 84)
-  ///
-  /// In ar, this message translates to:
   /// **'قائمة البرامج'**
   String get liveToolProgramList;
 
@@ -10262,12 +10256,6 @@ abstract class AppLocalizations {
   /// **'كاميرتان'**
   String get liveToolDual;
 
-  /// Room tools: high-definition video (not available yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'جودة عالية'**
-  String get liveToolHd;
-
   /// Room tools: stickers on the video (not available yet).
   ///
   /// In ar, this message translates to:
@@ -11869,6 +11857,870 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{name} ربح ×{multiplier} في غرفة {room}'**
   String liveLuckyTicker(String name, String multiplier, String room);
+
+  /// D154: the gift panel tab of quips (sounds played to the room).
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيهات'**
+  String get liveGiftTabQuips;
+
+  /// D154: the price label of a free quip.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجاني'**
+  String get liveQuipFree;
+
+  /// D154: a free quip for the host or a moderator (their soundboard, no limit but one every 2 s).
+  ///
+  /// In ar, this message translates to:
+  /// **'∞ مجاني'**
+  String get liveQuipSoundboardFree;
+
+  /// D154: the gift panel line under a selected free quip.
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيه مجاني واحد لك في كل بث.'**
+  String get liveQuipFreeOnce;
+
+  /// D154: the soundboard's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجانية لك وللمشرفين — صوت كل ثانيتين، يسمعه الجميع.'**
+  String get liveQuipSoundboardHint;
+
+  /// D154: the soundboard when the app's Sound effects setting is off.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية مطفأة في الإعدادات: لن تسمعها أنت، لكن الغرفة تسمعها.'**
+  String get liveQuipSoundEffectsOff;
+
+  /// D154: the host's soundboard sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية'**
+  String get liveQuipSoundboardTitle;
+
+  /// D154: the soundboard when the catalogue has no free quips.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مؤثرات مجانية بعد.'**
+  String get liveQuipSoundboardEmpty;
+
+  /// D154: mute quips' sound on this phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الإفيهات'**
+  String get liveQuipMute;
+
+  /// D154: turn quips' sound back on on this phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل صوت الإفيهات'**
+  String get liveQuipUnmute;
+
+  /// D154: a quip waits for its turn in the room's queue.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الدور — يبدأ بعد {seconds} ث'**
+  String liveQuipQueued(int seconds);
+
+  /// D154: screen reader label of the quip bubble.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: {words}'**
+  String liveQuipBubbleSemantics(String name, String words);
+
+  /// Error QUIP_FREE_USED.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدمت إفيهك المجاني في هذا البث.'**
+  String get errorQuipFreeUsed;
+
+  /// Error QUIP_QUEUE_FULL.
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.'**
+  String get errorQuipQueueFull;
+
+  /// D154b: the traffic card sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الزيارات'**
+  String get liveBoostTitle;
+
+  /// D154b: the host's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر بثك في أعلى قائمة البث مع علامة «مميز». {slots} أماكن فقط؛ إن امتلأت ينتظر دوره.'**
+  String liveBoostHint(int slots);
+
+  /// D154b: a viewer gifting the host.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية لـ {name}: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.'**
+  String liveBoostGiftHint(String name);
+
+  /// D154b: a card length.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} د'**
+  String liveBoostMinutes(int minutes);
+
+  /// D154b: a card price (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String liveBoostPrice(String coins);
+
+  /// D154b: what a longer card saves.
+  ///
+  /// In ar, this message translates to:
+  /// **'وفّر {percent}%'**
+  String liveBoostSave(int percent);
+
+  /// D154b: reward cards held of a length.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك {count}'**
+  String liveBoostHeld(int count);
+
+  /// D154b: a free slot now.
+  ///
+  /// In ar, this message translates to:
+  /// **'يبدأ فوراً.'**
+  String get liveBoostStartsNow;
+
+  /// D154b: the honest wait.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأماكن ممتلئة: يبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostStartsIn(int minutes);
+
+  /// D154b: pay with a reward card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم بطاقة (لديك {count})'**
+  String liveBoostUseCard(int count);
+
+  /// D154b: the button with a card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم البطاقة'**
+  String get liveBoostUseCardAction;
+
+  /// D154b: the buy button.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشترِ بـ {coins} عملة'**
+  String liveBoostBuy(String coins);
+
+  /// D154b: confirm dialog title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الزيارات'**
+  String get liveBoostConfirmTitle;
+
+  /// D154b: confirm with coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} دقيقة في الأماكن المميزة مقابل {coins} عملة؟'**
+  String liveBoostConfirmCoins(int minutes, String coins);
+
+  /// D154b: confirm with a card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام بطاقة {minutes} دقيقة؟'**
+  String liveBoostConfirmCard(int minutes);
+
+  /// D154b: confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get liveBoostConfirmAction;
+
+  /// D154b: bought, running.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مميز الآن في أعلى القائمة.'**
+  String get liveBoostDoneNow;
+
+  /// D154b: bought, waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الدور: يبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostDoneWaiting(int minutes);
+
+  /// D154b: the live's card is running.
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز الآن — ينتهي خلال {minutes} د.'**
+  String liveBoostRunning(int minutes);
+
+  /// D154b: the live's card is waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة في الدور — تبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostWaiting(int minutes);
+
+  /// D154b: offers failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل بطاقة الزيارات'**
+  String get liveBoostLoadError;
+
+  /// D154b: the label of a boosted live on the hub.
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز'**
+  String get liveBoostFeatured;
+
+  /// D154b: the host card's button for viewers.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة زيارات'**
+  String get liveBoostGiftAction;
+
+  /// Error BOOST_QUEUE_FULL.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأماكن المميزة محجوزة لوقت طويل؛ جرّب بطاقة أقصر أو لاحقاً.'**
+  String get errorBoostQueueFull;
+
+  /// Error BOOST_CARD_INSUFFICIENT.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك بطاقة بهذه المدة.'**
+  String get errorBoostCardInsufficient;
+
+  /// Error BOOST_ROOM_BUSY.
+  ///
+  /// In ar, this message translates to:
+  /// **'لهذا البث بطاقة زيارات تعمل أو في الدور.'**
+  String get errorBoostRoomBusy;
+
+  /// D154c: the newcomer badge in chat and the newcomers list.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد 🌱'**
+  String get liveNewcomerBadge;
+
+  /// D154c: the newcomers sheet explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات عمرها أقل من {days} يوماً، موجودة في البث الآن.'**
+  String liveNewcomersHint(int days);
+
+  /// D154c: empty newcomers list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد جدد في البث الآن.'**
+  String get liveNewcomersEmpty;
+
+  /// D154c: newcomers failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الجدد'**
+  String get liveNewcomersLoadError;
+
+  /// D154c: send the ready welcome line.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب'**
+  String get liveNewcomerWelcome;
+
+  /// D154c: already welcomed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الترحيب ✓'**
+  String get liveNewcomerWelcomed;
+
+  /// D154c: the ready welcome chat line.
+  ///
+  /// In ar, this message translates to:
+  /// **'أهلاً @{username} 🌱 نوّرت البث'**
+  String liveNewcomerWelcomeText(String username);
+
+  /// D154d: the gifts' value in coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا'**
+  String get liveStatsGiftCoins;
+
+  /// D154d: the host's share of the gifts (display only).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباحك (عرض فقط)'**
+  String get liveStatsEarnings;
+
+  /// D154d: a live time.
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours} س {minutes} د'**
+  String liveDataDuration(int hours, int minutes);
+
+  /// D154d: load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل مركز البيانات'**
+  String get liveDataLoadError;
+
+  /// D154d: number of lives.
+  ///
+  /// In ar, this message translates to:
+  /// **'البثوث'**
+  String get liveDataLives;
+
+  /// D154d: total live time.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة البث'**
+  String get liveDataLiveTime;
+
+  /// D154d: follower growth.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get liveDataNewFollowers;
+
+  /// D154d: unique viewers summed over lives.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveDataViewers;
+
+  /// D154d: the bar chart title.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة البث عبر الوقت'**
+  String get liveDataChartTitle;
+
+  /// D154d: empty period.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد بثوث منتهية في هذه الفترة.'**
+  String get liveDataEmpty;
+
+  /// D154d: the heatmap title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل الأوقات'**
+  String get liveDataBestHours;
+
+  /// D154d: heatmap for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل وقت: {day} الساعة {hour}'**
+  String liveDataBestHourSemantics(String day, int hour);
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوم'**
+  String get liveDataPeriodDay;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسبوع'**
+  String get liveDataPeriodWeek;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهر'**
+  String get liveDataPeriodMonth;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنة'**
+  String get liveDataPeriodYear;
+
+  /// D154d: the data center's scope.
+  ///
+  /// In ar, this message translates to:
+  /// **'بثوثك المنتهية فقط؛ البث الجاري يُحسب عند انتهائه.'**
+  String get liveDataHint;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'إثنين'**
+  String get liveDataMon;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثلاثاء'**
+  String get liveDataTue;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'أربعاء'**
+  String get liveDataWed;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'خميس'**
+  String get liveDataThu;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'جمعة'**
+  String get liveDataFri;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبت'**
+  String get liveDataSat;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحد'**
+  String get liveDataSun;
+
+  /// D154e: the live's program (card, list and editor title).
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة البرامج'**
+  String get liveProgramTitle;
+
+  /// D154e: the label of the segment on now.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get liveProgramNow;
+
+  /// D154e: the label of the next segment before the first one starts.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي {time}'**
+  String liveProgramNext(String time);
+
+  /// D154e: shown on the card for a few seconds when a segment begins.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأت الفقرة'**
+  String get liveProgramStarted;
+
+  /// D154e: the card's tap hint for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض قائمة البرامج'**
+  String get liveProgramOpenHint;
+
+  /// D154e: the list when the host set none.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد فقرات بعد'**
+  String get liveProgramEmpty;
+
+  /// D154e: the editor's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 10 فقرات. يراها الجميع في الغرفة ويُعلَن عن كل فقرة عند بدايتها.'**
+  String get liveProgramEditorHint;
+
+  /// D154e: the title field's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الفقرة'**
+  String get liveProgramTitleHint;
+
+  /// D154e: the start time button for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت البداية {time}، غيّره'**
+  String liveProgramTimeLabel(String time);
+
+  /// D154e: adds a row to the program.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف فقرة'**
+  String get liveProgramAdd;
+
+  /// D154e: removes a row.
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف الفقرة'**
+  String get liveProgramRemove;
+
+  /// D154e: saves the whole program.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ القائمة'**
+  String get liveProgramSave;
+
+  /// D154e: the starts are not ascending.
+  ///
+  /// In ar, this message translates to:
+  /// **'رتّب الفقرات حسب وقت بدايتها'**
+  String get liveProgramOrderError;
+
+  /// D154f assistant hint: one person joined.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب بـ {name}، انضم للتو'**
+  String liveAssistantWelcomeOne(String name);
+
+  /// D154f assistant hint: several joined.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب بـ {name} و{count} آخرين انضموا للتو'**
+  String liveAssistantWelcomeMany(String name, int count);
+
+  /// D154f assistant hint: a big gift.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشكر {name} على هدية بقيمة {coins} عملة'**
+  String liveAssistantThank(String name, String coins);
+
+  /// D154f assistant hint: the host is quiet (microphone on).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتكلم منذ {minutes} دقائق، قل شيئاً للحضور'**
+  String liveAssistantSilence(int minutes);
+
+  /// D154f assistant hint: viewers rising.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحضور يزداد: من {before} إلى {now}. استمر'**
+  String liveAssistantRising(int before, int now);
+
+  /// D154f assistant hint: viewers falling.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحضور يقل: من {before} إلى {now}. جرّب فقرة جديدة أو سؤالاً'**
+  String liveAssistantFalling(int before, int now);
+
+  /// D154f assistant hint: a long live.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت على الهواء منذ {hours} ساعات، خذ استراحة قصيرة'**
+  String liveAssistantRest(int hours);
+
+  /// D154f assistant hint: few chat messages.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة هادئة، اطرح سؤالاً على الحضور'**
+  String get liveAssistantQuestion;
+
+  /// D154f: the hint's tap hint for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء'**
+  String get liveAssistantDismiss;
+
+  /// D154f: the settings' explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تلميحات خفيفة تظهر لك وحدك أثناء البث، من أحداث الغرفة فقط. لا يُرسل شيء.'**
+  String get liveAssistantAbout;
+
+  /// D154f: the master switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل المساعد'**
+  String get liveAssistantOn;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترحيب بالقادمين'**
+  String get liveAssistantKindWelcome;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشكر على الهدايا الكبيرة'**
+  String get liveAssistantKindThank;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه عند الصمت'**
+  String get liveAssistantKindSilence;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'زيادة أو نقص الحضور'**
+  String get liveAssistantKindAudience;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'استراحة في البث الطويل'**
+  String get liveAssistantKindRest;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح سؤال عند هدوء الدردشة'**
+  String get liveAssistantKindQuestion;
+
+  /// D154g Room Tools: the picture quality and the connection (replaces HD and Fluent).
+  ///
+  /// In ar, this message translates to:
+  /// **'الجودة'**
+  String get liveToolQuality;
+
+  /// D154g: 480p at 15 fps.
+  ///
+  /// In ar, this message translates to:
+  /// **'سلس'**
+  String get liveQualitySmooth;
+
+  /// D154g: smooth option detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'480p، أخف على الاتصال الضعيف'**
+  String get liveQualitySmoothDetail;
+
+  /// D154g: 720p (default).
+  ///
+  /// In ar, this message translates to:
+  /// **'عادي'**
+  String get liveQualityNormal;
+
+  /// D154g: normal option detail.
+  ///
+  /// In ar, this message translates to:
+  /// **'720p، الجودة الافتراضية'**
+  String get liveQualityNormalDetail;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال ممتاز'**
+  String get liveQualityConnExcellent;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال جيد'**
+  String get liveQualityConnGood;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاتصال ضعيف'**
+  String get liveQualityConnPoor;
+
+  /// D154g: connection indicator.
+  ///
+  /// In ar, this message translates to:
+  /// **'انقطع الاتصال، جارٍ إعادة المحاولة'**
+  String get liveQualityConnLost;
+
+  /// D154g: connection indicator before LiveKit rates it.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ قياس الاتصال'**
+  String get liveQualityConnUnknown;
+
+  /// D154g: the camera could not restart.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تغيير الجودة، بقيت كما كانت'**
+  String get liveQualityFailed;
+
+  /// D154g: suggestion after a weak connection for a while.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتصالك ضعيف، فعّل السلاسة؟'**
+  String get liveQualitySuggest;
+
+  /// D154g: the suggestion's action.
+  ///
+  /// In ar, this message translates to:
+  /// **'فعّل'**
+  String get liveQualitySuggestAction;
+
+  /// D154g: after switching from the suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تفعيل السلاسة'**
+  String get liveQualitySmoothOn;
+
+  /// D154h: the sticker sheet's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 3 ملصقات يراها الجميع. اسحب الملصق على البث لتحريكه، وبإصبعين لتكبيره وتدويره.'**
+  String get liveStickersHint;
+
+  /// D154h: the stickers placed now.
+  ///
+  /// In ar, this message translates to:
+  /// **'على البث ({count} من {max})'**
+  String liveStickersOnLive(int count, int max);
+
+  /// D154h: none placed.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا ملصقات بعد'**
+  String get liveStickersNone;
+
+  /// D154h: the limit is reached.
+  ///
+  /// In ar, this message translates to:
+  /// **'3 ملصقات كحد أقصى، احذف واحداً لإضافة غيره'**
+  String get liveStickersFull;
+
+  /// D154h: removes one sticker.
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف الملصق'**
+  String get liveStickersRemove;
+
+  /// D154h: the text sticker field.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب ملصقاً نصياً'**
+  String get liveStickersTextHint;
+
+  /// D154h: adds the text sticker.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف'**
+  String get liveStickersAddText;
+
+  /// Error YOUTUBE_VIDEO_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تشغيل هذا الفيديو هنا، قد يكون خاصاً أو ممنوعاً من التشغيل خارج يوتيوب.'**
+  String get errorYoutubeVideoUnavailable;
+
+  /// Error YOUTUBE_SEARCH_UNAVAILABLE.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث في يوتيوب غير مفعّل بعد، الصق رابط الفيديو.'**
+  String get errorYoutubeSearchUnavailable;
+
+  /// D154i: the watch-together sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوتيوب'**
+  String get liveWatchTitle;
+
+  /// D154i: the link field.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصق رابط فيديو يوتيوب'**
+  String get liveWatchLinkHint;
+
+  /// D154i: the host starts the pasted video.
+  ///
+  /// In ar, this message translates to:
+  /// **'شاهدوا معاً'**
+  String get liveWatchPlay;
+
+  /// D154i: the search field.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث في يوتيوب'**
+  String get liveWatchSearchHint;
+
+  /// D154i: no server key.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث غير مفعّل بعد، الصق رابطاً'**
+  String get liveWatchSearchOff;
+
+  /// D154i: the current video label.
+  ///
+  /// In ar, this message translates to:
+  /// **'يُعرض الآن'**
+  String get liveWatchNowPlaying;
+
+  /// D154i: the host stops watch-together.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف العرض'**
+  String get liveWatchStop;
+
+  /// D154i: the host's list.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراحات المشاهدين ({count})'**
+  String liveWatchSuggestions(int count);
+
+  /// D154i: none waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا اقتراحات الآن'**
+  String get liveWatchNoSuggestions;
+
+  /// D154i: plays a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعرضه'**
+  String get liveWatchApprove;
+
+  /// D154i: turns a suggestion down.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل'**
+  String get liveWatchReject;
+
+  /// D154i: who suggested.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترحه {name}'**
+  String liveWatchSuggestedBy(String name);
+
+  /// D154i: a viewer's button on the player.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقترح فيديو'**
+  String get liveWatchSuggest;
+
+  /// D154i: sends a viewer's suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل الاقتراح'**
+  String get liveWatchSuggestSend;
+
+  /// D154i: after a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'وصل اقتراحك للمضيف'**
+  String get liveWatchSuggestSent;
+
+  /// D154i: a link that is not YouTube.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا ليس رابط فيديو يوتيوب'**
+  String get liveWatchBadLink;
+
+  /// D154i: a viewer hides the player on their phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء الفيديو'**
+  String get liveWatchHide;
+
+  /// D154i: shows the hidden player.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض الفيديو'**
+  String get liveWatchShow;
+
+  /// D154i: the embedded player failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل الفيديو على هذا الهاتف'**
+  String get liveWatchPlayerError;
+
+  /// D154i: the host is told of a suggestion.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح جديد: {title}'**
+  String liveWatchNewSuggestion(String title);
 }
 
 class _AppLocalizationsDelegate

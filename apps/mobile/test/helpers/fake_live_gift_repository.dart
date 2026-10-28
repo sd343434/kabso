@@ -58,6 +58,13 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   bool ageConfirmed = true;
   Map<String, Object?>? nextLucky;
 
+  /// D154: the room's quip queue as the server answers it (each quip's
+  /// delay), the rooms where the caller used their free quip, and the
+  /// soundboard sounds played.
+  int nextQuipDelayMs = 0;
+  final Set<String> freeQuipUsed = {};
+  final List<({String roomId, String soundCode})> sounds = [];
+
   final Map<String, LiveGiftResult> _byClientId = {};
   String? _comboKey;
   String? _comboId;
@@ -128,7 +135,11 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
         statusCode: 403,
       );
     }
+    final quip = giftJson(giftCode)['category'] == 'QUIPS';
     final total = giftFixturePrice(giftCode) * quantity * recipients.length;
+    if (quip && total == 0 && !freeQuipUsed.add(roomId)) {
+      throw conflict(ErrorCode.quipFreeUsed);
+    }
     if (source == LiveGiftSource.coins) {
       if (coins < total) throw conflict(ErrorCode.insufficientCoins);
       coins -= total;
@@ -177,6 +188,15 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
         coins: coins,
         bagQuantity: held[giftCode] ?? 0,
         luckyResult: luckyJson,
+        quip: quip
+            ? liveQuipJson(
+                id: id,
+                roomId: roomId,
+                code: giftCode,
+                delayMs: nextQuipDelayMs,
+                sender: giftUserJson(sender, sender),
+              )
+            : null,
       ),
     );
     _byClientId[clientId] = result;
@@ -187,6 +207,22 @@ class FakeLiveGiftRepository implements LiveGiftRepository {
   Future<LuckyGiftOdds> luckyOdds() async {
     _record('luckyOdds');
     return LuckyGiftOdds.fromJson(odds(ageConfirmed: ageConfirmed));
+  }
+
+  @override
+  Future<LiveQuip> playSound(String roomId, {required String soundCode}) async {
+    sounds.add((roomId: roomId, soundCode: soundCode));
+    _record('playSound');
+    return LiveQuip.fromJson(
+      liveQuipJson(
+        id: 'sound-${_serial++}',
+        roomId: roomId,
+        code: soundCode,
+        kind: 'SOUNDBOARD',
+        delayMs: nextQuipDelayMs,
+        sender: giftUserJson(sender, sender),
+      ),
+    );
   }
 
   @override

@@ -4145,9 +4145,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolSounds => 'المؤثرات';
 
   @override
-  String get liveToolFluent => 'السلاسة';
-
-  @override
   String get liveToolProgramList => 'قائمة البرامج';
 
   @override
@@ -5945,9 +5942,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveToolDual => 'كاميرتان';
 
   @override
-  String get liveToolHd => 'جودة عالية';
-
-  @override
   String get liveToolSticker => 'ملصقات';
 
   @override
@@ -6916,5 +6910,512 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name ربح ×$multiplier في غرفة $room';
+  }
+
+  @override
+  String get liveGiftTabQuips => 'إفيهات';
+
+  @override
+  String get liveQuipFree => 'مجاني';
+
+  @override
+  String get liveQuipSoundboardFree => '∞ مجاني';
+
+  @override
+  String get liveQuipFreeOnce => 'إفيه مجاني واحد لك في كل بث.';
+
+  @override
+  String get liveQuipSoundboardHint =>
+      'مجانية لك وللمشرفين — صوت كل ثانيتين، يسمعه الجميع.';
+
+  @override
+  String get liveQuipSoundEffectsOff =>
+      'المؤثرات الصوتية مطفأة في الإعدادات: لن تسمعها أنت، لكن الغرفة تسمعها.';
+
+  @override
+  String get liveQuipSoundboardTitle => 'المؤثرات الصوتية';
+
+  @override
+  String get liveQuipSoundboardEmpty => 'لا توجد مؤثرات مجانية بعد.';
+
+  @override
+  String get liveQuipMute => 'كتم الإفيهات';
+
+  @override
+  String get liveQuipUnmute => 'تشغيل صوت الإفيهات';
+
+  @override
+  String liveQuipQueued(int seconds) {
+    return 'في الدور — يبدأ بعد $seconds ث';
+  }
+
+  @override
+  String liveQuipBubbleSemantics(String name, String words) {
+    return '$name: $words';
+  }
+
+  @override
+  String get errorQuipFreeUsed => 'استخدمت إفيهك المجاني في هذا البث.';
+
+  @override
+  String get errorQuipQueueFull => 'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.';
+
+  @override
+  String get liveBoostTitle => 'بطاقة الزيارات';
+
+  @override
+  String liveBoostHint(int slots) {
+    return 'يظهر بثك في أعلى قائمة البث مع علامة «مميز». $slots أماكن فقط؛ إن امتلأت ينتظر دوره.';
+  }
+
+  @override
+  String liveBoostGiftHint(String name) {
+    return 'هدية لـ $name: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.';
+  }
+
+  @override
+  String liveBoostMinutes(int minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String liveBoostPrice(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String liveBoostSave(int percent) {
+    return 'وفّر $percent%';
+  }
+
+  @override
+  String liveBoostHeld(int count) {
+    return 'لديك $count';
+  }
+
+  @override
+  String get liveBoostStartsNow => 'يبدأ فوراً.';
+
+  @override
+  String liveBoostStartsIn(int minutes) {
+    return 'الأماكن ممتلئة: يبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String liveBoostUseCard(int count) {
+    return 'استخدم بطاقة (لديك $count)';
+  }
+
+  @override
+  String get liveBoostUseCardAction => 'استخدم البطاقة';
+
+  @override
+  String liveBoostBuy(String coins) {
+    return 'اشترِ بـ $coins عملة';
+  }
+
+  @override
+  String get liveBoostConfirmTitle => 'بطاقة الزيارات';
+
+  @override
+  String liveBoostConfirmCoins(int minutes, String coins) {
+    return '$minutes دقيقة في الأماكن المميزة مقابل $coins عملة؟';
+  }
+
+  @override
+  String liveBoostConfirmCard(int minutes) {
+    return 'استخدام بطاقة $minutes دقيقة؟';
+  }
+
+  @override
+  String get liveBoostConfirmAction => 'تأكيد';
+
+  @override
+  String get liveBoostDoneNow => 'البث مميز الآن في أعلى القائمة.';
+
+  @override
+  String liveBoostDoneWaiting(int minutes) {
+    return 'في الدور: يبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String liveBoostRunning(int minutes) {
+    return 'مميز الآن — ينتهي خلال $minutes د.';
+  }
+
+  @override
+  String liveBoostWaiting(int minutes) {
+    return 'بطاقة في الدور — تبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String get liveBoostLoadError => 'تعذّر تحميل بطاقة الزيارات';
+
+  @override
+  String get liveBoostFeatured => 'مميز';
+
+  @override
+  String get liveBoostGiftAction => 'بطاقة زيارات';
+
+  @override
+  String get errorBoostQueueFull =>
+      'الأماكن المميزة محجوزة لوقت طويل؛ جرّب بطاقة أقصر أو لاحقاً.';
+
+  @override
+  String get errorBoostCardInsufficient => 'ليس لديك بطاقة بهذه المدة.';
+
+  @override
+  String get errorBoostRoomBusy => 'لهذا البث بطاقة زيارات تعمل أو في الدور.';
+
+  @override
+  String get liveNewcomerBadge => 'جديد 🌱';
+
+  @override
+  String liveNewcomersHint(int days) {
+    return 'حسابات عمرها أقل من $days يوماً، موجودة في البث الآن.';
+  }
+
+  @override
+  String get liveNewcomersEmpty => 'لا يوجد جدد في البث الآن.';
+
+  @override
+  String get liveNewcomersLoadError => 'تعذّر تحميل الجدد';
+
+  @override
+  String get liveNewcomerWelcome => 'رحّب';
+
+  @override
+  String get liveNewcomerWelcomed => 'تم الترحيب ✓';
+
+  @override
+  String liveNewcomerWelcomeText(String username) {
+    return 'أهلاً @$username 🌱 نوّرت البث';
+  }
+
+  @override
+  String get liveStatsGiftCoins => 'قيمة الهدايا';
+
+  @override
+  String get liveStatsEarnings => 'أرباحك (عرض فقط)';
+
+  @override
+  String liveDataDuration(int hours, int minutes) {
+    return '$hours س $minutes د';
+  }
+
+  @override
+  String get liveDataLoadError => 'تعذّر تحميل مركز البيانات';
+
+  @override
+  String get liveDataLives => 'البثوث';
+
+  @override
+  String get liveDataLiveTime => 'مدة البث';
+
+  @override
+  String get liveDataNewFollowers => 'متابعون جدد';
+
+  @override
+  String get liveDataViewers => 'المشاهدون';
+
+  @override
+  String get liveDataChartTitle => 'مدة البث عبر الوقت';
+
+  @override
+  String get liveDataEmpty => 'لا توجد بثوث منتهية في هذه الفترة.';
+
+  @override
+  String get liveDataBestHours => 'أفضل الأوقات';
+
+  @override
+  String liveDataBestHourSemantics(String day, int hour) {
+    return 'أفضل وقت: $day الساعة $hour';
+  }
+
+  @override
+  String get liveDataPeriodDay => 'يوم';
+
+  @override
+  String get liveDataPeriodWeek => 'أسبوع';
+
+  @override
+  String get liveDataPeriodMonth => 'شهر';
+
+  @override
+  String get liveDataPeriodYear => 'سنة';
+
+  @override
+  String get liveDataHint =>
+      'بثوثك المنتهية فقط؛ البث الجاري يُحسب عند انتهائه.';
+
+  @override
+  String get liveDataMon => 'إثنين';
+
+  @override
+  String get liveDataTue => 'ثلاثاء';
+
+  @override
+  String get liveDataWed => 'أربعاء';
+
+  @override
+  String get liveDataThu => 'خميس';
+
+  @override
+  String get liveDataFri => 'جمعة';
+
+  @override
+  String get liveDataSat => 'سبت';
+
+  @override
+  String get liveDataSun => 'أحد';
+
+  @override
+  String get liveProgramTitle => 'قائمة البرامج';
+
+  @override
+  String get liveProgramNow => 'الآن';
+
+  @override
+  String liveProgramNext(String time) {
+    return 'التالي $time';
+  }
+
+  @override
+  String get liveProgramStarted => 'بدأت الفقرة';
+
+  @override
+  String get liveProgramOpenHint => 'عرض قائمة البرامج';
+
+  @override
+  String get liveProgramEmpty => 'لا توجد فقرات بعد';
+
+  @override
+  String get liveProgramEditorHint =>
+      'حتى 10 فقرات. يراها الجميع في الغرفة ويُعلَن عن كل فقرة عند بدايتها.';
+
+  @override
+  String get liveProgramTitleHint => 'عنوان الفقرة';
+
+  @override
+  String liveProgramTimeLabel(String time) {
+    return 'وقت البداية $time، غيّره';
+  }
+
+  @override
+  String get liveProgramAdd => 'أضف فقرة';
+
+  @override
+  String get liveProgramRemove => 'احذف الفقرة';
+
+  @override
+  String get liveProgramSave => 'حفظ القائمة';
+
+  @override
+  String get liveProgramOrderError => 'رتّب الفقرات حسب وقت بدايتها';
+
+  @override
+  String liveAssistantWelcomeOne(String name) {
+    return 'رحّب بـ $name، انضم للتو';
+  }
+
+  @override
+  String liveAssistantWelcomeMany(String name, int count) {
+    return 'رحّب بـ $name و$count آخرين انضموا للتو';
+  }
+
+  @override
+  String liveAssistantThank(String name, String coins) {
+    return 'اشكر $name على هدية بقيمة $coins عملة';
+  }
+
+  @override
+  String liveAssistantSilence(int minutes) {
+    return 'لم تتكلم منذ $minutes دقائق، قل شيئاً للحضور';
+  }
+
+  @override
+  String liveAssistantRising(int before, int now) {
+    return 'الحضور يزداد: من $before إلى $now. استمر';
+  }
+
+  @override
+  String liveAssistantFalling(int before, int now) {
+    return 'الحضور يقل: من $before إلى $now. جرّب فقرة جديدة أو سؤالاً';
+  }
+
+  @override
+  String liveAssistantRest(int hours) {
+    return 'أنت على الهواء منذ $hours ساعات، خذ استراحة قصيرة';
+  }
+
+  @override
+  String get liveAssistantQuestion => 'الدردشة هادئة، اطرح سؤالاً على الحضور';
+
+  @override
+  String get liveAssistantDismiss => 'إخفاء';
+
+  @override
+  String get liveAssistantAbout =>
+      'تلميحات خفيفة تظهر لك وحدك أثناء البث، من أحداث الغرفة فقط. لا يُرسل شيء.';
+
+  @override
+  String get liveAssistantOn => 'تشغيل المساعد';
+
+  @override
+  String get liveAssistantKindWelcome => 'الترحيب بالقادمين';
+
+  @override
+  String get liveAssistantKindThank => 'الشكر على الهدايا الكبيرة';
+
+  @override
+  String get liveAssistantKindSilence => 'تنبيه عند الصمت';
+
+  @override
+  String get liveAssistantKindAudience => 'زيادة أو نقص الحضور';
+
+  @override
+  String get liveAssistantKindRest => 'استراحة في البث الطويل';
+
+  @override
+  String get liveAssistantKindQuestion => 'اقتراح سؤال عند هدوء الدردشة';
+
+  @override
+  String get liveToolQuality => 'الجودة';
+
+  @override
+  String get liveQualitySmooth => 'سلس';
+
+  @override
+  String get liveQualitySmoothDetail => '480p، أخف على الاتصال الضعيف';
+
+  @override
+  String get liveQualityNormal => 'عادي';
+
+  @override
+  String get liveQualityNormalDetail => '720p، الجودة الافتراضية';
+
+  @override
+  String get liveQualityConnExcellent => 'الاتصال ممتاز';
+
+  @override
+  String get liveQualityConnGood => 'الاتصال جيد';
+
+  @override
+  String get liveQualityConnPoor => 'الاتصال ضعيف';
+
+  @override
+  String get liveQualityConnLost => 'انقطع الاتصال، جارٍ إعادة المحاولة';
+
+  @override
+  String get liveQualityConnUnknown => 'جارٍ قياس الاتصال';
+
+  @override
+  String get liveQualityFailed => 'تعذّر تغيير الجودة، بقيت كما كانت';
+
+  @override
+  String get liveQualitySuggest => 'اتصالك ضعيف، فعّل السلاسة؟';
+
+  @override
+  String get liveQualitySuggestAction => 'فعّل';
+
+  @override
+  String get liveQualitySmoothOn => 'تم تفعيل السلاسة';
+
+  @override
+  String get liveStickersHint =>
+      'حتى 3 ملصقات يراها الجميع. اسحب الملصق على البث لتحريكه، وبإصبعين لتكبيره وتدويره.';
+
+  @override
+  String liveStickersOnLive(int count, int max) {
+    return 'على البث ($count من $max)';
+  }
+
+  @override
+  String get liveStickersNone => 'لا ملصقات بعد';
+
+  @override
+  String get liveStickersFull => '3 ملصقات كحد أقصى، احذف واحداً لإضافة غيره';
+
+  @override
+  String get liveStickersRemove => 'احذف الملصق';
+
+  @override
+  String get liveStickersTextHint => 'اكتب ملصقاً نصياً';
+
+  @override
+  String get liveStickersAddText => 'أضف';
+
+  @override
+  String get errorYoutubeVideoUnavailable =>
+      'لا يمكن تشغيل هذا الفيديو هنا، قد يكون خاصاً أو ممنوعاً من التشغيل خارج يوتيوب.';
+
+  @override
+  String get errorYoutubeSearchUnavailable =>
+      'البحث في يوتيوب غير مفعّل بعد، الصق رابط الفيديو.';
+
+  @override
+  String get liveWatchTitle => 'يوتيوب';
+
+  @override
+  String get liveWatchLinkHint => 'الصق رابط فيديو يوتيوب';
+
+  @override
+  String get liveWatchPlay => 'شاهدوا معاً';
+
+  @override
+  String get liveWatchSearchHint => 'ابحث في يوتيوب';
+
+  @override
+  String get liveWatchSearchOff => 'البحث غير مفعّل بعد، الصق رابطاً';
+
+  @override
+  String get liveWatchNowPlaying => 'يُعرض الآن';
+
+  @override
+  String get liveWatchStop => 'إيقاف العرض';
+
+  @override
+  String liveWatchSuggestions(int count) {
+    return 'اقتراحات المشاهدين ($count)';
+  }
+
+  @override
+  String get liveWatchNoSuggestions => 'لا اقتراحات الآن';
+
+  @override
+  String get liveWatchApprove => 'اعرضه';
+
+  @override
+  String get liveWatchReject => 'تجاهل';
+
+  @override
+  String liveWatchSuggestedBy(String name) {
+    return 'اقترحه $name';
+  }
+
+  @override
+  String get liveWatchSuggest => 'اقترح فيديو';
+
+  @override
+  String get liveWatchSuggestSend => 'أرسل الاقتراح';
+
+  @override
+  String get liveWatchSuggestSent => 'وصل اقتراحك للمضيف';
+
+  @override
+  String get liveWatchBadLink => 'هذا ليس رابط فيديو يوتيوب';
+
+  @override
+  String get liveWatchHide => 'إخفاء الفيديو';
+
+  @override
+  String get liveWatchShow => 'عرض الفيديو';
+
+  @override
+  String get liveWatchPlayerError => 'تعذّر تشغيل الفيديو على هذا الهاتف';
+
+  @override
+  String liveWatchNewSuggestion(String title) {
+    return 'اقتراح جديد: $title';
   }
 }

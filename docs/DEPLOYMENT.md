@@ -1079,6 +1079,100 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   the channels' sounds, the Android 13+ prompt, taps from a closed app, the compose start with the
   real key. See the D152 row of the board.
 
+### 5.17 «إفيهات» quips and the host share per category (migrations `20261204090000_quips_enums`, `20261204100000_quips`; D154) — [IMPLEMENTED, draft contract v1.32-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): enum value `gift_category.QUIPS`; columns `gifts.sound_key`,
+  `sound_ms`, `quip_text`, `live_rooms.quip_busy_until`; `live_gifts.host_share_bps` (NOT NULL, **backfilled**
+  in the migration: lucky sends from their draws' audit row, every other send 6 500 = 65 %); table
+  `live_free_quips`; the CHECKs `gifts_price_range`, `live_gifts_amounts` and
+  `live_gift_recipients_coins_positive` are replaced to allow a free quip (0 coins, QUIPS only). No GRANT
+  (default privileges). The backfill touches every `live_gifts` row once (fast for today's volume).
+- **Then add the owner's pack** (35 gifts: 8 free sounds, 27 Kabi lines at 99 / 199 / 299 coins; idempotent,
+  audited `gift.add`; the sounds themselves ship inside the app — an app built from D154 or later):
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js quips-seed
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js list | grep QUIPS
+  ```
+
+  Until it runs, the «إفيهات» tab and the host's soundboard stay empty (the app hides the tab). Older apps
+  ignore the QUIPS category.
+- **New optional config:**
+
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `GIFT_HOST_SHARE_PERCENTS` | `POPULAR:65,EVENT:65,FUN:65,QUIPS:50` | the recipients' earnings share per category (owner: quips 50 %, other gifts 65 % — D149); each non-lucky category once, 0–100; fixed on each send (`live_gifts.host_share_bps`). LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`. An invalid value → the API refuses to start |
+  | `QUIP_QUEUE_MAX_WAIT_SECONDS` | `60` | a quip (or soundboard sound) that would start later than this is refused (409 `QUIP_QUEUE_FULL`); 5–600 |
+
+- The soundboard (`POST /live/rooms/{roomId}/sounds`) uses the taps bucket (`RATE_LIMIT_LIVE_TAPS_USER`)
+  plus a fixed one-sound-every-2-s rule in Redis.
+- **Rollback:** the API before D154 ignores the new columns and table, but its inserts into `live_gifts`
+  do not name `host_share_bps` and would fail on its NOT NULL — so roll the API back only together with
+  `ALTER TABLE live_gifts ALTER COLUMN host_share_bps SET DEFAULT 6500;` (keeps old inserts working).
+  Disable the quips without a rollback with `gift-admin disable <code>` (each).
+
+### 5.18 Traffic cards «بطاقة الزيارات» (migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`; D154b) — [IMPLEMENTED, draft contract v1.33-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): enum `live_boost_source`, ledger reasons `LIVE_BOOST` and
+  `LIVE_BOOST_REFUND` (the `wallet_ledger_reason_sign` CHECK is replaced to include them), tables
+  `live_boosts` and `live_boost_cards`. No GRANT, no backfill.
+- **New optional config:**
+
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `LIVE_BOOST_PRICES` | `10:10000,20:18000,30:25000,60:45000` | `minutes:coins` per length on sale (owner 15c); 1–8 lengths |
+  | `LIVE_BOOST_SLOTS` | `3` | paid «مميز» slots at the top of the live list (owner) |
+  | `LIVE_BOOST_MAX_WAIT_MINUTES` | `180` | a card that would wait longer is refused (409 `BOOST_QUEUE_FULL`) |
+
+  The settlement (refunds of cards whose live ended before they ran) runs on the live sweeper's interval
+  (`LIVE_SWEEP_INTERVAL_SECONDS`) and before every purchase; safe on several instances (one advisory lock).
+- **Rewards:** grant cards with the CLI (audited):
+
+  ```bash
+  BOOST="docker compose --profile jobs run --rm migrate node dist/cli/boost-admin.js"
+  $BOOST grant someone@example.com 30 1   # one 30-minute card
+  $BOOST cards someone@example.com
+  $BOOST queue                            # cards running and waiting now
+  ```
+
+- **Rollback:** the API before D154b ignores the tables; a card running at that moment simply stops
+  showing (nothing is refunded automatically — list them with `boost-admin queue` first).
+
+### 5.19 Newcomers «الجدد» (no migration; D154c) — [IMPLEMENTED, draft contract v1.34-live; not deployed, not device-tested]
+
+- **New optional config:** `NEWCOMER_DAYS` (default `30`, owner; 1–365): an account younger than this is a
+  newcomer (the «جديد 🌱» chat badge and the host's and moderators' Newcomers list). No table, no backfill.
+
+### 5.20 The data center «مركز البيانات» (migration `20261206090000_live_summaries`; D154d) — [IMPLEMENTED, draft contract v1.35-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): table `live_summaries`. No GRANT, no backfill in the migration:
+  the API's summariser fills it after the deploy (200 ended lives every `LIVE_SWEEP_INTERVAL_SECONDS`, and
+  a host's own lives at once when they open the data center), so the first minutes after the deploy cost a
+  few batch inserts. No new config (the periods use `LIVE_RANKINGS_TIME_ZONE`).
+
+### 5.21 A live's program «قائمة البرامج» (migration `20261207090000_live_program`; D154e) — [IMPLEMENTED, draft contract v1.36-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): table `live_program_items`. No GRANT, no backfill, no new
+  config (the announcements run on `LIVE_SWEEP_INTERVAL_SECONDS`; 0 turns them off).
+
+### 5.22 Stickers on a live «ملصقات» (migration `20261208090000_live_stickers`; D154h) — [IMPLEMENTED, draft contract v1.37-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): tables `live_stickers` and `live_sticker_art` (empty: the
+  Kabi pack is built into the API). No GRANT, no backfill, no new config. Adding a pack later is an
+  `INSERT INTO live_sticker_art (key, pack, sort_order)` once the app ships its art.
+
+### 5.23 YouTube watch-together «يوتيوب» (migration `20261209090000_live_watch`; D154i) — [IMPLEMENTED, draft contract v1.38-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): tables `live_watch`, `live_watch_suggestions`. No GRANT,
+  no backfill.
+- **Outbound HTTPS** from the API to `www.youtube.com` (oEmbed: every video a host plays or a viewer
+  suggests) and, with a key, `www.googleapis.com` (search). Allow both in the server's egress.
+- **`YOUTUBE_API_KEY`** (optional, a secret; never in git): a YouTube Data API v3 key from the Google
+  Cloud project `kabso` (APIs & Services → enable "YouTube Data API v3" → Credentials → API key,
+  restricted to that API and, if possible, to the server's IP). Unset: search answers 503
+  `YOUTUBE_SEARCH_UNAVAILABLE` and the app says «البحث غير مفعّل بعد» and takes links. The free quota
+  is 10,000 units a day; a search costs 100 (≈ 100 searches a day; the API caches each query 10 min).
+
 ## 6. Observability baseline
 
 | Item | Status |

@@ -35,7 +35,20 @@ const _gifts = <String, (String, int, String, String?, String, String)>{
   // v1.27-live (D132): a lucky gift (not in [giftFixtureCodes]; tests that
   // need it list it and the LUCKY tab).
   'lucky_clover': ('LUCKY', 10, 'NONE', null, 'برسيم الحظ', 'Lucky clover'),
+  // v1.32-live (D154): quips (not in [giftFixtureCodes]; tests that need
+  // them list them and the QUIPS tab).
+  'quip_clap': ('QUIPS', 0, 'NONE', null, 'تصفيق', 'Clap'),
+  'quip_ghazal_01': ('QUIPS', 99, 'NONE', null, 'غزل ١', 'Flirty 1'),
 };
+
+/// D154: the quips' sound, length and words. code: (soundKey, ms, text).
+const _quips = <String, (String, int, String?)>{
+  'quip_clap': ('room/clap', 2038, null),
+  'quip_ghazal_01': ('kabi/ghazal_01', 4362, 'إيه الجمال ده! تحفة بجد!'),
+};
+
+/// D154: the quip codes of the test catalogue.
+const quipFixtureCodes = ['quip_clap', 'quip_ghazal_01'];
 
 /// The test sub-categories (D117): only POPULAR gifts carry one, so the
 /// other tabs show no chip row. code: (tagCode, ar, en).
@@ -44,6 +57,8 @@ const _tags = <String, (String, String, String)>{
   'heart_balloon': ('love', 'حب', 'Love'),
   'crown': ('luxury', 'فخامة', 'Luxury'),
   'sports_car': ('luxury', 'فخامة', 'Luxury'),
+  'quip_clap': ('free', 'مجانية', 'Free'),
+  'quip_ghazal_01': ('ghazal', 'غزل', 'Flirty'),
 };
 
 /// The name of [code] as the server sends it.
@@ -64,7 +79,11 @@ Map<String, Object?> giftJson(String code, {bool ar = true}) {
     'category': g.$1,
     'name': ar ? g.$5 : g.$6,
     'priceCoins': g.$2,
-    'assetKey': 'gift_$code',
+    'assetKey': switch (code) {
+      'quip_clap' => 'quips/clap',
+      'quip_ghazal_01' => 'quips/ghazal',
+      _ => 'gift_$code',
+    },
     'animationKey': g.$4,
     'sortOrder': (giftFixtureCodes.indexOf(code) + 1) * 10,
     'badge': g.$3,
@@ -76,6 +95,38 @@ Map<String, Object?> giftJson(String code, {bool ar = true}) {
     'imageUrl': null,
     'animationUrl': null,
     'animationBytes': null,
+    // v1.32-live (D154).
+    'quip': switch (_quips[code]) {
+      final q? => {'soundKey': q.$1, 'durationMs': q.$2, 'text': q.$3},
+      null => null,
+    },
+  };
+}
+
+/// `LiveQuip` (v1.32-live, D154) of [code] sent by [sender].
+Map<String, Object?> liveQuipJson({
+  required String id,
+  String roomId = 'room-0',
+  String code = 'quip_ghazal_01',
+  String kind = 'GIFT',
+  int delayMs = 0,
+  Map<String, Object?>? sender,
+  int? durationMs,
+}) {
+  final q = _quips[code]!;
+  return {
+    'id': id,
+    'roomId': roomId,
+    'kind': kind,
+    'giftCode': code,
+    'soundKey': q.$1,
+    'durationMs': durationMs ?? q.$2,
+    'text': q.$3,
+    'free': _gifts[code]!.$2 == 0,
+    'sender': sender ?? giftUserJson('lina', 'لينا'),
+    'startsAt': '2026-10-28T12:00:00.000Z',
+    'delayMs': delayMs,
+    'createdAt': '2026-10-28T12:00:00.000Z',
   };
 }
 
@@ -159,11 +210,13 @@ Map<String, Object?> liveGiftResultJson({
   int coins = 80,
   int bagQuantity = 0,
   Map<String, Object?>? luckyResult,
+  Map<String, Object?>? quip,
 }) => {
   'gift': gift,
   'coins': coins,
   'bagQuantity': bagQuantity,
   'luckyResult': ?luckyResult,
+  'quip': ?quip,
 };
 
 /// `LuckyGiftOdds` (the contract's example; [reason] null = eligible).

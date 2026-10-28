@@ -210,7 +210,8 @@ describe('CP-020 live gifts', { timeout: 120_000 }, () => {
       expectContract(res, 'getGiftCatalogue');
       expect(res.body).toEqual({
         version: expect.stringMatching(/^[0-9a-f]{16}$/),
-        categories: ['POPULAR', 'EVENT', 'FUN'],
+        // v1.32-live (D154): the quips tab is listed too (empty here).
+        categories: ['POPULAR', 'EVENT', 'FUN', 'QUIPS'],
         quantities: [1, 10, 66, 99, 188, 520, 1314],
         maxRecipients: 25,
         comboWindowSeconds: 5,

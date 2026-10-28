@@ -23,6 +23,8 @@ final class LiveRoomStats {
     required this.newFollowers,
     required this.viewers,
     required this.viewerCountries,
+    this.giftCoins = 0,
+    this.earningsCoins = 0,
   });
 
   factory fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,11 @@ final class LiveRoomStats {
           LiveStatsSupporter.fromJson(s as Map<String, dynamic>),
       ],
       giftCount: _int(json['giftCount']),
+      // v1.35-live (D154d): absent from an older server → 0.
+      giftCoins: json['giftCoins'] == null ? 0 : _int(json['giftCoins']),
+      earningsCoins: json['earningsCoins'] == null
+          ? 0
+          : _int(json['earningsCoins']),
       chatMessages: _int(json['chatMessages']),
       newFollowers: _int(json['newFollowers']),
       viewers: viewers == null ? null : LiveViewerStats.fromJson(viewers),
@@ -84,6 +91,11 @@ final class LiveRoomStats {
 
   /// Gifts sent in the live (the sum of quantities), the host's included.
   final int giftCount;
+
+  /// v1.35-live (D154d): the gifts' value in coins, and the host's share
+  /// of those they received (display only; 0 from an older server).
+  final int giftCoins;
+  final int earningsCoins;
   final int chatMessages;
 
   /// People who started following the host during the live and still do.

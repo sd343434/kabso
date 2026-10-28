@@ -88,6 +88,15 @@ describe('ErrorCode', () => {
         'PREMIUM_USERNAME_UNAVAILABLE',
         'PREMIUM_USERNAME_PRICE_CHANGED',
         'PREMIUM_USERNAME_ACTIVE',
+        // v1.32-live (DRAFT, D154)
+        'QUIP_FREE_USED',
+        'QUIP_QUEUE_FULL',
+        // v1.33-live (DRAFT, D154b)
+        'BOOST_QUEUE_FULL',
+        'BOOST_CARD_INSUFFICIENT',
+        'BOOST_ROOM_BUSY',
+        'YOUTUBE_VIDEO_UNAVAILABLE',
+        'YOUTUBE_SEARCH_UNAVAILABLE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -146,6 +155,13 @@ describe('ErrorCode', () => {
       PREMIUM_USERNAME_UNAVAILABLE: 409,
       PREMIUM_USERNAME_PRICE_CHANGED: 409,
       PREMIUM_USERNAME_ACTIVE: 409,
+      QUIP_FREE_USED: 409,
+      QUIP_QUEUE_FULL: 409,
+      BOOST_QUEUE_FULL: 409,
+      BOOST_CARD_INSUFFICIENT: 409,
+      BOOST_ROOM_BUSY: 409,
+      YOUTUBE_VIDEO_UNAVAILABLE: 422,
+      YOUTUBE_SEARCH_UNAVAILABLE: 503,
     });
   });
 

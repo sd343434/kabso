@@ -56,6 +56,12 @@ dependencies:
   video_player: 2.14.1
   visibility_detector: ^0.4.0+2
   web: 1.1.1
+  # D154i YouTube watch-together: the official YouTube IFrame player in a web
+  # view (no video passes through Kabso). The official Flutter plugin and its
+  # platform packages (autoplay without a tap), pinned exactly. BSD-3-Clause.
+  webview_flutter: 4.14.1
+  webview_flutter_android: 4.14.1
+  webview_flutter_wkwebview: 3.27.2
 
 dev_dependencies:
   build_runner: ^2.16.2
@@ -105,6 +111,9 @@ flutter:
     - assets/splash/
     # D145d the owner's MAX X sounds (assets/sounds/PROVENANCE.md).
     - assets/sounds/
+    # D154 the owner's «إفيهات» quips (assets/sounds/quips/PROVENANCE.md).
+    - assets/sounds/quips/room/
+    - assets/sounds/quips/kabi/
     # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
     # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
     - assets/emojis/kabi/

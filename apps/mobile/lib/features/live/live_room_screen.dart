@@ -22,15 +22,21 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_program.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
+import 'package:kabso_live/features/live/application/live_stickers.dart';
+import 'package:kabso_live/features/live/application/live_watch.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
@@ -50,9 +56,11 @@ import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dar
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_states.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_sticker_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/medals/presentation/medal_showcase_row.dart';
 import 'package:kabso_live/features/profile/application/public_profile_controller.dart';
 import 'package:kabso_live/features/profile/profile_bonds.dart';
@@ -90,6 +98,9 @@ class LiveRoomScreen extends ConsumerWidget {
   /// D131: the host pill's taps line and the bar's gift button.
   static const tapsKey = Key('room.taps');
   static const giftKey = Key('room.gift');
+
+  /// D154c: a moderator's Newcomers button.
+  static const newcomersKey = Key('room.newcomers');
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
@@ -334,6 +345,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveLuckyTickersProvider(room.id).notifier)
           .attach(_session.engine);
+      // D154: the room's quips (one at a time, after their delay).
+      ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
+      // D154e: the live's program (late joiners load it).
+      ref.read(liveProgramProvider(room.id).notifier).attach(_session.engine);
+      // D154h: the live's stickers.
+      ref.read(liveStickersProvider(room.id).notifier).attach(_session.engine);
+      // D154i: watch-together (late joiners start in the right place).
+      ref
+          .read(liveWatchProvider(room.id).notifier)
+          .attach(_session.engine, host: false);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -393,6 +414,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _session.mute(index, muted: muted),
           selfMic: selfMic,
           onGift: (person) => unawaited(_openGifts(preselect: person)),
+          // D154b: on the host's card, a traffic card for this live.
+          onBoost: me == null || target != LivePersonRole.host
+              ? null
+              : () => unawaited(
+                  showLiveBoostSheet(
+                    context,
+                    roomId: room.id,
+                    hostName: room.host.displayName,
+                  ),
+                ),
           // D135: Mention — "@username" in the chat box, opened.
           onMention: me == null
               ? null
@@ -735,6 +766,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                           LiveRoomPromoBox.shows(ref, room.id)),
                 ),
               ),
+            // D154i: the video the live watches together.
+            if (room.status == LiveRoomStatus.live)
+              LiveWatchLayer(roomId: room.id, host: false),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
               LuckyComboLayer(
@@ -801,12 +835,19 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
-          : LiveTapLayer(
-              onTap: canTap ? _session.tap : null,
-              // D131 (ref 159): the characters start 37 pt above the bar,
-              // right over the gift button.
-              laneBottomInset: 59,
-              child: _video(session, engine),
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                LiveTapLayer(
+                  onTap: canTap ? _session.tap : null,
+                  // D131 (ref 159): the characters start 37 pt above the
+                  // bar, right over the gift button.
+                  laneBottomInset: 59,
+                  child: _video(session, engine),
+                ),
+                // D154h: the host's stickers (no touches here).
+                LiveStickerLayer(roomId: room.id),
+              ],
             ),
       stage: !ended && room.mode.hasSeats ? _stage(session, engine) : null,
       header: KHostPill(
@@ -928,6 +969,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       onEmoji: () =>
                           unawaited(_openChat(composer, emoji: true)),
                       actions: [
+                        // D154c: a moderator's Newcomers list.
+                        if (session.canModerate)
+                          KViewerBarButton(
+                            key: LiveRoomScreen.newcomersKey,
+                            icon: Icons.fiber_new_outlined,
+                            label: l10n.liveToolNewcomers,
+                            onTap: () => unawaited(
+                              showLiveNewcomers(context, roomId: room.id),
+                            ),
+                          ),
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
                           // D135: the owner's colourful gift box.
@@ -1151,6 +1202,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 ],
                 barEnd: [
                   ?seatButton,
+                  // D154c: a moderator's Newcomers list.
+                  if (session.canModerate)
+                    LiveRoundButton(
+                      key: LiveRoomScreen.newcomersKey,
+                      icon: Icons.fiber_new_outlined,
+                      bare: true,
+                      label: l10n.liveToolNewcomers,
+                      onTap: () => unawaited(
+                        showLiveNewcomers(context, roomId: room.id),
+                      ),
+                    ),
                   if (session.canModerate)
                     LiveRoundButton(
                       key: AudioRoomViewKeys.requests,
@@ -1339,6 +1401,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       onSeatsStale: () {
         if (mounted) unawaited(_session.refreshSeats());
       },
+      // D154: a moderator's free quips are the soundboard's.
+      soundboard: (ref) =>
+          ref.watch(liveRoomSessionProvider(widget.room.id)).canModerate,
     ),
   );
 }
@@ -1444,6 +1509,7 @@ class _HostSheet extends ConsumerWidget {
   /// D135: Mention (puts @username into the chat box) and Follow (for
   /// someone this viewer does not follow; Message once they do).
   static const mentionKey = Key('room.userCard.mention');
+  static const boostKey = Key('room.userCard.boost');
   static const followKey = Key('room.userCard.follow');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
@@ -1764,6 +1830,23 @@ class _HostSheet extends ConsumerWidget {
                               name: profile.displayName,
                             )),
                           ),
+                        ),
+                      ),
+                    // D154b: a traffic card for the host's live.
+                    if (scope?.onBoost case final onBoost?)
+                      Expanded(
+                        child: action(
+                          key: boostKey,
+                          glyph: const _RoundGlyph(
+                            colors: [Color(0xFFFFD36E), Color(0xFFF2A93B)],
+                            child: Icon(
+                              Icons.confirmation_number_rounded,
+                              size: 18,
+                              color: Color(0xFFFFFFFF),
+                            ),
+                          ),
+                          label: l10n.liveBoostGiftAction,
+                          onTap: () => close(onBoost),
                         ),
                       ),
                     if (scope?.onMention case final onMention?)

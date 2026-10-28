@@ -46,20 +46,25 @@ import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.d
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_quality_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_watch_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_program_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_watch_card.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -2018,16 +2023,36 @@ void main() {
         'guests',
         // D143: Fill light replaces the "Flash" that said Soon.
         'fillLight',
+        // D154a/D154b: the soundboard and the traffic card work now.
+        'sounds',
+        'traffic',
+        // D154e/D154f: the program list and the assistant work now.
+        'program',
+        'assistance',
+        // D154g: «الجودة» replaces HD (and audio rooms' Fluent).
+        'quality',
+        // D154h: stickers.
+        'sticker',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
       final l10n = _l10n(tester);
       for (final label in [
-        l10n.liveToolDual,
-        l10n.liveToolHd,
-        l10n.liveToolSticker,
+        l10n.liveToolSounds,
         l10n.liveToolTrafficCard,
+        l10n.liveToolProgramList,
+        l10n.liveToolAssistance,
+        l10n.liveToolSticker,
       ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
+      expect(find.byKey(GoLiveKeys.tool('hd')), findsNothing);
+      expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+      for (final label in [l10n.liveToolDual]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
           findsOneWidget,
@@ -2043,6 +2068,75 @@ void main() {
       expect(camera.micEnabled, isFalse);
       // Muted: the host pill says so.
       expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('D154g: «الجودة» shows the connection and switches to '
+        'Smooth; a weak connection for 20 s suggests it', (tester) async {
+      final (_, engine) = await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('quality')));
+      await tester.pumpAndSettle();
+      expect(find.text('Measuring the connection'), findsOneWidget);
+      engine
+        ..connection = LiveConnectionQuality.good
+        ..ping();
+      await tester.pump();
+      expect(find.text('Connection good'), findsOneWidget);
+      await tester.tap(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.smooth)),
+      );
+      await tester.pumpAndSettle();
+      expect(engine.quality, LiveVideoQuality.smooth);
+      // A camera that cannot restart keeps the quality and says so.
+      engine.qualityFails = true;
+      await tester.tap(
+        find.byKey(LiveQualitySheet.optionKey(LiveVideoQuality.normal)),
+      );
+      await tester.pumpAndSettle();
+      expect(engine.quality, LiveVideoQuality.smooth);
+      expect(
+        find.text("Couldn't change the quality, it stays as it was"),
+        findsOneWidget,
+      );
+      engine
+        ..qualityFails = false
+        ..quality = LiveVideoQuality.normal;
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      engine
+        ..connection = LiveConnectionQuality.poor
+        ..ping();
+      await tester.pump(const Duration(seconds: 10));
+      expect(find.byKey(GoLiveScreen.smoothSuggestKey), findsNothing);
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(GoLiveScreen.smoothSuggestKey), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.byType(SnackBarAction));
+      await tester.pump();
+      expect(engine.quality, LiveVideoQuality.smooth);
+      await _leave(tester);
+    });
+
+    testWidgets('D154e: the host sets the program from ≡; its card shows '
+        'in the live', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('program')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveProgramEditor.titleKey(0)),
+        'Opening',
+      );
+      await tester.tap(find.byKey(LiveProgramEditor.saveKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveProgramEditor.saveKey), findsNothing);
+      expect(find.byKey(LiveProgramCard.cardKey), findsOneWidget);
+      expect(find.text('Opening'), findsOneWidget);
       await _leave(tester);
     });
 
@@ -2498,6 +2592,60 @@ void main() {
       await tester.tap(blur, warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(camera.beauty.effect, LiveArEffect.none);
+      await _leave(tester);
+    });
+
+    testWidgets('audio room ≡ (D154): the built tools work, the blocked ones '
+        'say Soon, Fluent is gone; YouTube shows a pasted link', (
+      tester,
+    ) async {
+      await _pump(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      for (final label in [
+        l10n.liveToolSounds,
+        l10n.liveToolProgramList,
+        l10n.liveToolYoutube,
+        l10n.liveToolAssistance,
+        l10n.liveToolNewcomers,
+        l10n.liveToolDataCenter,
+        l10n.liveToolTrafficCard,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
+      // Blocked at an honest boundary (D154): native audio mixing / DSP,
+      // the screen capture (owner: blocked), the clip buffer.
+      for (final label in [
+        l10n.liveToolMusic,
+        l10n.liveToolSinging,
+        l10n.liveToolShareScreen,
+        l10n.liveToolRecorder,
+      ]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsOneWidget,
+          reason: label,
+        );
+      }
+      expect(find.byKey(GoLiveKeys.tool('fluent')), findsNothing);
+      await tester.tap(find.byKey(GoLiveKeys.tool('youtube')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveWatchSheet.linkKey),
+        'https://youtu.be/aaaaaaaaaaa',
+      );
+      await tester.tap(find.byKey(LiveWatchSheet.sendKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveWatchLayer.cardKey), findsOneWidget);
       await _leave(tester);
     });
 

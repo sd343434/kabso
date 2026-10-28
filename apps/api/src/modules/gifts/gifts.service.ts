@@ -28,7 +28,16 @@ export interface GiftArtDto {
   animationBytes: number | null;
 }
 
-/** `Gift` (openapi v1.23-live; `tag` v1.24.3-live; hosted art v1.26.2-live). */
+/** `GiftQuip` (v1.32-live, D154): a QUIPS gift's sound and its line of text. */
+export interface GiftQuipDto {
+  /** The app's bundled sound. */
+  soundKey: string;
+  durationMs: number;
+  /** The words of the line (shown as a chat bubble while it plays), or null: a sound without words. */
+  text: string | null;
+}
+
+/** `Gift` (openapi v1.23-live; `tag` v1.24.3-live; hosted art v1.26.2-live; `quip` v1.32-live). */
 export interface GiftDto extends GiftArtDto {
   code: string;
   category: GiftCategory;
@@ -39,6 +48,8 @@ export interface GiftDto extends GiftArtDto {
   sortOrder: number;
   badge: GiftBadge;
   tag: GiftTagDto | null;
+  /** v1.32-live (D154): set exactly for a QUIPS gift. */
+  quip: GiftQuipDto | null;
 }
 
 /** `GiftCatalogue`. */
@@ -103,6 +114,10 @@ export function giftDto(gift: Gift, lang: ContentLanguage, publicBaseUrl: string
     sortOrder: gift.sortOrder,
     badge: gift.badge,
     tag: giftTagDto(gift, lang),
+    quip:
+      gift.soundKey === null || gift.soundMs === null
+        ? null
+        : { soundKey: gift.soundKey, durationMs: gift.soundMs, text: gift.quipText },
   };
 }
 
@@ -162,7 +177,8 @@ export class GiftsService {
       where: {
         userId,
         quantity: { gt: 0 },
-        gift: { enabled: true, category: { in: [...this.listedCategories] } },
+        // v1.32-live (D154): quips are sent with coins only, so never listed in the bag.
+        gift: { enabled: true, category: { in: this.listedCategories.filter((c) => c !== 'QUIPS') } },
       },
       include: { gift: true },
       orderBy: [{ gift: { category: 'asc' } }, { gift: { sortOrder: 'asc' } }, { giftCode: 'asc' }],

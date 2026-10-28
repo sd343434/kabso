@@ -37,6 +37,15 @@ enum LiveCaptureProblem {
   blocked,
 }
 
+/// D154g «الجودة»: the host's published picture. [normal] is LiveKit's
+/// default (720p, simulcast); [smooth] captures 480p at 15 fps for a weak
+/// connection. (1080p is not offered yet: the phone's support and the
+/// uplink are not measured.)
+enum LiveVideoQuality { smooth, normal }
+
+/// D154g: this phone's connection to the media server, as LiveKit rates it.
+enum LiveConnectionQuality { unknown, excellent, good, poor, lost }
+
 /// The camera, microphone and media session of the person going live
 /// (CP-010, LiveKit, D3), behind an interface so screens and tests do not
 /// depend on the device or the media server. As a [LiveVoiceMic] it frees
@@ -50,6 +59,17 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
 
   /// Whether the camera is part of the preview.
   bool get videoEnabled;
+
+  /// D154g: the camera's quality now ([LiveVideoQuality.normal] at first).
+  LiveVideoQuality get videoQuality;
+
+  /// D154g: captures the camera at [quality] (the published track too).
+  /// Throws a [LiveCaptureException] when the camera cannot restart (the
+  /// quality stays as it was).
+  Future<void> setVideoQuality(LiveVideoQuality quality);
+
+  /// D154g: this phone's connection, as the media server rates it.
+  LiveConnectionQuality get connectionQuality;
 
   /// Whether beauty (skin smoothing, brightening) works on this device
   /// (D94).
@@ -199,6 +219,60 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   @override
   bool get videoEnabled => _video != null;
 
+  LiveVideoQuality _quality = LiveVideoQuality.normal;
+  LiveConnectionQuality _connection = LiveConnectionQuality.unknown;
+
+  @override
+  LiveVideoQuality get videoQuality => _quality;
+
+  @override
+  LiveConnectionQuality get connectionQuality => _connection;
+
+  /// The capture of [quality] (null: LiveKit's default, 720p).
+  static lk.VideoParameters? _paramsOf(LiveVideoQuality quality) =>
+      switch (quality) {
+        LiveVideoQuality.smooth => const lk.VideoParameters(
+          dimensions: lk.VideoDimensions(854, 480),
+          encoding: lk.VideoEncoding(maxBitrate: 600000, maxFramerate: 15),
+        ),
+        LiveVideoQuality.normal => null,
+      };
+
+  lk.CameraCaptureOptions _cameraOptions() {
+    final params = _paramsOf(_quality);
+    final position = _front ? lk.CameraPosition.front : lk.CameraPosition.back;
+    return params == null
+        ? lk.CameraCaptureOptions(cameraPosition: position)
+        : lk.CameraCaptureOptions(
+            cameraPosition: position,
+            params: params,
+            maxFrameRate: params.encoding?.maxFramerate.toDouble(),
+          );
+  }
+
+  @override
+  Future<void> setVideoQuality(LiveVideoQuality quality) async {
+    if (quality == _quality) return;
+    final before = _quality;
+    _quality = quality;
+    final video = _video;
+    try {
+      if (video != null && video.sender != null) {
+        await video.restartTrack(_cameraOptions());
+        await _attachFx();
+      } else if (video != null) {
+        // Previewing: a new camera track at the new quality.
+        await _stopVideo();
+        await startPreview();
+      }
+    } on Object {
+      _quality = before;
+      throw const LiveCaptureException(LiveCaptureProblem.unavailable);
+    } finally {
+      _changes.ping();
+    }
+  }
+
   @override
   bool get beautySupported => kIsWeb;
 
@@ -235,11 +309,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     try {
       if (video && _video == null) {
         final camera = await lk.LocalVideoTrack.createCameraTrack(
-          lk.CameraCaptureOptions(
-            cameraPosition: _front
-                ? lk.CameraPosition.front
-                : lk.CameraPosition.back,
-          ),
+          _cameraOptions(),
         );
         _video = camera;
         final pipeline = BeautyPipeline.create();
@@ -471,6 +541,18 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     _listener = room.createListener()
       ..on<lk.RoomMetadataChangedEvent>((e) {
         _readMetadata(e.metadata);
+        _changes.ping();
+      })
+      // D154g: this phone's connection quality (the host's indicator).
+      ..on<lk.ParticipantConnectionQualityUpdatedEvent>((e) {
+        if (e.participant is! lk.LocalParticipant) return;
+        _connection = switch (e.connectionQuality) {
+          lk.ConnectionQuality.excellent => LiveConnectionQuality.excellent,
+          lk.ConnectionQuality.good => LiveConnectionQuality.good,
+          lk.ConnectionQuality.poor => LiveConnectionQuality.poor,
+          lk.ConnectionQuality.lost => LiveConnectionQuality.lost,
+          lk.ConnectionQuality.unknown => LiveConnectionQuality.unknown,
+        };
         _changes.ping();
       })
       ..on<lk.ActiveSpeakersChangedEvent>((e) {

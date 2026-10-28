@@ -164,6 +164,33 @@ enum ErrorCode {
   /// time; give it back before changing the regular username).
   premiumUsernameActive('PREMIUM_USERNAME_ACTIVE'),
 
+  /// v1.32-live (D154, §10.33, 409): the caller's one free quip of this
+  /// live was sent; paid quips are still available.
+  quipFreeUsed('QUIP_FREE_USED'),
+
+  /// v1.32-live (D154, §10.33, 409): too many quips are waiting in this
+  /// live; nothing was charged; try again shortly.
+  quipQueueFull('QUIP_QUEUE_FULL'),
+
+  /// v1.33-live (D154b, §10.34, 409): every featured slot is booked too far
+  /// ahead; nothing was charged.
+  boostQueueFull('BOOST_QUEUE_FULL'),
+
+  /// v1.33-live (D154b, §10.34, 409): no traffic card of that length.
+  boostCardInsufficient('BOOST_CARD_INSUFFICIENT'),
+
+  /// v1.33-live (D154b, §10.34, 409): this live has a card running or
+  /// waiting already.
+  boostRoomBusy('BOOST_ROOM_BUSY'),
+
+  /// v1.38-live (D154i, §10.39, 422): the YouTube video is missing, private
+  /// or may not be played in other apps.
+  youtubeVideoUnavailable('YOUTUBE_VIDEO_UNAVAILABLE'),
+
+  /// v1.38-live (D154i, §10.39, 503): YouTube search is not set up on the
+  /// server (or failed); paste a link instead.
+  youtubeSearchUnavailable('YOUTUBE_SEARCH_UNAVAILABLE'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

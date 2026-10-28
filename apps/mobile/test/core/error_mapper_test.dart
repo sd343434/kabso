@@ -69,6 +69,13 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.premiumUsernameUnavailable: 409,
   ErrorCode.premiumUsernamePriceChanged: 409,
   ErrorCode.premiumUsernameActive: 409,
+  ErrorCode.quipFreeUsed: 409,
+  ErrorCode.quipQueueFull: 409,
+  ErrorCode.boostQueueFull: 409,
+  ErrorCode.boostCardInsufficient: 409,
+  ErrorCode.boostRoomBusy: 409,
+  ErrorCode.youtubeVideoUnavailable: 422,
+  ErrorCode.youtubeSearchUnavailable: 503,
 };
 
 DioException _badResponse(
@@ -161,6 +168,13 @@ void main() {
           'PREMIUM_USERNAME_UNAVAILABLE',
           'PREMIUM_USERNAME_PRICE_CHANGED',
           'PREMIUM_USERNAME_ACTIVE',
+          'QUIP_FREE_USED',
+          'QUIP_QUEUE_FULL',
+          'BOOST_QUEUE_FULL',
+          'BOOST_CARD_INSUFFICIENT',
+          'BOOST_ROOM_BUSY',
+          'YOUTUBE_VIDEO_UNAVAILABLE',
+          'YOUTUBE_SEARCH_UNAVAILABLE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

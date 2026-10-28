@@ -68,6 +68,13 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.premiumUsernamePriceChanged =>
       l10n.errorPremiumUsernamePriceChanged,
     ErrorCode.premiumUsernameActive => l10n.errorPremiumUsernameActive,
+    ErrorCode.quipFreeUsed => l10n.errorQuipFreeUsed,
+    ErrorCode.quipQueueFull => l10n.errorQuipQueueFull,
+    ErrorCode.boostQueueFull => l10n.errorBoostQueueFull,
+    ErrorCode.boostCardInsufficient => l10n.errorBoostCardInsufficient,
+    ErrorCode.boostRoomBusy => l10n.errorBoostRoomBusy,
+    ErrorCode.youtubeVideoUnavailable => l10n.errorYoutubeVideoUnavailable,
+    ErrorCode.youtubeSearchUnavailable => l10n.errorYoutubeSearchUnavailable,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

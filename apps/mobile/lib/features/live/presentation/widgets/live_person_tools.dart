@@ -34,6 +34,7 @@ class LivePersonScope {
     this.onGift,
     this.onMention,
     this.selfMic,
+    this.onBoost,
   });
 
   final String roomId;
@@ -60,6 +61,10 @@ class LivePersonScope {
 
   /// D135: puts `@username` into the chat box and opens it ([insertMention]).
   final ValueChanged<String>? onMention;
+
+  /// D154b: a traffic card for this live, as a gift to the host (only on
+  /// the host's card, for a signed-in viewer).
+  final VoidCallback? onBoost;
 
   /// Your own card when you are on the mic (owner, 2026-10-26: a tap on
   /// your seat opens your card; you mute yourself here): whether your mic

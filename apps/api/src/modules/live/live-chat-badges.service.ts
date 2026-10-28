@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { Clock } from '../../common/time/clock.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -17,6 +19,11 @@ export interface LiveChatAuthorBadgesDto {
   supportLevel: number | null;
   /** The author's family (not disbanded), or null. */
   family: LiveChatAuthorFamilyDto | null;
+  /**
+   * v1.34-live (D154c): the author's account is younger than NEWCOMER_DAYS («جديد 🌱»). The signup
+   * date itself is never sent.
+   */
+  newcomer: boolean;
 }
 
 /** Badges are read again after this long (a level-up or a new family shows within it). */
@@ -28,6 +35,7 @@ export const NO_BADGES: LiveChatAuthorBadgesDto = Object.freeze({
   charmLevel: null,
   supportLevel: null,
   family: null,
+  newcomer: false,
 });
 
 /**
@@ -56,6 +64,7 @@ interface BadgeRow {
   support_level: number | null;
   family_name: string | null;
   family_level: number | null;
+  newcomer: boolean | null;
 }
 
 /**
@@ -73,6 +82,7 @@ export class LiveChatBadgesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** The badges of each of `userIds` (every id gets an entry). */
@@ -86,11 +96,13 @@ export class LiveChatBadgesService {
       else missing.push(id);
     }
     if (missing.length === 0) return out;
+    const since = new Date(now - this.config.newcomerDays * 86_400_000).toISOString();
     const rows = await this.prisma.$queryRaw<BadgeRow[]>`
       SELECT a.id::text AS user_id,
              ${levelSql('ATTRACTIVENESS')} AS charm_level,
              ${levelSql('SUPPORT')} AS support_level,
-             f.name AS family_name, f.level AS family_level
+             f.name AS family_name, f.level AS family_level,
+             (SELECT u.created_at > ${since}::timestamptz FROM users u WHERE u.id = a.id) AS newcomer
         FROM unnest(${missing}::uuid[]) AS a(id)
         LEFT JOIN family_members fm ON fm.user_id = a.id
         LEFT JOIN families f ON f.id = fm.family_id AND f.disbanded_at IS NULL`;
@@ -102,6 +114,7 @@ export class LiveChatBadgesService {
           row.family_name !== null && row.family_level !== null
             ? { name: row.family_name, level: row.family_level }
             : null,
+        newcomer: row.newcomer === true,
       };
       out.set(row.user_id, badges);
       this.remember(row.user_id, badges, now);
