@@ -173,6 +173,11 @@ info:
     in a row the next draw pays at least ×5; `LuckyGiftOdds.pity`, `LuckyGiftResult.guaranteed`);
     and the data message `lucky-ticker` on topic `lucky`, sent to every other live room for a big
     win, at most one every 10 s (CONVENTIONS §10.27).
+    **D155 (DRAFT v1.40-social)** adds direct messages (tag `messages`, `/dm/…`): conversations
+    created by the first message, message requests from people the recipient does not follow (3
+    messages until accepted), `PrivacySettings.whoCanMessage`, read receipts and unread counts,
+    gifts inside a conversation through the live gift pipeline, block/report (`DM_MESSAGE`, kept as a
+    snapshot)/mute/delete; every message is deleted 24 hours after it was sent (CONVENTIONS §11.13).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -223,6 +228,8 @@ tags:
     description: "Photo stories that last 24 hours: tray, seen, viewers and archive (v1.5-social DRAFT, CP-008)."
   - name: notifications
     description: "In-app notifications: inbox, unread count, mark read and settings (v1.5-social DRAFT, CP-009); the device's push token (v1.30-live DRAFT, D152)."
+  - name: messages
+    description: "Direct messages: conversations, message requests, receipts, unread counts, gifts in a conversation; every message lives 24 hours (v1.40-social DRAFT, D155)."
   - name: safety
     description: "Block, mute, hide, reports and privacy settings (v1.5-social DRAFT)."
   - name: admin-moderation
@@ -5703,6 +5710,266 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
+  # ---- v1.40-social (DRAFT, D155) — direct messages (CONVENTIONS §11.13) -------------------------
+  /api/v1/dm/conversations:
+    get:
+      tags: [messages]
+      operationId: listDmConversations
+      summary: "The caller's conversations or message requests, newest message first (D155)"
+      description: |
+        `box=INBOX` (default): accepted conversations and requests the caller sent; `box=REQUESTS`:
+        message requests waiting for the caller. Conversations the caller deleted are absent until a
+        new message arrives; peers with a block either way or not ACTIVE are never listed. Ordered by
+        `lastActivityAt` (signed keyset cursor, §5). Messages live 24 hours: `lastMessage` is null
+        when none is left (CONVENTIONS §11.13).
+      parameters:
+        - name: box
+          in: query
+          required: false
+          schema: { type: string, enum: [INBOX, REQUESTS], default: INBOX }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of conversations.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmConversationPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/unread:
+    get:
+      tags: [messages]
+      operationId: getDmUnread
+      summary: "Unread direct messages for the Messages tab badge (D155)"
+      description: |
+        `messages`: unread messages in accepted conversations that are not muted (≤ 99, the badge);
+        `conversations`: how many of those conversations have unread messages (≤ 99); `requests`:
+        message requests with unread messages (≤ 99). Expired (24 h), deleted and hidden messages are
+        never counted.
+      responses:
+        '200':
+          description: The counts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmUnread' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/peers/{username}:
+    get:
+      tags: [messages]
+      operationId: getDmPeer
+      summary: "Open a conversation with someone: the person, the conversation if any, and whether the caller may write (D155)"
+      description: |
+        404 when nobody ACTIVE has that username or there is a block either way; 400 `username` /
+        `invalid_value` for oneself. `conversation` is null before the first message. `canMessage`
+        false with `reason` `NOT_ALLOWED` (the person's `whoCanMessage`) or `REQUEST_LIMIT` (the
+        caller used the messages of an unanswered request).
+      parameters:
+        - $ref: '#/components/parameters/UsernamePath'
+      responses:
+        '200':
+          description: The peer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmPeer' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/messages:
+    get:
+      tags: [messages]
+      operationId: listDmMessages
+      summary: "A conversation's messages, newest first (D155)"
+      description: |
+        The caller's conversation only (404 otherwise, also with a block either way). Messages not
+        expired (24 h), not deleted for everyone and not deleted by the caller; `limit` default 30.
+        The app reads the first page again while the conversation is open (CONVENTIONS §11.13).
+        `conversation` carries the read state (`peerReadAt`) and `canSend`.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of messages.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmMessagePage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/messages:
+    post:
+      tags: [messages]
+      operationId: sendDmMessage
+      summary: "Send a direct message; the first one creates the conversation (D155)"
+      description: |
+        Order (after auth and the rate limit, 30 a minute, §7): 400 body → a retry with the same
+        `clientId` → 200 with the first message → 400 `to` / `invalid_value` (oneself) → 404 (`to`
+        not ACTIVE, or a block either way) → 403 `DM_NOT_ALLOWED` → 403 `DM_REQUEST_TEXT_ONLY` /
+        403 `DM_REQUEST_LIMIT` / 429 (a message request, 20 an hour) → 400 `mediaId` /
+        `invalid_value` → stored. Blocked words are masked in `TEXT`. Every message expires 24 h after
+        it was sent (CONVENTIONS §11.13).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DmSendRequest' }
+            example: { to: sara_2026, kind: TEXT, text: مرحبا, clientId: 0192f1d0-9999-7000-8000-000000000155 }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmSendResult' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmSendResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/gifts:
+    post:
+      tags: [messages]
+      operationId: sendDmGift
+      summary: "Send a gift inside a conversation (D155)"
+      description: |
+        The live gift pipeline (CONVENTIONS §10.23, §10.27) with the conversation instead of a room:
+        one recipient (`to`), the catalogue quantities, `COINS` or `BAG` (lucky: `COINS` only, its
+        gates). The recipient's charm counts `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) of the value;
+        lucky gifts keep the lucky host share (10 %). Order: 400 body → retry (200) → the checks of
+        `sendDmMessage` (400/404/403 privacy and requests; a stranger's gift is a request message and
+        its coins are spent) → 409 `GIFT_UNAVAILABLE` → 403 `LUCKY_GIFT_AGE_UNCONFIRMED` /
+        `LUCKY_GIFT_REGION_UNAVAILABLE` → 429 → 409 `INSUFFICIENT_COINS` / `GIFT_BAG_INSUFFICIENT`.
+        The gift message expires after 24 h; the send and its ledger rows are permanent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DmGiftSendRequest' }
+      responses:
+        '201':
+          description: Sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGiftResult' }
+        '200':
+          description: A retry (same `clientId`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmGiftResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/read:
+    post:
+      tags: [messages]
+      operationId: markDmRead
+      summary: "Mark the conversation read up to a message (D155)"
+      description: |
+        Everything the caller received up to `lastMessageId` (a message of this conversation the
+        caller can read; else 400 `lastMessageId` / `invalid_value`) is read; the pointer never moves
+        back. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DmReadRequest' }
+      responses:
+        '204': { description: Read. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/accept:
+    post:
+      tags: [messages]
+      operationId: acceptDmRequest
+      summary: "Accept a message request (D155)"
+      description: The conversation moves to the inbox; the sender's request limit ends. Idempotent (an accepted conversation → 204).
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Accepted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}:
+    delete:
+      tags: [messages]
+      operationId: deleteDmConversation
+      summary: "Delete a conversation for the caller (also declines a request) (D155)"
+      description: Every message up to now disappears for the caller only; the other side is not told. A new message brings the conversation back. Idempotent.
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Deleted for the caller. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/conversations/{conversationId}/mute:
+    put:
+      tags: [messages]
+      operationId: muteDmConversation
+      summary: "Mute a conversation: no push, not in the badge (D155)"
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Muted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [messages]
+      operationId: unmuteDmConversation
+      summary: "Unmute a conversation (D155)"
+      parameters:
+        - $ref: '#/components/parameters/DmConversationIdPath'
+      responses:
+        '204': { description: Unmuted. }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/dm/messages/{messageId}:
+    delete:
+      tags: [messages]
+      operationId: deleteDmMessage
+      summary: "Delete a message for the caller or, one's own within an hour, for everyone (D155)"
+      description: |
+        `scope=me` (default): any message of the caller's conversation, hidden for the caller only.
+        `scope=everyone`: the caller's own message within `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour) —
+        someone else's → 403 `AUTH_FORBIDDEN`, later → 409 `DM_DELETE_WINDOW_PASSED`; it is gone for
+        both and its file is deleted. A message the caller cannot read → 404. Idempotent for `me`.
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: scope
+          in: query
+          required: false
+          schema: { type: string, enum: [me, everyone], default: me }
+      responses:
+        '204': { description: Deleted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -5739,6 +6006,12 @@ components:
       required: false
       description: "(v1.22-live, CP-019) Only this category; all categories when absent."
       schema: { $ref: '#/components/schemas/BagCategory' }
+    DmConversationIdPath:
+      name: conversationId
+      in: path
+      required: true
+      description: (D155) A malformed or unknown id, or a conversation that is not the caller's → 404.
+      schema: { type: string, format: uuid }
     UsernamePath:
       name: username
       in: path
@@ -7506,14 +7779,15 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     MediaKind:
       type: string
-      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER]
+      enum: [POST_IMAGE, STORY_IMAGE, LIVE_COVER, LIVE_CHAT_IMAGE, LIVE_CHAT_VOICE, FAMILY_EMBLEM, FAMILY_COVER, HOME_BANNER, DM_IMAGE, DM_VOICE]
       description: |
         Images for posts, (CP-008) for stories and (CP-015) for the host's live cover; (CP-017)
         a picture or a voice clip (`audio/mp4`, ≤ 30 s, ≤ 1 MiB) for a live chat message;
         (CP-018) a family's emblem (a centre-cropped square like the live cover); (CP-022) a
         family's cover (processed like a post image, at most 1 080 px on the long side);
         (D124) a home banner (cover-cropped to 3:1 around the centre: 1 500 × 500 and 320 × 107,
-        attached only by the banner-admin CLI); video
+        attached only by the banner-admin CLI); (D155) `DM_IMAGE` (like a post image) and `DM_VOICE`
+        (like a live chat voice clip) for a direct message, deleted with it after 24 hours; video
         kinds arrive with M2 (CP-006 §2). An asset is attachable only to its kind's target (a
         post, a story, the live cover, a live chat message or a family).
     CreateMediaUploadRequest:
@@ -7527,13 +7801,13 @@ components:
           enum: [image/jpeg, image/png, image/webp, audio/mp4]
           description: |
             HEIC/HEIF is not accepted; the app converts such photos to JPEG on the device.
-            `audio/mp4` (AAC in MPEG-4, `.m4a`) is for `LIVE_CHAT_VOICE` only, and that kind takes
-            nothing else (CP-017; else `invalid_value`).
+            `audio/mp4` (AAC in MPEG-4, `.m4a`) is for `LIVE_CHAT_VOICE` and (D155) `DM_VOICE` only,
+            and those kinds take nothing else (CP-017; else `invalid_value`).
         byteSize:
           type: integer
           minimum: 1
           maximum: 15728640
-          description: At most 1 048 576 for `LIVE_CHAT_VOICE` (else `too_big`).
+          description: At most 1 048 576 for `LIVE_CHAT_VOICE` and `DM_VOICE` (else `too_big`).
     MediaUpload:
       type: object
       required: [uploadId, uploadUrl, method, headers, expiresAt]
@@ -8013,7 +8287,7 @@ components:
         follows: { type: boolean }
         reposts: { type: boolean }
         lives: { type: boolean, description: "(v1.14-live) Reminders of lives scheduled by hosts you follow." }
-        messages: { type: boolean, description: "(v1.30-live, D152) Push notifications of new messages in your family chat. In-app reading is not affected." }
+        messages: { type: boolean, description: "(v1.30-live, D152) Push notifications of new messages in your family chat and (v1.40-social, D155) of direct messages. In-app reading is not affected." }
     UpdateNotificationSettingsRequest:
       type: object
       additionalProperties: false
@@ -8053,12 +8327,12 @@ components:
       additionalProperties: false
       required: [targetType, targetId, reason]
       properties:
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE] }
         targetId:
           type: string
           minLength: 1
           maxLength: 64
-          description: A post, comment, story, live room, live chat message, CP confession or (CP-022) family chat message id, or a username for USER.
+          description: A post, comment, story, live room, live chat message, CP confession, (CP-022) family chat message or (D155) direct message id, or a username for USER.
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: string, maxLength: 500 }
     Report:
@@ -8066,7 +8340,7 @@ components:
       required: [id, targetType, targetId, reason, status, createdAt]
       properties:
         id: { type: string, format: uuid }
-        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE] }
+        targetType: { type: string, enum: [POST, COMMENT, STORY, USER, LIVE_ROOM, LIVE_CHAT_MESSAGE, CP_CONFESSION, FAMILY_CHAT_MESSAGE, DM_MESSAGE] }
         targetId: { type: string }
         reason: { $ref: '#/components/schemas/ReportReason' }
         note: { type: [string, 'null'] }
@@ -8076,6 +8350,9 @@ components:
           description: Admin views only.
           $ref: '#/components/schemas/UserSummary'
         resolvedAt: { type: [string, 'null'], format: date-time }
+        dmSnapshot:
+          description: (v1.40-social, D155) Admin views of `DM_MESSAGE` reports only.
+          $ref: '#/components/schemas/DmReportSnapshot'
     ReportPage:
       type: object
       required: [data, page]
@@ -8093,8 +8370,9 @@ components:
         note: { type: string, maxLength: 500 }
     PrivacySettings:
       type: object
-      required: [whoCanMention, defaultWhoCanComment, showActivityStatus]
+      required: [whoCanMention, defaultWhoCanComment, showActivityStatus, whoCanMessage]
       properties:
+        whoCanMessage: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY], description: "(v1.40-social, D155) Who may send the user direct messages (default EVERYONE; FOLLOWING = accounts the user follows), CONVENTIONS §11.13." }
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
         showActivityStatus: { type: boolean, description: "(v1.25-live, CP-022) Others may see when the user was last active (default true, CONVENTIONS §10.25)." }
@@ -8106,6 +8384,7 @@ components:
         whoCanMention: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
         defaultWhoCanComment: { type: string, enum: [EVERYONE, FOLLOWERS, NOBODY] }
         showActivityStatus: { type: boolean }
+        whoCanMessage: { type: string, enum: [EVERYONE, FOLLOWING, NOBODY] }
     # ---- v1.21-live (DRAFT, CP-018, D106) — families, CP couples and medals ---------------------
     FamilyRole:
       type: string
@@ -9135,5 +9414,175 @@ components:
       required: [ageConfirmedAt]
       properties:
         ageConfirmedAt: { type: string, format: date-time, description: "When the caller first confirmed." }
+    # ---- v1.40-social (DRAFT, D155) — direct messages (CONVENTIONS §11.13) -----------------------
+    DmConversationStatus:
+      type: string
+      enum: [ACCEPTED, REQUEST_RECEIVED, REQUEST_SENT]
+      description: |
+        The caller's side: `ACCEPTED`; `REQUEST_RECEIVED` — a message request waiting for the caller
+        (`box=REQUESTS`); `REQUEST_SENT` — the caller wrote, the other side has not accepted yet.
+    DmMessageKind:
+      type: string
+      enum: [TEXT, IMAGE, VOICE, EMOJI, GIFT]
+      description: Clients show an unknown kind as an unsupported message.
+    DmGift:
+      type: object
+      description: A gift sent in the conversation (the app takes the name from its catalogue).
+      required: [giftCode, assetKey, animationKey, imageUrl, animationUrl, animationBytes, unitPrice, quantity, totalCoins, lucky]
+      properties:
+        giftCode: { type: string, maxLength: 40 }
+        assetKey: { type: string, maxLength: 80 }
+        animationKey: { type: [string, 'null'], maxLength: 80 }
+        imageUrl: { type: [string, 'null'], format: uri }
+        animationUrl: { type: [string, 'null'], format: uri }
+        animationBytes: { type: [integer, 'null'], minimum: 1 }
+        unitPrice: { type: integer, minimum: 1 }
+        quantity: { type: integer, minimum: 1 }
+        totalCoins: { type: integer, format: int64, minimum: 1 }
+        lucky:
+          description: A LUCKY gift's result (null for other gifts).
+          oneOf:
+            - type: object
+              required: [coinsWon, topMultiplier]
+              properties:
+                coinsWon: { type: integer, format: int64, minimum: 0 }
+                topMultiplier: { type: [integer, 'null'], minimum: 2 }
+            - type: 'null'
+    DmMessage:
+      type: object
+      required: [id, conversationId, senderId, mine, kind, text, token, media, gift, read, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        senderId: { type: string, format: uuid }
+        mine: { type: boolean, description: The caller sent it. }
+        kind: { $ref: '#/components/schemas/DmMessageKind' }
+        text: { type: [string, 'null'], description: "`TEXT`: 1–1 000 code points, blocked words masked (each character → `*`)." }
+        token: { type: [string, 'null'], description: "`EMOJI`: the pack emoji token `:<pack>_<id>:`." }
+        media:
+          description: "`IMAGE` / `VOICE`: the picture or voice clip (`AUDIO` with `durationMs`)."
+          oneOf:
+            - $ref: '#/components/schemas/MediaAsset'
+            - type: 'null'
+        gift:
+          oneOf:
+            - $ref: '#/components/schemas/DmGift'
+            - type: 'null'
+        read: { type: boolean, description: "On the caller's own messages: the peer has read it (✓✓). False on received messages." }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time, description: "createdAt + DM_RETENTION_HOURS (24 h); the message is deleted then." }
+    DmConversation:
+      type: object
+      required: [id, peer, status, muted, unreadCount, lastMessage, lastActivityAt, peerReadAt, canSend, requestMessagesLeft]
+      properties:
+        id: { type: string, format: uuid }
+        peer: { $ref: '#/components/schemas/UserSummary' }
+        status: { $ref: '#/components/schemas/DmConversationStatus' }
+        muted: { type: boolean }
+        unreadCount: { type: integer, minimum: 0, maximum: 99 }
+        lastMessage:
+          description: The newest message the caller can still read (null after 24 h or deletion).
+          oneOf:
+            - $ref: '#/components/schemas/DmMessage'
+            - type: 'null'
+        lastActivityAt: { type: string, format: date-time }
+        peerReadAt: { type: [string, 'null'], format: date-time, description: Up to when the peer has read the caller's messages. }
+        canSend: { type: boolean, description: "The caller may send now (privacy and request rules); false → the app explains." }
+        requestMessagesLeft: { type: [integer, 'null'], minimum: 0, description: "`REQUEST_SENT` only: messages the caller may still send before the peer accepts." }
+    DmConversationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DmConversation' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+    DmMessagePage:
+      type: object
+      required: [data, page, conversation]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/DmMessage' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+        conversation: { $ref: '#/components/schemas/DmConversation' }
+    DmUnread:
+      type: object
+      required: [messages, conversations, requests]
+      properties:
+        messages: { type: integer, minimum: 0, maximum: 99 }
+        conversations: { type: integer, minimum: 0, maximum: 99 }
+        requests: { type: integer, minimum: 0, maximum: 99 }
+    DmPeer:
+      type: object
+      required: [user, conversation, canMessage, reason, asRequest]
+      properties:
+        user: { $ref: '#/components/schemas/UserSummary' }
+        asRequest: { type: boolean, description: "The caller's next message would be a message request (the person does not follow the caller and has not accepted or written): the app says so before a gift, whose coins are spent anyway." }
+        conversation:
+          oneOf:
+            - $ref: '#/components/schemas/DmConversation'
+            - type: 'null'
+        canMessage: { type: boolean }
+        reason: { type: [string, 'null'], enum: [NOT_ALLOWED, REQUEST_LIMIT, null] }
+    DmSendRequest:
+      type: object
+      additionalProperties: false
+      required: [to, kind, clientId]
+      properties:
+        to: { type: string, minLength: 1, maxLength: 64, description: The recipient's username. }
+        kind: { type: string, enum: [TEXT, IMAGE, VOICE, EMOJI] }
+        text: { type: string, minLength: 1, maxLength: 8000, description: "`TEXT` only (required): 1–1 000 code points, ≤ 20 line breaks, §6 hygiene." }
+        mediaId: { type: string, format: uuid, description: "`IMAGE` (a `DM_IMAGE` asset) / `VOICE` (a `DM_VOICE` asset) only (required)." }
+        token: { type: string, maxLength: 64, description: "`EMOJI` only (required): `:<pack>_<id>:`." }
+        clientId: { type: string, format: uuid, description: Unique per sender; a retry answers the first message. }
+    DmSendResult:
+      type: object
+      required: [message, conversation]
+      properties:
+        message: { $ref: '#/components/schemas/DmMessage' }
+        conversation: { $ref: '#/components/schemas/DmConversation' }
+    DmGiftSendRequest:
+      type: object
+      additionalProperties: false
+      required: [to, giftCode, quantity, source, clientId]
+      properties:
+        to: { type: string, minLength: 1, maxLength: 64 }
+        giftCode: { type: string, minLength: 1, maxLength: 40 }
+        quantity: { type: integer, description: "One of `GiftCatalogue.quantities`." }
+        source: { $ref: '#/components/schemas/LiveGiftSource' }
+        clientId: { type: string, format: uuid, description: "The send's id: a retry is never charged again." }
+    DmGiftResult:
+      type: object
+      required: [message, conversation, coins, bagQuantity]
+      properties:
+        message: { $ref: '#/components/schemas/DmMessage' }
+        conversation: { $ref: '#/components/schemas/DmConversation' }
+        coins: { type: integer, format: int64, minimum: 0, description: The caller's balance after the send. }
+        bagQuantity: { type: integer, minimum: 0 }
+        luckyResult:
+          description: Present only for a LUCKY gift.
+          allOf:
+            - $ref: '#/components/schemas/LuckyGiftResult'
+    DmReadRequest:
+      type: object
+      additionalProperties: false
+      required: [lastMessageId]
+      properties:
+        lastMessageId: { type: string, format: uuid }
+    DmReportSnapshot:
+      type: object
+      description: "Admin views only: what the reported direct message was, kept after the message's 24-hour deletion (30 days after the report is resolved)."
+      required: [kind, text, token, sender, sentAt, mediaUrl, giftCode, quantity, purged]
+      properties:
+        kind: { $ref: '#/components/schemas/DmMessageKind' }
+        text: { type: [string, 'null'] }
+        token: { type: [string, 'null'] }
+        sender: { type: [string, 'null'], description: The sender's username (null when the account is gone). }
+        sentAt: { type: string, format: date-time }
+        mediaUrl: { type: [string, 'null'], format: uri }
+        giftCode: { type: [string, 'null'] }
+        quantity: { type: [integer, 'null'] }
+        purged: { type: boolean, description: The retention period ended; text and file were cleared. }
 security:
   - bearerAuth: []

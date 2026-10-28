@@ -135,6 +135,10 @@ All non-2xx responses use one envelope:
 | 409 | `PREMIUM_USERNAME_UNAVAILABLE` | *(v1.28-live, DRAFT, D146)* The name cannot be rented or renewed by the caller now (taken, held for its last renter, reserved, not on sale, not premium, past the prepaid limit, or someone else won the same name a moment earlier). Nothing was charged; the app reads `GET /premium-usernames/{username}` to say why (§10.32). |
 | 409 | `PREMIUM_USERNAME_PRICE_CHANGED` | *(v1.28-live, DRAFT, D146)* The owner changed the price since the app showed it (`priceCoins` differs). Nothing was charged; the app shows the new price (§10.32). |
 | 409 | `PREMIUM_USERNAME_ACTIVE` | *(v1.28-live, DRAFT, D146)* The caller already has an active premium username: renting another one or changing the regular username waits until it is given back (§10.32). |
+| 403 | `DM_NOT_ALLOWED` | *(v1.40-social, DRAFT, D155)* The recipient's «who can message you» setting (`whoCanMessage`) does not allow the caller (§11.13). Nothing was stored or charged. The app says the person does not accept messages. |
+| 403 | `DM_REQUEST_LIMIT` | *(v1.40-social, DRAFT, D155)* The caller already sent `DM_REQUEST_MAX_MESSAGES` (3) messages in a message request the recipient has not accepted (§11.13). The app says to wait for a reply. |
+| 403 | `DM_REQUEST_TEXT_ONLY` | *(v1.40-social, DRAFT, D155)* A picture or voice message in a message request (only text, a pack emoji or a gift until the recipient accepts, §11.13). |
+| 409 | `DM_DELETE_WINDOW_PASSED` | *(v1.40-social, DRAFT, D155)* Deleting one's own message for everyone more than `DM_DELETE_FOR_EVERYONE_SECONDS` (1 hour) after sending it (§11.13); deleting it for oneself still works. |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -381,6 +385,9 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /cp/me/check-in`, `POST /cp/me/tasks/{code}/claim`, `DELETE /cp/me/confessions/{confessionId}` *(v1.24-live, CP-021)* | 60 / min per user (bucket `cp:space`, `RATE_LIMIT_CP_SPACE_WRITE_USER`). **Replaces** the per-user default; the CP space reads (`GET /cp/me/tasks`, `/cp/me/privileges`, `/cp/me/confessions`, `/cp/rankings`, `/cp/couples/…`) use the default |
 | `POST /cp/me/confessions` *(v1.24-live, CP-021)* | 10 / hour per user (bucket `cp:confession`, `RATE_LIMIT_CP_CONFESSION_USER`). **Replaces** the per-user default |
 | `POST /families/{familyId}/chat` *(v1.25-live, CP-022)* | 30 / min per user (bucket `families:chat`, `RATE_LIMIT_FAMILY_CHAT_USER`). **Replaces** the per-user default. Deleting a chat message and muting / unmuting a member use the family writes bucket (`families:write`); the family boards, standing, contributions and chat reads use the per-user default |
+| `POST /dm/messages` *(v1.40-social, D155)* | 30 / min per user (bucket `dm:send`, `RATE_LIMIT_DM_SEND_USER`). **Replaces** the per-user default. A message that is a **message request** (§11.13) also counts 20 / hour per user (bucket `dm:request`, `RATE_LIMIT_DM_REQUEST_USER`), checked in the send after the request rules |
+| `POST /dm/gifts` *(v1.40-social, D155)* | the live gift buckets (`live:gift:any` first, then `live:gift` or, for a lucky gift, `live:gift:lucky`; §10.23), and a request gift also counts in `dm:request`. **Replaces** the per-user default |
+| `POST /dm/conversations/{id}/read`, `…/accept`, `DELETE /dm/conversations/{id}`, `PUT`/`DELETE …/mute`, `DELETE /dm/messages/{id}` *(v1.40-social, D155)* | 300 / hour per user (bucket `dm:write`, `RATE_LIMIT_DM_WRITE_USER`). **Replaces** the per-user default; `GET /dm/conversations`, `GET /dm/unread`, `GET /dm/peers/{username}` and `GET …/messages` use the per-user default |
 | `PUT /me/medals/showcase` *(v1.21-live, CP-018)* | 60 / hour per user (bucket `medals:showcase`). **Replaces** the per-user default; `GET /me/medals/showcase` uses the default |
 | `GET /users/{username}/medals` *(v1.21-live, CP-018)* | the `GET /users/{username}` bucket (300 / 15 min per user); `GET /medals` uses the per-user default |
 | `GET /users/{username}/followers`, `GET /users/{username}/following` *(v1.25.2-live, D121)* | the `GET /users/{username}` bucket (`users:profile`, 300 / 15 min per user; profile scraping). **Replaces** the per-user default |
@@ -463,6 +470,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
+| *(v1.40-social)* Tables `dm_conversations`, `dm_participants`, `dm_messages`, `dm_message_hides`; columns `live_gifts.dm_conversation_id`, `privacy_settings.who_can_message`, `reports.target_dm_message_id`, `reports.dm_snapshot` | Backend — `messages` module (gift sends are written by the live module's `LiveGiftsService`; the privacy column by the `safety` module; report snapshots by the `safety` module through `messages/dm-reports.ts`) | CTO; Security reviews privacy, requests and retention (§11.13) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -502,6 +510,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages`. §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
 | v1.31-live (draft) | 2026-10-28 | **D148 (owner: eight tiers, a guarantee, «لحظة الحظ», 100 lucky sends a second):** the lucky table is configured as chances per million (`LUCKY_GIFT_CHANCES_PER_MILLION`, default ×5 48 918 · ×10 15 451 · ×25 3 903 · ×50 1 464 · ×100 569 · ×250 130 · ×500 40 · ×1000 12; `LUCKY_GIFT_MULTIPLIERS` default `5,10,25,50,100,250,500,1000`; `LUCKY_GIFT_RTP_SHARES` removed — set, the server refuses to start); the per-sender guarantee (`LUCKY_PITY_AFTER` 15, `LUCKY_PITY_MULTIPLIER` 5: after 15 losing draws in a row the next draw pays at least ×5); `LuckyGiftOdds.pity` (`LuckyGiftPity`, nullable) and `returnPercent` now includes the guarantee (84.9999 with the defaults); `LuckyGiftResult.guaranteed`; data message `lucky-ticker` on topic `lucky` to every other LIVE room for a win ≥ `bigWinMultiplier`, at most one every 10 s (all instances), the biggest waiting one next; audit columns `lucky_gift_draws.losses_before`, `losses_after`, `guaranteed` and table `lucky_gift_pity`. §10.27. | **Additive** for clients (new fields and a new data message type; older apps ignore them). **Behaviour change** for lucky draws (new odds and the guarantee) — the published odds say so. A server configured with `LUCKY_GIFT_RTP_SHARES` must switch to `LUCKY_GIFT_CHANCES_PER_MILLION` before upgrading. |
 | v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
 | v1.29.2-live (draft) | 2026-10-28 | **D145d (owner: «100 lucky draws a second per user»):** `sendLiveGift` rate-limit defaults — every send 6000 / min per user (`live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` `6000/60`, was 600/60), a LUCKY gift 100 / s (`live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` `100/1`, was 10/1); a normal gift stays 120 / min (`live:gift`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
@@ -2259,6 +2268,9 @@ these rules.
   (`audio/mp4`). The asset is `type: AUDIO`, `width`/`height` 0, `blurhash` null, `thumbUrl` =
   `url`, plus `durationMs`. Both kinds attach only to a live chat message and are deleted 60 s
   after it was sent (§10.19).
+- *(v1.40-social, D155)* `DM_IMAGE` uploads are processed like `POST_IMAGE`, and `DM_VOICE` uploads
+  like `LIVE_CHAT_VOICE` (`audio/mp4`, ≤ 1 MiB, ≤ 30 s); both attach only to a direct message and are
+  deleted with it (24 hours after it was sent, §11.13).
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.
@@ -2346,13 +2358,17 @@ count is eventually consistent (≤ 1 min).
   report. Admins with permission `MODERATION` list and act; `REMOVE_TARGET` removes the post or
   comment (soft, audited) — *v1.24-live:* or a CP confession (`targetType: CP_CONFESSION`, one the
   reporter can read and did not write, §10.24) — *v1.25-live:* or a family chat message
-  (`targetType: FAMILY_CHAT_MESSAGE`, in the reporter's family, not their own, §10.25) — or, for a user, records the decision only (suspension stays a separate
+  (`targetType: FAMILY_CHAT_MESSAGE`, in the reporter's family, not their own, §10.25) — *v1.40-social:* or a
+  direct message the reporter received (`targetType: DM_MESSAGE`, kept as a snapshot because
+  messages are deleted after 24 h, §11.13) — or, for a user, records the decision only (suspension stays a separate
   admin tool); every OPEN report on that target closes with the same outcome. Acting on a closed
   report → 409 `REPORT_ALREADY_RESOLVED`.
 - **Privacy settings**: `whoCanMention` (`EVERYONE` default; `FOLLOWING` = accounts the user
   follows; `NOBODY`) and `defaultWhoCanComment` (`EVERYONE` default) for new posts;
   *(v1.25-live, CP-022)* `showActivityStatus` (default true): whether family members may see when
   the user was last active (§10.25).
+  *(v1.40-social, D155)* `whoCanMessage` (`EVERYONE` default; `FOLLOWING` = accounts the user
+  follows; `NOBODY`): who may send the user direct messages (§11.13).
 
 ### 11.8 Rate limits (all per user; replace the per-user default)
 
@@ -2528,5 +2544,121 @@ a message one. Phase 1 plays them in the app; phase 2 (this section) sends pushe
   plays the message sound, a notification the general sound (also when the polled unread count
   grows), never for the chat on screen, never two at once, only while Settings → **Sound effects**
   is on and, on Android, not in silent or vibrate mode.
+- *(v1.40-social, D155)* **Direct messages** are pushed on the same `messages` channel with
+  `kind: dm` (§11.13); the `messages` switch covers family chat and direct messages.
 - **Not in v1.30-live:** iOS pushes, pushes of live-room chat, per-chat mute, quiet hours,
   notification grouping on the device (summary notifications).
+
+### 11.13 Direct messages *(v1.40-social, DRAFT — D155)*
+
+Owner request (2026-10-28): real 1:1 private messages behind the Messages tab (D86 had none), with
+gifts inside a conversation and a **24-hour life for every message** (owner: «الرسائل بين الأشخاص
+تحذف بعد ٢٤ ساعة»). Every route needs a token (tag `messages`, `/dm/…`). Named numbers are server
+configuration (`DM_*`).
+
+- **Conversations:** one per pair of accounts, created by the **first message** (there is no
+  "create" call). Each side has its own state: `status` (`ACCEPTED`; `REQUEST_RECEIVED` — a message
+  request waiting for the caller; `REQUEST_SENT` — the caller wrote and the other side has not
+  accepted yet), `muted`, the read pointer and a "deleted for me" time. The list
+  (`listDmConversations`, `box=INBOX` — accepted and sent requests — or `box=REQUESTS`) is ordered
+  by the last message (newest first, signed keyset cursor), each with the peer, the newest message
+  still visible to the caller (`lastMessage`, null when none is left), `lastActivityAt`, the unread
+  count (≤ 99) and `canSend`. A conversation never shows people with a block either way, nor
+  accounts that are not ACTIVE.
+- **Messages** (`sendDmMessage`, `POST /dm/messages` `{to, kind, text|mediaId|token, clientId}`;
+  201, a retry with the same `clientId` → 200 with the first message): `TEXT` — NFC, trimmed,
+  1–1 000 code points, ≤ 20 line breaks, the §6 hygiene (control, bidi-override, zero-width and
+  confusable-format characters refused — `invalid_format`); **blocked words** are masked before it
+  is stored (§10.14 matching: the server's list `search_blocked_words`, §11.11, and the recipient's
+  own live blocked words); `IMAGE` — a `DM_IMAGE` upload (§11.1, processed like `POST_IMAGE`:
+  re-encoded, metadata stripped); `VOICE` — a `DM_VOICE` clip (the CP-017 voice pipeline: `audio/mp4`,
+  ≤ 1 MiB, ≤ 30 s); `EMOJI` — one of the owner's pack emojis as its token `:<pack>_<id>:` (§10.30
+  list). An asset that is not the caller's unattached asset of that kind → 400 `mediaId` /
+  `invalid_value`. **No moderation hold:** no moderation provider exists (§11.2 keeps post images
+  `PENDING`), so — like stories (D91) — DM pictures are delivered at once and safety relies on
+  requests (strangers cannot send pictures or voice), block, report and the 24-hour life.
+  Order of checks: 400 body → the `clientId` retry → 400 `to` (`invalid_value`: oneself) → 404
+  (`to` is not an ACTIVE account, or a block either way: **blocked people cannot message or see
+  you**) → 403 `DM_NOT_ALLOWED` (privacy) → message-request rules (403 `DM_REQUEST_TEXT_ONLY`,
+  403 `DM_REQUEST_LIMIT`, 429 `dm:request`) → 400 `mediaId` → stored.
+- **Who may message you** (`PrivacySettings.whoCanMessage`, «من يستطيع مراسلتك»): `EVERYONE`
+  (default), `FOLLOWING` (accounts you follow) or `NOBODY`. It is checked on **every** message,
+  except in a conversation where you yourself have written (you started it or replied): then the
+  other side may answer whatever the setting.
+- **Message requests** («طلبات المراسلة»): a message to someone who does **not follow** the sender,
+  in a conversation the recipient has neither accepted nor written in, is a request: it goes to the
+  recipient's `REQUESTS` box (not counted in the Messages badge, `DmUnread.requests` instead). Until
+  the recipient accepts (`acceptDmRequest`), replies, or follows the sender, the sender may send at
+  most **`DM_REQUEST_MAX_MESSAGES` (3)** messages in it (the 4th → 403 `DM_REQUEST_LIMIT`; the
+  count does not reset when messages expire or the request is deleted) and only `TEXT`, `EMOJI` or
+  a gift (`IMAGE`/`VOICE` → 403 `DM_REQUEST_TEXT_ONLY`). The recipient accepts, deletes
+  (`deleteDmConversation`, the sender is not told) or blocks (`PUT /users/{username}/block`).
+- **Gifts in a conversation** (`sendDmGift`, `POST /dm/gifts` `{to, giftCode, quantity, source,
+  clientId}` → 201 `DmGiftResult`, a retry → 200): the whole gift box of `getGiftCatalogue` — every
+  category the catalogue lists, normal and `LUCKY` (MAX X) — through the **live gift pipeline**
+  (§10.23, §10.27) with a conversation instead of a room: one recipient (the peer), the catalogue
+  quantities, `COINS` or `BAG` (lucky: `COINS` only, its switch, region and 18+ gates), the same
+  wallet charge and ledger (`DM_GIFT`; lucky `LUCKY_GIFT` and `LUCKY_GIFT_WIN`), the sender's family
+  points, the lucky draw with the guarantee and the daily protection, the same idempotency
+  (`clientId` is the send's id in `live_gifts`, whose `dm_conversation_id` is set and `room_id` is
+  null), the same rate limits (`live:gift`, `live:gift:lucky`). Nothing room-only happens (no score,
+  Contribution, popularity, wish list, data message or «لحظة الحظ» ticker). **The recipient's
+  share** (what is counted for the recipient's charm, `ATTRACTIVENESS`, as the live host's share is):
+  `GIFT_DM_RECIPIENT_SHARE_PERCENT` (owner: **50 %**) of the gift's coin value; the sender's
+  support (and Wizard for lucky) count as in a live. **Exception — lucky gifts keep the lucky host
+  share (`LUCKY_GIFT_HOST_SHARE_PERCENT`, 10 %)**: the lucky return is 85 % and 85 % + 50 % would
+  give back more than was spent. No coins are credited to the recipient (as in a live: a share is
+  counted points, not coins). The gift shows as a `GIFT` message (icon, name from the catalogue,
+  ×quantity, the lucky win). It follows every message rule above: the privacy setting, blocks, and
+  a stranger's gift is a **request message** (it counts towards the 3, and the coins are spent even
+  if the recipient never accepts — the app says so before sending, from `DmPeer.asRequest` or the
+  conversation's `REQUEST_SENT`). Order: 400 body → retry → the
+  checks of `sendDmMessage` (to, block, privacy, request limit) → the gift checks and charge of
+  §10.23 (409 `GIFT_UNAVAILABLE`, 403 lucky gates, 409 `INSUFFICIENT_COINS` /
+  `GIFT_BAG_INSUFFICIENT`). The gift message expires after 24 h like any message; the send, its
+  ledger rows, draws and level credits are **permanent**.
+- **24-hour life** *(owner)*: every message (any kind, read or unread) has `expiresAt` = sent +
+  **`DM_RETENTION_HOURS` (24)**. From then on no read returns it and no count includes it; a sweeper
+  (`DM_SWEEP_INTERVAL_SECONDS`, default 60; cannot be disabled in production) **hard-deletes** it
+  with its picture or voice objects in bounded batches. The conversation stays (with
+  `lastActivityAt`); with nothing left `lastMessage` is null. Deleting a message for everyone or a
+  moderation removal sets `expiresAt` to now (the same path).
+- **Delivery and read:** a message is *sent* (✓) once stored; `read` (✓✓) is true on the caller's
+  own messages that the peer has read (`markDmRead {lastMessageId}`: everything received up to that
+  message is read; `DmConversation.peerReadAt`). Unread counts: per conversation, and `getDmUnread`
+  `{messages, conversations, requests}` — `messages` sums unread messages of accepted, **not
+  muted** conversations (≤ 99; the tab badge), `requests` counts request conversations with unread
+  messages. Expired, deleted and hidden messages are never counted.
+- **Real time:** there is no socket for signed-in users; the app reads the open conversation's
+  newest page while it is on screen (every 3 s, slowing to 15 s while nothing changes, paused in the
+  background), the list and the badge every 30 s and on resume, and at once when a `dm` push arrives.
+- **Delete:** a conversation **for me** (`deleteDmConversation`): everything up to now disappears for
+  the caller (also a declined request); a new message brings it back with only the new messages. A
+  message (`deleteDmMessage?scope=`): `me` — any message in the caller's conversation, for the caller
+  only; `everyone` — the caller's own message within **`DM_DELETE_FOR_EVERYONE_SECONDS` (3 600)** of
+  sending (later → 409 `DM_DELETE_WINDOW_PASSED`; someone else's → 403 `AUTH_FORBIDDEN`). Mute
+  (`PUT` / `DELETE …/mute`): no push and not in the badge.
+- **Report** (`POST /reports {targetType: DM_MESSAGE}`): a message the reporter **received** and can
+  still read. Because the message will be deleted, the report keeps a **snapshot** (kind, text,
+  emoji token, gift, sender, time and a copy of the picture or voice file under
+  `reports/dm/<messageId>.*`) for moderators (`Report.dmSnapshot`, admin views only). Retention: the
+  snapshot lives while the report is open and **30 days after it is resolved**, then the sweeper
+  clears it (text and file). `REMOVE_TARGET` removes the message (if it still exists). Reporting a
+  whole conversation is a report of the person (`USER`).
+- **Push** (§11.12, channel `kabso_messages`): a new message or gift is pushed to the recipient when
+  they are ACTIVE, keep `messages` on, have not muted the conversation or the sender (§11.7) and
+  there is no block either way; at most one per recipient per conversation per
+  `PUSH_MESSAGES_GAP_SECONDS`; Android `tag` `dm:<conversationId>`. Title: the sender's display
+  name; body: the text (masked, ≤ 100 code points), «📷 صورة» / "📷 Photo", «🎤 رسالة صوتية» /
+  "🎤 Voice message", «ملصق» / "Sticker", «🎁 أرسل لك هدية ×N» / "🎁 Sent you a gift ×N"; a request
+  says «طلب مراسلة: …» / "Message request: …". Data: `kind: dm`, `channel: messages`,
+  `conversationId`, `messageId`, `senderUsername`. The open conversation plays and shows nothing
+  (the app, §11.12).
+- **Rate limits** (§7): `POST /dm/messages` 30 / min per user (`dm:send`,
+  `RATE_LIMIT_DM_SEND_USER`); request messages additionally 20 / hour per user (`dm:request`,
+  `RATE_LIMIT_DM_REQUEST_USER`, counted in the send after the request rules); `POST /dm/gifts` the
+  live gift buckets; the other writes (`read`, `accept`, delete, mute) 300 / hour per user
+  (`dm:write`, `RATE_LIMIT_DM_WRITE_USER`); reads the per-user default.
+- **Not in v1.40-social:** group conversations, typing and online indicators, message reactions,
+  replies/quotes, forwarding and share-to-DM, video messages, captions on pictures, read-receipt
+  opt-out, keeping a message beyond 24 h, end-to-end encryption, iOS pushes.
