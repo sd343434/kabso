@@ -57,7 +57,7 @@ void main() {
       find.byKey(RegisterScreen.emailKey),
       ' Layla@Example.com ',
     );
-    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
     await tester.pump();
@@ -312,8 +312,8 @@ void main() {
     expect(find.byType(RegisterScreen), findsOneWidget);
     expect(find.byType(RegisterCodeScreen), findsNothing);
     expect(find.text(l10n.errUsernameTakenDuringVerify), findsOneWidget);
-    expect(find.text(l10n.usernameTaken('layla')), findsOneWidget);
-    expect(find.text('layla'), findsOneWidget, reason: 'form kept');
+    expect(find.text(l10n.usernameTaken('layla_22')), findsOneWidget);
+    expect(find.text('layla_22'), findsOneWidget, reason: 'form kept');
   });
 
   testWidgets('"Change email" returns to a filled Register form', (
@@ -325,7 +325,7 @@ void main() {
     expect(find.byType(RegisterScreen), findsOneWidget);
     // The form keeps what was typed (normalization happens on submit).
     expect(find.text(' Layla@Example.com '), findsOneWidget);
-    expect(find.text('layla'), findsOneWidget);
+    expect(find.text('layla_22'), findsOneWidget);
   });
 
   testWidgets('"Log in" goes to Login with the email prefilled', (
@@ -353,7 +353,7 @@ void main() {
     await tester.pumpAndSettle();
     await openRegister(tester);
     await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
     // Switch to Arabic on the Register screen, then submit. (D64: the
@@ -521,7 +521,10 @@ void main() {
         find.byKey(RegisterScreen.emailKey),
         'layla@example.com',
       );
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'ليلى');
       await tester.enterText(
         find.byKey(RegisterScreen.passwordKey),

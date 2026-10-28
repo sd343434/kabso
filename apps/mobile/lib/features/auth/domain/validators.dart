@@ -9,10 +9,22 @@ import 'package:flutter/widgets.dart' show StringCharacters;
 
 enum ValidationIssue { required, tooShort, tooLong, invalidFormat }
 
-/// Specific reason a username is invalid (PHASE1_SCREENS §4.2), in the
-/// spec's precedence order: bad characters → too short → too long → bad
-/// edges.
-enum UsernameIssue { required, badChars, tooShort, tooLong, badEdges }
+/// Specific reason a new username is invalid (PHASE1_SCREENS §4.2; D146
+/// rule, CONVENTIONS §6): premium → too short → too long → bad characters →
+/// bad edges → letters and digits.
+enum UsernameIssue {
+  required,
+  badChars,
+  tooShort,
+  tooLong,
+  badEdges,
+
+  /// D146: a new username needs a letter and a digit.
+  lettersAndDigits,
+
+  /// D146: a premium username (rented from the store, not chosen).
+  premium,
+}
 
 /// Client-side displayName problems (PHASE1_1_SCREENS §2).
 enum DisplayNameIssue { required, tooLong, invalidFormat }
@@ -37,11 +49,13 @@ class ValidationError {
 }
 
 abstract final class AuthRules {
-  static const usernameMin = 3;
+  /// D146: a new regular username has 6–30 characters (existing shorter
+  /// names are kept; lookups accept 1–30).
+  static const usernameMin = 6;
   static const usernameMax = 30;
-  static final usernamePattern = RegExp(
-    r'^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$',
-  );
+
+  /// D146: a–z, 0–9 and `_`, never `_` first or last.
+  static final usernamePattern = RegExp(r'^[a-z0-9](?:[a-z0-9_]*[a-z0-9])?$');
 
   static const passwordMin = 8;
   static const passwordMax = 128;
@@ -52,7 +66,8 @@ abstract final class AuthRules {
   static const emailMax = 254;
   static final emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
-  static const identifierMin = 3;
+  /// D146: a 1-character premium username signs in too.
+  static const identifierMin = 1;
   static const identifierMax = 254;
 
   static const displayNameMin = 1;
@@ -80,7 +95,7 @@ abstract final class AuthValidators {
         AuthRules.usernameMax,
       );
     }
-    if (!AuthRules.usernamePattern.hasMatch(v)) {
+    if (!AuthRules.usernamePattern.hasMatch(v) || usernameIssue(v) != null) {
       return const ValidationError(ValidationIssue.invalidFormat);
     }
     return null;
@@ -213,17 +228,52 @@ abstract final class AuthValidators {
     return true;
   }
 
-  /// The specific [UsernameIssue] for [value], or `null` when it matches
-  /// the contract pattern and length.
+  /// The specific [UsernameIssue] for a new username [value], or `null`
+  /// when it is a valid regular username (D146, CONVENTIONS §6). The premium
+  /// check mirrors the server only to say "rent it" early; the server stays
+  /// the authority (and the only one that decides tiers).
   static UsernameIssue? usernameIssue(String? value) {
     final v = value ?? '';
     if (v.isEmpty) return UsernameIssue.required;
-    if (RegExp('[^a-z0-9._]').hasMatch(v)) return UsernameIssue.badChars;
+    if (looksPremium(v)) return UsernameIssue.premium;
     if (v.length < AuthRules.usernameMin) return UsernameIssue.tooShort;
     if (v.length > AuthRules.usernameMax) return UsernameIssue.tooLong;
+    if (RegExp('[^a-z0-9_]').hasMatch(v)) return UsernameIssue.badChars;
     if (!AuthRules.usernamePattern.hasMatch(v)) return UsernameIssue.badEdges;
+    if (!RegExp('[a-z]').hasMatch(v) || !RegExp('[0-9]').hasMatch(v)) {
+      return UsernameIssue.lettersAndDigits;
+    }
     return null;
   }
+
+  /// D146: a name of the premium shape (1–30 letters and digits that is
+  /// short, letters or digits only, or a pattern: one repeated character,
+  /// a palindrome, doubled halves, a sequence, a run of three).
+  static bool looksPremium(String v) {
+    if (!RegExp(r'^[a-z0-9]{1,30}$').hasMatch(v)) return false;
+    if (v.length <= 5) return true;
+    if (RegExp(r'(.)\1\1').hasMatch(v)) return true;
+    if (v == v.split('').reversed.join()) return true;
+    final half = v.length ~/ 2;
+    if (v.length.isEven && v.substring(0, half) == v.substring(half)) {
+      return true;
+    }
+    final letters = RegExp(r'^[a-z]+$').hasMatch(v);
+    final digits = RegExp(r'^[0-9]+$').hasMatch(v);
+    if (letters || digits) return true;
+    return false;
+  }
+
+  /// The [UsernameIssue] of a server validation issue on `username`.
+  static UsernameIssue? issueFromWire(String? issue) => switch (issue) {
+    'premium' => UsernameIssue.premium,
+    'too_short' => UsernameIssue.tooShort,
+    'too_long' => UsernameIssue.tooLong,
+    'invalid_format' => UsernameIssue.badChars,
+    'letters_and_digits' => UsernameIssue.lettersAndDigits,
+    'required' => UsernameIssue.required,
+    _ => null,
+  };
 
   /// The server enforces the username pattern strictly (contract v1.0.3):
   /// the client sends usernames trimmed and lowercased.

@@ -73,20 +73,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final me = ref.watch(meProvider);
     final username =
         me.value?.username ?? ref.watch(currentUserProvider)?.username ?? '';
+    // D146: the premium username's tier (the special-ID badge in the bar).
+    final tier = me.hasValue
+        ? me.value!.premiumTier
+        : ref.watch(currentUserProvider)?.premiumTier;
 
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays
         // the tab label).
-        title: Text(
-          l10n.profileUsername(username),
-          key: const Key('profile.title'),
-          textDirection: TextDirection.ltr,
-          style: context.textStyles.title.copyWith(color: p.textPrimary),
-        ),
+        title: tier == null
+            ? Text(
+                l10n.profileUsername(username),
+                key: const Key('profile.title'),
+                textDirection: TextDirection.ltr,
+                style: context.textStyles.title.copyWith(color: p.textPrimary),
+              )
+            : KSpecialUsername(
+                key: const Key('profile.title'),
+                username: username,
+                tier: tier,
+                height: 24,
+              ),
         actions: [
           IconButton(
             key: ProfileScreen.draftsButtonKey,

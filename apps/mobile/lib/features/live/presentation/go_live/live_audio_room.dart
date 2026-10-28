@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
+    show KLiveUsernameTag;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -62,26 +65,34 @@ abstract final class KAudioRoom {
   /// room), 46 pt apart, the outer ones 8 pt from the edges. The reference
   /// measured 37.5 pt circles with 25 pt icons; on the device the owner
   /// found the icons too small, so they are drawn larger (42 pt circles,
-  /// 31 pt icons) on the same 46 pt pitch.
+  /// 31 pt icons) on the same 46 pt pitch. D141 (owner: "a slight
+  /// enlargement"): 46 pt circles with 34 pt icons in 48 pt targets.
   static const barCircle = Color(0x45000000);
-  static const barButton = 42.0;
-  static const barIcon = 31.0;
+  static const barButton = 46.0;
+  static const barIcon = 34.0;
+
+  /// D141: the owner's colourful art (gift, PK, bag) fills the circle's
+  /// place with no dark circle behind it, as on the video bar.
+  static const barArt = 40.0;
+
+  /// The bar buttons' touch target.
+  static const barTarget = 48.0;
 
   /// Ref 147: the top buttons are 31 pt circles (black ≈ 33 %) 39 pt
   /// apart, the last one 10 pt from the edge; our framed icons are drawn
   /// at 17 pt in them.
-  static const topCircle = 31.0;
-  static const topPitch = 39.0;
-  static const topIcon = 17.0;
+  static const topCircle = 34.0;
+  static const topPitch = 42.0;
+  static const topIcon = 19.0;
 
   /// Ref 147: the room card is 39.6 pt tall, at most 268 pt wide; its
   /// action circle (a viewer's Follow) 26 pt, 6.5 pt from its end.
-  static const cardHeight = 39.6;
+  static const cardHeight = 43.0;
   static const cardMaxWidth = 268.0;
   static const cardAction = 26.0;
 
   /// Ref 147: the chips under the card are 22 pt tall, 10 pt under it.
-  static const chipHeight = 22.0;
+  static const chipHeight = 24.0;
 }
 
 /// The recording's purple gradient (the classic theme of an audio room).
@@ -102,7 +113,7 @@ class LiveAudioRoomBackground extends StatelessWidget {
   );
 }
 
-/// [buttons] with 2 pt between them (44 pt targets 46 pt apart).
+/// [buttons] with 2 pt between them (D141: 48 pt targets 50 pt apart).
 List<Widget> _spaced(List<Widget> buttons) => [
   for (final (i, b) in buttons.indexed) ...[
     if (i > 0) const SizedBox(width: 2),
@@ -121,7 +132,26 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.chat = const [],
     this.composer,
     this.barLead,
+    this.promo,
+    this.combo,
+    this.strips,
   });
+
+  /// D145a: the lucky combo's button and chips, in the promo box's place
+  /// (at the end over the gift button) while it shows.
+  final Widget? combo;
+
+  /// D145a: the gift strips, between the seats and the chat.
+  final Widget? strips;
+
+  /// D141a (owner): the room's promo box, low at the end over the bar's
+  /// gift button (the last of [barEnd]); the chat keeps clear of it and the
+  /// seats stay above it. Hidden while writing (the keyboard is up).
+  final Widget? promo;
+
+  /// The promo box's distance from the end edge and above the bar.
+  static const double promoEnd = 4;
+  static const double promoGap = 6;
 
   /// Fills the bar's start before [barStart] (the "Say something" pill).
   final Widget? barLead;
@@ -141,10 +171,18 @@ class LiveAudioRoomLayout extends StatelessWidget {
   final List<Widget> barStart;
   final List<Widget> barEnd;
 
+  /// D141: the header row's top under the safe area, so the card's top is
+  /// [KMetrics.liveHeaderGap] under it (the row is a 48 pt target tall).
+  static const double headerTop =
+      KMetrics.liveHeaderGap -
+      (KSizes.minTouchTarget - KAudioRoom.cardHeight) / 2;
+
   @override
   Widget build(BuildContext context) {
     final chips = this.chips;
     final composer = this.composer;
+    // D145a: while the lucky combo shows it takes the promo box's place.
+    final slot = composer == null ? (combo ?? promo) : null;
     return Padding(
       // The keyboard pushes the room up (the screen does not resize).
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -154,12 +192,19 @@ class LiveAudioRoomLayout extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Ref 147 (430 pt): the room card 10.5 pt from the edge right
-            // under the status bar, the last top circle 10 pt from the other
-            // edge (6 + its 39 pt target's 4 pt margin); the chips 10 pt
-            // under the card, the viewers chip 10 pt from the edge.
+            // Ref 147 (430 pt): the room card 10.5 pt from the edge, the
+            // last top circle 10 pt from the other edge (6 + its 39 pt
+            // target's 4 pt margin); the chips 10 pt under the card, the
+            // viewers chip 10 pt from the edge. D141: the card's top
+            // [KMetrics.liveHeaderGap] under the status bar, as the video
+            // live's host pill (the 48 pt row centres the card).
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(10.5, 0, 6, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                10.5,
+                headerTop,
+                6,
+                0,
+              ),
               child: header,
             ),
             if (chips != null)
@@ -182,27 +227,63 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: stage,
                       ),
                     ),
-                    if (chat.isNotEmpty)
+                    // D145a: the gift strips between the seats and the
+                    // chat (they never cover a seat).
+                    if (strips case final strips?)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Align(
+                          alignment: AlignmentDirectional.bottomStart,
+                          child: strips,
+                        ),
+                      ),
+                    if (chat.isNotEmpty || slot != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: box.maxHeight * 0.4,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
-                          child: SingleChildScrollView(
-                            reverse: true,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (final line in chat)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: line,
+                        // The end slot (promo box or combo) beside the
+                        // chat: the chat narrows for it and the seats end
+                        // above it.
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(
+                                  8,
+                                  0,
+                                  slot == null ? 8 : promoGap,
+                                  6,
+                                ),
+                                child: SingleChildScrollView(
+                                  reverse: true,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      for (final line in chat)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 4,
+                                          ),
+                                          child: line,
+                                        ),
+                                    ],
                                   ),
-                              ],
+                                ),
+                              ),
                             ),
-                          ),
+                            if (slot != null)
+                              Padding(
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: promoEnd,
+                                  bottom: promoGap,
+                                ),
+                                child: slot,
+                              ),
+                          ],
                         ),
                       ),
                   ],
@@ -571,6 +652,8 @@ class LiveAudioRoomHeader extends StatelessWidget {
     required this.onEnd,
     super.key,
     this.subtitle,
+    this.username,
+    this.premiumTier,
     this.minimizeKey,
     this.endKey,
     this.onShare,
@@ -606,6 +689,13 @@ class LiveAudioRoomHeader extends StatelessWidget {
   final Widget cover;
   final String title;
   final String? subtitle;
+
+  /// D141 (owner): the host's `@username` under the title (copy on tap),
+  /// in place of [subtitle].
+  final String? username;
+
+  /// D146: the host's premium username tier (the special-ID badge).
+  final PremiumTier? premiumTier;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -657,7 +747,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(5),
-                        child: SizedBox.square(dimension: 29, child: cover),
+                        child: SizedBox.square(dimension: 32, child: cover),
                       ),
                       // Ref 147: the title starts 52 pt from the edge.
                       const SizedBox(width: 8),
@@ -675,7 +765,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: text.caption.copyWith(
-                                      fontSize: 13,
+                                      fontSize: 14,
                                       height: 1.15,
                                       color: KAudioRoom.text,
                                       fontWeight: FontWeight.w600,
@@ -688,7 +778,13 @@ class LiveAudioRoomHeader extends StatelessWidget {
                                 ],
                               ],
                             ),
-                            if (subtitle != null && subtitle.isNotEmpty)
+                            if (username case final name?)
+                              KLiveUsernameTag(
+                                username: name,
+                                fontSize: 11,
+                                premiumTier: premiumTier,
+                              )
+                            else if (subtitle != null && subtitle.isNotEmpty)
                               Text(
                                 subtitle,
                                 maxLines: 1,
@@ -772,13 +868,13 @@ class LiveChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: const Color(0xFFFFC547)),
+            Icon(icon, size: 13, color: const Color(0xFFFFC547)),
             const SizedBox(width: 4),
           ],
           Flexible(
             child: DefaultTextStyle.merge(
               style: context.textStyles.caption.copyWith(
-                fontSize: 11.5,
+                fontSize: 12.5,
                 height: 1,
                 color: KAudioRoom.text,
                 fontWeight: FontWeight.w600,
@@ -877,7 +973,13 @@ class LiveRoundButton extends StatelessWidget {
     this.asset,
     this.tintAsset = false,
     this.bare = false,
+    this.art = false,
   });
+
+  /// D141 (owner): [asset] is the owner's colourful art (gift, PK, bag):
+  /// drawn larger ([KAudioRoom.barArt]) with no dark circle behind it, as
+  /// on the video bar.
+  final bool art;
 
   /// The audio room's bar button (owner ref 147, D123): a flat dark
   /// translucent circle ([KAudioRoom.barButton]) with [asset] in its own
@@ -918,7 +1020,11 @@ class LiveRoundButton extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox.square(
-          dimension: size < 40 ? 44 : size + 2,
+          dimension: bare
+              ? KAudioRoom.barTarget
+              : size < 40
+              ? 44
+              : size + 2,
           child: Center(
             child: Badge(
               isLabelVisible: badge > 0,
@@ -929,17 +1035,21 @@ class LiveRoundButton extends StatelessWidget {
                       width: KAudioRoom.barButton,
                       height: KAudioRoom.barButton,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: KAudioRoom.barCircle,
-                      ),
+                      decoration: art
+                          ? null
+                          : const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: KAudioRoom.barCircle,
+                            ),
                       child: Opacity(
                         opacity: onTap == null ? 0.45 : 1,
                         child: switch (asset) {
                           final asset? => Image.asset(
                             asset,
-                            width: KAudioRoom.barIcon,
-                            height: KAudioRoom.barIcon,
+                            width: art ? KAudioRoom.barArt : KAudioRoom.barIcon,
+                            height: art
+                                ? KAudioRoom.barArt
+                                : KAudioRoom.barIcon,
                           ),
                           null => Icon(
                             icon,

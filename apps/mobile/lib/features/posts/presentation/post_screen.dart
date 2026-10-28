@@ -78,7 +78,7 @@ class _PostScreenState extends ConsumerState<PostScreen> {
     final edited = ref.watch(postEditsProvider.select((e) => e[postId]));
     if (post case AsyncData(:final value)) _maybeOpenComments(value);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.postTitle)),
+      appBar: KAppBar(title: Text(l10n.postTitle)),
       body: switch (post) {
         AsyncData(:final value) => RefreshIndicator(
           onRefresh: () {

@@ -87,6 +87,9 @@ export interface AppConfig {
     readonly cpGiftUser: RateLimitRule;
     /** CP-020: gift sends in a live (per user). */
     readonly liveGiftUser: RateLimitRule;
+    /** v1.28-live (D146). */
+    readonly premiumRentUser: RateLimitRule;
+    readonly usernameChangeUser: RateLimitRule;
     /** CP-021: CP space writes; new confessions (per user). */
     readonly cpSpaceWriteUser: RateLimitRule;
     readonly cpConfessionUser: RateLimitRule;
@@ -136,6 +139,16 @@ export interface AppConfig {
     /** CP-018: family join request and CP request expiry sweeper; 0 = disabled (tests). */
     readonly bondsSweepIntervalSeconds: number;
     readonly cursorKey: string;
+  };
+  /** v1.28-live (D146) premium usernames (CONVENTIONS §10.32). */
+  readonly premiumUsernames: {
+    readonly periodDays: number;
+    readonly graceDays: number;
+    /** Descending. */
+    readonly reminderDays: readonly number[];
+    readonly maxPrepaidDays: number;
+    /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
   };
   /** v1.23-live live gifts (CONVENTIONS §10.23). */
   readonly gifts: {
@@ -284,6 +297,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cpWriteUser: e.RATE_LIMIT_CP_WRITE_USER,
       cpGiftUser: e.RATE_LIMIT_CP_GIFT_USER,
       liveGiftUser: e.RATE_LIMIT_LIVE_GIFT_USER,
+      premiumRentUser: e.RATE_LIMIT_PREMIUM_RENT_USER,
+      usernameChangeUser: e.RATE_LIMIT_USERNAME_CHANGE_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
       cpConfessionUser: e.RATE_LIMIT_CP_CONFESSION_USER,
       familyChatUser: e.RATE_LIMIT_FAMILY_CHAT_USER,
@@ -327,6 +342,13 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
+    premiumUsernames: {
+      periodDays: e.PREMIUM_USERNAME_PERIOD_DAYS,
+      graceDays: e.PREMIUM_USERNAME_GRACE_DAYS,
+      reminderDays: e.PREMIUM_USERNAME_REMINDER_DAYS,
+      maxPrepaidDays: Math.max(e.PREMIUM_USERNAME_MAX_PREPAID_DAYS, e.PREMIUM_USERNAME_PERIOD_DAYS),
+      sweepIntervalSeconds: e.PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS,
+    },
     lucky: {
       enabled: e.LUCKY_GIFTS_ENABLED,
       table: luckyTable(

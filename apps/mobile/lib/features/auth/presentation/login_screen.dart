@@ -270,8 +270,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                             ),
                           ),
-                          SafeArea(
-                            bottom: false,
+                          KTopSafeArea(
                             child: SizedBox(
                               height: kToolbarHeight,
                               child: Row(

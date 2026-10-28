@@ -4,6 +4,8 @@ import { ErrorCode } from '../../common/errors/error-codes.js';
 import { Prisma, type UserRole, type UserStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { grantFreeItemsIn } from '../bag/bag-grants.js';
+import type { PremiumTier } from '../premium-usernames/premium-username-rules.js';
+import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
 import { isReservedUsername, isValidUsername } from './username.js';
 
 /** `Me` response (openapi `#/components/schemas/Me`). */
@@ -25,6 +27,8 @@ export interface MeDto {
   liveCoverUrl: string | null;
   /** v1.27.1-live (D133): the caller's own country (ISO alpha-2), or null (D45: user-chosen). */
   country: string | null;
+  /** v1.28-live (D146): the tier of the caller's premium username; absent for a regular one. */
+  premiumTier?: PremiumTier;
 }
 
 /** Public identity fields of an ACTIVE user (contract v1.3 `PublicProfile` / `UserSummary`). */
@@ -35,6 +39,8 @@ export interface PublicUser {
   avatarUrl: string | null;
   bio: string | null;
   isPrivate: boolean;
+  /** v1.28-live (D146): the premium username's tier, or null. */
+  premiumTier: PremiumTier | null;
 }
 
 /** A follow target locked for the duration of the caller's transaction. */
@@ -65,6 +71,8 @@ export interface UserWithProfile {
     locale: string;
     /** v1.27.1-live (D133). Absent in older selects: null. */
     countryCode?: string | null;
+    /** v1.28-live (D146). Absent in older selects: none. */
+    premiumTier?: string | null;
   } | null;
   settings: { isPrivate: boolean } | null;
   /** Absent for a just-created account (no permission yet). */
@@ -88,6 +96,7 @@ export function toMeDto(user: UserWithProfile): MeDto {
     canHost: Boolean(user.liveHost),
     liveCoverUrl: user.liveHost?.coverUrl ?? null,
     country: user.profile.countryCode ?? null,
+    ...(user.profile.premiumTier ? { premiumTier: user.profile.premiumTier as PremiumTier } : {}),
   };
 }
 
@@ -236,7 +245,7 @@ export class UsersService {
    * `exceptEmail`, which is about to be replaced) holds it (contract v1.2 §6 rule 7).
    */
   async isUsernameTaken(username: string, exceptEmail?: string, now: Date = new Date()): Promise<boolean> {
-    const [accounts, pending] = await Promise.all([
+    const [accounts, pending, held] = await Promise.all([
       this.prisma.userProfile.count({ where: { username } }),
       this.prisma.pendingRegistration.count({
         where: {
@@ -245,13 +254,22 @@ export class UsersService {
           ...(exceptEmail === undefined ? {} : { email: { not: exceptEmail } }),
         },
       }),
+      // v1.28-live (D146): the regular username a renter goes back to is kept for them.
+      this.prisma.premiumUsernameLease.count({ where: { regularUsername: username, status: 'ACTIVE' } }),
     ]);
-    return accounts > 0 || pending > 0;
+    return accounts > 0 || pending > 0 || held > 0;
   }
 
   /** Reserved, malformed, taken or reserved-by-pending names are reported unavailable. */
   async isUsernameAvailable(username: string): Promise<boolean> {
-    if (!isValidUsername(username) || isReservedUsername(username)) return false;
+    // v1.28-live (D146): only a name a new account may take (the regular rule) is available.
+    if (
+      !isValidUsername(username) ||
+      regularUsernameIssue(username) !== null ||
+      isReservedUsername(username)
+    ) {
+      return false;
+    }
     return !(await this.isUsernameTaken(username));
   }
 
@@ -286,6 +304,7 @@ export class UsersService {
         displayName: true,
         avatarUrl: true,
         bio: true,
+        premiumTier: true,
         user: { select: { settings: { select: { isPrivate: true } } } },
       },
     });
@@ -297,6 +316,7 @@ export class UsersService {
       avatarUrl: profile.avatarUrl,
       bio: profile.bio,
       isPrivate: profile.user.settings?.isPrivate ?? false,
+      premiumTier: profile.premiumTier,
     };
   }
 

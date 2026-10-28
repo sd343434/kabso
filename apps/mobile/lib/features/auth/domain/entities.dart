@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 
 part 'entities.freezed.dart';
 
@@ -32,6 +33,10 @@ abstract class User with _$User {
     /// v1.27.1-live (D133): the person's own country (ISO 3166-1 alpha-2,
     /// upper case), or null. It decides the live hub's Nearby.
     String? country,
+
+    /// v1.28-live (D146): the tier of the person's premium username, or
+    /// null for a regular one.
+    PremiumTier? premiumTier,
   }) = _User;
 }
 

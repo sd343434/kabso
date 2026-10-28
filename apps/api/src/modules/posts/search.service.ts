@@ -169,9 +169,11 @@ export class SearchService {
   ): Promise<UserSummaryDto[]> {
     const lower = q.toLowerCase();
     const prefix = likePrefix(lower);
-    return this.prisma.$queryRaw<UserSummaryDto[]>`
+    const rows = await this.prisma.$queryRaw<
+      (UserSummaryDto & { tier: UserSummaryDto['premiumTier'] | null })[]
+    >`
       SELECT u.id::text AS id, p.username AS "username", p.display_name AS "displayName",
-             p.avatar_url AS "avatarUrl"
+             p.avatar_url AS "avatarUrl", p.premium_tier::text AS "tier"
         FROM user_profiles p
         JOIN users u ON u.id = p.user_id AND u.status = 'ACTIVE'::user_status
        WHERE (p.username LIKE ${prefix} ESCAPE '\\' OR lower(p.display_name) LIKE ${prefix} ESCAPE '\\')
@@ -182,6 +184,8 @@ export class SearchService {
                 (SELECT count(*) FROM follows f WHERE f.followee_id = u.id) DESC,
                 p.username ASC
        OFFSET ${offset} LIMIT ${take}`;
+    // v1.28-live (D146): the badge tier only for premium usernames.
+    return rows.map(({ tier, ...user }) => (tier ? { ...user, premiumTier: tier } : user));
   }
 
   private async searchHashtags(

@@ -1,15 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
-import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
-import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -112,6 +109,7 @@ abstract final class LiveManageKeys {
   static const moderators = Key('manage.moderators');
   static const signedInOnly = Key('manage.signedInOnly');
   static const back = Key('manage.back');
+  static const addModerator = Key('manage.addModerator');
   static Key action(String username) => Key('manage.action.$username');
 }
 
@@ -119,6 +117,8 @@ abstract final class LiveManageKeys {
 /// the chat, who was removed from the live, the moderators (seat rooms
 /// list them; a SOLO live cannot read them, so the row says how to add
 /// one), and "Signed-in viewers only" (`allowGuests` inverted, CP-010).
+/// D143: video and audio rooms share it; [onAddModerator] (seat rooms)
+/// closes it and opens the viewers, where the host makes one a moderator.
 Future<void> showLiveUserManagement(
   BuildContext context, {
   required String roomId,
@@ -126,6 +126,7 @@ Future<void> showLiveUserManagement(
   required bool allowGuests,
   required Future<void> Function({required bool allow}) onAllowGuests,
   VoidCallback? onChanged,
+  VoidCallback? onAddModerator,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -140,6 +141,7 @@ Future<void> showLiveUserManagement(
     allowGuests: allowGuests,
     onAllowGuests: onAllowGuests,
     onChanged: onChanged,
+    onAddModerator: onAddModerator,
   ),
 );
 
@@ -152,8 +154,10 @@ class _ManageSheet extends ConsumerStatefulWidget {
     required this.allowGuests,
     required this.onAllowGuests,
     this.onChanged,
+    this.onAddModerator,
   });
 
+  final VoidCallback? onAddModerator;
   final String roomId;
   final bool hasSeats;
   final bool allowGuests;
@@ -408,14 +412,35 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
+    final add = widget.onAddModerator;
+    final addTile = page == _ManagePage.moderators && add != null
+        ? ListTile(
+            key: LiveManageKeys.addModerator,
+            leading: const Icon(Icons.person_add_alt_1_rounded),
+            title: Text(
+              l10n.liveManageAddModerator,
+              style: t.body.copyWith(color: _ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              add();
+            },
+          )
+        : null;
     if (people.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(KSpacing.xl),
-        child: Text(
-          l10n.liveManageEmpty,
-          textAlign: TextAlign.center,
-          style: t.body.copyWith(color: _soft),
-        ),
+      return ListView(
+        shrinkWrap: true,
+        children: [
+          ?addTile,
+          Padding(
+            padding: const EdgeInsets.all(KSpacing.xl),
+            child: Text(
+              l10n.liveManageEmpty,
+              textAlign: TextAlign.center,
+              style: t.body.copyWith(color: _soft),
+            ),
+          ),
+        ],
       );
     }
     final (label, run) = switch (page) {
@@ -437,6 +462,7 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
     return ListView(
       shrinkWrap: true,
       children: [
+        ?addTile,
         for (final u in people)
           ListTile(
             leading: KAvatar(name: u.displayName, imageUrl: u.avatarUrl),
@@ -461,252 +487,6 @@ class _ManageSheetState extends ConsumerState<_ManageSheet> {
               child: Text(label),
             ),
           ),
-      ],
-    );
-  }
-}
-
-/// The contributors of a live (CP-014), for the end-of-live summary.
-final FutureProviderFamily<List<LiveContributor>, String>
-liveSummaryContributorsProvider = FutureProvider.autoDispose.family(
-  (ref, roomId) => ref.watch(liveRepositoryProvider).contributors(roomId),
-);
-
-/// D131 (recording f_046, real data only): the end-of-live summary — the
-/// live time, this live's points with the cherry (taps and gifts apart),
-/// how many people supported it (the Contribution list: taps and gifts;
-/// "50+" at its top-50 limit), the viewers at the end, and the host's charm
-/// level with the points to the next. Nothing the API does not have
-/// (earnings, quality score, new fans) is shown.
-class GoLiveSummary extends StatelessWidget {
-  const new({
-    required this.duration,
-    required this.onDone,
-    super.key,
-    this.room,
-    this.supporters,
-    this.charm,
-    this.doneKey,
-  });
-
-  final String duration;
-  final VoidCallback onDone;
-
-  /// The ended room (its score); `null` when the end call failed.
-  final LiveRoom? room;
-
-  /// The Contribution list, `null` while loading or when it failed.
-  final List<LiveContributor>? supporters;
-  final LevelSummary? charm;
-  final Key? doneKey;
-
-  static const pointsKey = Key('summary.points');
-  static const tapsKey = Key('summary.taps');
-  static const giftsKey = Key('summary.gifts');
-  static const supportersKey = Key('summary.supporters');
-  static const charmKey = Key('summary.charm');
-
-  /// The Contribution list's size limit (CP-014).
-  static const supportersCap = 50;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    const white = Color(0xFFFFFFFF);
-    const soft = Color(0xB3FFFFFF);
-    final room = this.room;
-    final parts = room?.scoreParts;
-    final supporters = this.supporters;
-    final charm = this.charm;
-    Widget stat(Key? key, String label, Widget value) => Semantics(
-      container: true,
-      child: Padding(
-        key: key,
-        padding: const EdgeInsets.symmetric(vertical: KSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DefaultTextStyle.merge(
-              style: t.title.copyWith(color: white, fontSize: 18),
-              child: value,
-            ),
-            const SizedBox(height: 2),
-            Text(label, style: t.caption.copyWith(color: soft)),
-          ],
-        ),
-      ),
-    );
-    Widget number(int n) =>
-        Text(KFormat.grouped(n), textDirection: TextDirection.ltr);
-    final stats = <Widget>[
-      stat(null, l10n.goLiveSummaryTime, Text(duration)),
-      if (parts != null) ...[
-        stat(
-          GoLiveSummary.tapsKey,
-          l10n.goLiveSummaryTaps,
-          KCherryAmount(parts.tapPoints),
-        ),
-        stat(
-          GoLiveSummary.giftsKey,
-          l10n.goLiveSummaryGifts,
-          KCherryAmount(parts.supportPoints),
-        ),
-      ],
-      if (supporters != null)
-        stat(
-          GoLiveSummary.supportersKey,
-          l10n.goLiveSummarySupporters,
-          Text(
-            supporters.length >= supportersCap
-                ? '${KFormat.grouped(supportersCap)}+'
-                : KFormat.grouped(supporters.length),
-            textDirection: TextDirection.ltr,
-          ),
-        ),
-      if (room != null)
-        stat(null, l10n.goLiveSummaryViewers, number(room.viewerCount)),
-    ];
-    final score = parts?.total ?? room?.score;
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF123A44), Color(0xFF0E1420)],
-        ),
-      ),
-      child: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(KSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    l10n.goLiveEndedTitle,
-                    textAlign: TextAlign.center,
-                    style: t.title.copyWith(color: white),
-                  ),
-                ),
-                if (score != null) ...[
-                  const SizedBox(height: KSpacing.lg),
-                  Semantics(
-                    key: GoLiveSummary.pointsKey,
-                    label: l10n.liveHostPillPoints(KFormat.grouped(score)),
-                    excludeSemantics: true,
-                    child: Column(
-                      children: [
-                        const KCherryIcon(size: 72, animated: true),
-                        const SizedBox(height: KSpacing.sm),
-                        Text(
-                          KFormat.grouped(score),
-                          textDirection: TextDirection.ltr,
-                          style: t.headline.copyWith(color: white),
-                        ),
-                        Text(
-                          l10n.goLiveSummaryPoints,
-                          style: t.caption.copyWith(color: soft),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: KSpacing.lg),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(KSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: const Color(0x1AFFFFFF),
-                    borderRadius: BorderRadius.circular(KRadius.lg),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.goLiveSummaryData,
-                        style: t.bodyStrong.copyWith(color: white),
-                      ),
-                      const SizedBox(height: KSpacing.sm),
-                      Wrap(
-                        children: [
-                          for (final s in stats)
-                            FractionallySizedBox(widthFactor: 0.5, child: s),
-                        ],
-                      ),
-                      if (charm != null &&
-                          charm.available &&
-                          charm.level != null) ...[
-                        const SizedBox(height: KSpacing.sm),
-                        _Charm(key: GoLiveSummary.charmKey, charm: charm),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: KSpacing.xl),
-                KButton(
-                  key: doneKey,
-                  label: l10n.goLiveDone,
-                  onPressed: onDone,
-                  expand: false,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Charm extends StatelessWidget {
-  const new({required this.charm, super.key});
-
-  final LevelSummary charm;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final t = context.textStyles;
-    final level = charm.level!;
-    final toNext = charm.pointsToNext;
-    final percent = charm.progressPercent;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.goLiveSummaryCharm(
-            KFormat.bidiIsolate(KFormat.grouped(level.levelNumber)),
-          ),
-          style: t.bodyStrong.copyWith(color: const Color(0xFFFFFFFF)),
-        ),
-        if (percent != null) ...[
-          const SizedBox(height: KSpacing.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(KRadius.pill),
-            child: LinearProgressIndicator(
-              value: (percent / 100).clamp(0, 1),
-              minHeight: 6,
-              backgroundColor: const Color(0x33FFFFFF),
-              color: const Color(0xFFFF5C8A),
-            ),
-          ),
-        ],
-        if (toNext != null && !charm.maxLevel) ...[
-          const SizedBox(height: KSpacing.xs),
-          Text(
-            l10n.goLiveSummaryCharmNext(
-              KFormat.bidiIsolate(
-                toNext.isValidInt
-                    ? KFormat.grouped(toNext.toInt())
-                    : toNext.toString(),
-              ),
-            ),
-            style: t.caption.copyWith(color: const Color(0xB3FFFFFF)),
-          ),
-        ],
       ],
     );
   }

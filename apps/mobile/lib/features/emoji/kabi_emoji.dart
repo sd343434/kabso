@@ -320,6 +320,27 @@ List<InlineSpan> kabiInlineSpans(String text, {required double size}) {
   return spans;
 }
 
+/// D141: [kabiInlineSpans] for a message inside a line of another
+/// direction (the chat rows: badges and a name first). A message with
+/// letters of its own is isolated (FSI … PDI) so it keeps its order; a
+/// message of emojis and punctuation only is not — an empty FSI would read
+/// it left to right even in an Arabic line, so it follows the line instead.
+List<InlineSpan> kabiIsolatedSpans(String text, {required double size}) {
+  final spans = kabiInlineSpans(text, size: size);
+  final letters = text.replaceAll(KabsoEmoji.tokenPattern, '');
+  if (!_strong.hasMatch(letters)) return spans;
+  return [
+    const TextSpan(text: '\u2068'),
+    ...spans,
+    const TextSpan(text: '\u2069'),
+  ];
+}
+
+/// A letter with a direction (Latin, Arabic, Hebrew and the like).
+final _strong = RegExp(
+  r'[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]',
+);
+
 /// [text] as a screen reader says it: each token becomes the emoji's name.
 String kabiSpokenText(String text, AppLocalizations l10n) => text
     .replaceAllMapped(KabsoEmoji.tokenPattern, (m) {
@@ -397,9 +418,9 @@ class KabiEmojiText extends StatelessWidget {
     return Semantics(
       label: spoken.toString().trim(),
       excludeSemantics: true,
-      child: Text.rich(
-        TextSpan(children: spans),
-        style: style,
+      // D141: pack emoji in reading order in right-to-left text too.
+      child: KBidiRichText(
+        TextSpan(style: style, children: spans),
         textAlign: textAlign,
       ),
     );

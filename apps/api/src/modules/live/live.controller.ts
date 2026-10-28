@@ -54,6 +54,7 @@ import {
 } from './live-seats.service.js';
 import { LiveRankingsService, type LiveRankingsDto } from './live-rankings.service.js';
 import { LiveScheduleService, type LiveScheduleSlotDto } from './live-schedule.service.js';
+import { LiveStatsService, type LiveRoomStatsDto } from './live-stats.service.js';
 import {
   LiveTapsService,
   type LiveContributorDto,
@@ -121,6 +122,7 @@ export class LiveController {
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
+    private readonly stats: LiveStatsService,
     private readonly limiter: RateLimitService,
     @Inject(APP_CONFIG) private readonly appConfig: AppConfig,
   ) {}
@@ -626,6 +628,15 @@ export class LiveController {
   @RateLimit({ bucket: 'live:heartbeat', rule: 'liveHeartbeatUser', key: byUserId, replacesDefault: true })
   async heartbeat(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<void> {
     await this.rooms.heartbeat(requireCaller(req), roomId);
+  }
+
+  /**
+   * v1.27.6-live (D140, §10.31): the host's statistics of one of their lives (LIVE or ENDED);
+   * anyone else → 403. Per-user default bucket.
+   */
+  @Get('rooms/:roomId/stats')
+  roomStats(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveRoomStatsDto> {
+    return this.stats.stats(requireCaller(req), roomId);
   }
 
   @Post('rooms/:roomId/end')

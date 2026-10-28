@@ -319,14 +319,22 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final load = ref.watch(publicProfileProvider(widget.username));
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
-        title: Text(
-          l10n.profileUsername(widget.username),
-          textDirection: TextDirection.ltr,
-          style: context.textStyles.title.copyWith(color: p.textPrimary),
-        ),
+        // D146: a premium username wears its special-ID badge.
+        title: switch (load.value?.premiumTier) {
+          final tier? => KSpecialUsername(
+            username: load.value!.username,
+            tier: tier,
+            height: 24,
+          ),
+          null => Text(
+            l10n.profileUsername(widget.username),
+            textDirection: TextDirection.ltr,
+            style: context.textStyles.title.copyWith(color: p.textPrimary),
+          ),
+        },
         actions: [
           IconButton(
             key: PublicProfileScreen.moreKey,

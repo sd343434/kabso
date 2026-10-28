@@ -172,7 +172,7 @@ class _CpScreenState extends ConsumerState<CpScreen> {
     };
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.cpTitle),

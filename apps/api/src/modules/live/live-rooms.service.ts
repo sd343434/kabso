@@ -55,6 +55,8 @@ export interface UserSummaryDto {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** v1.28-live (D146): the tier of the user's premium username; absent for a regular one. */
+  premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
 }
 
 export type LiveRoomMode = 'SOLO' | 'PK' | 'MULTI' | 'AUDIO';
@@ -178,6 +180,8 @@ export interface RoomRow {
   username: string;
   display_name: string;
   avatar_url: string | null;
+  /** v1.28-live (D146). */
+  premium_tier: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
   category_slug: string | null;
   category_name_ar: string | null;
   category_name_en: string | null;
@@ -220,7 +224,7 @@ const ROOM_COLUMNS = Prisma.sql`
          (SELECT count(*)::int FROM live_room_seats s
            WHERE s.room_id = r.id AND s.user_id IS NOT NULL) AS occupied_seats,
          r.host_user_id::text AS host_user_id, u.status::text AS host_status, p.username,
-         p.display_name, p.avatar_url, c.slug AS category_slug, c.name_ar AS category_name_ar,
+         p.display_name, p.avatar_url, p.premium_tier::text AS premium_tier, c.slug AS category_slug, c.name_ar AS category_name_ar,
          c.name_en AS category_name_en, r.chat_enabled, lh.room_number, ${ROOM_LEVEL_SQL} AS room_level,
          r.wish_gifts`;
 
@@ -684,6 +688,7 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
         username: row.username,
         displayName: row.display_name,
         avatarUrl: row.avatar_url,
+        ...(row.premium_tier ? { premiumTier: row.premium_tier } : {}),
       },
       seatCount: row.seat_count,
       occupiedSeats: row.occupied_seats,

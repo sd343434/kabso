@@ -87,6 +87,17 @@ export enum AuditAction {
   /** v1.27.1-live (D133): featured hosts, changed only by the feature-admin CLI. */
   LIVE_FEATURE_ADD = 'live.feature.add',
   LIVE_FEATURE_REMOVE = 'live.feature.remove',
+  // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
+  USERNAME_CHANGE = 'user.username.change',
+  PREMIUM_USERNAME_RENT = 'premium_username.rent',
+  PREMIUM_USERNAME_RENEW = 'premium_username.renew',
+  PREMIUM_USERNAME_GRANT = 'premium_username.grant',
+  PREMIUM_USERNAME_REVOKE = 'premium_username.revoke',
+  PREMIUM_USERNAME_RELEASE = 'premium_username.release',
+  PREMIUM_USERNAME_EXPIRE = 'premium_username.expire',
+  PREMIUM_USERNAME_GRACE_END = 'premium_username.grace_end',
+  PREMIUM_USERNAME_PRICE = 'premium_username.price',
+  PREMIUM_USERNAME_RESERVE = 'premium_username.reserve',
 }
 
 export interface AuditEntry {

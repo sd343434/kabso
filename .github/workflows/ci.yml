@@ -237,6 +237,15 @@ jobs:
         run: flutter analyze
       - name: Test
         run: flutter test
+      # D144: the local camera plugin is its own package (excluded from the
+      # app's analysis above).
+      - name: kabso_camera_fx — analyze and test
+        working-directory: apps/mobile/packages/kabso_camera_fx
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
 
   android:
     name: Android debug APK
@@ -270,8 +279,14 @@ jobs:
         run: flutter doctor -v
       - name: Pub get (lockfile enforced)
         run: flutter pub get --enforce-lockfile
+      # D144: DeepAR's licence key from the repository secret, through env
+      # only (never echoed; GitHub masks it). Without the secret (forks, a
+      # fresh clone) the value is empty: the APK still builds and Magic shows
+      # Effects as unavailable.
       - name: Build debug APK
-        run: flutter build apk --debug
+        env:
+          DEEPAR_LICENSE_ANDROID: ${{ secrets.DEEPAR_LICENSE_ANDROID }}
+        run: flutter build apk --debug --dart-define=DEEPAR_LICENSE_ANDROID="$DEEPAR_LICENSE_ANDROID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kabso-live-debug-apk

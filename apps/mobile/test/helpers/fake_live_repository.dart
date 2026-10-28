@@ -8,6 +8,7 @@ import 'package:kabso_live/features/live/application/live_rooms_provider.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
+import 'package:kabso_live/features/live/domain/live_room_stats.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart'
     show ReportReason;
@@ -351,6 +352,51 @@ class FakeLiveRepository implements LiveRepository {
     return room;
   }
 
+  /// D140: the `roomStats` answer; `null` builds one from [hostRoom]'s score
+  /// and [contributorList] (no viewers). [statsFailure] fails it, and a
+  /// pending [statsGate] holds it (the loading state).
+  LiveRoomStats? stats;
+  AppFailure? statsFailure;
+  Completer<void>? statsGate;
+  int statsCalls = 0;
+
+  @override
+  Future<LiveRoomStats> roomStats(String roomId) async {
+    statsCalls++;
+    if (statsGate case final gate?) await gate.future;
+    if (statsFailure case final failure?) throw failure;
+    if (stats case final s?) return s;
+    final room = hostRoom ?? apiRoom(id: roomId);
+    final parts = room.scoreParts;
+    return LiveRoomStats(
+      roomId: roomId,
+      ended: room.status == LiveRoomStatus.ended,
+      startedAt: room.startedAt,
+      endedAt: room.endedAt,
+      duration: Duration.zero,
+      total: parts?.total ?? room.score,
+      tapPoints: parts?.tapPoints ?? 0,
+      supportPoints: parts?.supportPoints ?? 0,
+      hostOwnPoints: 0,
+      supporters: contributorList.length,
+      topSupporters: [
+        for (final c in contributorList.take(3))
+          LiveStatsSupporter(user: c.user, points: c.points),
+      ],
+      giftCount: 0,
+      chatMessages: 0,
+      newFollowers: 0,
+      viewers: const LiveViewerStats(
+        unique: 0,
+        guests: 0,
+        peak: 0,
+        atEnd: 0,
+        averageWatch: Duration.zero,
+      ),
+      viewerCountries: const [],
+    );
+  }
+
   /// `contributors` answers (CP-014); [contributorsFailure] fails them.
   List<LiveContributor> contributorList = [];
   AppFailure? contributorsFailure;
@@ -664,6 +710,10 @@ class FakeLiveRepository implements LiveRepository {
   /// A failure for the next `sendChat` (then cleared).
   AppFailure? chatFailure;
 
+  /// D141: the next [chatFailureTimes] `sendChat` calls throw this.
+  AppFailure? chatFailureRepeated;
+  int chatFailureTimes = 0;
+
   /// Every chat call, e.g. `send:hello`, `delete:m-1`, `mute:huda`.
   final List<String> chatCalls = [];
   List<LiveChatMute> chatMuteList = [];
@@ -694,6 +744,10 @@ class FakeLiveRepository implements LiveRepository {
     if (failure != null) {
       chatFailure = null;
       throw failure;
+    }
+    if (chatFailureRepeated case final repeated? when chatFailureTimes > 0) {
+      chatFailureTimes--;
+      throw repeated;
     }
     return LiveChatEntry(
       id: 'sent-${_chatSerial++}',

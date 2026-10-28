@@ -28,17 +28,22 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
+import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
@@ -107,6 +112,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
   GoldenViewport viewport = GoldenViewport.phone,
   LevelsRepository? levels,
   FakeLiveGiftRepository? gifts,
+  FakeLiveScheduleRepository? schedule,
 }) async {
   final live =
       repo ??
@@ -133,7 +139,7 @@ Future<(FakeLiveRepository, FakeLiveMediaEngine)> _pump(
         FakeLiveBlockedWordsRepository(),
       ),
       liveScheduleRepositoryProvider.overrideWithValue(
-        FakeLiveScheduleRepository(),
+        schedule ?? FakeLiveScheduleRepository(),
       ),
       // A person's card reads their profile.
       profileRepositoryProvider.overrideWithValue(
@@ -279,12 +285,14 @@ void main() {
       expect(find.text(l10n.goLiveNoCategory), findsOneWidget);
       expect(find.text('# Music'), findsOneWidget);
       expect(find.text(l10n.goLiveTitleHint), findsOneWidget);
-      // Nothing that does not work: no flash, timer or sound; Magic and
-      // Fill light say Soon (D99).
+      // Nothing that does not work: no flash, timer or sound. D143: Magic
+      // (colour filters) and Fill light are working tools, not Soon.
       expect(
         find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
-        findsOneWidget,
+        findsNothing,
       );
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('fillLight')), findsOneWidget);
       expect(find.byIcon(Icons.flash_on), findsNothing);
       expect(find.byIcon(Icons.timer_outlined), findsNothing);
       await _leave(tester);
@@ -770,9 +778,10 @@ void main() {
       expect(find.bySemanticsLabel(RegExp(l10n.goLiveHostTag)), findsOneWidget);
       expect(find.byKey(AudioSeatRing.seatKey(8)), findsOneWidget);
       // Owner (2026-10-26): no mic button in the bar; the host mutes and
-      // unmutes on their own picture. The toolbox and gift box show.
+      // unmutes on their own picture. D141: games (in place of the
+      // toolbox) and the gift box show.
       expect(find.byKey(GoLiveScreen.micKey), findsNothing);
-      expect(find.byKey(GoLiveScreen.audioToolboxKey), findsOneWidget);
+      expect(find.byKey(GoLiveScreen.audioGamesKey), findsOneWidget);
       expect(find.byKey(GoLiveScreen.audioGiftKey), findsOneWidget);
       // CP-020: the host's gift panel (to people on the mic; the catalogue
       // is empty here, as in production today).
@@ -962,7 +971,7 @@ void main() {
       final handle = tester.ensureSemantics();
       for (final key in [
         AudioSeatRing.seatKey(0),
-        GoLiveScreen.audioToolboxKey,
+        GoLiveScreen.audioGamesKey,
         GoLiveScreen.audioGiftKey,
         GoLiveScreen.closeKey,
         GoLiveScreen.minimizeKey,
@@ -1477,15 +1486,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(KLiveGiftSheet), findsOneWidget);
         await closeSheet(tester);
-        for (final key in [
-          GoLiveScreen.audioMoreKey,
-          GoLiveScreen.audioToolboxKey,
-        ]) {
-          await tester.tap(find.byKey(key));
-          await tester.pumpAndSettle();
-          expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
-          await closeSheet(tester);
-        }
+        await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(GoLiveKeys.tool('seats')), findsOneWidget);
+        await closeSheet(tester);
+        // D141: games are not there yet — the button says so, no list.
+        await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
+        await tester.pump();
+        expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+        ScaffoldMessenger.of(tester.element(find.byType(GoLiveScreen)))
+            .removeCurrentSnackBar();
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(GoLiveScreen.audioPkKey));
         await tester.pump();
         expect(find.text(l10n.goLivePkSoon), findsOneWidget);
@@ -1530,6 +1541,96 @@ void main() {
       await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
       await _startAudio(tester);
     }
+
+    for (final audio in [false, true]) {
+      testWidgets('D141: ≡ «Live time» is a working host tool '
+          '(${audio ? 'audio' : 'video'}): it opens the live schedule, which '
+          'adds and removes a slot', (tester) async {
+        final schedule = FakeLiveScheduleRepository([
+          LiveScheduleSlot(
+            id: 'a',
+            title: 'Morning chat',
+            startsAt: DateTime.now().add(const Duration(hours: 2)),
+          ),
+        ]);
+        final (repo, _) = await _pump(tester, schedule: schedule);
+        if (audio) {
+          await audioLive(tester, repo);
+          await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+          await tester.pumpAndSettle();
+        } else {
+          await _goLive(tester);
+          await _openTools(tester);
+        }
+        final l10n = _l10n(tester);
+        final tool = find.byKey(GoLiveKeys.tool('time'));
+        expect(tool, findsOneWidget);
+        // No "Soon" any more.
+        expect(
+          find.bySemanticsLabel('${l10n.liveToolLiveTime}, ${l10n.liveSoon}'),
+          findsNothing,
+        );
+        await tester.ensureVisible(tool);
+        await tester.tap(tool);
+        await tester.pumpAndSettle();
+        expect(find.byKey(LiveScheduleKeys.count), findsOneWidget);
+        await tester.tap(find.byKey(LiveScheduleKeys.add));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(LiveScheduleKeys.title),
+          'Evening songs',
+        );
+        await tester.tap(find.byKey(LiveScheduleKeys.pick));
+        await tester.pumpAndSettle();
+        for (var i = 0; i < 2; i++) {
+          final ok = MaterialLocalizations.of(
+            tester.element(find.byType(Dialog).last),
+          ).okButtonLabel;
+          await tester.tap(find.text(ok).last);
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.byKey(LiveScheduleKeys.save));
+        await tester.pumpAndSettle();
+        expect(schedule.created.single.title, 'Evening songs');
+        await tester.tap(find.byKey(LiveScheduleKeys.remove('a')));
+        await tester.pumpAndSettle();
+        expect(schedule.removed, ['a']);
+        await _leave(tester);
+      });
+    }
+
+    testWidgets('D141: the audio bar uses the owner art — gift and PK as on '
+        'the video bar, games (in place of the toolbox) says it is coming, '
+        "and the seat button shows the video bar's ∞", (tester) async {
+      final (repo, _) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await audioLive(tester, repo);
+      for (final (key, art) in [
+        (GoLiveScreen.audioGiftKey, 'assets/live_bar/bar_gift.png'),
+        (GoLiveScreen.audioPkKey, 'assets/live_bar/bar_pk.png'),
+        (GoLiveScreen.audioGamesKey, 'assets/live_bar/bar_games.png'),
+      ]) {
+        final image = tester.widget<Image>(
+          find.descendant(of: find.byKey(key), matching: find.byType(Image)),
+        );
+        expect((image.image as AssetImage).assetName, art);
+        expect(image.width, KAudioRoom.barArt);
+        expect(tester.getSize(find.byKey(key)).width, greaterThanOrEqualTo(48));
+      }
+      expect(
+        find.descendant(
+          of: find.byKey(GoLiveKeys.tool('requests')),
+          matching: find.byIcon(Icons.all_inclusive_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(l10n.liveGames), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveScreen.audioGamesKey));
+      await tester.pump();
+      expect(find.text(l10n.liveGamesSoon), findsOneWidget);
+      await _snackGone(tester);
+      await _leave(tester);
+    });
 
     testWidgets('setup Settings (ref 71): Share copies the invitation; the '
         'features without a server are greyed "Soon"', (tester) async {
@@ -1589,7 +1690,15 @@ void main() {
       final (repo, _) = await _pump(tester);
       final l10n = _l10n(tester);
       await audioLive(tester, repo);
-      await tester.tap(find.byKey(LiveAudioRoomHeader.barKey));
+      // The card's cover (D141: its @username copies instead).
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byKey(LiveAudioRoomHeader.barKey),
+              matching: find.byType(ClipRRect),
+            )
+            .first,
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(LiveRoomInfoKeys.sheet), findsOneWidget);
       expect(find.text(l10n.liveRoomInfoChange), findsOneWidget);
@@ -1800,12 +1909,12 @@ void main() {
             expect(level.left, greaterThan(rank.right - 0.5));
             expect(timer.left, greaterThan(level.right));
           }
-          // The room ID beside the name, in the host pill (D135); a tap
-          // copies it.
+          // D141: the host's @username beside the name, in the host pill
+          // (not the room number); a tap copies it.
           expect(
             find.descendant(
               of: find.byType(KHostPill),
-              matching: find.byKey(KHostPill.roomIdKey),
+              matching: find.byKey(KLiveUsernameTag.tagKey),
             ),
             findsOneWidget,
           );
@@ -1857,9 +1966,18 @@ void main() {
       await tester.tap(find.byKey(GoLiveKeys.tool('wish')));
       await tester.pumpAndSettle();
       expect(find.byKey(LiveWishSheetKeys.sheet), findsOneWidget);
+      // D141: the gift panel's category tabs; a gift is on its own tab.
       for (final code in ['rose', 'crown', 'cake', 'confetti', 'lantern']) {
-        await tester.ensureVisible(find.byKey(LiveWishSheetKeys.gift(code)));
-        await tester.tap(find.byKey(LiveWishSheetKeys.gift(code)));
+        final gift = find.byKey(LiveWishSheetKeys.gift(code));
+        for (final c in GiftCategory.values) {
+          if (gift.evaluate().isNotEmpty) break;
+          final tab = find.byKey(KLiveGiftSheet.tabKey(c.wire));
+          if (tab.evaluate().isEmpty) continue;
+          await tester.tap(tab);
+          await tester.pump();
+        }
+        await tester.ensureVisible(gift);
+        await tester.tap(gift);
         await tester.pump();
       }
       // The fifth is refused (4 at most); crown moves first; cake removed.
@@ -1898,12 +2016,13 @@ void main() {
         'chat',
         'management',
         'guests',
+        // D143: Fill light replaces the "Flash" that said Soon.
+        'fillLight',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
       final l10n = _l10n(tester);
       for (final label in [
-        l10n.liveToolFlash,
         l10n.liveToolDual,
         l10n.liveToolHd,
         l10n.liveToolSticker,
@@ -1946,22 +2065,23 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('Beautification: Beauty and Mixer work; Magic and Fill light '
-        'are Soon', (tester) async {
+    testWidgets('Beautification: Beauty, Magic, Fill light and Mixer all '
+        'work (D143: no longer Soon)', (tester) async {
       await _pump(tester);
       await _goLive(tester);
       final l10n = _l10n(tester);
       await tester.tap(find.byKey(KHostBar.beautyKey));
       await tester.pumpAndSettle();
       expect(find.text(l10n.liveBeautyToolsTitle), findsOneWidget);
-      expect(
-        find.bySemanticsLabel('${l10n.liveToolMagic}, ${l10n.liveSoon}'),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('${l10n.liveToolFillLight}, ${l10n.liveSoon}'),
-        findsOneWidget,
-      );
+      for (final label in [l10n.liveToolMagic, l10n.liveToolFillLight]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
+      expect(find.byKey(GoLiveKeys.tool('magic')), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.tool('fillLight')), findsOneWidget);
       await tester.tap(find.byKey(GoLiveKeys.tool('mixer')));
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveKeys.tool('mixer')), findsNothing);
@@ -2006,8 +2126,8 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('the end summary: real data only (time, cherries from taps '
-        'and gifts, supporters, viewers, charm)', (tester) async {
+    testWidgets('the end summary: full screen, real data only (time, '
+        'cherries from taps and gifts, supporters)', (tester) async {
       final repo = FakeLiveRepository(categories: _categories)
         ..contributorList = [const LiveContributor(user: someone, points: 120)];
       await _pump(tester, repo: repo);
@@ -2026,6 +2146,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(GoLiveScreen.endedKey), findsOneWidget);
       expect(find.byType(GoLiveSummary), findsOneWidget);
+      // D140: the summary takes the whole screen, from the live's statistics.
+      final view = tester.view.physicalSize / tester.view.devicePixelRatio;
+      expect(tester.getSize(find.byType(GoLiveSummary)), view);
+      expect(tester.getTopLeft(find.byType(GoLiveSummary)), Offset.zero);
+      expect(repo.statsCalls, 1);
       expect(find.text('1,520'), findsOneWidget);
       expect(
         find.descendant(
@@ -2049,6 +2174,286 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(GoLiveScreen.doneKey), findsOneWidget);
+      await _leave(tester);
+    });
+  });
+
+  group('D143 fill light, Magic colour filters, audio-room management', () {
+    final frame = find.byKey(LiveFillLightFrame.frameKey);
+    final fillLight = find.byKey(GoLiveKeys.tool('fillLight'));
+
+    Future<void> toggleFillLight(WidgetTester tester) async {
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pumpAndSettle();
+    }
+
+    GoLiveState hostState(WidgetTester tester) =>
+        ProviderScope.containerOf(tester.element(find.byType(GoLiveScreen)))
+            .read(liveHostControllerProvider);
+
+    testWidgets('front camera: the warm frame lights the face, no torch; '
+        'kept from the setup into the live', (tester) async {
+      final (_, camera) = await _pump(tester);
+      expect(frame, findsNothing);
+      await toggleFillLight(tester);
+      expect(frame, findsOneWidget);
+      expect(hostState(tester).fillLight, isTrue);
+      expect(camera.torchCalls, isEmpty);
+      await _goLive(tester);
+      expect(frame, findsOneWidget, reason: 'remembered for the session');
+      await _openTools(tester);
+      await toggleFillLight(tester);
+      expect(frame, findsNothing);
+      expect(hostState(tester).fillLight, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('back camera: the real torch; it follows the camera flips', (
+      tester,
+    ) async {
+      final (_, camera) = await _pump(tester);
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      await toggleFillLight(tester);
+      expect(camera.torchCalls, [true]);
+      expect(frame, findsNothing, reason: 'the torch lights, not the screen');
+      // To the front: torch off, the screen's frame instead.
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      expect(camera.torchCalls, [true, false]);
+      expect(frame, findsOneWidget);
+      // Back again: the torch comes back on.
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      expect(camera.torchCalls, [true, false, true]);
+      await toggleFillLight(tester);
+      expect(camera.torchCalls, [true, false, true, false]);
+      expect(hostState(tester).fillLight, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('a back camera without a torch says so and stays off', (
+      tester,
+    ) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..backTorch = false,
+      );
+      await tester.tap(find.byKey(GoLiveScreen.flipKey));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pump();
+      expect(find.text(_l10n(tester).liveFillLightNoTorch), findsOneWidget);
+      expect(camera.torchCalls, isEmpty);
+      expect(hostState(tester).fillLight, isFalse);
+      expect(frame, findsNothing);
+      await _snackGone(tester);
+      await _leave(tester);
+    });
+
+    testWidgets('reduced motion: the frame appears at once', (tester) async {
+      await _pump(tester);
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await tester.pump();
+      await tester.ensureVisible(fillLight);
+      await tester.tap(fillLight);
+      await tester.pump();
+      final opacity = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: frame, matching: find.byType(AnimatedOpacity)),
+      );
+      expect(opacity.duration, Duration.zero);
+      await _leave(tester);
+    });
+
+    testWidgets('Magic: the picked colour filter reaches the camera '
+        'pipeline (published picture) and is marked', (tester) async {
+      final (_, camera) = await _pump(tester);
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveFilterTitle), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsNothing);
+      expect(
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.natural)),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.warm)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.warm);
+      await tester.dragUntilVisible(
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.soft)),
+        find.byKey(GoLiveKeys.filter(LiveColorFilter.warm)),
+        const Offset(-100, 0),
+      );
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.soft)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.soft);
+      // Beauty keeps its own settings; the filter rides with them.
+      expect(camera.beauty.enabled, isFalse);
+      expect(hostState(tester).beauty.filter, LiveColorFilter.soft);
+      await _leave(tester);
+    });
+
+    testWidgets('Magic where the device cannot publish filters: says why '
+        'and changes nothing (no preview-only filter)', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..supportsBeauty = false,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsOneWidget);
+      expect(find.text(_l10n(tester).liveFilterUnsupported), findsOneWidget);
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.mono)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.natural);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Android: Magic works through the native processor '
+        'while Beauty (skin) stays unsupported', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsBeauty = false
+          ..supportsFilters = true,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsNothing);
+      // No processor for effects on this platform: no Effects section.
+      expect(find.text(_l10n(tester).liveEffectsTitle), findsNothing);
+      expect(find.byKey(GoLiveKeys.effect(LiveArEffect.none)), findsNothing);
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.mono)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.mono);
+      expect(camera.beauty.enabled, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Effects (beta): background blur reaches the camera, '
+        'marks Magic, and None turns it off', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsBeauty = false
+          ..supportsFilters = true
+          ..arSupport = LiveArSupport.ready,
+      );
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveEffectsTitle), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.effectsUnavailable), findsNothing);
+      final blur = find.byKey(GoLiveKeys.effect(LiveArEffect.backgroundBlur));
+      await tester.ensureVisible(blur);
+      await tester.tap(blur);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.backgroundBlur);
+      expect(hostState(tester).beauty.effect, LiveArEffect.backgroundBlur);
+      // The colour filter is independent of the effect.
+      expect(camera.beauty.filter, LiveColorFilter.natural);
+      expect(
+        tester
+            .widget<Semantics>(
+              find.descendant(of: blur, matching: find.byType(Semantics)).first,
+            )
+            .properties
+            .selected,
+        isTrue,
+      );
+      final none = find.byKey(GoLiveKeys.effect(LiveArEffect.none));
+      await tester.tap(none);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.none);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Effects without a DeepAR licence in this build: shown '
+        'greyed with why, nothing changes', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsFilters = true
+          ..arSupport = LiveArSupport.unlicensed,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.effectsUnavailable), findsOneWidget);
+      expect(find.text(_l10n(tester).liveEffectsUnavailable), findsOneWidget);
+      final blur = find.byKey(GoLiveKeys.effect(LiveArEffect.backgroundBlur));
+      await tester.ensureVisible(blur);
+      await tester.tap(blur, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.none);
+      await _leave(tester);
+    });
+
+    testWidgets('audio room ≡ → Management: the moderators (remove), add '
+        'one from the viewers (host only, the same sheet as video)', (
+      tester,
+    ) async {
+      final (repo, _) = await _pump(tester);
+      await tester.tap(find.byKey(GoLiveKeys.mode(LiveRoomMode.audio)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(GoLiveScreen.titleKey), 'Voices');
+      await _startAudio(tester);
+      const mona = UserSummary(
+        id: 'u-9',
+        username: 'mona',
+        displayName: 'Mona',
+        avatarUrl: null,
+      );
+      repo
+        ..seatState = repo.seatState!.copyWith(moderators: const [mona])
+        ..viewerList = [
+          LiveViewer(
+            kind: LiveViewerKind.user,
+            user: const UserSummary(
+              id: 'u-huda',
+              username: 'huda',
+              displayName: 'Huda',
+              avatarUrl: null,
+            ),
+            guestNumber: null,
+            joinedAt: DateTime.utc(2026, 10, 23),
+          ),
+        ];
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveScreen.audioMoreKey));
+      await tester.pumpAndSettle();
+      expect(
+        find.bySemanticsLabel('${l10n.liveToolManagement}, ${l10n.liveSoon}'),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('management')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveManageTitle), findsOneWidget);
+      // A seat room lists its moderators (no "open a card" hint).
+      expect(find.text(l10n.liveManageModeratorsHint), findsNothing);
+      await tester.tap(find.byKey(LiveManageKeys.moderators));
+      await tester.pumpAndSettle();
+      expect(find.text('Mona'), findsOneWidget);
+      await tester.tap(find.byKey(LiveManageKeys.action('mona')));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('removeModerator:mona'));
+      expect(repo.seatState!.moderators, isEmpty);
+      // Add: the viewers, then make one a moderator from their card.
+      await tester.tap(find.byKey(LiveManageKeys.addModerator));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveManageTitle), findsNothing);
+      expect(find.byKey(SeatControlKeys.viewersTab), findsOneWidget);
+      await tester.tap(find.byKey(SeatControlKeys.moderatorUser('huda')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePersonToolKeys.admin));
+      await tester.pumpAndSettle();
+      expect(repo.seatCalls, contains('addModerator:huda'));
       await _leave(tester);
     });
   });

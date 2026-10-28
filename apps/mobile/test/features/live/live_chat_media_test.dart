@@ -33,6 +33,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/posts/application/compose_controller.dart';
 import 'package:kabso_live/features/posts/data/media_library.dart';
@@ -487,7 +488,7 @@ void main() {
             .text,
         'Hi',
       );
-      expect(find.byType(LiveChatBulletBox), findsNothing);
+      expect(find.byType(LivePublicMessage), findsNothing);
       await _leave(tester);
     });
   });
@@ -864,7 +865,7 @@ void main() {
   });
 
   group('bullets in the chat', () {
-    Finder box(String id) => find.byKey(LiveChatBulletBox.keyFor(id));
+    Finder box(String id) => find.byKey(LivePublicMessage.keyFor(id));
 
     testWidgets('viewer: a bullet shows in the chat as the public-message '
         'box with the sender and text, and stays; the same bullet shows '
@@ -891,7 +892,7 @@ void main() {
       expect(
         find.descendant(
           of: box('b1'),
-          matching: find.textContaining('Good evening'),
+          matching: find.textContaining('Good evening', findRichText: true),
         ),
         findsOneWidget,
       );
@@ -925,18 +926,18 @@ void main() {
       await tester.enterText(find.byKey(LiveChatComposer.fieldKey), 'Hi all');
       await tester.tap(find.byKey(LiveChatComposer.sendKey));
       await tester.pumpAndSettle();
-      expect(find.byType(LiveChatBulletBox), findsOneWidget);
+      expect(find.byType(LivePublicMessage), findsOneWidget);
       final id = tester
-          .widget<LiveChatBulletBox>(find.byType(LiveChatBulletBox))
+          .widget<LivePublicMessage>(find.byType(LivePublicMessage))
           .bullet
           .id;
       final sent = tester
-          .widget<LiveChatBulletBox>(find.byType(LiveChatBulletBox))
+          .widget<LivePublicMessage>(find.byType(LivePublicMessage))
           .bullet;
       room.engine.chat.add(LiveBulletReceived(sent));
       await tester.pumpAndSettle();
       expect(box(id), findsOneWidget);
-      expect(find.byType(LiveChatBulletBox), findsOneWidget);
+      expect(find.byType(LivePublicMessage), findsOneWidget);
       await _leave(tester);
     });
 
@@ -1006,7 +1007,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(LiveRoomChatLines.listKey),
-          matching: find.textContaining('Hello host'),
+          matching: find.textContaining('Hello host', findRichText: true),
         ),
         findsOneWidget,
       );

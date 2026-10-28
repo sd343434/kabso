@@ -73,7 +73,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(
+      appBar: KAppBar(
         titleSpacing: 0,
         title: Padding(
           padding: const EdgeInsetsDirectional.only(end: KSpacing.md),
@@ -262,16 +262,28 @@ class _UserRow extends StatelessWidget {
         child: KAvatar(name: name, imageUrl: user.avatarUrl),
       ),
       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        context.l10n.profileUsername(user.username),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textDirection: TextDirection.ltr,
-        textAlign: Directionality.of(context) == TextDirection.rtl
-            ? TextAlign.right
-            : TextAlign.left,
-        style: TextStyle(color: p.textSecondary),
-      ),
+      // D146: a premium username wears its special-ID badge.
+      subtitle: switch (user.premiumTier) {
+        final tier? => Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: KSpecialUsername(
+            username: user.username,
+            tier: tier,
+            height: 18,
+            animate: false,
+          ),
+        ),
+        null => Text(
+          context.l10n.profileUsername(user.username),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textDirection: TextDirection.ltr,
+          textAlign: Directionality.of(context) == TextDirection.rtl
+              ? TextAlign.right
+              : TextAlign.left,
+          style: TextStyle(color: p.textSecondary),
+        ),
+      },
       onTap: () => context.push(AppRoutes.userProfile(user.username)),
     );
   }

@@ -1,5 +1,10 @@
+import 'dart:async';
+
+import 'package:clock/clock.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart'
+    show formatLiveDuration;
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -10,19 +15,20 @@ import 'package:material_ui/material_ui.dart';
 abstract final class KViewerRoom {
   /// Ref 158 §4.9: the "Say Hi…" pill (210.3 × 34.9 pt) and the round
   /// buttons (34.8 pt, 42.1 pt apart), black ≈ 25 %.
-  static const double pillWidth = 210.3;
-  static const double barHeight = 34.9;
-  static const double button = 34.8;
+  /// D141 (owner: "a slight enlargement"): ≈ 12 % larger than measured.
+  static const double pillWidth = 228;
+  static const double barHeight = 39;
+  static const double button = 39;
   static const double buttonGap = 7.2;
   static const Color fill = Color(0x40000000);
 
   /// The hint (cap 8.5 pt → 12.5 sp, white 85 %), 15.8 pt in.
-  static const double hintSize = 12.5;
-  static const double hintStart = 15.8;
+  static const double hintSize = 14;
+  static const double hintStart = 16;
 
   /// Ref 158 §4.3: the second row's chips (20.4 pt) 8.1 pt under the pill;
   /// the room number at the end (≈ 8 sp, white 65 %).
-  static const double chipHeight = 20.4;
+  static const double chipHeight = 23;
   static const double rowGap = 8.1;
 }
 
@@ -179,7 +185,7 @@ class LiveLevelTargetChip extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: context.textStyles.caption.copyWith(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             height: 1,
                             color: const Color(0xFFFFFFFF),
                             fontWeight: FontWeight.w700,
@@ -277,8 +283,8 @@ class KViewerBar extends StatelessWidget {
                       child: Center(
                         child: Image.asset(
                           'assets/live_bar/emoji.png',
-                          width: 21,
-                          height: 21,
+                          width: 24,
+                          height: 24,
                           excludeFromSemantics: true,
                         ),
                       ),
@@ -332,8 +338,11 @@ class KViewerBarButton extends StatelessWidget {
   /// place (33 pt) with no dark circle behind it.
   final bool art;
 
-  /// The colourful art's size.
-  static const double artSize = 33;
+  /// The colourful art's size (D141: 37 pt, was 33).
+  static const double artSize = 37;
+
+  /// The plain icons' size (D141: 24 pt, was 21).
+  static const double iconSize = 24;
 
   /// Kabso's bar art; else [icon] in white.
   final String? asset;
@@ -374,12 +383,12 @@ class KViewerBarButton extends StatelessWidget {
                 if (asset case final asset?)
                   Image.asset(
                     asset,
-                    width: art ? artSize : 21,
-                    height: art ? artSize : 21,
+                    width: art ? artSize : iconSize,
+                    height: art ? artSize : iconSize,
                     excludeFromSemantics: true,
                   )
                 else
-                  Icon(icon, size: 21, color: const Color(0xFFFFFFFF)),
+                  Icon(icon, size: iconSize, color: const Color(0xFFFFFFFF)),
                 if (badge)
                   const PositionedDirectional(
                     top: -6,
@@ -675,6 +684,145 @@ class KQuickReplies extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// D141 (owner: "make the timer nicer"): the live's elapsed time — one
+/// glass pill (the top rows' see-through fill and a hairline edge) with a
+/// red «LIVE» capsule whose white dot breathes softly with the seconds (a
+/// 0.6 s fade each second, so nothing animates between them; still with
+/// reduced motion), then the time in tabular figures so it never jitters.
+/// It rebuilds itself every second.
+class KLiveElapsedPill extends StatefulWidget {
+  const new({required this.since, super.key, this.height});
+
+  final DateTime? since;
+
+  /// Defaults to the chips row's height.
+  final double? height;
+
+  static const dotKey = Key('live.elapsed.dot');
+  static const timeKey = Key('live.elapsed.time');
+
+  /// The dot's fade each second.
+  static const pulse = Duration(milliseconds: 600);
+
+  static const red = [Color(0xFFFF4D67), Color(0xFFE5173A)];
+
+  @override
+  State<KLiveElapsedPill> createState() => _KLiveElapsedPillState();
+}
+
+class _KLiveElapsedPillState extends State<KLiveElapsedPill> {
+  Timer? _tick;
+  int _beat = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _beat++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final since = widget.since;
+    final elapsed = formatLiveDuration(
+      since == null ? Duration.zero : clock.now().difference(since),
+    );
+    final h = widget.height ?? KViewerRoom.chipHeight;
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final styles = context.textStyles;
+    return Semantics(
+      label: l10n.goLiveElapsed(elapsed),
+      excludeSemantics: true,
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: KMetrics.overlayMaxTextScale,
+        child: Container(
+          constraints: BoxConstraints(minHeight: h),
+          padding: const EdgeInsetsDirectional.fromSTEB(2.5, 2.5, 8, 2.5),
+          decoration: BoxDecoration(
+            color: KLiveColors.glass,
+            borderRadius: BorderRadius.circular(KRadius.pill),
+            border: Border.all(color: const Color(0x33FFFFFF), width: 0.6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 1.5, 6, 1.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: KLiveElapsedPill.red,
+                  ),
+                  borderRadius: BorderRadius.circular(KRadius.pill),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x66E5173A), blurRadius: 4),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedOpacity(
+                      key: KLiveElapsedPill.dotKey,
+                      opacity: reduced || _beat.isEven ? 1 : 0.35,
+                      duration: reduced
+                          ? Duration.zero
+                          : KLiveElapsedPill.pulse,
+                      curve: Curves.easeInOut,
+                      child: Container(
+                        width: 5.5,
+                        height: 5.5,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFFFFF),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3.5),
+                    Text(
+                      l10n.liveBadge,
+                      maxLines: 1,
+                      style: styles.caption.copyWith(
+                        fontSize: 9.5,
+                        height: 1.15,
+                        color: const Color(0xFFFFFFFF),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                elapsed,
+                key: KLiveElapsedPill.timeKey,
+                textDirection: TextDirection.ltr,
+                maxLines: 1,
+                style: styles.caption.copyWith(
+                  fontSize: 11.5,
+                  height: 1.1,
+                  color: const Color(0xFFFFFFFF),
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  shadows: KLiveColors.glassShadow,
+                ),
+              ),
+            ],
           ),
         ),
       ),

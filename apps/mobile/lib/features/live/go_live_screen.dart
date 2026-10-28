@@ -12,6 +12,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
@@ -19,6 +20,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -30,11 +32,14 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
@@ -46,6 +51,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.da
 import 'package:kabso_live/features/live/presentation/widgets/live_cp_entrance.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_button.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
@@ -53,6 +59,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.da
 import 'package:kabso_live/features/live/presentation/widgets/live_tap_layer.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_view_data.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -98,7 +105,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const audioChatKey = Key('goLive.audio.chat');
   static const audioMoreKey = Key('goLive.audio.more');
   static const audioPkKey = Key('goLive.audio.pk');
-  static const audioToolboxKey = Key('goLive.audio.toolbox');
+
+  /// D141: the games button (in place of the toolbox, which repeated ≡).
+  static const audioGamesKey = Key('goLive.audio.games');
   static const audioGiftKey = Key('goLive.audio.gift');
   static const endConfirmKey = Key('goLive.endConfirm');
   static const doneKey = Key('goLive.done');
@@ -537,8 +546,6 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     Widget? middle;
     if (gate != null) {
       middle = gate;
-    } else if (ended) {
-      middle = _Ended(state: state, onDone: _close);
     } else if (captureFailed) {
       middle = _captureNotice(state);
     } else if (state.mode == LiveRoomMode.multi) {
@@ -582,6 +589,44 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     onChanged: (b) => unawaited(_host.setBeauty(b)),
                   ),
                 )
+              : null,
+        ),
+        // D143 Magic: colour filters on the published picture (greyed with
+        // why where the device has no camera pipeline; D144: Android has
+        // one), and D144's Effects (beta) where DeepAR runs.
+        GoLiveTool(
+          id: 'magic',
+          icon: Icons.auto_awesome_rounded,
+          label: l10n.liveToolMagic,
+          badge:
+              !state.beauty.filter.isNatural ||
+              state.beauty.effect != LiveArEffect.none,
+          onTap: canAct
+              ? () => unawaited(
+                  showLiveFilterSheet(
+                    context,
+                    selected: state.beauty.filter,
+                    supported: engine.filtersSupported,
+                    accent: art.accent,
+                    onChanged: (f) => unawaited(_host.setColorFilter(f)),
+                    effects: engine.arEffects,
+                    effect: state.beauty.effect,
+                    onEffect: (e) => unawaited(_host.setArEffect(e)),
+                  ),
+                )
+              : null,
+        ),
+        // D143 fill light: the screen's warm frame (front camera) or the
+        // torch (back camera); one tool for both (it replaces "Flash").
+        GoLiveTool(
+          id: 'fillLight',
+          icon: state.frontCamera
+              ? Icons.light_mode_rounded
+              : Icons.flashlight_on_rounded,
+          label: l10n.liveToolFillLight,
+          toggled: state.fillLight,
+          onTap: canAct && engine.videoEnabled
+              ? () => unawaited(_toggleFillLight(state))
               : null,
         ),
       ],
@@ -697,7 +742,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
     const pad = KSpacing.lg;
     final Widget body;
-    if (audioSetup) {
+    if (ended && gate == null) {
+      // D140 (owner): the end-of-live summary takes the whole screen.
+      body = _Ended(
+        state: state,
+        hostName: user?.displayName ?? '',
+        hostUsername: user?.username,
+        hostAvatarUrl: user?.avatarUrl,
+        onDone: _close,
+      );
+    } else if (audioSetup) {
       body = GoLiveAudioSetup(
         controller: _title,
         focusNode: _titleFocus,
@@ -859,11 +913,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           other: [
             ?byId['viewers'],
             ?byId['chat'],
-            GoLiveTool.soon(
-              id: 'management',
-              icon: Icons.manage_accounts_outlined,
-              label: l10n.liveToolManagement,
-            ),
+            // D143: the same User management as video rooms (moderators
+            // included: the audio room has seats).
+            _managementTool(state, live ? room : null, liveSeats),
             GoLiveTool.soon(
               id: 'assistance',
               icon: Icons.support_agent_rounded,
@@ -884,10 +936,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.insights_outlined,
               label: l10n.liveToolDataCenter,
             ),
-            GoLiveTool.soon(
+            // D141 (owner): the host's live schedule (D99 C), from the
+            // live itself.
+            GoLiveTool(
               id: 'time',
               icon: Icons.alarm_rounded,
               label: l10n.liveToolLiveTime,
+              onTap: () => unawaited(showLiveSchedule(context)),
             ),
             byId['guests']!,
           ],
@@ -895,6 +950,24 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
+        // D145a: the combo in the promo box's place; the strips between
+        // the seats and the chat.
+        combo: room != null && LuckyComboCluster.shows(ref, room.id)
+            ? LuckyComboCluster(roomId: room.id)
+            : null,
+        strips: room == null
+            ? null
+            : LiveGiftStrips(
+                roomId: room.id,
+                onSender: (u) => unawaited(_person(room.id, u.username)),
+              ),
+        // D141a (owner): the promo box over the gift button.
+        promo: live && room != null && LiveRoomPromoBox.shows(ref, room.id)
+            ? LiveRoomPromoBox(
+                roomId: room.id,
+                boxWidth: LiveRoomPromoBox.audioWidth,
+              )
+            : null,
         header: LiveAudioRoomHeader(
           // CP-015: the live's cover, else the host's picture.
           cover: switch (room?.coverUrl ?? user?.liveCoverUrl) {
@@ -912,11 +985,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           },
           title: room?.title ?? _title.text.trim(),
           level: room?.roomLevel,
-          // CP-016 G (ref 83): the room number, else the username.
-          subtitle: switch (room?.roomNumber) {
-            final n? => l10n.liveRoomNumber('$n'),
-            null => user == null ? null : '@${user.username}',
-          },
+          // D141 (owner): the host's @username (copy on tap), not the
+          // room number.
+          username: user?.username,
+          premiumTier: user?.premiumTier,
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
@@ -1057,8 +1129,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         barEnd: [
           LiveRoundButton(
             key: GoLiveKeys.tool('requests'),
-            icon: Icons.weekend_rounded,
-            asset: 'assets/live_bar/seat.png',
+            // D141 (owner): the video bar's ∞ (guests) icon.
+            icon: Icons.all_inclusive_rounded,
             bare: true,
             label: byId['requests']!.label,
             // Owner (2026-10-26): the seat button opens the room's people on
@@ -1075,24 +1147,31 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           LiveRoundButton(
             key: GoLiveScreen.audioPkKey,
             icon: Icons.sports_mma_rounded,
-            asset: 'assets/live_bar/pk.png',
+            // D135/D141: the owner's colourful PK art, as on the video bar.
+            asset: 'assets/live_bar/bar_pk.png',
+            art: true,
             bare: true,
             label: l10n.goLivePk,
             onTap: () => KSnack.info(context, l10n.goLivePkSoon),
           ),
-          // Owner (2026-10-26): the toolbox and the gift box always show.
+          // D141 (owner): games, with the owner's controller art, where
+          // the toolbox was (it repeated ≡). There are no games yet: the
+          // button says so (no list is shown).
           LiveRoundButton(
-            key: GoLiveScreen.audioToolboxKey,
-            icon: Icons.work_rounded,
-            asset: 'assets/live_bar/toolbox.png',
+            key: GoLiveScreen.audioGamesKey,
+            icon: Icons.sports_esports_rounded,
+            asset: 'assets/live_bar/bar_games.png',
+            art: true,
             bare: true,
-            label: l10n.liveToolbox,
-            onTap: openTools,
+            label: l10n.liveGames,
+            onTap: () => KSnack.info(context, l10n.liveGamesSoon),
           ),
           LiveRoundButton(
             key: GoLiveScreen.audioGiftKey,
             icon: Icons.card_giftcard_rounded,
-            asset: 'assets/live_bar/gift.png',
+            // D135/D141: the owner's colourful gift box.
+            asset: 'assets/live_bar/bar_gift.png',
+            art: true,
             bare: true,
             label: l10n.liveGifts,
             onTap: room == null ? null : () => unawaited(_openGifts(room)),
@@ -1120,7 +1199,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         openChat: openChat,
       );
     } else {
-      body = SafeArea(
+      body = KTopSafeArea(
+        bottom: true,
         child: Column(
           children: [
             Padding(
@@ -1320,7 +1400,33 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   body,
                 // CP-020: gift banners and effects over the live.
                 if (onAir && room != null)
-                  LiveGiftEffectsLayer(roomId: room.id),
+                  LiveGiftEffectsLayer(
+                    roomId: room.id,
+                    onSender: (u) => unawaited(_person(room.id, u.username)),
+                    // D145a: an audio room draws the strips between its
+                    // seats and its chat; a video live beside the wish
+                    // column.
+                    showStrips: !audioOnAir,
+                    stripsAt: audioOnAir
+                        ? null
+                        : LiveGiftEffectsLayer.videoStripsAt(
+                            context,
+                            sideColumn:
+                                room.wishGifts.isNotEmpty ||
+                                LiveRoomPromoBox.shows(ref, room.id),
+                          ),
+                  ),
+                // D145: the lucky combo button after a lucky gift is sent.
+                if (onAir && room != null)
+                  LuckyComboLayer(
+                    roomId: room.id,
+                    hostUsername: room.host.username,
+                    // Over the audio bar, or over the video live's quick
+                    // replies.
+                    bottom: audioOnAir
+                        ? LuckyComboLayer.audioBottom
+                        : LuckyComboLayer.videoBottom,
+                  ),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
                 if (_countdown case final n?)
@@ -1354,8 +1460,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   bool _toolsExpanded = true;
 
-  /// D131 (ref 164): the setup's tools — Flip, Beauty, Magic (Soon), the
-  /// microphone and the fold; then Fill light (Soon), the voice, the theme
+  /// D131 (ref 164): the setup's tools — Flip, Beauty, Magic (D143 colour
+  /// filters), the microphone and the fold; then Fill light (D143), the
+  /// voice, the theme
   /// (seat rooms), Share and Settings (who may watch).
   Widget _setupTools(
     GoLiveState state,
@@ -1365,19 +1472,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final l10n = context.l10n;
     final user = ref.read(currentUserProvider);
     final byId = {for (final t in tools) t.id: t};
-    GoLiveTool soon(String id, IconData icon, String label) =>
-        GoLiveTool.soon(id: id, icon: icon, label: label);
     return GoLiveToolGrid(
       expanded: _toolsExpanded,
       onExpanded: (v) => setState(() => _toolsExpanded = v),
-      first: [
-        ?byId['flip'],
-        ?byId['beauty'],
-        soon('magic', Icons.auto_awesome_outlined, l10n.liveToolMagic),
-        ?byId['mic'],
-      ],
+      first: [?byId['flip'], ?byId['beauty'], ?byId['magic'], ?byId['mic']],
       second: [
-        soon('fillLight', Icons.light_mode_outlined, l10n.liveToolFillLight),
+        ?byId['fillLight'],
         GoLiveTool(
           id: 'voice',
           icon: Icons.tune_rounded,
@@ -1498,26 +1598,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ),
             ),
           );
-    final management = GoLiveTool(
-      id: 'management',
-      icon: Icons.manage_accounts_outlined,
-      label: l10n.liveToolManagement,
-      onTap: !live
-          ? null
-          : () => unawaited(
-              showLiveUserManagement(
-                context,
-                roomId: room.id,
-                hasSeats: state.mode.hasSeats,
-                allowGuests: state.allowGuests,
-                onAllowGuests: ({required allow}) =>
-                    _host.setAllowGuests(allow: allow),
-                onChanged: state.mode.hasSeats
-                    ? () => unawaited(_afterSeatChange(room.id))
-                    : null,
-              ),
-            ),
-    );
+    final management = _managementTool(state, live ? room : null, liveSeats);
     GoLiveTool soon(String id, IconData icon, String label) =>
         GoLiveTool.soon(id: id, icon: icon, label: label);
     void openTools() => unawaited(
@@ -1548,7 +1629,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(_shareLive(room.title, user.username)),
           ),
-          soon('flash', Icons.flash_on_rounded, l10n.liveToolFlash),
+          ?byId['fillLight'],
           ?byId['flip'],
           soon('dual', Icons.switch_video_rounded, l10n.liveToolDual),
           soon('hd', Icons.hd_rounded, l10n.liveToolHd),
@@ -1592,7 +1673,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
           soon('newcomers', Icons.fiber_new_outlined, l10n.liveToolNewcomers),
           soon('data', Icons.insights_outlined, l10n.liveToolDataCenter),
-          soon('time', Icons.alarm_rounded, l10n.liveToolLiveTime),
+          // D141 (owner): the host's live schedule (D99 C), from the live.
+          GoLiveTool(
+            id: 'time',
+            icon: Icons.alarm_rounded,
+            label: l10n.liveToolLiveTime,
+            onTap: () => unawaited(showLiveSchedule(context)),
+          ),
           soon(
             'traffic',
             Icons.confirmation_number_outlined,
@@ -1608,8 +1695,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         title: l10n.liveBeautyToolsTitle,
         tools: [
           ?byId['beauty'],
-          soon('magic', Icons.auto_awesome_rounded, l10n.liveToolMagic),
-          soon('fillLight', Icons.light_mode_outlined, l10n.liveToolFillLight),
+          ?byId['magic'],
+          ?byId['fillLight'],
           GoLiveTool(
             id: 'mixer',
             icon: Icons.tune_rounded,
@@ -1640,8 +1727,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     return KLiveRoomScaffold(
       video: background,
       header: KHostPill(
-        // D135: the room ID beside the name (copy on tap).
-        roomId: room.roomNumber?.toString(),
+        // D141 (owner): the host's @username beside the name (copy on tap).
+        username: user?.username,
+        premiumTier: user?.premiumTier,
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [
@@ -1687,17 +1775,17 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ? null
           : LiveViewersStack(
               key: GoLiveScreen.viewersKey,
-              avatarSize: 25.6,
-              pitch: 30.6,
-              countHeight: 25,
-              countMinWidth: 31,
+              avatarSize: 28.5,
+              pitch: 33.5,
+              countHeight: 28,
+              countMinWidth: 34,
               avatars: [
                 for (final v in viewers.items)
                   if (v.user case final u?)
                     KAvatar(
                       name: u.displayName,
                       imageUrl: u.avatarUrl,
-                      size: 25.6,
+                      size: 28.5,
                     ),
               ],
               count: viewers.next == null
@@ -1714,7 +1802,11 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         wishes: room.wishGifts,
         onEdit: live ? () => unawaited(_openWishSheet()) : null,
       ),
-      sideEnd: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      sidePromo: live ? LiveRoomPromoBox(roomId: room.id) : null,
+      // D145a: the lucky combo beside the chat, over the quick replies.
+      chatEnd: LuckyComboCluster.shows(ref, room.id)
+          ? LuckyComboCluster(roomId: room.id)
+          : null,
       closeButtonKey: GoLiveScreen.closeKey,
       closeLabel: l10n.goLiveEndConfirm,
       onClose: live ? () => unawaited(_confirmEnd()) : null,
@@ -2064,8 +2156,51 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
+  /// The host's User management (D131; D143 audio rooms too): muted,
+  /// removed, the moderators (assign from the viewers, remove here) and
+  /// signed-in viewers only. Greyed until [room] is on air.
+  GoLiveTool _managementTool(
+    GoLiveState state,
+    LiveRoom? room,
+    LiveSeats? liveSeats,
+  ) {
+    final seats = state.mode.hasSeats;
+    return GoLiveTool(
+      id: 'management',
+      icon: Icons.manage_accounts_outlined,
+      label: context.l10n.liveToolManagement,
+      onTap: room == null
+          ? null
+          : () => unawaited(
+              showLiveUserManagement(
+                context,
+                roomId: room.id,
+                hasSeats: seats,
+                allowGuests: state.allowGuests,
+                onAllowGuests: ({required allow}) =>
+                    _host.setAllowGuests(allow: allow),
+                onChanged: seats
+                    ? () => unawaited(_afterSeatChange(room.id))
+                    : null,
+                onAddModerator: seats
+                    ? () => unawaited(_openViewers(room.id, liveSeats))
+                    : null,
+              ),
+            ),
+    );
+  }
+
+  /// D143 fill light on or off; says so when the back camera has no torch.
+  Future<void> _toggleFillLight(GoLiveState state) async {
+    final on = !state.fillLight;
+    final done = await _host.setFillLight(on: on);
+    if (!mounted || done) return;
+    KSnack.info(context, context.l10n.liveFillLightNoTorch);
+  }
+
   /// The camera picture (full screen for LIVE, the host tile for
-  /// multi-guest), with [fallback] until it runs.
+  /// multi-guest), with [fallback] until it runs. D143: with the fill light
+  /// on and the front camera, the screen's warm frame lights the face.
   Widget _camera(GoLiveState state, {Widget? fallback}) {
     final picture = state.phase == GoLivePhase.ended
         ? null
@@ -2076,7 +2211,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               ? const _Spinner()
               : ColoredBox(color: KPalette.dark.surface));
     }
-    return SizedBox.expand(key: ValueKey(state.frontCamera), child: picture);
+    return SizedBox.expand(
+      key: ValueKey(state.frontCamera),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          picture,
+          LiveFillLightFrame(on: state.fillLight && state.frontCamera),
+        ],
+      ),
+    );
   }
 }
 
@@ -2216,11 +2360,23 @@ class _LiveClock extends StatelessWidget {
   }
 }
 
-/// Over (D131): the end-of-live summary from real data only.
+/// Over (D131, D140): the full-screen end-of-live summary, from the live's
+/// statistics (`GET /live/rooms/{roomId}/stats`) and the host's charm level.
 class _Ended extends ConsumerWidget {
-  const new({required this.state, required this.onDone});
+  const new({
+    required this.state,
+    required this.hostName,
+    required this.hostUsername,
+    required this.hostAvatarUrl,
+    required this.onDone,
+  });
 
   final GoLiveState state;
+  final String hostName;
+
+  /// Reads the host's profile for the CP Special Frame (D112).
+  final String? hostUsername;
+  final String? hostAvatarUrl;
   final VoidCallback onDone;
 
   @override
@@ -2228,26 +2384,41 @@ class _Ended extends ConsumerWidget {
     final l10n = context.l10n;
     final since = state.liveSince;
     final until = state.endedAt ?? clock.now();
-    final duration = formatLiveDuration(
-      since == null ? Duration.zero : until.difference(since),
-    );
+    final local = since == null ? Duration.zero : until.difference(since);
     final room = state.room;
-    final supporters = room == null
+    final stats = room == null
         ? null
-        : ref.watch(liveSummaryContributorsProvider(room.id)).value;
+        : ref.watch(liveRoomStatsProvider(room.id));
     final charm = ref
         .watch(myLevelsProvider)
         .value
         ?.where((l) => l.category == LevelCategory.attractiveness)
         .firstOrNull;
+    final value = stats?.value;
+    final username = hostUsername;
+    // D140b: the host's own avatar frame (the CP Special Frame) in the hero.
+    final framed =
+        username != null &&
+        cpWearsSpecialFrame(
+          ref.watch(profileStatsProvider(username)).value?.cp,
+        );
     return Semantics(
       key: GoLiveScreen.endedKey,
       container: true,
-      label: l10n.goLiveEndedDuration(duration),
+      label: l10n.goLiveEndedDuration(
+        formatLiveDuration(value?.duration ?? local),
+      ),
       child: GoLiveSummary(
-        duration: duration,
-        room: room,
-        supporters: supporters,
+        localDuration: local,
+        stats: value,
+        loading: stats != null && stats.isLoading && !stats.hasValue,
+        failed: stats == null || (stats.hasError && !stats.hasValue),
+        onRetry: room == null
+            ? null
+            : () => ref.invalidate(liveRoomStatsProvider(room.id)),
+        hostName: hostName,
+        hostAvatarUrl: hostAvatarUrl,
+        hostCpFrame: framed,
         charm: charm,
         onDone: onDone,
         doneKey: GoLiveScreen.doneKey,
@@ -2263,46 +2434,6 @@ class _HostElapsed extends StatelessWidget {
   final DateTime? since;
 
   @override
-  Widget build(BuildContext context) {
-    final elapsed = formatLiveDuration(
-      since == null ? Duration.zero : clock.now().difference(since!),
-    );
-    return Semantics(
-      key: GoLiveScreen.elapsedKey,
-      label: context.l10n.goLiveElapsed(elapsed),
-      excludeSemantics: true,
-      child: Container(
-        height: KViewerRoom.chipHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: KLiveColors.glass,
-          borderRadius: BorderRadius.circular(KRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(0xFFFF3B5C),
-                shape: BoxShape.circle,
-              ),
-              child: SizedBox.square(dimension: 6),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              elapsed,
-              textDirection: TextDirection.ltr,
-              style: context.textStyles.caption.copyWith(
-                color: const Color(0xFFFFFFFF),
-                fontSize: 10.5,
-                height: 1,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      KLiveElapsedPill(key: GoLiveScreen.elapsedKey, since: since);
 }

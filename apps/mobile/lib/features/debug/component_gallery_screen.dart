@@ -46,7 +46,7 @@ class _ComponentGalleryScreenState extends State<ComponentGalleryScreen> {
     assert(!kReleaseMode, 'The component gallery must not ship in release.');
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.debugComponentGallery)),
+      appBar: KAppBar(title: Text(l10n.debugComponentGallery)),
       body: ListView(
         padding: const EdgeInsets.all(KSpacing.lg),
         children: [

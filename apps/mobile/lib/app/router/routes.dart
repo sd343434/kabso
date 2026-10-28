@@ -155,6 +155,14 @@ abstract final class AppRoutes {
   /// CP-019: the bag (owned items by category; the one worn).
   static const bag = '/bag';
 
+  /// D146: the premium usernames store; [premiumFor] checks a name at once.
+  static const premium = '/premium';
+  static String premiumFor(String username) =>
+      '$premium?q=${Uri.encodeQueryComponent(username)}';
+
+  /// D146: change the regular username (`PUT /me/username`).
+  static const changeUsername = '/settings/username';
+
   /// CP-018: another user's medals.
   static const userMedalsPattern = '/users/:username/medals';
 

@@ -28,7 +28,7 @@ class StoryArchiveScreen extends ConsumerWidget {
     final p = context.palette;
     final tag = Localizations.localeOf(context).toLanguageTag();
     return Scaffold(
-      appBar: AppBar(
+      appBar: KAppBar(
         title: Text(l10n.storyArchiveTitle),
         actions: [
           IconButton(

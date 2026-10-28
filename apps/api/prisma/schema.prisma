@@ -66,6 +66,8 @@ model User {
   liveHost           LiveHost?              @relation("LiveHostUser")
   liveHostsGranted   LiveHost[]             @relation("LiveHostGrantedBy")
   liveViews          LiveRoomViewer[]
+  /// v1.27.6-live (D140): the lives this user watched (statistics only).
+  liveAudience       LiveRoomAudience[]
   liveSeats          LiveRoomSeat[]
   liveSeatRequests   LiveSeatRequest[]
   liveSeatInvites    LiveSeatInvite[]       @relation("LiveSeatInvitee")
@@ -154,6 +156,9 @@ model User {
   luckyAgeConfirm    LuckyGiftAgeConfirmation?
   // v1.27.1-live (D133): featured on the live hub.
   liveFeatured       LiveFeaturedHost?
+  // v1.28-live (D146): premium usernames.
+  premiumLeases      PremiumUsernameLease[]
+  premiumPayments    PremiumUsernamePayment[]
 
   @@map("users")
 }
@@ -170,6 +175,9 @@ model UserProfile {
   /// v1.27.1-live (D133): the user's own country (ISO 3166-1 alpha-2, upper case), or null (none set;
   /// never inferred). CHECK `user_profiles_country_code_format`. Decides `scope=nearby` (§10.28).
   countryCode String?  @map("country_code") @db.Char(2)
+  /// v1.28-live (D146): the tier of the premium username the user has now (set and cleared with
+  /// `username` by the premium-usernames module); null for a regular username.
+  premiumTier PremiumUsernameTier? @map("premium_tier")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -393,6 +401,26 @@ model LiveRoomViewer {
   @@map("live_room_viewers")
 }
 
+/// v1.27.6-live (D140, CONVENTIONS §10.31): everyone who watched a live (the host excluded), kept
+/// with the room for its statistics — the first join, and the watch time: `watch_ms` of the closed
+/// visits plus the open one since `open_since` (NULL when not connected). Written only from the
+/// media server's presence (`live_room_viewers`); no endpoint lists it (aggregates only).
+model LiveRoomAudience {
+  roomId        String    @map("room_id") @db.Uuid
+  identity      String    @db.VarChar(80)
+  userId        String?   @map("user_id") @db.Uuid
+  firstJoinedAt DateTime  @map("first_joined_at") @db.Timestamptz(3)
+  watchMs       BigInt    @default(0) @map("watch_ms")
+  openSince     DateTime? @map("open_since") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, identity], map: "live_room_audience_pkey")
+  @@index([userId], map: "live_room_audience_user_idx")
+  @@map("live_room_audience")
+}
+
 model LiveRoom {
   id              String             @id @default(uuid(7)) @db.Uuid
   hostUserId      String             @map("host_user_id") @db.Uuid
@@ -407,6 +435,9 @@ model LiveRoom {
   endReason       LiveRoomEndReason? @map("end_reason")
   /// CP-010: connected viewers other than the host, guests included (kept from `live_room_viewers`).
   viewerCount     Int                @default(0) @map("viewer_count")
+  /// v1.27.6-live (D140, CONVENTIONS §10.31): the most viewers at once (kept with `viewer_count`);
+  /// NULL for lives started before D140, which have no audience record.
+  peakViewerCount Int?               @default(0) @map("peak_viewer_count")
   /// CP-010: people without an account may watch (owner D93: allowed by default).
   allowGuests     Boolean            @default(true) @map("allow_guests")
   /// CP-011: tiles (host included) of a MULTI (4, 6, 9, 12) or AUDIO (5, 10, 15, 20, 25, D103) room; null for
@@ -437,6 +468,7 @@ model LiveRoom {
   host         User                @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
   category     LiveCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   viewers      LiveRoomViewer[]
+  audience     LiveRoomAudience[]
   reports      Report[]
   seats        LiveRoomSeat[]
   seatRequests LiveSeatRequest[]
@@ -698,6 +730,9 @@ enum WalletLedgerReason {
   LUCKY_GIFT
   /// v1.27-live (D132): coins won by a lucky gift's draws (reference: the send).
   LUCKY_GIFT_WIN
+  /// v1.28-live (D146): renting a premium username, and renewing it (reference: the payment).
+  PREMIUM_USERNAME_RENT
+  PREMIUM_USERNAME_RENEW
 
   @@map("wallet_ledger_reason")
 }
@@ -1691,6 +1726,9 @@ enum NotificationType {
   FAMILY_JOIN_ACCEPTED
   FAMILY_JOIN_DECLINED
   MEDAL_AWARDED
+  /// v1.28-live (D146, system): the premium username ends soon / ended.
+  PREMIUM_USERNAME_EXPIRING
+  PREMIUM_USERNAME_EXPIRED
 
   @@map("notification_type")
 }
@@ -1712,6 +1750,8 @@ model Notification {
   familyId       String?          @map("family_id") @db.Uuid
   /// CP-018: the medal of MEDAL_AWARDED.
   medalCode      String?          @map("medal_code") @db.VarChar(40)
+  /// D146: the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED.
+  premiumLeaseId String?          @map("premium_lease_id") @db.Uuid
   groupKey       String?          @map("group_key") @db.VarChar(80)
   readAt         DateTime?        @map("read_at") @db.Timestamptz(3)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1724,11 +1764,13 @@ model Notification {
   liveSchedule LiveScheduleSlot?   @relation(fields: [liveScheduleId], references: [id], onDelete: Cascade)
   family       Family?             @relation(fields: [familyId], references: [id], onDelete: Cascade)
   medal        Medal?              @relation(fields: [medalCode], references: [code], onDelete: Cascade)
+  premiumLease PremiumUsernameLease? @relation(fields: [premiumLeaseId], references: [id], onDelete: Cascade)
   actors       NotificationActor[]
 
   @@index([recipientId, updatedAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_updated_idx")
   @@index([recipientId, groupKey], map: "notifications_unread_group_idx", where: raw("read_at IS NULL AND group_key IS NOT NULL"))
   @@index([recipientId], map: "notifications_unread_idx", where: raw("read_at IS NULL"))
+  @@index([premiumLeaseId], map: "notifications_premium_lease_idx", where: raw("premium_lease_id IS NOT NULL"))
   @@index([updatedAt], map: "notifications_updated_idx")
   @@index([postId], map: "notifications_post_id_idx")
   @@index([commentId], map: "notifications_comment_id_idx")
@@ -2447,4 +2489,125 @@ model LiveFeaturedHost {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("live_featured_hosts")
+}
+
+// ---------------------------------------------------------------------------------------------
+// v1.28-live (D146, owner 2026-10-27): premium usernames (يوزر مميز), CONVENTIONS §10.32.
+
+/// D146: the tier of a premium username (decided by its shape, `premium-username-rules.ts`),
+/// matching the owner's medal art: LEGEND, RUBY, GOLD, SILVER.
+enum PremiumUsernameTier {
+  LEGEND
+  RUBY
+  GOLD
+  SILVER
+
+  @@map("premium_username_tier")
+}
+
+/// D146: ACTIVE (the user's username now), GRACE (expired; held 7 days for its last renter, who
+/// already went back to the regular username), ENDED (back in the pool; kept for the history).
+enum PremiumUsernameLeaseStatus {
+  ACTIVE
+  GRACE
+  ENDED
+
+  @@map("premium_username_lease_status")
+}
+
+/// D146: RENT (paid with coins), GRANT (given by an admin with `premium-admin grant`).
+enum PremiumUsernameSource {
+  RENT
+  GRANT
+
+  @@map("premium_username_source")
+}
+
+/// D146: one holding of a premium username by one user, from the first rent (or grant) until it
+/// ends. Renewals extend `expires_at`. `regular_username` is the username the user goes back to;
+/// it stays held for them while the lease is ACTIVE (`isUsernameTaken`). CHECKs
+/// `premium_username_leases_format`, `premium_username_leases_grace`.
+model PremiumUsernameLease {
+  id              String                     @id @default(uuid(7)) @db.Uuid
+  userId          String                     @map("user_id") @db.Uuid
+  username        String                     @db.VarChar(30)
+  tier            PremiumUsernameTier
+  source          PremiumUsernameSource
+  status          PremiumUsernameLeaseStatus @default(ACTIVE)
+  regularUsername String                     @map("regular_username") @db.VarChar(30)
+  startedAt       DateTime                   @default(now()) @map("started_at") @db.Timestamptz(3)
+  /// Null: an admin grant without an end.
+  expiresAt       DateTime?                  @map("expires_at") @db.Timestamptz(3)
+  /// GRACE only: when the name returns to the pool.
+  graceUntil      DateTime?                  @map("grace_until") @db.Timestamptz(3)
+  /// The smallest reminder (days before the end) already sent for the current period.
+  remindedDays    Int?                       @map("reminded_days")
+  endedAt         DateTime?                  @map("ended_at") @db.Timestamptz(3)
+  /// GRACE_OVER | RELEASED | REVOKED.
+  endReason       String?                    @map("end_reason") @db.VarChar(20)
+  createdAt       DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                   @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments      PremiumUsernamePayment[]
+  notifications Notification[]
+
+  @@unique([username], map: "premium_username_leases_one_holder", where: raw("status = ANY (ARRAY['ACTIVE'::premium_username_lease_status, 'GRACE'::premium_username_lease_status])"))
+  @@unique([userId], map: "premium_username_leases_one_active", where: raw("status = 'ACTIVE'::premium_username_lease_status"))
+  @@unique([regularUsername], map: "premium_username_leases_regular_held", where: raw("status = 'ACTIVE'::premium_username_lease_status"))
+  @@index([status, expiresAt], map: "premium_username_leases_due_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "premium_username_leases_user_idx")
+  @@map("premium_username_leases")
+}
+
+/// D146: a rent or a renewal paid with coins (`wallet_ledger` reason PREMIUM_USERNAME_RENT /
+/// PREMIUM_USERNAME_RENEW, reference = this id). `idempotency_key` (the request's
+/// `Idempotency-Key`, kept 24 hours) makes a retry return the first result.
+model PremiumUsernamePayment {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  leaseId        String   @map("lease_id") @db.Uuid
+  /// RENT | RENEW.
+  kind           String   @db.VarChar(10)
+  username       String   @db.VarChar(30)
+  priceCoins     BigInt   @map("price_coins")
+  periodDays     Int      @map("period_days")
+  /// The balance right after this payment (the answer of a replay).
+  coinsAfter     BigInt   @map("coins_after")
+  idempotencyKey String?  @map("idempotency_key") @db.Uuid
+  requestHash    String?  @map("request_hash") @db.Char(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lease PremiumUsernameLease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey], map: "premium_username_payments_idempotency")
+  @@map("premium_username_payments")
+}
+
+/// D146: the owner's monthly price of a tier, in coins. No row: that tier is not on sale.
+model PremiumUsernameTierPrice {
+  tier         PremiumUsernameTier @id
+  monthlyCoins BigInt              @map("monthly_coins")
+  updatedAt    DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("premium_username_tier_prices")
+}
+
+/// D146: the owner's monthly price of one username (overrides its tier's price).
+model PremiumUsernameNamePrice {
+  username     String   @id @db.VarChar(30)
+  monthlyCoins BigInt   @map("monthly_coins")
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("premium_username_name_prices")
+}
+
+/// D146: names that are never rented (brand, offensive words), managed with `premium-admin reserve`.
+model PremiumUsernameReserved {
+  name      String   @id @db.VarChar(30)
+  reason    String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("premium_username_reserved")
 }

@@ -148,6 +148,16 @@ info:
     `LiveSeatEmojiRequest`, `LiveSeatEmoji`): in a room with seats the host or someone seated plays
     one of the owner's animated emojis once on their own tile, for the whole room, as the data
     message `seat-emoji` on topic `seat-emoji` (CONVENTIONS §10.30).
+    **D140 (DRAFT v1.27.6-live)** adds `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`,
+    `LiveRoomStats`, `LiveRoomViewerStats`, `LiveViewerCountry`): the host's statistics of one of
+    their lives — cherries with the host's own share, supporters and the top three, gifts, chat
+    messages, new followers, unique and peak viewers, average watch time and the viewers'
+    countries with their shares (aggregates only) (CONVENTIONS §10.31).
+    **D146 (DRAFT v1.28-live)** adds premium usernames (tag `premium-usernames`): the store, a name's
+    status, monthly rental and renewal with coins (`Idempotency-Key`), giving it back, the caller's
+    premium username, `PUT /me/username` with the stricter rule for new regular usernames
+    (existing names are kept), the four tiers `LEGEND`/`RUBY`/`GOLD`/`SILVER` and the optional
+    `premiumTier` badge on `UserSummary`, `PublicProfile` and `Me` (CONVENTIONS §6, §10.32).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -172,6 +182,8 @@ tags:
     description: "Presigned image uploads (v1.5-social DRAFT, CP-006)."
   - name: wallet
     description: "The caller's coins (v1.19-live DRAFT, CP-017)."
+  - name: premium-usernames
+    description: "Premium usernames rented monthly with coins, and the username change (v1.28-live DRAFT, D146). Prices, the reserved list and grants are managed by the premium-admin CLI."
   - name: families
     description: "Families: create, join requests, members and roles, level (v1.21-live DRAFT, CP-018)."
   - name: cp
@@ -543,6 +555,180 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/me/username:
+    put:
+      tags: [premium-usernames]
+      operationId: changeUsername
+      summary: "Change the caller's regular username (D146 rule)"
+      description: |
+        v1.28-live (D146, CONVENTIONS §6, §10.32). The new name must follow the regular rule
+        (`RegularUsername`: 6–30 of a–z, 0–9 and `_`, at least one letter and one digit, `_` never
+        first or last, and not a premium username). It is sent canonical (lower case, trimmed);
+        nothing is normalized. Order after auth and the rate limit (5 / day / user, replacing the
+        default): 400 `VALIDATION_FAILED` on `username` (`too_short`, `too_long`, `invalid_format`,
+        `letters_and_digits`, or `premium` — a premium username can only be rented: the app offers
+        the store) → 409 `PREMIUM_USERNAME_ACTIVE` while a premium username is the caller's (give it
+        back first) → 409 `USERNAME_TAKEN` (reserved, another account's, held by a pending
+        registration or kept for a renter). The same name as now → 200, nothing changed. The old name
+        is free at once. Existing usernames that break the rule keep working (grandfathered).
+        Audited `user.username.change`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeUsernameRequest' }
+            example: { username: sara_2026 }
+      responses:
+        '200':
+          description: The caller with the new username.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/premium-usernames:
+    get:
+      tags: [premium-usernames]
+      operationId: getPremiumUsernameStore
+      summary: "The premium usernames store: tier prices and suggested names (D146)"
+      description: |
+        CONVENTIONS §10.32. `tiers` lists the four tiers with the owner's monthly price, or null
+        while a tier is not on sale (prices are set only with `premium-admin price`; there are no
+        default prices). `suggestions` holds up to 30 names that are AVAILABLE to the caller now (free,
+        not reserved, on sale), generated from patterns (repeated and running digits, palindromes,
+        short letters) plus names with their own price; empty while nothing is on sale. Server-bounded,
+        no cursor (§5). Per-user default rate limit.
+      parameters:
+        - name: tier
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PremiumUsernameTier' }
+      responses:
+        '200':
+          description: The store.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PremiumUsernameStore' }
+              example:
+                periodDays: 30
+                graceDays: 7
+                tiers:
+                  - { tier: LEGEND, priceCoins: 50000 }
+                  - { tier: RUBY, priceCoins: 20000 }
+                  - { tier: GOLD, priceCoins: 12000 }
+                  - { tier: SILVER, priceCoins: null }
+                suggestions:
+                  - { username: '777', tier: LEGEND, status: AVAILABLE, priceCoins: 50000, periodDays: 30, heldUntil: null }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/premium-usernames/{username}:
+    get:
+      tags: [premium-usernames]
+      operationId: getPremiumUsernameStatus
+      summary: "What one name is for the caller: tier, state and price (D146)"
+      description: |
+        CONVENTIONS §10.32. Never 404: the path is trimmed, lower-cased and a leading `@` dropped,
+        then judged — `INVALID` (not a username), `REGULAR` (not premium: change to it for free with
+        `changeUsername` when free), `RESERVED`, `TAKEN` (rented by or the username of another account,
+        or held for a pending registration or a renter), `HELD` (in its 7-day grace for the last renter;
+        `heldUntil`), `YOURS` / `YOURS_GRACE` (the caller's: renew), `NOT_FOR_SALE` (premium and free
+        but its tier has no price), `AVAILABLE`. `priceCoins` is the monthly price for AVAILABLE, YOURS
+        and YOURS_GRACE, else null. The store calls it as the person types (per-user default limit).
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: The name's status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PremiumUsernameStatus' }
+              example: { username: '7777', tier: RUBY, status: AVAILABLE, priceCoins: 20000, periodDays: 30, heldUntil: null }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/premium-username:
+    get:
+      tags: [premium-usernames]
+      operationId: getMyPremiumUsername
+      summary: "The caller's premium username, or null (D146)"
+      description: |
+        The ACTIVE one; else the newest one in its grace period (`status: GRACE`, the caller is back on
+        `regularUsername` and may renew until `graceUntil`); else `{"premium": null}`.
+      responses:
+        '200':
+          description: The caller's premium username.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyPremiumUsernameResponse' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [premium-usernames]
+      operationId: releaseMyPremiumUsername
+      summary: "Give the premium username back now (D146)"
+      description: |
+        Ends the caller's ACTIVE premium username at once: the caller goes back to `regularUsername`,
+        the name returns to the pool (no grace, **no refund**). Idempotent (none → 204). Audited
+        `premium_username.release`. Counts against the rent bucket.
+      responses:
+        '204': { description: Given back (or there was none). }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/me/premium-username/rentals:
+    post:
+      tags: [premium-usernames]
+      operationId: rentPremiumUsername
+      summary: "Rent a premium username for one period, or renew your own (D146)"
+      description: |
+        CONVENTIONS §10.32. Paid with coins (wallet ledger `PREMIUM_USERNAME_RENT` /
+        `PREMIUM_USERNAME_RENEW`, reference = the payment). `priceCoins` is the price the person was
+        shown; it must equal the current monthly price. Order after auth: 400 `Idempotency-Key`
+        (`required` / `invalid_format`) → 400 body → 429 (20 / hour / user, replacing the default) →
+        a retry (the same key within 24 h and the same body → **200** with the first result, nothing
+        charged again; another body → 409 `IDEMPOTENCY_CONFLICT`) → 409 `PREMIUM_USERNAME_UNAVAILABLE`
+        (the name is not AVAILABLE, YOURS or YOURS_GRACE for the caller — read `getPremiumUsernameStatus`
+        for why; also a renewal past the 365-day prepaid limit or of a grant without an end) → 409
+        `PREMIUM_USERNAME_ACTIVE` (renting another name, or taking back one in grace, while a premium
+        username is the caller's) → 409 `PREMIUM_USERNAME_PRICE_CHANGED` → 409 `INSUFFICIENT_COINS`.
+        A refused request charges and changes nothing. **Rent:** the name becomes the caller's
+        username for `periodDays` (30) at once; the caller's username before is kept for them
+        (`regularUsername`) and comes back at the end. **Renew (YOURS):** the end moves by one period.
+        **Renew in grace (YOURS_GRACE):** a new period from now and the name is the caller's username
+        again. Two people renting one name at the same time: exactly one wins, the other gets
+        `PREMIUM_USERNAME_UNAVAILABLE` and is not charged. Audited `premium_username.rent` / `.renew`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RentPremiumUsernameRequest' }
+            example: { username: '7777', priceCoins: 12000 }
+      responses:
+        '201':
+          description: Rented or renewed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PremiumUsernameRental' }
+        '200':
+          description: A retry with the same `Idempotency-Key`; the first result.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PremiumUsernameRental' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
   /api/v1/me/live-blocked-words:
     get:
       tags: [live]
@@ -705,7 +891,10 @@ paths:
           schema: { $ref: '#/components/schemas/Username' }
       responses:
         '200':
-          description: Availability (reserved or invalid-but-well-formed names report false).
+          description: |
+            Availability (reserved or invalid-but-well-formed names report false). v1.28-live (D146): a
+            name that is not a valid new regular username (`RegularUsername`, e.g. a premium name) is
+            not available either; the regular name a renter will go back to is held for them.
           content:
             application/json:
               schema:
@@ -1890,6 +2079,61 @@ paths:
                 user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
                 points: 340
                 rank: 7
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /api/v1/live/rooms/{roomId}/stats:
+    get:
+      tags: [live]
+      operationId: getLiveRoomStats
+      summary: "Host: the statistics of one of my lives (v1.27.6-live, D140)"
+      description: |
+        CONVENTIONS §10.31. The host's own summary of a live, while it is LIVE or after it ended
+        (the end-of-live screen). Aggregates only: no endpoint says who watched or from where.
+        Checks, in order: 401; 404 for a room the caller may not see; 403 `AUTH_FORBIDDEN` when
+        the caller is not the room's host. Per-user default rate limit (§7).
+
+        - `score` is the live score (`LiveRoom.scoreParts`); `hostOwnPoints` is the part of it
+          from the host's own taps and gifts (D120, D128) — the host is never their own supporter.
+        - `supporters`: everyone else with points in the Contribution list (as the host reads it,
+          no 50 cap); `topSupporters`: its first three.
+        - `giftCount`: the sum of `quantity` of every gift sent in this live (to anyone in it, the
+          host's own sends included). `chatMessages`: messages of this live not deleted (the chat
+          is removed 30 days after the end). `newFollowers`: people who started following the host
+          between the start and the end (now while LIVE) and still do.
+        - `viewers` and `viewerCountries` come from the audience record (D140): `null` and `[]`
+          for a live started before it. Shares are of `viewers.unique`.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The live's statistics.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveRoomStats' }
+              example:
+                roomId: 0192f1d0-1111-7000-8000-000000000001
+                status: ENDED
+                startedAt: '2026-10-27T18:00:00.000Z'
+                endedAt: '2026-10-27T18:03:18.000Z'
+                durationSeconds: 198
+                score: { total: 2411, tapPoints: 11, supportPoints: 2400 }
+                hostOwnPoints: 801
+                supporters: 4
+                topSupporters:
+                  - user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
+                    points: 1200
+                giftCount: 6
+                chatMessages: 3
+                newFollowers: 2
+                viewers: { unique: 11, guests: 1, peak: 11, atEnd: 0, averageWatchSeconds: 74 }
+                viewerCountries:
+                  - { country: SA, viewers: 3, percent: 27.3 }
+                  - { country: EG, viewers: 2, percent: 18.2 }
+                  - { country: OTHER, viewers: 4, percent: 36.4 }
+                  - { country: UNKNOWN, viewers: 2, percent: 18.2 }
+        '401': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -5533,9 +5777,111 @@ components:
                   issue: { type: string }
     Username:
       type: string
-      minLength: 3
+      minLength: 1
       maxLength: 30
-      pattern: '^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$'
+      pattern: '^[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$'
+      description: |
+        The stored username shape (lookups, paths, responses). v1.28-live (D146): 1–30 (was 3–30) so
+        1–2 character premium usernames work everywhere; existing names keep passing. New regular
+        usernames follow `RegularUsername`.
+    RegularUsername:
+      type: string
+      minLength: 6
+      maxLength: 30
+      pattern: '^(?=[a-z0-9_]*[a-z])(?=[a-z0-9_]*[0-9])[a-z0-9](?:[a-z0-9_]{4,28})[a-z0-9]$'
+      description: |
+        v1.28-live (D146): a new regular username (registration and `changeUsername`): 6–30 of a–z,
+        0–9 and `_`, at least one letter and one digit, `_` never first or last, and **not** a premium
+        username (`premium`; e.g. `ali777`, CONVENTIONS §10.32). The pattern does not express the
+        premium exclusion; the server checks it.
+    ChangeUsernameRequest:
+      type: object
+      required: [username]
+      additionalProperties: false
+      properties:
+        username: { $ref: '#/components/schemas/RegularUsername' }
+    PremiumUsernameTier:
+      type: string
+      enum: [LEGEND, RUBY, GOLD, SILVER]
+      description: |
+        v1.28-live (D146, the owner's four medals): LEGEND 1–3 characters; RUBY one character
+        repeated, 4 or more (`7777`, `aaaaaa`); GOLD 4–5 characters, or a palindrome (`1221`), doubled
+        halves (`1212`), a sequence (`123456`, `abcdef`) or a run of three (`ali777`); SILVER 6+
+        letters only or digits only. Decided by the server only. Clients show no badge for values
+        they do not know.
+    PremiumUsernameState:
+      type: string
+      enum: [AVAILABLE, NOT_FOR_SALE, TAKEN, HELD, YOURS, YOURS_GRACE, RESERVED, REGULAR, INVALID]
+      description: CONVENTIONS §10.32. Clients treat values they do not know as not available.
+    PremiumUsernameStatus:
+      type: object
+      required: [username, tier, status, priceCoins, periodDays, heldUntil]
+      properties:
+        username: { type: string, maxLength: 64, description: "The name as judged (trimmed, lower case, without `@`)." }
+        tier:
+          oneOf:
+            - $ref: '#/components/schemas/PremiumUsernameTier'
+            - type: 'null'
+        status: { $ref: '#/components/schemas/PremiumUsernameState' }
+        priceCoins: { type: [integer, 'null'], minimum: 1, description: "The monthly price now (AVAILABLE, YOURS, YOURS_GRACE), else null." }
+        periodDays: { type: integer, minimum: 1, description: Days one rent or renewal adds (30). }
+        heldUntil: { type: [string, 'null'], format: date-time, description: HELD and YOURS_GRACE — the end of the grace period. }
+    PremiumUsernameTierPrice:
+      type: object
+      required: [tier, priceCoins]
+      properties:
+        tier: { $ref: '#/components/schemas/PremiumUsernameTier' }
+        priceCoins: { type: [integer, 'null'], minimum: 1, description: "The owner's monthly price, or null (not on sale)." }
+    PremiumUsernameStore:
+      type: object
+      required: [periodDays, graceDays, tiers, suggestions]
+      properties:
+        periodDays: { type: integer, minimum: 1 }
+        graceDays: { type: integer, minimum: 0 }
+        tiers:
+          type: array
+          maxItems: 4
+          items: { $ref: '#/components/schemas/PremiumUsernameTierPrice' }
+        suggestions:
+          type: array
+          maxItems: 30
+          items: { $ref: '#/components/schemas/PremiumUsernameStatus' }
+    MyPremiumUsername:
+      type: object
+      required: [username, tier, status, source, startedAt, expiresAt, graceUntil, regularUsername, renewPriceCoins, canRenew, periodDays]
+      properties:
+        username: { $ref: '#/components/schemas/Username' }
+        tier: { $ref: '#/components/schemas/PremiumUsernameTier' }
+        status: { type: string, enum: [ACTIVE, GRACE] }
+        source: { type: string, enum: [RENT, GRANT], description: GRANT — given by the team (`premium-admin grant`). }
+        startedAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time, description: The end of the paid period; null for a grant without an end. }
+        graceUntil: { type: [string, 'null'], format: date-time, description: GRACE only. }
+        regularUsername: { $ref: '#/components/schemas/Username' }
+        renewPriceCoins: { type: [integer, 'null'], minimum: 1, description: "The monthly price of a renewal now, or null (not on sale)." }
+        canRenew: { type: boolean, description: "A renewal would be accepted now (priced, within 365 days ahead, not an endless grant)." }
+        periodDays: { type: integer, minimum: 1 }
+    MyPremiumUsernameResponse:
+      type: object
+      required: [premium]
+      properties:
+        premium:
+          oneOf:
+            - $ref: '#/components/schemas/MyPremiumUsername'
+            - type: 'null'
+    RentPremiumUsernameRequest:
+      type: object
+      required: [username, priceCoins]
+      additionalProperties: false
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        priceCoins: { type: integer, minimum: 1, maximum: 9007199254740991, description: The monthly price the person was shown. }
+    PremiumUsernameRental:
+      type: object
+      required: [premium, coins]
+      properties:
+        premium: { $ref: '#/components/schemas/MyPremiumUsername' }
+        coins: { type: integer, minimum: 0, description: The balance after the charge. }
     Password:
       type: string
       minLength: 8
@@ -5557,7 +5903,7 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         password: { $ref: '#/components/schemas/Password' }
-        username: { $ref: '#/components/schemas/Username' }
+        username: { $ref: '#/components/schemas/RegularUsername' }
         displayName: { $ref: '#/components/schemas/DisplayName' }
         locale: { $ref: '#/components/schemas/Locale' }
         device: { $ref: '#/components/schemas/DeviceInfo' }
@@ -5594,7 +5940,7 @@ components:
       properties:
         identifier:
           type: string
-          minLength: 3
+          minLength: 1
           maxLength: 254
           description: Email address or username.
         password: { type: string, minLength: 1, maxLength: 128 }
@@ -5642,6 +5988,9 @@ components:
             `listLiveRooms` (a host's rooms are nearby for callers of the same country). Never inferred from
             the IP (owner D45: the user chooses their country, location is never inferred; XK is not offered).
             Not shown on public profiles. Always present; older apps ignore it.
+        premiumTier:
+          $ref: '#/components/schemas/PremiumUsernameTier'
+          description: v1.28-live (D146) — present only while the caller's username is their premium username.
     SessionInfo:
       type: object
       required: [id, current, createdAt, lastUsedAt]
@@ -5669,6 +6018,9 @@ components:
         username: { $ref: '#/components/schemas/Username' }
         displayName: { type: string }
         avatarUrl: { type: [string, 'null'], format: uri }
+        premiumTier:
+          $ref: '#/components/schemas/PremiumUsernameTier'
+          description: v1.28-live (D146) — present only while the username is the user's premium username (the badge); absent otherwise.
     PublicProfile:
       type: object
       required: [id, username, displayName, avatarUrl, bio, isPrivate, followerCount, followingCount, isFollowing, isMuted, isSelf, liveRoomId, family, cp, medals, profileCard]
@@ -5678,6 +6030,9 @@ components:
         displayName: { type: string }
         avatarUrl: { type: [string, 'null'], format: uri }
         bio: { type: [string, 'null'], maxLength: 300 }
+        premiumTier:
+          $ref: '#/components/schemas/PremiumUsernameTier'
+          description: v1.28-live (D146) — present only while the username is the user's premium username (the badge); absent otherwise.
         isPrivate:
           type: boolean
           description: When true the user cannot be followed in v1.3 (no follow requests yet); the client hides Follow.
@@ -6490,6 +6845,67 @@ components:
           format: uuid
           description: The live it was sent from.
         createdAt: { type: string, format: date-time }
+    # ---- v1.27.6-live (DRAFT, D140) — the host's statistics of a live ----------------------
+    LiveRoomStats:
+      type: object
+      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, chatMessages, newFollowers, viewers, viewerCountries]
+      properties:
+        roomId: { type: string, format: uuid }
+        status: { type: string, enum: [LIVE, ENDED] }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        durationSeconds: { type: integer, minimum: 0, description: "From the start to the end (to now while LIVE), whole seconds." }
+        score: { $ref: '#/components/schemas/LiveScore' }
+        hostOwnPoints:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "The part of `score.total` from the host's own taps and gifts (D120, D128)."
+        supporters: { type: integer, minimum: 0, description: "People other than the host who gave this live points (the Contribution list as the host reads it, no 50 cap)." }
+        topSupporters:
+          type: array
+          maxItems: 3
+          description: The first three of the Contribution list.
+          items: { $ref: '#/components/schemas/LiveContributor' }
+        giftCount: { type: integer, format: int64, minimum: 0, description: "Gifts sent in this live (the sum of quantities; to anyone in it, the host's own included)." }
+        chatMessages: { type: integer, minimum: 0, description: "Chat messages of this live that were not deleted." }
+        newFollowers: { type: integer, minimum: 0, description: "People who started following the host during the live and still do (ACTIVE accounts)." }
+        viewers:
+          oneOf:
+            - { $ref: '#/components/schemas/LiveRoomViewerStats' }
+            - { type: 'null' }
+          description: "`null` for a live started before the audience record (D140)."
+        viewerCountries:
+          type: array
+          maxItems: 7
+          description: |
+            Shares of `viewers.unique`: the five countries with the most viewers (ties: the code,
+            A → Z), then `OTHER` (every further country) and `UNKNOWN` (guests and people without a
+            country), each only when it has viewers. Empty without viewers.
+          items: { $ref: '#/components/schemas/LiveViewerCountry' }
+    LiveRoomViewerStats:
+      type: object
+      required: [unique, guests, peak, atEnd, averageWatchSeconds]
+      properties:
+        unique: { type: integer, minimum: 0, description: "Different people and guests who watched (the host left out); one person counts once however often they came back." }
+        guests: { type: integer, minimum: 0, description: "Of `unique`, viewers without an account." }
+        peak: { type: integer, minimum: 0, description: The most viewers connected at once. }
+        atEnd: { type: integer, minimum: 0, description: "Viewers connected when the live ended (now while LIVE)." }
+        averageWatchSeconds: { type: integer, minimum: 0, description: "The total time viewers were connected, divided by `unique`, rounded; 0 without viewers." }
+    LiveViewerCountry:
+      type: object
+      required: [country, viewers, percent]
+      properties:
+        country:
+          type: string
+          pattern: '^([A-Z]{2}|OTHER|UNKNOWN)$'
+          description: "ISO 3166-1 alpha-2 (the viewer's own `Me.country`), `OTHER` or `UNKNOWN`."
+        viewers: { type: integer, minimum: 1 }
+        percent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: "`viewers` / `LiveRoomViewerStats.unique` × 100, one decimal, half up; each bucket rounded on its own, so the shares may add up to 99.9–100.1 (shown as they are)."
     # ---- v1.27.5-live (DRAFT, D138) — an emoji on one's own seat ---------------------------
     LiveSeatEmojiRequest:
       type: object
@@ -7371,18 +7787,19 @@ components:
         page: { $ref: '#/components/schemas/PageInfo' }
     NotificationType:
       type: string
-      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). Clients ignore values they do not know."
-      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED]
+      description: "`LIVE_SCHEDULED_SOON` (v1.14-live, CP-016 C): a followed host goes live in about 15 minutes. (v1.21-live, CP-018) `CP_REQUEST` / `CP_ACCEPTED` (target USER: the other person), `FAMILY_JOIN_ACCEPTED` / `FAMILY_JOIN_DECLINED` (target FAMILY, actor the leader or deputy who answered), `MEDAL_AWARDED` (system, target MEDAL: the medal code). (v1.28-live, D146) `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED` (system, target PREMIUM_USERNAME: the name, `endsAt`). Clients ignore values they do not know."
+      enum: [LIKE_POST, LIKE_COMMENT, COMMENT, REPLY, MENTION, FOLLOW, REPOST, POST_PUBLISHED, CONTENT_REMOVED, LIVE_SCHEDULED_SOON, CP_REQUEST, CP_ACCEPTED, FAMILY_JOIN_ACCEPTED, FAMILY_JOIN_DECLINED, MEDAL_AWARDED, PREMIUM_USERNAME_EXPIRING, PREMIUM_USERNAME_EXPIRED]
     NotificationTarget:
       type: object
       required: [type, id, postId, thumbUrl, text]
       properties:
-        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL], description: "(v1.21-live) FAMILY and MEDAL are new; clients ignore target types they do not know." }
-        id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL." }
+        type: { type: string, enum: [POST, COMMENT, STORY, USER, FAMILY, MEDAL, PREMIUM_USERNAME], description: "(v1.21-live) FAMILY and MEDAL are new; (v1.28-live, D146) PREMIUM_USERNAME; clients ignore target types they do not know." }
+        id: { type: string, description: "A post, comment or story id, a username for USER, a family id for FAMILY, a medal code for MEDAL, the username for PREMIUM_USERNAME." }
         postId: { type: [string, 'null'], format: uuid, description: "For a COMMENT, its post." }
         thumbUrl: { type: [string, 'null'], format: uri, description: "The post or story photo (320 px), when it has one." }
         text: { type: [string, 'null'], maxLength: 80, description: "A short excerpt of the comment or caption, the scheduled live's title (LIVE_SCHEDULED_SOON) or the family's name (FAMILY)." }
         startsAt: { type: string, format: date-time, description: "LIVE_SCHEDULED_SOON only (v1.14-live): when the live is planned to start." }
+        endsAt: { type: string, format: date-time, description: "PREMIUM_USERNAME only (v1.28-live, D146): the end of the paid period (EXPIRING) or of the grace period (EXPIRED)." }
     Notification:
       type: object
       required: [id, type, actors, actorCount, target, createdAt, read]

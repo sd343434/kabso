@@ -118,30 +118,37 @@ void main() {
     await _show(tester);
     expect(find.byType(LiveGiftBanner), findsOneWidget);
     expect(find.byType(KGiftComboCounter), findsOneWidget);
-    expect(find.text(en.giftCombo(3)), findsOneWidget);
+    // D145a: one count — the gifts each recipient got in the combo (10 × 3).
+    expect(find.text(en.giftCombo(30)), findsOneWidget);
     // Each send of the combo keeps the banner up.
     await tester.pump(const Duration(seconds: 2));
     engine.chat.add(_gift(id: 'g4', comboId: 'g1', comboCount: 4));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
-    expect(find.text(en.giftCombo(4)), findsOneWidget);
+    expect(find.text(en.giftCombo(40)), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(find.byType(LiveGiftBanner), findsNothing);
   });
 
-  testWidgets('two banners at once; the third waits its turn', (tester) async {
+  testWidgets('D145: three strips at once, the newest on top; the fourth '
+      'waits its turn', (tester) async {
     final engine = await _pump(tester);
     engine.chat
       ..add(_gift(id: 'a', sender: 'a'))
       ..add(_gift(id: 'b', sender: 'b'))
-      ..add(_gift(id: 'c', sender: 'c'));
+      ..add(_gift(id: 'c', sender: 'c'))
+      ..add(_gift(id: 'd', sender: 'd'));
     await _show(tester);
-    expect(find.byType(LiveGiftBanner), findsNWidgets(2));
-    expect(find.byKey(LiveGiftEffectsLayer.bannerKey('c')), findsNothing);
+    expect(find.byType(LiveGiftBanner), findsNWidgets(3));
+    expect(find.byKey(LiveGiftEffectsLayer.bannerKey('d')), findsNothing);
+    double top(String id) =>
+        tester.getRect(find.byKey(LiveGiftEffectsLayer.bannerKey(id))).top;
+    expect(top('c'), lessThan(top('b')));
+    expect(top('b'), lessThan(top('a')));
     await tester.pump(LiveGiftEffects.bannerTime);
     await _show(tester);
-    expect(find.byKey(LiveGiftEffectsLayer.bannerKey('c')), findsOneWidget);
+    expect(find.byKey(LiveGiftEffectsLayer.bannerKey('d')), findsOneWidget);
     await tester.pump(LiveGiftEffects.bannerTime);
     await tester.pumpAndSettle();
     expect(find.byType(LiveGiftBanner), findsNothing);

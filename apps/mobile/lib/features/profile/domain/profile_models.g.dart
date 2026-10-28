@@ -20,6 +20,7 @@ _PublicProfile _$PublicProfileFromJson(Map<String, dynamic> json) =>
       isSelf: json['isSelf'] as bool,
       liveRoomId: json['liveRoomId'] as String?,
       isMuted: json['isMuted'] as bool? ?? false,
+      premiumTier: premiumTierFromJson(json['premiumTier']),
       family: json['family'] == null
           ? null
           : ProfileFamily.fromJson(json['family'] as Map<String, dynamic>),
@@ -48,6 +49,7 @@ Map<String, dynamic> _$PublicProfileToJson(_PublicProfile instance) =>
       'isSelf': instance.isSelf,
       'liveRoomId': instance.liveRoomId,
       'isMuted': instance.isMuted,
+      'premiumTier': premiumTierToJson(instance.premiumTier),
       'family': instance.family,
       'cp': instance.cp,
       'medals': instance.medals,

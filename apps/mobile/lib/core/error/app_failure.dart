@@ -152,6 +152,18 @@ enum ErrorCode {
   /// caller in the family chat.
   familyChatMuted('FAMILY_CHAT_MUTED'),
 
+  /// v1.28-live (D146, §10.32, 409): the name cannot be rented or renewed by
+  /// the caller now; nothing was charged; the app reads its status again.
+  premiumUsernameUnavailable('PREMIUM_USERNAME_UNAVAILABLE'),
+
+  /// v1.28-live (D146, §10.32, 409): the owner changed the price; nothing
+  /// was charged; the app shows the new one.
+  premiumUsernamePriceChanged('PREMIUM_USERNAME_PRICE_CHANGED'),
+
+  /// v1.28-live (D146, §10.32, 409): a premium username is active (one at a
+  /// time; give it back before changing the regular username).
+  premiumUsernameActive('PREMIUM_USERNAME_ACTIVE'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

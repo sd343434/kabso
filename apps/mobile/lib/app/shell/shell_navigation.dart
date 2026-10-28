@@ -29,6 +29,22 @@ void openLiveHub(BuildContext context, WidgetRef ref, FeedTab tab) {
   context.go(AppRoutes.home);
 }
 
+/// D139: back to the live hub from a page pushed over it (the voice
+/// rooms): a pop when the page under this one is the hub, so the hub keeps
+/// its state and the back stack stays as it was; otherwise (opened from a
+/// link, another page, or nothing under it) a `go` to the hub.
+void returnToLiveHub(GoRouter router) {
+  final leaves = _leafLocations(
+    router.routerDelegate.currentConfiguration.matches,
+  );
+  final under = leaves.length >= 2 ? leaves[leaves.length - 2] : null;
+  if (under == AppRoutes.home && router.canPop()) {
+    router.pop();
+  } else {
+    router.go(AppRoutes.home);
+  }
+}
+
 /// D123: the primary tab the person was on when they opened Create (the
 /// Live hub, Home, unless they came from another tab). A live started from
 /// Create and then minimized returns there, with the floating window, not

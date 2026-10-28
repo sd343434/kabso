@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
+import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -229,7 +230,7 @@ void main() {
         // the test font's wide glyphs wrap this badge-full line once.
         expect(row.height, inInclusiveRange(21, 46));
         final text = tester.widget<RichText>(
-          _in('m:m1', find.byType(RichText)).first,
+          _in('m:m1', find.byType(KBidiRichTextRaw)).first,
         );
         final plain = text.text.toPlainText();
         expect(plain, contains('Huda'));
@@ -681,7 +682,7 @@ void main() {
       }
       // The name is isolated from the layout's direction.
       final mixed = tester.widget<RichText>(
-        _in('m:m2', find.byType(RichText)).first,
+        _in('m:m2', find.byType(KBidiRichTextRaw)).first,
       );
       expect(mixed.text.toPlainText(), contains('\u2068نور Star 99\u2069'));
       await _leave(tester);

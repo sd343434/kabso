@@ -58,6 +58,8 @@ import 'package:kabso_live/features/posts/presentation/drafts_screen.dart';
 import 'package:kabso_live/features/posts/presentation/edit_post_screen.dart';
 import 'package:kabso_live/features/posts/presentation/likers_screen.dart';
 import 'package:kabso_live/features/posts/presentation/post_screen.dart';
+import 'package:kabso_live/features/premium/presentation/change_username_screen.dart';
+import 'package:kabso_live/features/premium/presentation/premium_store_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
@@ -289,6 +291,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ShowcasePickerScreen(),
       ),
       GoRoute(path: AppRoutes.bag, builder: (_, _) => const BagScreen()),
+      // D146: premium usernames and the username change.
+      GoRoute(
+        path: AppRoutes.premium,
+        builder: (_, state) =>
+            PremiumStoreScreen(initialQuery: state.uri.queryParameters['q']),
+      ),
+      GoRoute(
+        path: AppRoutes.changeUsername,
+        builder: (_, _) => const ChangeUsernameScreen(),
+      ),
       // Debug/profile only; `kReleaseMode` is a compile-time constant, so
       // the route and the gallery are tree-shaken out of release builds.
       if (!kReleaseMode)

@@ -156,17 +156,16 @@ class AppLocalizationsAr extends AppLocalizations {
       'تعذّر التحقق الآن. يمكنك المتابعة على أي حال.';
 
   @override
-  String get usernameTooShort => 'استخدم 3 أحرف على الأقل';
+  String get usernameTooShort => 'استخدم 6 أحرف على الأقل';
 
   @override
   String get usernameTooLong => 'استخدم 30 حرفًا أو أقل';
 
   @override
-  String get usernameBadChars =>
-      'استخدم فقط a–z و0–9 والنقطة (.) والشرطة السفلية (_)';
+  String get usernameBadChars => 'استخدم فقط a–z و0–9 والشرطة السفلية (_)';
 
   @override
-  String get usernameBadEdges => 'لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية';
+  String get usernameBadEdges => 'لا يمكن أن يبدأ أو ينتهي بشرطة سفلية';
 
   @override
   String get codeTitle => 'تحقّق من بريدك الإلكتروني';
@@ -607,9 +606,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveGifts => 'الهدايا';
 
   @override
-  String get liveToolbox => 'صندوق الأدوات';
-
-  @override
   String get liveShare => 'مشاركة';
 
   @override
@@ -622,7 +618,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String chatGiftSent(String name, String gift, int count) {
-    return 'أرسل $name $gift ×$count';
+    return 'أرسل $name $gift ⁦×$count⁩';
   }
 
   @override
@@ -5794,6 +5790,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveVoiceRoomsTitle => 'الغرف الصوتية';
 
   @override
+  String get liveVoiceRoomsToLive => 'البث المباشر';
+
+  @override
   String get liveHubFilterLabel => 'عوامل التصفية';
 
   @override
@@ -5934,9 +5933,6 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get liveToolFlash => 'الفلاش';
-
-  @override
   String get liveToolDual => 'كاميرتان';
 
   @override
@@ -5956,6 +5952,52 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveToolFillLight => 'إضاءة';
+
+  @override
+  String get liveFillLightNoTorch => 'هذه الكاميرا بلا كشاف.';
+
+  @override
+  String get liveFilterTitle => 'فلاتر الألوان';
+
+  @override
+  String get liveFilterUnsupported =>
+      'فلاتر الألوان غير متاحة على هذا الجهاز بعد، فيجب أن يراها مشاهدوك لا شاشتك وحدها.';
+
+  @override
+  String get liveFilterNatural => 'طبيعي';
+
+  @override
+  String get liveFilterWarm => 'دافئ';
+
+  @override
+  String get liveFilterCool => 'بارد';
+
+  @override
+  String get liveFilterMono => 'أبيض وأسود';
+
+  @override
+  String get liveFilterCinematic => 'سينمائي';
+
+  @override
+  String get liveFilterVivid => 'زاهٍ';
+
+  @override
+  String get liveFilterSoft => 'ناعم';
+
+  @override
+  String get liveEffectsTitle => 'المؤثرات (تجريبي)';
+
+  @override
+  String get liveEffectNone => 'بلا';
+
+  @override
+  String get liveEffectBackgroundBlur => 'تمويه الخلفية';
+
+  @override
+  String get liveEffectsUnavailable => 'المؤثرات غير متاحة في هذا الإصدار بعد.';
+
+  @override
+  String get liveManageAddModerator => 'إضافة مشرف';
 
   @override
   String get liveToolMixer => 'الصوت';
@@ -6011,9 +6053,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get goLiveSummaryTime => 'مدة البث';
 
   @override
-  String get goLiveSummaryPoints => 'النقاط';
-
-  @override
   String get goLiveSummaryTaps => 'من النقرات';
 
   @override
@@ -6021,9 +6060,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get goLiveSummarySupporters => 'الداعمون';
-
-  @override
-  String get goLiveSummaryViewers => 'المشاهدون عند الانتهاء';
 
   @override
   String goLiveSummaryCharm(String level) {
@@ -6034,9 +6070,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String goLiveSummaryCharmNext(String points) {
     return '$points للمستوى التالي';
   }
-
-  @override
-  String get goLiveSummaryData => 'بيانات البث';
 
   @override
   String get liveGiftTabRecent => 'الأخيرة';
@@ -6085,7 +6118,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyOddsRow(String multiplier) {
-    return '×$multiplier';
+    return '⁦×$multiplier⁩';
   }
 
   @override
@@ -6126,7 +6159,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyWon(String coins, String multiplier) {
-    return 'ربحت $coins عملة، وأعلى مضاعف ×$multiplier';
+    return 'ربحت $coins عملة، وأعلى مضاعف ⁦×$multiplier⁩';
   }
 
   @override
@@ -6134,7 +6167,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String liveLuckyBanner(String name, String multiplier, String coins) {
-    return '$name ربح ×$multiplier: $coins عملة';
+    return '$name ربح ⁦×$multiplier⁩: $coins عملة';
   }
 
   @override
@@ -6202,9 +6235,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveQuickHostShare => 'شاركوا البث 🔥';
 
   @override
-  String get liveRoomIdCopied => 'تم نسخ معرّف الغرفة';
-
-  @override
   String get liveRoomIdCopyHint => 'انقر للنسخ';
 
   @override
@@ -6252,4 +6282,419 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveSeatEmojiHint => 'يظهر على مقعدك مرة واحدة ويراه الجميع';
+
+  @override
+  String liveWishChosenCount(int count) {
+    return 'تم اختيار $count من 4';
+  }
+
+  @override
+  String get liveUsernameCopied => 'تم النسخ';
+
+  @override
+  String get liveChatTooFast => 'أُرسلت بسرعة كبيرة. اضغط لإعادة المحاولة';
+
+  @override
+  String liveBulletTime(String time) {
+    return 'أُرسلت $time';
+  }
+
+  @override
+  String get liveGames => 'الألعاب';
+
+  @override
+  String get liveGamesSoon => 'الألعاب قريباً';
+
+  @override
+  String get liveStatsCherries => 'كرز هذا البث';
+
+  @override
+  String liveStatsIncludesYours(String points) {
+    return 'منها $points من نقراتك وهداياك أنت';
+  }
+
+  @override
+  String get liveStatsViewers => 'المشاهدون';
+
+  @override
+  String get liveStatsPeak => 'ذروة المشاهدة';
+
+  @override
+  String get liveStatsAverageWatch => 'متوسط مدة المشاهدة';
+
+  @override
+  String get liveStatsNewFollowers => 'متابعون جدد';
+
+  @override
+  String get liveStatsChatMessages => 'رسائل الدردشة';
+
+  @override
+  String get liveStatsGiftsSent => 'الهدايا المُرسلة';
+
+  @override
+  String get liveStatsCountriesTitle => 'من أين جاء مشاهدوك';
+
+  @override
+  String get liveStatsCountryOther => 'دول أخرى';
+
+  @override
+  String get liveStatsCountryUnknown => 'غير محدد';
+
+  @override
+  String liveStatsCountriesNote(String count) {
+    return 'النسب من إجمالي المشاهدين ($count)، مقرّبة إلى منزلة عشرية واحدة';
+  }
+
+  @override
+  String liveStatsCountryRow(String country, String percent, String count) {
+    return '$country: $percent من المشاهدين ($count)';
+  }
+
+  @override
+  String get liveStatsNoViewers =>
+      'لم يشاهد أحد هذه المرة. بثك القادم فرصة جديدة.';
+
+  @override
+  String get liveStatsTopSupporters => 'أبرز الداعمين';
+
+  @override
+  String get liveStatsNoSupporters =>
+      'لا داعمين هذه المرة. ستظهر هنا هدايا ونقرات مشاهديك.';
+
+  @override
+  String liveStatsSupporterRank(int rank, String name, String points) {
+    return 'المركز $rank: $name، $points كرزة';
+  }
+
+  @override
+  String get liveStatsLoadFailed => 'تعذّر تحميل بيانات البث';
+
+  @override
+  String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
+
+  @override
+  String get liveComboLabel => 'كومبو';
+
+  @override
+  String liveComboSemantics(String gift, int count) {
+    return 'أرسل $gift مجدداً، كومبو ⁦×$count⁩';
+  }
+
+  @override
+  String liveComboBalance(String coins) {
+    return 'رصيدك $coins عملة';
+  }
+
+  @override
+  String get usernameLettersAndDigits =>
+      'استخدم أحرفاً وأرقاماً معاً (مثل sara22)';
+
+  @override
+  String get usernamePremium =>
+      'هذا يوزر مميز، واليوزرات المميزة تُستأجر من متجر اليوزرات المميزة.';
+
+  @override
+  String get errorPremiumUsernameUnavailable =>
+      'لا يمكن استئجار هذا اليوزر الآن.';
+
+  @override
+  String get errorPremiumUsernamePriceChanged =>
+      'تغيّر السعر للتو. راجع السعر الجديد وحاول مجدداً.';
+
+  @override
+  String get errorPremiumUsernameActive =>
+      'لديك يوزر مميز بالفعل. أعِده أولاً.';
+
+  @override
+  String get premiumTitle => 'اليوزرات المميزة';
+
+  @override
+  String get premiumTileValue => 'استأجر @يوزر مميز';
+
+  @override
+  String get premiumSearchHint => 'ابحث عن يوزر، مثل 777';
+
+  @override
+  String get premiumSearchHelp => 'اكتب اسماً لترى إن كان متاحاً للاستئجار.';
+
+  @override
+  String get premiumLoadError => 'تعذّر تحميل المتجر';
+
+  @override
+  String get premiumTierAll => 'الكل';
+
+  @override
+  String get premiumTierLegend => 'أسطوري';
+
+  @override
+  String get premiumTierRuby => 'ياقوتي';
+
+  @override
+  String get premiumTierGold => 'ذهبي';
+
+  @override
+  String get premiumTierSilver => 'فضي';
+
+  @override
+  String get premiumTierLegendRule => 'من 1 إلى 3 أحرف';
+
+  @override
+  String get premiumTierRubyRule => 'حرف أو رقم مكرر (7777)';
+
+  @override
+  String get premiumTierGoldRule => '4–5 أحرف أو نمط (1221، 1212، 123456)';
+
+  @override
+  String get premiumTierSilverRule => '6 أو أكثر: أحرف فقط أو أرقام فقط';
+
+  @override
+  String get premiumTierNotOnSale => 'غير متاح للبيع بعد';
+
+  @override
+  String premiumPricePerPeriod(String coins, int days) {
+    return '$coins عملة / $days يوماً';
+  }
+
+  @override
+  String premiumCoins(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String get premiumSuggestions => 'متاحة الآن';
+
+  @override
+  String get premiumNotOnSaleTitle => 'اليوزرات المميزة غير متاحة للبيع بعد';
+
+  @override
+  String get premiumNotOnSaleMessage => 'لم تُحدَّد الأسعار بعد. عُد قريباً.';
+
+  @override
+  String get premiumNoSuggestionsTitle => 'لا يوجد يوزر متاح هنا الآن';
+
+  @override
+  String get premiumNoSuggestionsMessage =>
+      'ابحث عن اسم في الأعلى أو جرّب فئة أخرى.';
+
+  @override
+  String premiumRules(int days, int grace) {
+    return 'كل استئجار مدته $days يوماً ويمكنك التجديد في أي وقت. عند انتهائه تعود إلى يوزرك العادي، ويُحجز الاسم لك $grace أيام.';
+  }
+
+  @override
+  String get premiumStateAvailable => 'متاح للاستئجار';
+
+  @override
+  String get premiumStateNotForSale => 'غير متاح للبيع بعد';
+
+  @override
+  String get premiumStateTaken => 'هذا اليوزر مستخدم من شخص آخر';
+
+  @override
+  String get premiumStateHeld => 'محجوز لمستأجره السابق لبضعة أيام';
+
+  @override
+  String get premiumStateYours => 'هذا يوزرك، ويمكنك تجديده.';
+
+  @override
+  String get premiumStateYoursGrace => 'انتهى استئجارك. جدّد الآن لاستعادته.';
+
+  @override
+  String get premiumStateReserved => 'هذا اليوزر محجوز';
+
+  @override
+  String get premiumStateRegular =>
+      'ليس يوزراً مميزاً: يمكنك أخذه مجاناً من الإعدادات › اسم المستخدم إن كان متاحاً.';
+
+  @override
+  String get premiumStateInvalid => 'ليس اسم مستخدم صالحاً';
+
+  @override
+  String premiumHeldUntil(String date) {
+    return 'يصبح متاحاً بعد $date';
+  }
+
+  @override
+  String get premiumRent => 'استئجار';
+
+  @override
+  String get premiumRenew => 'تجديد';
+
+  @override
+  String premiumRentFor(String coins) {
+    return 'استئجار · $coins عملة';
+  }
+
+  @override
+  String premiumRenewFor(String coins) {
+    return 'تجديد · $coins عملة';
+  }
+
+  @override
+  String get premiumRentTitle => 'استئجار هذا اليوزر';
+
+  @override
+  String get premiumRenewTitle => 'تجديد يوزرك';
+
+  @override
+  String get premiumSheetPrice => 'السعر';
+
+  @override
+  String get premiumSheetBalance => 'رصيدك';
+
+  @override
+  String get premiumSheetUntil => 'لك حتى';
+
+  @override
+  String premiumSheetAfter(String username) {
+    return 'بعد ذلك تعود إلى ‎@$username ما لم تجدّد.';
+  }
+
+  @override
+  String get premiumNotEnoughCoins => 'رصيدك من العملات لا يكفي.';
+
+  @override
+  String premiumRented(String username) {
+    return 'أصبحت الآن ‎@$username';
+  }
+
+  @override
+  String premiumRenewed(String username) {
+    return 'تم تجديد ‎@$username';
+  }
+
+  @override
+  String get premiumMineTitle => 'يوزرك المميز';
+
+  @override
+  String get premiumMineGraceTitle => 'انتهى يوزرك المميز';
+
+  @override
+  String premiumMineLeft(String left) {
+    return 'متبقٍ $left';
+  }
+
+  @override
+  String get premiumMineNoEnd => 'بلا تاريخ انتهاء';
+
+  @override
+  String get premiumMineGranted => 'مُهدى من فريق Kabso';
+
+  @override
+  String premiumMineGrace(String username, String left) {
+    return 'عدت إلى ‎@$username، والاسم محجوز لك لمدة $left.';
+  }
+
+  @override
+  String get premiumRelease => 'إعادة اليوزر';
+
+  @override
+  String get premiumReleaseTitle => 'إعادة يوزرك المميز؟';
+
+  @override
+  String premiumReleaseBody(String premium, String regular) {
+    return 'سيعود ‎@$premium إلى المتجر الآن وتعود إلى ‎@$regular. لا تُسترد العملات.';
+  }
+
+  @override
+  String premiumReleased(String username) {
+    return 'عدت إلى ‎@$username';
+  }
+
+  @override
+  String get premiumLeftUnderMinute => 'أقل من دقيقة';
+
+  @override
+  String premiumLeftMinutes(int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes دقيقة',
+      many: '$minutes دقيقة',
+      few: '$minutes دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String premiumLeftHours(int hours, int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours ساعة',
+      many: '$hours ساعة',
+      few: '$hours ساعات',
+      two: 'ساعتان',
+      one: 'ساعة واحدة',
+    );
+    return '$_temp0 و$minutes د';
+  }
+
+  @override
+  String premiumLeftDays(int days, int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days يوم',
+      many: '$days يوماً',
+      few: '$days أيام',
+      two: 'يومان',
+      one: 'يوم واحد',
+    );
+    return '$_temp0 و$hours س';
+  }
+
+  @override
+  String premiumBadgeLabel(String tier, String username) {
+    return 'يوزر مميز $tier ‎@$username';
+  }
+
+  @override
+  String get settingsUsername => 'اسم المستخدم';
+
+  @override
+  String get changeUsernameTitle => 'تغيير اسم المستخدم';
+
+  @override
+  String get changeUsernameCurrent => 'اسم المستخدم الحالي';
+
+  @override
+  String get changeUsernameNew => 'اسم المستخدم الجديد';
+
+  @override
+  String get changeUsernameRule =>
+      'من 6 إلى 30: أحرف وأرقام (a–z و0–9)، ويُسمح بـ _';
+
+  @override
+  String get changeUsernameSave => 'حفظ';
+
+  @override
+  String changeUsernameDone(String username) {
+    return 'أصبحت الآن ‎@$username';
+  }
+
+  @override
+  String get changeUsernameNote => 'يصبح اسمك القديم متاحاً للآخرين فوراً.';
+
+  @override
+  String changeUsernameRentInstead(String username) {
+    return 'استأجر ‎@$username كيوزر مميز';
+  }
+
+  @override
+  String changeUsernamePremiumActive(String premium, String regular) {
+    return 'أنت تستخدم اليوزر المميز ‎@$premium. لتغيير يوزرك العادي (‎@$regular) أعِد اليوزر المميز أولاً.';
+  }
+
+  @override
+  String notificationPremiumExpiring(String username, String left) {
+    return 'ينتهي يوزرك المميز ‎@$username خلال $left. جدّده لتحتفظ به.';
+  }
+
+  @override
+  String notificationPremiumExpired(String username) {
+    return 'انتهى يوزرك المميز ‎@$username، وهو محجوز لك لبضعة أيام.';
+  }
 }

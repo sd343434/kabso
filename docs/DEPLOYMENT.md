@@ -66,7 +66,9 @@ shellcheck 0.11.0 reports no findings.
 Root `.env.example` documents every variable for local development. The API reads plain
 environment variables (validated with Zod at boot); export the root `.env` before starting it
 (`set -a; . ./.env; set +a`) or use the API's own loader if `apps/api` documents one. The
-mobile app gets only `API_BASE_URL` through `--dart-define`. It never receives secrets.
+mobile app gets `API_BASE_URL` through `--dart-define`. It never receives server secrets; the
+one other define is D144's DeepAR client licence key (`DEEPAR_LICENSE_ANDROID`, see §9.1),
+which is optional.
 
 ## 2. Continuous integration (`.github/workflows/ci.yml`) — [IMPLEMENTED]
 
@@ -98,8 +100,8 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 | --- | --------- | ----- |
 | `changes` | always | `dorny/paths-filter` → `api` / `mobile` / `contracts` outputs |
 | `api` | `apps/api/**`, `infra/postgres/**`, root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or the workflow file changed | Node 22, pnpm (version from `packageManager`, store cached) → `install --frozen-lockfile` → `prisma:generate` → bootstrap DB roles (`infra/postgres/bootstrap-roles.sql` in the service container) → `prisma:migrate:deploy` (migration role) → `lint` → `format:check` → `typecheck` → `test` → `test:e2e` (runtime role) → `build`. Postgres 16.15 and Redis 7.4 service containers, pinned by digest, with health checks. |
-| `mobile` | `apps/mobile/**`, design tokens, or the workflow file changed | Flutter 3.47.7 (SDK and pub cache cached) → `pub get --enforce-lockfile` → `build_runner build` → fail on drift (`git diff --exit-code` plus untracked files) → `dart format --set-exit-if-changed lib test` → `flutter analyze` → `flutter test` |
-| `android` | same as `mobile` | Temurin 17 with Gradle cache, the Android SDK from the runner image, then `flutter build apk --debug`. The APK is uploaded as an artifact kept for 7 days. **Never run in the authoring environment (no Android SDK, blocker B6).** |
+| `mobile` | `apps/mobile/**`, design tokens, or the workflow file changed | Flutter 3.47.7 (SDK and pub cache cached) → `pub get --enforce-lockfile` → `build_runner build` → fail on drift (`git diff --exit-code` plus untracked files) → `dart format --set-exit-if-changed lib test` → `flutter analyze` → `flutter test` → (D144) the same format/analyze/test in the local plugin `packages/kabso_camera_fx` (excluded from the app's analysis) |
+| `android` | same as `mobile` | Temurin 17 with Gradle cache, the Android SDK from the runner image, then `flutter build apk --debug --dart-define=DEEPAR_LICENSE_ANDROID=…` (D144: from the `DEEPAR_LICENSE_ANDROID` repository secret through `env`, never echoed; empty without the secret, and the build still passes). The APK is uploaded as an artifact kept for 7 days. **Never run in the authoring environment (no Android SDK, blocker B6).** |
 | `ios` | `workflow_dispatch`, or a push to `main` that changes mobile | `macos-latest`, `flutter build ios --no-codesign`. Gated because macOS minutes cost about 10 times Linux minutes. **Never run in the authoring environment.** |
 | `contracts` | `docs/contracts/**`, `redocly.yaml`, `tools/redocly/**`, or the workflow file changed | `npm ci --ignore-scripts` in `tools/redocly` (Redocly CLI 2.57.0 pinned by `package-lock.json` with sha512 integrity), then `redocly lint` with the rules in `redocly.yaml`; results shown as PR annotations |
 | `secrets` | always | gitleaks 8.30.1 CLI (download checked against its SHA-256) scans the full git history with redacted output |
@@ -108,7 +110,8 @@ open PR produces both a push run and a PR run; only the PR run is cancellable.
 CI test configuration lives in the workflow `env`. It contains clearly fake values
 (`ci_test_password_not_secret`, `ci_migrator_password_not_secret`, `ci_app_password_not_secret`,
 `ci-test-only-jwt-secret-…`, `ci-test-only-rate-limit-…`)
-that only exist inside the ephemeral job. No repository secrets are used by CI today.
+that only exist inside the ephemeral job. The only repository secret CI reads is D144's optional
+`DEEPAR_LICENSE_ANDROID` (the `android` job, §9.1).
 
 The Phase 1 bootstrap guard (skip app jobs while `apps/api` / `apps/mobile` were absent) was
 removed in KL-010: both apps exist, so a missing app now fails CI instead of being skipped.
@@ -845,6 +848,87 @@ a `CONNECTION LIMIT`.
 
   Locally: `pnpm feature:admin …`. Lower ranks come first; equal ranks follow the popular order.
 
+### 5.13 The host's live statistics (migration `20261130090000_live_audience`; D140) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): the table `live_room_audience` (one row per live and
+  viewer identity: first join, watch time, open visit) and the nullable column
+  `live_rooms.peak_viewer_count` (CHECK ≥ 0; new rooms start at 0). No GRANT (default privileges),
+  no backfill, no new server config.
+- Lives started before the deploy keep `peak_viewer_count` NULL: their statistics answer
+  `viewers: null` and no countries (the app hides those parts). A live that is on during the deploy
+  is one of them.
+- Rows are written by the media webhook and the sweeper's presence reconciliation (§10.8 of the
+  conventions); they are removed with their live or their user (cascade). No endpoint lists them —
+  `GET /live/rooms/{roomId}/stats` (host only) returns aggregates.
+- Rollback: the API before D140 ignores the table and the column; drop them only after rolling
+  back the API (`DROP TABLE live_room_audience; ALTER TABLE live_rooms DROP COLUMN
+  peak_viewer_count;`).
+
+### 5.14 Premium usernames (migrations `20261201090000_premium_usernames_enums`, `20261201100000_premium_usernames`; D146) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5), in order: the enum values (`wallet_ledger_reason`
+  `PREMIUM_USERNAME_RENT` / `PREMIUM_USERNAME_RENEW`, `notification_type`
+  `PREMIUM_USERNAME_EXPIRING` / `PREMIUM_USERNAME_EXPIRED`) in their own migration (PostgreSQL cannot
+  use a value in the transaction that adds it), then the tables `premium_username_leases`,
+  `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`,
+  `premium_username_reserved` (seeded with a short brand / authority list), the nullable columns
+  `user_profiles.premium_tier` and `notifications.premium_lease_id`, and the widened
+  `user_profiles_username_format` CHECK (1–30 characters; every existing name still passes). No
+  GRANT (default privileges), no backfill.
+- **The new username rule applies at once** to registrations and `PUT /me/username`; existing
+  usernames are untouched (grandfathered). Apps built before D146 show a generic error for the new
+  validation issues (`letters_and_digits`, `premium`) until they update.
+- **Nothing is on sale until the owner sets prices.** With no row in
+  `premium_username_tier_prices` the store says "not on sale yet" and every rent is refused. Prices
+  are whole coins per 30-day period, set only with the `premium-admin` CLI (migration role, every
+  change audited `premium_username.price`):
+
+  ```bash
+  PREMIUM="docker compose --profile jobs run --rm migrate node dist/cli/premium-admin.js"
+  $PREMIUM price list                                   # tiers and names with their own price
+  $PREMIUM price set --tier LEGEND --coins 50000        # 1–3 characters
+  $PREMIUM price set --tier RUBY --coins 20000          # one repeated character (7777, aaaaaa)
+  $PREMIUM price set --tier GOLD --coins 12000          # 4–5 characters, or a pattern (1221, 1212, 123456, ali777)
+  $PREMIUM price set --tier SILVER --coins 3000         # 6+ letters only or digits only
+  $PREMIUM price set --username 777 --coins 250000      # one name's own price (wins over its tier)
+  $PREMIUM price clear --tier SILVER                    # SILVER names off sale again
+  $PREMIUM price clear --username 777                   # back to its tier's price
+  ```
+
+- **Reserved names** (never rented; an admin may still grant one): the code reserves the v1.0
+  names (`admin`, `support`, `official`, `staff`, `moderator`, …) and anything containing `kabso`;
+  the owner's list adds brand words and **offensive words**, which are entered on the server only
+  (this repository is public):
+
+  ```bash
+  $PREMIUM reserve add <word> --reason offensive
+  $PREMIUM reserve remove <word>
+  $PREMIUM reserve list
+  ```
+
+- **Grants and revokes** (no charge; audited `premium_username.grant` / `.revoke`):
+
+  ```bash
+  $PREMIUM grant --user host@example.com --username 7 --forever         # no end, not renewable
+  $PREMIUM grant --user layla.k --username 8888 --days 30 [--replace]   # --replace ends another one first
+  $PREMIUM revoke --user layla.k                                        # now, no grace, no refund
+  $PREMIUM list                                                         # ACTIVE and GRACE leases
+  $PREMIUM status 7777                                                  # tier, state, price
+  ```
+
+  Locally: `pnpm premium:admin …`.
+- Server config (defaults are the owner-approved values; change them per environment, no app
+  update): `PREMIUM_USERNAME_PERIOD_DAYS=30`, `PREMIUM_USERNAME_GRACE_DAYS=7`,
+  `PREMIUM_USERNAME_REMINDER_DAYS=3,1`, `PREMIUM_USERNAME_MAX_PREPAID_DAYS=365`,
+  `PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS=60` (0 disables the sweeper — then nothing expires, so
+  production refuses 0; it is safe on several instances), `RATE_LIMIT_PREMIUM_RENT_USER=20/3600`,
+  `RATE_LIMIT_USERNAME_CHANGE_USER=5/86400`.
+- Rollback: the API before D146 ignores the new tables and columns, but users renting a name keep
+  it as their username and never revert; revoke every lease first (`premium-admin list`, then
+  `revoke`), roll back the API, then drop the tables, the two columns and restore the CHECK
+  (`… CHECK ("username" ~ '^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$')`, which fails while a 2-character
+  username exists). The enum values cannot be dropped (harmless).
+
 ## 6. Observability baseline
 
 | Item | Status |
@@ -902,8 +986,43 @@ Logs never contain tokens, passwords, refresh secrets or full email bodies.
   developer account (blockers B4 and B6).
 - **Build flavours:** `API_BASE_URL` per environment through `--dart-define` (staging builds
   go to the internal and TestFlight tracks only).
+- **DeepAR (D144):** see §9.1; a release build needs the production DeepAR plan.
 - **Today:** CI produces an unsigned Android **debug** APK and an unsigned iOS build on
   dispatch or main; both compiled in run 13 but are not device-tested (see §2 and §10).
+
+### 9.1 DeepAR effects and native colour filters (D144) — [IMPLEMENTED, Android, not device-tested]
+
+The local plugin `apps/mobile/packages/kabso_camera_fx` runs on the host's published camera
+track (flutter_webrtc's pre-encoder frame processor), so viewers see what the host sees:
+D143's colour filters (a GPU colour matrix; no licence needed) and DeepAR effects (phase 1:
+the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays greyed there).
+
+- **SDK:** `ai.deepar.ar:DeepAR:5.6.22` from DeepAR's public Maven repository
+  (`https://sdk.developer.deepar.ai/maven-android-repository/releases/`, no credentials),
+  declared by the plugin itself and content-filtered to the `ai.deepar.ar` group. The plugin
+  ships consumer ProGuard rules (`-keep class ai.deepar.ar.**`) for minified builds.
+- **Licence key:** `--dart-define=DEEPAR_LICENSE_ANDROID=<key>`. CI: the repository secret
+  `DEEPAR_LICENSE_ANDROID` (Settings → Secrets and variables → Actions), passed through `env`.
+  Locally: put `{"DEEPAR_LICENSE_ANDROID": "<key>"}` in `apps/mobile/deepar.local.json`
+  (git-ignored) and build with `--dart-define-from-file=deepar.local.json`. The key is created
+  in the DeepAR developer portal for the Android package name (today the placeholder
+  `com.kabso.live`, blocker B7 — a new key is needed when it changes). It is a client key and
+  ends up inside the APK; it stays out of git because usage is billed. No key → the APK still
+  builds; colour filters work and Magic shows Effects as unavailable.
+- **Billing:** DeepAR counts monthly active users (one user/device that initializes DeepAR in a
+  month). The app initializes DeepAR only when a host first picks an effect, so viewers and
+  hosts who never pick one are not counted. The free plan (up to 10 MAU) is for testing and
+  development and shows a watermark; production needs a paid plan (from $25/month for 1,000
+  MAU at the time of writing). Owner decision before release.
+- **APK size:** DeepAR adds native libraries and model assets — estimated, not measured, at
+  roughly 23 MB of assets plus 11–23 MB of native code per ABI (uncompressed). Not measured
+  in a build yet; a release should split per ABI (app bundle).
+- **Not verified:** the full APK was not built in the authoring environment (jitpack.io is
+  blocked there for flutter_webrtc's `audioswitch`, and disk was short); the plugin's Kotlin
+  compiled against the real DeepAR 5.6.22 and WebRTC 150.7871.01 classes. Licence
+  initialization, watermark, orientation/mirroring on both cameras, latency, fps, battery
+  and background pause/resume need the owner's device.
+- **Third-party notices:** `apps/mobile/packages/kabso_camera_fx/THIRD_PARTY_NOTICES.md`.
 
 ## 10. What is not verified
 

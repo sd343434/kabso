@@ -36,7 +36,7 @@ class ChatScreen extends StatelessWidget {
     final name = displayName ?? username;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         titleSpacing: 0,
         title: Row(

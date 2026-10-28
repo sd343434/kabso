@@ -29,6 +29,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   CpMicEffect.animate = false;
   KabsoPkBar.enabled = false;
   KLiveEqualizer.animate = false;
+  // D146: the special-ID badge's light sweep loops; never in tests.
+  KSpecialUsername.motion = false;
   // Visibility (post views) is reported at once instead of on a timer, so
   // no timer is left pending at the end of a test (the package's advice).
   VisibilityDetectorController.instance.updateInterval = Duration.zero;

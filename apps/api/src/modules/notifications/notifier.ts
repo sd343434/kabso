@@ -10,10 +10,17 @@ export interface NotificationTargetRef {
   readonly storyId?: string;
   /** v1.21-live (CP-018): the family of FAMILY_JOIN_ACCEPTED / FAMILY_JOIN_DECLINED. */
   readonly familyId?: string;
+  /** v1.28-live (D146): the premium username lease of PREMIUM_USERNAME_EXPIRING / _EXPIRED. */
+  readonly premiumLeaseId?: string;
 }
 
 /** Types without an actor: always on, never grouped, never hidden with their target. */
-export const SYSTEM_TYPES: readonly NotificationType[] = ['POST_PUBLISHED', 'CONTENT_REMOVED'];
+export const SYSTEM_TYPES: readonly NotificationType[] = [
+  'POST_PUBLISHED',
+  'CONTENT_REMOVED',
+  'PREMIUM_USERNAME_EXPIRING',
+  'PREMIUM_USERNAME_EXPIRED',
+];
 
 /** Types that join one unread row per target (owner, D92). */
 const GROUPED: ReadonlySet<NotificationType> = new Set(['LIKE_POST', 'LIKE_COMMENT', 'REPOST']);
@@ -142,7 +149,10 @@ export class Notifier {
   /** A system notification (no actor): a scheduled post went live, or content was removed. */
   async system(
     tx: Tx,
-    input: { type: 'POST_PUBLISHED' | 'CONTENT_REMOVED'; recipientId: string } & NotificationTargetRef,
+    input: {
+      type: 'POST_PUBLISHED' | 'CONTENT_REMOVED' | 'PREMIUM_USERNAME_EXPIRING' | 'PREMIUM_USERNAME_EXPIRED';
+      recipientId: string;
+    } & NotificationTargetRef,
   ): Promise<void> {
     const now = new Date();
     await tx.notification.create({
@@ -150,6 +160,7 @@ export class Notifier {
         recipientId: input.recipientId,
         type: input.type,
         ...targetWhere(input),
+        premiumLeaseId: input.premiumLeaseId ?? null,
         createdAt: now,
         updatedAt: now,
       },

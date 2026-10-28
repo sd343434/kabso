@@ -145,7 +145,8 @@ class _NewStoryScreenState extends ConsumerState<NewStoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
+      body: KTopSafeArea(
+        bottom: true,
         child: Stack(
           fit: StackFit.expand,
           children: [

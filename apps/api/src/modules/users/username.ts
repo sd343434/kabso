@@ -1,6 +1,11 @@
-/** CONVENTIONS §6 username format: 3–30 chars, lowercase, no leading/trailing `.`/`_`. */
-export const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$/;
-export const USERNAME_MIN_LENGTH = 3;
+/**
+ * CONVENTIONS §6 stored username shape: 1–30 chars, lowercase, no leading/trailing `.`/`_`.
+ * v1.28-live (D146): widened from 3–30 so 1–2 character premium usernames work everywhere; new
+ * regular usernames follow the stricter rule of `premium-username-rules.ts` (6–30, letters and
+ * digits). Existing names keep passing (grandfathered).
+ */
+export const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$/;
+export const USERNAME_MIN_LENGTH = 1;
 export const USERNAME_MAX_LENGTH = 30;
 
 /**

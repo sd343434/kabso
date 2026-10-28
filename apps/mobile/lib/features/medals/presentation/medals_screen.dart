@@ -100,7 +100,7 @@ class MedalsScreen extends ConsumerWidget {
     }
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.medalsTitle),

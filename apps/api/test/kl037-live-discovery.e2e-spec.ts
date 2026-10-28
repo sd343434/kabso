@@ -134,7 +134,8 @@ describe('KL-037 contract coverage', () => {
           // CP-013 (v1.9-live draft) adds the chat operations; kl067-live-chat covers them.
           // CP-014 (v1.10-live draft) adds listLiveContributors; kl068-live-room-edit covers it.
           // v1.20-live (D105) adds kicks and one person's contribution; kl078-live-kicks covers them.
-          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors|kicks)(\/|$)/.test(
+          // v1.27.6-live (D140) adds the host's statistics; kl096-live-stats covers them.
+          !/^\/api\/v1\/live\/rooms\/\{roomId\}\/(seats|seat-requests|seat-invites|moderators|chat|contributors|kicks|stats)(\/|$)/.test(
             o.path,
           ),
       )

@@ -35,8 +35,8 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
 
   final String roomId;
 
-  /// Banners on screen at once; more wait in turn.
-  static const maxBanners = 2;
+  /// Banners on screen at once; more wait in turn (D145: 3, was 2).
+  static const maxBanners = 3;
 
   /// A banner stays this long after its last send.
   static const bannerTime = Duration(seconds: 3);

@@ -20,6 +20,7 @@ import {
   type UserSummaryDto,
 } from './live-rooms.service.js';
 import { LiveCategoriesService } from './live-categories.service.js';
+import { closeVisits, closeVisitsOfEndedRooms, openVisit, recountViewers } from './live-audience.js';
 import { LiveChatService } from './live-chat.service.js';
 import { LiveRoomMetadataService } from './live-metadata.service.js';
 import { hostSources, LiveSeatsService, seatPermission } from './live-seats.service.js';
@@ -320,6 +321,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         this.logger.warn({ error: safeErrorLog(err) }, 'Could not remove a guest from the media session');
       }
     }
+    await closeVisits(
+      this.prisma,
+      roomId,
+      rows.map((r) => r.identity),
+      this.clock.now(),
+    );
     await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, guestId: { not: null } } });
     await this.recount(this.prisma, roomId);
   }
@@ -423,12 +430,12 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
 
   // ---- Presence --------------------------------------------------------------------------------
 
-  /** `viewer_count` = connected identities other than the host (the host has no row). */
+  /**
+   * `viewer_count` = connected identities other than the host (the host has no row); v1.27.6-live
+   * (D140) also keeps the peak.
+   */
   private async recount(db: Prisma.TransactionClient | PrismaService, roomId: string): Promise<void> {
-    await db.$executeRaw`
-      UPDATE live_rooms
-         SET viewer_count = (SELECT count(*) FROM live_room_viewers v WHERE v.room_id = ${roomId}::uuid)
-       WHERE id = ${roomId}::uuid`;
+    await recountViewers(db, roomId);
   }
 
   /**
@@ -446,11 +453,13 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (event.kind === 'ignored' || !isUuid(event.room)) return;
     const roomId = event.room.toLowerCase();
     if (event.kind === 'room_finished') {
+      await closeVisits(this.prisma, roomId, null, this.clock.now());
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId } });
       await this.recount(this.prisma, roomId);
       return;
     }
     if (event.kind === 'left') {
+      await closeVisits(this.prisma, roomId, [event.identity], this.clock.now());
       await this.prisma.liveRoomViewer.deleteMany({ where: { roomId, identity: event.identity } });
       await this.recount(this.prisma, roomId);
       // CP-011: leaving the media session ends the user's seat, request and invitation.
@@ -494,10 +503,13 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         return;
       }
     }
+    const now = this.clock.now();
     const recorded = await this.prisma.liveRoomViewer.createMany({
-      data: [{ roomId, identity, userId, guestId, joinedAt: this.clock.now() }],
+      data: [{ roomId, identity, userId, guestId, joinedAt: now }],
       skipDuplicates: true,
     });
+    // v1.27.6-live (D140): the audience record of the live's statistics.
+    await openVisit(this.prisma, roomId, identity, userId, now);
     await this.recount(this.prisma, roomId);
     // CP-011: a seated user who (re)joins gets their seat's permission.
     if (userId !== null) await this.seats.onJoined(roomId, userId);
@@ -526,6 +538,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         'Could not close the media session; the sweeper retries',
       );
     }
+    await closeVisits(this.prisma, roomId, null, this.clock.now());
     await this.prisma.liveRoomViewer.deleteMany({ where: { roomId } });
   }
 
@@ -538,6 +551,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
     if (this.config.live.livekit === null) return 0;
     // CP-011: invitations past their 60 seconds (they already read as none).
     await this.seats.expireInvites();
+    await closeVisitsOfEndedRooms(this.prisma);
     await this.prisma.$executeRaw`
       DELETE FROM live_room_viewers v USING live_rooms r
        WHERE r.id = v.room_id AND r.status <> 'LIVE'`;
@@ -570,6 +584,7 @@ export class LiveMediaService implements OnModuleInit, OnModuleDestroy {
         if (!recorded.has(identity)) await this.onJoined(name.toLowerCase(), identity);
       }
       if (gone.length > 0) {
+        await closeVisits(this.prisma, name.toLowerCase(), gone, this.clock.now());
         await this.prisma.liveRoomViewer.deleteMany({ where: { roomId: name, identity: { in: gone } } });
         await this.recount(this.prisma, name);
         // CP-011: a seated user who is gone loses the seat (as with a `participant_left` webhook).

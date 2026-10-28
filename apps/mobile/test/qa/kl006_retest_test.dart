@@ -106,7 +106,7 @@ void main() {
 
   Future<void> fillRegister(WidgetTester tester) async {
     await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+    await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla_22');
     await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
     await tester.enterText(find.byKey(RegisterScreen.passwordKey), 'pa55word!');
     await tester.pump();
@@ -253,7 +253,7 @@ void main() {
         requestId: 'rid-unknown',
       );
       await pump(tester, const LoginScreen());
-      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+      await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla_22');
       await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
       await submit(tester, LoginScreen.submitKey);
       expect(find.text(l10n.errorUnknown), findsOneWidget);
@@ -360,7 +360,7 @@ void main() {
             .read(registrationFlowProvider.notifier)
             .draft = RegistrationDraft(
           email: 'layla@example.com',
-          username: 'layla',
+          username: 'layla_22',
           displayName: 'ليلى',
           password: 'pa55word!',
           codeSentAt: DateTime.now(),
@@ -388,7 +388,10 @@ void main() {
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         await pump(tester, const LoginScreen(), language: language);
-        await tester.enterText(find.byKey(LoginScreen.identifierKey), 'layla');
+        await tester.enterText(
+          find.byKey(LoginScreen.identifierKey),
+          'layla_22',
+        );
         await tester.enterText(find.byKey(LoginScreen.passwordKey), 'secret');
         await submit(tester, LoginScreen.submitKey);
         expect(_allText(tester), contains('1:02:05'));

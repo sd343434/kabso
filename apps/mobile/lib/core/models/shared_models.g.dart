@@ -21,6 +21,7 @@ _UserSummary _$UserSummaryFromJson(Map<String, dynamic> json) => _UserSummary(
   username: json['username'] as String,
   displayName: json['displayName'] as String,
   avatarUrl: json['avatarUrl'] as String?,
+  premiumTier: premiumTierFromJson(json['premiumTier']),
 );
 
 Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
@@ -29,4 +30,5 @@ Map<String, dynamic> _$UserSummaryToJson(_UserSummary instance) =>
       'username': instance.username,
       'displayName': instance.displayName,
       'avatarUrl': instance.avatarUrl,
+      'premiumTier': premiumTierToJson(instance.premiumTier),
     };

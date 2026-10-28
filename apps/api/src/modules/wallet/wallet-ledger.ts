@@ -16,7 +16,10 @@ export type WalletLedgerReason =
   | 'LIVE_GIFT'
   /** v1.27-live (D132): a LUCKY gift's charge (10 % counts for the family) and the coins it won. */
   | 'LUCKY_GIFT'
-  | 'LUCKY_GIFT_WIN';
+  | 'LUCKY_GIFT_WIN'
+  /** v1.28-live (D146): renting a premium username and renewing it (reference: the payment). */
+  | 'PREMIUM_USERNAME_RENT'
+  | 'PREMIUM_USERNAME_RENEW';
 
 /** The largest balance (CONVENTIONS §3: exact as a JSON number; CHECK `wallets_coins_range`). */
 export const MAX_COINS = 9_007_199_254_740_991n;

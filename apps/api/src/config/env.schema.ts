@@ -53,6 +53,32 @@ export const LIVE_GIFT_QUANTITY_MAX = 9999;
  * v1.23-live (CP-020): a list of gift quantities, e.g. `1,10,66,99`: plain decimal integers
  * 1 … 9999, strictly ascending (so no duplicates), 1 … 12 of them.
  */
+/**
+ * v1.28-live (D146): the days before a premium username's end when a reminder is sent
+ * (`PREMIUM_USERNAME_REMINDER_DAYS`, e.g. `3,1`): 0–5 distinct whole numbers 1–30; empty = none.
+ */
+export const reminderDays = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly number[] => {
+      if (value === '') return [];
+      const numbers = value.split(',').map((p) => (/^[1-9][0-9]?$/.test(p.trim()) ? Number(p.trim()) : NaN));
+      if (
+        numbers.length > 5 ||
+        numbers.some((n) => !(n >= 1 && n <= 30)) ||
+        new Set(numbers).size !== numbers.length
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'must be up to 5 distinct whole numbers from 1 to 30, comma-separated',
+        });
+        return z.NEVER;
+      }
+      return [...numbers].sort((a, b) => b - a);
+    });
+
 export const giftQuantities = (fallback: string) =>
   z
     .string()
@@ -334,6 +360,9 @@ export const envSchema = z
     // v1.23-live (CP-020, CONVENTIONS §7): gift sends in a live, per user, replacing the default
     // authenticated bucket (combos are quick taps on "send": one a second on average, 2× headroom).
     RATE_LIMIT_LIVE_GIFT_USER: rateLimit('120/60'),
+    // v1.28-live (D146, CONVENTIONS §7): premium usernames and the username change.
+    RATE_LIMIT_PREMIUM_RENT_USER: rateLimit('20/3600'),
+    RATE_LIMIT_USERNAME_CHANGE_USER: rateLimit('5/86400'),
     // v1.24-live (CP-021, CONVENTIONS §7): CP space writes (check-in, task claims, confession
     // deletes) and new confessions, per user, each replacing the default authenticated bucket.
     RATE_LIMIT_CP_SPACE_WRITE_USER: rateLimit('60/60'),
@@ -498,6 +527,16 @@ export const envSchema = z
      * after 7 days (and refunds the CP request's coins); 0 disables it (not in production).
      */
     BONDS_SWEEP_INTERVAL_SECONDS: intSetting(300, 0, 86400),
+    /** v1.28-live (D146, §10.32): one rent or renewal of a premium username, in days. */
+    PREMIUM_USERNAME_PERIOD_DAYS: intSetting(30, 1, 365),
+    /** D146: days an expired premium username is kept for its last renter. */
+    PREMIUM_USERNAME_GRACE_DAYS: intSetting(7, 0, 90),
+    /** D146: reminders before the end (in-app notifications). */
+    PREMIUM_USERNAME_REMINDER_DAYS: reminderDays('3,1'),
+    /** D146: a renewal may prepay at most this far ahead. */
+    PREMIUM_USERNAME_MAX_PREPAID_DAYS: intSetting(365, 1, 3650),
+    /** D146: period of the premium-username sweeper (reminders, expiry, grace); 0 disables it (not in production). */
+    PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
@@ -666,6 +705,13 @@ export const envSchema = z
           code: 'custom',
           path: ['POSTS_PUBLISH_INTERVAL_SECONDS'],
           message: 'the scheduled-post publisher cannot be disabled in production',
+        });
+      }
+      if (env.PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS'],
+          message: 'the premium username sweeper cannot be disabled in production',
         });
       }
       if (env.BONDS_SWEEP_INTERVAL_SECONDS === 0) {

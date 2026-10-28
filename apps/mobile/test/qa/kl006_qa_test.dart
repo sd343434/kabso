@@ -378,15 +378,15 @@ void main() {
       addTearDown(sub.close);
       final controller = container.read(usernameAvailabilityProvider.notifier)
         // "slowname" is taken but answers late; "fastname" is free.
-        ..onChanged('SlowName');
+        ..onChanged('Slow_Name1');
       await Future<void>.delayed(const Duration(milliseconds: 10));
-      controller.onChanged('fastname');
+      controller.onChanged('fast_name1');
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(repo.availabilityChecks, ['slowname', 'fastname']);
+      expect(repo.availabilityChecks, ['slow_name1', 'fast_name1']);
       final state = container.read(usernameAvailabilityProvider);
       expect(state, isA<UsernameAvailable>());
-      expect((state as UsernameAvailable).username, 'fastname');
+      expect((state as UsernameAvailable).username, 'fast_name1');
     });
   });
 }
@@ -398,7 +398,7 @@ class _SlowFirstRepo extends FakeAuthRepository {
     String username,
   ) async {
     availabilityChecks.add(username);
-    if (username == 'slowname') {
+    if (username == 'slow_name1') {
       await Future<void>.delayed(const Duration(milliseconds: 150));
       return UsernameAvailability(username: username, available: false);
     }

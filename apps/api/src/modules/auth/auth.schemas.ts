@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isCountryCode } from '../users/country.js';
+import { regularUsernameIssue } from '../premium-usernames/premium-username-rules.js';
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, USERNAME_PATTERN } from '../users/username.js';
 import { normalizeDisplayName, rawDisplayNameIssue } from '../users/display-name.js';
 import { passwordPolicyIssue } from './password-policy.js';
@@ -49,6 +50,19 @@ export const usernameSchema = z
   .max(USERNAME_MAX_LENGTH)
   .regex(USERNAME_PATTERN);
 
+/**
+ * v1.28-live (D146): a new regular username (registration, `PUT /me/username`): 6–30 of a–z, 0–9
+ * and `_`, a letter and a digit, not premium. The first issue is reported on the field
+ * (`premium`, `too_short`, `too_long`, `invalid_format`, `letters_and_digits`).
+ */
+export const regularUsernameSchema = z
+  .string()
+  .max(64)
+  .superRefine((value, ctx) => {
+    const issue = regularUsernameIssue(value);
+    if (issue) ctx.addIssue({ code: 'custom', message: `username ${issue}`, params: { issue } });
+  });
+
 export const localeSchema = z.enum(['ar', 'en']);
 
 export const deviceInfoSchema = z.strictObject({
@@ -74,7 +88,7 @@ export const displayNameSchema = z
 export const registerSchema = z.strictObject({
   email: emailSchema,
   password: passwordSchema,
-  username: usernameSchema,
+  username: regularUsernameSchema,
   displayName: displayNameSchema,
   locale: localeSchema.optional(),
   device: deviceInfoSchema.optional(),
@@ -82,7 +96,8 @@ export const registerSchema = z.strictObject({
 export type RegisterInput = z.output<typeof registerSchema>;
 
 export const loginSchema = z.strictObject({
-  identifier: z.string().trim().min(3).max(254),
+  // v1.28-live (D146): 1-character premium usernames sign in too.
+  identifier: z.string().trim().min(1).max(254),
   // Length is checked in code points after NFC, so an NFD spelling of a valid password passes.
   password: z
     .string()

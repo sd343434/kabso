@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -16,6 +18,7 @@ import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_media.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_public_message.dart';
 import 'package:kabso_live/features/posts/presentation/report_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -118,31 +121,27 @@ class LiveRoomChatLines extends ConsumerWidget {
                 child: Semantics(
                   container: true,
                   liveRegion: true,
-                  child: OverflowBox(
-                    alignment: AlignmentDirectional.bottomStart,
-                    minHeight: 0,
-                    maxHeight: double.infinity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final item in visible)
-                          Padding(
-                            key: lineKey(item.key),
-                            // D119: messages 8 pt apart (the reference's ~7 pt
-                            // at this scale); system lines stay compact.
-                            padding: EdgeInsets.only(
-                              top: inline
-                                  ? LiveChatInlineRow.gap
-                                  : item is LiveChatPosted ||
-                                        item is LiveChatPending
-                                  ? 8
-                                  : 4,
-                            ),
-                            child: _line(context, ref, item),
+                  // D141 (owner's device: a bubble cut in half at the top
+                  // of the chat): only whole lines are shown, the newest at
+                  // the bottom; a line that no longer fits goes as a whole.
+                  child: LiveChatWholeLines(
+                    children: [
+                      for (final item in visible)
+                        Padding(
+                          key: lineKey(item.key),
+                          // D119: messages 8 pt apart (the reference's ~7 pt
+                          // at this scale); system lines stay compact.
+                          padding: EdgeInsets.only(
+                            top: inline
+                                ? LiveChatInlineRow.gap
+                                : item is LiveChatPosted ||
+                                      item is LiveChatPending
+                                ? 8
+                                : 4,
                           ),
-                      ],
-                    ),
+                          child: _line(context, ref, item),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -180,6 +179,8 @@ class LiveRoomChatLines extends ConsumerWidget {
         _mediaLine(context, ref, entry, entry.media!, boxMax),
       LiveChatPosted(:final entry) => LiveChatAuthoredLine(
         name: entry.author.displayName,
+        username: entry.author.username,
+        premiumTier: entry.author.premiumTier,
         avatarUrl: entry.author.avatarUrl,
         role: entry.authorRole,
         badges: entry.authorBadges,
@@ -205,41 +206,56 @@ class LiveRoomChatLines extends ConsumerWidget {
       ),
       // This person's own line on its way: their picture and name, no
       // badges until the server stored it (D119: no badge without data).
-      LiveChatPending(:final failed, :final text, :final authorName) => Opacity(
-        opacity: failed ? 1 : 0.6,
-        child: LiveChatAuthoredLine(
-          name: authorName,
-          avatarUrl: ref.watch(currentUserProvider)?.avatarUrl,
-          maxWidth: boxMax,
-          color: _messageBubble,
-          label: [
-            l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
-            if (failed) l10n.liveChatFailed,
-          ].join('. '),
-          onActions: failed
-              ? () => unawaited(_failedActions(context, ref, item))
-              : null,
-          message: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _message(context, text),
-              if (failed)
-                Text(
-                  l10n.liveChatFailed,
-                  style: context.textStyles.caption.copyWith(
-                    color: const Color(0xFFFF8A9A),
-                    fontWeight: FontWeight.w700,
+      LiveChatPending(
+        :final failed,
+        :final text,
+        :final authorName,
+        :final tooFast,
+      ) =>
+        Opacity(
+          opacity: failed ? 1 : 0.6,
+          child: LiveChatAuthoredLine(
+            name: authorName,
+            username: ref.watch(currentUserProvider)?.username,
+            premiumTier: ref.watch(currentUserProvider)?.premiumTier,
+            avatarUrl: ref.watch(currentUserProvider)?.avatarUrl,
+            maxWidth: boxMax,
+            color: _messageBubble,
+            label: [
+              l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
+              if (failed && tooFast)
+                l10n.liveChatTooFast
+              else if (failed)
+                l10n.liveChatFailed,
+            ].join('. '),
+            onActions: failed
+                ? () => unawaited(_failedActions(context, ref, item))
+                : null,
+            message: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _message(context, text),
+                if (failed)
+                  Text(
+                    tooFast ? l10n.liveChatTooFast : l10n.liveChatFailed,
+                    style: context.textStyles.caption.copyWith(
+                      color: const Color(0xFFFF8A9A),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       // CP-017 (owner, 2026-10-26): a public message, in a box of its own.
-      LiveChatBulletLine(:final bullet) => LiveChatBulletBox(
-        bullet: bullet,
-        onTap: () => onProfile(bullet.sender.username),
+      // D141: the owner's public message card, with the sender's badges
+      // when this room's chat knows them.
+      LiveChatBulletLine(:final bullet) => _publicMessage(
+        context,
+        ref,
+        bullet,
+        inline ? LiveChatInlineRow.chatMaxWidth(context) : boxMax,
       ),
       // D118/D135: the room's rules, a see-through system line (not
       // tappable), the first line of this visit.
@@ -309,7 +325,12 @@ class LiveRoomChatLines extends ConsumerWidget {
           onActions: () => unawaited(actions(entry)),
           text: entry.text,
         );
-      case LiveChatPending(:final failed, :final text, :final authorName):
+      case LiveChatPending(
+        :final failed,
+        :final text,
+        :final authorName,
+        :final tooFast,
+      ):
         return Opacity(
           opacity: failed ? 1 : 0.6,
           child: LiveChatInlineRow(
@@ -318,13 +339,18 @@ class LiveRoomChatLines extends ConsumerWidget {
             color: bubble,
             label: [
               l10n.liveChatLineLabel(authorName, kabiSpokenText(text, l10n)),
-              if (failed) l10n.liveChatFailed,
+              if (failed && tooFast)
+                l10n.liveChatTooFast
+              else if (failed)
+                l10n.liveChatFailed,
             ].join('. '),
             onActions: failed
                 ? () => unawaited(_failedActions(context, ref, item))
                 : null,
             text: text,
-            failed: failed ? l10n.liveChatFailed : null,
+            failed: failed
+                ? (tooFast ? l10n.liveChatTooFast : l10n.liveChatFailed)
+                : null,
           ),
         );
       case LiveChatJoinItem(:final join):
@@ -339,6 +365,30 @@ class LiveRoomChatLines extends ConsumerWidget {
       case LiveChatBulletLine() || LiveChatNoticeLine():
         return null;
     }
+  }
+
+  /// D141: a public message (bullet) in the owner's card. Its sender's
+  /// role and badges come from their latest message in this chat (the
+  /// bullet itself carries none) — nothing is shown when unknown.
+  Widget _publicMessage(
+    BuildContext context,
+    WidgetRef ref,
+    LiveBullet bullet,
+    double maxWidth,
+  ) {
+    LiveChatEntry? latest;
+    for (final it in ref.read(liveChatProvider(roomId)).items) {
+      if (it is LiveChatPosted && it.entry.author.id == bullet.sender.id) {
+        latest = it.entry;
+      }
+    }
+    return LivePublicMessage(
+      bullet: bullet,
+      role: latest?.authorRole,
+      badges: latest?.authorBadges,
+      maxWidth: maxWidth,
+      onTap: () => onProfile(bullet.sender.username),
+    );
   }
 
   /// D119: message boxes in the audio room take the reference's grey
@@ -358,6 +408,8 @@ class LiveRoomChatLines extends ConsumerWidget {
     final voice = entry.kind == LiveChatKind.voice;
     return LiveChatAuthoredLine(
       name: name,
+      username: entry.author.username,
+      premiumTier: entry.author.premiumTier,
       avatarUrl: entry.author.avatarUrl,
       role: entry.authorRole,
       badges: entry.authorBadges,
@@ -395,7 +447,7 @@ class LiveRoomChatLines extends ConsumerWidget {
   Widget _message(BuildContext context, String text, {bool cp = false}) {
     final styles = context.textStyles;
     const size = LiveChatAuthoredLine.textSize;
-    return Text.rich(
+    return KBidiRichText(
       TextSpan(
         children: [
           // CP-021: the Exclusive Chat Bubble starts with a small heart.
@@ -433,9 +485,7 @@ class LiveRoomChatLines extends ConsumerWidget {
               fontWeight: FontWeight.w500,
             ),
             children: [
-              const TextSpan(text: '\u2068'),
-              ...kabiInlineSpans(text, size: size * KKabiEmoji.inlineScale),
-              const TextSpan(text: '\u2069'),
+              ...kabiIsolatedSpans(text, size: size * KKabiEmoji.inlineScale),
             ],
           ),
         ],
@@ -562,9 +612,16 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.onProfile,
     this.onActions,
     this.mediaInside = false,
+    this.username,
+    this.premiumTier,
   });
 
   final String name;
+
+  /// D146: the author's username and premium tier; with a tier the line
+  /// shows the special-ID badge (still, no sweep) under the name.
+  final String? username;
+  final PremiumTier? premiumTier;
   final String? avatarUrl;
   final LiveChatRole? role;
   final LiveChatAuthorBadges? badges;
@@ -607,6 +664,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const boxKey = Key('liveChat.box');
   static const avatarKey = Key('liveChat.avatar');
   static const nameKey = Key('liveChat.name');
+
+  /// D146: the author's special-ID badge.
+  static const premiumKey = Key('liveChat.premium');
 
   /// The message (text, clip or picture) inside the box.
   static const bubbleKey = Key('liveChat.bubble');
@@ -684,6 +744,21 @@ class LiveChatAuthoredLine extends StatelessWidget {
                   ),
                 ),
               ),
+              if ((premiumTier, username) case (final tier?, final handle?))
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: KSpecialUsername(
+                      key: premiumKey,
+                      username: handle,
+                      tier: tier,
+                      height: 15,
+                      animate: false,
+                    ),
+                  ),
+                ),
               if (row.isNotEmpty) ...[const SizedBox(height: 4), row],
               const SizedBox(height: 5),
               KeyedSubtree(key: bubbleKey, child: message),
@@ -1227,167 +1302,6 @@ class _LiveChatJoinStripState extends State<LiveChatJoinStrip> {
   }
 }
 
-/// A bullet ("public message", CP-017) in the room chat (owner,
-/// 2026-10-26): a rounded purple-to-pink card with a gold rim and a soft
-/// glow, a megaphone and the "Public message" tag, the sender's picture and
-/// name, and the text. It grows in once (still with reduced motion) and
-/// then stays like a message. A tap opens the sender's card.
-class LiveChatBulletBox extends StatelessWidget {
-  const new({required this.bullet, this.onTap, super.key});
-
-  final LiveBullet bullet;
-  final VoidCallback? onTap;
-
-  static Key keyFor(String id) => Key('liveChat.bullet.$id');
-
-  static const _gold = Color(0xFFFFD66B);
-  static const _white = Color(0xFFFFFFFF);
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final styles = context.textStyles;
-    final name = bullet.sender.displayName;
-    final reduced = MediaQuery.disableAnimationsOf(context);
-    final scaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    final box = Container(
-      key: keyFor(bullet.id),
-      padding: const EdgeInsetsDirectional.fromSTEB(8, 7, 12, 9),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
-          colors: [Color(0xF27B4DFF), Color(0xF2C04BEA), Color(0xF2FF5FA2)],
-        ),
-        border: Border.all(color: _gold.withValues(alpha: 0.85), width: 1.2),
-        boxShadow: const [
-          BoxShadow(color: Color(0x66C04BEA), blurRadius: 14),
-          BoxShadow(color: Color(0x33FFD66B), blurRadius: 4, spreadRadius: 1),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsetsDirectional.fromSTEB(5, 2, 7, 2),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(KRadius.pill),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFE28A), Color(0xFFF2B544)],
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.campaign_rounded,
-                      size: 13,
-                      color: Color(0xFF6A3A00),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      l10n.liveBulletTag,
-                      textScaler: scaler,
-                      style: styles.caption.copyWith(
-                        fontSize: 10.5,
-                        height: 1.2,
-                        color: const Color(0xFF6A3A00),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(1.5),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _gold,
-                ),
-                child: KAvatar(
-                  name: name,
-                  imageUrl: bullet.sender.avatarUrl,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      KFormat.bidiIsolate(name),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textScaler: scaler,
-                      style: styles.caption.copyWith(
-                        fontSize: 12,
-                        height: 1.25,
-                        color: _gold,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      KFormat.bidiIsolate(bullet.text),
-                      textScaler: scaler,
-                      style: styles.bodyStrong.copyWith(
-                        fontSize: 14,
-                        height: 1.3,
-                        color: _white,
-                        fontWeight: FontWeight.w700,
-                        shadows: const [
-                          Shadow(color: Color(0x55000000), blurRadius: 2),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-    return Semantics(
-      button: onTap != null,
-      label: l10n.liveBulletLabel(name, bullet.text),
-      excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: reduced ? 1 : 0, end: 1),
-          duration: reduced ? Duration.zero : const Duration(milliseconds: 380),
-          curve: Curves.easeOutBack,
-          builder: (context, t, child) => Opacity(
-            opacity: t.clamp(0, 1),
-            child: Transform.scale(
-              scale: 0.85 + 0.15 * t,
-              alignment: AlignmentDirectional.centerStart,
-              child: child,
-            ),
-          ),
-          child: box,
-        ),
-      ),
-    );
-  }
-}
-
 /// Owner (2026-10-26, D118): the system line with the room's rules when a
 /// live opens — a very see-through red pill with red text and a red shield,
 /// distinct from every message (Kabso's wording, l10n). [label] names it for
@@ -1630,12 +1544,10 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
           TextSpan(
             style: base,
             children: [
-              const TextSpan(text: '\u2068'),
-              ...kabiInlineSpans(
+              ...kabiIsolatedSpans(
                 text,
                 size: LiveChatInlineRow.textSize * KKabiEmoji.inlineScale,
               ),
-              const TextSpan(text: '\u2069'),
             ],
           ),
       ],
@@ -1645,7 +1557,9 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(
+        // D141: inline widgets (badges, pack emoji) in reading order in
+        // both directions (Flutter swaps them in right-to-left lines).
+        KBidiRichText(
           TextSpan(children: spans),
           key: LiveChatInlineRow.nameKey,
           textScaler: scaler,
@@ -1714,5 +1628,171 @@ class _LiveChatInlineRowState extends State<LiveChatInlineRow> {
       excludeSemantics: !w.mediaInside,
       child: line,
     );
+  }
+}
+
+/// D141: the chat's lines, oldest first, laid out from the bottom up; only
+/// the lines that fit whole in the height given are painted (and read by
+/// screen readers) — an older line that would be cut at the top is left
+/// out, so no bubble is ever drawn in half. Lines start at the reading
+/// start and sit at the bottom; the box takes the height it is given (when
+/// bounded) and hugs the widest shown line.
+class LiveChatWholeLines extends MultiChildRenderObjectWidget {
+  const new({super.key, super.children});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderWholeLines(Directionality.of(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant RenderBox renderObject,
+  ) => (renderObject as _RenderWholeLines).direction = Directionality.of(
+    context,
+  );
+}
+
+class _WholeLineData extends ContainerBoxParentData<RenderBox> {
+  bool shown = true;
+}
+
+class _RenderWholeLines extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _WholeLineData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _WholeLineData> {
+  new(this._textDirection);
+
+  TextDirection _textDirection;
+  TextDirection get direction => _textDirection;
+  set direction(TextDirection value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _WholeLineData) {
+      child.parentData = _WholeLineData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final width = constraints.maxWidth;
+    final room = constraints.maxHeight;
+    final lineConstraints = BoxConstraints(maxWidth: width);
+    // From the newest (last) line up: each one is shown while it fits.
+    var used = 0.0;
+    var widest = 0.0;
+    var fits = true;
+    var child = lastChild;
+    while (child != null) {
+      child.layout(lineConstraints, parentUsesSize: true);
+      final data = child.parentData! as _WholeLineData;
+      final h = child.size.height;
+      if (fits && used + h <= room + 0.01) {
+        used += h;
+        widest = math.max(widest, child.size.width);
+        data.shown = true;
+      } else {
+        fits = false;
+        data.shown = false;
+      }
+      child = data.previousSibling;
+    }
+    // The whole height when it is bounded (the lines sit at its bottom and
+    // the top fade stays at the top), else the lines' own.
+    size = constraints.constrain(Size(widest, room.isFinite ? room : used));
+    var y = size.height - used;
+    child = firstChild;
+    while (child != null) {
+      final data = child.parentData! as _WholeLineData;
+      if (data.shown) {
+        final x = _textDirection == TextDirection.rtl
+            ? size.width - child.size.width
+            : 0.0;
+        data.offset = Offset(x, y);
+        y += child.size.height;
+      } else {
+        data.offset = Offset.zero;
+      }
+      child = data.nextSibling;
+    }
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) => 0;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) {
+    var w = 0.0;
+    var child = firstChild;
+    while (child != null) {
+      w = math.max(w, child.getMaxIntrinsicWidth(double.infinity));
+      child = (child.parentData! as _WholeLineData).nextSibling;
+    }
+    return w;
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final lineConstraints = BoxConstraints(maxWidth: constraints.maxWidth);
+    var used = 0.0;
+    var widest = 0.0;
+    var child = lastChild;
+    while (child != null) {
+      final s = child.getDryLayout(lineConstraints);
+      if (used + s.height > constraints.maxHeight + 0.01) break;
+      used += s.height;
+      widest = math.max(widest, s.width);
+      child = (child.parentData! as _WholeLineData).previousSibling;
+    }
+    return constraints.constrain(
+      Size(
+        widest,
+        constraints.maxHeight.isFinite ? constraints.maxHeight : used,
+      ),
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    var child = firstChild;
+    while (child != null) {
+      final data = child.parentData! as _WholeLineData;
+      if (data.shown) context.paintChild(child, data.offset + offset);
+      child = data.nextSibling;
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    var child = lastChild;
+    while (child != null) {
+      final data = child.parentData! as _WholeLineData;
+      if (data.shown) {
+        final hit = result.addWithPaintOffset(
+          offset: data.offset,
+          position: position,
+          hitTest: (result, transformed) =>
+              child!.hitTest(result, position: transformed),
+        );
+        if (hit) return true;
+      }
+      child = data.previousSibling;
+    }
+    return false;
+  }
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    var child = firstChild;
+    while (child != null) {
+      final data = child.parentData! as _WholeLineData;
+      if (data.shown) visitor(child);
+      child = data.nextSibling;
+    }
   }
 }

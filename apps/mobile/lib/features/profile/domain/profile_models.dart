@@ -4,6 +4,7 @@
 // §10.21), and the profile card of v1.22-live (CP-019, §10.22).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/features/bag/domain/bag_models.dart';
 import 'package:kabso_live/features/cp/domain/cp_models.dart';
 import 'package:kabso_live/features/families/domain/family_models.dart';
@@ -31,6 +32,11 @@ abstract class PublicProfile with _$PublicProfile {
     /// CP-007: the caller muted this user (never shown to them). Defaults
     /// to false for previews built without it.
     @Default(false) bool isMuted,
+
+    /// v1.28-live (D146): the tier of the user's premium username (the
+    /// badge), or null for a regular username. Only the server decides it.
+    @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
+    PremiumTier? premiumTier,
 
     /// v1.21-live (CP-018): the user's family and role, or null.
     ProfileFamily? family,

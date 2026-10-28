@@ -227,7 +227,10 @@ void main() {
         }
 
         await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-        await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+        await tester.enterText(
+          find.byKey(RegisterScreen.usernameKey),
+          'layla_22',
+        );
         await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
         await tester.enterText(
           find.byKey(RegisterScreen.passwordKey),
@@ -283,7 +286,10 @@ void main() {
           tester.element(find.byType(RegisterScreen)),
         );
         await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-        await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+        await tester.enterText(
+          find.byKey(RegisterScreen.usernameKey),
+          'layla_22',
+        );
         await tester.enterText(find.byKey(RegisterScreen.displayNameKey), 'L');
         await tester.enterText(
           find.byKey(RegisterScreen.passwordKey),

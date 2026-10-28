@@ -60,7 +60,7 @@ All non-2xx responses use one envelope:
 - Validation `issue` vocabulary (closed set; clients may branch on it): `required`,
   `invalid_type`, `too_short`, `too_long`, `too_small`, `too_big`, `invalid_email`,
   `invalid_format`, `invalid_value`, `unknown_field`, `malformed_json`, `payload_too_large`,
-  *(v1.2)* `reserved_term`.
+  *(v1.2)* `reserved_term`, *(v1.28-live, D146)* `letters_and_digits`, `premium` (§10.32).
   Body-level problems (malformed JSON, body over the size limit, wrong content type) are reported
   as 400 `VALIDATION_FAILED` with `field: ""` — the API does not use 413/415.
   *(v1.3.1, QA-001)* **Body parsing runs first, on every route.** A JSON body that does not parse
@@ -132,6 +132,9 @@ All non-2xx responses use one envelope:
 | 403 | `FAMILY_CHAT_MUTED` | *(v1.25-live, DRAFT, CP-022)* The family's leader or a deputy muted the caller in the family chat. The app disables the composer and says so (§10.25). |
 | 403 | `LUCKY_GIFT_AGE_UNCONFIRMED` | *(v1.27-live, DRAFT, D132)* A lucky gift from someone who has not confirmed they are 18 or older (`confirmLuckyGiftAge`). Nothing was charged, drawn or sent; the app asks for the confirmation (§10.27). |
 | 403 | `LUCKY_GIFT_REGION_UNAVAILABLE` | *(v1.27-live, DRAFT, D132)* Lucky gifts are off in the caller's country (server list), or the country is unknown while such a list is configured. Nothing was charged, drawn or sent; the app hides the lucky tab (§10.27). |
+| 409 | `PREMIUM_USERNAME_UNAVAILABLE` | *(v1.28-live, DRAFT, D146)* The name cannot be rented or renewed by the caller now (taken, held for its last renter, reserved, not on sale, not premium, past the prepaid limit, or someone else won the same name a moment earlier). Nothing was charged; the app reads `GET /premium-usernames/{username}` to say why (§10.32). |
+| 409 | `PREMIUM_USERNAME_PRICE_CHANGED` | *(v1.28-live, DRAFT, D146)* The owner changed the price since the app showed it (`priceCoins` differs). Nothing was charged; the app shows the new price (§10.32). |
+| 409 | `PREMIUM_USERNAME_ACTIVE` | *(v1.28-live, DRAFT, D146)* The caller already has an active premium username: renting another one or changing the regular username waits until it is given back (§10.32). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -186,6 +189,12 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 - Usernames: `^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$` (3–30 chars, lowercase, no leading/
   trailing `.`/`_`), unique case-insensitively, stored lowercase. The regex alone admits a 1-character name; the 3–30 length bound is a separate, mandatory check (clients and server apply both). A reserved list (admin, kabso,
   support, api, live, …) is rejected with `USERNAME_TAKEN`.
+  *(v1.28-live, D146)* **Stored shape** (lookups, paths, login, every response): `^[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9])?$`,
+  **1–30** characters (1–2 character premium names). **New regular usernames** (registration and
+  `PUT /me/username`): 6–30 of a–z, 0–9 and `_`, a letter **and** a digit, `_` never first or last,
+  and not a premium username (issues `premium`, `too_short`, `too_long`, `invalid_format`,
+  `letters_and_digits`, in that order). Existing usernames are kept (grandfathered). Premium
+  usernames are rented (§10.32). Login `identifier` accepts 1–254 characters.
 - Emails are normalized (trim + lowercase) before uniqueness checks.
 - Password reset uses single-use tokens (32 random bytes, SHA-256 stored, TTL 1 h) delivered
   through the `MailSender` port and revokes all sessions. `POST /auth/email/verify` and
@@ -341,6 +350,8 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `POST /auth/register/verify` *(v1.2)* | 10 / 15 min per IP; 5 attempts per code, *(v1.2.3)* 10 per pending registration and **15 / day per email** (SEC-027) |
 | `POST /auth/register/resend` *(v1.2)* | 3 / hour per email, 10 / hour per IP |
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
+| `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
+| `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
 | `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
@@ -378,6 +389,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
+| `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
 | Guest reads: `GET /live/config`, `GET /live/rooms`, `GET /live/rooms/{roomId}` without a token *(v1.6-live, CP-010)* | 300 / 15 min per IP |
@@ -447,6 +459,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.21-live)* Tables `medals`, `user_medals` | Backend — `medals` module (awards are written by the modules where the events happen, through `medal-awards.ts`) | CTO |
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
+| *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -486,6 +499,8 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.28-live (draft) | 2026-10-28 | **D146 (owner: «يوزر مميز» — premium usernames rented monthly with coins, the owner's four special-ID medals, and a stricter rule for new usernames):** `changeUsername` (`PUT /me/username`, `ChangeUsernameRequest`, `RegularUsername`), `getPremiumUsernameStore` (`GET /premium-usernames?tier=`, `PremiumUsernameStore`, `PremiumUsernameTierPrice`), `getPremiumUsernameStatus` (`GET /premium-usernames/{username}`, `PremiumUsernameStatus`, `PremiumUsernameState`), `getMyPremiumUsername` / `releaseMyPremiumUsername` (`GET` / `DELETE /me/premium-username`, `MyPremiumUsernameResponse`, `MyPremiumUsername`), `rentPremiumUsername` (`POST /me/premium-username/rentals`, `Idempotency-Key`, `RentPremiumUsernameRequest`, `PremiumUsernameRental`); `PremiumUsernameTier` (`LEGEND`, `RUBY`, `GOLD`, `SILVER`); optional `premiumTier` on `UserSummary`, `PublicProfile` and `Me`; `Username` widened to 1–30; `RegisterRequest.username` → `RegularUsername`; `LoginRequest.identifier` min 1; notification types `PREMIUM_USERNAME_EXPIRING` / `_EXPIRED` and target `PREMIUM_USERNAME` (`endsAt`); codes `PREMIUM_USERNAME_UNAVAILABLE`, `PREMIUM_USERNAME_PRICE_CHANGED`, `PREMIUM_USERNAME_ACTIVE` (409); issues `letters_and_digits`, `premium`; ledger reasons `PREMIUM_USERNAME_RENT` / `_RENEW`; CLI `premium-admin`; migrations `20261201090000_premium_usernames_enums`, `20261201100000_premium_usernames`. §4, §6, §7, §8, §10.32. | **Behaviour:** registration refuses names that break the new rule (existing names are kept); older apps show the new validation issues as a generic error. **Additive** otherwise (new operations, optional fields, enum values and codes). Nothing is on sale until the owner sets prices. |
+| v1.27.6-live (draft) | 2026-10-27 | **D140 (owner: «صفحة انتهاء البث بملء الشاشة … ومعلومات أكثر منها دول المشاهدين ونسبة المشاهدة لكل دولة»):** `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`, host only, `LiveRoomStats`, `LiveRoomViewerStats`, `LiveViewerCountry`): the live's cherries with the host's own share, supporters and the top three, gifts, chat messages, new followers, unique / peak viewers, average watch time and the viewers' countries (top 5 + `OTHER` + `UNKNOWN`, one-decimal shares). Migration `20261130090000_live_audience` (`live_room_audience`, `live_rooms.peak_viewer_count`). §7, §10.31. | **Additive** (a new operation and schemas). Lives started before the deploy read `viewers: null`, `viewerCountries: []`. |
 | v1.27.5-live (draft) | 2026-10-27 | **D138 (owner: «في البث الصوتي المستخدم يستخدمها على الكرسي … مرة واحدة وتختفي»):** `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`, `LiveSeatEmojiRequest`, `LiveSeatEmoji`); data message `seat-emoji` on topic `seat-emoji`. §7, §10.30. | **Additive** (a new operation and data message topic; older apps ignore unknown topics and types). |
 | v1.27.4-live (draft) | 2026-10-27 | **D137 (owner: the promo box at the top end of a live):** `HomeBanner` placement — `listHomeBanners` takes `placement` (`home` default, `room`); `banner-admin add … --placement room` (3:4, 600 × 800); migration `20261129090000_live_wish_gifts_room_banners` (`home_banners.placement`). §10.26. | **Additive** (an optional parameter; existing banners are HOME). |
 | v1.27.3-live (draft) | 2026-10-27 | **D136 (owner: the host's wish list):** `StartLiveRoomRequest.wishGifts`, `UpdateLiveRoomRequest.wishGifts` (`WishGiftCodes`, ≤ 4 distinct, sendable now), `LiveRoom.wishGifts` (`LiveWishGift` `{giftCode, name, priceCoins, assetKey, imageUrl, received}`), `GiftCode`; a change, or a wished gift sent to the host, moves `roomInfoVersion`; migration `live_rooms.wish_gifts`. §10.29. | **Additive** (optional request fields, a new response field older apps ignore). |
@@ -1980,6 +1995,151 @@ change in the server configuration (no app update). Odds, the age gate and the r
   echo (same `user`); a new emoji on a tile replaces the one playing there.
 - **Apps:** the emoji plays one cycle centred over the tile's picture (about 85 % of it, under the
   name) and fades; with reduced motion the first frame shows for 1.5 s. Unknown tokens are ignored.
+
+### 10.31 The host's statistics of a live *(v1.27.6-live, DRAFT — D140)*
+
+- **What (owner):** the end-of-live screen shows more than the score — who came, from where, and
+  how they engaged. `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`) answers it for the
+  **host only**, while the live is on or after it ended. Checks: 401; 404 (room not visible, as
+  `getLiveRoom`); 403 `AUTH_FORBIDDEN` for anyone but the host. Per-user default bucket (§7).
+- **Privacy:** aggregates only. No endpoint lists the audience record or says who watched from
+  where; a country is the viewer's own `Me.country` (§10.28, never inferred, XK excluded as in D45).
+- **Fields and how they are computed:**
+  - `durationSeconds`: start → end (→ now while LIVE). `score`: the live score (§10.10).
+    `hostOwnPoints`: the host's own row of `live_room_tappers` (their taps since D120 and gifts
+    since D128 count in the score); the host is never their own supporter, so a live whose points
+    all came from the host shows supporters 0.
+  - `supporters`: rows of the Contribution list (§10.12) as the host reads it, without the 50 cap;
+    `topSupporters`: its first three, same order.
+  - `giftCount`: Σ `quantity` of the live's sends (`live_gifts.room_id`), whoever sent them to
+    whomever in the room. `chatMessages`: the live's messages not deleted (the chat sweeper
+    removes them 30 days after the end). `newFollowers`: `follows` to the host created between
+    the start and the end (now while LIVE) whose follower is ACTIVE — an unfollow removes the row.
+  - `viewers` (from the audience record below; `null` for a live started before D140):
+    `unique` = audience rows (a person or a guest counts once, however often they came back; the
+    host has no row), `guests` = rows without a user, `peak` = the most presence rows at once
+    (`live_rooms.peak_viewer_count`, raised with every recount), `atEnd` = `viewer_count` (the
+    viewers when it ended; now while LIVE), `averageWatchSeconds` = round(Σ watch time / `unique`).
+  - `viewerCountries`: the audience grouped by the viewer's country; the five largest (ties: code
+    A → Z), then `OTHER` (all further countries), then `UNKNOWN` (guests and people without a
+    country) — each only when non-zero; `[]` without viewers. **Rounding:** `percent` =
+    round-half-up(`viewers` × 1000 / `unique`) / 10, each bucket on its own; the shares are shown
+    as they are (their sum may be 99.9–100.1). Apps never re-normalize.
+- **Audience record** (`live_room_audience`, one row per room and identity): written only from
+  media presence (§10.8). A recorded join opens a visit (`open_since`); every removal of a presence
+  row — `participant_left`, `room_finished`, a kick, guests switched off, the end, the sweeper's
+  reconciliation — closes it, adding the time (never past the room's end) to `watch_ms`. A visit
+  still open when read counts until the end (now while LIVE). Rows go with the room (cascade) or
+  the user.
+
+
+### 10.32 Premium usernames and the regular username rule *(v1.28-live, DRAFT — D146)*
+
+Owner decisions (2026-10-27) are marked *(owner)*; every other value is a CTO default the owner may
+change (server configuration where noted, otherwise a contract change).
+
+- **Regular usernames** *(owner)*: a **new** username (registration and `PUT /me/username`) has
+  **6–30** characters of a–z, 0–9 and `_` (narrowed from v1.0's `.` and `_`), at least **one letter
+  and one digit**, never `_` first or last, and is not a premium username. It is sent canonical
+  (lower case, trimmed). 400 `VALIDATION_FAILED` on `username` with the first issue in this order:
+  `premium` (a premium username: it can only be rented — the app offers the store), `too_short`,
+  `too_long`, `invalid_format`, `letters_and_digits`. **Existing usernames are kept**
+  (grandfathered): nobody is asked to change, and lookups, login, profiles and every path accept the
+  stored shape `Username` (now 1–30, so 1–2-character premium names work everywhere).
+- **Changing the username** (`changeUsername`, `PUT /me/username` `{username}` → `Me`): the rule
+  above, then 409 `PREMIUM_USERNAME_ACTIVE` while a premium username is the caller's (give it back
+  first), then 409 `USERNAME_TAKEN` (reserved, another account's, held by a pending registration or
+  kept for a renter). The same name → 200, nothing changed; the old name is free at once (a link to
+  it stops working); follows, lives and everything else follow the account, not the name.
+  5 changes / day / user (`RATE_LIMIT_USERNAME_CHANGE_USER`, replacing the default). Audited
+  `user.username.change` `{from, to}`.
+- **Premium usernames (يوزر مميز)** *(owner)*: every name of 1–30 lower-case letters and digits
+  (never `_` or `.`) that is **not** a valid regular username, plus nice patterns. Four tiers
+  *(owner, matching the owner's medal art)*, decided by the name alone and **only by the server**
+  (`premium-username-rules.ts`, adapted from the owner's `specialIdTierFor`; the apps show the tier
+  they are given), checked in this order:
+
+  | Tier | Names | Examples |
+  | ---- | ----- | -------- |
+  | `LEGEND` | 1–3 characters | `7`, `ab`, `777`, `a1b` |
+  | `RUBY` | one character repeated, 4 or more | `7777`, `aaaa`, `777777` |
+  | `GOLD` | 4–5 characters; or a pattern: a palindrome, doubled halves, a sequence of digits or letters (up or down), a run of three equal characters | `sara`, `1221`, `abba`, `1212`, `123456`, `abcdef`, `888991`, `ali777` |
+  | `SILVER` | 6+ letters only or digits only (with none of the patterns) | `112233`, `laylaa`, `kabsoo` |
+
+  Mixed names with a pattern (`ali777`) are premium too, so they are no longer regular names.
+- **Reserved** *(owner)*: never rented — the v1.0 reserved names (`admin`, `support`, `official`,
+  `staff`, `moderator`, `owner`, `system`, …, with `.`/`_` ignored), any name containing `kabso`, and
+  the owner's list `premium_username_reserved` (seeded with a few brand and authority words; offensive
+  words are added on the server with `premium-admin reserve add`, not committed to this public
+  repository). An admin may still **grant** a reserved name (e.g. to an official account).
+- **Prices** *(owner: the owner sets them, none hard-coded)*: a monthly price in coins per tier
+  (`premium_username_tier_prices`) and optionally per name (`premium_username_name_prices`, which wins
+  over its tier's). **While a tier has no price its names are not on sale**: status `NOT_FOR_SALE`,
+  the store lists none of them and says so; nothing is ever priced by default. Managed only with
+  `premium-admin price set|clear|list` (whole coins 1–1 000 000 000; audited
+  `premium_username.price`).
+- **Status of a name** (`getPremiumUsernameStatus`, `GET /premium-usernames/{username}`, never 404):
+  `INVALID` → `REGULAR` (not premium) → the lease that holds it: `YOURS` / `YOURS_GRACE` (the caller's)
+  or `TAKEN` / `HELD` (another user's, in use / in grace, `heldUntil`) → `RESERVED` → `TAKEN` (the
+  username of another account — a grandfathered short name, for instance —, a live pending
+  registration's, or the regular name kept for a renter) → `NOT_FOR_SALE` → `AVAILABLE`. `priceCoins`
+  for AVAILABLE, YOURS and YOURS_GRACE.
+- **The store** (`getPremiumUsernameStore`, `GET /premium-usernames[?tier=]`): the four tiers with
+  their price (or null), `periodDays`, `graceDays`, and up to 30 **suggested** names AVAILABLE to the
+  caller now — generated from patterns (one repeated digit, ascending / descending digit runs, digit
+  palindromes, short letters and letter runs) and the names with their own price; never stored,
+  never a promise that a name stays free.
+- **Rental** *(owner: monthly rental, not a purchase)* — `rentPremiumUsername`
+  (`POST /me/premium-username/rentals` `{username, priceCoins}`, `Idempotency-Key` required):
+  - **Period: 30 days** (`PREMIUM_USERNAME_PERIOD_DAYS`). Rent: the name becomes the caller's
+    username **at once** for one period; the username the caller had is stored as `regularUsername`
+    and **kept for them** (nobody can register or change to it while the lease is ACTIVE).
+  - **Renew** (the caller's ACTIVE name): the end moves by one period; prepaid at most
+    **365 days ahead** (`PREMIUM_USERNAME_MAX_PREPAID_DAYS`); a grant without an end is not renewed.
+  - **One premium username at a time.** Renting another name while one is ACTIVE → 409
+    `PREMIUM_USERNAME_ACTIVE` (give it back first: `DELETE /me/premium-username`, no refund).
+  - **Payment**: coins from the wallet in the same transaction (§10.19 ledger, reasons
+    `PREMIUM_USERNAME_RENT` / `PREMIUM_USERNAME_RENEW`, reference = the payment row
+    `premium_username_payments`); a balance never goes below 0 (409 `INSUFFICIENT_COINS`, nothing
+    changed). `priceCoins` must equal the current price (409 `PREMIUM_USERNAME_PRICE_CHANGED`: the
+    owner changed it; the app reads the status again). Not counted for families, levels or medals.
+  - **Idempotent**: the same `Idempotency-Key` within 24 hours and the same body → 200 with the first
+    result (the lease as it is now, `coins` = the balance right after that payment), never charged
+    twice; another body → 409 `IDEMPOTENCY_CONFLICT`.
+  - **Concurrency**: every write about one name and one user is serialized (advisory transaction
+    locks) and backed by unique indexes (one ACTIVE/GRACE holder per name, one ACTIVE lease per user,
+    one ACTIVE hold per regular name, `user_profiles.username`): two people renting the same name at
+    once → exactly one wins; the other gets 409 `PREMIUM_USERNAME_UNAVAILABLE` and pays nothing.
+  - 20 rent / renew / give-back calls per hour per user (`RATE_LIMIT_PREMIUM_RENT_USER`, replacing
+    the default).
+- **Reminders and expiry** (a sweeper every 60 s, `PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS`, 0
+  disables; batched, `FOR UPDATE SKIP LOCKED`):
+  - **Reminders** **3 days and 1 day** before the end (`PREMIUM_USERNAME_REMINDER_DAYS=3,1`): an
+    in-app notification `PREMIUM_USERNAME_EXPIRING` (system, always on, at most one per configured
+    day count per period; a renewal starts them again).
+  - **Expiry**: at the end the user goes back to `regularUsername` (should it have been taken in a
+    race, a free `<name><4 digits>` is used and stored), the lease turns **GRACE** for **7 days**
+    (`PREMIUM_USERNAME_GRACE_DAYS`) and `PREMIUM_USERNAME_EXPIRED` is sent. During grace only the
+    previous renter may rent the name again (`YOURS_GRACE`; a new period from then; the name becomes
+    their username again) — everyone else sees `HELD`.
+  - **End of grace**: the lease is ENDED and the name returns to the pool.
+  - Notification target: `type: PREMIUM_USERNAME`, `id` = the name, `endsAt` = the period's end
+    (EXPIRING) or the grace's end (EXPIRED).
+- **Admin** (no API; `premium-admin` CLI, migration role): `grant --user <email|username> --username
+  <name> (--days N | --forever) [--replace]` (no charge; source `GRANT`; refuses a name another user
+  holds or uses; `--replace` ends the user's other ACTIVE one first), `revoke --user …` (ends ACTIVE
+  and GRACE leases now, no grace, no refund), `list`, `status <name>`, `price …`, `reserve …`. Every
+  rent, renew, grant, revoke, release, expiry and end of grace writes an `audit_logs` row
+  (`premium_username.rent|renew|grant|revoke|release|expire|grace_end`) in its transaction.
+- **The badge**: `UserSummary.premiumTier`, `PublicProfile.premiumTier` and `Me.premiumTier` carry
+  the tier while the user's username **is** their premium name (stored as
+  `user_profiles.premium_tier`, set and cleared with the username); absent otherwise (grandfathered
+  short names get no badge). The apps draw the owner's special-ID badge (the tier's medal and pill
+  with `@username`) wherever the username is shown (live header, profile, person card, chat rows,
+  search results); its light sweep loops only while motion is allowed.
+- **Account end**: a suspended or deleted account's lease runs to its end like any other (no refund).
+- **Not in v1.28-live**: buying coins (B5), auctions or bids, transfers between users, auto-renewal,
+  refunds, a history of past premium names in the app.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

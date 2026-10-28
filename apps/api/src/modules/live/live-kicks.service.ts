@@ -16,6 +16,7 @@ import {
   type RoomRow,
   type UserSummaryDto,
 } from './live-rooms.service.js';
+import { closeVisits, recountViewers } from './live-audience.js';
 import { LiveSeatsService } from './live-seats.service.js';
 import { releaseUserIn, type ReleasedUser } from './live-seats.store.js';
 import { liveKickBodySchema } from './live.schemas.js';
@@ -146,13 +147,10 @@ export class LiveKicksService {
         roomScope: Prisma.sql`r.id = ${row.id}::uuid`,
         moderator: true,
       });
+      // v1.27.6-live (D140): the kicked person's visit ends now (the live's statistics).
+      await closeVisits(tx, row.id, [target.id], now);
       const left = await tx.liveRoomViewer.deleteMany({ where: { roomId: row.id, identity: target.id } });
-      if (left.count > 0) {
-        await tx.$executeRaw`
-          UPDATE live_rooms
-             SET viewer_count = (SELECT count(*) FROM live_room_viewers v WHERE v.room_id = ${row.id}::uuid)
-           WHERE id = ${row.id}::uuid`;
-      }
+      if (left.count > 0) await recountViewers(tx, row.id);
       await this.audit.recordIn(tx, {
         action: AuditAction.LIVE_KICK,
         actorUserId: callerId,

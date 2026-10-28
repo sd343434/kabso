@@ -47,7 +47,7 @@ class _HashtagScreenState extends ConsumerState<HashtagScreen> {
       _ => false,
     };
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.hashtagLabel(tag))),
+      appBar: KAppBar(title: Text(l10n.hashtagLabel(tag))),
       body: notFound
           ? KEmptyState(
               key: HashtagScreen.notFoundKey,

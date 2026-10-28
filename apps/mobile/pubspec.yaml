@@ -34,6 +34,10 @@ dependencies:
   image_picker: ^1.2.4
   intl: ^0.20.2
   json_annotation: ^4.12.0
+  # D144: colour filters (D143 Magic) and DeepAR effects on the published
+  # camera track, Android (packages/kabso_camera_fx).
+  kabso_camera_fx:
+    path: packages/kabso_camera_fx
   livekit_client: 2.13.1
   lottie: ^3.3.1
   material_ui: ^1.7.0
@@ -79,6 +83,8 @@ flutter:
     - assets/live_room_icons/
     # Owner-supplied live bottom-bar icons (assets/live_bar/PROVENANCE.md).
     - assets/live_bar/
+    # D146 the owner's special-ID medals (assets/special_id/PROVENANCE.md).
+    - assets/special_id/
     # Owner-supplied live category icons (assets/category_icons/PROVENANCE.md).
     - assets/category_icons/
     # Owner-supplied popularity board frames (assets/live_rank_frames/PROVENANCE.md).

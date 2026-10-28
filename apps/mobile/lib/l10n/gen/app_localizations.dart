@@ -365,7 +365,7 @@ abstract class AppLocalizations {
   /// No description provided for @usernameTooShort.
   ///
   /// In ar, this message translates to:
-  /// **'استخدم 3 أحرف على الأقل'**
+  /// **'استخدم 6 أحرف على الأقل'**
   String get usernameTooShort;
 
   /// No description provided for @usernameTooLong.
@@ -377,13 +377,13 @@ abstract class AppLocalizations {
   /// No description provided for @usernameBadChars.
   ///
   /// In ar, this message translates to:
-  /// **'استخدم فقط a–z و0–9 والنقطة (.) والشرطة السفلية (_)'**
+  /// **'استخدم فقط a–z و0–9 والشرطة السفلية (_)'**
   String get usernameBadChars;
 
   /// No description provided for @usernameBadEdges.
   ///
   /// In ar, this message translates to:
-  /// **'لا يمكن أن يبدأ أو ينتهي بنقطة أو شرطة سفلية'**
+  /// **'لا يمكن أن يبدأ أو ينتهي بشرطة سفلية'**
   String get usernameBadEdges;
 
   /// No description provided for @codeTitle.
@@ -1046,12 +1046,6 @@ abstract class AppLocalizations {
   /// **'الهدايا'**
   String get liveGifts;
 
-  /// The audio room bar's toolbox button (owner pack): opens the room tools.
-  ///
-  /// In ar, this message translates to:
-  /// **'صندوق الأدوات'**
-  String get liveToolbox;
-
   /// No description provided for @liveShare.
   ///
   /// In ar, this message translates to:
@@ -1073,7 +1067,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatGiftSent.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل {name} {gift} ×{count}'**
+  /// **'أرسل {name} {gift} ⁦×{count}⁩'**
   String chatGiftSent(String name, String gift, int count);
 
   /// No description provided for @giftPanelTitle.
@@ -9986,6 +9980,12 @@ abstract class AppLocalizations {
   /// **'الغرف الصوتية'**
   String get liveVoiceRoomsTitle;
 
+  /// D139: the Live button in the Voice rooms top bar (the owner's animated Live icon, a screen with a LIVE badge), which returns to the live hub; its tooltip and screen-reader name.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث المباشر'**
+  String get liveVoiceRoomsToLive;
+
   /// D131: the Live hub filter row, announced as a group.
   ///
   /// In ar, this message translates to:
@@ -10238,12 +10238,6 @@ abstract class AppLocalizations {
   /// **'إرسال: {text}'**
   String liveQuickReplyLabel(String text);
 
-  /// Room tools: the camera flash (not available yet).
-  ///
-  /// In ar, this message translates to:
-  /// **'الفلاش'**
-  String get liveToolFlash;
-
   /// Room tools: both cameras at once (not available yet).
   ///
   /// In ar, this message translates to:
@@ -10274,17 +10268,107 @@ abstract class AppLocalizations {
   /// **'بطاقة الزيارات'**
   String get liveToolTrafficCard;
 
-  /// Beautification tools: face effects (not available yet).
+  /// Beautification tools: Magic — the colour filters (D143).
   ///
   /// In ar, this message translates to:
   /// **'مؤثرات'**
   String get liveToolMagic;
 
-  /// Beautification tools: a screen light (not available yet).
+  /// Fill light (D143): a warm screen frame with the front camera, the torch with the back camera.
   ///
   /// In ar, this message translates to:
   /// **'إضاءة'**
   String get liveToolFillLight;
+
+  /// Fill light: the back camera has no torch, so the light stays off.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الكاميرا بلا كشاف.'**
+  String get liveFillLightNoTorch;
+
+  /// Magic: title of the colour-filter picker.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاتر الألوان'**
+  String get liveFilterTitle;
+
+  /// Magic: why the filters are greyed on a device without a camera pipeline.
+  ///
+  /// In ar, this message translates to:
+  /// **'فلاتر الألوان غير متاحة على هذا الجهاز بعد، فيجب أن يراها مشاهدوك لا شاشتك وحدها.'**
+  String get liveFilterUnsupported;
+
+  /// Colour filter: none.
+  ///
+  /// In ar, this message translates to:
+  /// **'طبيعي'**
+  String get liveFilterNatural;
+
+  /// Colour filter: warmer tones.
+  ///
+  /// In ar, this message translates to:
+  /// **'دافئ'**
+  String get liveFilterWarm;
+
+  /// Colour filter: cooler tones.
+  ///
+  /// In ar, this message translates to:
+  /// **'بارد'**
+  String get liveFilterCool;
+
+  /// Colour filter: black and white.
+  ///
+  /// In ar, this message translates to:
+  /// **'أبيض وأسود'**
+  String get liveFilterMono;
+
+  /// Colour filter: muted film look.
+  ///
+  /// In ar, this message translates to:
+  /// **'سينمائي'**
+  String get liveFilterCinematic;
+
+  /// Colour filter: stronger colour.
+  ///
+  /// In ar, this message translates to:
+  /// **'زاهٍ'**
+  String get liveFilterVivid;
+
+  /// Colour filter: low contrast.
+  ///
+  /// In ar, this message translates to:
+  /// **'ناعم'**
+  String get liveFilterSoft;
+
+  /// D144 Magic: the AR effects section (DeepAR), marked beta.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات (تجريبي)'**
+  String get liveEffectsTitle;
+
+  /// D144 Magic: no AR effect.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا'**
+  String get liveEffectNone;
+
+  /// D144 Magic: DeepAR's background blur effect.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمويه الخلفية'**
+  String get liveEffectBackgroundBlur;
+
+  /// D144 Magic: why effects are greyed (no DeepAR licence in this build).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات غير متاحة في هذا الإصدار بعد.'**
+  String get liveEffectsUnavailable;
+
+  /// User management: opens the viewers to make one a moderator.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة مشرف'**
+  String get liveManageAddModerator;
 
   /// Beautification tools: opens the voice settings.
   ///
@@ -10388,12 +10472,6 @@ abstract class AppLocalizations {
   /// **'مدة البث'**
   String get goLiveSummaryTime;
 
-  /// End-of-live summary: this live's points (cherries).
-  ///
-  /// In ar, this message translates to:
-  /// **'النقاط'**
-  String get goLiveSummaryPoints;
-
   /// End-of-live summary: points from taps.
   ///
   /// In ar, this message translates to:
@@ -10412,12 +10490,6 @@ abstract class AppLocalizations {
   /// **'الداعمون'**
   String get goLiveSummarySupporters;
 
-  /// End-of-live summary: the viewer count when the live ended.
-  ///
-  /// In ar, this message translates to:
-  /// **'المشاهدون عند الانتهاء'**
-  String get goLiveSummaryViewers;
-
   /// End-of-live summary: the host's charm level.
   ///
   /// In ar, this message translates to:
@@ -10429,12 +10501,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{points} للمستوى التالي'**
   String goLiveSummaryCharmNext(String points);
-
-  /// End-of-live summary: the section title.
-  ///
-  /// In ar, this message translates to:
-  /// **'بيانات البث'**
-  String get goLiveSummaryData;
 
   /// Gift panel tab: gifts sent recently from this phone.
   ///
@@ -10517,7 +10583,7 @@ abstract class AppLocalizations {
   /// Odds sheet: one multiplier.
   ///
   /// In ar, this message translates to:
-  /// **'×{multiplier}'**
+  /// **'⁦×{multiplier}⁩'**
   String liveLuckyOddsRow(String multiplier);
 
   /// Odds sheet: the chance of no win.
@@ -10583,7 +10649,7 @@ abstract class AppLocalizations {
   /// Lucky send result.
   ///
   /// In ar, this message translates to:
-  /// **'ربحت {coins} عملة، وأعلى مضاعف ×{multiplier}'**
+  /// **'ربحت {coins} عملة، وأعلى مضاعف ⁦×{multiplier}⁩'**
   String liveLuckyWon(String coins, String multiplier);
 
   /// Lucky send result: nothing won.
@@ -10595,7 +10661,7 @@ abstract class AppLocalizations {
   /// Room banner for a big lucky win.
   ///
   /// In ar, this message translates to:
-  /// **'{name} ربح ×{multiplier}: {coins} عملة'**
+  /// **'{name} ربح ⁦×{multiplier}⁩: {coins} عملة'**
   String liveLuckyBanner(String name, String multiplier, String coins);
 
   /// Error LUCKY_GIFT_AGE_UNCONFIRMED.
@@ -10727,12 +10793,6 @@ abstract class AppLocalizations {
   /// D135: the room ID beside the host's name (copy).
   ///
   /// In ar, this message translates to:
-  /// **'تم نسخ معرّف الغرفة'**
-  String get liveRoomIdCopied;
-
-  /// D135: the room ID beside the host's name (copy).
-  ///
-  /// In ar, this message translates to:
   /// **'انقر للنسخ'**
   String get liveRoomIdCopyHint;
 
@@ -10813,6 +10873,642 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'يظهر على مقعدك مرة واحدة ويراه الجميع'**
   String get liveSeatEmojiHint;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم اختيار {count} من 4'**
+  String liveWishChosenCount(int count);
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم النسخ'**
+  String get liveUsernameCopied;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت بسرعة كبيرة. اضغط لإعادة المحاولة'**
+  String get liveChatTooFast;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُرسلت {time}'**
+  String liveBulletTime(String time);
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'الألعاب'**
+  String get liveGames;
+
+  /// D141: the owner's device feedback on the live rooms.
+  ///
+  /// In ar, this message translates to:
+  /// **'الألعاب قريباً'**
+  String get liveGamesSoon;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'كرز هذا البث'**
+  String get liveStatsCherries;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'منها {points} من نقراتك وهداياك أنت'**
+  String liveStatsIncludesYours(String points);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveStatsViewers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'ذروة المشاهدة'**
+  String get liveStatsPeak;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط مدة المشاهدة'**
+  String get liveStatsAverageWatch;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get liveStatsNewFollowers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'رسائل الدردشة'**
+  String get liveStatsChatMessages;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'الهدايا المُرسلة'**
+  String get liveStatsGiftsSent;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'من أين جاء مشاهدوك'**
+  String get liveStatsCountriesTitle;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'دول أخرى'**
+  String get liveStatsCountryOther;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'غير محدد'**
+  String get liveStatsCountryUnknown;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'النسب من إجمالي المشاهدين ({count})، مقرّبة إلى منزلة عشرية واحدة'**
+  String liveStatsCountriesNote(String count);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'{country}: {percent} من المشاهدين ({count})'**
+  String liveStatsCountryRow(String country, String percent, String count);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يشاهد أحد هذه المرة. بثك القادم فرصة جديدة.'**
+  String get liveStatsNoViewers;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'أبرز الداعمين'**
+  String get liveStatsTopSupporters;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا داعمين هذه المرة. ستظهر هنا هدايا ونقرات مشاهديك.'**
+  String get liveStatsNoSupporters;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'المركز {rank}: {name}، {points} كرزة'**
+  String liveStatsSupporterRank(int rank, String name, String points);
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل بيانات البث'**
+  String get liveStatsLoadFailed;
+
+  /// D140: the full-screen end-of-live summary (the live's statistics).
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
+  String get liveStatsLoadFailedBody;
+
+  /// D145: the lucky combo button's label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كومبو'**
+  String get liveComboLabel;
+
+  /// D145: the lucky combo button for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسل {gift} مجدداً، كومبو ⁦×{count}⁩'**
+  String liveComboSemantics(String gift, int count);
+
+  /// D145: the coin balance under the combo button.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك {coins} عملة'**
+  String liveComboBalance(String coins);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم أحرفاً وأرقاماً معاً (مثل sara22)'**
+  String get usernameLettersAndDigits;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا يوزر مميز، واليوزرات المميزة تُستأجر من متجر اليوزرات المميزة.'**
+  String get usernamePremium;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن استئجار هذا اليوزر الآن.'**
+  String get errorPremiumUsernameUnavailable;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّر السعر للتو. راجع السعر الجديد وحاول مجدداً.'**
+  String get errorPremiumUsernamePriceChanged;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك يوزر مميز بالفعل. أعِده أولاً.'**
+  String get errorPremiumUsernameActive;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوزرات المميزة'**
+  String get premiumTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استأجر @يوزر مميز'**
+  String get premiumTileValue;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن يوزر، مثل 777'**
+  String get premiumSearchHint;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب اسماً لترى إن كان متاحاً للاستئجار.'**
+  String get premiumSearchHelp;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل المتجر'**
+  String get premiumLoadError;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكل'**
+  String get premiumTierAll;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسطوري'**
+  String get premiumTierLegend;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ياقوتي'**
+  String get premiumTierRuby;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ذهبي'**
+  String get premiumTierGold;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'فضي'**
+  String get premiumTierSilver;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'من 1 إلى 3 أحرف'**
+  String get premiumTierLegendRule;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'حرف أو رقم مكرر (7777)'**
+  String get premiumTierRubyRule;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'4–5 أحرف أو نمط (1221، 1212، 123456)'**
+  String get premiumTierGoldRule;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'6 أو أكثر: أحرف فقط أو أرقام فقط'**
+  String get premiumTierSilverRule;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح للبيع بعد'**
+  String get premiumTierNotOnSale;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة / {days} يوماً'**
+  String premiumPricePerPeriod(String coins, int days);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String premiumCoins(String coins);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'متاحة الآن'**
+  String get premiumSuggestions;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوزرات المميزة غير متاحة للبيع بعد'**
+  String get premiumNotOnSaleTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تُحدَّد الأسعار بعد. عُد قريباً.'**
+  String get premiumNotOnSaleMessage;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد يوزر متاح هنا الآن'**
+  String get premiumNoSuggestionsTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن اسم في الأعلى أو جرّب فئة أخرى.'**
+  String get premiumNoSuggestionsMessage;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'كل استئجار مدته {days} يوماً ويمكنك التجديد في أي وقت. عند انتهائه تعود إلى يوزرك العادي، ويُحجز الاسم لك {grace} أيام.'**
+  String premiumRules(int days, int grace);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'متاح للاستئجار'**
+  String get premiumStateAvailable;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح للبيع بعد'**
+  String get premiumStateNotForSale;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا اليوزر مستخدم من شخص آخر'**
+  String get premiumStateTaken;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'محجوز لمستأجره السابق لبضعة أيام'**
+  String get premiumStateHeld;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا يوزرك، ويمكنك تجديده.'**
+  String get premiumStateYours;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى استئجارك. جدّد الآن لاستعادته.'**
+  String get premiumStateYoursGrace;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا اليوزر محجوز'**
+  String get premiumStateReserved;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس يوزراً مميزاً: يمكنك أخذه مجاناً من الإعدادات › اسم المستخدم إن كان متاحاً.'**
+  String get premiumStateRegular;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس اسم مستخدم صالحاً'**
+  String get premiumStateInvalid;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح متاحاً بعد {date}'**
+  String premiumHeldUntil(String date);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئجار'**
+  String get premiumRent;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد'**
+  String get premiumRenew;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئجار · {coins} عملة'**
+  String premiumRentFor(String coins);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد · {coins} عملة'**
+  String premiumRenewFor(String coins);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استئجار هذا اليوزر'**
+  String get premiumRentTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجديد يوزرك'**
+  String get premiumRenewTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'السعر'**
+  String get premiumSheetPrice;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك'**
+  String get premiumSheetBalance;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'لك حتى'**
+  String get premiumSheetUntil;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد ذلك تعود إلى ‎@{username} ما لم تجدّد.'**
+  String premiumSheetAfter(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'رصيدك من العملات لا يكفي.'**
+  String get premiumNotEnoughCoins;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبحت الآن ‎@{username}'**
+  String premiumRented(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تجديد ‎@{username}'**
+  String premiumRenewed(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوزرك المميز'**
+  String get premiumMineTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى يوزرك المميز'**
+  String get premiumMineGraceTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'متبقٍ {left}'**
+  String premiumMineLeft(String left);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا تاريخ انتهاء'**
+  String get premiumMineNoEnd;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'مُهدى من فريق Kabso'**
+  String get premiumMineGranted;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدت إلى ‎@{username}، والاسم محجوز لك لمدة {left}.'**
+  String premiumMineGrace(String username, String left);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة اليوزر'**
+  String get premiumRelease;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة يوزرك المميز؟'**
+  String get premiumReleaseTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيعود ‎@{premium} إلى المتجر الآن وتعود إلى ‎@{regular}. لا تُسترد العملات.'**
+  String premiumReleaseBody(String premium, String regular);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'عدت إلى ‎@{username}'**
+  String premiumReleased(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من دقيقة'**
+  String get premiumLeftUnderMinute;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{minutes} دقائق} many{{minutes} دقيقة} other{{minutes} دقيقة}}'**
+  String premiumLeftMinutes(int minutes);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours, plural, =1{ساعة واحدة} =2{ساعتان} few{{hours} ساعات} many{{hours} ساعة} other{{hours} ساعة}} و{minutes} د'**
+  String premiumLeftHours(int hours, int minutes);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'{days, plural, =1{يوم واحد} =2{يومان} few{{days} أيام} many{{days} يوماً} other{{days} يوم}} و{hours} س'**
+  String premiumLeftDays(int days, int hours);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوزر مميز {tier} ‎@{username}'**
+  String premiumBadgeLabel(String tier, String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم'**
+  String get settingsUsername;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير اسم المستخدم'**
+  String get changeUsernameTitle;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم الحالي'**
+  String get changeUsernameCurrent;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم الجديد'**
+  String get changeUsernameNew;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'من 6 إلى 30: أحرف وأرقام (a–z و0–9)، ويُسمح بـ _'**
+  String get changeUsernameRule;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get changeUsernameSave;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصبحت الآن ‎@{username}'**
+  String changeUsernameDone(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'يصبح اسمك القديم متاحاً للآخرين فوراً.'**
+  String get changeUsernameNote;
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'استأجر ‎@{username} كيوزر مميز'**
+  String changeUsernameRentInstead(String username);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت تستخدم اليوزر المميز ‎@{premium}. لتغيير يوزرك العادي (‎@{regular}) أعِد اليوزر المميز أولاً.'**
+  String changeUsernamePremiumActive(String premium, String regular);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي يوزرك المميز ‎@{username} خلال {left}. جدّده لتحتفظ به.'**
+  String notificationPremiumExpiring(String username, String left);
+
+  /// D146: premium usernames (يوزر مميز) and the regular username rule.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهى يوزرك المميز ‎@{username}، وهو محجوز لك لبضعة أيام.'**
+  String notificationPremiumExpired(String username);
 }
 
 class _AppLocalizationsDelegate

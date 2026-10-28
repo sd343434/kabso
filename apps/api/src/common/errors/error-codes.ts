@@ -75,6 +75,10 @@ export enum ErrorCode {
   // v1.27-live (DRAFT, D132): lucky gifts (CONVENTIONS §10.27).
   LUCKY_GIFT_AGE_UNCONFIRMED = 'LUCKY_GIFT_AGE_UNCONFIRMED',
   LUCKY_GIFT_REGION_UNAVAILABLE = 'LUCKY_GIFT_REGION_UNAVAILABLE',
+  // v1.28-live (DRAFT, D146): premium usernames (CONVENTIONS §10.32).
+  PREMIUM_USERNAME_UNAVAILABLE = 'PREMIUM_USERNAME_UNAVAILABLE',
+  PREMIUM_USERNAME_PRICE_CHANGED = 'PREMIUM_USERNAME_PRICE_CHANGED',
+  PREMIUM_USERNAME_ACTIVE = 'PREMIUM_USERNAME_ACTIVE',
   /** v1.21-live (DRAFT, CP-018): the caller or the other person already has a CP partner. */
   CP_ALREADY_PAIRED = 'CP_ALREADY_PAIRED',
   /** v1.21-live (DRAFT, CP-018): the caller already has a pending CP request. */
@@ -145,6 +149,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.FAMILY_CHAT_MUTED]: 403,
   [ErrorCode.LUCKY_GIFT_AGE_UNCONFIRMED]: 403,
   [ErrorCode.LUCKY_GIFT_REGION_UNAVAILABLE]: 403,
+  [ErrorCode.PREMIUM_USERNAME_UNAVAILABLE]: 409,
+  [ErrorCode.PREMIUM_USERNAME_PRICE_CHANGED]: 409,
+  [ErrorCode.PREMIUM_USERNAME_ACTIVE]: 409,
   [ErrorCode.CP_ALREADY_PAIRED]: 409,
   [ErrorCode.CP_REQUEST_PENDING]: 409,
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 409,
@@ -204,6 +211,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.FAMILY_CHAT_MUTED]: 'You are muted in this family chat.',
   [ErrorCode.LUCKY_GIFT_AGE_UNCONFIRMED]: 'Confirm that you are 18 or older to send lucky gifts.',
   [ErrorCode.LUCKY_GIFT_REGION_UNAVAILABLE]: 'Lucky gifts are not available in your region.',
+  [ErrorCode.PREMIUM_USERNAME_UNAVAILABLE]: 'This username cannot be rented now.',
+  [ErrorCode.PREMIUM_USERNAME_PRICE_CHANGED]: 'The price of this username changed.',
+  [ErrorCode.PREMIUM_USERNAME_ACTIVE]: 'You already have a premium username.',
   [ErrorCode.CP_ALREADY_PAIRED]: 'Already in a CP couple.',
   [ErrorCode.CP_REQUEST_PENDING]: 'You already have a pending CP request.',
   [ErrorCode.CP_REQUEST_NOT_PENDING]: 'The CP request is no longer pending.',

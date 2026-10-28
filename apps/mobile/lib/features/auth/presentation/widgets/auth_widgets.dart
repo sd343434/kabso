@@ -127,7 +127,7 @@ class AuthScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: hasBar
-          ? AppBar(
+          ? KAppBar(
               automaticallyImplyLeading: showBack && onBack == null,
               leading: showBack && onBack != null
                   ? IconButton(
@@ -205,8 +205,7 @@ class AuthHero extends StatelessWidget {
           borderRadius: const BorderRadius.vertical(
             bottom: Radius.circular(KAuthHero.radius),
           ),
-          child: SafeArea(
-            bottom: false,
+          child: KTopSafeArea(
             child: Column(
               children: [
                 SizedBox(
@@ -376,6 +375,8 @@ String? usernameIssueMessage(AppLocalizations l10n, UsernameIssue? issue) =>
       UsernameIssue.tooShort => l10n.usernameTooShort,
       UsernameIssue.tooLong => l10n.usernameTooLong,
       UsernameIssue.badEdges => l10n.usernameBadEdges,
+      UsernameIssue.lettersAndDigits => l10n.usernameLettersAndDigits,
+      UsernameIssue.premium => l10n.usernamePremium,
     };
 
 /// A "question + link" row, e.g. "Don't have an account? Create account".

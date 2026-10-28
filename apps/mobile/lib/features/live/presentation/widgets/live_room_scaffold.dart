@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -42,7 +43,8 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.overlay,
     this.trailing,
     this.sideStart,
-    this.sideEnd,
+    this.sidePromo,
+    this.chatEnd,
     this.closeButtonKey = closeKey,
     this.closeLabel,
   });
@@ -67,8 +69,14 @@ class KLiveRoomScaffold extends StatelessWidget {
   /// D136: the wish list card, floating at the reading start (left middle).
   final Widget? sideStart;
 
-  /// D137: the promo box, floating at the end under the top rows.
-  final Widget? sideEnd;
+  /// D137/D141: the promo box, in the same column right above the wish
+  /// list.
+  final Widget? sidePromo;
+
+  /// D145a: beside the chat at the end, bottom-aligned over the bar's quick
+  /// replies (the lucky combo): the chat narrows for it, so it covers
+  /// neither the chat nor the quick replies.
+  final Widget? chatEnd;
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
   final Key closeButtonKey;
@@ -77,12 +85,16 @@ class KLiveRoomScaffold extends StatelessWidget {
   static const closeKey = Key('room.close');
 
   /// The header row's top for a top inset of [inset]. D135 (owner: "leave
-  /// the phone's status bar free"): nothing is drawn under the status bar
-  /// or the notch — the 48 pt row starts 4 pt above the inset, so its
-  /// 31 pt pill (8.5 pt into the row) starts 4.5 pt below it; only the
-  /// invisible edge of the touch target reaches higher. (D131 had the pill
-  /// 4 pt under the inset of a notched phone, as on ref 158.)
-  static double headerTop(double inset) => math.max(0, inset - 4);
+  /// the phone's status bar free"); D141 (owner: "the top bar must sit
+  /// lower"): the visible pill starts [KMetrics.liveHeaderGap] under the
+  /// inset — the same gap as the audio room's card — and the 48 pt row
+  /// centres it, so the row starts half the difference higher.
+  static double headerTop(double inset) => math.max(
+    0,
+    inset +
+        KMetrics.liveHeaderGap -
+        (KSizes.minTouchTarget - KMetrics.hostPillHeight) / 2,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +107,11 @@ class KLiveRoomScaffold extends StatelessWidget {
     final actionBar = this.actionBar;
     final chatCap =
         MediaQuery.sizeOf(context).height * KMetrics.chatMaxHeightFactor;
+    // D141 (owner: "the keyboard covers the chat box"): the room's column
+    // ends on the keyboard (the live screens do not resize); a screen that
+    // resizes has already taken the keyboard out of the media query.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final inset = MediaQuery.paddingOf(context).top;
     return KLiveSurface(
       child: Material(
         color: KPalette.dark.background,
@@ -105,13 +122,16 @@ class KLiveRoomScaffold extends StatelessWidget {
             const _LegibilityGradients(),
             SafeArea(
               top: false,
+              // Over the keyboard the bar sits right on it.
+              bottom: keyboard == 0,
               child: Padding(
                 // D135: the header row below the status bar ([headerTop]),
                 // the bar on the bottom safe edge (above the home
-                // indicator or the navigation bar).
+                // indicator or the navigation bar) or on the keyboard.
                 padding: EdgeInsetsDirectional.only(
                   start: KSpacing.sm,
-                  top: headerTop(MediaQuery.paddingOf(context).top),
+                  top: headerTop(inset),
+                  bottom: keyboard,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -166,15 +186,33 @@ class KLiveRoomScaffold extends StatelessWidget {
                     ],
                     const SizedBox(height: KSpacing.sm),
                     Expanded(
-                      child: chat == null
-                          ? const SizedBox.shrink()
-                          : Align(
-                              alignment: AlignmentDirectional.bottomStart,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(maxHeight: chatCap),
-                                child: chat,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: chat == null
+                                ? const SizedBox.shrink()
+                                : Align(
+                                    alignment: AlignmentDirectional.bottomStart,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxHeight: chatCap,
+                                      ),
+                                      child: chat,
+                                    ),
+                                  ),
+                          ),
+                          if (chatEnd case final end?) ...[
+                            const SizedBox(width: KSpacing.xs),
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                end: KSpacing.xs,
                               ),
+                              child: end,
                             ),
+                          ],
+                        ],
+                      ),
                     ),
                     if (actionBar != null) ...[
                       const SizedBox(height: KSpacing.sm),
@@ -189,17 +227,20 @@ class KLiveRoomScaffold extends StatelessWidget {
                 ),
               ),
             ),
-            if (sideStart case final side?)
+            // D136/D137/D141: one column at the reading start — the promo
+            // box right above the wish note (the promo grows upwards from
+            // the note's top, so the note never moves). While the keyboard
+            // is up the room is short: they step aside for the chat.
+            if (sideStart case final side? when keyboard == 0)
               PositionedDirectional(
                 start: KLiveSideCards.wishStart,
-                top: MediaQuery.paddingOf(context).top + KLiveSideCards.wishTop,
+                top: inset + KLiveSideCards.wishTop,
                 child: side,
               ),
-            if (sideEnd case final side?)
+            if (sidePromo case final side? when keyboard == 0)
               PositionedDirectional(
-                end: KLiveSideCards.promoEnd,
-                top:
-                    MediaQuery.paddingOf(context).top + KLiveSideCards.promoTop,
+                start: KLiveSideCards.promoStart,
+                top: inset + KLiveSideCards.promoTop,
                 child: side,
               ),
             ?cover,
@@ -211,48 +252,91 @@ class KLiveRoomScaffold extends StatelessWidget {
   }
 }
 
-/// D135: the room ID beside the host's name; a tap copies the number.
-class _RoomIdTag extends StatelessWidget {
-  const new({required this.id});
+/// D141 (owner: "show the host's username, not the room number"): the
+/// host's `@username` beside their name (the video pill) or under the room
+/// title (the audio room card); a tap copies it and says «تم النسخ». The
+/// room number stays in the API (share links, support) — it is just not
+/// shown here any more.
+class KLiveUsernameTag extends StatelessWidget {
+  const new({
+    required this.username,
+    super.key,
+    this.fontSize = 10,
+    this.premiumTier,
+  });
 
-  final String id;
+  final String username;
+  final double fontSize;
+
+  /// D146: a premium username shows the owner's special-ID badge instead of
+  /// the plain text (the tier comes from the server).
+  final PremiumTier? premiumTier;
+
+  static const tagKey = Key('live.usernameTag');
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final label = l10n.liveRoomNumber(KFormat.bidiIsolate(id));
+    final shown = '@$username';
+    if (premiumTier case final tier?) {
+      return Semantics(
+        button: true,
+        label: '$shown. ${l10n.liveRoomIdCopyHint}',
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: KSpecialUsername(
+              key: tagKey,
+              username: username,
+              tier: tier,
+              height: fontSize * 1.7,
+              onTap: () {
+                unawaited(Clipboard.setData(ClipboardData(text: shown)));
+                KSnack.info(context, l10n.liveUsernameCopied);
+              },
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
-      label: '$label. ${l10n.liveRoomIdCopyHint}',
+      label: '$shown. ${l10n.liveRoomIdCopyHint}',
       excludeSemantics: true,
       child: GestureDetector(
-        key: KHostPill.roomIdKey,
+        key: tagKey,
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          unawaited(Clipboard.setData(ClipboardData(text: id)));
-          KSnack.info(context, l10n.liveRoomIdCopied);
+          unawaited(Clipboard.setData(ClipboardData(text: shown)));
+          KSnack.info(context, l10n.liveUsernameCopied);
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                maxLines: 1,
-                style: context.textStyles.caption.copyWith(
-                  fontSize: 8.5,
-                  height: 1.2,
-                  color: const Color(0xCCFFFFFF),
-                  fontWeight: FontWeight.w600,
-                  shadows: KLiveColors.glassShadow,
+              Flexible(
+                child: Text(
+                  KFormat.bidiIsolate(shown),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.caption.copyWith(
+                    fontSize: fontSize,
+                    height: 1.2,
+                    color: const Color(0xD9FFFFFF),
+                    fontWeight: FontWeight.w600,
+                    shadows: KLiveColors.glassShadow,
+                  ),
                 ),
               ),
-              const SizedBox(width: 2),
-              const Icon(
+              const SizedBox(width: 3),
+              Icon(
                 Icons.copy_rounded,
-                size: 8.5,
-                color: Color(0xCCFFFFFF),
+                size: fontSize,
+                color: const Color(0xD9FFFFFF),
               ),
             ],
           ),
@@ -368,14 +452,20 @@ class KHostPill extends StatefulWidget {
     this.following = false,
     this.onFollow,
     this.onTap,
-    this.roomId,
+    this.username,
+    this.premiumTier,
   });
 
-  /// D135 (owner: "the room ID next to the name, and copyable"): the
-  /// room's ID ("ID: 120345678") beside the name; a tap copies it.
-  final String? roomId;
+  /// D141 (owner, replaces D135's room ID): the host's `@username` beside
+  /// the name; a tap copies it ([KLiveUsernameTag]).
+  final String? username;
 
-  static const roomIdKey = Key('hostPill.roomId');
+  /// D146: the host's premium username tier (the special-ID badge).
+  final PremiumTier? premiumTier;
+
+  /// The visible stadium (D141: its top is [KMetrics.liveHeaderGap] under
+  /// the status bar in every room).
+  static const pillKey = Key('hostPill.pill');
 
   final String hostName;
   final ImageProvider? avatar;
@@ -401,7 +491,8 @@ class KHostPill extends StatefulWidget {
   /// Ref 158: the points line's yellow.
   static const points = Color(0xFFF5C542);
 
-  static const avatarSize = 26.6;
+  /// D141: 30 pt (ref 158's 26.6 pt, enlarged with the pill).
+  static const avatarSize = 30.0;
   static const lineKey = Key('hostPill.line');
 
   @override
@@ -542,22 +633,31 @@ class _KHostPillState extends State<KHostPill> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
+                          flex: 3,
                           child: Text(
                             widget.hostName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: text.label.copyWith(
                               color: p.textPrimary,
-                              fontSize: 11,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               height: 1.2,
                               shadows: KLiveColors.glassShadow,
                             ),
                           ),
                         ),
-                        if (widget.roomId case final id?) ...[
-                          const SizedBox(width: 4),
-                          _RoomIdTag(id: id),
+                        if (widget.username case final name?) ...[
+                          const SizedBox(width: 5),
+                          // The name keeps most of the room when it is
+                          // short (a narrow phone, large text).
+                          Flexible(
+                            flex: 2,
+                            child: KLiveUsernameTag(
+                              username: name,
+                              premiumTier: widget.premiumTier,
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -581,6 +681,7 @@ class _KHostPillState extends State<KHostPill> {
 
     final onTap = widget.onTap;
     final pill = Material(
+      key: KHostPill.pillKey,
       // D135: the lighter glass.
       color: KLiveColors.glass,
       shape: const StadiumBorder(),
@@ -696,7 +797,7 @@ class KHostPillLine extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: color ?? KHostPill.points,
-            fontSize: 10.5,
+            fontSize: 11.5,
             fontWeight: FontWeight.w700,
             height: 1.2,
           ),

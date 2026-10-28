@@ -3,7 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -43,10 +46,19 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// Whether the camera is part of the preview.
   bool get videoEnabled;
 
-  /// Whether beauty works on this device (D94).
+  /// Whether beauty (skin smoothing, brightening) works on this device
+  /// (D94).
   bool get beautySupported;
 
-  /// Beauty on the camera picture, before and while live.
+  /// Whether Magic's colour filters reach the published picture here (D143;
+  /// D144: Android too).
+  bool get filtersSupported;
+
+  /// Whether Magic's AR effects can run here (D144).
+  LiveArSupport get arEffects;
+
+  /// Beauty on the camera picture, before and while live: what of it this
+  /// device supports (skin, colour filter, AR effect).
   Future<void> setBeauty(LiveBeauty beauty);
 
   /// Voice processing on the microphone (D94 audio settings): noise
@@ -60,6 +72,16 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   bool get frontCamera;
 
   Future<void> flipCamera();
+
+  /// D143 fill light with the back camera: whether the running camera has
+  /// a torch (phones' back cameras; never on the web). `false` before
+  /// [startPreview] or when the platform cannot tell.
+  Future<bool> hasTorch();
+
+  /// Turns the running camera's torch on or off (WebRTC's capture track,
+  /// Android Camera2 / iOS AVCaptureDevice). Throws where there is none.
+  /// The camera turns it off when it stops or flips.
+  Future<void> setTorch({required bool on});
 
   bool get micEnabled;
 
@@ -140,6 +162,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
   BeautyPipeline? _beautyPipeline;
+
+  /// D144: Android's native camera processor (colour filters, DeepAR).
+  final LiveCameraFx _fx = LiveCameraFx();
   LiveBeauty _beauty = const LiveBeauty();
   bool _front = true;
   bool _mic = true;
@@ -165,9 +190,24 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   bool get beautySupported => kIsWeb;
 
   @override
+  bool get filtersSupported => kIsWeb || _fx.filtersSupported;
+
+  @override
+  LiveArSupport get arEffects => _fx.effects;
+
+  @override
   Future<void> setBeauty(LiveBeauty beauty) async {
     _beauty = beauty;
     _beautyPipeline?.update(beauty);
+    await _fx.update(beauty);
+  }
+
+  /// D144: the native processor follows the camera track; LiveKit gives the
+  /// track a new native id whenever it restarts it (unmute after a pause).
+  Future<void> _attachFx() async {
+    final video = _video;
+    if (video == null || kIsWeb) return;
+    await _fx.attach(video.mediaStreamTrack.id ?? '');
   }
 
   @override
@@ -189,6 +229,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
           _beautyPipeline = pipeline;
         }
         await camera.start();
+        await _attachFx();
       } else if (!video && _video != null) {
         await _stopVideo();
       }
@@ -257,12 +298,66 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   @override
   bool get frontCamera => _front;
 
+  /// D141 (owner's phone: Flip only mirrored the picture). On Android and
+  /// iOS the capture itself switches between the front and back cameras in
+  /// place (`Helper.switchCamera`: the same track, so the preview and — once
+  /// published — the viewers follow without a new track); the answer says
+  /// which camera is on, and the preview mirrors only the front one. The
+  /// web restarts the track with the other camera (LiveKit). The capture
+  /// options follow, so a later restart keeps the camera.
   @override
   Future<void> flipCamera() async {
-    _front = !_front;
-    await _video?.setCameraPosition(
-      _front ? lk.CameraPosition.front : lk.CameraPosition.back,
-    );
+    final video = _video;
+    final want = !_front;
+    if (video == null) {
+      _front = want;
+      _changes.ping();
+      return;
+    }
+    final position = want ? lk.CameraPosition.front : lk.CameraPosition.back;
+    if (kIsWeb) {
+      await video.setCameraPosition(position);
+      _front = want;
+    } else {
+      final front = await cameraSwitch(video.mediaStreamTrack);
+      _front = front ?? want;
+      final options = video.currentOptions;
+      if (options is lk.CameraCaptureOptions) {
+        video.currentOptions = options.copyWith(
+          cameraPosition: _front
+              ? lk.CameraPosition.front
+              : lk.CameraPosition.back,
+        );
+      }
+    }
+    _changes.ping();
+  }
+
+  /// Switches a native camera track to the other camera; the answer is
+  /// whether the front camera is now on (null: unknown). A seam for tests.
+  @visibleForTesting
+  static Future<bool?> Function(rtc.MediaStreamTrack track) cameraSwitch =
+      (track) async {
+        final front = await rtc.Helper.switchCamera(track);
+        return front;
+      };
+
+  @override
+  Future<bool> hasTorch() async {
+    final video = _video;
+    if (video == null || kIsWeb) return false;
+    try {
+      return await video.mediaStreamTrack.hasTorch();
+    } on Object {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> setTorch({required bool on}) async {
+    final video = _video;
+    if (video == null) return;
+    await video.mediaStreamTrack.setTorch(on);
   }
 
   @override
@@ -291,6 +386,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       await video.mute();
     } else {
       await video.unmute();
+      await _attachFx();
     }
     _changes.ping();
   }
@@ -513,6 +609,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     _video = null;
     _beautyPipeline = null;
     await pipeline?.dispose();
+    await _fx.release();
     await video?.stop();
     await video?.dispose();
   }

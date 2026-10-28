@@ -246,7 +246,7 @@ class _FamilyChatScreenState extends ConsumerState<FamilyChatScreen> {
     };
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         titleSpacing: 0,
         title: Row(

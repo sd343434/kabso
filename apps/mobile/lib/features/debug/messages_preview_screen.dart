@@ -421,7 +421,7 @@ class _Header extends StatelessWidget implements PreferredSizeWidget {
     final p = context.palette;
     final l10n = context.l10n;
     final t = context.textStyles;
-    return AppBar(
+    return KAppBar(
       backgroundColor: p.background,
       titleSpacing: 0,
       shape: Border(bottom: BorderSide(color: p.border, width: 0.7)),

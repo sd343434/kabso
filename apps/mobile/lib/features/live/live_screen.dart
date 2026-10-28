@@ -122,8 +122,7 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
         ref.watch(liveDiscoveryCategoriesProvider).value ?? const [];
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        bottom: false,
+      body: KTopSafeArea(
         child: Column(
           children: [
             const LiveHubTopBar(),
@@ -257,6 +256,9 @@ class _LiveHubPartyButtonState extends State<LiveHubPartyButton> {
       child: IconButton(
         key: LiveHubPartyButton.buttonKey,
         tooltip: label,
+        // D141 (owner): no grey circle on press — the icon's own animation
+        // is the feedback.
+        style: noInkIconButtonStyle,
         constraints: const BoxConstraints.tightFor(
           width: KSizes.minTouchTarget,
           height: KSizes.minTouchTarget,
@@ -619,3 +621,11 @@ class LiveHubBody extends StatelessWidget {
     );
   }
 }
+
+/// D141: an icon button with no ink — no highlight, splash or hover circle
+/// (the hub's party button and the voice rooms' Live button animate their
+/// own icon instead).
+const noInkIconButtonStyle = ButtonStyle(
+  overlayColor: WidgetStatePropertyAll(Color(0x00000000)),
+  splashFactory: NoSplash.splashFactory,
+);

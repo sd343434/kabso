@@ -379,6 +379,8 @@ describe('KL-037 v1.3 tables (live_categories, live_rooms, follows) under the KL
       'live_rooms_end_state',
       // CP-014 (20261030090000_live_room_edit): the info version is never negative.
       'live_rooms_info_version_nonneg',
+      // v1.27.6-live (20261130090000_live_audience): the peak is never negative (NULL before D140).
+      'live_rooms_peak_viewer_count_min',
       // CP-012 (20261028090000_live_taps): the score is never negative.
       'live_rooms_score_nonneg',
       // CP-011 (20261027090000_live_seats): the seat count matches the mode; theme slug; version.

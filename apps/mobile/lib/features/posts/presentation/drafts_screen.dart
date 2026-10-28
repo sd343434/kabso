@@ -40,7 +40,7 @@ class _DraftsScreenState extends ConsumerState<DraftsScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.draftsTitle)),
+      appBar: KAppBar(title: Text(l10n.draftsTitle)),
       body: Column(
         children: [
           Padding(

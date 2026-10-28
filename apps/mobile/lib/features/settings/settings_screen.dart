@@ -60,6 +60,11 @@ class SettingsScreen extends ConsumerWidget {
   static const storyArchiveKey = Key('settings.storyArchive');
   static const notificationsKey = Key('settings.notifications');
   static const countryKey = Key('settings.country');
+  static const usernameKey = Key('settings.username');
+  static const premiumKey = Key('settings.premium');
+
+  static String _username(WidgetRef ref) =>
+      ref.watch(currentUserProvider.select((u) => u?.username)) ?? '';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,7 +73,7 @@ class SettingsScreen extends ConsumerWidget {
     final language = ref.watch(languageControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.settingsTitle)),
+      appBar: KAppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsetsDirectional.symmetric(vertical: KSpacing.lg),
         children: [
@@ -181,6 +186,22 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsAccount),
+          // D146: the username (with its premium badge) and the store.
+          ListTile(
+            key: usernameKey,
+            leading: const Icon(Icons.alternate_email_rounded),
+            title: Text(l10n.settingsUsername),
+            subtitle: Text(KFormat.bidiIsolate('@${_username(ref)}')),
+            onTap: () =>
+                GoRouter.maybeOf(context)?.push(AppRoutes.changeUsername),
+          ),
+          ListTile(
+            key: premiumKey,
+            leading: const Icon(Icons.workspace_premium_outlined),
+            title: Text(l10n.premiumTitle),
+            subtitle: Text(l10n.premiumTileValue),
+            onTap: () => GoRouter.maybeOf(context)?.push(AppRoutes.premium),
+          ),
           // D72: the caller's four levels.
           ListTile(
             key: levelsKey,

@@ -13,27 +13,30 @@ import 'package:kabso_live/features/live/domain/home_banner_link.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// D136/D137: where the two floating cards of a video live sit (ref 158 §2,
-/// measured at 393 pt on a 59 pt inset): the wish list at the reading
-/// start, its top 207.5 pt under the top inset, 16.2 pt from the edge; the
-/// promo box at the end, 9.8 pt from the edge, its top 72 pt under the
-/// inset (ref 62.3 pt; D135 moved the top rows below the status bar, so it
-/// starts under the chips row).
+/// D136/D137/D141: where the floating cards of a video live sit: one
+/// column at the reading start (ref 158 §2 measured the wish list 16.2 pt
+/// from the edge at 393 pt). D141 (owner): the promo box sits right above
+/// the wish note, centred on it, 8 pt apart; the note's top is 212 pt under
+/// the top inset so the promo (109 pt) clears the top rows and the chips.
 abstract final class KLiveSideCards {
-  static const double wishTop = 207.5;
-  static const double wishStart = 16.2;
-  static const double promoTop = 72;
-  static const double promoEnd = 9.8;
+  static const double wishTop = 212;
+  static const double wishStart = 12;
+  static const double gap = 8;
+  static const double promoTop = wishTop - gap - LiveRoomPromoBox.height;
+  static const double promoStart =
+      wishStart + (LiveWishCard.width - LiveRoomPromoBox.width) / 2;
 }
 
 /// D136 (owner, ref 158 R5): the host's wish list — a see-through card of
 /// up to 4 rows, each the gift's picture, its name and how many of it the
 /// host received in this live. Viewers tap a row to open the gift panel
 /// with that gift ([onWish]); the host taps the card to change it
-/// ([onEdit]). Nothing when the list is empty.
+/// ([onEdit]). Nothing when the list is empty. D141a (owner): back to
+/// this look after D141's sticky note.
 class LiveWishCard extends StatelessWidget {
   const new({required this.wishes, super.key, this.onWish, this.onEdit});
 
@@ -171,11 +174,17 @@ abstract final class LiveWishSheetKeys {
   static Key gift(String code) => Key('live.wishSheet.gift.$code');
   static Key remove(String code) => Key('live.wishSheet.remove.$code');
   static Key earlier(String code) => Key('live.wishSheet.earlier.$code');
+
+  /// D141: how many are chosen ("2/4"), shown whatever the tab.
+  static const count = Key('live.wishSheet.count');
 }
 
 class _WishSheetState extends ConsumerState<_WishSheet> {
   late final List<String> _chosen = [...widget.initial.take(4)];
   bool _saving = false;
+
+  /// D141: the open category tab (the gift panel's tabs); null: the first.
+  String? _tab;
 
   static const _bg = Color(0xFF242226);
   static const _cell = Color(0xFF35393A);
@@ -220,7 +229,14 @@ class _WishSheetState extends ConsumerState<_WishSheet> {
     final l10n = context.l10n;
     final text = context.textStyles;
     final catalogue = ref.watch(giftCatalogueProvider).value;
-    final gifts = catalogue?.data ?? const <Gift>[];
+    // D141 (owner: "one long list is slow to choose from"): the gift
+    // panel's category tabs; the chosen gifts stay chosen on every tab.
+    final tabs = LiveGiftTabs.categoriesOf(catalogue);
+    final tab = tabs.contains(_tab) ? _tab! : tabs.firstOrNull;
+    final category = tab == null ? null : GiftCategory.fromWire(tab);
+    final gifts = catalogue == null || category == null
+        ? const <Gift>[]
+        : catalogue.of(category);
     Gift? byCode(String code) => catalogue?.byCode(code);
     final height = MediaQuery.sizeOf(context).height * 0.62;
     return Container(
@@ -237,15 +253,47 @@ class _WishSheetState extends ConsumerState<_WishSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  l10n.liveWishTitle,
-                  style: text.title.copyWith(
-                    color: const Color(0xFFFFFFFF),
-                    fontSize: 17,
+              Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        l10n.liveWishTitle,
+                        style: text.title.copyWith(
+                          color: const Color(0xFFFFFFFF),
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  Semantics(
+                    label: l10n.liveWishChosenCount(_chosen.length),
+                    excludeSemantics: true,
+                    child: Container(
+                      key: LiveWishSheetKeys.count,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _chosen.length >= 4 ? _accent : _cell,
+                        borderRadius: BorderRadius.circular(KRadius.pill),
+                      ),
+                      child: Text(
+                        '${_chosen.length}/4',
+                        textDirection: TextDirection.ltr,
+                        style: text.caption.copyWith(
+                          color: _chosen.length >= 4
+                              ? const Color(0xFF0B2B2A)
+                              : const Color(0xFFFFFFFF),
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -267,7 +315,15 @@ class _WishSheetState extends ConsumerState<_WishSheet> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              if (tab != null && tabs.length > 1)
+                LiveGiftTabs(
+                  tabs: tabs,
+                  selected: tab,
+                  hasTags: (_) => false,
+                  onTap: (id) => setState(() => _tab = id),
+                ),
+              const SizedBox(height: 4),
               Expanded(
                 child: gifts.isEmpty
                     ? Center(
@@ -492,18 +548,38 @@ class _SmallButton extends StatelessWidget {
 /// in-app link (an https link or a hub tab is not tappable here); "–"
 /// hides the box for the rest of this live on this device. Nothing when
 /// there is no ROOM banner.
+///
+/// D141a (owner): several banners are a carousel — a slide every
+/// [interval], swiped by hand too, paused while a finger is on it (the
+/// count restarts when it lifts); with reduced motion only the swipe. One
+/// banner stays still. The audio rooms show it smaller ([audioWidth]) over
+/// the bar's gift button.
 class LiveRoomPromoBox extends ConsumerStatefulWidget {
-  const new({required this.roomId, super.key});
+  const new({required this.roomId, super.key, this.boxWidth = width});
 
   final String roomId;
+
+  /// The box's width (3:4).
+  final double boxWidth;
 
   /// Ref 158 R4's card: 81.7 pt wide; the picture is 3:4.
   static const double width = 82;
   static const double height = width * 4 / 3;
+
+  /// D141a: the audio room's box over the gift button (64 × 85.3 pt).
+  static const double audioWidth = 64;
+  static const double audioHeight = audioWidth * 4 / 3;
   static const Duration interval = Duration(seconds: 4);
 
   static const boxKey = Key('live.promoBox');
   static const closeKey = Key('live.promoBox.close');
+  static const dotsKey = Key('live.promoBox.dots');
+
+  /// Whether the box has something to show in [roomId] now (a ROOM banner,
+  /// not hidden with "–"): the audio room keeps room for it only then.
+  static bool shows(WidgetRef ref, String roomId) =>
+      !ref.watch(closedRoomPromosProvider).contains(roomId) &&
+      (ref.watch(roomBannersProvider).value?.isNotEmpty ?? false);
   static Key pageKey(String id) => Key('live.promoBox.page.$id');
 
   @override
@@ -514,6 +590,10 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
   final _controller = PageController();
   Timer? _timer;
   int _page = 0;
+  int _count = 0;
+
+  /// A finger is on the box: no slide until it lifts.
+  bool _held = false;
 
   @override
   void dispose() {
@@ -523,17 +603,27 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
   }
 
   void _schedule(int count) {
+    _count = count;
     if (_timer != null || count < 2) return;
     _timer = Timer.periodic(LiveRoomPromoBox.interval, (_) {
-      if (!mounted || !_controller.hasClients) return;
+      if (!mounted || !_controller.hasClients || _held) return;
       if (MediaQuery.disableAnimationsOf(context)) return;
-      final next = (_page + 1) % count;
+      final next = (_page + 1) % _count;
       _controller.animateToPage(
         next,
         duration: KMotion.of(context, KMotion.base),
         curve: Curves.easeInOut,
       );
     });
+  }
+
+  void _hold(bool held) {
+    _held = held;
+    if (held) return;
+    // The interval starts again when the finger lifts.
+    _timer?.cancel();
+    _timer = null;
+    _schedule(_count);
   }
 
   void _open(HomeBanner banner) {
@@ -551,10 +641,11 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
     if (banners.isEmpty) return const SizedBox.shrink();
     _schedule(banners.length);
     final count = banners.length;
+    if (_page >= count) _page = 0;
     return SizedBox(
       key: LiveRoomPromoBox.boxKey,
-      width: LiveRoomPromoBox.width,
-      height: LiveRoomPromoBox.height,
+      width: widget.boxWidth,
+      height: widget.boxWidth * 4 / 3,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -568,35 +659,44 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
               padding: const EdgeInsets.all(2),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: PageView.builder(
-                  controller: _controller,
-                  itemCount: count,
-                  onPageChanged: (p) => setState(() => _page = p),
-                  itemBuilder: (context, i) {
-                    final b = banners[i];
-                    final can =
-                        HomeBannerTarget.parse(b.link) is HomeBannerRoute;
-                    final title = b.title;
-                    return Semantics(
-                      key: LiveRoomPromoBox.pageKey(b.id),
-                      button: can,
-                      label: title == null || title.trim().isEmpty
-                          ? l10n.homeBannerSemantics(i + 1, count)
-                          : l10n.homeBannerTitledSemantics(title, i + 1, count),
-                      excludeSemantics: true,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: can ? () => _open(b) : null,
-                        child: Image.network(
-                          b.imageUrl,
-                          fit: BoxFit.cover,
-                          excludeFromSemantics: true,
-                          errorBuilder: (_, _, _) =>
-                              const ColoredBox(color: Color(0x33000000)),
+                child: Listener(
+                  onPointerDown: (_) => _hold(true),
+                  onPointerUp: (_) => _hold(false),
+                  onPointerCancel: (_) => _hold(false),
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: count,
+                    onPageChanged: (p) => setState(() => _page = p),
+                    itemBuilder: (context, i) {
+                      final b = banners[i];
+                      final can =
+                          HomeBannerTarget.parse(b.link) is HomeBannerRoute;
+                      final title = b.title;
+                      return Semantics(
+                        key: LiveRoomPromoBox.pageKey(b.id),
+                        button: can,
+                        label: title == null || title.trim().isEmpty
+                            ? l10n.homeBannerSemantics(i + 1, count)
+                            : l10n.homeBannerTitledSemantics(
+                                title,
+                                i + 1,
+                                count,
+                              ),
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: can ? () => _open(b) : null,
+                          child: Image.network(
+                            b.imageUrl,
+                            fit: BoxFit.cover,
+                            excludeFromSemantics: true,
+                            errorBuilder: (_, _, _) =>
+                                const ColoredBox(color: Color(0x33000000)),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -607,6 +707,7 @@ class _LiveRoomPromoBoxState extends ConsumerState<LiveRoomPromoBox> {
               end: 0,
               bottom: 5,
               child: ExcludeSemantics(
+                key: LiveRoomPromoBox.dotsKey,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

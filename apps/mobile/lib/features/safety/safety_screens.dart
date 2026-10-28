@@ -88,7 +88,7 @@ class PrivacyScreen extends ConsumerWidget {
       ),
     );
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.safetyPrivacy)),
+      appBar: KAppBar(title: Text(l10n.safetyPrivacy)),
       body: switch (privacy) {
         AsyncValue(:final value?) => ListView(
           children: [
@@ -302,7 +302,7 @@ class _SafetyAccountsScreen extends ConsumerWidget {
     final provider = safetyAccountsProvider(kind);
     final list = ref.watch(provider);
     return Scaffold(
-      appBar: AppBar(
+      appBar: KAppBar(
         title: Text(
           blocked ? l10n.safetyBlockedAccounts : l10n.safetyMutedAccounts,
         ),
