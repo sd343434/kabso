@@ -32,6 +32,7 @@ import { UsersService } from '../users/users.service.js';
 import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.service.js';
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveSeatEmojiService, type LiveSeatEmojiDto } from './live-seat-emoji.service.js';
+import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -119,6 +120,7 @@ export class LiveController {
     private readonly chat: LiveChatService,
     private readonly bullets: LiveBulletsService,
     private readonly seatEmoji: LiveSeatEmojiService,
+    private readonly quips: LiveQuipsService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -523,6 +525,21 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveSeatEmojiDto> {
     return this.seatEmoji.send(requireCaller(req), roomId, body);
+  }
+
+  /**
+   * v1.32-live (D154): a free sound of the host's and moderators' soundboard, queued with the room's
+   * quips. 120 / min per user (bucket `live:sound`, the taps rule), replacing the default (§7); one
+   * every 2 s is a counting rule (§10.33).
+   */
+  @Post('rooms/:roomId/sounds')
+  @RateLimit({ bucket: 'live:sound', rule: 'liveTapsUser', key: byUserId, replacesDefault: true })
+  async playSound(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<{ quip: LiveQuipDto }> {
+    return { quip: await this.quips.playSound(requireCaller(req), roomId, body) };
   }
 
   /**

@@ -37,6 +37,11 @@ abstract interface class LiveGiftRepository {
   /// `PUT /me/lucky-gifts/age-confirmation` `{adult: true}` (v1.27-live,
   /// D132): the caller states once that they are 18 or older.
   Future<void> confirmLuckyAge();
+
+  /// `POST /live/rooms/{roomId}/sounds` `{soundCode}` (v1.32-live, D154):
+  /// the host or a moderator plays the free quip [soundCode] for the whole
+  /// room (one every 2 s); the answer is its slot in the room's queue.
+  Future<LiveQuip> playSound(String roomId, {required String soundCode});
 }
 
 class LiveGiftRepositoryImpl implements LiveGiftRepository {
@@ -104,6 +109,16 @@ class LiveGiftRepositoryImpl implements LiveGiftRepository {
     final res = await _dio.get<Map<String, dynamic>>('/live/gifts/lucky/odds');
     return LuckyGiftOdds.fromJson(res.data!);
   });
+
+  @override
+  Future<LiveQuip> playSound(String roomId, {required String soundCode}) =>
+      guardApiCall(() async {
+        final res = await _dio.post<Map<String, dynamic>>(
+          '/live/rooms/${pathSegment(roomId)}/sounds',
+          data: {'soundCode': soundCode},
+        );
+        return LiveQuip.fromJson(res.data!['quip']! as Map<String, dynamic>);
+      });
 
   @override
   Future<void> confirmLuckyAge() => guardApiCall(() async {

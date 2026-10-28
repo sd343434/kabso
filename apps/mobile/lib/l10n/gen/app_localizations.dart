@@ -11869,6 +11869,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{name} ربح ×{multiplier} في غرفة {room}'**
   String liveLuckyTicker(String name, String multiplier, String room);
+
+  /// D154: the gift panel tab of quips (sounds played to the room).
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيهات'**
+  String get liveGiftTabQuips;
+
+  /// D154: the price label of a free quip.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجاني'**
+  String get liveQuipFree;
+
+  /// D154: a free quip for the host or a moderator (their soundboard, no limit but one every 2 s).
+  ///
+  /// In ar, this message translates to:
+  /// **'∞ مجاني'**
+  String get liveQuipSoundboardFree;
+
+  /// D154: the gift panel line under a selected free quip.
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيه مجاني واحد لك في كل بث.'**
+  String get liveQuipFreeOnce;
+
+  /// D154: the soundboard's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجانية لك وللمشرفين — صوت كل ثانيتين، يسمعه الجميع.'**
+  String get liveQuipSoundboardHint;
+
+  /// D154: the soundboard when the app's Sound effects setting is off.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية مطفأة في الإعدادات: لن تسمعها أنت، لكن الغرفة تسمعها.'**
+  String get liveQuipSoundEffectsOff;
+
+  /// D154: the host's soundboard sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية'**
+  String get liveQuipSoundboardTitle;
+
+  /// D154: the soundboard when the catalogue has no free quips.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مؤثرات مجانية بعد.'**
+  String get liveQuipSoundboardEmpty;
+
+  /// D154: mute quips' sound on this phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'كتم الإفيهات'**
+  String get liveQuipMute;
+
+  /// D154: turn quips' sound back on on this phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل صوت الإفيهات'**
+  String get liveQuipUnmute;
+
+  /// D154: a quip waits for its turn in the room's queue.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الدور — يبدأ بعد {seconds} ث'**
+  String liveQuipQueued(int seconds);
+
+  /// D154: screen reader label of the quip bubble.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name}: {words}'**
+  String liveQuipBubbleSemantics(String name, String words);
+
+  /// Error QUIP_FREE_USED.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدمت إفيهك المجاني في هذا البث.'**
+  String get errorQuipFreeUsed;
+
+  /// Error QUIP_QUEUE_FULL.
+  ///
+  /// In ar, this message translates to:
+  /// **'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.'**
+  String get errorQuipQueueFull;
 }
 
 class _AppLocalizationsDelegate

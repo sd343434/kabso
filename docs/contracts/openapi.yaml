@@ -173,6 +173,12 @@ info:
     in a row the next draw pays at least ×5; `LuckyGiftOdds.pity`, `LuckyGiftResult.guaranteed`);
     and the data message `lucky-ticker` on topic `lucky`, sent to every other live room for a big
     win, at most one every 10 s (CONVENTIONS §10.27).
+    **D154 (DRAFT v1.32-live)** adds «إفيهات» quips: the gift category `QUIPS` (`Gift.quip`: a bundled
+    sound, its length and its line of text; price 0 = free, one per viewer per live), the room's one
+    queue of quips (`LiveGiftResult.quip`, data message `quip` on topic `quip` with its `delayMs`), the
+    host's and moderators' soundboard (`playLiveSound`, `POST /live/rooms/{roomId}/sounds`, one every
+    2 s), the per-category host share (server config `GIFT_HOST_SHARE_PERCENTS`, quips 50 %) and the
+    codes `QUIP_FREE_USED` and `QUIP_QUEUE_FULL` (CONVENTIONS §10.33).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1870,6 +1876,55 @@ paths:
                   requestId: 0192f1d0-7777-7000-8000-000000000008
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/sounds:
+    post:
+      tags: [live]
+      operationId: playLiveSound
+      summary: "Play a free sound of the soundboard for the whole room (host and moderators, D154)"
+      description: |
+        v1.32-live, CONVENTIONS §10.33. The host or a moderator of a LIVE room plays one of the free
+        quips (`Gift.category` `QUIPS` with `priceCoins` 0) for everyone; it takes the next slot of the
+        room's quip queue, like a quip sent from the gift panel, and costs nothing. Checks, in order:
+        401 without an account; 429 from the route's bucket (120 / min per user); 404 for a room the
+        caller may not see; 409 `LIVE_ROOM_ENDED`; 400 for the body (`soundCode`: `required` or
+        `invalid_format`); 403 `AUTH_FORBIDDEN` (not the host or a moderator of this live); 409
+        `GIFT_UNAVAILABLE` (not an enabled free quip); 429 (one sound every 2 s per user, with
+        `Retry-After`); 409 `QUIP_QUEUE_FULL` (it would start more than `QUIP_QUEUE_MAX_WAIT_SECONDS`
+        from now). On success the room gets a reliable data message on topic `quip`:
+        `{"type":"quip","quip":LiveQuip}` (best effort, like every data message).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveSoundRequest' }
+            example: { soundCode: quip_clap }
+      responses:
+        '201':
+          description: Queued and sent to the room; what the room was sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [quip]
+                properties:
+                  quip: { $ref: '#/components/schemas/LiveQuip' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, `GIFT_UNAVAILABLE` or `QUIP_QUEUE_FULL`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              example:
+                error:
+                  code: QUIP_QUEUE_FULL
+                  message: Too many quips are waiting in this live; try again in a moment.
+                  requestId: 7b0f6f0e-1c2d-4e5f-8a9b-0c1d2e3f4a5b
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms/{roomId}/gifts:
     post:
       tags: [live]
@@ -1914,6 +1969,15 @@ paths:
         D148) to every other live room as a `lucky-ticker` data message (at most one every 10 s).
         v1.31-live (D148): after 15 losing lucky draws in a row by the caller (any room) the next
         draw pays at least ×5 (`luckyResult.guaranteed`).
+        **v1.32-live (D154), quips** (`Gift.category` `QUIPS`, CONVENTIONS §10.33): after 409
+        `GIFT_UNAVAILABLE` come 400 `source` / `invalid_value` (`COINS` only) and 400 `quantity` /
+        `invalid_value` (quantity 1 only); in the transaction 409 `QUIP_QUEUE_FULL` (it would start
+        more than `QUIP_QUEUE_MAX_WAIT_SECONDS` from now) and, for a free quip (`priceCoins` 0), 409
+        `QUIP_FREE_USED` (the caller's one free quip of this live was sent). A free quip charges and
+        counts nothing. A quip goes to the room as a `quip` data message on topic `quip`
+        (`{"type":"quip","quip":LiveQuip}`) instead of the `gift` message, and the response carries
+        `quip` (its slot in the room's queue). The recipients' earnings share of every send is fixed
+        at the time of the send (`GIFT_HOST_SHARE_PERCENTS`: quips 50 %, other gifts 65 %).
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       requestBody:
@@ -1969,7 +2033,7 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '404': { $ref: '#/components/responses/Error' }
         '409':
-          description: "`LIVE_ROOM_ENDED`, `GIFT_UNAVAILABLE`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE`, `INSUFFICIENT_COINS` or `GIFT_BAG_INSUFFICIENT` (nothing charged or sent)."
+          description: "`LIVE_ROOM_ENDED`, `GIFT_UNAVAILABLE`, `LIVE_GIFT_RECIPIENT_UNAVAILABLE`, `INSUFFICIENT_COINS` or `GIFT_BAG_INSUFFICIENT`; v1.32-live (D154) `QUIP_QUEUE_FULL` or `QUIP_FREE_USED` (nothing charged or sent)."
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -4515,9 +4579,10 @@ paths:
                 maxRecipients: 25
                 comboWindowSeconds: 5
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب } }
-                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 20, badge: NEW, tag: null }
-                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة } }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null }
+                  - { code: sports_car, category: POPULAR, name: سيارة رياضية, priceCoins: 5000, assetKey: gift_sports_car, animationKey: fx_sports_car, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 20, badge: NEW, tag: null, quip: null }
+                  - { code: angel_warrior, category: FUN, name: الملاك المحارب, priceCoins: 50, assetKey: gift_angel_warrior, animationKey: null, imageUrl: 'https://media.kabso.example/media/gifts/angel_warrior/1eaf9644281e113f96c7cb40293572e6.png', animationUrl: 'https://media.kabso.example/media/gifts/angel_warrior/d1c23c640419becb8269caa182e98891.svga', animationBytes: 16830815, sortOrder: 10, badge: NEW, tag: { code: luxury, name: فخامة }, quip: null }
+                  - { code: quip_ghazal_01, category: QUIPS, name: غزل ١, priceCoins: 99, assetKey: quips/ghazal, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 101, badge: NONE, tag: { code: ghazal, name: غزل }, quip: { soundKey: kabi/ghazal_01, durationMs: 4362, text: 'إيه الجمال ده! تحفة بجد!' } }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/me/lucky-gifts/age-confirmation:
@@ -4564,7 +4629,7 @@ paths:
               schema: { $ref: '#/components/schemas/GiftBag' }
               example:
                 data:
-                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quantity: 99 }
+                  - { code: rose, category: POPULAR, name: وردة, priceCoins: 1, assetKey: gift_rose, animationKey: null, imageUrl: null, animationUrl: null, animationBytes: null, sortOrder: 10, badge: NONE, tag: { code: love, name: حب }, quip: null, quantity: 99 }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/media/uploads:
@@ -8839,20 +8904,20 @@ components:
     # ---- v1.23-live (DRAFT, CP-020): live gifts -----------------------------------------------
     GiftCategory:
       type: string
-      enum: [POPULAR, EVENT, FUN, LUCKY]
-      description: "A gift panel tab: POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (حظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on. The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
+      enum: [POPULAR, EVENT, FUN, LUCKY, QUIPS]
+      description: "A gift panel tab: POPULAR (شائعة), EVENT (مناسبات), FUN (مرح); v1.27-live (D132) LUCKY (حظ): lucky gifts (CONVENTIONS §10.27), listed only while lucky gifts are on; v1.32-live (D154) QUIPS (إفيهات): a sound and its line played to the whole room (CONVENTIONS §10.33). The bag (الحقيبة) is `getMyGiftBag`. Clients ignore gifts of categories they do not know."
     GiftBadge:
       type: string
       enum: [NONE, NEW, EVENT]
       description: The corner badge of a gift in the panel; unknown values show as NONE.
     Gift:
       type: object
-      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag]
+      required: [code, category, name, priceCoins, assetKey, animationKey, imageUrl, animationUrl, animationBytes, sortOrder, badge, tag, quip]
       properties:
         code: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', example: rose }
         category: { $ref: '#/components/schemas/GiftCategory' }
         name: { type: string, description: "Localized by `Accept-Language`, else the caller's locale." }
-        priceCoins: { type: integer, minimum: 1, maximum: 1000000, description: Coins for one gift. }
+        priceCoins: { type: integer, minimum: 0, maximum: 1000000, description: "Coins for one gift; 0 only for a free QUIPS gift (v1.32-live, D154)." }
         assetKey: { type: string, maxLength: 80, description: "The app's static image of the gift.", example: gift_rose }
         animationKey:
           type: [string, 'null']
@@ -8890,6 +8955,24 @@ components:
           oneOf:
             - $ref: '#/components/schemas/GiftTag'
             - type: 'null'
+        quip:
+          description: |
+            v1.32-live (D154, CONVENTIONS §10.33): a QUIPS gift's sound and line of text; null for every
+            other gift. Always present in responses; older apps ignore it (and the QUIPS category).
+          oneOf:
+            - $ref: '#/components/schemas/GiftQuip'
+            - type: 'null'
+    GiftQuip:
+      type: object
+      description: v1.32-live (D154). The sound of a QUIPS gift, bundled in the app.
+      required: [soundKey, durationMs, text]
+      properties:
+        soundKey: { type: string, maxLength: 80, description: "The app's bundled sound, e.g. `kabi/ghazal_01`.", example: kabi/ghazal_01 }
+        durationMs: { type: integer, minimum: 200, maximum: 15000, description: The sound's length. }
+        text:
+          type: [string, 'null']
+          maxLength: 200
+          description: The words of the line, shown as a chat bubble while it plays (Arabic, the voice's dialect), or null for a sound without words.
     GiftTag:
       type: object
       description: v1.24.3-live (CP-020, D117). A gift sub-category, managed with the `gift-admin` CLI.
@@ -8989,14 +9072,14 @@ components:
         imageUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted image now, as `Gift.imageUrl`." }
         animationUrl: { type: [string, 'null'], format: uri, description: "v1.26.2-live (D126): the gift's hosted SVGA now, as `Gift.animationUrl` (viewers who never opened the panel download it from here)." }
         animationBytes: { type: [integer, 'null'], minimum: 1, maximum: 26214400, description: v1.26.2-live (D126). As `Gift.animationBytes`. }
-        unitPrice: { type: integer, minimum: 1, description: The gift's price in coins when it was sent. }
+        unitPrice: { type: integer, minimum: 0, description: "The gift's price in coins when it was sent (0: a free quip, v1.32-live)." }
         quantity: { type: integer, minimum: 1, description: Gifts each recipient received. }
         source: { $ref: '#/components/schemas/LiveGiftSource' }
         totalCoins:
           type: integer
           format: int64
-          minimum: 1
-          description: unitPrice × quantity × recipients (the value; charged only for COINS).
+          minimum: 0
+          description: unitPrice × quantity × recipients (the value; charged only for COINS; 0 only for a free quip).
         sender: { $ref: '#/components/schemas/UserSummary' }
         recipients:
           type: array
@@ -9024,6 +9107,37 @@ components:
           description: v1.27-live (D132). Present only for a LUCKY gift (absent for every other send); the same for a retry.
           allOf:
             - $ref: '#/components/schemas/LuckyGiftResult'
+        quip:
+          description: v1.32-live (D154). Present only for a QUIPS gift (absent for a retry and every other send) — its slot in the room's quip queue, as the `quip` data message carries it.
+          allOf:
+            - $ref: '#/components/schemas/LiveQuip'
+    LiveSoundRequest:
+      type: object
+      description: v1.32-live (D154). A free sound of the soundboard.
+      required: [soundCode]
+      additionalProperties: false
+      properties:
+        soundCode: { type: string, pattern: '^[a-z0-9][a-z0-9_]{0,39}$', description: "The code of an enabled free QUIPS gift.", example: quip_clap }
+    LiveQuip:
+      type: object
+      description: |
+        v1.32-live (D154, CONVENTIONS §10.33): one sound for the whole room, as the `quip` data message
+        (topic `quip`) carries it. Every app plays it `delayMs` after it receives the message (the room's
+        one queue: one quip at a time), with the line's `text` as a chat bubble while it plays.
+      required: [id, roomId, kind, giftCode, soundKey, durationMs, text, free, sender, startsAt, delayMs, createdAt]
+      properties:
+        id: { type: string, format: uuid, description: "The gift send's id (GIFT), or a new id (SOUNDBOARD)." }
+        roomId: { type: string, format: uuid }
+        kind: { type: string, enum: [GIFT, SOUNDBOARD], description: "GIFT: sent from the gift panel; SOUNDBOARD: the host's or a moderator's free sound." }
+        giftCode: { type: string, maxLength: 40, description: The QUIPS gift played (the app takes its name from its catalogue). }
+        soundKey: { type: string, maxLength: 80 }
+        durationMs: { type: integer, minimum: 200, maximum: 15000 }
+        text: { type: [string, 'null'], maxLength: 200 }
+        free: { type: boolean, description: A free quip or a soundboard sound. }
+        sender: { $ref: '#/components/schemas/UserSummary' }
+        startsAt: { type: string, format: date-time, description: When it starts in server time. }
+        delayMs: { type: integer, minimum: 0, description: "How long after `createdAt` it starts (0: now)." }
+        createdAt: { type: string, format: date-time }
     LuckyGiftWin:
       type: object
       description: v1.27-live (D132). The draws of one send that paid one multiplier.

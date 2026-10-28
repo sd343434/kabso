@@ -69,6 +69,8 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.premiumUsernameUnavailable: 409,
   ErrorCode.premiumUsernamePriceChanged: 409,
   ErrorCode.premiumUsernameActive: 409,
+  ErrorCode.quipFreeUsed: 409,
+  ErrorCode.quipQueueFull: 409,
 };
 
 DioException _badResponse(
@@ -161,6 +163,8 @@ void main() {
           'PREMIUM_USERNAME_UNAVAILABLE',
           'PREMIUM_USERNAME_PRICE_CHANGED',
           'PREMIUM_USERNAME_ACTIVE',
+          'QUIP_FREE_USED',
+          'QUIP_QUEUE_FULL',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

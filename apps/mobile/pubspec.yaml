@@ -105,6 +105,9 @@ flutter:
     - assets/splash/
     # D145d the owner's MAX X sounds (assets/sounds/PROVENANCE.md).
     - assets/sounds/
+    # D154 the owner's «إفيهات» quips (assets/sounds/quips/PROVENANCE.md).
+    - assets/sounds/quips/room/
+    - assets/sounds/quips/kabi/
     # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
     # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
     - assets/emojis/kabi/

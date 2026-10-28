@@ -1,5 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { envSchema, luckyPityOf, type Env, type RateLimitRule } from './env.schema.js';
+import {
+  envSchema,
+  luckyPityOf,
+  type Env,
+  type HostShareCategory,
+  type RateLimitRule,
+} from './env.schema.js';
 import { luckyTable, type LuckyTable } from '../modules/gifts/lucky-odds.js';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -177,6 +183,10 @@ export interface AppConfig {
   readonly gifts: {
     /** The quantities a send may use, ascending (LIVE_GIFT_QUANTITIES). */
     readonly quantities: readonly number[];
+    /** v1.32-live (D154): the recipients' earnings share by category, basis points. */
+    readonly hostShareBps: Readonly<Record<HostShareCategory, number>>;
+    /** v1.32-live (D154): the longest a quip may wait for its turn, in ms. */
+    readonly quipMaxWaitMs: number;
   };
   /** v1.27-live (D132) lucky gifts (CONVENTIONS §10.27). */
   readonly lucky: {
@@ -367,7 +377,11 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       bondsSweepIntervalSeconds: e.BONDS_SWEEP_INTERVAL_SECONDS,
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
-    gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
+    gifts: {
+      quantities: e.LIVE_GIFT_QUANTITIES,
+      hostShareBps: e.GIFT_HOST_SHARE_PERCENTS,
+      quipMaxWaitMs: e.QUIP_QUEUE_MAX_WAIT_SECONDS * 1000,
+    },
     push: {
       credentialsFile: e.FIREBASE_CREDENTIALS_FILE ?? null,
       dispatchIntervalMs: e.PUSH_DISPATCH_INTERVAL_MS,

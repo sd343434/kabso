@@ -168,6 +168,10 @@ sealed class LiveChatEvent {
         'lucky-ticker' => LuckyTickerReceived(LuckyTicker.fromJson(json)),
         // v1.27.5-live (D138): an emoji on someone's own seat.
         'seat-emoji' => LiveSeatEmojiReceived(LiveSeatEmoji.fromJson(json)),
+        // v1.32-live (D154): a quip (or soundboard sound) for the room.
+        'quip' => LiveQuipReceived(
+          LiveQuip.fromJson(json['quip']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -279,4 +283,12 @@ final class LiveSeatEmojiReceived extends LiveChatEvent {
   const new(this.emoji);
 
   final LiveSeatEmoji emoji;
+}
+
+/// v1.32-live (D154, §10.33): a quip or a soundboard sound for the whole
+/// room (topic `quip`), played after its `delayMs`, one at a time.
+final class LiveQuipReceived extends LiveChatEvent {
+  const new(this.quip);
+
+  final LiveQuip quip;
 }

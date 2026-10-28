@@ -164,6 +164,14 @@ enum ErrorCode {
   /// time; give it back before changing the regular username).
   premiumUsernameActive('PREMIUM_USERNAME_ACTIVE'),
 
+  /// v1.32-live (D154, §10.33, 409): the caller's one free quip of this
+  /// live was sent; paid quips are still available.
+  quipFreeUsed('QUIP_FREE_USED'),
+
+  /// v1.32-live (D154, §10.33, 409): too many quips are waiting in this
+  /// live; nothing was charged; try again shortly.
+  quipQueueFull('QUIP_QUEUE_FULL'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

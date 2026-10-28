@@ -417,6 +417,14 @@ export const liveSeatEmojiSchema = z.strictObject({
 });
 export type LiveSeatEmojiInput = z.output<typeof liveSeatEmojiSchema>;
 
+// ---- v1.32-live (D154): the soundboard of the host and moderators --------------------------
+
+/** `LiveSoundRequest` (strict): `soundCode` names a free quip of the catalogue (checked by the service). */
+export const liveSoundSchema = z.strictObject({
+  soundCode: z.string().regex(/^[a-z0-9][a-z0-9_]{0,39}$/, { message: 'not a gift code' }),
+});
+export type LiveSoundInput = z.output<typeof liveSoundSchema>;
+
 /** `LiveMediaTokenRequest` (CP-010): `guestId` is required without a bearer token. */
 export const liveMediaTokenSchema = z.strictObject({ guestId: z.uuid().optional() });
 export type StartLiveRoomInput = z.output<typeof startLiveRoomSchema>;

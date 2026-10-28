@@ -12,6 +12,7 @@ import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_quip_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
@@ -121,6 +122,16 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
           child: Align(
             alignment: Alignment.topCenter,
             child: LiveLuckyTickerBar(roomId: roomId, onOpenRoom: onOpenRoom),
+          ),
+        ),
+        // D154: the quip playing now, as a bubble with its words.
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + LiveQuipBubble.top,
+          left: KSpacing.md,
+          right: KSpacing.md,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: LiveQuipBubble(roomId: roomId),
           ),
         ),
       ],

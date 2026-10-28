@@ -68,6 +68,8 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.premiumUsernamePriceChanged =>
       l10n.errorPremiumUsernamePriceChanged,
     ErrorCode.premiumUsernameActive => l10n.errorPremiumUsernameActive,
+    ErrorCode.quipFreeUsed => l10n.errorQuipFreeUsed,
+    ErrorCode.quipQueueFull => l10n.errorQuipQueueFull,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

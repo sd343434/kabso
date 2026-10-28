@@ -20,6 +20,13 @@
  *   pnpm gift:admin bag <email>        # the user's gift bag
  *   pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]   # latest lucky sends with a win
  *   pnpm gift:admin lucky-day [YYYY-MM-DD]                         # a day's lucky spend and payout
+ *   pnpm gift:admin quips-seed         # adds the owner's «إفيهات» pack (8 free, 27 paid); idempotent
+ *
+ * v1.32-live (D154, CONVENTIONS §10.33): `--category QUIPS` makes a quip: `--sound <key>` (the app's
+ * bundled sound, e.g. `kabi/ghazal_01`) and `--sound-ms <ms>` are required, `--quip-text <text>` is the
+ * optional line shown while it plays; `--price 0` makes it free (one per viewer per live, and the
+ * host's/moderators' soundboard). `quips-seed` adds the owner's pack (prices ghazal 99, funny 199,
+ * tease 299 coins) — gifts that exist already are left as they are (change them with `update`).
  *
  * v1.27-live (D132, CONVENTIONS §10.27): `--category LUCKY` makes a lucky gift (listed and sendable
  * only while the API has LUCKY_GIFTS_ENABLED=true; sent with coins only, so `grant` refuses it).
@@ -61,6 +68,7 @@ import {
   GIFT_STOCK_MAX,
   giftFieldProblems,
   GiftFieldsError,
+  giftQuipProblem,
   giftTagProblem,
   grantStockIn,
   setGiftEnabledIn,
@@ -68,6 +76,7 @@ import {
   type GiftFields,
 } from '../modules/gifts/gift-catalogue.js';
 import { budgetLeft, percentToBps } from '../modules/gifts/lucky-odds.js';
+import { QUIP_PACK } from '../modules/gifts/quips.js';
 
 function fail(message: string): never {
   process.stderr.write(`${message}\n`);
@@ -87,6 +96,8 @@ const USAGE = [
   '       pnpm gift:admin bag <email>',
   '       pnpm gift:admin lucky-wins [--limit N] [--min-multiplier M]',
   '       pnpm gift:admin lucky-day [YYYY-MM-DD]',
+  '       pnpm gift:admin quips-seed',
+  '       (QUIPS: --sound <key> --sound-ms <ms> [--quip-text <text>]; update: --quip-text none)',
 ].join('\n');
 
 const url = process.env.MIGRATION_DATABASE_URL;
@@ -107,6 +118,9 @@ const OPTIONS = {
   'tag-en': { type: 'string' },
   image: { type: 'string' },
   'animation-file': { type: 'string' },
+  sound: { type: 'string' },
+  'sound-ms': { type: 'string' },
+  'quip-text': { type: 'string' },
 } as const;
 
 /** The hosted-art options given (`none`: remove), checked and uploaded by {@link uploadArt}. */
@@ -237,6 +251,11 @@ function optionsFrom(args: readonly string[]): { fields: Partial<GiftFields>; ar
     if (values['tag-ar'] !== undefined) fields.tagNameAr = values['tag-ar'];
     if (values['tag-en'] !== undefined) fields.tagNameEn = values['tag-en'];
   }
+  if (values.sound !== undefined) fields.soundKey = values.sound;
+  if (values['sound-ms'] !== undefined) fields.soundMs = wholeNumber(values['sound-ms'], 'The sound length');
+  if (values['quip-text'] !== undefined) {
+    fields.quipText = values['quip-text'] === 'none' ? null : values['quip-text'];
+  }
   const problems = giftFieldProblems(fields);
   for (const option of ['image', 'animation-file'] as const) {
     if (values[option] === '') problems.push(`--${option} needs a file (or none)`);
@@ -279,8 +298,11 @@ async function add(code: string, args: readonly string[]): Promise<void> {
     tagCode: options.tagCode ?? null,
     tagNameAr: options.tagNameAr ?? null,
     tagNameEn: options.tagNameEn ?? null,
+    soundKey: options.soundKey ?? null,
+    soundMs: options.soundMs ?? null,
+    quipText: options.quipText ?? null,
   };
-  const tagProblem = giftTagProblem(fields);
+  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields);
   if (tagProblem !== null) fail(`${tagProblem}.\n${USAGE}`);
   if (await prisma.gift.findUnique({ where: { code }, select: { code: true } })) {
     fail(`A gift ${code} exists already; use update.`);
@@ -376,7 +398,11 @@ async function list(): Promise<void> {
         `"${g.nameAr}" / "${g.nameEn}" ` +
         `tag=${g.tagCode === null ? 'none' : `${g.tagCode} "${g.tagNameAr ?? ''}" / "${g.tagNameEn ?? ''}"`} ` +
         `image=${g.imageObjectKey ?? 'none'} ` +
-        `animation-file=${g.animationObjectKey === null ? 'none' : `${g.animationObjectKey} (${String(g.animationBytes)} bytes)`}\n`,
+        `animation-file=${g.animationObjectKey === null ? 'none' : `${g.animationObjectKey} (${String(g.animationBytes)} bytes)`}` +
+        (g.soundKey === null
+          ? ''
+          : ` sound=${g.soundKey} (${String(g.soundMs)} ms) text="${g.quipText ?? ''}"`) +
+        '\n',
     );
   }
 }
@@ -393,6 +419,8 @@ async function grant(email: string, code: string, rawQuantity: string | undefine
     if (!gift) fail(`No gift ${code}.`);
     // v1.27-live (D132): lucky gifts are sent with coins only (a bag send would draw for free).
     if (gift.category === 'LUCKY') fail(`${code} is a LUCKY gift; lucky gifts cannot be put in a bag.`);
+    // v1.32-live (D154): quips likewise (coins only; the free ones are one per live).
+    if (gift.category === 'QUIPS') fail(`${code} is a QUIPS gift; quips cannot be put in a bag.`);
     const after = await grantStockIn(tx, userId, code, quantity);
     if (after === null)
       fail(`${email} would hold more than ${String(GIFT_STOCK_MAX)} of ${code}; nothing changed.`);
@@ -423,6 +451,35 @@ async function bag(email: string): Promise<void> {
   for (const r of rows) {
     process.stdout.write(`${r.gift.enabled ? ' ' : '-'} ${r.giftCode} ${String(r.quantity)}\n`);
   }
+}
+
+/**
+ * v1.32-live (D154): adds the owner's «إفيهات» pack (QUIP_PACK). Idempotent: a gift whose code exists
+ * already is left as it is and reported (change it with `update`). One transaction, audited per gift.
+ */
+async function quipsSeed(): Promise<void> {
+  const added = await prisma.$transaction(async (tx) => {
+    const codes: string[] = [];
+    for (const { code, ...fields } of QUIP_PACK) {
+      if (await addGiftIn(tx, code, fields)) {
+        codes.push(code);
+        await tx.auditLog.create({
+          data: {
+            action: AuditAction.GIFT_ADD,
+            targetType: 'gift',
+            targetId: code,
+            metadata: { ...fields, via: 'cli', pack: 'quips' },
+          },
+        });
+      }
+    }
+    return codes;
+  });
+  const kept = QUIP_PACK.length - added.length;
+  process.stdout.write(
+    `quips: ${String(added.length)} added${added.length > 0 ? ` (${added.join(', ')})` : ''}, ` +
+      `${String(kept)} already there (unchanged).\n`,
+  );
 }
 
 /** v1.27-live (D132): the latest lucky sends that won something (the audit rows of the draws). */
@@ -516,6 +573,10 @@ try {
     case 'lucky-day':
       if (rest.length > 0) fail(USAGE);
       await luckyDay(first);
+      break;
+    case 'quips-seed':
+      if (first !== undefined) fail(USAGE);
+      await quipsSeed();
       break;
     default:
       fail(command ? `Unknown command ${command}.\n${USAGE}` : USAGE);

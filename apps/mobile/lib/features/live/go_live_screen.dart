@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -45,6 +46,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_schedule_shee
 import 'package:kabso_live/features/live/presentation/go_live/live_score_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_soundboard_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
@@ -370,6 +372,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveSeatEmojisProvider(room.id).notifier).attach(engine);
       // D148: big lucky wins in other lives (the gold ticker).
       ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
+      // D154: the room's quips (one at a time, after their delay).
+      ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -902,10 +906,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.music_note_rounded,
               label: l10n.liveToolMusic,
             ),
-            GoLiveTool.soon(
+            // D154: the host's free soundboard (quips' free sounds).
+            GoLiveTool(
               id: 'sounds',
               icon: Icons.graphic_eq_rounded,
               label: l10n.liveToolSounds,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveSoundboard(context, roomId: room.id)),
             ),
             GoLiveTool.soon(
               id: 'fluent',
@@ -1677,7 +1686,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           soon('sticker', Icons.emoji_emotions_outlined, l10n.liveToolSticker),
           ?byId['mic'],
           soon('music', Icons.music_note_rounded, l10n.liveToolMusic),
-          soon('sounds', Icons.graphic_eq_rounded, l10n.liveToolSounds),
+          // D154: the host's free soundboard (quips' free sounds).
+          GoLiveTool(
+            id: 'sounds',
+            icon: Icons.graphic_eq_rounded,
+            label: l10n.liveToolSounds,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveSoundboard(context, roomId: room.id)),
+          ),
           ?byId['beauty'],
           ?byId['voice'],
           ?byId['theme'],
@@ -2043,6 +2060,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           onSeatsStale: () {
             if (mounted) unawaited(_afterSeatChange(room.id));
           },
+          // D154: the host's free quips are the soundboard's.
+          soundboard: (_) => true,
         ),
       );
 

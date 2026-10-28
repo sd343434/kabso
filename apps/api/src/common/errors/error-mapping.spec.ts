@@ -88,6 +88,9 @@ describe('ErrorCode', () => {
         'PREMIUM_USERNAME_UNAVAILABLE',
         'PREMIUM_USERNAME_PRICE_CHANGED',
         'PREMIUM_USERNAME_ACTIVE',
+        // v1.32-live (DRAFT, D154)
+        'QUIP_FREE_USED',
+        'QUIP_QUEUE_FULL',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -146,6 +149,8 @@ describe('ErrorCode', () => {
       PREMIUM_USERNAME_UNAVAILABLE: 409,
       PREMIUM_USERNAME_PRICE_CHANGED: 409,
       PREMIUM_USERNAME_ACTIVE: 409,
+      QUIP_FREE_USED: 409,
+      QUIP_QUEUE_FULL: 409,
     });
   });
 

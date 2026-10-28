@@ -2269,5 +2269,19 @@
   "@notifSettingMessagesBody": {"description": "D152: push notifications (permission, settings)."},
   "liveMaxXGuaranteed": "Guaranteed",
   "liveLuckyOddsPity": "×{multiplier} guaranteed after {after} draws without a win",
-  "liveLuckyTicker": "{name} won ×{multiplier} in {room}"
+  "liveLuckyTicker": "{name} won ×{multiplier} in {room}",
+  "liveGiftTabQuips": "Quips",
+  "liveQuipFree": "Free",
+  "liveQuipSoundboardFree": "∞ Free",
+  "liveQuipFreeOnce": "One free quip for you in each live.",
+  "liveQuipSoundboardHint": "Free for you and your moderators — one sound every 2 seconds, heard by everyone.",
+  "liveQuipSoundEffectsOff": "Sound effects are off in Settings: you won't hear them, but the room will.",
+  "liveQuipSoundboardTitle": "Sound effects",
+  "liveQuipSoundboardEmpty": "No free sounds yet.",
+  "liveQuipMute": "Mute quips",
+  "liveQuipUnmute": "Unmute quips",
+  "liveQuipQueued": "Queued — starts in {seconds} s",
+  "liveQuipBubbleSemantics": "{name}: {words}",
+  "errorQuipFreeUsed": "You've used your free quip in this live.",
+  "errorQuipQueueFull": "Too many quips are waiting. Try again in a moment."
 }

@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
@@ -333,6 +334,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ref
           .read(liveLuckyTickersProvider(room.id).notifier)
           .attach(_session.engine);
+      // D154: the room's quips (one at a time, after their delay).
+      ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref
@@ -1330,6 +1333,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       onSeatsStale: () {
         if (mounted) unawaited(_session.refreshSeats());
       },
+      // D154: a moderator's free quips are the soundboard's.
+      soundboard: (ref) =>
+          ref.watch(liveRoomSessionProvider(widget.room.id)).canModerate,
     ),
   );
 }

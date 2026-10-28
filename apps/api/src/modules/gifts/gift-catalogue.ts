@@ -10,9 +10,9 @@ import type { Gift, GiftBadge, GiftCategory, Prisma } from '../../generated/pris
 
 /**
  * The catalogue tabs, in display order (شائعة, مناسبات, مرح; v1.27-live, D132: حظ, listed only while
- * LUCKY_GIFTS_ENABLED). The bag (الحقيبة) is the last tab.
+ * LUCKY_GIFTS_ENABLED; v1.32-live, D154: إفيهات). The bag (الحقيبة) is the last tab.
  */
-export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN', 'LUCKY'];
+export const GIFT_CATEGORIES: readonly GiftCategory[] = ['POPULAR', 'EVENT', 'FUN', 'LUCKY', 'QUIPS'];
 export const GIFT_BADGES: readonly GiftBadge[] = ['NONE', 'NEW', 'EVENT'];
 
 /** `gifts_code_format`: lower-case letters, digits and `_`, 1–40 characters, not starting with `_`. */
@@ -30,6 +30,11 @@ export const GIFT_NAME_MAX = 60;
 export const GIFT_TAG_CODE_PATTERN = /^[a-z0-9][a-z0-9_]{0,39}$/;
 /** A sub-category name (the panel's chip): 1–30 characters after trimming. */
 export const GIFT_TAG_NAME_MAX = 30;
+/** v1.32-live (D154): a quip's sound is 200 ms … 15 s (CHECK `gifts_quip_fields`). */
+export const QUIP_SOUND_MS_MIN = 200;
+export const QUIP_SOUND_MS_MAX = 15_000;
+/** v1.32-live (D154): a quip's line of text, 1–200 characters after trimming. */
+export const QUIP_TEXT_MAX = 200;
 
 export interface GiftFields {
   readonly category: GiftCategory;
@@ -54,6 +59,13 @@ export interface GiftFields {
   readonly imageObjectKey?: string | null;
   readonly animationObjectKey?: string | null;
   readonly animationBytes?: number | null;
+  /**
+   * v1.32-live (D154): a QUIPS gift's bundled sound (an app asset key like `asset` keys), its length
+   * in ms and its optional line of text. Set exactly for QUIPS (`gifts_quip_fields`).
+   */
+  readonly soundKey?: string | null;
+  readonly soundMs?: number | null;
+  readonly quipText?: string | null;
 }
 
 /** Thrown when a change would leave a gift's fields invalid (e.g. a tag without its names). */
@@ -64,6 +76,24 @@ export function giftTagProblem(tag: Pick<GiftFields, 'tagCode' | 'tagNameAr' | '
   const set = [tag.tagCode, tag.tagNameAr, tag.tagNameEn].filter((v) => v !== null).length;
   if (set === 0 || set === 3) return null;
   return 'a tag needs its code and both names (--tag, --tag-ar, --tag-en), or --tag none';
+}
+
+/**
+ * v1.32-live (D154): the problem with a whole gift's quip fields — a QUIPS gift has a sound and its
+ * length, any other gift none of the three; only QUIPS may be free — or null.
+ */
+export function giftQuipProblem(
+  gift: Pick<GiftFields, 'category' | 'priceCoins' | 'soundKey' | 'soundMs' | 'quipText'>,
+): string | null {
+  const quips = gift.category === 'QUIPS';
+  const sound = (gift.soundKey ?? null) !== null && (gift.soundMs ?? null) !== null;
+  if (quips && !sound) return 'a QUIPS gift needs --sound and --sound-ms';
+  if (!quips && ((gift.soundKey ?? null) !== null || (gift.soundMs ?? null) !== null)) {
+    return 'only a QUIPS gift has a sound';
+  }
+  if (!quips && (gift.quipText ?? null) !== null) return 'only a QUIPS gift has a quip text';
+  if (!quips && gift.priceCoins === 0) return 'only a QUIPS gift may be free (price 0)';
+  return null;
 }
 
 /** Every problem with a gift's fields (empty: valid). Partial input checks only what is given. */
@@ -86,12 +116,38 @@ export function giftFieldProblems(fields: Partial<GiftFields>): string[] {
   if (
     fields.priceCoins !== undefined &&
     (!Number.isInteger(fields.priceCoins) ||
-      fields.priceCoins < GIFT_MIN_PRICE ||
+      fields.priceCoins < 0 ||
+      (fields.priceCoins < GIFT_MIN_PRICE && fields.category !== 'QUIPS') ||
       fields.priceCoins > GIFT_MAX_PRICE)
   ) {
     problems.push(
-      `price must be a whole number of coins from ${String(GIFT_MIN_PRICE)} to ${String(GIFT_MAX_PRICE)}`,
+      `price must be a whole number of coins from ${String(GIFT_MIN_PRICE)} to ${String(GIFT_MAX_PRICE)} (0: a free QUIPS gift)`,
     );
+  }
+  if (
+    fields.soundKey !== undefined &&
+    fields.soundKey !== null &&
+    !GIFT_ASSET_KEY_PATTERN.test(fields.soundKey)
+  ) {
+    problems.push('sound must be 1–80 characters: letters, digits, _ - . /');
+  }
+  if (
+    fields.soundMs !== undefined &&
+    fields.soundMs !== null &&
+    (!Number.isInteger(fields.soundMs) ||
+      fields.soundMs < QUIP_SOUND_MS_MIN ||
+      fields.soundMs > QUIP_SOUND_MS_MAX)
+  ) {
+    problems.push(
+      `sound-ms must be a whole number from ${String(QUIP_SOUND_MS_MIN)} to ${String(QUIP_SOUND_MS_MAX)}`,
+    );
+  }
+  if (
+    fields.quipText !== undefined &&
+    fields.quipText !== null &&
+    (fields.quipText.trim().length === 0 || fields.quipText.trim().length > QUIP_TEXT_MAX)
+  ) {
+    problems.push(`quip-text must be 1–${String(QUIP_TEXT_MAX)} characters`);
   }
   if (fields.assetKey !== undefined && !GIFT_ASSET_KEY_PATTERN.test(fields.assetKey)) {
     problems.push('assetKey must be 1–80 characters: letters, digits, _ - . /');
@@ -135,7 +191,7 @@ type Tx = Prisma.TransactionClient;
 
 /** Adds a gift (enabled). Returns false when the code exists (nothing changes). */
 export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promise<boolean> {
-  const tagProblem = giftTagProblem(fields);
+  const tagProblem = giftTagProblem(fields) ?? giftQuipProblem(fields);
   if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
   const inserted = await tx.gift.createMany({
     data: [
@@ -155,6 +211,9 @@ export async function addGiftIn(tx: Tx, code: string, fields: GiftFields): Promi
         imageObjectKey: fields.imageObjectKey ?? null,
         animationObjectKey: fields.animationObjectKey ?? null,
         animationBytes: fields.animationBytes ?? null,
+        soundKey: fields.soundKey ?? null,
+        soundMs: fields.soundMs ?? null,
+        quipText: fields.quipText?.trim() ?? null,
       },
     ],
     skipDuplicates: true,
@@ -179,6 +238,14 @@ export async function updateGiftIn(
     tagNameEn: fields.tagNameEn !== undefined ? fields.tagNameEn : before.tagNameEn,
   });
   if (tagProblem !== null) throw new GiftFieldsError(tagProblem);
+  const quipProblem = giftQuipProblem({
+    category: fields.category ?? before.category,
+    priceCoins: fields.priceCoins ?? before.priceCoins,
+    soundKey: fields.soundKey !== undefined ? fields.soundKey : before.soundKey,
+    soundMs: fields.soundMs !== undefined ? fields.soundMs : before.soundMs,
+    quipText: fields.quipText !== undefined ? fields.quipText : before.quipText,
+  });
+  if (quipProblem !== null) throw new GiftFieldsError(quipProblem);
   const after = await tx.gift.update({
     where: { code },
     data: {
@@ -187,6 +254,7 @@ export async function updateGiftIn(
       ...(fields.nameEn !== undefined ? { nameEn: fields.nameEn.trim() } : {}),
       ...(typeof fields.tagNameAr === 'string' ? { tagNameAr: fields.tagNameAr.trim() } : {}),
       ...(typeof fields.tagNameEn === 'string' ? { tagNameEn: fields.tagNameEn.trim() } : {}),
+      ...(typeof fields.quipText === 'string' ? { quipText: fields.quipText.trim() } : {}),
     },
   });
   return { before, after };
@@ -251,7 +319,7 @@ export async function stockOf(db: Pick<Tx, 'userGiftStock'>, userId: string, cod
   return row?.quantity ?? 0;
 }
 
-/** The catalogue order: tab (POPULAR, EVENT, FUN, LUCKY), then sort order, then code. */
+/** The catalogue order: tab (POPULAR, EVENT, FUN, LUCKY, QUIPS), then sort order, then code. */
 export function compareGifts(
   a: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
   b: Pick<Gift, 'category' | 'sortOrder' | 'code'>,
@@ -284,6 +352,9 @@ export function catalogueVersion(
     | 'tagNameEn'
     | 'imageObjectKey'
     | 'animationObjectKey'
+    | 'soundKey'
+    | 'soundMs'
+    | 'quipText'
   >[],
   quantities: readonly number[],
   comboWindowSeconds: number,
@@ -310,6 +381,8 @@ export function catalogueVersion(
       ...(g.imageObjectKey === null && g.animationObjectKey === null
         ? []
         : ['art', g.imageObjectKey, g.animationObjectKey]),
+      // v1.32-live (D154): a quip's sound and text (appended only when set).
+      ...(g.soundKey === null ? [] : ['quip', g.soundKey, g.soundMs, g.quipText]),
     ]),
   });
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16);

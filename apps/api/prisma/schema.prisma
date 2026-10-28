@@ -156,6 +156,8 @@ model User {
   luckyAgeConfirm    LuckyGiftAgeConfirmation?
   /// v1.30-live (D148): the caller's losing lucky draws in a row (the guarantee).
   luckyPity          LuckyGiftPity?
+  /// v1.32-live (D154): the free quips the user sent (one per live).
+  freeQuips          LiveFreeQuip[]
   // v1.27.1-live (D133): featured on the live hub.
   liveFeatured       LiveFeaturedHost?
   // v1.28-live (D146): premium usernames.
@@ -468,6 +470,9 @@ model LiveRoom {
   infoVersion     Int                @default(0) @map("info_version")
   /// Always null in v1.3 (no upload).
   coverUrl        String?            @map("cover_url") @db.VarChar(2048)
+  /// v1.32-live (D154, §10.33): when the room's quip queue is free again (null: never used). Written
+  /// under the room row's lock by each quip and soundboard sound.
+  quipBusyUntil   DateTime?          @map("quip_busy_until") @db.Timestamptz(3)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -487,6 +492,7 @@ model LiveRoom {
   kicks        LiveRoomKick[]
   bullets      LiveBullet[]
   gifts        LiveGift[]
+  freeQuips    LiveFreeQuip[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2305,6 +2311,9 @@ enum GiftCategory {
   FUN
   /// v1.27-live (D132): lucky gifts (CONVENTIONS §10.27), listed only while LUCKY_GIFTS_ENABLED.
   LUCKY
+  /// v1.32-live (D154): «إفيهات» quips — a sound (and a line of text) played to the whole room, one at a
+  /// time (CONVENTIONS §10.33). Price 0 = a free quip (one per viewer per live).
+  QUIPS
 
   @@map("gift_category")
 }
@@ -2352,6 +2361,11 @@ model Gift {
   imageObjectKey     String?      @map("image_object_key") @db.VarChar(200)
   animationObjectKey String?      @map("animation_object_key") @db.VarChar(200)
   animationBytes     Int?         @map("animation_bytes")
+  /// v1.32-live (D154, §10.33): a QUIPS gift's bundled sound (app asset key), its length and its line
+  /// of text (shown as a chat bubble while it plays). Set exactly for QUIPS (CHECK `gifts_quip_fields`).
+  soundKey           String?      @map("sound_key") @db.VarChar(80)
+  soundMs            Int?         @map("sound_ms")
+  quipText           String?      @map("quip_text") @db.VarChar(200)
   enabled            Boolean      @default(true)
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2400,6 +2414,9 @@ model LiveGift {
   comboId       String         @map("combo_id") @db.Uuid
   comboCount    Int            @map("combo_count")
   comboQuantity BigInt         @map("combo_quantity")
+  /// v1.32-live (D154, §10.33): the recipients' earnings share of `total_coins` at the time of the send,
+  /// in basis points (the category's GIFT_HOST_SHARE_PERCENTS; LUCKY: LUCKY_GIFT_HOST_SHARE_PERCENT).
+  hostShareBps  Int            @map("host_share_bps")
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
   sender     User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -2408,6 +2425,8 @@ model LiveGift {
   recipients LiveGiftRecipient[]
   /// v1.27-live (D132): the draws of a LUCKY send (none for other gifts).
   luckyDraw  LuckyGiftDraw?
+  /// v1.32-live (D154): the free-quip row of a free QUIPS send.
+  freeQuip   LiveFreeQuip?
 
   @@unique([senderId, clientId], map: "live_gifts_client_once")
   @@index([senderId, roomId, createdAt(sort: Desc)], map: "live_gifts_sender_room_idx")
@@ -2429,6 +2448,23 @@ model LiveGiftRecipient {
   @@id([giftId, userId], map: "live_gift_recipients_pkey")
   @@index([userId], map: "live_gift_recipients_user_idx")
   @@map("live_gift_recipients")
+}
+
+/// v1.32-live (D154, §10.33): the one free quip a person sent in a live (owner: one per viewer per
+/// live, any of the free sounds). Inserted in the send's transaction; a second free send → 409.
+model LiveFreeQuip {
+  roomId    String   @map("room_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  giftId    String   @unique @map("gift_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gift LiveGift @relation(fields: [giftId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId], map: "live_free_quips_pkey")
+  @@index([userId], map: "live_free_quips_user_idx")
+  @@map("live_free_quips")
 }
 
 /// D124 (v1.26-live, CONVENTIONS §10.26): a promo banner shown on the live hub between the live

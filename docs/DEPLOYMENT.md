@@ -1079,6 +1079,38 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   the channels' sounds, the Android 13+ prompt, taps from a closed app, the compose start with the
   real key. See the D152 row of the board.
 
+### 5.17 «إفيهات» quips and the host share per category (migrations `20261204090000_quips_enums`, `20261204100000_quips`; D154) — [IMPLEMENTED, draft contract v1.32-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): enum value `gift_category.QUIPS`; columns `gifts.sound_key`,
+  `sound_ms`, `quip_text`, `live_rooms.quip_busy_until`; `live_gifts.host_share_bps` (NOT NULL, **backfilled**
+  in the migration: lucky sends from their draws' audit row, every other send 6 500 = 65 %); table
+  `live_free_quips`; the CHECKs `gifts_price_range`, `live_gifts_amounts` and
+  `live_gift_recipients_coins_positive` are replaced to allow a free quip (0 coins, QUIPS only). No GRANT
+  (default privileges). The backfill touches every `live_gifts` row once (fast for today's volume).
+- **Then add the owner's pack** (35 gifts: 8 free sounds, 27 Kabi lines at 99 / 199 / 299 coins; idempotent,
+  audited `gift.add`; the sounds themselves ship inside the app — an app built from D154 or later):
+
+  ```bash
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js quips-seed
+  docker compose --profile jobs run --rm migrate node dist/cli/gift-admin.js list | grep QUIPS
+  ```
+
+  Until it runs, the «إفيهات» tab and the host's soundboard stay empty (the app hides the tab). Older apps
+  ignore the QUIPS category.
+- **New optional config:**
+
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `GIFT_HOST_SHARE_PERCENTS` | `POPULAR:65,EVENT:65,FUN:65,QUIPS:50` | the recipients' earnings share per category (owner: quips 50 %, other gifts 65 % — D149); each non-lucky category once, 0–100; fixed on each send (`live_gifts.host_share_bps`). LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`. An invalid value → the API refuses to start |
+  | `QUIP_QUEUE_MAX_WAIT_SECONDS` | `60` | a quip (or soundboard sound) that would start later than this is refused (409 `QUIP_QUEUE_FULL`); 5–600 |
+
+- The soundboard (`POST /live/rooms/{roomId}/sounds`) uses the taps bucket (`RATE_LIMIT_LIVE_TAPS_USER`)
+  plus a fixed one-sound-every-2-s rule in Redis.
+- **Rollback:** the API before D154 ignores the new columns and table, but its inserts into `live_gifts`
+  do not name `host_share_bps` and would fail on its NOT NULL — so roll the API back only together with
+  `ALTER TABLE live_gifts ALTER COLUMN host_share_bps SET DEFAULT 6500;` (keeps old inserts working).
+  Disable the quips without a rollback with `gift-admin disable <code>` (each).
+
 ## 6. Observability baseline
 
 | Item | Status |

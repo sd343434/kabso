@@ -101,6 +101,10 @@ export enum ErrorCode {
   CP_TASK_NOT_COMPLETED = 'CP_TASK_NOT_COMPLETED',
   /** v1.24-live (DRAFT, CP-021): the couple has not unlocked the CP privilege this needs. */
   CP_PRIVILEGE_LOCKED = 'CP_PRIVILEGE_LOCKED',
+  /** v1.32-live (DRAFT, D154): the caller already sent their one free quip in this live. */
+  QUIP_FREE_USED = 'QUIP_FREE_USED',
+  /** v1.32-live (DRAFT, D154): the room's quip queue is full (the quip would wait too long). */
+  QUIP_QUEUE_FULL = 'QUIP_QUEUE_FULL',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -161,6 +165,8 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.GIFT_UNAVAILABLE]: 409,
   [ErrorCode.GIFT_BAG_INSUFFICIENT]: 409,
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
+  [ErrorCode.QUIP_FREE_USED]: 409,
+  [ErrorCode.QUIP_QUEUE_FULL]: 409,
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
 };
@@ -225,6 +231,8 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 'A recipient cannot receive gifts in this live now.',
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 'That CP task is not completed yet today.',
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 'This couple has not unlocked that CP privilege.',
+  [ErrorCode.QUIP_FREE_USED]: 'You already sent your free quip in this live.',
+  [ErrorCode.QUIP_QUEUE_FULL]: 'Too many quips are waiting in this live; try again in a moment.',
 };
 
 export interface ErrorDetail {

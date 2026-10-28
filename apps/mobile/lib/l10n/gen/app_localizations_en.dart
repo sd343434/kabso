@@ -6870,4 +6870,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name won ×$multiplier in $room';
   }
+
+  @override
+  String get liveGiftTabQuips => 'Quips';
+
+  @override
+  String get liveQuipFree => 'Free';
+
+  @override
+  String get liveQuipSoundboardFree => '∞ Free';
+
+  @override
+  String get liveQuipFreeOnce => 'One free quip for you in each live.';
+
+  @override
+  String get liveQuipSoundboardHint =>
+      'Free for you and your moderators — one sound every 2 seconds, heard by everyone.';
+
+  @override
+  String get liveQuipSoundEffectsOff =>
+      'Sound effects are off in Settings: you won\'t hear them, but the room will.';
+
+  @override
+  String get liveQuipSoundboardTitle => 'Sound effects';
+
+  @override
+  String get liveQuipSoundboardEmpty => 'No free sounds yet.';
+
+  @override
+  String get liveQuipMute => 'Mute quips';
+
+  @override
+  String get liveQuipUnmute => 'Unmute quips';
+
+  @override
+  String liveQuipQueued(int seconds) {
+    return 'Queued — starts in $seconds s';
+  }
+
+  @override
+  String liveQuipBubbleSemantics(String name, String words) {
+    return '$name: $words';
+  }
+
+  @override
+  String get errorQuipFreeUsed => 'You\'ve used your free quip in this live.';
+
+  @override
+  String get errorQuipQueueFull =>
+      'Too many quips are waiting. Try again in a moment.';
 }

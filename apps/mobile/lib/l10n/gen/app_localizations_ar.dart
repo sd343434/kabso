@@ -6917,4 +6917,52 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveLuckyTicker(String name, String multiplier, String room) {
     return '$name ربح ×$multiplier في غرفة $room';
   }
+
+  @override
+  String get liveGiftTabQuips => 'إفيهات';
+
+  @override
+  String get liveQuipFree => 'مجاني';
+
+  @override
+  String get liveQuipSoundboardFree => '∞ مجاني';
+
+  @override
+  String get liveQuipFreeOnce => 'إفيه مجاني واحد لك في كل بث.';
+
+  @override
+  String get liveQuipSoundboardHint =>
+      'مجانية لك وللمشرفين — صوت كل ثانيتين، يسمعه الجميع.';
+
+  @override
+  String get liveQuipSoundEffectsOff =>
+      'المؤثرات الصوتية مطفأة في الإعدادات: لن تسمعها أنت، لكن الغرفة تسمعها.';
+
+  @override
+  String get liveQuipSoundboardTitle => 'المؤثرات الصوتية';
+
+  @override
+  String get liveQuipSoundboardEmpty => 'لا توجد مؤثرات مجانية بعد.';
+
+  @override
+  String get liveQuipMute => 'كتم الإفيهات';
+
+  @override
+  String get liveQuipUnmute => 'تشغيل صوت الإفيهات';
+
+  @override
+  String liveQuipQueued(int seconds) {
+    return 'في الدور — يبدأ بعد $seconds ث';
+  }
+
+  @override
+  String liveQuipBubbleSemantics(String name, String words) {
+    return '$name: $words';
+  }
+
+  @override
+  String get errorQuipFreeUsed => 'استخدمت إفيهك المجاني في هذا البث.';
+
+  @override
+  String get errorQuipQueueFull => 'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.';
 }

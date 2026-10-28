@@ -135,6 +135,8 @@ All non-2xx responses use one envelope:
 | 409 | `PREMIUM_USERNAME_UNAVAILABLE` | *(v1.28-live, DRAFT, D146)* The name cannot be rented or renewed by the caller now (taken, held for its last renter, reserved, not on sale, not premium, past the prepaid limit, or someone else won the same name a moment earlier). Nothing was charged; the app reads `GET /premium-usernames/{username}` to say why (§10.32). |
 | 409 | `PREMIUM_USERNAME_PRICE_CHANGED` | *(v1.28-live, DRAFT, D146)* The owner changed the price since the app showed it (`priceCoins` differs). Nothing was charged; the app shows the new price (§10.32). |
 | 409 | `PREMIUM_USERNAME_ACTIVE` | *(v1.28-live, DRAFT, D146)* The caller already has an active premium username: renting another one or changing the regular username waits until it is given back (§10.32). |
+| 409 | `QUIP_FREE_USED` | *(v1.32-live, DRAFT, D154)* The caller already sent their one free quip in this live (owner: one free quip per viewer per live). Nothing was stored or played; paid quips are still available (§10.33). |
+| 409 | `QUIP_QUEUE_FULL` | *(v1.32-live, DRAFT, D154)* The room's quips queue is full: this quip would start more than `QUIP_QUEUE_MAX_WAIT_SECONDS` (60) from now. Nothing was stored, charged or played; try again shortly (§10.33). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -390,6 +392,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PUT /me/bag/equipped` *(v1.22-live, CP-019)* | 60 / hour per user (bucket `bag:equip`, the family-write numbers like the medal showcase). **Replaces** the per-user default; `GET /bag/catalogue` and `GET /me/bag` use the per-user default |
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
+| `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
 | `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
@@ -463,6 +466,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
+| *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -502,6 +506,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.32-live (draft) | 2026-10-28 | **D154 (owner: the Room Tools, item 1 «إفيهات / Quips»; 5b–5f):** gift category `QUIPS` (`GiftCategory`), `Gift.quip` (`GiftQuip` `{soundKey, durationMs, text}`, null for other gifts); `Gift.priceCoins`, `LiveGift.unitPrice` / `totalCoins` may be **0** for a free quip; `LiveGiftResult.quip` (`LiveQuip`); `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `LiveSoundRequest`, `{quip: LiveQuip}`, host and moderators, one every 2 s); data message `quip` on topic `quip` (`{"type":"quip","quip":LiveQuip}`) — a quip is sent instead of the `gift` message; codes `QUIP_FREE_USED`, `QUIP_QUEUE_FULL` (409). Quips: coins and quantity 1 only (else 400), one free quip per person per live, one quip at a time per room (`QUIP_QUEUE_MAX_WAIT_SECONDS`, default 60). The recipients' earnings share is fixed on each send (`live_gifts.host_share_bps`): server config `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`); existing sends backfilled (lucky: their draws' share; others 65 %). CLI `gift-admin quips-seed`, `--sound`, `--sound-ms`, `--quip-text`; migrations `20261204090000_quips_enums`, `20261204100000_quips`. §4, §7, §8, §10.23, §10.33. | **Additive** for clients (a new category older apps drop, new fields, a new operation, a new data message topic, new codes). `GiftCatalogue.categories` now lists `QUIPS`. Score, levels and boards count a paid quip like a normal gift; a free quip counts nothing. |
 | v1.31-live (draft) | 2026-10-28 | **D148 (owner: eight tiers, a guarantee, «لحظة الحظ», 100 lucky sends a second):** the lucky table is configured as chances per million (`LUCKY_GIFT_CHANCES_PER_MILLION`, default ×5 48 918 · ×10 15 451 · ×25 3 903 · ×50 1 464 · ×100 569 · ×250 130 · ×500 40 · ×1000 12; `LUCKY_GIFT_MULTIPLIERS` default `5,10,25,50,100,250,500,1000`; `LUCKY_GIFT_RTP_SHARES` removed — set, the server refuses to start); the per-sender guarantee (`LUCKY_PITY_AFTER` 15, `LUCKY_PITY_MULTIPLIER` 5: after 15 losing draws in a row the next draw pays at least ×5); `LuckyGiftOdds.pity` (`LuckyGiftPity`, nullable) and `returnPercent` now includes the guarantee (84.9999 with the defaults); `LuckyGiftResult.guaranteed`; data message `lucky-ticker` on topic `lucky` to every other LIVE room for a win ≥ `bigWinMultiplier`, at most one every 10 s (all instances), the biggest waiting one next; audit columns `lucky_gift_draws.losses_before`, `losses_after`, `guaranteed` and table `lucky_gift_pity`. §10.27. | **Additive** for clients (new fields and a new data message type; older apps ignore them). **Behaviour change** for lucky draws (new odds and the guarantee) — the published odds say so. A server configured with `LUCKY_GIFT_RTP_SHARES` must switch to `LUCKY_GIFT_CHANCES_PER_MILLION` before upgrading. |
 | v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
 | v1.29.2-live (draft) | 2026-10-28 | **D145d (owner: «100 lucky draws a second per user»):** `sendLiveGift` rate-limit defaults — every send 6000 / min per user (`live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` `6000/60`, was 600/60), a LUCKY gift 100 / s (`live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` `100/1`, was 10/1); a normal gift stays 120 / min (`live:gift`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
@@ -2216,6 +2221,58 @@ change (server configuration where noted, otherwise a contract change).
 - **Account end**: a suspended or deleted account's lease runs to its end like any other (no refund).
 - **Not in v1.28-live**: buying coins (B5), auctions or bids, transfers between users, auto-renewal,
   refunds, a history of past premium names in the app.
+
+### 10.33 «إفيهات» quips and the host share per gift category *(v1.32-live, DRAFT — D154)*
+
+Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
+
+- **What a quip is** *(owner)*: a gift of the category **`QUIPS`** (the panel tab «إفيهات» / "Quips")
+  that plays a short sound to **everyone in the live** and shows its line of text as a chat bubble
+  while it plays (readable when muted). `Gift.quip` = `{soundKey, durationMs, text}` (null for every
+  other gift): `soundKey` names a sound **bundled in the app** (`room/<id>`, `kabi/<id>`), `durationMs`
+  is its length (200 … 15 000), `text` the words (or null: a sound without words). The owner's pack
+  (his own Kabso sounds, loudness-normalised; provenance in the app's `assets/sounds/quips/`) is added
+  with `gift-admin quips-seed`: **8 free sounds** (clap, laugh, welcome, wow, ta-da, ya salam, bell,
+  ooh; tag `free`) and **27 Kabi lines** at **ghazal 99, funny 199, tease 299 coins** (tags `ghazal`,
+  `funny`, `tease`). An admin manages quips like any gift (`gift-admin add|update … --category QUIPS
+  --sound <key> --sound-ms <ms> [--quip-text <text>]`; a new sound needs an app release that bundles
+  it). Only a QUIPS gift may cost **0** (CHECK `gifts_price_range`); the sound fields are set exactly
+  for QUIPS (CHECK `gifts_quip_fields`). Quips are never in the bag (`grant` refuses them).
+- **Sending** (`sendLiveGift`, §10.23, with these differences): `source` must be `COINS` and `quantity`
+  1 (else 400 `invalid_value`); recipients as for any gift. **Free quips** *(owner)*: each person may
+  send **one free quip per live** (any of the free ones; table `live_free_quips`, one row per live and
+  person) — a second → 409 `QUIP_FREE_USED`; a free quip needs no coins, writes no ledger row and
+  counts for nothing (score, boards, Contribution, levels, family). A **paid** quip is charged and
+  counted exactly like a normal gift (ledger `LIVE_GIFT`, 100 points a coin, charm and support).
+- **One at a time** *(owner)*: every live room has **one queue** of quips (`live_rooms.quip_busy_until`,
+  written under the room row's lock): a quip starts when the queue is free (now at the earliest) and
+  keeps it busy for `durationMs` + 400 ms. A quip that would start more than
+  `QUIP_QUEUE_MAX_WAIT_SECONDS` (default **60**) from now → 409 `QUIP_QUEUE_FULL` (nothing stored,
+  charged or played). The response carries `quip` (`LiveQuip`), and the room gets a reliable data
+  message on topic **`quip`**: `{"type":"quip","quip":LiveQuip}` — **instead of** the `gift` message (a
+  quip is heard, not shown as a gift effect). `LiveQuip` = `{id, roomId, kind: GIFT|SOUNDBOARD,
+  giftCode, soundKey, durationMs, text, free, sender: UserSummary, startsAt, delayMs, createdAt}`.
+  **App:** plays it `delayMs` after the message arrives (so every phone plays the queue in the same
+  order without a shared clock), one at a time, from the bundled file; shows `text` (or the quip's name
+  with its emoji when `text` is null) as a bubble with the sender for the sound's length; plays nothing
+  when the app's **Sound effects** setting is off or the viewer muted quips in this live (the bubble
+  still shows); a quip from someone the reader blocked is skipped.
+- **The soundboard** *(owner: host and moderators keep a free soundboard, 1 per 2 s)*:
+  `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `{"soundCode"}` = an enabled **free** QUIPS
+  gift). Checks: 401; 429 from the route's bucket; 404 (cannot see the room); 409 `LIVE_ROOM_ENDED`;
+  400 body; 403 `AUTH_FORBIDDEN` (not the host or a moderator of this live); 409 `GIFT_UNAVAILABLE`
+  (not an enabled free quip); 429 (one every 2 s per user, `Retry-After`); 409 `QUIP_QUEUE_FULL`. 201
+  `{quip: LiveQuip}` (`kind` `SOUNDBOARD`, `free` true); it takes the same queue and the same data
+  message. Nothing is stored but the queue's tail.
+- **The host share per category** *(owner: quips 50 %, normal gifts 65 % — D149)*: server config
+  `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; every non-lucky category
+  once, 0–100, up to two decimals; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`, §10.27). Every send
+  stores the share in force (`live_gifts.host_share_bps`, basis points), so a later change never
+  rewrites history; sends before v1.32-live were backfilled (lucky: their draws' share; others 6 500).
+  This is the **earnings** share only (what the host will be paid out of a send's value, D149); the
+  score, charm and boards are unchanged (§10.23, §10.27).
+- **Not in v1.32-live:** hosted (downloadable) quip sounds (a new sound needs an app release), a
+  room-wide switch to turn viewers' quips off, quips outside a live, payouts of the host share (D149).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

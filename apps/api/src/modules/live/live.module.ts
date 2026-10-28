@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { LiveBulletsService } from './live-bullets.service.js';
 import { LiveSeatEmojiService } from './live-seat-emoji.service.js';
+import { LiveQuipsService } from './live-quips.service.js';
 import { LiveCategoriesService } from './live-categories.service.js';
 import { LiveChatBadgesService } from './live-chat-badges.service.js';
 import { LiveChatService } from './live-chat.service.js';
@@ -78,6 +79,7 @@ import { LiveKitMediaProvider, UnconfiguredMediaProvider } from './media/livekit
     LiveBulletsService,
     // v1.27.5-live (D138): an emoji on one's own seat (§10.30).
     LiveSeatEmojiService,
+    LiveQuipsService,
     // v1.20-live (D105): kicking someone out of a live (§10.20).
     LiveKicksService,
     // v1.23-live (CP-020, D108): gifts in a live, through the wallet and the gifts module (§10.23).

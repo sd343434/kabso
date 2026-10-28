@@ -115,6 +115,47 @@ export const giftQuantities = (fallback: string) =>
 const nonNegativeInt = (fallback: number) => intSetting(fallback, 0);
 
 /** v1.27-live (D132): a percentage with at most two decimals ("85", "10.5") → basis points. */
+/**
+ * v1.32-live (D154, CONVENTIONS §10.33): the recipients' earnings share per gift category, e.g.
+ * `POPULAR:65,EVENT:65,FUN:65,QUIPS:50` → basis points by category. Every non-lucky category must be
+ * named once (LUCKY keeps LUCKY_GIFT_HOST_SHARE_PERCENT).
+ */
+export const HOST_SHARE_CATEGORIES = ['POPULAR', 'EVENT', 'FUN', 'QUIPS'] as const;
+export type HostShareCategory = (typeof HOST_SHARE_CATEGORIES)[number];
+
+const hostSharePercents = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): Readonly<Record<HostShareCategory, number>> => {
+      const out: Partial<Record<HostShareCategory, number>> = {};
+      for (const part of value.split(',')) {
+        const [name, percent, extra] = part.split(':').map((p) => p.trim());
+        const bps = percent === undefined ? null : percentToBps(percent);
+        if (
+          extra !== undefined ||
+          !HOST_SHARE_CATEGORIES.includes(name as HostShareCategory) ||
+          bps === null ||
+          bps > 10_000 ||
+          out[name as HostShareCategory] !== undefined
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `expected CATEGORY:percent pairs for ${HOST_SHARE_CATEGORIES.join(', ')} (each once), got "${value}"`,
+          });
+          return z.NEVER;
+        }
+        out[name as HostShareCategory] = bps;
+      }
+      const missing = HOST_SHARE_CATEGORIES.filter((c) => out[c] === undefined);
+      if (missing.length > 0) {
+        ctx.addIssue({ code: 'custom', message: `missing ${missing.join(', ')}` });
+        return z.NEVER;
+      }
+      return out as Record<HostShareCategory, number>;
+    });
+
 const percentSetting = (fallback: string) =>
   z
     .string()
@@ -446,6 +487,16 @@ export const envSchema = z
      * `GET /gifts/catalogue` returns them; any other quantity → 400.
      */
     LIVE_GIFT_QUANTITIES: giftQuantities('1,10,66,99,188,520,1314'),
+    /**
+     * v1.32-live (D154, CONVENTIONS §10.33): the recipients' earnings share per gift category (owner:
+     * normal gifts 65 % (D149), «إفيهات» quips 50 %). Fixed on each send (`live_gifts.host_share_bps`).
+     */
+    GIFT_HOST_SHARE_PERCENTS: hostSharePercents('POPULAR:65,EVENT:65,FUN:65,QUIPS:50'),
+    /**
+     * v1.32-live (D154): a quip (or soundboard sound) is refused (409 QUIP_QUEUE_FULL) when it would
+     * start more than this many seconds from now (one plays at a time per room).
+     */
+    QUIP_QUEUE_MAX_WAIT_SECONDS: intSetting(60, 5, 600),
     /**
      * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
      * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is
