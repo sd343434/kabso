@@ -525,6 +525,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.41-social (draft) | 2026-10-28 | **D162 (owner: the «فيديو» tab of «منشور جديد», reels «ريلز» in «لحظات», the ➕ menu; CP-023, CP-006 M2 without transcoding):** `MediaKind` `POST_VIDEO` (≤ 200 MiB, 1–180 s), `REEL_VIDEO` (≤ 100 MiB, 1–60 s), `VIDEO_POSTER` (the phone-made first frame, processed like a post image); `CreateMediaUploadRequest.contentType` `video/mp4`, `video/quicktime` (video kinds only) and `byteSize` maximum 209 715 200 (images still 15 MiB); new optional body `CompleteMediaUploadRequest {posterId}` (required for a video, refused otherwise); `MediaAsset.type` `VIDEO`, `posterUrl` (VIDEO only), `durationMs` maximum 180 000; `Post.format` `REEL` and `CreatePostRequest.format`; `listFeedReels` (`GET /feed/reels?tab=following\|trending`); `listFeedPosts` lists `format: POST` only. §11.1, §11.2, §11.3, §11.8 and §11.14. No server-side transcoding (the file is checked and served as uploaded). | **Additive** (new enum values, operation, optional fields and an optional request body). Clients that do not know `VIDEO` / `REEL` keep working: before v1.41 no video or reel existed. |
 | v1.40-social (draft) | 2026-10-28 | **D155 (owner: real direct messages; 24-hour messages; gifts in conversations):** tag `messages`: `listDmConversations` (`GET /dm/conversations?box=INBOX\|REQUESTS`, `DmConversationPage`, `DmConversation`, `DmConversationStatus`), `getDmUnread` (`GET /dm/unread`, `DmUnread`), `getDmPeer` (`GET /dm/peers/{username}`, `DmPeer`), `listDmMessages` (`GET /dm/conversations/{conversationId}/messages`, `DmMessagePage`), `sendDmMessage` (`POST /dm/messages`, `DmSendRequest`, `DmSendResult`, `DmMessage`, `DmMessageKind`), `sendDmGift` (`POST /dm/gifts`, `DmGiftSendRequest`, `DmGiftResult`, `DmGift`), `markDmRead` (`POST …/read`, `DmReadRequest`), `acceptDmRequest` (`POST …/accept`), `deleteDmConversation`, `muteDmConversation` / `unmuteDmConversation`, `deleteDmMessage` (`DELETE /dm/messages/{messageId}?scope=me\|everyone`); `PrivacySettings.whoCanMessage` (`EVERYONE` default, `FOLLOWING`, `NOBODY`); report `targetType: DM_MESSAGE` with the admin-only `Report.dmSnapshot`; `MediaKind` `DM_IMAGE`, `DM_VOICE`; codes `DM_NOT_ALLOWED`, `DM_REQUEST_LIMIT`, `DM_REQUEST_TEXT_ONLY` (403), `DM_DELETE_WINDOW_PASSED` (409); `NotificationSettings.messages` also covers direct messages; push data `kind: dm`. Every message is hard-deleted 24 h after it was sent (`DM_RETENTION_HOURS`). Gifts in a conversation reuse the live gift pipeline with the recipient's share `GIFT_DM_RECIPIENT_SHARE_PERCENT` (50 %) and lucky gifts at the lucky host share (10 %). Migrations `20261210090000_direct_messages_enums`, `20261210100000_direct_messages` (after v1.32–v1.38-live's; the ledger sign CHECK keeps `LIVE_BOOST` / `LIVE_BOOST_REFUND`). With v1.32-live (merged): in a conversation the DM share replaces the category share of `GIFT_HOST_SHARE_PERCENTS` (quips included) and is stored as `live_gifts.host_share_bps`; paid quips can be sent (`COINS`, quantity 1), free quips cannot (409 `GIFT_UNAVAILABLE`). §7, §11.1, §11.7, §11.12, §11.13. | **Additive** (new tag, paths, schemas, enum values and codes; older apps ignore them). Apps that switch on the Messages tab need this server. |
 | v1.38-live (draft) | 2026-10-28 | **D154i (owner: Room Tools item 10 «يوتيوب / YouTube», item 9):** `getLiveWatch` / `setLiveWatch`, `listLiveWatchSuggestions` / `suggestLiveWatch` / `decideLiveWatchSuggestion`, `searchYoutube` (`LiveWatch`, `LiveWatchVideo`, `LiveWatchSuggestion`, `SetLiveWatchRequest`); data messages `watch`, `watch-suggestion` on topic `watch`; error codes `YOUTUBE_VIDEO_UNAVAILABLE` (422), `YOUTUBE_SEARCH_UNAVAILABLE` (503); tables `live_watch`, `live_watch_suggestions` (migration `20261209090000_live_watch`); env `YOUTUBE_API_KEY` (optional secret). §4, §8, §10.39. | **Additive** (new operations, messages and codes). |
 | v1.37-live (draft) | 2026-10-28 | **D154h (owner: Room Tools item 8 «ملصقات / Stickers», item 3):** `listLiveStickerArt` (`GET /live/stickers`), `getLiveStickers` / `setLiveStickers` (`GET` / `PUT /live/rooms/{roomId}/stickers`, `LiveSticker`, `LiveStickers`, `LiveStickerArt`, `SetLiveStickersRequest`); data message `stickers` on topic `sticker`; tables `live_stickers`, `live_sticker_art` (migration `20261208090000_live_stickers`). §8, §10.38. | **Additive** (new operations and data message). |
@@ -2478,7 +2479,8 @@ Owner decisions (2026-10-28, D154 item 9) are marked *(owner)*.
 
 Additive; no earlier rule changes. Reels and video (M2), stories (M3), notifications (M4),
 personalised ranking (M5), places (M6) and sharing in messages (M7) come later and extend
-these rules.
+these rules. *(v1.41-social, D162)* Video posts and reels (M2, without server-side transcoding)
+are §11.14.
 
 ### 11.1 Media upload
 
@@ -2519,6 +2521,9 @@ these rules.
 - *(v1.40-social, D155)* `DM_IMAGE` uploads are processed like `POST_IMAGE`, and `DM_VOICE` uploads
   like `LIVE_CHAT_VOICE` (`audio/mp4`, ≤ 1 MiB, ≤ 30 s); both attach only to a direct message and are
   deleted with it (24 hours after it was sent, §11.13).
+- *(v1.41-social, D162)* `POST_VIDEO` and `REEL_VIDEO` uploads are videos (`video/mp4`,
+  `video/quicktime`), checked and stored as §11.14 says; `VIDEO_POSTER` uploads are processed like
+  `POST_IMAGE` and are consumed by the video they are the poster of.
 - Asset URLs are served from `MEDIA_PUBLIC_BASE_URL` (a CDN or bucket domain). An asset is
   attachable once, only by its owner, within 24 hours; unattached assets and expired slots are
   deleted by a sweeper.
@@ -2527,7 +2532,8 @@ these rules.
 
 - `text`: NFC, trimmed, ≤ 2 200 code points, the free-text hygiene rules of §6 (no control,
   bidi-override or zero-width characters except ZWNJ/ZWJ between joining letters; line breaks
-  allowed, at most 30). A post needs `text` or at least one image.
+  allowed, at most 30). A post needs `text` or at least one image. *(v1.41-social, D162)* or a
+  video; a reel (`format: REEL`) needs its video (§11.14).
 - `location`: free text ≤ 80 code points (places arrive with M6), same hygiene.
 - `status`: `PUBLISHED` (default), `DRAFT`, or `SCHEDULED` with `publishAt` in
   [now + 5 min, now + 30 days]; a worker publishes due posts within a minute. Drafts and
@@ -2551,6 +2557,8 @@ these rules.
 ### 11.3 Feeds and cursors
 
 - All lists use signed keyset cursors (§5) bound to the list, its filters and the caller.
+- *(v1.41-social, D162)* `GET /feed/posts` lists `format: POST` posts only; reels have their own
+  feed (§11.14).
 - `following`: published, visible posts and reposts of followed accounts, newest first by
   `publishedAt` (for a repost: its repost time); a post appears once (its newest entry).
   Muted authors (and reposts by muted accounts) and hidden posts are left out.
@@ -2629,7 +2637,7 @@ count is eventually consistent (≤ 1 min).
 | `PUT`/`DELETE` repost | 60 / hour |
 | `POST /posts/{id}/shares` | 120 / hour |
 | `POST /views` | 120 / hour |
-| `GET /feed/posts`, `GET /search` | 300 / 15 min |
+| `GET /feed/posts`, `GET /search`, *(v1.41-social)* `GET /feed/reels` | 300 / 15 min (`GET /feed/reels` shares the `social:feed` bucket) |
 | `PUT /users/{username}/block` | 60 / hour |
 | `POST /reports` | 30 / hour |
 | `POST /stories` *(CP-008)* | 30 / hour |
@@ -2917,3 +2925,54 @@ configuration (`DM_*`).
 - **Not in v1.40-social:** group conversations, typing and online indicators, message reactions,
   replies/quotes, forwarding and share-to-DM, video messages, captions on pictures, read-receipt
   opt-out, keeping a message beyond 24 h, end-to-end encryption, iOS pushes.
+
+### 11.14 Video posts and reels *(v1.41-social, DRAFT — D162, CP-023; CP-006 M2 without transcoding)*
+
+- **Kinds and limits** (server-enforced): `POST_VIDEO` — `video/mp4` or `video/quicktime`, at most
+  **209 715 200 bytes (200 MiB)** and **1–180 s**; `REEL_VIDEO` — the same types, at most
+  **104 857 600 bytes (100 MiB)** and **1–60 s**; `VIDEO_POSTER` — an image (JPEG, PNG, WebP,
+  ≤ 15 MiB), the video's first frame made on the phone, processed like `POST_IMAGE` (1 080 and
+  320 px WebP and a blurhash). A video type for another kind, or another type for a video kind →
+  400 `contentType` / `invalid_value`; a larger `byteSize` → 400 `byteSize` / `too_big`. The
+  presigned PUT signs `Content-Type` and `Content-Length`, so storage refuses any other bytes.
+- **Completing a video** (`completeMediaUpload` with `{posterId}`). Check order: auth →
+  `MEDIA_UPLOADS_ENABLED` → the slot (404) → body (`posterId` required for a video kind, refused for
+  every other kind with `unknown_field`, and it must be a READY, unattached `VIDEO_POSTER` of the
+  caller younger than 24 h, else `invalid_value` — the slot stays open) → the bytes. The server
+  does not decode or re-encode the video. It checks: HEAD size = `byteSize`; the top-level boxes,
+  read with ranged GETs — `ftyp` first, every box inside the file, exactly one `moov` of at most
+  16 MiB and an `mdat`; `video/quicktime` ⇔ major brand `qt  ` (the bytes and the declared type
+  agree); the length from `moov/mvhd` (at least 1 s, at most the kind's maximum; up to 500 ms of
+  encoder padding is accepted and reported clipped to the maximum); at least one video track
+  (`hdlr` `vide`) whose first sample entry is H.264 (`avc1`, `avc3`) or HEVC (`hvc1`, `hev1`); and
+  the display size from that track's `tkhd` (a 90° / 270° matrix swaps width and height), 16–4 096 px
+  per side. Anything else → 422 `MEDIA_INVALID`, the slot is closed and the object deleted.
+- **Storage:** the bytes are copied unchanged by the storage service to
+  `media/{mediaId}/video.mp4` (or `.mov`) with the declared type and an immutable cache header,
+  then the upload object is deleted. The poster's two WebP objects become the video's poster and
+  thumbnail and the poster asset no longer exists on its own. The asset is `type: VIDEO`: `url` the
+  file, `thumbUrl` the poster at 320 px, `posterUrl` the poster at 1 080 px, `blurhash` the
+  poster's, `width` / `height` the display size, `durationMs` the length. Like every asset it is
+  attachable once, by its owner, within 24 h; never-attached videos and posters are swept with
+  their objects.
+- **Posts:** a `POST` holds text and/or either 1–10 `POST_IMAGE` assets **or exactly one**
+  `POST_VIDEO` (a mix, two videos or another kind → 400 `mediaIds` / `invalid_value`). A **reel**
+  (`CreatePostRequest.format: REEL`) holds exactly one `REEL_VIDEO` (none → 400 `mediaIds` /
+  `required`, anything else → `invalid_value`) and an optional caption under the §11.2 text rules.
+  Every other post rule applies to reels unchanged: drafts, scheduling, edits, pins, likes,
+  comments, saves, reposts, views (§11.4), reports, hashtags, mentions, search, privacy and blocks.
+  **Moderation:** a post or reel with a video is `PENDING` like a post with photos (§11.2, CP-006
+  Q2): visible to its author only until a moderation provider exists or the owner decides
+  otherwise.
+- **Lists:** `GET /feed/posts` lists `format: POST` only. `GET /feed/reels?tab=` lists reels only:
+  `following` — reels of followed accounts and the caller's own, and reels reposted by followed
+  accounts, newest first (a post appears once; muted and hidden left out); `trending` — the §11.3
+  score over visible public reels published in the last 7 days, not the caller's own, at most 2
+  per author in any 10, frozen for 10 minutes. Not personalised (M5). Profile grids, saved,
+  reposts, search and hashtag pages list both formats; every item carries `format`.
+- **Playback** (the app): the phone streams `url` (progressive download; storage serves byte
+  ranges), shows `posterUrl` / `thumbUrl` until the first frame, and starts muted.
+- **Not in v1.41-social:** server-side transcoding, HLS / adaptive bitrate and server-made
+  thumbnails (CP-006 Q1, later — `url` stays a playable file, so clients need no change), video
+  stories, video in direct messages and the live chat, trim / filters / music / editing (M6),
+  mixing photos and a video in one post, personalised ranking (M5).
