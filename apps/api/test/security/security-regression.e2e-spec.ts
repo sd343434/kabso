@@ -79,6 +79,14 @@ const OPTIONAL_AUTH_ALLOWLIST = [
   'GET /api/v1/live/rankings',
   // v1.23.2-live (D109): who is watching (guests read it when the room allows guests).
   'GET /api/v1/live/rooms/:roomId/viewers',
+  // v1.33-live (D154b): the featured («مميز») lives of the hub, read like the hub.
+  'GET /api/v1/live/boosts/active',
+  // v1.36-live (D154e): a live's program (guests read it like the room).
+  'GET /api/v1/live/rooms/:roomId/program',
+  // v1.37-live (D154h): the stickers on a live (guests see them like the picture).
+  'GET /api/v1/live/rooms/:roomId/stickers',
+  // v1.38-live (D154i): what the live watches together (guests follow it like the picture).
+  'GET /api/v1/live/rooms/:roomId/watch',
 ].sort();
 
 interface RouteInfo {
