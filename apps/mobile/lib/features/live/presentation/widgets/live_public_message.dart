@@ -30,7 +30,6 @@ class LivePublicMessage extends StatefulWidget {
   const new({
     required this.bullet,
     super.key,
-    this.role,
     this.badges,
     this.onTap,
     this.maxWidth = 300,
@@ -38,8 +37,9 @@ class LivePublicMessage extends StatefulWidget {
 
   final LiveBullet bullet;
 
-  /// The sender's role and badges in this room, when the chat knows them.
-  final LiveChatRole? role;
+  /// The sender's personal badges (charm, support level, family), when the
+  /// chat knows them. D145c (owner): never a room role chip (host,
+  /// moderator, guest) — a public message is not about this room.
   final LiveChatAuthorBadges? badges;
   final VoidCallback? onTap;
   final double maxWidth;
@@ -178,7 +178,7 @@ class _LivePublicMessageState extends State<LivePublicMessage>
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
     final badges = LiveChatBadgeRow(
-      role: widget.role,
+      role: null,
       badges: widget.badges,
       height: LiveChatInlineRow.badgeHeight,
     );

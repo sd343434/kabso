@@ -360,6 +360,12 @@ export const envSchema = z
     // v1.23-live (CP-020, CONVENTIONS §7): gift sends in a live, per user, replacing the default
     // authenticated bucket (combos are quick taps on "send": one a second on average, 2× headroom).
     RATE_LIMIT_LIVE_GIFT_USER: rateLimit('120/60'),
+    // D145c (CONVENTIONS §7): lucky gifts (the MAX X streak) get their own, higher limits — every
+    // gift send of a user counts against the per-minute ceiling (the route's bucket), and a lucky
+    // send against its burst bucket instead of RATE_LIMIT_LIVE_GIFT_USER. D145d (owner: 100 lucky
+    // sends a second per user): 6000 / min and 100 / s.
+    RATE_LIMIT_LIVE_LUCKY_GIFT_USER: rateLimit('6000/60'),
+    RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER: rateLimit('100/1'),
     // v1.28-live (D146, CONVENTIONS §7): premium usernames and the username change.
     RATE_LIMIT_PREMIUM_RENT_USER: rateLimit('20/3600'),
     RATE_LIMIT_USERNAME_CHANGE_USER: rateLimit('5/86400'),
@@ -385,6 +391,8 @@ export const envSchema = z
     RATE_LIMIT_STORY_SEEN_USER: rateLimit('600/3600'),
     RATE_LIMIT_NOTIFICATIONS_READ_USER: rateLimit('120/3600'),
     RATE_LIMIT_SEARCH_USER: rateLimit('300/900'),
+    /** v1.29-live (D147, §11.11): `POST /search/queries` (a submitted search counted for trends). */
+    RATE_LIMIT_SEARCH_RECORD_USER: rateLimit('120/3600'),
     RATE_LIMIT_BLOCK_USER: rateLimit('60/3600'),
     RATE_LIMIT_REPORT_USER: rateLimit('30/3600'),
 
@@ -537,6 +545,13 @@ export const envSchema = z
     PREMIUM_USERNAME_MAX_PREPAID_DAYS: intSetting(365, 1, 3650),
     /** D146: period of the premium-username sweeper (reminders, expiry, grace); 0 disables it (not in production). */
     PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
+    /**
+     * v1.29-live (D147, §11.11): a search term is listed in `GET /search/trending` only once at
+     * least this many different people searched it in the last 7 days (nothing rare or personal).
+     */
+    SEARCH_TRENDING_MIN_SEARCHERS: intSetting(5, 2, 100000),
+    /** D147: period of the search-trends sweeper (drops counts older than 14 days); 0 disables it. */
+    SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86400),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.

@@ -23,6 +23,7 @@ import 'package:kabso_live/features/auth/domain/entities.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -35,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dar
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
+import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/guest_seats.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_effects_layer.dart';
@@ -60,6 +62,7 @@ import '../../fixtures/live/live_gift_fixtures.dart';
 import '../../helpers/component_harness.dart';
 import '../../helpers/fake_live_gift_repository.dart';
 import '../../helpers/fake_live_media_engine.dart';
+import '../../helpers/fake_live_permissions.dart';
 import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_profile_repository.dart';
 import '../../helpers/fake_safety_repository.dart';
@@ -94,6 +97,7 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
   FakeLiveRepository? repo,
   User? user,
   FakeLiveGiftRepository? gifts,
+  FakeLivePermissions? permissions,
 }) async {
   final ar = language == AppLanguage.ar;
   final live =
@@ -112,6 +116,8 @@ Future<(FakeLiveRepository, FakeProfileRepository)> _pumpRoom(
       liveRepositoryProvider.overrideWithValue(live),
       profileRepositoryProvider.overrideWithValue(profiles),
       if (user != null) currentUserProvider.overrideWithValue(user),
+      if (permissions != null)
+        livePermissionsProvider.overrideWithValue(permissions),
     ],
   );
   settle
@@ -1528,6 +1534,67 @@ void main() {
       );
       expect(repo.tokenRequests, isEmpty);
       expect(engine.joined, isNull);
+    });
+
+    testWidgets('D144a audio room: asking for a seat explains and asks for '
+        'the microphone only, once; Not now asks nothing', (tester) async {
+      final repo = seatRoom(LiveRoomMode.audio, 9);
+      final permissions = FakeLivePermissions(
+        state: LivePermission.notAsked,
+        afterRequest: LivePermission.granted,
+      );
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+        permissions: permissions,
+      );
+      await tester.tap(find.byKey(AudioRoomViewKeys.request));
+      await tester.pumpAndSettle();
+      final l10n = l10nFor(AppLanguage.en);
+      expect(find.text(l10n.livePermissionTitleAudio), findsOneWidget);
+      expect(find.text(l10n.livePermissionBodyAudio), findsOneWidget);
+      await tester.tap(find.byKey(LivePermissionKeys.notNow));
+      await tester.pumpAndSettle();
+      expect(permissions.requests, isEmpty);
+      expect(repo.seatCalls, isNot(contains(startsWith('requestSeat'))));
+      expect(find.text(l10n.livePermissionSeatRefused), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(LiveAudioRoomLayout)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(AudioRoomViewKeys.request));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(LivePermissionKeys.go));
+      await tester.pumpAndSettle();
+      expect(permissions.checks, everyElement(isFalse));
+      expect(permissions.requests, [false]);
+      expect(repo.seatCalls, contains('requestSeat:'));
+    });
+
+    testWidgets('D144a refused for good: Open settings, no seat request', (
+      tester,
+    ) async {
+      final repo = seatRoom(LiveRoomMode.multi, 6);
+      final permissions = FakeLivePermissions(state: LivePermission.blocked);
+      await _pumpRoom(
+        tester,
+        repo: repo,
+        engine: FakeLiveMediaEngine(),
+        user: testUser(),
+        permissions: permissions,
+      );
+      await tester.tap(find.byKey(const Key('room.seat.request')));
+      await tester.pumpAndSettle();
+      final l10n = l10nFor(AppLanguage.en);
+      expect(find.text(l10n.livePermissionBlockedVideo), findsOneWidget);
+      await tester.tap(find.byKey(LivePermissionKeys.settings));
+      await tester.pumpAndSettle();
+      expect(permissions.settingsOpened, 1);
+      expect(permissions.checks, [true]);
+      expect(permissions.requests, isEmpty);
+      expect(repo.seatCalls, isNot(contains(startsWith('requestSeat'))));
     });
 
     testWidgets('multi-guest: the seats, and asking for one', (tester) async {

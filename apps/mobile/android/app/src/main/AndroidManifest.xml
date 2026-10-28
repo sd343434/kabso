@@ -34,7 +34,7 @@
          the device, so a copied file could not be decrypted anyway; excluding
          it makes the "never leaves the device" rule explicit. -->
     <application
-        android:label="Kabso Live"
+        android:label="kabso"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"

@@ -287,6 +287,11 @@ jobs:
         env:
           DEEPAR_LICENSE_ANDROID: ${{ secrets.DEEPAR_LICENSE_ANDROID }}
         run: flutter build apk --debug --dart-define=DEEPAR_LICENSE_ANDROID="$DEEPAR_LICENSE_ANDROID"
+      # D144a: the camera plugin's JVM tests (the DeepAR stage's frame rules,
+      # FrameGate.kt), in the Gradle project the APK build just set up.
+      - name: kabso_camera_fx — Kotlin unit tests
+        working-directory: apps/mobile/android
+        run: ./gradlew :kabso_camera_fx:testDebugUnitTest
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kabso-live-debug-apk

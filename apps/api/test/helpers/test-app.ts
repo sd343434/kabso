@@ -204,6 +204,9 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
     RATE_LIMIT_PREMIUM_RENT_USER: GENEROUS,
     RATE_LIMIT_USERNAME_CHANGE_USER: GENEROUS,
+    // D147: specs call SearchTrendsService.sweep() directly.
+    SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_SEARCH_RECORD_USER: GENEROUS,
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,

@@ -104,3 +104,26 @@ class ThemeModeController extends Notifier<ThemeMode> {
 
 final themeModeControllerProvider =
     NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+
+/// D145d: the app's sound effects (the MAX X taps and wins; owner: «bind it
+/// to a user setting»). On until the person turns them off in Settings;
+/// kept on this device.
+class SoundEffectsController extends Notifier<bool> {
+  @override
+  bool build() =>
+      ref
+          .watch(sharedPreferencesProvider)
+          .getBool(PreferenceKeys.soundEffects) ??
+      true;
+
+  Future<void> set({required bool on}) async {
+    state = on;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setBool(PreferenceKeys.soundEffects, on);
+  }
+}
+
+final soundEffectsProvider = NotifierProvider<SoundEffectsController, bool>(
+  SoundEffectsController.new,
+);

@@ -490,6 +490,29 @@ class FakePostsRepository implements PostsRepository {
     ], cursor);
   }
 
+  /// D147: what `trendingSearches` and `trendingHashtags` return, and the
+  /// searches `recordSearch` received.
+  List<TrendingSearch> trending = const [];
+  List<Hashtag> trendingTags = const [];
+  final List<String> recorded = [];
+
+  @override
+  Future<List<TrendingSearch>> trendingSearches() async {
+    await _step('trending');
+    return trending;
+  }
+
+  @override
+  Future<List<Hashtag>> trendingHashtags({int limit = 20}) async {
+    await _step('trendingTags:$limit');
+    return trendingTags.take(limit).toList();
+  }
+
+  @override
+  Future<void> recordSearch(String query) async {
+    recorded.add(query);
+  }
+
   @override
   Future<Hashtag> hashtag(String tag) async {
     await _step('hashtag:$tag');

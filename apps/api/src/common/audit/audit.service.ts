@@ -98,6 +98,9 @@ export enum AuditAction {
   PREMIUM_USERNAME_GRACE_END = 'premium_username.grace_end',
   PREMIUM_USERNAME_PRICE = 'premium_username.price',
   PREMIUM_USERNAME_RESERVE = 'premium_username.reserve',
+  // v1.29-live (DRAFT, D147): search trends, changed only by the search-admin CLI (§11.11).
+  SEARCH_TERM_HIDE = 'search.term.hide',
+  SEARCH_BLOCKED_WORD = 'search.blocked_word',
 }
 
 export interface AuditEntry {

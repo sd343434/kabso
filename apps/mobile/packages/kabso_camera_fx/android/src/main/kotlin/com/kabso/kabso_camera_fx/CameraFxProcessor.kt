@@ -21,10 +21,12 @@ import java.util.concurrent.atomic.AtomicReference
  * next call (the sink is done with it by then: `onFrameCaptured` is
  * synchronous); an intermediate one as soon as the next stage has drawn it.
  */
-internal class CameraFxProcessor(activity: Activity) :
-    LocalVideoTrack.ExternalVideoFrameProcessing {
+internal class CameraFxProcessor(
+    activity: Activity,
+    onStatus: (Map<String, Any?>) -> Unit,
+) : LocalVideoTrack.ExternalVideoFrameProcessing {
 
-    private val deepAr = DeepArStage(activity)
+    private val deepAr = DeepArStage(activity, onStatus)
     private val color = ColorStage()
     private val main = Handler(Looper.getMainLooper())
 
@@ -36,6 +38,9 @@ internal class CameraFxProcessor(activity: Activity) :
     fun setEffect(effect: DeepArStage.Effect?) = deepAr.setEffect(effect)
 
     fun setColorMatrix(matrix: FloatArray?) = color.setMatrix(matrix)
+
+    /** D144a: DeepAR's state and counters for the diagnostics overlay. */
+    fun diagnostics(): Map<String, Any?> = deepAr.diagnostics()
 
     override fun onFrame(frame: VideoFrame): VideoFrame {
         // Before any bail-out: DeepAR's render texture is single and must

@@ -314,6 +314,128 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
     });
   });
 
+  describe('D145c / D145d rate limits (owner: «too many attempts» during a lucky streak; 100 / s)', () => {
+    /** Percentile `p` (0–1) of `xs` in ms, rounded to 0.1. */
+    const pct = (xs: number[], p: number) => {
+      const sorted = [...xs].sort((a, b) => a - b);
+      const v = sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0;
+      return Math.round(v * 10) / 10;
+    };
+    /** Times every interactive transaction of the app (connection, advisory lock wait and body). */
+    const timeTransactions = () => {
+      const prisma = ctx.prisma as unknown as { $transaction: (...a: unknown[]) => Promise<unknown> };
+      const original = prisma.$transaction;
+      const times: number[] = [];
+      prisma.$transaction = function (this: unknown, ...a: unknown[]) {
+        const t0 = performance.now();
+        return original.apply(this, a).finally(() => times.push(performance.now() - t0));
+      };
+      return { times, restore: () => void (prisma.$transaction = original) };
+    };
+
+    it('D145d load: 100 lucky sends a second from one user — 3 rounds of 100 started 10 ms apart all succeed (no 429); sequential sends measured too', async () => {
+      const { h, viewer, roomId } = await f.scene();
+      const code = await f.gift();
+      const report: string[] = [];
+
+      // 1) The MAX X queue's way: one send in flight at a time, as fast as the server answers.
+      const tx1 = timeTransactions();
+      const seq: number[] = [];
+      const seqStart = performance.now();
+      for (let i = 0; i < 100; i++) {
+        const t0 = performance.now();
+        const res = await f.send(roomId, viewer, f.body(code, [h]));
+        seq.push(performance.now() - t0);
+        expect(res.status, `sequential ${String(i)}: ${JSON.stringify(res.body)}`).toBe(201);
+      }
+      const seqSeconds = (performance.now() - seqStart) / 1000;
+      tx1.restore();
+      report.push(
+        `sequential 100: ${seqSeconds.toFixed(2)} s (${(100 / seqSeconds).toFixed(1)} sends/s); ` +
+          `HTTP p50 ${String(pct(seq, 0.5))} p95 ${String(pct(seq, 0.95))} max ${String(pct(seq, 1))} ms; ` +
+          `transaction p50 ${String(pct(tx1.times, 0.5))} p95 ${String(pct(tx1.times, 0.95))} max ${String(pct(tx1.times, 1))} ms`,
+      );
+      await new Promise((r) => setTimeout(r, 1100));
+
+      // 2) 100 a second offered: each round starts 100 sends 10 ms apart without waiting for the
+      // answers (one fresh 1 s window per round), then waits for them all.
+      for (let round = 0; round < 3; round++) {
+        const tx = timeTransactions();
+        const latencies: number[] = [];
+        const t0 = performance.now();
+        const pending: Promise<request.Response>[] = [];
+        for (let i = 0; i < 100; i++) {
+          const due = t0 + i * 10 - performance.now();
+          if (due > 0) await new Promise((r) => setTimeout(r, due));
+          const start = performance.now();
+          pending.push(
+            f.send(roomId, viewer, f.body(code, [h])).then((res) => {
+              latencies.push(performance.now() - start);
+              return res;
+            }),
+          );
+        }
+        const offered = (performance.now() - t0) / 1000;
+        const answers = await Promise.all(pending);
+        const drained = (performance.now() - t0) / 1000;
+        tx.restore();
+        const statuses = answers.map((r) => r.status);
+        report.push(
+          `round ${String(round + 1)}: 100 offered in ${offered.toFixed(2)} s, all answered after ${drained.toFixed(2)} s ` +
+            `(${(100 / drained).toFixed(1)} sends/s committed); 429s ${String(statuses.filter((s) => s === 429).length)}; ` +
+            `HTTP p50 ${String(pct(latencies, 0.5))} p95 ${String(pct(latencies, 0.95))} max ${String(pct(latencies, 1))} ms; ` +
+            `transaction (incl. lock wait) p50 ${String(pct(tx.times, 0.5))} p95 ${String(pct(tx.times, 0.95))} max ${String(pct(tx.times, 1))} ms`,
+        );
+        for (const [i, res] of answers.entries()) {
+          expect(res.status, `round ${String(round)} send ${String(i)}: ${JSON.stringify(res.body)}`).toBe(
+            201,
+          );
+        }
+        await new Promise((r) => setTimeout(r, 1100));
+      }
+      expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(400);
+      // Each send is one combo step of the same streak, in order.
+      const combo = await ctx.prisma.liveGift.findMany({
+        where: { senderId: viewer.id },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { comboCount: true },
+      });
+      expect(new Set(combo.map((c) => c.comboCount)).size).toBe(combo.length);
+      process.stderr.write(`[D145d load] ${report.join('\n[D145d load] ')}\n`);
+    });
+
+    it('a 101st lucky send in one second → 429 with Retry-After, nothing charged; a retry with the same clientId is not counted; normal gifts keep 120 / min', async () => {
+      const { h, viewer, roomId } = await f.scene();
+      const code = await f.gift();
+      const before = await f.wallet(viewer);
+      // A burst past 100 / s, all at once: refused with Retry-After, nothing charged for it.
+      const burst = [];
+      for (let i = 0; i < 101; i++) burst.push(f.body(code, [h]));
+      const answers = await Promise.all(burst.map((b) => f.send(roomId, viewer, b)));
+      const limited = answers.filter((r) => r.status === 429);
+      expect(limited.length).toBeGreaterThanOrEqual(1);
+      expect(answers.filter((r) => r.status === 201).length).toBe(101 - limited.length);
+      expectError(limited[0]!, 429, 'RATE_LIMITED');
+      expect(Number(limited[0]!.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+      const sent = 101 - limited.length;
+      expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(sent);
+      expect(await f.wallet(viewer)).toBe(before - sent * 10);
+      // The same clientId once the window passed: sent (and a retry of a done one is free).
+      await new Promise((r) => setTimeout(r, 1100));
+      const lastBody = burst[answers.indexOf(limited[0]!)]!;
+      expect((await f.send(roomId, viewer, lastBody)).status).toBe(201);
+      const replays = await Promise.all(Array.from({ length: 120 }, () => f.send(roomId, viewer, lastBody)));
+      expect(replays.every((r) => r.status === 200)).toBe(true);
+
+      // Normal gifts keep their own bucket (120 / min, RATE_LIMIT_LIVE_GIFT_USER).
+      const normal = await f.gift({ category: 'POPULAR' });
+      const normals = [];
+      for (let i = 0; i < 121; i++) normals.push((await f.send(roomId, h, f.body(normal, [h]))).status);
+      expect(normals.slice(0, 120).every((s) => s === 201)).toBe(true);
+      expect(normals[120]).toBe(429);
+    });
+  });
+
   describe('gates', () => {
     it('18+: refused until the caller confirmed; nothing charged, drawn or stored', async () => {
       const { h, s1, roomId } = await f.scene();

@@ -2,7 +2,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { BackgroundTasks } from '../../common/background/background-tasks.js';
 import { AppException } from '../../common/errors/app-exception.js';
 import { ErrorCode } from '../../common/errors/error-codes.js';
+import { RateLimitService } from '../../common/rate-limit/rate-limit.service.js';
 import { Clock } from '../../common/time/clock.js';
+import { APP_CONFIG, type AppConfig } from '../../config/app-config.js';
 import { zodErrorToDetails } from '../../common/validation/zod-validation.pipe.js';
 import type { LevelCategoryCode, LiveGiftSource, Prisma } from '../../generated/prisma/client.js';
 import { safeErrorLog } from '../../logging/redact-text.js';
@@ -183,6 +185,8 @@ export class LiveGiftsService {
     @Inject(LIVE_MEDIA_PROVIDER) private readonly media: LiveMediaProvider,
     private readonly background: BackgroundTasks,
     private readonly lucky: LuckyGiftsService,
+    private readonly limiter: RateLimitService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** v1.27-live (D132): the lucky-gift region facts of a request (the edge's country header). */
@@ -236,6 +240,13 @@ export class LiveGiftsService {
     if (!gift?.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
     // v1.27-live (D132, §10.27): a lucky gift — on, paid with coins, the caller's region and 18+.
     const isLucky = gift.category === 'LUCKY';
+    // D145c (§7): a lucky streak (MAX X) has its own burst limit; normal gifts keep theirs. A retry
+    // with the same clientId was answered above and is not counted here.
+    await this.limiter.consume(
+      isLucky ? 'live:gift:lucky' : 'live:gift',
+      callerId,
+      isLucky ? this.config.rateLimits.liveLuckyGiftBurstUser : this.config.rateLimits.liveGiftUser,
+    );
     if (isLucky) {
       if (!this.lucky.enabled) throw new AppException(ErrorCode.GIFT_UNAVAILABLE);
       if (input.source !== 'COINS')
@@ -248,9 +259,6 @@ export class LiveGiftsService {
     const to = recipients as Recipient[];
     await this.assertNoBlocks(callerId, to);
 
-    const now = this.clock.now();
-    const at = now.toISOString();
-    const giftId = uuidv7();
     const key = recipientsKey(to.map((r) => r.id));
     // The draws are made before the transaction (CSPRNG, pure) and committed only with this send:
     // a refused or raced send discards them, a retry reads the stored ones and never draws again.
@@ -269,6 +277,12 @@ export class LiveGiftsService {
         await setLiveStatementTimeout(tx);
         // One send of this sender at a time (their combo follows the previous send).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
+        // D145d (load check, 100 lucky sends a second): the time and the id are taken under the
+        // sender's lock, so concurrent sends of one sender are stored in the order they ran and each
+        // continues the combo of the one before (taken earlier, two could read the same previous).
+        const now = this.clock.now();
+        const at = now.toISOString();
+        const giftId = uuidv7();
         // The room row first, like taps (§10.10): sends and tap batches of a room are serialized.
         const [room] = await tx.$queryRaw<{ host_user_id: string; status: string; wish_gifts: string[] }[]>`
           SELECT host_user_id::text AS host_user_id, status::text AS status, wish_gifts

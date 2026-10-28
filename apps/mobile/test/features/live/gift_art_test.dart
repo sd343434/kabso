@@ -410,11 +410,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       final effect = tester.widget<KGiftEffect>(find.byType(KGiftEffect));
       expect(effect.animationUrl, _svga);
-      expect(effect.imageUrl, _png);
       final banner = tester.widget<LiveGiftBanner>(find.byType(LiveGiftBanner));
       expect(banner.imageUrl, _png);
-      // Tests do not decode SVGA (`KGiftEffect.animate` is off): the image
-      // pops for the usual time, without holding for an animation.
+      // Tests do not decode SVGA (`KGiftEffect.animate` is off): the room's
+      // timer ends the effect, without holding for an animation.
       await tester.pump(LiveGiftEffects.bigTime);
       await tester.pump();
       expect(find.byType(KGiftEffect), findsNothing);

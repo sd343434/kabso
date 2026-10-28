@@ -45,6 +45,8 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.da
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/live_fx_diagnostics.dart';
+import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
@@ -112,6 +114,9 @@ class GoLiveScreen extends ConsumerStatefulWidget {
   static const endConfirmKey = Key('goLive.endConfirm');
   static const doneKey = Key('goLive.done');
   static const retryKey = Key('goLive.retry');
+
+  /// D144a: «فتح الإعدادات» on the capture notice (access refused for good).
+  static const settingsKey = Key('goLive.openSettings');
   static const elapsedKey = Key('goLive.elapsed');
   static const notAllowedKey = Key('goLive.notAllowed');
   static const unavailableKey = Key('goLive.unavailable');
@@ -152,8 +157,21 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   /// D131: the parts of [_tapScore] (its taps feed the host pill).
   LiveScore? _tapParts;
 
+  /// D144a: back from the system settings, the capture starts if access is
+  /// now allowed.
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(_host.recheckPermission()),
+    );
+  }
+
   @override
   void dispose() {
+    _lifecycle.dispose();
     _tick?.cancel();
     _taps?.close();
     _title.dispose();
@@ -208,9 +226,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       // Back from the floating window: the live goes on, full screen.
       ref.read(liveMinimizedProvider.notifier).restore();
       if (ref.read(liveHostControllerProvider).phase == GoLivePhase.preparing) {
-        unawaited(_host.startPreview());
+        unawaited(_host.startPreview(explain: _explainPermission));
       }
     });
+  }
+
+  /// D144a: the rationale before the system's camera/microphone prompt.
+  Future<bool> _explainPermission({required bool camera}) async {
+    if (!mounted) return false;
+    return await showLivePermissionSheet(context, camera: camera);
   }
 
   /// Minimizes the live into the floating window (owner D94); it goes on.
@@ -612,6 +636,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     effects: engine.arEffects,
                     effect: state.beauty.effect,
                     onEffect: (e) => unawaited(_host.setArEffect(e)),
+                    effectStatus: engine.arStatus,
                   ),
                 )
               : null,
@@ -798,7 +823,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         onClose: busy || _countdown != null ? null : _close,
         onMode: busy || _countdown != null
             ? null
-            : (mode) => unawaited(_host.setMode(mode)),
+            : (mode) =>
+                  unawaited(_host.setMode(mode, explain: _explainPermission)),
         hostName: hostName,
         hostAvatarUrl: user?.avatarUrl,
         onShare: user == null
@@ -950,17 +976,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
-        // D145a: the combo in the promo box's place; the strips between
-        // the seats and the chat.
+        // D145c: the gift strips keep above the chat text.
+        onChatTop: room == null
+            ? null
+            : (top) => ref.read(liveChatTopProvider(room.id).notifier).set(top),
+        // D145a: the combo in the promo box's place.
         combo: room != null && LuckyComboCluster.shows(ref, room.id)
             ? LuckyComboCluster(roomId: room.id)
             : null,
-        strips: room == null
-            ? null
-            : LiveGiftStrips(
-                roomId: room.id,
-                onSender: (u) => unawaited(_person(room.id, u.username)),
-              ),
         // D141a (owner): the promo box over the gift button.
         promo: live && room != null && LiveRoomPromoBox.shows(ref, room.id)
             ? LiveRoomPromoBox(
@@ -1356,7 +1379,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 child: GoLiveModePager(
                   selected: state.mode,
                   onSelect: gate == null
-                      ? (m) => unawaited(_host.setMode(m))
+                      ? (m) => unawaited(
+                          _host.setMode(m, explain: _explainPermission),
+                        )
                       : null,
                 ),
               ),
@@ -1403,18 +1428,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   LiveGiftEffectsLayer(
                     roomId: room.id,
                     onSender: (u) => unawaited(_person(room.id, u.username)),
-                    // D145a: an audio room draws the strips between its
-                    // seats and its chat; a video live beside the wish
+                    // D145c: the strips centred at the reading start in
+                    // audio and video alike; beside a video live's wish
                     // column.
-                    showStrips: !audioOnAir,
-                    stripsAt: audioOnAir
-                        ? null
-                        : LiveGiftEffectsLayer.videoStripsAt(
-                            context,
-                            sideColumn:
-                                room.wishGifts.isNotEmpty ||
-                                LiveRoomPromoBox.shows(ref, room.id),
-                          ),
+                    stripsStart: LiveGiftEffectsLayer.videoStripsStart(
+                      sideColumn:
+                          !audioOnAir &&
+                          (room.wishGifts.isNotEmpty ||
+                              LiveRoomPromoBox.shows(ref, room.id)),
+                    ),
                   ),
                 // D145: the lucky combo button after a lucky gift is sent.
                 if (onAir && room != null)
@@ -1429,6 +1451,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   ),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
+                // D144a: DeepAR's diagnostics for the owner's screenshots —
+                // debug/profile builds with the camera processor only.
+                if (LiveFxDiagnostics.enabled &&
+                    engine.arEffects != LiveArSupport.unsupported &&
+                    state.mode != LiveRoomMode.audio &&
+                    engine.videoEnabled)
+                  PositionedDirectional(
+                    top: MediaQuery.paddingOf(context).top + 120,
+                    start: KSpacing.sm,
+                    child: LiveFxDiagnostics(
+                      load: engine.arDiagnostics,
+                      status: engine.arStatus,
+                    ),
+                  ),
                 if (_countdown case final n?)
                   // The countdown (sized from the owner's recording).
                   IgnorePointer(
@@ -1725,6 +1761,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         )
         .firstOrNull;
     return KLiveRoomScaffold(
+      // D145c: the gift strips keep above the chat text.
+      onChatTop: (top) =>
+          ref.read(liveChatTopProvider(room.id).notifier).set(top),
       video: background,
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
@@ -2138,20 +2177,38 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
   Widget _captureNotice(GoLiveState state) {
     final l10n = context.l10n;
-    final denied = state.capture == LiveCaptureProblem.denied;
+    final problem = state.capture;
+    final refused =
+        problem == LiveCaptureProblem.denied ||
+        problem == LiveCaptureProblem.blocked;
+    // D144a: an audio room asks for the microphone only, and says so.
+    final audio = state.mode == LiveRoomMode.audio;
+    final blocked = problem == LiveCaptureProblem.blocked;
     return LiveGlass(
       child: _Notice(
         key: GoLiveScreen.captureFailedKey,
-        icon: denied
-            ? Icons.no_photography_outlined
-            : Icons.videocam_off_outlined,
-        title: denied
-            ? l10n.goLiveCameraDeniedTitle
-            : l10n.goLiveCameraUnavailableTitle,
-        body: denied
-            ? l10n.goLiveCameraDeniedBody
+        icon: !refused
+            ? Icons.videocam_off_outlined
+            : (audio ? Icons.mic_off_rounded : Icons.no_photography_outlined),
+        title: !refused
+            ? l10n.goLiveCameraUnavailableTitle
+            : (audio
+                  ? l10n.goLiveMicDeniedTitle
+                  : l10n.goLiveCameraDeniedTitle),
+        body: blocked
+            ? (audio
+                  ? l10n.livePermissionBlockedAudio
+                  : l10n.livePermissionBlockedVideo)
+            : refused
+            ? (audio ? l10n.goLiveMicDeniedBody : l10n.goLiveCameraDeniedBody)
             : l10n.goLiveCameraUnavailableBody,
-        onRetry: () => unawaited(_host.startPreview()),
+        // Refused for good: the system will not ask again; the settings
+        // can (the capture starts on return, [recheckPermission]).
+        onSettings: blocked
+            ? () => unawaited(_host.openPermissionSettings())
+            : null,
+        onRetry: () =>
+            unawaited(_host.startPreview(explain: _explainPermission)),
       ),
     );
   }
@@ -2243,12 +2300,16 @@ class _Notice extends StatelessWidget {
     required this.body,
     super.key,
     this.onRetry,
+    this.onSettings,
   });
 
   final IconData icon;
   final String title;
   final String body;
   final VoidCallback? onRetry;
+
+  /// D144a: «فتح الإعدادات», first, when set.
+  final VoidCallback? onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -2279,11 +2340,24 @@ class _Notice extends StatelessWidget {
               textAlign: TextAlign.center,
               style: text.body.copyWith(color: p.textSecondary),
             ),
-            if (onRetry != null) ...[
+            if (onSettings != null) ...[
               const SizedBox(height: KSpacing.xl),
+              KButton(
+                key: GoLiveScreen.settingsKey,
+                label: context.l10n.livePermissionOpenSettings,
+                icon: Icons.settings_rounded,
+                onPressed: onSettings,
+                expand: false,
+              ),
+            ],
+            if (onRetry != null) ...[
+              SizedBox(height: onSettings != null ? KSpacing.sm : KSpacing.xl),
               KButton(
                 key: GoLiveScreen.retryKey,
                 label: context.l10n.actionRetry,
+                variant: onSettings != null
+                    ? KButtonVariant.secondary
+                    : KButtonVariant.primary,
                 onPressed: onRetry,
                 expand: false,
               ),

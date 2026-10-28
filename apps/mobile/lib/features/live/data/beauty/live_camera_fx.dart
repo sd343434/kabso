@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/core/config/deepar_config.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -11,6 +14,10 @@ import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 /// [attach] is cheap: with no filter and no effect the processor passes
 /// frames untouched. DeepAR is only initialized (and a monthly active user
 /// counted) when an effect is first picked.
+///
+/// D144a: [status] follows DeepAR on the device — the native side switches an
+/// effect off by itself (and says why) instead of freezing the picture; the
+/// non-release overlay reads [diagnostics].
 class LiveCameraFx {
   new({KabsoCameraFx? bridge, String? licenseKey})
     : _bridge = bridge ?? KabsoCameraFx(),
@@ -18,6 +25,22 @@ class LiveCameraFx {
 
   final KabsoCameraFx _bridge;
   final String _licenseKey;
+  final ValueNotifier<LiveArStatus> _status = ValueNotifier(LiveArStatus.off);
+  StreamSubscription<KabsoCameraFxStatus>? _statusSub;
+
+  /// The picked effect's state on the device (D144a).
+  ValueListenable<LiveArStatus> get status => _status;
+
+  /// The processor's counters for the non-release overlay (D144a); null
+  /// where there is no processor.
+  Future<KabsoCameraFxDiagnostics?> diagnostics() => _bridge.diagnostics();
+
+  void _listen() {
+    if (_statusSub != null || !_bridge.isSupported) return;
+    _statusSub = _bridge.statusChanges.listen(
+      (s) => _status.value = LiveArStatus.from(s),
+    );
+  }
 
   LiveBeauty _wanted = const LiveBeauty();
   String? _trackId;
@@ -43,6 +66,7 @@ class LiveCameraFx {
   /// after the track was restarted (a new id). What was picked carries over.
   Future<void> attach(String trackId) async {
     if (!_bridge.isSupported || trackId == _trackId) return;
+    _listen();
     final ok = await _bridge.attach(trackId);
     _trackId = ok ? trackId : null;
     if (ok) await _sync();
@@ -68,6 +92,7 @@ class LiveCameraFx {
         : LiveArEffect.none;
     if (effect == _sentEffect) return;
     if (effect != LiveArEffect.none && !_keySent) {
+      _listen();
       _keySent = await _bridge.setLicenseKey(_licenseKey);
       if (!_keySent) return;
     }
@@ -84,6 +109,9 @@ class LiveCameraFx {
     _sentMatrix = null;
     _sentEffect = null;
     _keySent = false;
+    _status.value = LiveArStatus.off;
+    await _statusSub?.cancel();
+    _statusSub = null;
     if (wasInUse) await _bridge.release();
   }
 

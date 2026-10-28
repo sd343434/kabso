@@ -24,6 +24,7 @@ import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
@@ -33,6 +34,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.da
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_theme_art.dart';
 import 'package:kabso_live/features/live/presentation/go_live/seat_controls.dart';
+import 'package:kabso_live/features/live/presentation/live_permission_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_background_texts.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
@@ -589,10 +591,30 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       ),
     );
     if (!mounted || join == null) return;
+    if (join && !await _seatPermission()) {
+      if (mounted) await runSeatAction(context, _session.declineInvite);
+      return;
+    }
+    if (!mounted) return;
     await runSeatAction(
       context,
       join ? _session.acceptInvite : _session.declineInvite,
     );
+  }
+
+  /// D144a: before taking a seat — the rationale, the system prompt once,
+  /// or the settings when refused for good. An audio room asks for the
+  /// microphone only; a multi-guest video room for the camera too.
+  Future<bool> _seatPermission() async {
+    final ok = await ensureSeatCapturePermission(
+      context,
+      ref.read(livePermissionsProvider),
+      camera: _room.mode == LiveRoomMode.multi,
+    );
+    if (!ok && mounted) {
+      KSnack.info(context, context.l10n.livePermissionSeatRefused);
+    }
+    return ok;
   }
 
   void _onSeat(LiveRoomSessionState session, LiveSeat seat) {
@@ -626,13 +648,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
         !session.seated &&
         session.mine?.request == null &&
         seat.state == LiveSeatState.empty) {
-      unawaited(
-        runSeatAction(
-          context,
-          () => _session.requestSeat(seatIndex: seat.index),
-        ),
-      );
+      unawaited(_requestSeat(index: seat.index));
     }
+  }
+
+  Future<void> _requestSeat({int? index}) async {
+    if (!await _seatPermission() || !mounted) return;
+    await runSeatAction(context, () => _session.requestSeat(seatIndex: index));
   }
 
   @override
@@ -694,17 +716,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveGiftEffectsLayer(
                 roomId: room.id,
                 onSender: (u) => _person(u.username),
-                // D145a: an audio room draws the strips between its seats
-                // and its chat; a video live beside the wish column.
-                showStrips: room.mode != LiveRoomMode.audio,
-                stripsAt: room.mode == LiveRoomMode.audio
-                    ? null
-                    : LiveGiftEffectsLayer.videoStripsAt(
-                        context,
-                        sideColumn:
-                            room.wishGifts.isNotEmpty ||
-                            LiveRoomPromoBox.shows(ref, room.id),
-                      ),
+                // D145c: the strips centred at the reading start in audio
+                // and video alike; beside a video live's wish column.
+                stripsStart: LiveGiftEffectsLayer.videoStripsStart(
+                  sideColumn:
+                      room.mode != LiveRoomMode.audio &&
+                      (room.wishGifts.isNotEmpty ||
+                          LiveRoomPromoBox.shows(ref, room.id)),
+                ),
               ),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
@@ -766,6 +785,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // live's points (the cherry) and its taps (a heart), when known.
     final taps = session.scoreParts?.tapPoints ?? room.scoreParts?.tapPoints;
     return KLiveRoomScaffold(
+      // D145c: the gift strips keep above the chat text.
+      onChatTop: (top) =>
+          ref.read(liveChatTopProvider(room.id).notifier).set(top),
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
@@ -858,8 +880,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   _SeatBar(
                     session: session,
                     signedIn: ref.watch(currentUserProvider) != null,
-                    onRequest: () =>
-                        runSeatAction(context, () => _session.requestSeat()),
+                    onRequest: _requestSeat,
                     onCancel: () =>
                         runSeatAction(context, _session.cancelRequest),
                     onLeave: () => runSeatAction(context, _session.leaveSeat),
@@ -974,8 +995,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           icon: Icons.all_inclusive_rounded,
           bare: true,
           label: l10n.liveSeatRequest,
-          onTap: () =>
-              unawaited(runSeatAction(context, () => _session.requestSeat())),
+          onTap: () => unawaited(_requestSeat()),
         );
       }
     }
@@ -993,15 +1013,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             children: [
               _video(session, engine),
               LiveAudioRoomLayout(
-                // D145a: the combo in the promo box's place; the strips
-                // between the seats and the chat.
+                // D145c: the gift strips keep above the chat text.
+                onChatTop: (top) =>
+                    ref.read(liveChatTopProvider(room.id).notifier).set(top),
+                // D145a: the combo in the promo box's place.
                 combo: LuckyComboCluster.shows(ref, room.id)
                     ? LuckyComboCluster(roomId: room.id)
                     : null,
-                strips: LiveGiftStrips(
-                  roomId: room.id,
-                  onSender: (u) => _person(u.username),
-                ),
                 // D141a (owner): the promo box over the gift button.
                 promo:
                     signedIn &&

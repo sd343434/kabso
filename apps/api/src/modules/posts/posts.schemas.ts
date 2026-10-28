@@ -157,3 +157,19 @@ export const searchQuerySchema = z.strictObject({
   limit: limitSchema.optional().transform((v) => v ?? 20),
 });
 export type SearchQuery = z.output<typeof searchQuerySchema>;
+
+/** v1.29-live (D147): `POST /search/queries` — a search the person submitted (§11.11). */
+export const recordSearchQuerySchema = z.strictObject({ q: searchTextSchema });
+export type RecordSearchQuery = z.output<typeof recordSearchQuerySchema>;
+
+/** D147: `GET /search/trending-hashtags?limit` — 1–20 (default 20). */
+export const trendingHashtagsQuerySchema = z.strictObject({
+  limit: z
+    .string()
+    .regex(/^[1-9][0-9]?$/)
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(20))
+    .optional()
+    .transform((v) => v ?? 20),
+});
+export type TrendingHashtagsQuery = z.output<typeof trendingHashtagsQuerySchema>;

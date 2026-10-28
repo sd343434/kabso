@@ -8,7 +8,7 @@ import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart'
-    show KLiveUsernameTag;
+    show KLiveUsernameTag, KTopReporter;
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -134,15 +134,16 @@ class LiveAudioRoomLayout extends StatelessWidget {
     this.barLead,
     this.promo,
     this.combo,
-    this.strips,
+    this.onChatTop,
   });
+
+  /// D145c: told the chat's top on the screen when it moves (the gift
+  /// strips keep above the chat text).
+  final ValueChanged<double>? onChatTop;
 
   /// D145a: the lucky combo's button and chips, in the promo box's place
   /// (at the end over the gift button) while it shows.
   final Widget? combo;
-
-  /// D145a: the gift strips, between the seats and the chat.
-  final Widget? strips;
 
   /// D141a (owner): the room's promo box, low at the end over the bar's
   /// gift button (the last of [barEnd]); the chat keeps clear of it and the
@@ -227,16 +228,6 @@ class LiveAudioRoomLayout extends StatelessWidget {
                         child: stage,
                       ),
                     ),
-                    // D145a: the gift strips between the seats and the
-                    // chat (they never cover a seat).
-                    if (strips case final strips?)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Align(
-                          alignment: AlignmentDirectional.bottomStart,
-                          child: strips,
-                        ),
-                      ),
                     if (chat.isNotEmpty || slot != null)
                       ConstrainedBox(
                         constraints: BoxConstraints(
@@ -256,21 +247,24 @@ class LiveAudioRoomLayout extends StatelessWidget {
                                   slot == null ? 8 : promoGap,
                                   6,
                                 ),
-                                child: SingleChildScrollView(
-                                  reverse: true,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      for (final line in chat)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 4,
+                                child: KTopReporter(
+                                  onTop: onChatTop,
+                                  child: SingleChildScrollView(
+                                    reverse: true,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        for (final line in chat)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: line,
                                           ),
-                                          child: line,
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

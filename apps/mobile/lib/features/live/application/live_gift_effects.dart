@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
+import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -9,7 +10,8 @@ import 'package:material_ui/material_ui.dart' show immutable;
 
 /// What a live shows of the gifts sent in it now (CP-020, §10.23): up to
 /// [LiveGiftEffects.maxBanners] banners (one per combo, updated in place)
-/// and one large centred effect for a gift with an animation or a big one.
+/// and one full-screen effect for a gift with an animation (D145c: never
+/// the gift's still picture blown up).
 @immutable
 class LiveGiftEffectsState {
   const new({this.banners = const [], this.big, this.lucky});
@@ -17,7 +19,7 @@ class LiveGiftEffectsState {
   /// The banners on screen, oldest first.
   final List<LiveGift> banners;
 
-  /// The big gift playing now, or null.
+  /// The animated gift playing now, or null.
   final LiveGift? big;
 
   /// D132: the big lucky win announced now (×[LiveGiftEffects.luckyBanner]
@@ -38,19 +40,17 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// Banners on screen at once; more wait in turn (D145: 3, was 2).
   static const maxBanners = 3;
 
-  /// A banner stays this long after its last send.
-  static const bannerTime = Duration(seconds: 3);
+  /// A banner stays this long after the last send of its streak (D145c,
+  /// owner: 4 s; was 3).
+  static const bannerTime = Duration(seconds: 4);
 
-  /// The large effect's length (the image's grow and fade).
+  /// How long the effect may stay without saying it fetches or plays an
+  /// SVGA ([bigHold]); then the next one plays.
   static const bigTime = Duration(milliseconds: 3200);
 
   /// An effect that fetches or plays an SVGA ([bigHold]) ends when it has
   /// played ([bigDone]); this is only the longest it may stay on screen.
   static const maxAnimatedTime = Duration(seconds: 30);
-
-  /// A send worth at least this many coins plays the large effect (as does
-  /// a gift with an `animationKey` or a hosted `animationUrl`, D126).
-  static const bigGiftCoins = 1000;
 
   /// At most this many sends wait for a banner or the large effect.
   static const maxWaiting = 20;
@@ -132,14 +132,20 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
         ..clear()
         ..add(gift.id);
     }
+    // D145c (owner): the strip comes first, for every gift, on every
+    // device — the sender's own answer included (and a gift to oneself).
     _banner(gift);
-    if (_animated(gift) || gift.totalCoins >= bigGiftCoins) {
-      _big(gift);
-    }
+    // Only a gift with an SVGA plays the full-screen effect: the still
+    // picture is never blown up mid-screen (it is in the strip).
+    if (_animated(gift)) _big(gift);
   }
 
-  static bool _animated(LiveGift g) =>
-      g.animationKey != null || g.animationUrl != null;
+  bool _animated(LiveGift g) {
+    if (g.animationKey != null || g.animationUrl != null) return true;
+    // An older server's message without the hosted art (D126).
+    final art = ref.read(giftCatalogueProvider).value?.byCode(g.giftCode);
+    return art?.animationUrl != null || art?.animationKey != null;
+  }
 
   /// The large effect of send [id] fetches or plays an SVGA: it stays
   /// until [bigDone] (at most [maxAnimatedTime]) instead of [bigTime].
@@ -243,3 +249,44 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
 final NotifierProviderFamily<LiveGiftEffects, LiveGiftEffectsState, String>
 liveGiftEffectsProvider = NotifierProvider.autoDispose
     .family<LiveGiftEffects, LiveGiftEffectsState, String>(LiveGiftEffects.new);
+
+/// D145c: the height of the gift panel open over the room (from the
+/// screen's bottom), or null while it is closed — so the gift strips keep
+/// above it and the sender sees their own gift's strip (normal gifts keep
+/// the panel open).
+class LiveGiftPanelHeight extends Notifier<double?> {
+  @override
+  double? build() => null;
+
+  void set(double? height) {
+    if (!ref.mounted || state == height) return;
+    state = height;
+  }
+}
+
+final NotifierProvider<LiveGiftPanelHeight, double?>
+liveGiftPanelHeightProvider = NotifierProvider<LiveGiftPanelHeight, double?>(
+  LiveGiftPanelHeight.new,
+);
+
+/// D145c: the top of a live's chat on the screen (from the screen's top),
+/// as the room's layout reports it, or null — the gift strips keep above
+/// the chat text.
+class LiveChatTop extends Notifier<double?> {
+  new(this.roomId);
+
+  final String roomId;
+
+  @override
+  double? build() => null;
+
+  void set(double? top) {
+    if (!ref.mounted || state == top) return;
+    state = top;
+  }
+}
+
+final NotifierProviderFamily<LiveChatTop, double?, String> liveChatTopProvider =
+    NotifierProvider.autoDispose.family<LiveChatTop, double?, String>(
+      LiveChatTop.new,
+    );

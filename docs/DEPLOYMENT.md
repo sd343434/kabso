@@ -679,6 +679,22 @@ a `CONNECTION LIMIT`.
   strictly ascending whole numbers 1–9999; the API refuses to start otherwise) and
   `RATE_LIMIT_LIVE_GIFT_USER` (default `120/60`). Changing the quantities changes the catalogue
   `version`, so apps reload it.
+- **D145c (lucky streaks):** optional `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` (default `600/60`: every gift
+  send of a user per minute) and `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` (default `10/1`: lucky
+  sends per second, instead of `RATE_LIMIT_LIVE_GIFT_USER`). The app's MAX X queue paces taps at
+  ≥ 100 ms and retries a 429 silently after `Retry-After` with the same `clientId`.
+- **D145d (100 lucky sends a second):** the defaults are now `RATE_LIMIT_LIVE_LUCKY_GIFT_USER=6000/60`
+  and `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER=100/1` (were `600/60` and `10/1`); normal gifts keep
+  `RATE_LIMIT_LIVE_GIFT_USER` (`120/60`). A server that set the old values explicitly keeps them until
+  the variables are removed or changed. The app's MAX X queue paces at ≥ 10 ms (one send in flight
+  at a time). Measured (dev box, 4 vCPU, API + PostgreSQL 16 + Redis on one host, e2e `kl093`): one
+  user commits about 20 lucky sends a second one at a time and about 28–35 a second when 100 are
+  offered in one second (every one accepted, no 429): each send is one interactive transaction of
+  about 37 statements under the sender's advisory lock (p50 26 ms; the database itself spends about
+  2.5 ms executing them), so a single sender's sends are serialized. The limit no longer refuses
+  100 a second, but the database path does not commit 100 a second for one sender.
+- **D145d (MAX X sounds):** the app ships the owner's sounds in `apps/mobile/assets/sounds/`
+  (`PROVENANCE.md`); nothing to deploy on the server.
 - Levels: gifts credit charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) only while those
   categories are enabled with a published version (`levels:admin`); nothing is credited later for
   gifts sent while a category was unavailable.
@@ -929,6 +945,34 @@ a `CONNECTION LIMIT`.
   (`… CHECK ("username" ~ '^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$')`, which fails while a 2-character
   username exists). The enum values cannot be dropped (harmless).
 
+### 5.15 Search trends (migration `20261202090000_search_trends`; D147) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): tables `search_terms`, `search_term_counts`,
+  `search_blocked_words`. No GRANT (default privileges), no backfill: the lists start empty and fill
+  as updated apps record submitted searches (older apps never do).
+- **Privacy**: only normalized terms and hourly counts of searchers are stored, never who searched;
+  the per-person dedupe key is an HMAC in Redis that expires after 7 days. Counts older than 14 days
+  are deleted by the sweeper (`SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS=3600`; 0 disables it — then old
+  counts stay, so keep it on in production; safe on several instances).
+- A term is listed only after `SEARCH_TRENDING_MIN_SEARCHERS=5` different people searched it in 7
+  days (raise it for a large audience; never below 2). `RATE_LIMIT_SEARCH_RECORD_USER=120/3600`.
+- **Moderation** with the `search-admin` CLI (migration role; offensive words are entered on the
+  server only, this repository is public):
+
+  ```bash
+  SEARCH="docker compose --profile jobs run --rm migrate node dist/cli/search-admin.js"
+  $SEARCH top                         # the 50 most searched terms (7 days, 24 h; hidden marked -)
+  $SEARCH hide "some term"            # never listed (still counted); audited search.term.hide
+  $SEARCH unhide "some term"
+  $SEARCH block-word add <word>       # no trending term or hashtag containing it
+  $SEARCH block-word remove <word>
+  $SEARCH block-word list
+  ```
+
+  The public list is cached 60 s. Locally: `pnpm search:admin …`.
+- Rollback: the API before D147 ignores the tables (the app's sections then hide on 404); drop the
+  three tables to remove the data.
+
 ## 6. Observability baseline
 
 | Item | Status |
@@ -1023,6 +1067,29 @@ the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays g
   initialization, watermark, orientation/mirroring on both cameras, latency, fps, battery
   and background pause/resume need the owner's device.
 - **Third-party notices:** `apps/mobile/packages/kabso_camera_fx/THIRD_PARTY_NOTICES.md`.
+- **D144a — no frozen picture, status and diagnostics:** the DeepAR stage publishes a render
+  only when DeepAR took a newer camera frame since the last one published (else the raw
+  frame), keeps one frame in flight, latches DeepAR's input size per instance and switches
+  the effect off by itself (raw camera, Magic says why) after 30 frames in a row without a
+  fresh render, 10 s without a first one, a stalled DeepAR thread, a licence error or a
+  failed start. **Diagnostics overlay** — debug and profile builds only (CI's APK is a debug
+  build), video lives on Android: a small black box under the host's top bar; tap folds it.
+  What to read on the device:
+  - `DeepAR ready licence yes` with `out` rising about as fast as `in`, few `raw`: working.
+  - `licence no`: the build has no key (`DEEPAR_LICENSE_ANDROID`).
+  - `fed` rising but `out` flat and `stale` rising: DeepAR re-draws without taking frames
+    (the D144 freeze case) — the effect turns off (`disabled (no_output)`) instead of freezing.
+  - `inflight` growing into seconds: DeepAR's thread is stuck (`disabled (stalled)`).
+  - `init no` for 10 s: `error (init_timeout)`; `licence_failed`: DeepAR refused the key.
+  - `render` = DeepAR's own render count, `got` = renders that reached the processor; `wait` /
+    `pack` = average ms per frame waiting for DeepAR / reading the camera back; `input` =
+    DeepAR's latched input (`1280x720@270` front camera); `#` = DeepAR instances (a new one
+    per camera flip).
+  The Kotlin rules are unit-tested (`./gradlew :kabso_camera_fx:testDebugUnitTest` in
+  `apps/mobile/android`, CI's Android job); none of this has run on a device yet.
+- **Camera/microphone permissions (D144a):** Android asks through the plugin's
+  `com.kabso/permissions` channel after the app's own explanation sheet, once; refused for
+  good → «فتح الإعدادات». Audio rooms and audio seats ask for the microphone only.
 
 ## 10. What is not verified
 

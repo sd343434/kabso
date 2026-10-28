@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -29,9 +30,17 @@ abstract final class GoLiveKeys {
   static const filterUnsupported = Key('goLive.filter.unsupported');
   static Key effect(LiveArEffect e) => Key('goLive.effect.${e.name}');
   static const effectsUnavailable = Key('goLive.effect.unavailable');
+
+  /// D144a: why the picked effect is off now, or that it is starting.
+  static const effectStatus = Key('goLive.effect.status');
 }
 
 const _white = Color(0xFFFFFFFF);
+
+/// Magic without a status source (tests, previews): nothing to report.
+final ValueListenable<LiveArStatus> _noEffectStatus = ValueNotifier(
+  LiveArStatus.off,
+);
 const _shadow = [Shadow(color: KLiveColors.chatScrim, blurRadius: 6)];
 
 /// The host's card: their picture, the title, the guests chip, a waving
@@ -1054,6 +1063,9 @@ class LiveSheetFrame extends StatelessWidget {
 /// D144: under them, **Effects (beta)** — DeepAR on the published picture —
 /// where the platform has the processor ([effects] not `unsupported`);
 /// greyed with why when this build has no DeepAR licence.
+///
+/// D144a: [effectStatus] (DeepAR on the device) — an effect DeepAR had to
+/// switch off shows None selected and an honest «المؤثر غير متاح الآن: …».
 Future<void> showLiveFilterSheet(
   BuildContext context, {
   required LiveColorFilter selected,
@@ -1063,6 +1075,7 @@ Future<void> showLiveFilterSheet(
   LiveArSupport effects = LiveArSupport.unsupported,
   LiveArEffect effect = LiveArEffect.none,
   ValueChanged<LiveArEffect>? onEffect,
+  ValueListenable<LiveArStatus>? effectStatus,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: const Color(0x00000000),
@@ -1122,14 +1135,24 @@ Future<void> showLiveFilterSheet(
                 ),
               ),
               if (effects != LiveArSupport.unsupported)
-                _EffectsSection(
-                  selected: effectValue,
-                  ready: effects == LiveArSupport.ready && onEffect != null,
-                  accent: accent,
-                  onChanged: (e) {
-                    setState(() => effectValue = e);
-                    onEffect?.call(e);
-                  },
+                ValueListenableBuilder<LiveArStatus>(
+                  valueListenable: effectStatus ?? _noEffectStatus,
+                  builder: (context, status, _) => _EffectsSection(
+                    selected: status.state == LiveArState.unavailable
+                        ? LiveArEffect.none
+                        : effectValue,
+                    status:
+                        effectValue == LiveArEffect.none &&
+                            status.state != LiveArState.unavailable
+                        ? LiveArStatus.off
+                        : status,
+                    ready: effects == LiveArSupport.ready && onEffect != null,
+                    accent: accent,
+                    onChanged: (e) {
+                      setState(() => effectValue = e);
+                      onEffect?.call(e);
+                    },
+                  ),
                 ),
             ],
           ),
@@ -1146,6 +1169,18 @@ String liveEffectLabel(AppLocalizations l10n, LiveArEffect effect) =>
       LiveArEffect.backgroundBlur => l10n.liveEffectBackgroundBlur,
     };
 
+/// D144a: Magic's honest line for [status] (null: nothing to say).
+String? liveEffectStatusText(AppLocalizations l10n, LiveArStatus status) =>
+    switch (status.state) {
+      LiveArState.off || LiveArState.running => null,
+      LiveArState.starting => l10n.liveEffectStarting,
+      LiveArState.unavailable => switch (status.problem) {
+        LiveArProblem.licence => l10n.liveEffectUnavailableLicence,
+        LiveArProblem.stopped => l10n.liveEffectUnavailableStopped,
+        LiveArProblem.failed || null => l10n.liveEffectUnavailableFailed,
+      },
+    };
+
 /// D144 Magic → Effects (beta): one chip per [LiveArEffect].
 class _EffectsSection extends StatelessWidget {
   const new({
@@ -1153,9 +1188,11 @@ class _EffectsSection extends StatelessWidget {
     required this.ready,
     required this.accent,
     required this.onChanged,
+    this.status = LiveArStatus.off,
   });
 
   final LiveArEffect selected;
+  final LiveArStatus status;
   final bool ready;
   final Color accent;
   final ValueChanged<LiveArEffect> onChanged;
@@ -1192,6 +1229,20 @@ class _EffectsSection extends StatelessWidget {
               key: GoLiveKeys.effectsUnavailable,
               style: text.caption.copyWith(
                 color: _white.withValues(alpha: 0.75),
+              ),
+            ),
+          ] else if (liveEffectStatusText(l10n, status) case final line?) ...[
+            const SizedBox(height: KSpacing.xs),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                line,
+                key: GoLiveKeys.effectStatus,
+                style: text.caption.copyWith(
+                  color: status.state == LiveArState.unavailable
+                      ? const Color(0xFFFFC2C2)
+                      : _white.withValues(alpha: 0.75),
+                ),
               ),
             ),
           ],

@@ -87,6 +87,12 @@ export interface AppConfig {
     readonly cpGiftUser: RateLimitRule;
     /** CP-020: gift sends in a live (per user). */
     readonly liveGiftUser: RateLimitRule;
+    /**
+     * D145c (owner: «too many attempts» in a lucky streak): every gift send (the route's ceiling),
+     * and lucky sends' own burst limit; normal sends keep {@link liveGiftUser}.
+     */
+    readonly liveGiftAnyUser: RateLimitRule;
+    readonly liveLuckyGiftBurstUser: RateLimitRule;
     /** v1.28-live (D146). */
     readonly premiumRentUser: RateLimitRule;
     readonly usernameChangeUser: RateLimitRule;
@@ -114,6 +120,8 @@ export interface AppConfig {
     /** CP-009: `POST /notifications/read`; the inbox and the unread count use `feedUser`. */
     readonly notificationsReadUser: RateLimitRule;
     readonly searchUser: RateLimitRule;
+    /** v1.29-live (D147): `POST /search/queries`. */
+    readonly searchRecordUser: RateLimitRule;
     readonly blockUser: RateLimitRule;
     readonly reportUser: RateLimitRule;
   };
@@ -148,6 +156,12 @@ export interface AppConfig {
     readonly reminderDays: readonly number[];
     readonly maxPrepaidDays: number;
     /** 0 = sweeper disabled (tests; refused in production). */
+    readonly sweepIntervalSeconds: number;
+  };
+  /** v1.29-live (D147) search trends (CONVENTIONS §11.11). */
+  readonly searchTrends: {
+    readonly minSearchers: number;
+    /** 0 = sweeper disabled. */
     readonly sweepIntervalSeconds: number;
   };
   /** v1.23-live live gifts (CONVENTIONS §10.23). */
@@ -297,6 +311,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cpWriteUser: e.RATE_LIMIT_CP_WRITE_USER,
       cpGiftUser: e.RATE_LIMIT_CP_GIFT_USER,
       liveGiftUser: e.RATE_LIMIT_LIVE_GIFT_USER,
+      liveGiftAnyUser: e.RATE_LIMIT_LIVE_LUCKY_GIFT_USER,
+      liveLuckyGiftBurstUser: e.RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER,
       premiumRentUser: e.RATE_LIMIT_PREMIUM_RENT_USER,
       usernameChangeUser: e.RATE_LIMIT_USERNAME_CHANGE_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,
@@ -319,6 +335,7 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       storySeenUser: e.RATE_LIMIT_STORY_SEEN_USER,
       notificationsReadUser: e.RATE_LIMIT_NOTIFICATIONS_READ_USER,
       searchUser: e.RATE_LIMIT_SEARCH_USER,
+      searchRecordUser: e.RATE_LIMIT_SEARCH_RECORD_USER,
       blockUser: e.RATE_LIMIT_BLOCK_USER,
       reportUser: e.RATE_LIMIT_REPORT_USER,
     },
@@ -342,6 +359,10 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cursorKey: e.SOCIAL_CURSOR_KEY ?? rateLimitKeySecret,
     },
     gifts: { quantities: e.LIVE_GIFT_QUANTITIES },
+    searchTrends: {
+      minSearchers: e.SEARCH_TRENDING_MIN_SEARCHERS,
+      sweepIntervalSeconds: e.SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS,
+    },
     premiumUsernames: {
       periodDays: e.PREMIUM_USERNAME_PERIOD_DAYS,
       graceDays: e.PREMIUM_USERNAME_GRACE_DAYS,

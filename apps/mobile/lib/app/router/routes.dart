@@ -38,6 +38,9 @@ abstract final class AppRoutes {
   /// KL-060: a hashtag's posts (lower case, without `#`).
   static const hashtagPattern = '/hashtags/:tag';
 
+  /// D147: the hashtags of the week ("More" on the search home).
+  static const trendingHashtags = '/search/hashtags';
+
   /// The page of [tag] (with or without `#`).
   static String hashtag(String tag) =>
       '/hashtags/${Uri.encodeComponent(tag.replaceFirst('#', '').toLowerCase())}';

@@ -686,6 +686,18 @@ abstract class AppLocalizations {
   /// **'اللغة'**
   String get settingsLanguage;
 
+  /// D145d: Settings switch for the app's sound effects (the MAX X taps and wins).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية'**
+  String get settingsSoundEffects;
+
+  /// D145d: the sound effects switch's subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصوات زر ماكس وأرباح الهدايا المحظوظة'**
+  String get settingsSoundEffectsHint;
+
   /// No description provided for @settingsSessions.
   ///
   /// In ar, this message translates to:
@@ -11024,16 +11036,28 @@ abstract class AppLocalizations {
   /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
   String get liveStatsLoadFailedBody;
 
-  /// D145: the lucky combo button's label.
+  /// D145/D145c/D145d: the word on the MAX X button before its counter — owner's MAX X design: «ماكس x12» in Arabic, «MAX x12» in English (screen readers say "Max X" / «ماكس إكس» through liveComboSemantics).
   ///
   /// In ar, this message translates to:
-  /// **'كومبو'**
+  /// **'ماكس'**
   String get liveComboLabel;
+
+  /// D145d: the ×500 win celebration's title on the MAX X button (owner's file: جاكبوت / JACKPOT).
+  ///
+  /// In ar, this message translates to:
+  /// **'جاكبوت'**
+  String get liveMaxXJackpot;
+
+  /// D145d: the ×1000 win celebration's title (owner's file: سوبر جاكبوت / SUPER JACKPOT).
+  ///
+  /// In ar, this message translates to:
+  /// **'سوبر جاكبوت'**
+  String get liveMaxXSuperJackpot;
 
   /// D145: the lucky combo button for screen readers.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل {gift} مجدداً، كومبو ⁦×{count}⁩'**
+  /// **'ماكس إكس: أرسل {gift} مجدداً ⁦×{count}⁩'**
   String liveComboSemantics(String gift, int count);
 
   /// D145: the coin balance under the combo button.
@@ -11509,6 +11533,174 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'انتهى يوزرك المميز ‎@{username}، وهو محجوز لك لبضعة أيام.'**
   String notificationPremiumExpired(String username);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب البحث: {term}'**
+  String searchTryHint(String term);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get searchCancel;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر بحثاً'**
+  String get searchHotTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث رائج {rank}: {term}'**
+  String searchHotSemantics(int rank, String term);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get searchTagTrending;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get searchTagNew;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'وسوم رائجة'**
+  String get searchHotTakeTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get searchMore;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يعجبك'**
+  String get searchMayLikeTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'الوسوم الرائجة'**
+  String get trendingHashtagsTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد وسوم رائجة هذا الأسبوع'**
+  String get trendingHashtagsEmpty;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا منشورات هذا الأسبوع} =1{منشور واحد هذا الأسبوع} =2{منشوران هذا الأسبوع} few{{count} منشورات هذا الأسبوع} many{{count} منشورًا هذا الأسبوع} other{{count} منشور هذا الأسبوع}}'**
+  String trendingHashtagWeekCount(int count);
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تشغيل المؤثر…'**
+  String get liveEffectStarting;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: توقّف عن إعطاء صورة جديدة، فعادت الكاميرا من دونه. جرّبه مرة أخرى بعد قليل.'**
+  String get liveEffectUnavailableStopped;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: لم يُقبل ترخيص المؤثرات في هذا الإصدار.'**
+  String get liveEffectUnavailableLicence;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.'**
+  String get liveEffectUnavailableFailed;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاميرا والميكروفون لبثّك'**
+  String get livePermissionTitleVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'الميكروفون للغرفة الصوتية'**
+  String get livePermissionTitleAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'يستخدم Kabso Live الكاميرا والميكروفون فقط أثناء بثّك أو جلوسك على مقعد، ليراك الحاضرون ويسمعوك. سيسألك الجهاز مرة واحدة.'**
+  String get livePermissionBodyVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'يستخدم Kabso Live الميكروفون فقط أثناء وجودك في الغرفة الصوتية ليسمعك الحاضرون، ولا يحتاج الكاميرا هنا. سيسألك الجهاز مرة واحدة.'**
+  String get livePermissionBodyAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get livePermissionContinue;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس الآن'**
+  String get livePermissionNotNow;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح الإعدادات'**
+  String get livePermissionOpenSettings;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالكاميرا والميكروفون.'**
+  String get livePermissionBlockedVideo;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالميكروفون.'**
+  String get livePermissionBlockedAudio;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسمح بالميكروفون'**
+  String get goLiveMicDeniedTitle;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحتاجه الغرفة الصوتية ليسمعك الحاضرون. اضغط «إعادة المحاولة» ليسألك الجهاز مرة أخرى.'**
+  String get goLiveMicDeniedBody;
+
+  /// D144a: DeepAR status and camera/microphone permissions.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن الجلوس على المقعد دون السماح بالوصول.'**
+  String get livePermissionSeatRefused;
 }
 
 class _AppLocalizationsDelegate

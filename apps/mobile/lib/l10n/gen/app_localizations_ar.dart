@@ -354,6 +354,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsLanguage => 'اللغة';
 
   @override
+  String get settingsSoundEffects => 'المؤثرات الصوتية';
+
+  @override
+  String get settingsSoundEffectsHint =>
+      'أصوات زر ماكس وأرباح الهدايا المحظوظة';
+
+  @override
   String get settingsSessions => 'الجلسات النشطة';
 
   @override
@@ -6373,11 +6380,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
 
   @override
-  String get liveComboLabel => 'كومبو';
+  String get liveComboLabel => 'ماكس';
+
+  @override
+  String get liveMaxXJackpot => 'جاكبوت';
+
+  @override
+  String get liveMaxXSuperJackpot => 'سوبر جاكبوت';
 
   @override
   String liveComboSemantics(String gift, int count) {
-    return 'أرسل $gift مجدداً، كومبو ⁦×$count⁩';
+    return 'ماكس إكس: أرسل $gift مجدداً ⁦×$count⁩';
   }
 
   @override
@@ -6697,4 +6710,113 @@ class AppLocalizationsAr extends AppLocalizations {
   String notificationPremiumExpired(String username) {
     return 'انتهى يوزرك المميز ‎@$username، وهو محجوز لك لبضعة أيام.';
   }
+
+  @override
+  String searchTryHint(String term) {
+    return 'جرّب البحث: $term';
+  }
+
+  @override
+  String get searchCancel => 'إلغاء';
+
+  @override
+  String get searchHotTitle => 'الأكثر بحثاً';
+
+  @override
+  String searchHotSemantics(int rank, String term) {
+    return 'بحث رائج $rank: $term';
+  }
+
+  @override
+  String get searchTagTrending => 'رائج';
+
+  @override
+  String get searchTagNew => 'جديد';
+
+  @override
+  String get searchHotTakeTitle => 'وسوم رائجة';
+
+  @override
+  String get searchMore => 'المزيد';
+
+  @override
+  String get searchMayLikeTitle => 'قد يعجبك';
+
+  @override
+  String get trendingHashtagsTitle => 'الوسوم الرائجة';
+
+  @override
+  String get trendingHashtagsEmpty => 'لا توجد وسوم رائجة هذا الأسبوع';
+
+  @override
+  String trendingHashtagWeekCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count منشور هذا الأسبوع',
+      many: '$count منشورًا هذا الأسبوع',
+      few: '$count منشورات هذا الأسبوع',
+      two: 'منشوران هذا الأسبوع',
+      one: 'منشور واحد هذا الأسبوع',
+      zero: 'لا منشورات هذا الأسبوع',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get liveEffectStarting => 'جارٍ تشغيل المؤثر…';
+
+  @override
+  String get liveEffectUnavailableStopped =>
+      'المؤثر غير متاح الآن: توقّف عن إعطاء صورة جديدة، فعادت الكاميرا من دونه. جرّبه مرة أخرى بعد قليل.';
+
+  @override
+  String get liveEffectUnavailableLicence =>
+      'المؤثر غير متاح الآن: لم يُقبل ترخيص المؤثرات في هذا الإصدار.';
+
+  @override
+  String get liveEffectUnavailableFailed =>
+      'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.';
+
+  @override
+  String get livePermissionTitleVideo => 'الكاميرا والميكروفون لبثّك';
+
+  @override
+  String get livePermissionTitleAudio => 'الميكروفون للغرفة الصوتية';
+
+  @override
+  String get livePermissionBodyVideo =>
+      'يستخدم Kabso Live الكاميرا والميكروفون فقط أثناء بثّك أو جلوسك على مقعد، ليراك الحاضرون ويسمعوك. سيسألك الجهاز مرة واحدة.';
+
+  @override
+  String get livePermissionBodyAudio =>
+      'يستخدم Kabso Live الميكروفون فقط أثناء وجودك في الغرفة الصوتية ليسمعك الحاضرون، ولا يحتاج الكاميرا هنا. سيسألك الجهاز مرة واحدة.';
+
+  @override
+  String get livePermissionContinue => 'متابعة';
+
+  @override
+  String get livePermissionNotNow => 'ليس الآن';
+
+  @override
+  String get livePermissionOpenSettings => 'فتح الإعدادات';
+
+  @override
+  String get livePermissionBlockedVideo =>
+      'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالكاميرا والميكروفون.';
+
+  @override
+  String get livePermissionBlockedAudio =>
+      'رفضتَ الوصول من قبل ولن يسألك الجهاز مجدداً. افتح الإعدادات ثم الأذونات، واسمح بالميكروفون.';
+
+  @override
+  String get goLiveMicDeniedTitle => 'اسمح بالميكروفون';
+
+  @override
+  String get goLiveMicDeniedBody =>
+      'تحتاجه الغرفة الصوتية ليسمعك الحاضرون. اضغط «إعادة المحاولة» ليسألك الجهاز مرة أخرى.';
+
+  @override
+  String get livePermissionSeatRefused =>
+      'لا يمكن الجلوس على المقعد دون السماح بالوصول.';
 }

@@ -12,15 +12,25 @@ import { PostsController } from './posts.controller.js';
 import { PostsService } from './posts.service.js';
 import { SearchController } from './search.controller.js';
 import { SearchService } from './search.service.js';
+import { SearchTrendsService } from './search-trends.service.js';
 
 /**
  * v1.5-social posts (CONVENTIONS §11.2–§11.6): owns `posts`, `post_*`, `hashtags`, `comments`
- * and `comment_*`.
+ * and `comment_*`; v1.29-live (D147, §11.11) also `search_terms`, `search_term_counts` and
+ * `search_blocked_words`.
  */
 @Module({
   imports: [MediaModule, NotificationsModule, UsersModule],
   controllers: [PostsController, InteractionsController, CommentsController, SearchController],
-  providers: [PostsService, PostViews, PostInteractionsService, FeedService, CommentsService, SearchService],
+  providers: [
+    PostsService,
+    PostViews,
+    PostInteractionsService,
+    FeedService,
+    CommentsService,
+    SearchService,
+    SearchTrendsService,
+  ],
   exports: [PostsService, PostViews, CommentsService],
 })
 export class PostsModule {}

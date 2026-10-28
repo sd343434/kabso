@@ -79,7 +79,7 @@ void main() {
   final en = l10nFor(AppLanguage.en);
 
   testWidgets('a gift message: sender → recipients, the name from the '
-      'catalogue, ×quantity; gone after 3 s', (tester) async {
+      'catalogue, ×quantity; gone 4 s after it (D145c)', (tester) async {
     final engine = await _pump(tester);
     engine.chat.add(_gift());
     await _show(tester);
@@ -98,7 +98,10 @@ void main() {
     expect(find.byType(KGiftImage), findsOneWidget);
     // A small gift: no centred effect.
     expect(find.byType(KGiftEffect), findsNothing);
-    await tester.pump(LiveGiftEffects.bannerTime);
+    expect(LiveGiftEffects.bannerTime, const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 3600));
+    expect(find.byType(LiveGiftBanner), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     expect(find.byType(LiveGiftBanner), findsNothing);
   });
@@ -154,20 +157,32 @@ void main() {
     expect(find.byType(LiveGiftBanner), findsNothing);
   });
 
-  testWidgets('a big or animated gift plays the centred effect (the image '
-      'while the app has no animation file)', (tester) async {
+  testWidgets('D145c: only an animated gift plays the full-screen effect '
+      '(never the still picture blown up); its strip shows with it; the '
+      'next one waits', (tester) async {
     final engine = await _pump(tester);
-    // 5 000 coins × 1 × 2: big, and it names an animation.
+    // 5 000 coins × 1 × 2, and it names an animation.
     engine.chat.add(_gift(id: 'car', code: 'sports_car', quantity: 1));
     await _show(tester);
     expect(find.byType(KGiftEffect), findsOneWidget);
     expect(find.byType(LiveGiftBanner), findsOneWidget);
-    // A second big gift waits for the first.
+    // Tests skip decoding: nothing is drawn until the movie is ready — no
+    // still picture of the gift outside its strip.
+    expect(
+      find.descendant(
+        of: find.byKey(LiveGiftEffectsLayer.effectKey),
+        matching: find.byType(KGiftImage),
+      ),
+      findsNothing,
+    );
+    // 520 × 10 × 2 coins but no animation: its strip only.
     engine.chat.add(_gift(id: 'cake', code: 'cake'));
+    // A second animated gift waits for the first.
+    engine.chat.add(_gift(id: 'car2', code: 'sports_car', sender: 'b'));
     await tester.pump(LiveGiftEffects.bigTime);
     await tester.pump();
     final effect = tester.widget<KGiftEffect>(find.byType(KGiftEffect));
-    expect(effect.assetKey, 'gift_cake');
+    expect(effect.key, const ValueKey('car2'));
     await tester.pump(LiveGiftEffects.bigTime);
     await tester.pumpAndSettle();
     expect(find.byType(KGiftEffect), findsNothing);

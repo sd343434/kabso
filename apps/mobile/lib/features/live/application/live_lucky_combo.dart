@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -72,6 +73,8 @@ class LuckyComboState {
     this.last,
     this.lastId = 0,
     this.stop,
+    this.pending = 0,
+    this.win,
   });
 
   /// The gift the button sends again; null: no combo yet.
@@ -109,6 +112,23 @@ class LuckyComboState {
   /// Why the combo stopped, or null.
   final LuckyComboStop? stop;
 
+  /// D145d: taps taken but not answered yet (queued or in flight); the
+  /// MAX X counter counts them at once and the server's answer confirms.
+  final int pending;
+
+  /// D145d: the last send of this streak that won, from the server's own
+  /// answer (`luckyResult`), never invented here; null until one wins.
+  final MaxXWin? win;
+
+  /// D145d: the MAX X counter, «MAX x12»: the gifts per recipient in the
+  /// server's combo ([comboQuantity], the room's one ×N, D145a) plus the
+  /// taps on their way.
+  int get displayCount => comboQuantity + pending * (gift?.quantity ?? 1);
+
+  /// D145d: the streak's length for the heat tiers: the server's sends in
+  /// this combo ([count]) plus the taps on their way.
+  int get streak => count + pending;
+
   LuckyComboState copyWith({
     LuckyComboGift? gift,
     bool? visible,
@@ -124,6 +144,8 @@ class LuckyComboState {
     LuckyGiftResult? last,
     int? lastId,
     LuckyComboStop? stop,
+    int? pending,
+    MaxXWin? win,
   }) => LuckyComboState(
     gift: gift ?? this.gift,
     visible: visible ?? this.visible,
@@ -139,7 +161,28 @@ class LuckyComboState {
     last: last ?? this.last,
     lastId: lastId ?? this.lastId,
     stop: stop ?? this.stop,
+    pending: pending ?? this.pending,
+    win: win ?? this.win,
   );
+}
+
+/// D145d: one winning send of a MAX X streak, as the server answered it:
+/// its best multiplier (`luckyResult.topMultiplier`) and the coins it won.
+/// [id] grows with every win (the button celebrates each once).
+@immutable
+class MaxXWin {
+  const new({required this.id, required this.multiplier, required this.coins});
+
+  final int id;
+  final int multiplier;
+  final int coins;
+
+  /// The win in [result], or null when that send won nothing.
+  static MaxXWin? of(LuckyGiftResult? result, {required int id}) {
+    final top = result?.topMultiplier;
+    if (result == null || top == null || top <= 0) return null;
+    return MaxXWin(id: id, multiplier: top, coins: result.coinsWon);
+  }
 }
 
 /// D145 (owner, after another app's recording): after a lucky gift is sent
@@ -167,6 +210,23 @@ class LuckyComboController extends Notifier<LuckyComboState> {
   /// At most this many taps wait (each is a real charge); more taps while
   /// the queue is full are not taken.
   static const maxQueued = 20;
+
+  /// D145c (owner: «too many attempts» in a lucky streak): queued taps go
+  /// at most one per [minGap], and a 429 is waited out (its `Retry-After`,
+  /// [maxRateWait] at most) and sent again with the same `clientId` — never
+  /// shown, never charged twice — up to [rateRetries] times. D145d (owner:
+  /// 100 lucky sends a second): the server allows 100 a second, so the
+  /// floor is 10 ms (it was 110 ms for 10 a second). One send is still in
+  /// flight at a time, so the real pace is also bound by each answer.
+  static const minGap = Duration(milliseconds: 10);
+
+  /// D145d (owner's MAX X design): the ring's last second is urgent (the
+  /// ring flickers orange, the button trembles).
+  static const urgentTime = Duration(seconds: 1);
+  static const maxRateWait = Duration(seconds: 10);
+  static const rateRetries = 6;
+
+  DateTime? _lastSend;
 
   Timer? _ring;
   int _stops = 0;
@@ -198,6 +258,8 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       last: lucky,
       lastId: state.lastId + 1,
       queued: pending.clamp(0, maxQueued),
+      pending: pending.clamp(0, maxQueued),
+      win: MaxXWin.of(lucky, id: (state.win?.id ?? 0) + 1) ?? state.win,
     );
     _restartRing();
     if (state.queued > 0) unawaited(_drain(_epoch));
@@ -216,6 +278,7 @@ class LuckyComboController extends Notifier<LuckyComboState> {
     }
     state = state.copyWith(
       queued: state.queued + 1,
+      pending: state.pending + 1,
       taps: state.taps + 1,
       ring: state.ring + 1,
     );
@@ -228,7 +291,12 @@ class LuckyComboController extends Notifier<LuckyComboState> {
   void stop() {
     _epoch++;
     _ring?.cancel();
-    state = state.copyWith(visible: false, queued: 0, sending: false);
+    state = state.copyWith(
+      visible: false,
+      queued: 0,
+      sending: false,
+      pending: 0,
+    );
   }
 
   void _restartRing() {
@@ -247,6 +315,7 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       visible: false,
       queued: 0,
       sending: false,
+      pending: 0,
       stop: LuckyComboStop(
         id: ++_stops,
         failure: stop.failure,
@@ -280,18 +349,59 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       source: LiveGiftSource.coins,
       clientId: clientId,
     );
+    // D145c: paced — never faster than [minGap] between two sends.
+    Future<LiveGiftResult> paced() async {
+      final last = _lastSend;
+      if (last != null) {
+        final wait = minGap - clock.now().difference(last);
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+      }
+      _lastSend = clock.now();
+      return await send();
+    }
+
     LiveGiftResult result;
+    var rateWaits = 0;
+    var networkRetried = false;
     try {
-      try {
-        result = await send();
-      } on Object catch (e) {
-        // A lost answer: once more with the same id (never charged twice).
-        if (toAppFailure(e) is ServerFailure) rethrow;
-        result = await send();
+      while (true) {
+        try {
+          result = await paced();
+          break;
+        } on Object catch (e) {
+          final failure = toAppFailure(e);
+          if (failure.code == ErrorCode.rateLimited &&
+              rateWaits < rateRetries) {
+            // Too fast for the server: wait as told, then the same send
+            // (same clientId) — silently.
+            rateWaits++;
+            final told =
+                (failure is ServerFailure ? failure.retryAfter : null) ??
+                const Duration(seconds: 1);
+            await Future<void>.delayed(
+              told > maxRateWait
+                  ? maxRateWait
+                  : told < minGap
+                  ? minGap
+                  : told,
+            );
+            if (!ref.mounted || epoch != _epoch) return false;
+            continue;
+          }
+          // A lost answer: once more with the same id (never charged twice).
+          if (failure is ServerFailure || networkRetried) rethrow;
+          networkRetried = true;
+        }
       }
     } on Object catch (e) {
       if (!ref.mounted) return false;
       final failure = toAppFailure(e);
+      if (failure.code == ErrorCode.rateLimited) {
+        // Still refused after waiting: the streak ends quietly (never a
+        // "too many attempts" message during a lucky streak).
+        stop();
+        return false;
+      }
       if (failure.code == ErrorCode.insufficientCoins &&
           ref.exists(liveCoinsProvider)) {
         ref.invalidate(liveCoinsProvider);
@@ -330,6 +440,9 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       last: lucky ?? state.last,
       lastId: state.lastId + 1,
       stop: state.stop,
+      pending: epoch == _epoch && state.pending > 0 ? state.pending - 1 : 0,
+      // D145d: only the server's answer for this send celebrates.
+      win: MaxXWin.of(lucky, id: (state.win?.id ?? 0) + 1) ?? state.win,
     );
     return epoch == _epoch;
   }

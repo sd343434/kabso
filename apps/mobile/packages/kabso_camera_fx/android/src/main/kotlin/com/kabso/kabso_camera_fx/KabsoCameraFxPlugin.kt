@@ -1,6 +1,8 @@
 package com.kabso.kabso_camera_fx
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.cloudwebrtc.webrtc.FlutterWebRTCPlugin
 import com.cloudwebrtc.webrtc.video.LocalVideoTrack
@@ -23,10 +25,22 @@ import io.flutter.plugin.common.MethodChannel
  *
  * The licence key arrives over the channel from a `--dart-define`; it is never
  * logged and never written anywhere.
+ *
+ * D144a: DeepAR's state goes back to Dart as `status` calls on the same
+ * channel (`{state, reason}`), and `diagnostics` answers the non-release
+ * overlay's poll (counters and state, never the key). The camera/microphone
+ * permission helper ([KabsoPermissions]) has its own channel.
  */
 class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
+    private var permissionsChannel: MethodChannel? = null
+    private val permissions = KabsoPermissions()
+    private var activityBinding: ActivityPluginBinding? = null
+    private val main = Handler(Looper.getMainLooper())
     private var activity: Activity? = null
+
+    /** The last DeepAR status, kept across processors (Dart may ask). */
+    private var lastStatus: Map<String, Any?> = mapOf("state" to "off", "reason" to null)
     private var processor: CameraFxProcessor? = null
     private var attachedTrack: LocalVideoTrack? = null
 
@@ -38,31 +52,51 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
             it.setMethodCallHandler(this)
         }
+        permissionsChannel = MethodChannel(binding.binaryMessenger, KabsoPermissions.CHANNEL).also {
+            it.setMethodCallHandler(permissions::handle)
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
+        permissionsChannel?.setMethodCallHandler(null)
+        permissionsChannel = null
         releaseProcessor()
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activity = binding.activity
+        bindActivity(binding)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
+        bindActivity(binding)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
         // DeepAR holds the old Activity: drop the processor; the next attach
         // builds a new one with the same colour and effect.
         releaseProcessor()
-        activity = null
+        unbindActivity()
     }
 
     override fun onDetachedFromActivity() {
         releaseProcessor()
+        unbindActivity()
+    }
+
+    private fun bindActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        activityBinding = binding
+        permissions.activity = binding.activity
+        binding.addRequestPermissionsResultListener(permissions)
+    }
+
+    private fun unbindActivity() {
+        activityBinding?.removeRequestPermissionsResultListener(permissions)
+        activityBinding = null
+        permissions.cancelPending()
+        permissions.activity = null
         activity = null
     }
 
@@ -90,10 +124,19 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
                 processor?.setEffect(effect)
                 result.success(null)
             }
+            "diagnostics" -> {
+                val diagnostics = processor?.diagnostics() ?: (lastStatus + mapOf(
+                    "licencePresent" to !licenseKey.isNullOrEmpty(),
+                    "attached" to false,
+                ))
+                result.success(diagnostics + mapOf("attached" to (attachedTrack != null)))
+            }
+            "status" -> result.success(lastStatus)
             "release" -> {
                 releaseProcessor()
                 colorMatrix = null
                 effect = null
+                lastStatus = mapOf("state" to "off", "reason" to null)
                 result.success(null)
             }
             else -> result.notImplemented()
@@ -110,7 +153,7 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
             return false
         }
         if (track === attachedTrack) return true
-        val current = processor ?: CameraFxProcessor(host).also { created ->
+        val current = processor ?: CameraFxProcessor(host, ::onStatus).also { created ->
             licenseKey?.let(created::setLicenseKey)
             created.setColorMatrix(colorMatrix)
             created.setEffect(effect)
@@ -120,6 +163,14 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         track.addProcessor(current)
         attachedTrack = track
         return true
+    }
+
+    /** Any thread: DeepAR's state changed; Dart hears it on the main thread. */
+    private fun onStatus(status: Map<String, Any?>) {
+        main.post {
+            lastStatus = status
+            channel?.invokeMethod("status", status)
+        }
     }
 
     /** Asset keys become the APK asset path Flutter stored them under. */

@@ -11,6 +11,7 @@ import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 
@@ -156,6 +157,10 @@ int fitSeatCount(int count, List<int> allowed) {
   return sorted.firstWhere((c) => c > count, orElse: () => sorted.last);
 }
 
+/// D144a: the screen's rationale before the system's camera/microphone
+/// prompt; true when the person goes on ([camera] false: microphone only).
+typedef LivePermissionPrompt = Future<bool> Function({required bool camera});
+
 /// The go-live flow (CP-010 L1): camera preview → `POST /live/rooms` →
 /// media token → publish → heartbeats at the server's interval → end.
 ///
@@ -167,6 +172,7 @@ int fitSeatCount(int count, List<int> allowed) {
 class LiveHostController extends Notifier<GoLiveState> {
   late LiveMediaEngine _engine;
   late LiveRepository _repo;
+  late LivePermissions _permissions;
   Timer? _heartbeat;
   KeepAliveLink? _alive;
   late LiveBackgroundKeeper _keeper;
@@ -181,10 +187,13 @@ class LiveHostController extends Notifier<GoLiveState> {
   GoLiveState build() {
     _engine = ref.read(liveMediaEngineProvider)();
     _repo = ref.read(liveRepositoryProvider);
+    _permissions = ref.read(livePermissionsProvider);
     _keeper = ref.read(liveBackgroundKeeperProvider);
     _engine.changes.addListener(_watchRoomInfo);
+    _engine.arStatus.addListener(_watchArStatus);
     ref.onDispose(() {
       _engine.changes.removeListener(_watchRoomInfo);
+      _engine.arStatus.removeListener(_watchArStatus);
       _keeper.release(this);
       _heartbeat?.cancel();
       final onAir = _onAir;
@@ -195,6 +204,18 @@ class LiveHostController extends Notifier<GoLiveState> {
   }
 
   int? _infoSeen;
+
+  /// D144a: DeepAR switched the picked effect off on the device (it stopped
+  /// giving new pictures, the licence was refused, it did not start). Magic
+  /// shows None selected again — the picture is the plain camera — and says
+  /// why ([LiveMediaEngine.arStatus]); picking the effect again retries.
+  void _watchArStatus() {
+    if (_engine.arStatus.value.state != LiveArState.unavailable) return;
+    if (state.beauty.effect == LiveArEffect.none) return;
+    final beauty = state.beauty.copyWith(effect: LiveArEffect.none);
+    state = state.copyWith(beauty: beauty);
+    unawaited(_engine.setBeauty(beauty).then((_) {}, onError: (_) {}));
+  }
 
   /// CP-016 D (§10.18): a tap batch that changes the host's charm level
   /// raises the media room's `roomInfoVersion`; the room is read again so
@@ -222,8 +243,21 @@ class LiveHostController extends Notifier<GoLiveState> {
   }
 
   /// Starts (or retries) the camera and microphone.
-  Future<void> startPreview() async {
+  ///
+  /// D144a: permissions first — granted: start; never asked or refused once:
+  /// [explain] (the screen's rationale sheet) and, if the person goes on, the
+  /// system prompt once; refused for good: [LiveCaptureProblem.blocked]
+  /// (the screen offers the app's settings). An audio room asks for the
+  /// microphone only.
+  Future<void> startPreview({LivePermissionPrompt? explain}) async {
     state = state.copyWith(phase: GoLivePhase.preparing);
+    if (!await _ensurePermission(
+      camera: state.mode != LiveRoomMode.audio,
+      explain: explain,
+    )) {
+      return;
+    }
+    if (!ref.mounted) return;
     try {
       var video = state.mode != LiveRoomMode.audio;
       await _engine.startPreview(video: video);
@@ -247,9 +281,64 @@ class LiveHostController extends Notifier<GoLiveState> {
     }
   }
 
+  /// D144a: whether the capture may start; else the phase says why.
+  Future<bool> _ensurePermission({
+    required bool camera,
+    LivePermissionPrompt? explain,
+  }) async {
+    var permission = await _permissions.check(camera: camera);
+    if (!ref.mounted) return false;
+    if (permission.canStart) return true;
+    if (permission != LivePermission.blocked) {
+      // Explain first; nothing is asked if the person does not go on.
+      if (explain != null && !await explain(camera: camera)) {
+        if (ref.mounted) _refused(LiveCaptureProblem.denied);
+        return false;
+      }
+      permission = await _permissions.request(camera: camera);
+      if (!ref.mounted) return false;
+      if (permission.canStart) return true;
+    }
+    _refused(
+      permission == LivePermission.blocked
+          ? LiveCaptureProblem.blocked
+          : LiveCaptureProblem.denied,
+    );
+    return false;
+  }
+
+  void _refused(LiveCaptureProblem problem) => state = state.copyWith(
+    phase: GoLivePhase.captureFailed,
+    capture: problem,
+  );
+
+  /// D144a: back from the system settings (the app resumed): starts the
+  /// capture if access is now allowed. Nothing is asked.
+  Future<void> recheckPermission() async {
+    if (state.phase != GoLivePhase.captureFailed ||
+        (state.capture != LiveCaptureProblem.blocked &&
+            state.capture != LiveCaptureProblem.denied)) {
+      return;
+    }
+    final permission = await _permissions.check(
+      camera: state.mode != LiveRoomMode.audio,
+    );
+    if (!ref.mounted || permission != LivePermission.granted) return;
+    await startPreview();
+  }
+
+  /// D144a: «فتح الإعدادات» — this app's page in the system settings.
+  Future<bool> openPermissionSettings() => _permissions.openSettings();
+
   /// CP-011: switches the mode before going live; an audio room needs no
   /// camera, so the camera stops (or starts again).
-  Future<void> setMode(LiveRoomMode mode) async {
+  ///
+  /// D144a: from an audio room to a video one the camera may still need
+  /// asking for ([explain], as in [startPreview]).
+  Future<void> setMode(
+    LiveRoomMode mode, {
+    LivePermissionPrompt? explain,
+  }) async {
     if (state.phase != GoLivePhase.preview &&
         state.phase != GoLivePhase.captureFailed &&
         state.phase != GoLivePhase.preparing) {
@@ -261,6 +350,11 @@ class LiveHostController extends Notifier<GoLiveState> {
         (mode == LiveRoomMode.audio) != (state.mode == LiveRoomMode.audio);
     state = state.copyWith(mode: mode);
     if (wasPreview && cameraChanges) {
+      if (mode != LiveRoomMode.audio &&
+          !await _ensurePermission(camera: true, explain: explain)) {
+        return;
+      }
+      if (!ref.mounted) return;
       try {
         await _engine.startPreview(video: mode != LiveRoomMode.audio);
       } on LiveCaptureException catch (e) {

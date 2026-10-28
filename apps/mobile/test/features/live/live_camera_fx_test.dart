@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
@@ -39,6 +41,18 @@ class _FakeBridge implements KabsoCameraFx {
 
   @override
   Future<void> release() async => calls.add('release');
+
+  /// D144a: what the native side reports.
+  final StreamController<KabsoCameraFxStatus> native =
+      StreamController.broadcast(sync: true);
+
+  @override
+  Stream<KabsoCameraFxStatus> get statusChanges => native.stream;
+
+  KabsoCameraFxDiagnostics? diagnosticsAnswer;
+
+  @override
+  Future<KabsoCameraFxDiagnostics?> diagnostics() async => diagnosticsAnswer;
 }
 
 void main() {
@@ -132,4 +146,54 @@ void main() {
     expect(fx.trackId, isNull);
     expect(bridge.calls, ['attach:gone']);
   });
+
+  test("D144a: DeepAR's reports become the effect status; a release "
+      'resets it', () async {
+    final bridge = _FakeBridge();
+    final fx = LiveCameraFx(bridge: bridge, licenseKey: 'secret');
+    expect(fx.status.value, LiveArStatus.off);
+    await fx.attach('t1');
+    await fx.update(blur);
+    bridge.native.add(
+      const KabsoCameraFxStatus(KabsoCameraFxState.initializing),
+    );
+    expect(fx.status.value.state, LiveArState.starting);
+    bridge.native.add(const KabsoCameraFxStatus(KabsoCameraFxState.ready));
+    expect(fx.status.value.state, LiveArState.running);
+    bridge.native.add(
+      const KabsoCameraFxStatus(KabsoCameraFxState.disabled, 'no_output'),
+    );
+    expect(
+      fx.status.value,
+      const LiveArStatus(
+        LiveArState.unavailable,
+        problem: LiveArProblem.stopped,
+        code: 'no_output',
+      ),
+    );
+    await fx.release();
+    expect(fx.status.value, LiveArStatus.off);
+    // Listening again after the next attach.
+    await fx.attach('t2');
+    bridge.native.add(
+      const KabsoCameraFxStatus(KabsoCameraFxState.licenceFailed, 'licence'),
+    );
+    expect(fx.status.value.problem, LiveArProblem.licence);
+  });
+
+  test(
+    'D144a: diagnostics come from the processor (null without one)',
+    () async {
+      final bridge = _FakeBridge()
+        ..diagnosticsAnswer = const KabsoCameraFxDiagnostics(
+          status: KabsoCameraFxStatus(KabsoCameraFxState.ready),
+          licencePresent: true,
+          framesOut: 12,
+        );
+      final fx = LiveCameraFx(bridge: bridge, licenseKey: 'k');
+      expect((await fx.diagnostics())!.framesOut, 12);
+      bridge.diagnosticsAnswer = null;
+      expect(await fx.diagnostics(), isNull);
+    },
+  );
 }

@@ -62,6 +62,7 @@ class SettingsScreen extends ConsumerWidget {
   static const countryKey = Key('settings.country');
   static const usernameKey = Key('settings.username');
   static const premiumKey = Key('settings.premium');
+  static const soundEffectsKey = Key('settings.soundEffects');
 
   static String _username(WidgetRef ref) =>
       ref.watch(currentUserProvider.select((u) => u?.username)) ?? '';
@@ -143,6 +144,17 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: KSpacing.sm),
             const _CountryTile(),
           ],
+          // D145d: the app's sound effects (the MAX X taps and wins).
+          const SizedBox(height: KSpacing.sm),
+          SwitchListTile(
+            key: soundEffectsKey,
+            secondary: const Icon(Icons.volume_up_outlined),
+            title: Text(l10n.settingsSoundEffects),
+            subtitle: Text(l10n.settingsSoundEffectsHint),
+            value: ref.watch(soundEffectsProvider),
+            onChanged: (on) =>
+                ref.read(soundEffectsProvider.notifier).set(on: on),
+          ),
           const SizedBox(height: KSpacing.xl),
           _SectionHeader(l10n.settingsSessions),
           const _SessionsSection(),

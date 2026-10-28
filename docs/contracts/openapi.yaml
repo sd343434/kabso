@@ -158,6 +158,11 @@ info:
     premium username, `PUT /me/username` with the stricter rule for new regular usernames
     (existing names are kept), the four tiers `LEGEND`/`RUBY`/`GOLD`/`SILVER` and the optional
     `premiumTier` badge on `UserSummary`, `PublicProfile` and `Me` (CONVENTIONS §6, §10.32).
+    **D147 (DRAFT v1.29-live)** adds search trends (tag `search`): `recordSearchQuery`
+    (`POST /search/queries`, a submitted search counted once per person per 7 days, no user id
+    stored), `listTrendingSearches` (`GET /search/trending`, up to 6 terms with a `TRENDING` /
+    `NEW` tag, at least 5 different searchers) and `listTrendingHashtags`
+    (`GET /search/trending-hashtags`, the hashtags of the week) (CONVENTIONS §11.11).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1867,7 +1872,10 @@ paths:
         receives `quantity` of the gift. `source: COINS` charges
         `priceCoins × quantity × recipients` coins (ledger `LIVE_GIFT`, it counts for the sender's
         family); `source: BAG` takes `quantity × recipients` of that gift from the caller's gift bag.
-        Checks, in order: 401; 429 (120 / min per user); 404 for a room the caller may not see; 409
+        Checks, in order: 401; 429 (6000 / min per user for every send; once the gift is known, a
+        normal gift 120 / min and a LUCKY gift 100 / s — D145c, v1.29.2-live D145d, CONVENTIONS §7;
+        nothing charged); 404
+        for a room the caller may not see; 409
         `LIVE_ROOM_ENDED`; 400 for the body (`quantity` not one of `GiftCatalogue.quantities` →
         `quantity` / `invalid_value`; recipients missing, more than 25 or repeated); a retry with
         the same `clientId` → 200 (the first send, the current balance and bag quantity; nothing
@@ -5159,6 +5167,72 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
+  /api/v1/search/trending:
+    get:
+      tags: [search]
+      operationId: listTrendingSearches
+      summary: "The terms people search most: up to 6, with a TRENDING or NEW tag (D147)"
+      description: |
+        v1.29-live (DRAFT, D147, CONVENTIONS §11.11). The same list for everyone (cached up to
+        60 s): terms submitted with `recordSearchQuery` by at least `SEARCH_TRENDING_MIN_SEARCHERS`
+        (default 5) different people in the last 7 days, most searchers first; never a term hidden
+        by an admin or containing a blocked word. Empty when none qualifies (the app hides the
+        section below 3 terms). Per-user default rate limit.
+      responses:
+        '200':
+          description: Up to 6 terms, rank order.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrendingSearchList' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/search/trending-hashtags:
+    get:
+      tags: [search]
+      operationId: listTrendingHashtags
+      summary: "The hashtags of the week the caller can see (D147)"
+      description: |
+        v1.29-live (DRAFT, D147, CONVENTIONS §11.11). Hashtags of posts published in the last 7
+        days that the caller can see (the visibility of hashtag pages), with at least 3 such posts
+        by at least 2 authors; most posts first, then the newest post, then the tag. `postCount`
+        counts those 7 days only. Never a tag containing a blocked word. Per-user default rate limit.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        '200':
+          description: Up to `limit` hashtags.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HashtagList' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/search/queries:
+    post:
+      tags: [search]
+      operationId: recordSearchQuery
+      summary: "Count a search the caller submitted, for trends (D147)"
+      description: |
+        v1.29-live (DRAFT, D147, CONVENTIONS §11.11). The app sends it when the person submits a
+        search or opens a result of one — not for every keystroke. `q` follows `search`'s rules.
+        The server counts the normalized term once per person per 7 days; no user id is stored
+        with it (the dedupe key is an expiring HMAC in Redis). Searches that are never counted
+        (fewer than 2 characters, no letter, an `@`, a link or 5+ digits in a row) are accepted
+        and dropped, so the answer never tells what was counted. 120 / hour per user
+        (`RATE_LIMIT_SEARCH_RECORD_USER`, replacing the default).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordSearchQueryRequest' }
+      responses:
+        '204': { description: Accepted. }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/users/{username}/block:
     put:
       tags: [safety]
@@ -7699,6 +7773,41 @@ components:
       properties:
         tag: { type: string }
         postCount: { type: integer, minimum: 0 }
+    HashtagList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Hashtag' }
+    TrendingSearch:
+      type: object
+      required: [term, tag]
+      properties:
+        term:
+          type: string
+          minLength: 2
+          maxLength: 64
+          description: The counted form (lower case, spaces collapsed); search with it as `q`.
+        tag:
+          type: [string, 'null']
+          enum: [TRENDING, NEW, null]
+          description: NEW = first searched in the last 24 h; TRENDING = at least 3 searchers in the last 24 h and at least twice the 24 h before; null otherwise.
+    TrendingSearchList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          maxItems: 6
+          items: { $ref: '#/components/schemas/TrendingSearch' }
+    RecordSearchQueryRequest:
+      type: object
+      additionalProperties: false
+      required: [q]
+      properties:
+        q: { type: string, minLength: 1, maxLength: 64 }
     SearchPage:
       type: object
       required: [type, data, page]
