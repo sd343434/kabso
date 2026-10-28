@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -44,10 +46,19 @@ abstract interface class LiveMediaEngine implements LiveVoiceMic {
   /// Whether the camera is part of the preview.
   bool get videoEnabled;
 
-  /// Whether beauty works on this device (D94).
+  /// Whether beauty (skin smoothing, brightening) works on this device
+  /// (D94).
   bool get beautySupported;
 
-  /// Beauty on the camera picture, before and while live.
+  /// Whether Magic's colour filters reach the published picture here (D143;
+  /// D144: Android too).
+  bool get filtersSupported;
+
+  /// Whether Magic's AR effects can run here (D144).
+  LiveArSupport get arEffects;
+
+  /// Beauty on the camera picture, before and while live: what of it this
+  /// device supports (skin, colour filter, AR effect).
   Future<void> setBeauty(LiveBeauty beauty);
 
   /// Voice processing on the microphone (D94 audio settings): noise
@@ -151,6 +162,9 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   lk.LocalAudioTrack? _audio;
   lk.Room? _room;
   BeautyPipeline? _beautyPipeline;
+
+  /// D144: Android's native camera processor (colour filters, DeepAR).
+  final LiveCameraFx _fx = LiveCameraFx();
   LiveBeauty _beauty = const LiveBeauty();
   bool _front = true;
   bool _mic = true;
@@ -176,9 +190,24 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   bool get beautySupported => kIsWeb;
 
   @override
+  bool get filtersSupported => kIsWeb || _fx.filtersSupported;
+
+  @override
+  LiveArSupport get arEffects => _fx.effects;
+
+  @override
   Future<void> setBeauty(LiveBeauty beauty) async {
     _beauty = beauty;
     _beautyPipeline?.update(beauty);
+    await _fx.update(beauty);
+  }
+
+  /// D144: the native processor follows the camera track; LiveKit gives the
+  /// track a new native id whenever it restarts it (unmute after a pause).
+  Future<void> _attachFx() async {
+    final video = _video;
+    if (video == null || kIsWeb) return;
+    await _fx.attach(video.mediaStreamTrack.id ?? '');
   }
 
   @override
@@ -200,6 +229,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
           _beautyPipeline = pipeline;
         }
         await camera.start();
+        await _attachFx();
       } else if (!video && _video != null) {
         await _stopVideo();
       }
@@ -356,6 +386,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
       await video.mute();
     } else {
       await video.unmute();
+      await _attachFx();
     }
     _changes.ping();
   }
@@ -578,6 +609,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     _video = null;
     _beautyPipeline = null;
     await pipeline?.dispose();
+    await _fx.release();
     await video?.stop();
     await video?.dispose();
   }

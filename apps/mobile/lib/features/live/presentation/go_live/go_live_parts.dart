@@ -1,5 +1,6 @@
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -26,6 +27,8 @@ abstract final class GoLiveKeys {
   static const beautyBrighten = Key('goLive.beauty.brighten');
   static Key filter(LiveColorFilter f) => Key('goLive.filter.${f.name}');
   static const filterUnsupported = Key('goLive.filter.unsupported');
+  static Key effect(LiveArEffect e) => Key('goLive.effect.${e.name}');
+  static const effectsUnavailable = Key('goLive.effect.unavailable');
 }
 
 const _white = Color(0xFFFFFFFF);
@@ -1047,12 +1050,19 @@ class LiveSheetFrame extends StatelessWidget {
 /// D143 Magic: the colour filters, applied live to the published camera
 /// picture. Where this device has no camera pipeline ([supported] false)
 /// the filters are shown greyed with why.
+///
+/// D144: under them, **Effects (beta)** — DeepAR on the published picture —
+/// where the platform has the processor ([effects] not `unsupported`);
+/// greyed with why when this build has no DeepAR licence.
 Future<void> showLiveFilterSheet(
   BuildContext context, {
   required LiveColorFilter selected,
   required bool supported,
   required ValueChanged<LiveColorFilter> onChanged,
   required Color accent,
+  LiveArSupport effects = LiveArSupport.unsupported,
+  LiveArEffect effect = LiveArEffect.none,
+  ValueChanged<LiveArEffect>? onEffect,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: const Color(0x00000000),
@@ -1060,6 +1070,7 @@ Future<void> showLiveFilterSheet(
   barrierColor: const Color(0x22000000),
   builder: (sheet) {
     var value = selected;
+    var effectValue = effect;
     return StatefulBuilder(
       builder: (context, setState) {
         final l10n = context.l10n;
@@ -1110,6 +1121,16 @@ Future<void> showLiveFilterSheet(
                   ],
                 ),
               ),
+              if (effects != LiveArSupport.unsupported)
+                _EffectsSection(
+                  selected: effectValue,
+                  ready: effects == LiveArSupport.ready && onEffect != null,
+                  accent: accent,
+                  onChanged: (e) {
+                    setState(() => effectValue = e);
+                    onEffect?.call(e);
+                  },
+                ),
             ],
           ),
         );
@@ -1117,6 +1138,156 @@ Future<void> showLiveFilterSheet(
     );
   },
 );
+
+/// The name of [effect] in the person's language.
+String liveEffectLabel(AppLocalizations l10n, LiveArEffect effect) =>
+    switch (effect) {
+      LiveArEffect.none => l10n.liveEffectNone,
+      LiveArEffect.backgroundBlur => l10n.liveEffectBackgroundBlur,
+    };
+
+/// D144 Magic → Effects (beta): one chip per [LiveArEffect].
+class _EffectsSection extends StatelessWidget {
+  const new({
+    required this.selected,
+    required this.ready,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final LiveArEffect selected;
+  final bool ready;
+  final Color accent;
+  final ValueChanged<LiveArEffect> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final text = context.textStyles;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.lg,
+        KSpacing.md,
+        KSpacing.lg,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              l10n.liveEffectsTitle,
+              style: text.label.copyWith(
+                color: _white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (!ready) ...[
+            const SizedBox(height: KSpacing.xs),
+            Text(
+              l10n.liveEffectsUnavailable,
+              key: GoLiveKeys.effectsUnavailable,
+              style: text.caption.copyWith(
+                color: _white.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+          const SizedBox(height: KSpacing.sm),
+          Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              for (final e in LiveArEffect.values)
+                _EffectChip(
+                  key: GoLiveKeys.effect(e),
+                  icon: switch (e) {
+                    LiveArEffect.none => Icons.block_rounded,
+                    LiveArEffect.backgroundBlur => Icons.blur_on_rounded,
+                  },
+                  label: liveEffectLabel(l10n, e),
+                  selected: e == selected,
+                  accent: accent,
+                  onTap: ready ? () => onChanged(e) : null,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EffectChip extends StatelessWidget {
+  const new({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: enabled,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(KRadius.pill),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.md,
+              vertical: KSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: _white.withValues(alpha: selected ? 0.18 : 0.08),
+              borderRadius: BorderRadius.circular(KRadius.pill),
+              border: Border.all(
+                color: selected ? accent : _white.withValues(alpha: 0.2),
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: _white),
+                const SizedBox(width: KSpacing.xs),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.caption.copyWith(
+                      color: _white,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// The name of [filter] in the person's language.
 String liveFilterLabel(AppLocalizations l10n, LiveColorFilter filter) =>

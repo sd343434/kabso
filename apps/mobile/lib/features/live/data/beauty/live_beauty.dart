@@ -1,12 +1,14 @@
 import 'package:kabso_live/features/live/data/beauty/beauty_pipeline_stub.dart'
     if (dart.library.js_interop) 'package:kabso_live/features/live/data/beauty/beauty_pipeline_web.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
 
 /// Beauty for the camera picture (owner D94), applied on the device before
 /// publishing: skin smoothing and brightening, each 0 … 1 — and, D143
-/// (Magic), a colour [filter], applied whether beauty is on or not.
+/// (Magic), a colour [filter], applied whether beauty is on or not — and,
+/// D144 (Magic → Effects, beta), an AR [effect] where the device runs one.
 @immutable
 class LiveBeauty {
   const new({
@@ -14,23 +16,27 @@ class LiveBeauty {
     this.smooth = 0.5,
     this.brighten = 0.3,
     this.filter = LiveColorFilter.natural,
+    this.effect = LiveArEffect.none,
   });
 
   final bool enabled;
   final double smooth;
   final double brighten;
   final LiveColorFilter filter;
+  final LiveArEffect effect;
 
   LiveBeauty copyWith({
     bool? enabled,
     double? smooth,
     double? brighten,
     LiveColorFilter? filter,
+    LiveArEffect? effect,
   }) => LiveBeauty(
     enabled: enabled ?? this.enabled,
     smooth: smooth ?? this.smooth,
     brighten: brighten ?? this.brighten,
     filter: filter ?? this.filter,
+    effect: effect ?? this.effect,
   );
 
   @override
@@ -39,10 +45,11 @@ class LiveBeauty {
       other.enabled == enabled &&
       other.smooth == smooth &&
       other.brighten == brighten &&
-      other.filter == filter;
+      other.filter == filter &&
+      other.effect == effect;
 
   @override
-  int get hashCode => Object.hash(enabled, smooth, brighten, filter);
+  int get hashCode => Object.hash(enabled, smooth, brighten, filter, effect);
 }
 
 /// Processes the camera track: what is published and what the host sees.

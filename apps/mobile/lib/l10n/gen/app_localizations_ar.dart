@@ -5985,6 +5985,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveFilterSoft => 'ناعم';
 
   @override
+  String get liveEffectsTitle => 'المؤثرات (تجريبي)';
+
+  @override
+  String get liveEffectNone => 'بلا';
+
+  @override
+  String get liveEffectBackgroundBlur => 'تمويه الخلفية';
+
+  @override
+  String get liveEffectsUnavailable => 'المؤثرات غير متاحة في هذا الإصدار بعد.';
+
+  @override
   String get liveManageAddModerator => 'إضافة مشرف';
 
   @override

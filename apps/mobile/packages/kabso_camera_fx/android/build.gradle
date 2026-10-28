@@ -1,0 +1,73 @@
+// kabso_camera_fx (D144): colour filters and DeepAR on flutter_webrtc's
+// pre-encoder frame processor.
+//
+// Carries the whole native integration: the DeepAR repository and dependency,
+// the consumer ProGuard rules DeepAR's JNI callbacks need, and the processor.
+// The app's own Gradle files stay untouched.
+group 'com.kabso.kabso_camera_fx'
+version '1.0'
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // DeepAR is not on Maven Central: its own public repository (no
+        // credentials; artifact ai.deepar.ar:DeepAR). Content-filtered so this
+        // repository is only ever asked for DeepAR.
+        maven {
+            url 'https://sdk.developer.deepar.ai/maven-android-repository/releases/'
+            content { includeGroup 'ai.deepar.ar' }
+        }
+    }
+}
+
+apply plugin: 'com.android.library'
+
+// Same rule as flutter_webrtc: AGP 9 with built-in Kotlin rejects KGP; apply
+// it only when built-in Kotlin is off (the app sets android.builtInKotlin=false).
+def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
+def builtInKotlinActive = agpMajor >= 9 &&
+    (!project.hasProperty('android.builtInKotlin') ||
+        Boolean.parseBoolean(project.property('android.builtInKotlin').toString()))
+if (!builtInKotlinActive && !project.plugins.hasPlugin('kotlin-android')) {
+    apply plugin: 'kotlin-android'
+}
+
+android {
+    namespace 'com.kabso.kabso_camera_fx'
+    compileSdkVersion 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        // DeepAR's AAR declares minSdk 23; the app is on 24.
+        minSdkVersion 23
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+}
+
+def kotlinExt = project.extensions.findByName('kotlin')
+if (kotlinExt?.hasProperty('compilerOptions')) {
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+}
+
+dependencies {
+    // DeepAR native Android SDK (licence key from --dart-define, never here).
+    implementation 'ai.deepar.ar:DeepAR:5.6.22'
+
+    // compileOnly: flutter_webrtc already ships this exact WebRTC build and
+    // it is the one producing the frames; a second copy must not resolve.
+    compileOnly 'io.github.webrtc-sdk:android:150.7871.01'
+    compileOnly 'androidx.annotation:annotation:1.1.0'
+}

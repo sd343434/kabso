@@ -10340,6 +10340,30 @@ abstract class AppLocalizations {
   /// **'ناعم'**
   String get liveFilterSoft;
 
+  /// D144 Magic: the AR effects section (DeepAR), marked beta.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات (تجريبي)'**
+  String get liveEffectsTitle;
+
+  /// D144 Magic: no AR effect.
+  ///
+  /// In ar, this message translates to:
+  /// **'بلا'**
+  String get liveEffectNone;
+
+  /// D144 Magic: DeepAR's background blur effect.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمويه الخلفية'**
+  String get liveEffectBackgroundBlur;
+
+  /// D144 Magic: why effects are greyed (no DeepAR licence in this build).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات غير متاحة في هذا الإصدار بعد.'**
+  String get liveEffectsUnavailable;
+
   /// User management: opens the viewers to make one a moderator.
   ///
   /// In ar, this message translates to:

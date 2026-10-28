@@ -28,6 +28,7 @@ import 'package:kabso_live/features/emoji/kabi_emoji.dart';
 import 'package:kabso_live/features/levels/data/levels_repository.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -2312,6 +2313,85 @@ void main() {
       await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.mono)));
       await tester.pumpAndSettle();
       expect(camera.beauty.filter, LiveColorFilter.natural);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Android: Magic works through the native processor '
+        'while Beauty (skin) stays unsupported', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsBeauty = false
+          ..supportsFilters = true,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.filterUnsupported), findsNothing);
+      // No processor for effects on this platform: no Effects section.
+      expect(find.text(_l10n(tester).liveEffectsTitle), findsNothing);
+      expect(find.byKey(GoLiveKeys.effect(LiveArEffect.none)), findsNothing);
+      await tester.tap(find.byKey(GoLiveKeys.filter(LiveColorFilter.mono)));
+      await tester.pumpAndSettle();
+      expect(camera.beauty.filter, LiveColorFilter.mono);
+      expect(camera.beauty.enabled, isFalse);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Effects (beta): background blur reaches the camera, '
+        'marks Magic, and None turns it off', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsBeauty = false
+          ..supportsFilters = true
+          ..arSupport = LiveArSupport.ready,
+      );
+      final l10n = _l10n(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.text(l10n.liveEffectsTitle), findsOneWidget);
+      expect(find.byKey(GoLiveKeys.effectsUnavailable), findsNothing);
+      final blur = find.byKey(GoLiveKeys.effect(LiveArEffect.backgroundBlur));
+      await tester.ensureVisible(blur);
+      await tester.tap(blur);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.backgroundBlur);
+      expect(hostState(tester).beauty.effect, LiveArEffect.backgroundBlur);
+      // The colour filter is independent of the effect.
+      expect(camera.beauty.filter, LiveColorFilter.natural);
+      expect(
+        tester
+            .widget<Semantics>(
+              find.descendant(of: blur, matching: find.byType(Semantics)).first,
+            )
+            .properties
+            .selected,
+        isTrue,
+      );
+      final none = find.byKey(GoLiveKeys.effect(LiveArEffect.none));
+      await tester.tap(none);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.none);
+      await _leave(tester);
+    });
+
+    testWidgets('D144 Effects without a DeepAR licence in this build: shown '
+        'greyed with why, nothing changes', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()
+          ..supportsFilters = true
+          ..arSupport = LiveArSupport.unlicensed,
+      );
+      await tester.tap(find.byKey(GoLiveKeys.tool('magic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(GoLiveKeys.effectsUnavailable), findsOneWidget);
+      expect(find.text(_l10n(tester).liveEffectsUnavailable), findsOneWidget);
+      final blur = find.byKey(GoLiveKeys.effect(LiveArEffect.backgroundBlur));
+      await tester.ensureVisible(blur);
+      await tester.tap(blur, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(camera.beauty.effect, LiveArEffect.none);
       await _leave(tester);
     });
 

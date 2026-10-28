@@ -5960,6 +5960,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveFilterSoft => 'Soft';
 
   @override
+  String get liveEffectsTitle => 'Effects (beta)';
+
+  @override
+  String get liveEffectNone => 'None';
+
+  @override
+  String get liveEffectBackgroundBlur => 'Background blur';
+
+  @override
+  String get liveEffectsUnavailable =>
+      'Effects aren\'t available in this build yet.';
+
+  @override
   String get liveManageAddModerator => 'Add a moderator';
 
   @override

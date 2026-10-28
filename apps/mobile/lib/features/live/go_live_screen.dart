@@ -20,6 +20,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -591,20 +592,26 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               : null,
         ),
         // D143 Magic: colour filters on the published picture (greyed with
-        // why where the device has no camera pipeline).
+        // why where the device has no camera pipeline; D144: Android has
+        // one), and D144's Effects (beta) where DeepAR runs.
         GoLiveTool(
           id: 'magic',
           icon: Icons.auto_awesome_rounded,
           label: l10n.liveToolMagic,
-          badge: !state.beauty.filter.isNatural,
+          badge:
+              !state.beauty.filter.isNatural ||
+              state.beauty.effect != LiveArEffect.none,
           onTap: canAct
               ? () => unawaited(
                   showLiveFilterSheet(
                     context,
                     selected: state.beauty.filter,
-                    supported: engine.beautySupported,
+                    supported: engine.filtersSupported,
                     accent: art.accent,
                     onChanged: (f) => unawaited(_host.setColorFilter(f)),
+                    effects: engine.arEffects,
+                    effect: state.beauty.effect,
+                    onEffect: (e) => unawaited(_host.setArEffect(e)),
                   ),
                 )
               : null,

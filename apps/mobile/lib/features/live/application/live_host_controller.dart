@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:kabso_live/core/error/app_failure.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/features/live/application/live_background.dart';
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
@@ -353,9 +354,14 @@ class LiveHostController extends Notifier<GoLiveState> {
   }
 
   /// D143: Magic's colour filter, on the published picture (where the
-  /// device has a camera pipeline: [LiveMediaEngine.beautySupported]).
+  /// device has a camera pipeline: [LiveMediaEngine.filtersSupported]).
   Future<void> setColorFilter(LiveColorFilter filter) =>
       setBeauty(state.beauty.copyWith(filter: filter));
+
+  /// D144: Magic's AR effect (DeepAR), on the published picture (where
+  /// [LiveMediaEngine.arEffects] is ready).
+  Future<void> setArEffect(LiveArEffect effect) =>
+      setBeauty(state.beauty.copyWith(effect: effect));
 
   /// D143 fill light. The front camera: the screen's warm frame (nothing to
   /// ask the device). The back camera: its torch — `false` (and the light

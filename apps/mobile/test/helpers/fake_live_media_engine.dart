@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
@@ -28,6 +29,12 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
 
   /// What [beautySupported] answers.
   bool supportsBeauty = true;
+
+  /// What [filtersSupported] answers (D143/D144); null: as [supportsBeauty].
+  bool? supportsFilters;
+
+  /// What [arEffects] answers (D144).
+  LiveArSupport arSupport = LiveArSupport.unsupported;
   LiveBeauty beauty = const LiveBeauty();
 
   /// While set, `startPreview` waits for it (a camera that is slow to
@@ -54,6 +61,12 @@ class FakeLiveMediaEngine implements LiveMediaEngine {
 
   @override
   bool get beautySupported => supportsBeauty;
+
+  @override
+  bool get filtersSupported => supportsFilters ?? supportsBeauty;
+
+  @override
+  LiveArSupport get arEffects => arSupport;
 
   @override
   Future<void> setBeauty(LiveBeauty beauty) async => this.beauty = beauty;
