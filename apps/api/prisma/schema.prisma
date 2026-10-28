@@ -160,6 +160,8 @@ model User {
   boostCards         LiveBoostCard[]
   boostsBought       LiveBoost[]            @relation("LiveBoostBuyer")
   boostsReceived     LiveBoost[]            @relation("LiveBoostHost")
+  /// v1.35-live (D154d): the summaries of the user's ended lives (the data center).
+  liveSummaries      LiveSummary[]
   /// v1.32-live (D154): the free quips the user sent (one per live).
   freeQuips          LiveFreeQuip[]
   // v1.27.1-live (D133): featured on the live hub.
@@ -498,6 +500,7 @@ model LiveRoom {
   gifts        LiveGift[]
   freeQuips    LiveFreeQuip[]
   boosts       LiveBoost[]
+  summary      LiveSummary?
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2473,6 +2476,30 @@ model LiveFreeQuip {
   @@id([roomId, userId], map: "live_free_quips_pkey")
   @@index([userId], map: "live_free_quips_user_idx")
   @@map("live_free_quips")
+}
+
+/// v1.35-live (D154d, CONVENTIONS §10.36): one ended live, summarised once for the host's data center
+/// (written by the summariser after the end; never changed). `earnings_coins` = Σ over the gifts the
+/// host received in it of floor(coins × the send's `host_share_bps` / 10 000) — display only (D149).
+model LiveSummary {
+  roomId          String   @id @map("room_id") @db.Uuid
+  hostUserId      String   @map("host_user_id") @db.Uuid
+  startedAt       DateTime @map("started_at") @db.Timestamptz(3)
+  endedAt         DateTime @map("ended_at") @db.Timestamptz(3)
+  durationSeconds Int      @map("duration_seconds")
+  peakViewers     Int      @map("peak_viewers")
+  uniqueViewers   Int      @map("unique_viewers")
+  giftCount       Int      @map("gift_count")
+  giftCoins       BigInt   @map("gift_coins")
+  earningsCoins   BigInt   @map("earnings_coins")
+  newFollowers    Int      @map("new_followers")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  host User     @relation(fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  @@index([hostUserId, startedAt], map: "live_summaries_host_started_idx")
+  @@map("live_summaries")
 }
 
 /// v1.33-live (D154b): how a traffic card was paid.

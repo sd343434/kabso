@@ -472,6 +472,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
+| *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -511,6 +512,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.35-live (draft) | 2026-10-28 | **D154d (owner: Room Tools item 4 «مركز البيانات / Data center», item 14; periods DAY / WEEK / MONTH / YEAR):** `getMyLiveStats` (`GET /live/stats/me?period=`, `MyLiveStats`, `LiveStatsPeriod`); `LiveRoomStats.giftCoins`, `earningsCoins` (required); table `live_summaries` (migration `20261206090000_live_summaries`), filled by a summariser for every ended live (older ones included). §8, §10.31, §10.36. | **Additive** (a new operation and new response fields). |
 | v1.34-live (draft) | 2026-10-28 | **D154c (owner: Room Tools item 3 «الجدد / Newcomers», item 13; window 30 days, was 7):** `listLiveNewcomers` (`GET /live/rooms/{roomId}/newcomers`, `LiveNewcomers` `{newcomerDays, data: [UserSummary]}`; host and moderators); `LiveChatAuthorBadges.newcomer` (required in responses and the `chat` data message); config `NEWCOMER_DAYS` (30). §10.11, §10.35. | **Additive** (a new operation; a new response field older apps ignore). |
 | v1.33-live (draft) | 2026-10-28 | **D154b (owner: Room Tools item 2 «بطاقة الزيارات», 15, 15b, 15c; CP-014 part C, the room boost):** `getLiveBoostOffers` (`GET /live/boosts/offers[?roomId=]`, `LiveBoostOffers`, `LiveBoostOption`, `LiveBoostCardStock`), `listActiveLiveBoosts` (`GET /live/boosts/active`, `LiveBoostedRoom`; guests too), `buyLiveBoost` (`POST /live/rooms/{roomId}/boosts`, `LiveBoostRequest`, `LiveBoostResult`; 201 / 200 retry), `listLiveRoomBoosts` (`GET /live/rooms/{roomId}/boosts`); `LiveBoost`, `LiveBoostState`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`, `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (409); ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; config `LIVE_BOOST_PRICES` (default `10:10000,20:18000,30:25000,60:45000`), `LIVE_BOOST_SLOTS` (3), `LIVE_BOOST_MAX_WAIT_MINUTES` (180); CLI `boost-admin grant|cards|queue`, audit `live.boost_card.grant`; migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`. §4, §7, §8, §10.34. | **Additive** (new operations, data message, codes and ledger reasons). The live list itself is unchanged: apps show the boosted lives above it. |
 | v1.32-live (draft) | 2026-10-28 | **D154 (owner: the Room Tools, item 1 «إفيهات / Quips»; 5b–5f):** gift category `QUIPS` (`GiftCategory`), `Gift.quip` (`GiftQuip` `{soundKey, durationMs, text}`, null for other gifts); `Gift.priceCoins`, `LiveGift.unitPrice` / `totalCoins` may be **0** for a free quip; `LiveGiftResult.quip` (`LiveQuip`); `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `LiveSoundRequest`, `{quip: LiveQuip}`, host and moderators, one every 2 s); data message `quip` on topic `quip` (`{"type":"quip","quip":LiveQuip}`) — a quip is sent instead of the `gift` message; codes `QUIP_FREE_USED`, `QUIP_QUEUE_FULL` (409). Quips: coins and quantity 1 only (else 400), one free quip per person per live, one quip at a time per room (`QUIP_QUEUE_MAX_WAIT_SECONDS`, default 60). The recipients' earnings share is fixed on each send (`live_gifts.host_share_bps`): server config `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`); existing sends backfilled (lucky: their draws' share; others 65 %). CLI `gift-admin quips-seed`, `--sound`, `--sound-ms`, `--quip-text`; migrations `20261204090000_quips_enums`, `20261204100000_quips`. §4, §7, §8, §10.23, §10.33. | **Additive** for clients (a new category older apps drop, new fields, a new operation, a new data message topic, new codes). `GiftCatalogue.categories` now lists `QUIPS`. Score, levels and boards count a paid quip like a normal gift; a free quip counts nothing. |
@@ -2340,6 +2342,33 @@ Owner decisions (2026-10-28, D154 item 13) are marked *(owner)*.
   with the ready text «أهلاً @username 🌱 نوّرت البث» / "Welcome @username 🌱 glad you're here"; it
   offers it once per person per live on that phone. No new write operation.
 - **Not in v1.34-live:** newcomer statistics, automatic welcomes, a newcomer badge outside the live chat.
+
+### 10.36 The host's data center «مركز البيانات» *(v1.35-live, DRAFT — D154d)*
+
+Owner decisions (2026-10-28, D154 item 14) are marked *(owner)*.
+
+- **(a) End of a live** *(owner: duration, peak, total viewers, new followers, gifts count + coin value,
+  top 3 supporters)*: `getLiveRoomStats` (§10.31) already answered all but the value; v1.35-live adds
+  `giftCoins` (Σ `totalCoins` of the live's sends) and `earningsCoins` (the host's share of the gifts
+  **they** received: Σ floor(recipient coins × the send's `host_share_bps` / 10 000), §10.33 — quips 50 %,
+  other gifts 65 %, lucky 10 %; display only, payouts are D149). The app's end screen shows both.
+- **(b) The data center** *(owner: DAY / WEEK / MONTH / YEAR; live hours, earnings, follower growth,
+  best hours, simple charts)*: `getMyLiveStats` (`GET /live/stats/me?period=DAY|WEEK|MONTH|YEAR`, the
+  caller's own lives only; 400 `period` otherwise). Periods in `LIVE_RANKINGS_TIME_ZONE`: DAY = today by
+  hour; WEEK = the last 7 days by day; MONTH = the last 30 days by day; YEAR = the last 12 months by month
+  (each from the start of its first bucket to now). `totals` = `{lives, liveSeconds, giftCount, giftCoins,
+  earningsCoins, newFollowers, uniqueViewers, peakViewers}`; `series` = one bucket per hour / day / month
+  `{start (local "YYYY-MM-DDTHH:mm"), liveSeconds, earningsCoins, newFollowers}`; `heatmap` = the non-empty
+  cells of lives started per ISO weekday × hour `{weekday, hour, lives, viewers}` (the best hours). Lives
+  count by their **start**; follows by when they were made (ACTIVE followers; an unfollow removes the row).
+  The live running now counts once it ends.
+- **Storage** *(owner: persist a per-live summary at the end)*: `live_summaries`, one row per ended live
+  written **once** by a summariser (the live sweeper's interval, 200 a batch, and the caller's own lives
+  before each read) — so every end path (the host, the heartbeat timeout, a suspension, an admin) and
+  lives from before v1.35-live are covered without hooking each one. The rows are never changed. The
+  owner's "daily rollups for the year" are not a separate table: a host's year is at most a few thousand
+  summary rows, aggregated per read with the `(host, started_at)` index.
+- **Not in v1.35-live:** a live in progress in the periods, other hosts' data, exports, payouts (D149).
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

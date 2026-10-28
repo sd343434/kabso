@@ -7097,4 +7097,81 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveNewcomerWelcomeText(String username) {
     return 'أهلاً @$username 🌱 نوّرت البث';
   }
+
+  @override
+  String get liveStatsGiftCoins => 'قيمة الهدايا';
+
+  @override
+  String get liveStatsEarnings => 'أرباحك (عرض فقط)';
+
+  @override
+  String liveDataDuration(int hours, int minutes) {
+    return '$hours س $minutes د';
+  }
+
+  @override
+  String get liveDataLoadError => 'تعذّر تحميل مركز البيانات';
+
+  @override
+  String get liveDataLives => 'البثوث';
+
+  @override
+  String get liveDataLiveTime => 'مدة البث';
+
+  @override
+  String get liveDataNewFollowers => 'متابعون جدد';
+
+  @override
+  String get liveDataViewers => 'المشاهدون';
+
+  @override
+  String get liveDataChartTitle => 'مدة البث عبر الوقت';
+
+  @override
+  String get liveDataEmpty => 'لا توجد بثوث منتهية في هذه الفترة.';
+
+  @override
+  String get liveDataBestHours => 'أفضل الأوقات';
+
+  @override
+  String liveDataBestHourSemantics(String day, int hour) {
+    return 'أفضل وقت: $day الساعة $hour';
+  }
+
+  @override
+  String get liveDataPeriodDay => 'يوم';
+
+  @override
+  String get liveDataPeriodWeek => 'أسبوع';
+
+  @override
+  String get liveDataPeriodMonth => 'شهر';
+
+  @override
+  String get liveDataPeriodYear => 'سنة';
+
+  @override
+  String get liveDataHint =>
+      'بثوثك المنتهية فقط؛ البث الجاري يُحسب عند انتهائه.';
+
+  @override
+  String get liveDataMon => 'إثنين';
+
+  @override
+  String get liveDataTue => 'ثلاثاء';
+
+  @override
+  String get liveDataWed => 'أربعاء';
+
+  @override
+  String get liveDataThu => 'خميس';
+
+  @override
+  String get liveDataFri => 'جمعة';
+
+  @override
+  String get liveDataSat => 'سبت';
+
+  @override
+  String get liveDataSun => 'أحد';
 }

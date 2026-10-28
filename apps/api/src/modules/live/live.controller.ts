@@ -41,6 +41,7 @@ import {
   type LiveBoostResultDto,
 } from './live-boosts.service.js';
 import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.service.js';
+import { LiveDataCenterService, type MyLiveStatsDto } from './live-data-center.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -131,6 +132,7 @@ export class LiveController {
     private readonly quips: LiveQuipsService,
     private readonly boosts: LiveBoostsService,
     private readonly newcomers: LiveNewcomersService,
+    private readonly dataCenter: LiveDataCenterService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -177,6 +179,12 @@ export class LiveController {
   @Get('boosts/offers')
   offerBoosts(@Req() req: AppRequest, @Query('roomId') roomId?: string): Promise<LiveBoostOffersDto> {
     return this.boosts.offers(requireCaller(req), roomId);
+  }
+
+  /** v1.35-live (D154d): the caller's own data center (DAY, WEEK, MONTH or YEAR). */
+  @Get('stats/me')
+  myStats(@Req() req: AppRequest, @Query() query: unknown): Promise<MyLiveStatsDto> {
+    return this.dataCenter.mine(requireCaller(req), query);
   }
 
   @Get('rooms')

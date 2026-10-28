@@ -12151,6 +12151,150 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أهلاً @{username} 🌱 نوّرت البث'**
   String liveNewcomerWelcomeText(String username);
+
+  /// D154d: the gifts' value in coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة الهدايا'**
+  String get liveStatsGiftCoins;
+
+  /// D154d: the host's share of the gifts (display only).
+  ///
+  /// In ar, this message translates to:
+  /// **'أرباحك (عرض فقط)'**
+  String get liveStatsEarnings;
+
+  /// D154d: a live time.
+  ///
+  /// In ar, this message translates to:
+  /// **'{hours} س {minutes} د'**
+  String liveDataDuration(int hours, int minutes);
+
+  /// D154d: load failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل مركز البيانات'**
+  String get liveDataLoadError;
+
+  /// D154d: number of lives.
+  ///
+  /// In ar, this message translates to:
+  /// **'البثوث'**
+  String get liveDataLives;
+
+  /// D154d: total live time.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة البث'**
+  String get liveDataLiveTime;
+
+  /// D154d: follower growth.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعون جدد'**
+  String get liveDataNewFollowers;
+
+  /// D154d: unique viewers summed over lives.
+  ///
+  /// In ar, this message translates to:
+  /// **'المشاهدون'**
+  String get liveDataViewers;
+
+  /// D154d: the bar chart title.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة البث عبر الوقت'**
+  String get liveDataChartTitle;
+
+  /// D154d: empty period.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد بثوث منتهية في هذه الفترة.'**
+  String get liveDataEmpty;
+
+  /// D154d: the heatmap title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل الأوقات'**
+  String get liveDataBestHours;
+
+  /// D154d: heatmap for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل وقت: {day} الساعة {hour}'**
+  String liveDataBestHourSemantics(String day, int hour);
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'يوم'**
+  String get liveDataPeriodDay;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسبوع'**
+  String get liveDataPeriodWeek;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهر'**
+  String get liveDataPeriodMonth;
+
+  /// D154d: period.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنة'**
+  String get liveDataPeriodYear;
+
+  /// D154d: the data center's scope.
+  ///
+  /// In ar, this message translates to:
+  /// **'بثوثك المنتهية فقط؛ البث الجاري يُحسب عند انتهائه.'**
+  String get liveDataHint;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'إثنين'**
+  String get liveDataMon;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'ثلاثاء'**
+  String get liveDataTue;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'أربعاء'**
+  String get liveDataWed;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'خميس'**
+  String get liveDataThu;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'جمعة'**
+  String get liveDataFri;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'سبت'**
+  String get liveDataSat;
+
+  /// D154d: weekday.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحد'**
+  String get liveDataSun;
 }
 
 class _AppLocalizationsDelegate

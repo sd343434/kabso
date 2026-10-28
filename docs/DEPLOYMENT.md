@@ -1143,6 +1143,13 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
 - **New optional config:** `NEWCOMER_DAYS` (default `30`, owner; 1–365): an account younger than this is a
   newcomer (the «جديد 🌱» chat badge and the host's and moderators' Newcomers list). No table, no backfill.
 
+### 5.20 The data center «مركز البيانات» (migration `20261206090000_live_summaries`; D154d) — [IMPLEMENTED, draft contract v1.35-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): table `live_summaries`. No GRANT, no backfill in the migration:
+  the API's summariser fills it after the deploy (200 ended lives every `LIVE_SWEEP_INTERVAL_SECONDS`, and
+  a host's own lives at once when they open the data center), so the first minutes after the deploy cost a
+  few batch inserts. No new config (the periods use `LIVE_RANKINGS_TIME_ZONE`).
+
 ## 6. Observability baseline
 
 | Item | Status |

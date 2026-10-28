@@ -187,6 +187,9 @@ info:
     **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
     the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
     `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
+    **D154d (DRAFT v1.35-live)** adds the host's data center «مركز البيانات»: `getMyLiveStats`
+    (`GET /live/stats/me?period=DAY|WEEK|MONTH|YEAR`: totals, a series and the best hours of the
+    caller's ended lives) and `LiveRoomStats.giftCoins` / `earningsCoins` (CONVENTIONS §10.36).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1256,6 +1259,32 @@ paths:
                     type: array
                     maxItems: 20
                     items: { $ref: '#/components/schemas/LiveBoostedRoom' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/stats/me:
+    get:
+      tags: [live]
+      operationId: getMyLiveStats
+      summary: "The caller's data center: their ended lives by period (D154d)"
+      description: |
+        v1.35-live, CONVENTIONS §10.36. The caller's ended lives that started in the period, in the
+        server's time zone (`LIVE_RANKINGS_TIME_ZONE`): DAY = today by hour, WEEK = the last 7 days by
+        day, MONTH = the last 30 days by day, YEAR = the last 12 months by month. Totals, one bucket per
+        hour / day / month (live time, earnings, new followers), and the best hours (lives and viewers
+        by weekday and hour of the start). The live running now counts once it ends. Earnings are the
+        host's share of the gifts they received (display only). Checks: 401; 400 `period`.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/LiveStatsPeriod' }
+      responses:
+        '200':
+          description: The data center.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyLiveStats' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms:
     get:
@@ -2366,6 +2395,8 @@ paths:
                   - user: { id: 0192f1d0-5555-7000-8000-000000000006, username: sara, displayName: سارة, avatarUrl: null }
                     points: 1200
                 giftCount: 6
+                giftCoins: 520
+                earningsCoins: 338
                 chatMessages: 3
                 newFollowers: 2
                 viewers: { unique: 11, guests: 1, peak: 11, atEnd: 0, averageWatchSeconds: 74 }
@@ -7194,8 +7225,14 @@ components:
     # ---- v1.27.6-live (DRAFT, D140) — the host's statistics of a live ----------------------
     LiveRoomStats:
       type: object
-      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, chatMessages, newFollowers, viewers, viewerCountries]
+      required: [roomId, status, startedAt, endedAt, durationSeconds, score, hostOwnPoints, supporters, topSupporters, giftCount, giftCoins, earningsCoins, chatMessages, newFollowers, viewers, viewerCountries]
       properties:
+        giftCoins: { type: integer, format: int64, minimum: 0, description: "v1.35-live (D154d). Σ `totalCoins` of the live's sends (the value of the gifts, whoever they went to)." }
+        earningsCoins:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "v1.35-live (D154d). The host's share of the gifts they received in this live: Σ floor(coins × the send's host share), quips 50 %, other gifts 65 %, lucky 10 % (display only; payouts are D149)."
         roomId: { type: string, format: uuid }
         status: { type: string, enum: [LIVE, ENDED] }
         startedAt: { type: string, format: date-time }
@@ -9268,6 +9305,52 @@ components:
           description: v1.32-live (D154). Present only for a QUIPS gift (absent for a retry and every other send) — its slot in the room's quip queue, as the `quip` data message carries it.
           allOf:
             - $ref: '#/components/schemas/LiveQuip'
+    LiveStatsPeriod:
+      type: string
+      enum: [DAY, WEEK, MONTH, YEAR]
+    MyLiveStats:
+      type: object
+      description: v1.35-live (D154d, CONVENTIONS §10.36). The caller's data center for one period.
+      required: [period, timeZone, from, to, totals, series, heatmap]
+      properties:
+        period: { $ref: '#/components/schemas/LiveStatsPeriod' }
+        timeZone: { type: string, description: The IANA time zone of the buckets. }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        totals:
+          type: object
+          required: [lives, liveSeconds, giftCount, giftCoins, earningsCoins, newFollowers, uniqueViewers, peakViewers]
+          properties:
+            lives: { type: integer, minimum: 0 }
+            liveSeconds: { type: integer, format: int64, minimum: 0 }
+            giftCount: { type: integer, format: int64, minimum: 0 }
+            giftCoins: { type: integer, format: int64, minimum: 0 }
+            earningsCoins: { type: integer, format: int64, minimum: 0, description: The host's share of the gifts they received (display only). }
+            newFollowers: { type: integer, minimum: 0 }
+            uniqueViewers: { type: integer, format: int64, minimum: 0, description: "Σ of each live's unique viewers (a person in two lives counts twice)." }
+            peakViewers: { type: integer, minimum: 0, description: The most viewers at once in one live. }
+        series:
+          type: array
+          maxItems: 31
+          items:
+            type: object
+            required: [start, liveSeconds, earningsCoins, newFollowers]
+            properties:
+              start: { type: string, pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$', description: "The bucket's start, local wall time." }
+              liveSeconds: { type: integer, format: int64, minimum: 0 }
+              earningsCoins: { type: integer, format: int64, minimum: 0 }
+              newFollowers: { type: integer, minimum: 0 }
+        heatmap:
+          type: array
+          maxItems: 168
+          items:
+            type: object
+            required: [weekday, hour, lives, viewers]
+            properties:
+              weekday: { type: integer, minimum: 1, maximum: 7, description: 1 Monday … 7 Sunday (ISO). }
+              hour: { type: integer, minimum: 0, maximum: 23 }
+              lives: { type: integer, minimum: 1 }
+              viewers: { type: integer, format: int64, minimum: 0 }
     LiveNewcomers:
       type: object
       description: v1.34-live (D154c). The newcomers in a live now.

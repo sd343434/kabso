@@ -112,6 +112,10 @@ class GoLiveSummary extends StatelessWidget {
   static const followersKey = Key('summary.followers');
   static const chatKey = Key('summary.chat');
   static const giftCountKey = Key('summary.giftCount');
+
+  /// D154d: the gifts' value and the host's earnings.
+  static const giftCoinsKey = Key('summary.giftCoins');
+  static const earningsKey = Key('summary.earnings');
   static const countriesKey = Key('summary.countries');
   static const donutKey = Key('summary.donut');
   static const noViewersKey = Key('summary.noViewers');
@@ -147,6 +151,9 @@ class GoLiveSummary extends StatelessWidget {
         _KeyStats(stats: stats),
         const SizedBox(height: KSpacing.md),
         _SecondaryChips(stats: stats),
+        // D154d (owner): the gifts' value and the host's share of it.
+        const SizedBox(height: KSpacing.sm),
+        _ValueChips(stats: stats),
         if (viewers != null) ...[
           gap,
           if (viewers.unique == 0)
@@ -925,6 +932,42 @@ class _SecondaryChips extends StatelessWidget {
             if (i > 0) const SizedBox(width: KSpacing.sm),
             Expanded(child: chip),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// D154d: the gifts' value in coins and the host's share (display only).
+class _ValueChips extends StatelessWidget {
+  const new({required this.stats});
+
+  final LiveRoomStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _Chip(
+              key: GoLiveSummary.giftCoinsKey,
+              icon: Icons.toll_rounded,
+              label: l10n.liveStatsGiftCoins,
+              value: KFormat.grouped(stats.giftCoins),
+            ),
+          ),
+          const SizedBox(width: KSpacing.sm),
+          Expanded(
+            child: _Chip(
+              key: GoLiveSummary.earningsKey,
+              icon: Icons.savings_outlined,
+              label: l10n.liveStatsEarnings,
+              value: KFormat.grouped(stats.earningsCoins),
+            ),
+          ),
         ],
       ),
     );

@@ -7053,4 +7053,81 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveNewcomerWelcomeText(String username) {
     return 'Welcome @$username 🌱 glad you\'re here';
   }
+
+  @override
+  String get liveStatsGiftCoins => 'Gifts\' value';
+
+  @override
+  String get liveStatsEarnings => 'Your earnings (display only)';
+
+  @override
+  String liveDataDuration(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String get liveDataLoadError => 'Couldn\'t load the data center';
+
+  @override
+  String get liveDataLives => 'Lives';
+
+  @override
+  String get liveDataLiveTime => 'Live time';
+
+  @override
+  String get liveDataNewFollowers => 'New followers';
+
+  @override
+  String get liveDataViewers => 'Viewers';
+
+  @override
+  String get liveDataChartTitle => 'Live time over time';
+
+  @override
+  String get liveDataEmpty => 'No ended lives in this period.';
+
+  @override
+  String get liveDataBestHours => 'Best hours';
+
+  @override
+  String liveDataBestHourSemantics(String day, int hour) {
+    return 'Best time: $day at $hour:00';
+  }
+
+  @override
+  String get liveDataPeriodDay => 'Day';
+
+  @override
+  String get liveDataPeriodWeek => 'Week';
+
+  @override
+  String get liveDataPeriodMonth => 'Month';
+
+  @override
+  String get liveDataPeriodYear => 'Year';
+
+  @override
+  String get liveDataHint =>
+      'Your ended lives only; the live on now counts once it ends.';
+
+  @override
+  String get liveDataMon => 'Mon';
+
+  @override
+  String get liveDataTue => 'Tue';
+
+  @override
+  String get liveDataWed => 'Wed';
+
+  @override
+  String get liveDataThu => 'Thu';
+
+  @override
+  String get liveDataFri => 'Fri';
+
+  @override
+  String get liveDataSat => 'Sat';
+
+  @override
+  String get liveDataSun => 'Sun';
 }

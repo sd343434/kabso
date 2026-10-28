@@ -36,6 +36,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_part
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_data_center_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
@@ -978,10 +979,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   : () =>
                         unawaited(showLiveNewcomers(context, roomId: room.id)),
             ),
-            GoLiveTool.soon(
+            // D154d: the host's data center.
+            GoLiveTool(
               id: 'data',
               icon: Icons.insights_outlined,
               label: l10n.liveToolDataCenter,
+              onTap: () => unawaited(showLiveDataCenter(context)),
             ),
             // D141 (owner): the host's live schedule (D99 C), from the
             // live itself.
@@ -1755,7 +1758,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 ? null
                 : () => unawaited(showLiveNewcomers(context, roomId: room.id)),
           ),
-          soon('data', Icons.insights_outlined, l10n.liveToolDataCenter),
+          // D154d: the host's data center.
+          GoLiveTool(
+            id: 'data',
+            icon: Icons.insights_outlined,
+            label: l10n.liveToolDataCenter,
+            onTap: () => unawaited(showLiveDataCenter(context)),
+          ),
           // D141 (owner): the host's live schedule (D99 C), from the live.
           GoLiveTool(
             id: 'time',
