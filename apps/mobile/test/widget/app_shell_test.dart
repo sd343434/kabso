@@ -11,6 +11,7 @@ import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/create/create_screen.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
+import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -85,7 +86,8 @@ void main() {
       }
     });
 
-    testWidgets('profile tab shows the user from GET /me', (tester) async {
+    testWidgets('Me tab: the hub shows the user from GET /me; its photo '
+        'opens the profile (D163)', (tester) async {
       await pumpSignedIn(tester);
       await tester.pumpAndSettle();
 
@@ -93,8 +95,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.getMeCalls, greaterThanOrEqualTo(1));
+      expect(find.byType(MeHubScreen), findsOneWidget);
       expect(find.text('Layla From Me'), findsOneWidget);
       expect(find.text('Stored Layla'), findsNothing);
+
+      // D163: the photo opens the profile, pushed above the tabs.
+      await tester.tap(find.byKey(MeHubScreen.avatarKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProfileScreen), findsOneWidget);
+      expect(find.byKey(const Key('nav.profile')), findsNothing);
+      expect(find.text('Layla From Me'), findsOneWidget);
       // The TopBar title shows @username (§5.4); the body shows the name
       // (D57).
       expect(
@@ -119,7 +129,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('nav.profile')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ProfileScreen.settingsButtonKey));
+      // D163: Settings is on the Me hub.
+      await tester.tap(find.byKey(MeHubScreen.settingsKey));
       await tester.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
 

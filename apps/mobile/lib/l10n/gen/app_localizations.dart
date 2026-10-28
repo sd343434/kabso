@@ -13104,6 +13104,96 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ربح {multiplier} وحصل على {coins}'**
   String liveWinBannerWon(String multiplier, String coins);
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). the avatar and name open the profile page
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح ملفك الشخصي'**
+  String get meHubOpenProfile;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). the followers count on the hub
+  ///
+  /// In ar, this message translates to:
+  /// **'المعجبون'**
+  String get meHubFans;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). the levels card
+  ///
+  /// In ar, this message translates to:
+  /// **'المستويات'**
+  String get meHubLevels;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). the VIP card (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء VIP'**
+  String get meHubVip;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). the host earnings card (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'اربح المال'**
+  String get meHubEarn;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز صنّاع المحتوى'**
+  String get meHubCreatorCenter;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز الفعاليات'**
+  String get meHubEventCenter;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row: the coin balance; no wallet screen yet (Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'المحفظة'**
+  String get meHubWallet;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row: opens the bag
+  ///
+  /// In ar, this message translates to:
+  /// **'الحقيبة'**
+  String get meHubItemBag;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row: opens the profile with its posts
+  ///
+  /// In ar, this message translates to:
+  /// **'المنشورات'**
+  String get meHubPost;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'SVIP'**
+  String get meHubSvip;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row (not built: Soon)
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز المهام'**
+  String get meHubTaskCenter;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). row: opens the popularity board (CP-016 A)
+  ///
+  /// In ar, this message translates to:
+  /// **'التصنيف'**
+  String get meHubRanking;
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). screen readers: a button whose feature is not built yet
+  ///
+  /// In ar, this message translates to:
+  /// **'{item}، قريباً'**
+  String meHubSoonItem(String item);
+
+  /// D163: the Me hub (owner ref, Bigo-style layout). screen readers: the wallet balance
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} كوينز'**
+  String meHubCoins(String coins);
 }
 
 class _AppLocalizationsDelegate

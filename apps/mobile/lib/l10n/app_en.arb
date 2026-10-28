@@ -2485,5 +2485,20 @@
   "liveWinTierHuge": "HUGE WIN",
   "liveWinBannerSemantics": "{label}: {name} won ×{multiplier}, {coins} coins",
   "liveWinBannerSent": "{name} sent {gift}",
-  "liveWinBannerWon": "won {multiplier} and got {coins}"
+  "liveWinBannerWon": "won {multiplier} and got {coins}",
+  "meHubOpenProfile": "Open your profile",
+  "meHubFans": "Fans",
+  "meHubLevels": "Levels",
+  "meHubVip": "Purchase VIP",
+  "meHubEarn": "Earn money",
+  "meHubCreatorCenter": "Creator Center",
+  "meHubEventCenter": "Event Center",
+  "meHubWallet": "Wallet",
+  "meHubItemBag": "Item Bag",
+  "meHubPost": "Post",
+  "meHubSvip": "SVIP",
+  "meHubTaskCenter": "Task Center",
+  "meHubRanking": "Ranking",
+  "meHubSoonItem": "{item}, coming soon",
+  "meHubCoins": "{coins} coins"
 }

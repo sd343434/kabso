@@ -62,6 +62,7 @@ import 'package:kabso_live/features/posts/presentation/post_screen.dart';
 import 'package:kabso_live/features/premium/presentation/change_username_screen.dart';
 import 'package:kabso_live/features/premium/presentation/premium_store_screen.dart';
 import 'package:kabso_live/features/profile/edit_profile_screen.dart';
+import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/profile/public_profile_screen.dart';
 import 'package:kabso_live/features/safety/safety_screens.dart';
@@ -156,6 +157,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => LevelDetailScreen(
           category: LevelCategory.fromSlug(state.pathParameters['category']!)!,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.myProfile,
+        builder: (_, _) => const ProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
@@ -458,9 +463,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
+              // D163: the Me tab is the hub; the profile opens from it.
               GoRoute(
                 path: AppRoutes.profile,
-                builder: (_, _) => const ProfileScreen(),
+                builder: (_, _) => const MeHubScreen(),
               ),
             ],
           ),

@@ -7615,4 +7615,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String liveWinBannerWon(String multiplier, String coins) {
     return 'won $multiplier and got $coins';
   }
+
+  @override
+  String get meHubOpenProfile => 'Open your profile';
+
+  @override
+  String get meHubFans => 'Fans';
+
+  @override
+  String get meHubLevels => 'Levels';
+
+  @override
+  String get meHubVip => 'Purchase VIP';
+
+  @override
+  String get meHubEarn => 'Earn money';
+
+  @override
+  String get meHubCreatorCenter => 'Creator Center';
+
+  @override
+  String get meHubEventCenter => 'Event Center';
+
+  @override
+  String get meHubWallet => 'Wallet';
+
+  @override
+  String get meHubItemBag => 'Item Bag';
+
+  @override
+  String get meHubPost => 'Post';
+
+  @override
+  String get meHubSvip => 'SVIP';
+
+  @override
+  String get meHubTaskCenter => 'Task Center';
+
+  @override
+  String get meHubRanking => 'Ranking';
+
+  @override
+  String meHubSoonItem(String item) {
+    return '$item, coming soon';
+  }
+
+  @override
+  String meHubCoins(String coins) {
+    return '$coins coins';
+  }
 }

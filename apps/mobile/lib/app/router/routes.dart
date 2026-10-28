@@ -29,7 +29,14 @@ abstract final class AppRoutes {
   /// The location of the live room [roomId].
   static String liveRoom(String roomId) =>
       '$home/room/${Uri.encodeComponent(roomId)}';
+
+  /// The Me tab. D163 (owner): a hub of the person's features (Bigo-style
+  /// layout); the profile with its grids moved to [myProfile].
   static const profile = '/profile';
+
+  /// D163: your own profile (posts, reels, reposts, saved), opened from the
+  /// Me hub's photo or name, pushed above the shell.
+  static const myProfile = '/me/profile';
 
   /// KL-060: one post (from a profile grid, search or a hashtag), pushed
   /// above the shell.
