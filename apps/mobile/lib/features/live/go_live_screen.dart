@@ -19,6 +19,7 @@ import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
@@ -42,6 +43,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.da
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -377,6 +379,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveLuckyTickersProvider(room.id).notifier).attach(engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
+      // D154e: the live's program.
+      ref.read(liveProgramProvider(room.id).notifier).attach(engine);
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -924,10 +928,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.speed_rounded,
               label: l10n.liveToolFluent,
             ),
-            GoLiveTool.soon(
+            // D154e: the live's program (everyone sees its card).
+            GoLiveTool(
               id: 'program',
               icon: Icons.movie_creation_outlined,
               label: l10n.liveToolProgramList,
+              onTap: room == null || !live
+                  ? null
+                  : () => unawaited(
+                      showLiveProgramEditor(
+                        context,
+                        roomId: room.id,
+                        startedAt: room.startedAt,
+                      ),
+                    ),
             ),
             GoLiveTool.soon(
               id: 'screen',
@@ -1743,10 +1757,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             Icons.support_agent_rounded,
             l10n.liveToolAssistance,
           ),
-          soon(
-            'program',
-            Icons.movie_creation_outlined,
-            l10n.liveToolProgramList,
+          // D154e: the live's program (everyone sees its card).
+          GoLiveTool(
+            id: 'program',
+            icon: Icons.movie_creation_outlined,
+            label: l10n.liveToolProgramList,
+            onTap: !live
+                ? null
+                : () => unawaited(
+                    showLiveProgramEditor(
+                      context,
+                      roomId: room.id,
+                      startedAt: room.startedAt,
+                    ),
+                  ),
           ),
           soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
           // D154c: the newcomers in this live, with «رحّب».

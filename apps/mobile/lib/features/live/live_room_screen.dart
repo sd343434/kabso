@@ -21,6 +21,7 @@ import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart'
     show liveViewersPreviewProvider;
 import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
+import 'package:kabso_live/features/live/application/live_program.dart';
 import 'package:kabso_live/features/live/application/live_quips.dart';
 import 'package:kabso_live/features/live/application/live_room_provider.dart';
 import 'package:kabso_live/features/live/application/live_room_session.dart';
@@ -341,6 +342,8 @@ class _RoomViewState extends ConsumerState<_RoomView> {
           .attach(_session.engine);
       // D154: the room's quips (one at a time, after their delay).
       ref.read(liveQuipsProvider(room.id).notifier).attach(_session.engine);
+      // D154e: the live's program (late joiners load it).
+      ref.read(liveProgramProvider(room.id).notifier).attach(_session.engine);
       // CP-013: the room chat, on the same media session.
       unawaited(
         ref

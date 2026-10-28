@@ -501,6 +501,7 @@ model LiveRoom {
   freeQuips    LiveFreeQuip[]
   boosts       LiveBoost[]
   summary      LiveSummary?
+  program      LiveProgramItem[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -2476,6 +2477,22 @@ model LiveFreeQuip {
   @@id([roomId, userId], map: "live_free_quips_pkey")
   @@index([userId], map: "live_free_quips_user_idx")
   @@map("live_free_quips")
+}
+
+/// v1.36-live (D154e, CONVENTIONS §10.37): one segment of a live's program «قائمة البرامج» (≤ 10 per
+/// live, ascending start). `announced_at`: when the room was told it started (null: not yet).
+model LiveProgramItem {
+  roomId      String    @map("room_id") @db.Uuid
+  position    Int       @db.SmallInt
+  startsAt    DateTime  @map("starts_at") @db.Timestamptz(3)
+  title       String    @db.VarChar(240)
+  announcedAt DateTime? @map("announced_at") @db.Timestamptz(3)
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, position], map: "live_program_items_pkey")
+  @@index([startsAt], map: "live_program_items_due_idx", where: raw("announced_at IS NULL"))
+  @@map("live_program_items")
 }
 
 /// v1.35-live (D154d, CONVENTIONS §10.36): one ended live, summarised once for the host's data center

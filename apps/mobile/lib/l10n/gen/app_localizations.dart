@@ -12295,6 +12295,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أحد'**
   String get liveDataSun;
+
+  /// D154e: the live's program (card, list and editor title).
+  ///
+  /// In ar, this message translates to:
+  /// **'قائمة البرامج'**
+  String get liveProgramTitle;
+
+  /// D154e: the label of the segment on now.
+  ///
+  /// In ar, this message translates to:
+  /// **'الآن'**
+  String get liveProgramNow;
+
+  /// D154e: the label of the next segment before the first one starts.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي {time}'**
+  String liveProgramNext(String time);
+
+  /// D154e: shown on the card for a few seconds when a segment begins.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدأت الفقرة'**
+  String get liveProgramStarted;
+
+  /// D154e: the card's tap hint for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض قائمة البرامج'**
+  String get liveProgramOpenHint;
+
+  /// D154e: the list when the host set none.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد فقرات بعد'**
+  String get liveProgramEmpty;
+
+  /// D154e: the editor's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى 10 فقرات. يراها الجميع في الغرفة ويُعلَن عن كل فقرة عند بدايتها.'**
+  String get liveProgramEditorHint;
+
+  /// D154e: the title field's hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الفقرة'**
+  String get liveProgramTitleHint;
+
+  /// D154e: the start time button for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت البداية {time}، غيّره'**
+  String liveProgramTimeLabel(String time);
+
+  /// D154e: adds a row to the program.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف فقرة'**
+  String get liveProgramAdd;
+
+  /// D154e: removes a row.
+  ///
+  /// In ar, this message translates to:
+  /// **'احذف الفقرة'**
+  String get liveProgramRemove;
+
+  /// D154e: saves the whole program.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ القائمة'**
+  String get liveProgramSave;
+
+  /// D154e: the starts are not ascending.
+  ///
+  /// In ar, this message translates to:
+  /// **'رتّب الفقرات حسب وقت بدايتها'**
+  String get liveProgramOrderError;
 }
 
 class _AppLocalizationsDelegate

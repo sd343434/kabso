@@ -407,11 +407,13 @@ class LiveChatController extends Notifier<LiveChatState> {
           LuckyWinReceived() ||
           LuckyTickerReceived() ||
           LiveSeatEmojiReceived() ||
-          LiveQuipReceived():
+          LiveQuipReceived() ||
+          LiveProgramChanged() ||
+          LiveProgramSegmentStarted():
         // CP-020: gifts are not chat lines (§10.11); LiveGiftEffects plays
         // them (and D132's big lucky wins); D138's seat emojis play on the
         // seats (LiveSeatEmojis); D154's quips play in LiveQuips (their
-        // own bubble).
+        // own bubble); D154e's program has its own card (LivePrograms).
         break;
     }
   }

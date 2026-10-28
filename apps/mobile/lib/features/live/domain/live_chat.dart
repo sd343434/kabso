@@ -3,6 +3,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
+import 'package:kabso_live/features/live/domain/live_program.dart';
 import 'package:kabso_live/features/live/domain/live_seat_emoji.dart';
 
 part 'live_chat.freezed.dart';
@@ -176,6 +177,13 @@ sealed class LiveChatEvent {
         'quip' => LiveQuipReceived(
           LiveQuip.fromJson(json['quip']! as Map<String, dynamic>),
         ),
+        // v1.36-live (D154e): the live's program changed / a segment began.
+        'program' => LiveProgramChanged(
+          LiveProgram.fromJson(json['program']! as Map<String, dynamic>),
+        ),
+        'program-segment' => LiveProgramSegmentStarted(
+          LiveProgramItem.fromJson(json['item']! as Map<String, dynamic>),
+        ),
         _ => null,
       };
     } on Object {
@@ -276,6 +284,22 @@ final class LuckyWinReceived extends LiveChatEvent {
 
 /// v1.30-live (D148, §10.27): a big lucky win in another live (topic
 /// `lucky`, `lucky-ticker`), shown as the global gold ticker.
+/// v1.36-live (D154e, §10.37): the host changed the live's program (topic
+/// `program`).
+final class LiveProgramChanged extends LiveChatEvent {
+  const new(this.program);
+
+  final LiveProgram program;
+}
+
+/// v1.36-live (D154e): a segment of the live's program began (sent once by
+/// the server when it starts).
+final class LiveProgramSegmentStarted extends LiveChatEvent {
+  const new(this.item);
+
+  final LiveProgramItem item;
+}
+
 final class LuckyTickerReceived extends LiveChatEvent {
   const new(this.ticker);
 

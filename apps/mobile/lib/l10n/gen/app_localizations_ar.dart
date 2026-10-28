@@ -7174,4 +7174,48 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveDataSun => 'أحد';
+
+  @override
+  String get liveProgramTitle => 'قائمة البرامج';
+
+  @override
+  String get liveProgramNow => 'الآن';
+
+  @override
+  String liveProgramNext(String time) {
+    return 'التالي $time';
+  }
+
+  @override
+  String get liveProgramStarted => 'بدأت الفقرة';
+
+  @override
+  String get liveProgramOpenHint => 'عرض قائمة البرامج';
+
+  @override
+  String get liveProgramEmpty => 'لا توجد فقرات بعد';
+
+  @override
+  String get liveProgramEditorHint =>
+      'حتى 10 فقرات. يراها الجميع في الغرفة ويُعلَن عن كل فقرة عند بدايتها.';
+
+  @override
+  String get liveProgramTitleHint => 'عنوان الفقرة';
+
+  @override
+  String liveProgramTimeLabel(String time) {
+    return 'وقت البداية $time، غيّره';
+  }
+
+  @override
+  String get liveProgramAdd => 'أضف فقرة';
+
+  @override
+  String get liveProgramRemove => 'احذف الفقرة';
+
+  @override
+  String get liveProgramSave => 'حفظ القائمة';
+
+  @override
+  String get liveProgramOrderError => 'رتّب الفقرات حسب وقت بدايتها';
 }

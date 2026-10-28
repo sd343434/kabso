@@ -473,6 +473,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
 | *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | *(v1.35-live)* Table `live_summaries` | Backend — `live` module (`LiveDataCenterService`: written once per ended live by its summariser; reads `live_gifts`, `live_gift_recipients`, `live_room_audience`, `follows` read-only) | CTO |
+| *(v1.36-live)* Table `live_program_items` | Backend — `live` module (`LiveProgramService`; the host writes, the announcer marks `announced_at`) | CTO |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -512,6 +513,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.36-live (draft) | 2026-10-28 | **D154e (owner: Room Tools item 5 «قائمة البرامج / Program list», item 10):** `getLiveProgram` / `setLiveProgram` (`GET` / `PUT /live/rooms/{roomId}/program`, `SetLiveProgramRequest`, `LiveProgram`, `LiveProgramItem`); data messages `program` and `program-segment` on topic `program`; table `live_program_items` (migration `20261207090000_live_program`). §8, §10.37. | **Additive** (new operations and data messages). |
 | v1.35-live (draft) | 2026-10-28 | **D154d (owner: Room Tools item 4 «مركز البيانات / Data center», item 14; periods DAY / WEEK / MONTH / YEAR):** `getMyLiveStats` (`GET /live/stats/me?period=`, `MyLiveStats`, `LiveStatsPeriod`); `LiveRoomStats.giftCoins`, `earningsCoins` (required); table `live_summaries` (migration `20261206090000_live_summaries`), filled by a summariser for every ended live (older ones included). §8, §10.31, §10.36. | **Additive** (a new operation and new response fields). |
 | v1.34-live (draft) | 2026-10-28 | **D154c (owner: Room Tools item 3 «الجدد / Newcomers», item 13; window 30 days, was 7):** `listLiveNewcomers` (`GET /live/rooms/{roomId}/newcomers`, `LiveNewcomers` `{newcomerDays, data: [UserSummary]}`; host and moderators); `LiveChatAuthorBadges.newcomer` (required in responses and the `chat` data message); config `NEWCOMER_DAYS` (30). §10.11, §10.35. | **Additive** (a new operation; a new response field older apps ignore). |
 | v1.33-live (draft) | 2026-10-28 | **D154b (owner: Room Tools item 2 «بطاقة الزيارات», 15, 15b, 15c; CP-014 part C, the room boost):** `getLiveBoostOffers` (`GET /live/boosts/offers[?roomId=]`, `LiveBoostOffers`, `LiveBoostOption`, `LiveBoostCardStock`), `listActiveLiveBoosts` (`GET /live/boosts/active`, `LiveBoostedRoom`; guests too), `buyLiveBoost` (`POST /live/rooms/{roomId}/boosts`, `LiveBoostRequest`, `LiveBoostResult`; 201 / 200 retry), `listLiveRoomBoosts` (`GET /live/rooms/{roomId}/boosts`); `LiveBoost`, `LiveBoostState`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`, `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (409); ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; config `LIVE_BOOST_PRICES` (default `10:10000,20:18000,30:25000,60:45000`), `LIVE_BOOST_SLOTS` (3), `LIVE_BOOST_MAX_WAIT_MINUTES` (180); CLI `boost-admin grant|cards|queue`, audit `live.boost_card.grant`; migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`. §4, §7, §8, §10.34. | **Additive** (new operations, data message, codes and ledger reasons). The live list itself is unchanged: apps show the boosted lives above it. |
@@ -2369,6 +2371,35 @@ Owner decisions (2026-10-28, D154 item 14) are marked *(owner)*.
   owner's "daily rollups for the year" are not a separate table: a host's year is at most a few thousand
   summary rows, aggregated per read with the `(host, started_at)` index.
 - **Not in v1.35-live:** a live in progress in the periods, other hosts' data, exports, payouts (D149).
+
+### 10.37 A live's program «قائمة البرامج» *(v1.36-live, DRAFT — D154e)*
+
+Owner decisions (2026-10-28, D154 item 10) are marked *(owner)*. Separate from the live schedule
+(§10.16), which plans future lives.
+
+- **What** *(owner: up to 10 segments, time + title, for the current live)*: `setLiveProgram`
+  (`PUT /live/rooms/{roomId}/program`, `{"items": [{"startsAt", "title"}]}`) — the host of a LIVE room
+  replaces the whole program (`[]` clears it). Checks: 401, 404, 403 `AUTH_FORBIDDEN` (not the host), 409
+  `LIVE_ROOM_ENDED`, 400 (≤ 10 → `items` / `too_many`; titles 1–60 code points after the §6 hygiene, no
+  line break → `required` / `too_long` / `invalid_format` on `items.N.title`; `startsAt` strictly
+  ascending, from one minute before the live's start to 24 h after it → `items` / `invalid_value`).
+  Titles are masked with the host's blocked words *(owner: through the blocked-words filter)*, like
+  chat (§10.14). Stored in `live_program_items`; a segment that keeps its start and title keeps its
+  announcement.
+- **Reading** *(owner: viewers see a compact card, current highlighted; persists with the live, late
+  joiners see it)*: `getLiveProgram` (`GET …/program`, anyone who can see the room, guests too, also
+  after the end) → `LiveProgram` `{roomId, items: [{position, startsAt, title}], current}` — `current`
+  is the last segment started while the live is on, else null.
+- **Announcements** *(owner: server-timed; honest if the host ends early)*: every change goes to the
+  room as `{"type":"program","program":LiveProgram}` on topic **`program`**; when a segment starts the
+  server sends `{"type":"program-segment","item":LiveProgramItem}` once (a job on the live sweeper's
+  interval, safe on several instances). Nothing is sent for a live that ended (its remaining segments
+  are simply never announced), and a segment first seen more than 10 minutes after its start is marked
+  without a message.
+- **App:** the host edits it from Room Tools «قائمة البرامج»; everyone sees a small card under the room's
+  header with the segment on now and the next one (a tap opens the whole list) and, when a segment
+  starts, the card says «بدأت الفقرة: …» for a few seconds.
+- **Not in v1.36-live:** reminders before a segment, segments in the live list, segment lengths.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

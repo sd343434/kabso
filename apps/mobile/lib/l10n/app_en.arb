@@ -2340,5 +2340,18 @@
   "liveDataThu": "Thu",
   "liveDataFri": "Fri",
   "liveDataSat": "Sat",
-  "liveDataSun": "Sun"
+  "liveDataSun": "Sun",
+  "liveProgramTitle": "Program",
+  "liveProgramNow": "Now",
+  "liveProgramNext": "Next at {time}",
+  "liveProgramStarted": "Starting now",
+  "liveProgramOpenHint": "show the program",
+  "liveProgramEmpty": "No segments yet",
+  "liveProgramEditorHint": "Up to 10 segments. Everyone in the room sees them, and each one is announced when it starts.",
+  "liveProgramTitleHint": "Segment title",
+  "liveProgramTimeLabel": "Starts at {time}, change it",
+  "liveProgramAdd": "Add a segment",
+  "liveProgramRemove": "Remove the segment",
+  "liveProgramSave": "Save the program",
+  "liveProgramOrderError": "Put the segments in order of their start times"
 }

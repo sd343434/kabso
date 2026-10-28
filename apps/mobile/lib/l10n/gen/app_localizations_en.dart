@@ -7130,4 +7130,49 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveDataSun => 'Sun';
+
+  @override
+  String get liveProgramTitle => 'Program';
+
+  @override
+  String get liveProgramNow => 'Now';
+
+  @override
+  String liveProgramNext(String time) {
+    return 'Next at $time';
+  }
+
+  @override
+  String get liveProgramStarted => 'Starting now';
+
+  @override
+  String get liveProgramOpenHint => 'show the program';
+
+  @override
+  String get liveProgramEmpty => 'No segments yet';
+
+  @override
+  String get liveProgramEditorHint =>
+      'Up to 10 segments. Everyone in the room sees them, and each one is announced when it starts.';
+
+  @override
+  String get liveProgramTitleHint => 'Segment title';
+
+  @override
+  String liveProgramTimeLabel(String time) {
+    return 'Starts at $time, change it';
+  }
+
+  @override
+  String get liveProgramAdd => 'Add a segment';
+
+  @override
+  String get liveProgramRemove => 'Remove the segment';
+
+  @override
+  String get liveProgramSave => 'Save the program';
+
+  @override
+  String get liveProgramOrderError =>
+      'Put the segments in order of their start times';
 }

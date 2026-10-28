@@ -1150,6 +1150,11 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   a host's own lives at once when they open the data center), so the first minutes after the deploy cost a
   few batch inserts. No new config (the periods use `LIVE_RANKINGS_TIME_ZONE`).
 
+### 5.21 A live's program «قائمة البرامج» (migration `20261207090000_live_program`; D154e) — [IMPLEMENTED, draft contract v1.36-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): table `live_program_items`. No GRANT, no backfill, no new
+  config (the announcements run on `LIVE_SWEEP_INTERVAL_SECONDS`; 0 turns them off).
+
 ## 6. Observability baseline
 
 | Item | Status |

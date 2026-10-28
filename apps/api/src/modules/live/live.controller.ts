@@ -42,6 +42,7 @@ import {
 } from './live-boosts.service.js';
 import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.service.js';
 import { LiveDataCenterService, type MyLiveStatsDto } from './live-data-center.service.js';
+import { LiveProgramService, type LiveProgramDto } from './live-program.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -133,6 +134,7 @@ export class LiveController {
     private readonly boosts: LiveBoostsService,
     private readonly newcomers: LiveNewcomersService,
     private readonly dataCenter: LiveDataCenterService,
+    private readonly program: LiveProgramService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -581,6 +583,24 @@ export class LiveController {
     const { created, result } = await this.boosts.buy(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return result;
+  }
+
+  /** v1.36-live (D154e): the live's program (anyone who can see the room, guests too). */
+  @Get('rooms/:roomId/program')
+  @OptionalAuth()
+  @RateLimit(GUEST_READ)
+  getProgram(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveProgramDto> {
+    return this.program.get(callerOf(req), roomId);
+  }
+
+  /** v1.36-live (D154e): the host replaces the live's program. */
+  @Put('rooms/:roomId/program')
+  setProgram(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+  ): Promise<LiveProgramDto> {
+    return this.program.set(requireCaller(req), roomId, body);
   }
 
   /** v1.34-live (D154c): the newcomers in this live now (host and moderators). */

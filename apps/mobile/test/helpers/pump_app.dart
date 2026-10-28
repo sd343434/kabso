@@ -15,6 +15,7 @@ import 'package:kabso_live/features/live/data/live_data_center_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_newcomers_repository.dart';
+import 'package:kabso_live/features/live/data/live_program_repository.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
@@ -33,6 +34,7 @@ import 'fake_live_data_center_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_newcomers_repository.dart';
+import 'fake_live_program_repository.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
@@ -74,6 +76,7 @@ Future<void> pumpKabsoApp(
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
+  LiveProgramRepository? liveProgramRepository,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -136,6 +139,10 @@ Future<void> pumpKabsoApp(
         liveDataCenterRepositoryProvider.overrideWithValue(
           liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
         ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -179,6 +186,7 @@ Future<void> pumpScreen(
   LiveBoostRepository? liveBoostRepository,
   LiveNewcomersRepository? liveNewcomersRepository,
   LiveDataCenterRepository? liveDataCenterRepository,
+  LiveProgramRepository? liveProgramRepository,
   HomeBannersRepository? homeBannersRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
@@ -221,6 +229,10 @@ Future<void> pumpScreen(
         // D154d: never the network (an empty data center).
         liveDataCenterRepositoryProvider.overrideWithValue(
           liveDataCenterRepository ?? FakeLiveDataCenterRepository(),
+        ),
+        // D154e: never the network (no program).
+        liveProgramRepositoryProvider.overrideWithValue(
+          liveProgramRepository ?? FakeLiveProgramRepository(),
         ),
         ...overrides,
       ],

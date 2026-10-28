@@ -46,6 +46,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.d
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_program_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_schedule_sheet.dart';
@@ -56,6 +57,7 @@ import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.
 import 'package:kabso_live/features/live/presentation/widgets/live_chat_tools.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_sheet.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_person_tools.dart';
+import 'package:kabso_live/features/live/presentation/widgets/live_program_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_room_scaffold.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -2021,11 +2023,17 @@ void main() {
         // D154a/D154b: the soundboard and the traffic card work now.
         'sounds',
         'traffic',
+        // D154e: the program list works now.
+        'program',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
       final l10n = _l10n(tester);
-      for (final label in [l10n.liveToolSounds, l10n.liveToolTrafficCard]) {
+      for (final label in [
+        l10n.liveToolSounds,
+        l10n.liveToolTrafficCard,
+        l10n.liveToolProgramList,
+      ]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
           findsNothing,
@@ -2052,6 +2060,25 @@ void main() {
       expect(camera.micEnabled, isFalse);
       // Muted: the host pill says so.
       expect(find.byKey(GoLiveScreen.micOffKey), findsOneWidget);
+      await _leave(tester);
+    });
+
+    testWidgets('D154e: the host sets the program from ≡; its card shows '
+        'in the live', (tester) async {
+      await _pump(tester);
+      await _goLive(tester);
+      await _openTools(tester);
+      await tester.tap(find.byKey(GoLiveKeys.tool('program')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(LiveProgramEditor.titleKey(0)),
+        'Opening',
+      );
+      await tester.tap(find.byKey(LiveProgramEditor.saveKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(LiveProgramEditor.saveKey), findsNothing);
+      expect(find.byKey(LiveProgramCard.cardKey), findsOneWidget);
+      expect(find.text('Opening'), findsOneWidget);
       await _leave(tester);
     });
 
