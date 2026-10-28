@@ -184,16 +184,19 @@ void main() {
 
       setUp(() {
         opened.clear();
+        // D160 probes the camera for 1080p before opening it; not under test.
+        LiveKitMediaEngine.hdProbe = ({required bool front}) async => null;
         LiveKitMediaEngine.createCamera = (_) {
           final camera = Completer<lk.LocalVideoTrack>();
           opened.add(camera);
           return camera.future;
         };
       });
-      tearDown(
-        () => LiveKitMediaEngine.createCamera =
-            lk.LocalVideoTrack.createCameraTrack,
-      );
+      final probe = LiveKitMediaEngine.hdProbe;
+      tearDown(() {
+        LiveKitMediaEngine.createCamera = lk.LocalVideoTrack.createCameraTrack;
+        LiveKitMediaEngine.hdProbe = probe;
+      });
 
       testWidgets('does not open the camera while the last go-live is still '
           'stopping its own', (tester) async {

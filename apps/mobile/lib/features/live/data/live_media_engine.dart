@@ -615,9 +615,7 @@ class LiveKitMediaEngine implements LiveMediaEngine {
         await LiveCameraGate.idle();
         // D160: whether this camera captures 1080p, before it opens.
         await _checkHd();
-        final camera = await createCamera(
-          _cameraOptions(),
-        );
+        final camera = await createCamera(_cameraOptions());
         _video = camera;
         final pipeline = BeautyPipeline.create();
         if (pipeline != null) {
