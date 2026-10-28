@@ -239,3 +239,139 @@ internal class RollingAverage(private val windowNanos: Long = 1_000_000_000L) {
         }
     }
 }
+
+// ---------------------------------------------------------------- D145e
+
+/**
+ * D145e: the mean brightness (luma, 0–255) of a Y plane, from a sparse grid
+ * of [grid] × [grid] samples — cheap enough for every frame fed to DeepAR.
+ *
+ * The owner's device showed background blur as a black picture with DeepAR's
+ * watermark while the counters said fresh renders were published; nothing on
+ * the overlay could say whether DeepAR's *input* was black or its *output*.
+ * The stage now measures both (the NV21 it hands to `receiveFrame`, and a
+ * small read-back of the render it publishes).
+ *
+ * Absolute indices from 0, so any [ByteBuffer] (direct or heap, a slice or
+ * not) works; -1 when the plane is empty or too small for [stride].
+ */
+internal object Luma {
+    fun meanY(plane: java.nio.ByteBuffer, width: Int, height: Int, stride: Int, grid: Int = 32): Int {
+        if (width <= 0 || height <= 0 || stride < width) return -1
+        if (plane.capacity() < stride.toLong() * (height - 1) + width) return -1
+        val cols = minOf(grid, width)
+        val rows = minOf(grid, height)
+        var sum = 0L
+        for (r in 0 until rows) {
+            // Centres of the grid cells, never the very edge.
+            val y = ((2L * r + 1) * height / (2L * rows)).toInt()
+            val base = y * stride
+            for (c in 0 until cols) {
+                val x = ((2L * c + 1) * width / (2L * cols)).toInt()
+                sum += plane.get(base + x).toInt() and 0xFF
+            }
+        }
+        return (sum / (rows * cols)).toInt()
+    }
+}
+
+/**
+ * D145e: a black picture never goes to the viewers.
+ *
+ * Fed with the luma of what went **into** DeepAR and of what came **out**
+ * (sampled a few times a second). Output at or below [darkLuma] while the
+ * input is at least [litLuma] — the camera sees something, DeepAR shows
+ * nothing — for [windowNanos] (at least [minSamples] samples) → [Verdict.BLACK]:
+ * the stage stops publishing DeepAR's output. A dark room (input dark too)
+ * is not DeepAR's fault and never counts.
+ */
+internal class BlackOutputWatch(
+    private val darkLuma: Int = DARK_LUMA,
+    private val litLuma: Int = LIT_LUMA,
+    private val windowNanos: Long = 2_000_000_000L,
+    private val minSamples: Int = 3,
+) {
+    enum class Verdict { OK, BLACK }
+
+    private var since = 0L
+    private var samples = 0
+
+    /** How long the output has been black against a lit input (0: not). */
+    fun blackNanos(nowNanos: Long): Long = if (since == 0L) 0L else nowNanos - since
+
+    fun reset() {
+        since = 0L
+        samples = 0
+    }
+
+    fun onSample(inputLuma: Int, outputLuma: Int, nowNanos: Long): Verdict {
+        if (inputLuma < 0 || outputLuma < 0) return Verdict.OK
+        if (outputLuma > darkLuma || inputLuma < litLuma) {
+            reset()
+            return Verdict.OK
+        }
+        if (since == 0L) since = nowNanos
+        samples++
+        return if (samples >= minSamples && nowNanos - since >= windowNanos) Verdict.BLACK else Verdict.OK
+    }
+
+    companion object {
+        /** Video Y is 16 for black; a little noise and the watermark on top. */
+        const val DARK_LUMA = 28
+
+        /** A camera picture someone could see something in. */
+        const val LIT_LUMA = 48
+    }
+}
+
+/**
+ * D145e: once [BlackOutputWatch] fired, DeepAR runs a moment longer **without
+ * the effect** (its own pipeline only; raw frames are published meanwhile) to
+ * tell which part is black: [Result.PASSTHROUGH_OK] — DeepAR draws the camera,
+ * the effect's own render is black; [Result.PASSTHROUGH_BLACK] — DeepAR draws
+ * nothing of the camera at all; [Result.NO_SAMPLES] — no render arrived.
+ * Samples in the first [settleNanos] are ignored (the effect is still being
+ * switched off).
+ */
+internal class PassthroughProbe(
+    private val settleNanos: Long = 400_000_000L,
+    private val durationNanos: Long = 1_600_000_000L,
+    private val darkLuma: Int = BlackOutputWatch.DARK_LUMA,
+) {
+    enum class Result(val code: String) {
+        PASSTHROUGH_OK("passthrough_ok"),
+        PASSTHROUGH_BLACK("passthrough_black"),
+        NO_SAMPLES("no_samples"),
+    }
+
+    private var startedAt = 0L
+    private var counted = 0
+    private var lit = 0
+
+    val running: Boolean get() = startedAt != 0L
+
+    fun start(nowNanos: Long) {
+        startedAt = nowNanos
+        counted = 0
+        lit = 0
+    }
+
+    fun onSample(outputLuma: Int, nowNanos: Long) {
+        if (!running || outputLuma < 0 || nowNanos - startedAt < settleNanos) return
+        counted++
+        if (outputLuma > darkLuma) lit++
+    }
+
+    fun done(nowNanos: Long) = running && nowNanos - startedAt >= durationNanos
+
+    /** The verdict; the probe stops. */
+    fun finish(): Result {
+        startedAt = 0L
+        return when {
+            counted == 0 -> Result.NO_SAMPLES
+            // Most of DeepAR's own renders show the camera.
+            lit * 2 > counted -> Result.PASSTHROUGH_OK
+            else -> Result.PASSTHROUGH_BLACK
+        }
+    }
+}

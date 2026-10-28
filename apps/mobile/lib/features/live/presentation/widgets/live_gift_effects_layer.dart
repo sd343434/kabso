@@ -7,10 +7,12 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
+import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
+import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -52,7 +54,7 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
   static Key bannerKey(String comboId) => Key('gift.banner.$comboId');
   static const effectKey = Key('gift.effect');
 
-  /// D132: the big lucky win banner.
+  /// D132: the big lucky win announcement (D145e: the centred card).
   static const luckyKey = Key('gift.lucky');
 
   @override
@@ -68,17 +70,15 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
             fit: StackFit.expand,
             children: [
               if (effects.lucky case final win?)
+                // D145e: centred, a little above the middle (the strips
+                // sit at the middle's reading start).
                 Align(
-                  alignment: const Alignment(0, -0.62),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: KSpacing.lg,
-                    ),
-                    child: LiveLuckyWinBanner(
-                      key: luckyKey,
-                      win: win,
-                      name: catalogue?.byCode(win.giftCode)?.name,
-                    ),
+                  key: luckyKey,
+                  alignment: const Alignment(0, -0.32),
+                  child: LiveLuckyWinBanner(
+                    key: ValueKey('lucky.${win.giftId}'),
+                    win: win,
+                    name: catalogue?.byCode(win.giftCode)?.name,
                   ),
                 ),
               if (big != null)
@@ -403,10 +403,17 @@ class LiveGiftBanner extends StatelessWidget {
   }
 }
 
-/// D132 (owner): a big lucky win (×100 or more) announced to the room, in
-/// Kabso's own style: a gold pill with the coin, the sender, ×multiplier
-/// and the coins won. Screen readers hear it once.
-class LiveLuckyWinBanner extends StatelessWidget {
+/// D132 (owner): a big lucky win (×100 or more) announced to the room.
+///
+/// D145e (owner: the small gold pill «Oz Nabulsi ربح ×100: 1,300 عملة» was
+/// too small and looked bad): a centred gold card in the MAX X look (D145d)
+/// — a burst of rays, rings and a coin fountain behind it ([MaxXWinPainter]
+/// without its own banner), the winner's avatar and name, «×100» in big
+/// gold type, and the coins won counting up. It springs in, a shine sweeps
+/// across, and it fades out at the end of [LiveGiftEffects.luckyTime].
+/// ×500 and ×1000 say «جاكبوت» / «سوبر جاكبوت». With reduced motion: the
+/// card alone, still, for the same time. Screen readers hear it once.
+class LiveLuckyWinBanner extends StatefulWidget {
   const new({required this.win, super.key, this.name});
 
   final LuckyWin win;
@@ -414,50 +421,329 @@ class LiveLuckyWinBanner extends StatelessWidget {
   /// The gift's name from the catalogue, when known.
   final String? name;
 
+  /// The card's widest (narrower screens: their width less the margins).
+  static const double maxWidth = 300;
+
+  static const numberKey = Key('gift.lucky.number');
+  static const coinsKey = Key('gift.lucky.coins');
+
+  @override
+  State<LiveLuckyWinBanner> createState() => _LiveLuckyWinBannerState();
+}
+
+class _LiveLuckyWinBannerState extends State<LiveLuckyWinBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: LiveGiftEffects.luckyTime,
+    // With reduced motion the still card stays as long.
+    animationBehavior: AnimationBehavior.preserve,
+  )..forward();
+
+  late final MaxXWinStyle _burst = MaxXWinStyle.of(
+    MaxXTiers.winTierOf(widget.win.multiplier) ?? 100,
+  ).lasting(LiveGiftEffects.luckyTime.inMilliseconds / 1000 - .2);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  static double _ease(double t) =>
+      1 - math.pow(1 - t.clamp(0.0, 1.0), 3).toDouble();
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final win = widget.win;
     final text = l10n.liveLuckyBanner(
       KFormat.bidiIsolate(win.sender.displayName),
       KFormat.grouped(win.multiplier),
       KFormat.bidiIsolate(KFormat.grouped(win.coinsWon)),
     );
+    final title = win.multiplier >= 1000
+        ? l10n.liveMaxXSuperJackpot
+        : win.multiplier >= 500
+        ? l10n.liveMaxXJackpot
+        : l10n.liveLuckyBigWin;
+    final still = MediaQuery.disableAnimationsOf(context);
+    final scaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
+    final width = math.min(
+      LiveLuckyWinBanner.maxWidth,
+      MediaQuery.sizeOf(context).width - 2 * KSpacing.lg,
+    );
+    final family = context.textStyles.label.fontFamily;
     return Semantics(
       liveRegion: true,
-      label: name == null ? text : '$text, $name',
+      label: widget.name == null ? text : '$text, ${widget.name}',
       excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KSpacing.md,
-          vertical: KSpacing.xs + 2,
-        ),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFC94A), Color(0xFFFF8A3D)],
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          final seconds =
+              _c.value * LiveGiftEffects.luckyTime.inMilliseconds / 1000;
+          final total = LiveGiftEffects.luckyTime.inMilliseconds / 1000;
+          // In: a springy pop (0–0.45 s). Out: the last 0.35 s.
+          final pop = still
+              ? 1.0
+              : seconds < .45
+              ? .55 + .45 * _MaxXSpring.at(seconds / .45)
+              : 1.0;
+          final fade = still
+              ? 1.0
+              : (1 - (seconds - (total - .35)) / .35).clamp(0.0, 1.0);
+          final count = still
+              ? win.coinsWon
+              : (win.coinsWon * _ease((seconds - .3) / .9)).round();
+          final shine = still ? -1.0 : ((seconds - .5) / .8);
+          return Opacity(
+            opacity: fade,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                if (!still)
+                  CustomPaint(
+                    painter: MaxXWinPainter(
+                      style: _burst,
+                      multiplier: win.multiplier,
+                      coins: win.coinsWon,
+                      title: null,
+                      t: seconds,
+                      r: width * .2,
+                      still: false,
+                      fontFamily: family,
+                      banner: false,
+                    ),
+                  ),
+                Transform.scale(
+                  scale: pop,
+                  child: _BigWinCard(
+                    width: width,
+                    win: win,
+                    title: title,
+                    coins: count,
+                    shine: shine,
+                    scaler: scaler,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// An overshooting ease (0 → 1, peaks ~1.1).
+abstract final class _MaxXSpring {
+  static double at(double t) {
+    final x = t.clamp(0.0, 1.0);
+    const a = 1.70158;
+    const b = a + 1;
+    return 1 + b * math.pow(x - 1, 3) + a * math.pow(x - 1, 2);
+  }
+}
+
+/// The card itself: dark amber glass in a gold frame.
+class _BigWinCard extends StatelessWidget {
+  const new({
+    required this.width,
+    required this.win,
+    required this.title,
+    required this.coins,
+    required this.shine,
+    required this.scaler,
+  });
+
+  final double width;
+  final LuckyWin win;
+  final String title;
+  final int coins;
+
+  /// The shine's place across the card (0–1; outside: none).
+  final double shine;
+  final TextScaler scaler;
+
+  static const _gold = [
+    Color(0xFFFFF3B0),
+    Color(0xFFFFC93C),
+    Color(0xFFFF9F1E),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final styles = context.textStyles;
+    const outline = [
+      Shadow(color: Color(0xCC3C0008), blurRadius: 6),
+      Shadow(color: Color(0xCC3C0008), offset: Offset(0, 2)),
+    ];
+    final number = ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (rect) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFFFFF), Color(0xFFFFE27A), Color(0xFFFF9F1E)],
+      ).createShader(rect),
+      // Room for the italic's overhang inside the gradient's box.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: KSpacing.sm),
+        child: Text(
+          '×${KFormat.grouped(win.multiplier)}',
+          key: LiveLuckyWinBanner.numberKey,
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+          textScaler: scaler,
+          style: styles.headline.copyWith(
+            fontSize: 54,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
+            fontStyle: FontStyle.italic,
+            color: const Color(0xFFFFFFFF),
           ),
-          borderRadius: BorderRadius.circular(KRadius.pill),
-          boxShadow: const [
-            BoxShadow(color: Color(0x66000000), blurRadius: 10),
-          ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const KabsoArtIcon(KabsoArt.coin, size: 20),
-            const SizedBox(width: KSpacing.xs),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.textStyles.label.copyWith(
-                  color: const Color(0xFF3A1C00),
-                  fontWeight: FontWeight.w800,
+      ),
+    );
+    final card = Container(
+      width: width,
+      padding: const EdgeInsets.fromLTRB(
+        KSpacing.md,
+        KSpacing.md,
+        KSpacing.md,
+        KSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(KRadius.xl),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xF24A2300), Color(0xF21C0A00)],
+        ),
+        border: Border.all(color: const Color(0xFFFFC93C), width: 2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x99FFB020), blurRadius: 28),
+          BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The title ribbon: «فوز كبير» / «BIG WIN», JACKPOT, SUPER JACKPOT.
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: KSpacing.md,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(KRadius.pill),
+              gradient: const LinearGradient(colors: _gold),
+            ),
+            child: Text(
+              title,
+              maxLines: 1,
+              textScaler: scaler,
+              style: styles.label.copyWith(
+                color: const Color(0xFF3A1C00),
+                fontWeight: FontWeight.w900,
+                letterSpacing: .5,
+              ),
+            ),
+          ),
+          const SizedBox(height: KSpacing.sm),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: _gold),
+                ),
+                child: KAvatar(
+                  name: win.sender.displayName,
+                  imageUrl: win.sender.avatarUrl,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(width: KSpacing.sm),
+              Flexible(
+                child: Text(
+                  win.sender.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textScaler: scaler,
+                  style: styles.title.copyWith(
+                    color: const Color(0xFFFFFFFF),
+                    fontWeight: FontWeight.w800,
+                    shadows: outline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          FittedBox(fit: BoxFit.scaleDown, child: number),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const KabsoArtIcon(KabsoArt.coin),
+              const SizedBox(width: KSpacing.xs),
+              Flexible(
+                child: Text(
+                  l10n.liveLuckyBigWinCoins(
+                    KFormat.bidiIsolate('+${KFormat.grouped(coins)}'),
+                  ),
+                  key: LiveLuckyWinBanner.coinsKey,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textScaler: scaler,
+                  style: styles.title.copyWith(
+                    color: const Color(0xFFFFE27A),
+                    fontWeight: FontWeight.w900,
+                    shadows: outline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (shine < 0 || shine > 1) return card;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(KRadius.xl),
+      child: Stack(
+        children: [
+          card,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: FractionalTranslation(
+                translation: Offset(-1 + 2 * shine, 0),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment(-1, -.3),
+                      end: Alignment(1, .3),
+                      colors: [
+                        Color(0x00FFFFFF),
+                        Color(0x55FFFFFF),
+                        Color(0x00FFFFFF),
+                      ],
+                      stops: [.35, .5, .65],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

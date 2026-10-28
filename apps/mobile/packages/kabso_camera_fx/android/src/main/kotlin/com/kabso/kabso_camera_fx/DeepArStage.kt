@@ -52,6 +52,14 @@ import java.util.concurrent.atomic.AtomicLong
  *   and DeepAR is paused. DeepAR is initialized only when an effect is first
  *   picked (DeepAR counts monthly active users by initialization).
  * - Viewers get the true (unmirrored) picture: `mirror=false`.
+ * - **D145e — never a black picture** ([BlackOutputWatch]): the luma of the
+ *   NV21 fed to DeepAR is measured on every feed, and that of the published
+ *   render (a tiny GPU read-back) every [OUTPUT_SAMPLE_EVERY] frames. Output
+ *   black for ~2 s while the input is not → raw frames from then on, DeepAR
+ *   runs [PassthroughProbe] (its pipeline without the effect) to record which
+ *   part is black, then the effect turns itself off (`black_output`).
+ *   The owner's device showed the blur black with only DeepAR's watermark;
+ *   the read-out (`luma in … out …`, `probe …`) now tells input from output.
  *
  * Adapted from voxa_deepar's DeepArBridgeFilter (MIT; see the package's
  * THIRD_PARTY_NOTICES.md).
@@ -107,6 +115,7 @@ internal class DeepArStage(
     // Capture thread only.
     private val health = OutputHealth(MAX_MISSES, TimeUnit.MILLISECONDS.toNanos(WARMUP_MS))
     @Volatile private var armPending = false
+    @Volatile private var resetPending = false
     private var fedSeq = 0L
     private val waitAvg = RollingAverage()
     private val packAvg = RollingAverage()
@@ -122,12 +131,22 @@ internal class DeepArStage(
     private val busySkips = AtomicLong()
     private val framesOut = AtomicLong()
     private val misses = AtomicLong()
-    private val deepArRenders = AtomicLong()
     private val instances = AtomicLong()
     @Volatile private var state = STATE_OFF
     @Volatile private var reason: String? = null
     @Volatile private var lastError: String? = null
     @Volatile private var sdkVersion: String? = null
+
+    // D145e: brightness of what goes into DeepAR and what comes out (-1: no
+    // sample yet), and the black-picture guard. Capture thread (the luma
+    // fields are read by diagnostics()).
+    @Volatile private var inputLuma = -1
+    @Volatile private var outputLuma = -1
+    @Volatile private var blackMs = 0L
+    @Volatile private var probeResult: String? = null
+    private val blackWatch = BlackOutputWatch()
+    private val probe = PassthroughProbe()
+    private var publishedSinceSample = 0
 
     fun setLicenseKey(key: String) {
         synchronized(lock) { licenseKey = key }
@@ -139,6 +158,7 @@ internal class DeepArStage(
         if (next != null) {
             gate.clear()
             armPending = true
+            resetPending = true
             active = true
             setState(STATE_INITIALIZING, null)
         } else {
@@ -178,7 +198,6 @@ internal class DeepArStage(
             "framesIn" to framesIn.get(),
             "fed" to fed.get(),
             "busySkips" to busySkips.get(),
-            "rendered" to deepArRenders.get(),
             "delivered" to delivered,
             "staleDropped" to stale,
             "framesOut" to framesOut.get(),
@@ -189,6 +208,10 @@ internal class DeepArStage(
             "inFlightMs" to if (inFlight.get() && since > 0) (System.nanoTime() - since) / 1_000_000 else 0L,
             "input" to geo?.let { "${it.width}x${it.height}@${it.rotation}" },
             "instances" to instances.get(),
+            "inputLuma" to inputLuma,
+            "outputLuma" to outputLuma,
+            "blackMs" to blackMs,
+            "probe" to (if (probe.running) "running" else probeResult),
         )
     }
 
@@ -218,7 +241,9 @@ internal class DeepArStage(
         try {
             deepAR.setLicenseKey(key)
             deepAR.initialize(activity, Listener(gen))
-            deepAR.setFrameRenderedCallback { deepArRenders.incrementAndGet() }
+            // D145e: no FrameRenderedCallback. DeepAR 5.6.22's native side never
+            // sends FRAME_RENDERED (the string is not in libnative-lib.so), so
+            // D144a's "render" counter stayed 0 on every device.
             // Live mode: no still-capture pipeline kept warm.
             deepAR.changeLiveMode(true)
             sdkVersion = try {
@@ -375,6 +400,13 @@ internal class DeepArStage(
             armPending = false
             health.arm(now)
         }
+        if (resetPending) {
+            resetPending = false
+            blackWatch.reset()
+            probe.finish()
+            blackMs = 0L
+            publishedSinceSample = 0
+        }
 
         // DeepAR's thread has been stuck on one frame: it will not recover.
         val since = inFlightSince
@@ -415,6 +447,7 @@ internal class DeepArStage(
         val rendered = gate.take(TimeUnit.MILLISECONDS.toNanos(RENDER_TIMEOUT_MS))
         val done = System.nanoTime()
         waitAvg.add(done - waitStart, done)
+        if (probe.running) return probeStep(rendered, done)
         if (rendered == null) {
             if (!reportedTimeout) {
                 reportedTimeout = true
@@ -423,9 +456,88 @@ internal class DeepArStage(
             return miss(done)
         }
         health.onOutput()
+        if (++publishedSinceSample >= OUTPUT_SAMPLE_EVERY) {
+            publishedSinceSample = 0
+            val luma = sampleLuma(rendered)
+            outputLuma = luma
+            val verdict = blackWatch.onSample(inputLuma, luma, done)
+            blackMs = blackWatch.blackNanos(done) / 1_000_000
+            if (verdict == BlackOutputWatch.Verdict.BLACK) {
+                rendered.release()
+                startProbe(done)
+                return null
+            }
+        }
         framesOut.incrementAndGet()
         if (state != STATE_READY) setState(STATE_READY, null)
         return outputFor(rendered, frame, input)
+    }
+
+    /**
+     * D145e: the mean luma of a published render, from a small GPU read-back
+     * (the helper's own converter, on its thread and EGL context); -1 if it
+     * could not be read.
+     */
+    private fun sampleLuma(rendered: VideoFrame): Int {
+        val buffer = rendered.buffer
+        val small = try {
+            buffer.cropAndScale(0, 0, buffer.width, buffer.height, LUMA_SAMPLE_W, LUMA_SAMPLE_H)
+        } catch (error: Throwable) {
+            lastError = "luma: $error"
+            return -1
+        }
+        return try {
+            val i420 = small.toI420() ?: return -1
+            try {
+                Luma.meanY(i420.dataY, i420.width, i420.height, i420.strideY, grid = 16)
+            } finally {
+                i420.release()
+            }
+        } catch (error: Throwable) {
+            lastError = "luma: $error"
+            -1
+        } finally {
+            small.release()
+        }
+    }
+
+    /**
+     * D145e: DeepAR's picture has been black while the camera's is not. From
+     * now on raw frames go out; DeepAR keeps running a moment without the
+     * effect so the read-out can say whether its pipeline or the effect is
+     * black ([PassthroughProbe]); then the effect is turned off.
+     */
+    private fun startProbe(nowNanos: Long) {
+        Log.w(TAG, "DeepAR output black (in $inputLuma, out $outputLuma): probing without the effect")
+        probe.start(nowNanos)
+        deepAr.post {
+            val deepAR = synchronized(lock) { instance } ?: return@post
+            try {
+                if (blurOn) deepAR.backgroundBlur(false, 0)
+                blurOn = false
+                deepAR.switchEffect(SLOT, null as String?)
+            } catch (error: Throwable) {
+                Log.w(TAG, "probe: switching the effect off failed: $error")
+            }
+        }
+    }
+
+    /** During the probe: DeepAR's renders are measured, never published. */
+    private fun probeStep(rendered: VideoFrame?, nowNanos: Long): VideoFrame? {
+        if (rendered != null) {
+            val luma = sampleLuma(rendered)
+            outputLuma = luma
+            probe.onSample(luma, nowNanos)
+            rendered.release()
+        }
+        if (probe.done(nowNanos)) {
+            val result = probe.finish().code
+            probeResult = result
+            lastError = "black output (in $inputLuma, out $outputLuma); without the effect: $result"
+            Log.w(TAG, "DeepAR black output; probe: $result")
+            fail(STATE_DISABLED, "black_output")
+        }
+        return null
     }
 
     /** One frame to DeepAR's thread, unless the previous is still there. */
@@ -575,6 +687,8 @@ internal class DeepArStage(
                 dstVu, chromaWidth * 2,
                 width, height,
             )
+            // D145e: what DeepAR is about to see (input black or not).
+            inputLuma = Luma.meanY(dstY, width, height, width)
             out.clear()
             out.limit(needed)
             return out
@@ -677,6 +791,11 @@ internal class DeepArStage(
         private const val SLOT = "effect"
         private const val RENDER_TIMEOUT_MS = 40L
         private const val BLUR_STRENGTH = 6
+
+        /** D145e: every Nth published render is read back for its luma (~4/s). */
+        const val OUTPUT_SAMPLE_EVERY = 8
+        private const val LUMA_SAMPLE_W = 36
+        private const val LUMA_SAMPLE_H = 64
 
         /** Fresh-render misses in a row (≈ 1 s at 30 fps) before giving up. */
         const val MAX_MISSES = 30

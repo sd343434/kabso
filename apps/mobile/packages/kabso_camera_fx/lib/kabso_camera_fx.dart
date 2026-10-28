@@ -57,7 +57,9 @@ enum KabsoCameraFxState {
   error,
 
   /// The effect switched itself off: DeepAR stopped giving new pictures
-  /// (`no_output`) or its thread hung (`stalled`). The raw camera goes on.
+  /// (`no_output`), its thread hung (`stalled`), or (D145e) its picture was
+  /// black while the camera's was not (`black_output`). The raw camera goes
+  /// on.
   disabled;
 
   /// Whether the effect is off because something went wrong.
@@ -124,7 +126,6 @@ class KabsoCameraFxDiagnostics {
     this.framesIn = 0,
     this.fed = 0,
     this.busySkips = 0,
-    this.rendered = 0,
     this.delivered = 0,
     this.staleDropped = 0,
     this.framesOut = 0,
@@ -137,6 +138,10 @@ class KabsoCameraFxDiagnostics {
     this.input,
     this.sdkVersion,
     this.lastError,
+    this.inputLuma = -1,
+    this.outputLuma = -1,
+    this.blackMs = 0,
+    this.probe,
   });
 
   factory KabsoCameraFxDiagnostics.fromMap(Map<Object?, Object?> map) {
@@ -161,7 +166,6 @@ class KabsoCameraFxDiagnostics {
       framesIn: count('framesIn'),
       fed: count('fed'),
       busySkips: count('busySkips'),
-      rendered: count('rendered'),
       delivered: count('delivered'),
       staleDropped: count('staleDropped'),
       framesOut: count('framesOut'),
@@ -174,6 +178,10 @@ class KabsoCameraFxDiagnostics {
       input: text('input'),
       sdkVersion: text('sdkVersion'),
       lastError: text('lastError'),
+      inputLuma: map['inputLuma'] is num ? count('inputLuma') : -1,
+      outputLuma: map['outputLuma'] is num ? count('outputLuma') : -1,
+      blackMs: count('blackMs'),
+      probe: text('probe'),
     );
   }
 
@@ -197,9 +205,6 @@ class KabsoCameraFxDiagnostics {
 
   /// Frames not fed because DeepAR was still busy with the previous one.
   final int busySkips;
-
-  /// Frames DeepAR says it rendered.
-  final int rendered;
 
   /// Renders that reached the processor.
   final int delivered;
@@ -231,6 +236,21 @@ class KabsoCameraFxDiagnostics {
 
   /// DeepAR's or the stage's last error (a type and message, no key).
   final String? lastError;
+
+  /// D145e: mean brightness (0–255, video black is 16) of the last frame fed
+  /// to DeepAR, and of the last DeepAR picture read back; -1: no sample.
+  /// Input lit and output black means DeepAR's output is black, not its
+  /// camera input.
+  final int inputLuma;
+  final int outputLuma;
+
+  /// How long DeepAR's picture has been black against a lit camera (ms).
+  final int blackMs;
+
+  /// After `black_output`: what DeepAR showed without the effect —
+  /// `passthrough_ok` (the camera: the effect's render is black),
+  /// `passthrough_black` (nothing of the camera), `no_samples`, or `running`.
+  final String? probe;
 }
 
 /// Steers the native processor. The native side keeps a single processor;

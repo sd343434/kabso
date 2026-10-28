@@ -58,7 +58,10 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
   /// D131/D132 (owner): a lucky win of at least this multiplier gets the
   /// room banner, for [luckyTime].
   static const luckyBanner = 100;
-  static const luckyTime = Duration(seconds: 4);
+
+  /// D145e (owner: a short ~3 s moment): the card's whole life, entrance to
+  /// fade-out (was 4 s for the D132 pill).
+  static const luckyTime = Duration(milliseconds: 3200);
 
   StreamSubscription<LiveChatEvent>? _events;
   final _seen = <String>{};

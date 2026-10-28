@@ -100,6 +100,19 @@ class MaxXWinStyle {
 
   Duration get duration => Duration(milliseconds: (seconds * 1000).round());
 
+  /// D145e: the same look lasting [s] seconds (the room's big-win card).
+  MaxXWinStyle lasting(double s) => MaxXWinStyle(
+    tier,
+    s,
+    color,
+    numberColors,
+    ribbon,
+    rays,
+    coins,
+    shake,
+    size,
+  );
+
   static const all = [
     MaxXWinStyle(
       5,
@@ -267,6 +280,15 @@ class MaxXOrb extends StatefulWidget {
   /// The orb's radius in a box of [size] (the ring's outer edge).
   static double radiusOf(double size) => size / 2 - 4;
 
+  /// D145e: the label's box — the orb's chord where the label sits (it
+  /// used to stick out 0.3 r on each side and was cut at the screen edge).
+  static double labelWidthOf(double r) => r * 1.6;
+
+  /// D145e: «ماكس x264» up to three digits; the number alone from 1,000.
+  static bool showsWord(int count) => count < 1000;
+
+  static const labelKey = Key('maxx.label');
+
   @override
   State<MaxXOrb> createState() => _MaxXOrbState();
 }
@@ -343,16 +365,21 @@ class _MaxXOrbState extends State<MaxXOrb> with TickerProviderStateMixin {
         ),
       ),
     );
+    // D145e (owner: «ماكس 264» was cut): the label stays inside the orb's
+    // circle ([labelWidthOf]) and scales down to fit; from four digits the
+    // word gives way to the number alone.
     final label = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          widget.word,
-          maxLines: 1,
-          textScaler: scaler,
-          style: text.copyWith(fontSize: r * .3),
-        ),
-        SizedBox(width: r * .1),
+        if (MaxXOrb.showsWord(widget.count)) ...[
+          Text(
+            widget.word,
+            maxLines: 1,
+            textScaler: scaler,
+            style: text.copyWith(fontSize: r * .3),
+          ),
+          SizedBox(width: r * .1),
+        ],
         KeyedSubtree(key: widget.countKey, child: number),
       ],
     );
@@ -429,14 +456,14 @@ class _MaxXOrbState extends State<MaxXOrb> with TickerProviderStateMixin {
                           ),
                         ),
                         Positioned(
-                          left: -r * .3,
-                          right: -r * .3,
+                          left: (size - MaxXOrb.labelWidthOf(r)) / 2,
+                          width: MaxXOrb.labelWidthOf(r),
                           top: size / 2 + r * .2,
-                          child: Center(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: label,
-                            ),
+                          height: r * .5,
+                          child: FittedBox(
+                            key: MaxXOrb.labelKey,
+                            fit: BoxFit.scaleDown,
+                            child: label,
                           ),
                         ),
                       ],
@@ -914,9 +941,38 @@ class MaxXWinPainter extends CustomPainter {
     this.fontFamily,
     this.spaceLeft = double.infinity,
     this.spaceRight = double.infinity,
+    this.banner = true,
+    this.bannerDy,
   });
 
   final MaxXWinStyle style;
+
+  /// D145e: false paints only the burst (rays, rings, coin fountain) — the
+  /// room's big-win card draws its own numbers over it.
+  final bool banner;
+
+  /// The banner's centre from the origin; null: above the button, clear of
+  /// the streak's winnings chip ([bannerDyAt]).
+  final double? bannerDy;
+
+  /// D145e (owner: «×10 +550» and «×100 +2,300» overlapped each other and the
+  /// orb): where the banner's centre goes above the button's centre [r], so
+  /// that — at its largest (the entrance overshoot ×1.12) — the "+coins" line
+  /// under it ends [gap] above the winnings chip that sits on the orb.
+  static double bannerDyAt(
+    MaxXWinStyle style,
+    double r, {
+    required bool coins,
+    double gap = 10,
+  }) {
+    final rh = r * style.size * 1.25 * .95;
+    final below = coins ? rh * .8 + r * .2 : rh / 2;
+    return -(r * chipTop + gap + below * 1.12);
+  }
+
+  /// The top of the winnings chip over the orb, in orb radii from its centre
+  /// (the orb's top, 2 pt and the chip's ~20 pt at the cluster's size).
+  static const double chipTop = 1.65;
   final int multiplier;
   final int coins;
   final String? title;
@@ -1115,7 +1171,7 @@ class MaxXWinPainter extends CustomPainter {
       }
     }
 
-    if (shown) {
+    if (shown && banner) {
       // Banner.
       final q = _c01(wt / w.seconds);
       final sIn = still
@@ -1125,7 +1181,9 @@ class MaxXWinPainter extends CustomPainter {
           : 1.12 - .12 * _c01((q - .18) / .15);
       final al = still ? 1.0 : (q > .8 ? 1 - (q - .8) / .2 : 1.0);
       // Above the streak's winnings chip over the button.
-      final by = -r * 2.75 + (still ? 0 : math.sin(wt * 6) * 2);
+      final by =
+          (bannerDy ?? bannerDyAt(style, r, coins: coins > 0)) +
+          (still ? 0 : math.sin(wt * 6) * 2);
       final txt = 'x$multiplier';
       final fs = r * w.size * 1.25;
       final numStyle = TextStyle(
@@ -1323,5 +1381,7 @@ class MaxXWinPainter extends CustomPainter {
       old.still != still ||
       old.r != r ||
       old.spaceLeft != spaceLeft ||
-      old.spaceRight != spaceRight;
+      old.spaceRight != spaceRight ||
+      old.banner != banner ||
+      old.bannerDy != bannerDy;
 }

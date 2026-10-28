@@ -6731,6 +6731,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'The effect isn\'t available right now: it didn\'t start on this device. Try it again in a moment.';
 
   @override
+  String get liveEffectUnavailableBlack =>
+      'The effect isn\'t available right now: its picture came out black, so the camera went on without it before viewers saw it. Try it again later.';
+
+  @override
+  String get liveLuckyBigWin => 'BIG WIN';
+
+  @override
+  String liveLuckyBigWinCoins(String coins) {
+    return '$coins coins';
+  }
+
+  @override
   String get livePermissionTitleVideo => 'Camera and microphone for your live';
 
   @override

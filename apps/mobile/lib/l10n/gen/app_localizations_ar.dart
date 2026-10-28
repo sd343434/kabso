@@ -6779,6 +6779,18 @@ class AppLocalizationsAr extends AppLocalizations {
       'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.';
 
   @override
+  String get liveEffectUnavailableBlack =>
+      'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.';
+
+  @override
+  String get liveLuckyBigWin => 'فوز كبير';
+
+  @override
+  String liveLuckyBigWinCoins(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
   String get livePermissionTitleVideo => 'الكاميرا والميكروفون لبثّك';
 
   @override

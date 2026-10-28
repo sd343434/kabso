@@ -1177,6 +1177,7 @@ String? liveEffectStatusText(AppLocalizations l10n, LiveArStatus status) =>
       LiveArState.unavailable => switch (status.problem) {
         LiveArProblem.licence => l10n.liveEffectUnavailableLicence,
         LiveArProblem.stopped => l10n.liveEffectUnavailableStopped,
+        LiveArProblem.blackPicture => l10n.liveEffectUnavailableBlack,
         LiveArProblem.failed || null => l10n.liveEffectUnavailableFailed,
       },
     };

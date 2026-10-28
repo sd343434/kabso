@@ -11630,6 +11630,24 @@ abstract class AppLocalizations {
   /// **'المؤثر غير متاح الآن: لم يبدأ على هذا الجهاز. جرّبه مرة أخرى بعد قليل.'**
   String get liveEffectUnavailableFailed;
 
+  /// D145e: DeepAR's picture was black; the effect switched itself off.
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثر غير متاح الآن: خرجت صورته سوداء، فعادت الكاميرا من دونه قبل أن يراها المشاهدون. جرّبه مرة أخرى لاحقاً.'**
+  String get liveEffectUnavailableBlack;
+
+  /// D145e: the title of the room's big lucky win card (x100 to x499).
+  ///
+  /// In ar, this message translates to:
+  /// **'فوز كبير'**
+  String get liveLuckyBigWin;
+
+  /// D145e: the coins line of the big lucky win card; coins is a pre-formatted, isolated +number.
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String liveLuckyBigWinCoins(String coins);
+
   /// D144a: DeepAR status and camera/microphone permissions.
   ///
   /// In ar, this message translates to:
