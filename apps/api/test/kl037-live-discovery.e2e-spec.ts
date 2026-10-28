@@ -908,7 +908,7 @@ describe('KL-037 public profile and follow', () => {
     await ctx.prisma.user.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
     expect(await ctx.app.get(AccountLifecycleService).softDelete(deleted.id)).toBe(true);
     // D146: a valid regular username (letters and digits, no premium pattern).
-    const pendingName = (newUser().username as string).replace(/^user/, 'pend');
+    const pendingName = newUser().username.replace(/^user/, 'pend');
     const reg = await ctx.http.post('/api/v1/auth/register').send({
       email: `${pendingName}@example.com`,
       password: 'correct horse battery staple',
