@@ -7175,4 +7175,72 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get liveProgramOrderError =>
       'Put the segments in order of their start times';
+
+  @override
+  String liveAssistantWelcomeOne(String name) {
+    return 'Welcome $name, who just joined';
+  }
+
+  @override
+  String liveAssistantWelcomeMany(String name, int count) {
+    return 'Welcome $name and $count more who just joined';
+  }
+
+  @override
+  String liveAssistantThank(String name, String coins) {
+    return 'Thank $name for a gift worth $coins coins';
+  }
+
+  @override
+  String liveAssistantSilence(int minutes) {
+    return 'You haven\'t spoken for $minutes minutes, say something to the room';
+  }
+
+  @override
+  String liveAssistantRising(int before, int now) {
+    return 'More people are here: $before to $now. Keep going';
+  }
+
+  @override
+  String liveAssistantFalling(int before, int now) {
+    return 'Fewer people now: $before to $now. Try something new or a question';
+  }
+
+  @override
+  String liveAssistantRest(int hours) {
+    return 'You\'ve been live for $hours hours, take a short break';
+  }
+
+  @override
+  String get liveAssistantQuestion =>
+      'The chat is quiet, ask the room a question';
+
+  @override
+  String get liveAssistantDismiss => 'hide';
+
+  @override
+  String get liveAssistantAbout =>
+      'Light hints only you see during your live, from the room\'s own events. Nothing is sent anywhere.';
+
+  @override
+  String get liveAssistantOn => 'Assistant on';
+
+  @override
+  String get liveAssistantKindWelcome => 'Welcome people who join';
+
+  @override
+  String get liveAssistantKindThank => 'Thank big gifts';
+
+  @override
+  String get liveAssistantKindSilence => 'Remind me when I\'m quiet';
+
+  @override
+  String get liveAssistantKindAudience => 'Audience up or down';
+
+  @override
+  String get liveAssistantKindRest => 'Breaks in long lives';
+
+  @override
+  String get liveAssistantKindQuestion =>
+      'Suggest a question when the chat is quiet';
 }

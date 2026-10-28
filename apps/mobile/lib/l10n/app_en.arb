@@ -2353,5 +2353,22 @@
   "liveProgramAdd": "Add a segment",
   "liveProgramRemove": "Remove the segment",
   "liveProgramSave": "Save the program",
-  "liveProgramOrderError": "Put the segments in order of their start times"
+  "liveProgramOrderError": "Put the segments in order of their start times",
+  "liveAssistantWelcomeOne": "Welcome {name}, who just joined",
+  "liveAssistantWelcomeMany": "Welcome {name} and {count} more who just joined",
+  "liveAssistantThank": "Thank {name} for a gift worth {coins} coins",
+  "liveAssistantSilence": "You haven't spoken for {minutes} minutes, say something to the room",
+  "liveAssistantRising": "More people are here: {before} to {now}. Keep going",
+  "liveAssistantFalling": "Fewer people now: {before} to {now}. Try something new or a question",
+  "liveAssistantRest": "You've been live for {hours} hours, take a short break",
+  "liveAssistantQuestion": "The chat is quiet, ask the room a question",
+  "liveAssistantDismiss": "hide",
+  "liveAssistantAbout": "Light hints only you see during your live, from the room's own events. Nothing is sent anywhere.",
+  "liveAssistantOn": "Assistant on",
+  "liveAssistantKindWelcome": "Welcome people who join",
+  "liveAssistantKindThank": "Thank big gifts",
+  "liveAssistantKindSilence": "Remind me when I'm quiet",
+  "liveAssistantKindAudience": "Audience up or down",
+  "liveAssistantKindRest": "Breaks in long lives",
+  "liveAssistantKindQuestion": "Suggest a question when the chat is quiet"
 }

@@ -12373,6 +12373,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'رتّب الفقرات حسب وقت بدايتها'**
   String get liveProgramOrderError;
+
+  /// D154f assistant hint: one person joined.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب بـ {name}، انضم للتو'**
+  String liveAssistantWelcomeOne(String name);
+
+  /// D154f assistant hint: several joined.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب بـ {name} و{count} آخرين انضموا للتو'**
+  String liveAssistantWelcomeMany(String name, int count);
+
+  /// D154f assistant hint: a big gift.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشكر {name} على هدية بقيمة {coins} عملة'**
+  String liveAssistantThank(String name, String coins);
+
+  /// D154f assistant hint: the host is quiet (microphone on).
+  ///
+  /// In ar, this message translates to:
+  /// **'لم تتكلم منذ {minutes} دقائق، قل شيئاً للحضور'**
+  String liveAssistantSilence(int minutes);
+
+  /// D154f assistant hint: viewers rising.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحضور يزداد: من {before} إلى {now}. استمر'**
+  String liveAssistantRising(int before, int now);
+
+  /// D154f assistant hint: viewers falling.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحضور يقل: من {before} إلى {now}. جرّب فقرة جديدة أو سؤالاً'**
+  String liveAssistantFalling(int before, int now);
+
+  /// D154f assistant hint: a long live.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنت على الهواء منذ {hours} ساعات، خذ استراحة قصيرة'**
+  String liveAssistantRest(int hours);
+
+  /// D154f assistant hint: few chat messages.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدردشة هادئة، اطرح سؤالاً على الحضور'**
+  String get liveAssistantQuestion;
+
+  /// D154f: the hint's tap hint for screen readers.
+  ///
+  /// In ar, this message translates to:
+  /// **'إخفاء'**
+  String get liveAssistantDismiss;
+
+  /// D154f: the settings' explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'تلميحات خفيفة تظهر لك وحدك أثناء البث، من أحداث الغرفة فقط. لا يُرسل شيء.'**
+  String get liveAssistantAbout;
+
+  /// D154f: the master switch.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل المساعد'**
+  String get liveAssistantOn;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'الترحيب بالقادمين'**
+  String get liveAssistantKindWelcome;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشكر على الهدايا الكبيرة'**
+  String get liveAssistantKindThank;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'تنبيه عند الصمت'**
+  String get liveAssistantKindSilence;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'زيادة أو نقص الحضور'**
+  String get liveAssistantKindAudience;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'استراحة في البث الطويل'**
+  String get liveAssistantKindRest;
+
+  /// D154f: a hint kind.
+  ///
+  /// In ar, this message translates to:
+  /// **'اقتراح سؤال عند هدوء الدردشة'**
+  String get liveAssistantKindQuestion;
 }
 
 class _AppLocalizationsDelegate

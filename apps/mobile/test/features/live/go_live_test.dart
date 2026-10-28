@@ -2023,8 +2023,9 @@ void main() {
         // D154a/D154b: the soundboard and the traffic card work now.
         'sounds',
         'traffic',
-        // D154e: the program list works now.
+        // D154e/D154f: the program list and the assistant work now.
         'program',
+        'assistance',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
@@ -2033,6 +2034,7 @@ void main() {
         l10n.liveToolSounds,
         l10n.liveToolTrafficCard,
         l10n.liveToolProgramList,
+        l10n.liveToolAssistance,
       ]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),

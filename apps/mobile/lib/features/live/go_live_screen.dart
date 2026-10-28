@@ -15,6 +15,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/application/levels_providers.dart';
 import 'package:kabso_live/features/levels/domain/level_models.dart';
+import 'package:kabso_live/features/live/application/live_assistant.dart';
 import 'package:kabso_live/features/live/application/live_chat_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
@@ -34,6 +35,7 @@ import 'package:kabso_live/features/live/live_room_screen.dart'
 import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setup.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_assistant_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
@@ -381,6 +383,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       ref.read(liveQuipsProvider(room.id).notifier).attach(engine);
       // D154e: the live's program.
       ref.read(liveProgramProvider(room.id).notifier).attach(engine);
+      // D154f: the host's assistant (hints on this phone only).
+      ref
+          .read(liveAssistantProvider(room.id).notifier)
+          .attach(
+            engine,
+            startedAt: room.startedAt,
+            selfId: ref.read(currentUserProvider)?.id,
+          );
       unawaited(
         ref
             .read(liveChatProvider(room.id).notifier)
@@ -973,10 +983,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             // D143: the same User management as video rooms (moderators
             // included: the audio room has seats).
             _managementTool(state, live ? room : null, liveSeats),
-            GoLiveTool.soon(
+            // D154f: the host's rule-based assistant (its settings).
+            GoLiveTool(
               id: 'assistance',
               icon: Icons.support_agent_rounded,
               label: l10n.liveToolAssistance,
+              onTap: () => unawaited(showLiveAssistantSettings(context)),
             ),
             GoLiveTool.soon(
               id: 'recorder',
@@ -1497,6 +1509,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                         ? LuckyComboLayer.audioBottom
                         : LuckyComboLayer.videoBottom,
                   ),
+                // D154f: the assistant's hint, for the host only.
+                if (room != null && state.phase == GoLivePhase.live)
+                  LiveAssistantHintLayer(roomId: room.id),
                 // CP-021 (D112): the CP Entrance Effect.
                 if (onAir && room != null) LiveCpEntranceLayer(roomId: room.id),
                 // D144a: DeepAR's diagnostics for the owner's screenshots —
@@ -1752,10 +1767,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           ),
           ?byId['chat'],
           management,
-          soon(
-            'assistance',
-            Icons.support_agent_rounded,
-            l10n.liveToolAssistance,
+          // D154f: the host's rule-based assistant (its settings).
+          GoLiveTool(
+            id: 'assistance',
+            icon: Icons.support_agent_rounded,
+            label: l10n.liveToolAssistance,
+            onTap: () => unawaited(showLiveAssistantSettings(context)),
           ),
           // D154e: the live's program (everyone sees its card).
           GoLiveTool(

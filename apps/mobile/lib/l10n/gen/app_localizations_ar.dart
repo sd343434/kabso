@@ -7218,4 +7218,70 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get liveProgramOrderError => 'رتّب الفقرات حسب وقت بدايتها';
+
+  @override
+  String liveAssistantWelcomeOne(String name) {
+    return 'رحّب بـ $name، انضم للتو';
+  }
+
+  @override
+  String liveAssistantWelcomeMany(String name, int count) {
+    return 'رحّب بـ $name و$count آخرين انضموا للتو';
+  }
+
+  @override
+  String liveAssistantThank(String name, String coins) {
+    return 'اشكر $name على هدية بقيمة $coins عملة';
+  }
+
+  @override
+  String liveAssistantSilence(int minutes) {
+    return 'لم تتكلم منذ $minutes دقائق، قل شيئاً للحضور';
+  }
+
+  @override
+  String liveAssistantRising(int before, int now) {
+    return 'الحضور يزداد: من $before إلى $now. استمر';
+  }
+
+  @override
+  String liveAssistantFalling(int before, int now) {
+    return 'الحضور يقل: من $before إلى $now. جرّب فقرة جديدة أو سؤالاً';
+  }
+
+  @override
+  String liveAssistantRest(int hours) {
+    return 'أنت على الهواء منذ $hours ساعات، خذ استراحة قصيرة';
+  }
+
+  @override
+  String get liveAssistantQuestion => 'الدردشة هادئة، اطرح سؤالاً على الحضور';
+
+  @override
+  String get liveAssistantDismiss => 'إخفاء';
+
+  @override
+  String get liveAssistantAbout =>
+      'تلميحات خفيفة تظهر لك وحدك أثناء البث، من أحداث الغرفة فقط. لا يُرسل شيء.';
+
+  @override
+  String get liveAssistantOn => 'تشغيل المساعد';
+
+  @override
+  String get liveAssistantKindWelcome => 'الترحيب بالقادمين';
+
+  @override
+  String get liveAssistantKindThank => 'الشكر على الهدايا الكبيرة';
+
+  @override
+  String get liveAssistantKindSilence => 'تنبيه عند الصمت';
+
+  @override
+  String get liveAssistantKindAudience => 'زيادة أو نقص الحضور';
+
+  @override
+  String get liveAssistantKindRest => 'استراحة في البث الطويل';
+
+  @override
+  String get liveAssistantKindQuestion => 'اقتراح سؤال عند هدوء الدردشة';
 }
