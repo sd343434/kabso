@@ -2476,5 +2476,20 @@
   "liveWatchHide": "Hide the video",
   "liveWatchShow": "Show the video",
   "liveWatchPlayerError": "The video couldn't play on this phone",
-  "liveWatchNewSuggestion": "New suggestion: {title}"
+  "liveWatchNewSuggestion": "New suggestion: {title}",
+  "meHubOpenProfile": "Open your profile",
+  "meHubFans": "Fans",
+  "meHubLevels": "Levels",
+  "meHubVip": "Purchase VIP",
+  "meHubEarn": "Earn money",
+  "meHubCreatorCenter": "Creator Center",
+  "meHubEventCenter": "Event Center",
+  "meHubWallet": "Wallet",
+  "meHubItemBag": "Item Bag",
+  "meHubPost": "Post",
+  "meHubSvip": "SVIP",
+  "meHubTaskCenter": "Task Center",
+  "meHubRanking": "Ranking",
+  "meHubSoonItem": "{item}, coming soon",
+  "meHubCoins": "{coins} coins"
 }

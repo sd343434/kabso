@@ -7609,4 +7609,53 @@ class AppLocalizationsAr extends AppLocalizations {
   String liveWatchNewSuggestion(String title) {
     return 'اقتراح جديد: $title';
   }
+
+  @override
+  String get meHubOpenProfile => 'افتح ملفك الشخصي';
+
+  @override
+  String get meHubFans => 'المعجبون';
+
+  @override
+  String get meHubLevels => 'المستويات';
+
+  @override
+  String get meHubVip => 'شراء VIP';
+
+  @override
+  String get meHubEarn => 'اربح المال';
+
+  @override
+  String get meHubCreatorCenter => 'مركز صنّاع المحتوى';
+
+  @override
+  String get meHubEventCenter => 'مركز الفعاليات';
+
+  @override
+  String get meHubWallet => 'المحفظة';
+
+  @override
+  String get meHubItemBag => 'الحقيبة';
+
+  @override
+  String get meHubPost => 'المنشورات';
+
+  @override
+  String get meHubSvip => 'SVIP';
+
+  @override
+  String get meHubTaskCenter => 'مركز المهام';
+
+  @override
+  String get meHubRanking => 'التصنيف';
+
+  @override
+  String meHubSoonItem(String item) {
+    return '$item، قريباً';
+  }
+
+  @override
+  String meHubCoins(String coins) {
+    return '$coins كوينز';
+  }
 }

@@ -14,7 +14,6 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/cp/presentation/cp_special_frame.dart';
 import 'package:kabso_live/features/levels/presentation/profile_levels.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
-import 'package:kabso_live/features/profile/profile_bonds.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -35,7 +34,11 @@ abstract final class KProfile {
 }
 
 /// The signed-in user's own profile (D57), from `GET /me` plus the counts
-/// of `GET /users/{username}`:
+/// of `GET /users/{username}`. D163 (owner): it opens from the Me hub
+/// (`MeHubScreen`, the photo or the name) at [AppRoutes.myProfile]; the
+/// level badge sits beside the name, and the family, relationship, medals,
+/// bag and premium-username boxes (and the chosen medals) live in the hub
+/// and the medals page instead:
 ///
 /// - top bar: @username in the centre, Drafts and Settings at the end;
 /// - the photo at the start with the Followers and Following counts beside
@@ -185,9 +188,11 @@ class _OwnHeader extends ConsumerWidget {
       statsFailed: statsLoad.hasError && stats == null,
       // CP-018: the chosen medals and the family, relationship and medals
       // tiles come with the counts (`GET /users/{username}`).
-      levels: ProfileBondsBlock(
-        levels: ProfileLevels(onOpen: () => context.push(AppRoutes.levels)),
-        profile: stats,
+      // D163: the level badge beside the name; the bond boxes moved to the
+      // Me hub, the chosen medals to the medals page.
+      nameTrailing: ProfileLevels(
+        onOpen: () => context.push(AppRoutes.levels),
+        padding: EdgeInsetsDirectional.zero,
       ),
       cpFrame: cpWearsSpecialFrame(stats?.cp),
       onOpenFollowers: () => context.push(AppRoutes.userFollows(user.username)),
@@ -238,6 +243,7 @@ class ProfileHeaderView extends StatelessWidget {
     this.live = false,
     this.onOpenLive,
     this.levels,
+    this.nameTrailing,
     this.cpFrame = false,
     this.onOpenFollowers,
     this.onOpenFollowing,
@@ -255,6 +261,10 @@ class ProfileHeaderView extends StatelessWidget {
 
   /// D72: the level badges under the name and bio (`ProfileLevels`).
   final Widget? levels;
+
+  /// D163: shown beside the name on the same line (the own profile's level
+  /// badge); it wraps under the name when the line is full.
+  final Widget? nameTrailing;
 
   /// CP-021 (D112): the person's couple unlocked the Special Frame
   /// (`PublicProfile.cp.privileges`); the picture is drawn in the owner's
@@ -371,10 +381,17 @@ class ProfileHeaderView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: KSpacing.md),
-          Text(
-            displayName,
-            key: const Key('profile.displayName'),
-            style: t.bodyStrong.copyWith(color: p.textPrimary),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: KSpacing.sm,
+            children: [
+              Text(
+                displayName,
+                key: const Key('profile.displayName'),
+                style: t.bodyStrong.copyWith(color: p.textPrimary),
+              ),
+              ?nameTrailing,
+            ],
           ),
           if (bio != null && bio.isNotEmpty) ...[
             const SizedBox(height: KSpacing.xxs),

@@ -157,6 +157,11 @@ void main() {
               await tester.pumpAndSettle();
             }
           }
+          // D163: the Me tab is the hub; its photo opens the profile.
+          await tester.tap(find.byKey(const Key('meHub.avatar')));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull, reason: 'profile');
+          expect(find.byKey(const Key('profile.editButton')), findsOneWidget);
         });
 
         testWidgets(
@@ -165,7 +170,8 @@ void main() {
             await signedIn(tester);
             await tester.tap(find.byKey(const Key('nav.profile')));
             await tester.pumpAndSettle();
-            await tester.tap(find.byKey(const Key('profile.settings')));
+            // D163: Settings is on the Me hub.
+            await tester.tap(find.byKey(const Key('meHub.settings')));
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: 'settings');
           },

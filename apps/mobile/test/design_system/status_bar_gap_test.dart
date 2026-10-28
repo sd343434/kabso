@@ -18,6 +18,7 @@ import 'package:kabso_live/features/live/voice_rooms_screen.dart';
 import 'package:kabso_live/features/messages/messages_tab.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
 import 'package:kabso_live/features/profile/application/profile_grid_provider.dart';
+import 'package:kabso_live/features/profile/me_hub_screen.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/features/settings/settings_screen.dart';
 import 'package:material_ui/material_ui.dart';
@@ -63,6 +64,8 @@ final Map<String, Widget> _screens = {
   'search': const DiscoverScreen(),
   'notifications': const NotificationsScreen(),
   'profile': const ProfileScreen(),
+  // D163: the Me tab's hub (a custom header).
+  'me hub': const MeHubScreen(),
   'messages': const MessagesTab(),
   'settings': const SettingsScreen(),
 };

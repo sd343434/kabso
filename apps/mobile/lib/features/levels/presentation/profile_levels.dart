@@ -11,10 +11,19 @@ import 'package:material_ui/material_ui.dart';
 /// never shows an invented or empty level. [username] null = the caller,
 /// whose badges open "My levels" through [onOpen].
 class ProfileLevels extends ConsumerWidget {
-  const new({super.key, this.username, this.onOpen});
+  const new({
+    super.key,
+    this.username,
+    this.onOpen,
+    this.padding = const EdgeInsetsDirectional.only(top: KSpacing.sm),
+  });
 
   final String? username;
   final VoidCallback? onOpen;
+
+  /// Space around the badges: under the bio by default; D163 puts them
+  /// beside the name on one line ([EdgeInsetsDirectional.zero]).
+  final EdgeInsetsGeometry padding;
 
   static const rowKey = Key('profile.levels');
 
@@ -47,7 +56,7 @@ class ProfileLevels extends ConsumerWidget {
       ],
     );
     return Padding(
-      padding: const EdgeInsetsDirectional.only(top: KSpacing.sm),
+      padding: padding,
       child: Semantics(
         key: rowKey,
         container: true,
