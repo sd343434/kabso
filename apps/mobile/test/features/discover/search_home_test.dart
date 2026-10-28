@@ -2,7 +2,9 @@
 // GET /search/trending, the hashtags of the week, popular lives, the
 // rotating hint, Cancel, counting submitted searches (POST /search/queries)
 // and the trending hashtags page; honest empty states, Arabic RTL and a
-// small screen with large text.
+// small screen with large text. D157: the home always shows under an empty
+// field — this device's Recent searches, and one quiet hint line when
+// there is nothing else (no big empty state).
 
 import 'dart:async';
 
@@ -19,6 +21,7 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
+import 'package:kabso_live/features/discover/recent_searches.dart';
 import 'package:kabso_live/features/discover/search_home.dart';
 import 'package:kabso_live/features/discover/trending_hashtags_screen.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
@@ -28,6 +31,7 @@ import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/features/posts/domain/post_models.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_http_adapter.dart';
@@ -130,6 +134,7 @@ void main() {
     GoldenViewport viewport = GoldenViewport.phone,
     FakePostsRepository? repo,
     FakeLiveRepository? live,
+    List<String>? recent,
   }) async {
     final posts = (repo ?? FakePostsRepository())
       ..trending = terms
@@ -176,7 +181,11 @@ void main() {
     // A fresh tree for each pump within one test.
     await tester.pumpWidget(const SizedBox());
     setViewport(tester, viewport);
-    final prefs = await testPrefs(language: language.name);
+    final prefs = await testPrefs(
+      language: language.name,
+      extra: {_recentKey: ?recent},
+    );
+    _prefs = prefs;
     await tester.pumpWidget(
       ProviderScope(
         retry: (_, _) => null,
@@ -307,8 +316,8 @@ void main() {
   });
 
   testWidgets('honest states: fewer than 3 terms hide Hot Searches; no '
-      'hashtags or lives hide theirs; nothing at all shows the prompt; '
-      'failures hide a section', (tester) async {
+      'hashtags or lives hide theirs; nothing at all shows the search home '
+      'with a one-line hint (D157); failures hide a section', (tester) async {
     await pump(
       tester,
       terms: _terms.take(2).toList(),
@@ -325,7 +334,14 @@ void main() {
     expect(find.byKey(SearchHome.hotKey), findsNothing);
     expect(find.byKey(SearchHome.topicsKey), findsNothing);
     expect(find.byKey(SearchHome.livesKey), findsNothing);
-    expect(find.text(_en.searchPromptTitle), findsOneWidget);
+    // D157: still the search home (not the old big empty state), with one
+    // quiet line; nothing made up.
+    expect(find.byType(SearchHome), findsOneWidget);
+    expect(find.byType(KEmptyState), findsNothing);
+    expect(find.text(_en.searchPromptTitle), findsNothing);
+    expect(find.byKey(SearchHome.hintKey), findsOneWidget);
+    expect(find.text(_en.searchPromptBody), findsOneWidget);
+    expect(find.byKey(SearchHome.recentKey), findsNothing);
     expect(find.text(_en.searchHint), findsOneWidget);
 
     final failing = FakeLiveRepository(rooms: (_) => throw roomNotFound);
@@ -411,4 +427,193 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  group('D157 recent searches', () {
+    testWidgets('staging-like (no trends, no hashtags, no lives): the search '
+        "home with this device's history; no hint then", (tester) async {
+      await pump(
+        tester,
+        terms: const [],
+        tags: const [],
+        rooms: const [],
+        recent: const ['karaoke', 'Petra'],
+      );
+      expect(find.byType(SearchHome), findsOneWidget);
+      expect(find.byKey(SearchHome.recentKey), findsOneWidget);
+      expect(find.text(_en.searchRecentTitle), findsOneWidget);
+      expect(find.byKey(SearchHome.recentTermKey('karaoke')), findsOneWidget);
+      expect(find.byKey(SearchHome.recentTermKey('Petra')), findsOneWidget);
+      expect(find.byKey(SearchHome.hintKey), findsNothing);
+      expect(find.byKey(SearchHome.hotKey), findsNothing);
+      expect(find.byType(KEmptyState), findsNothing);
+    });
+
+    testWidgets('a submitted search, a hot term and an opened result go to '
+        'the front of the history, once each; kept on the device', (
+      tester,
+    ) async {
+      final repo = FakePostsRepository()
+        ..people = const [
+          UserSummary(
+            id: 'u1',
+            username: 'karaoke_k1',
+            displayName: 'Karaoke King',
+            avatarUrl: null,
+          ),
+        ];
+      final (_, router) = await pump(tester, repo: repo);
+      expect(find.byKey(SearchHome.recentKey), findsNothing);
+
+      await tester.enterText(find.byKey(DiscoverScreen.fieldKey), '  #Petra ');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(_saved(), ['Petra']);
+
+      await tester.tap(find.byKey(DiscoverScreen.clearKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(SearchHome.recentTermKey('Petra')), findsOneWidget);
+      // Above Hot Searches.
+      expect(
+        tester.getTopLeft(find.byKey(SearchHome.recentKey)).dy,
+        lessThan(tester.getTopLeft(find.byKey(SearchHome.hotKey)).dy),
+      );
+
+      await tester.tap(find.byKey(SearchHome.hotRowKey('karaoke')));
+      await tester.pumpAndSettle();
+      expect(_saved(), ['karaoke', 'Petra']);
+      await tester.tap(find.byKey(DiscoverScreen.userKey('karaoke_k1')));
+      await tester.pumpAndSettle();
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(_saved(), ['karaoke', 'Petra'], reason: 'no duplicates');
+
+      // The same query in other letters replaces the old one.
+      await tester.enterText(find.byKey(DiscoverScreen.fieldKey), 'petra');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(_saved(), ['petra', 'karaoke']);
+    });
+
+    testWidgets('a chip searches again; ✕ forgets one; Clear all forgets '
+        'all', (tester) async {
+      final repo = FakePostsRepository();
+      await pump(tester, repo: repo, recent: const ['alpha', 'beta', 'gamma']);
+      await tester.tap(find.byKey(SearchHome.recentTermKey('beta')));
+      await tester.pumpAndSettle();
+      final field = tester.widget<TextField>(
+        find.byKey(DiscoverScreen.fieldKey),
+      );
+      expect(field.controller!.text, 'beta');
+      expect(repo.calls, contains('search:users:beta:'));
+      expect(_saved(), ['beta', 'alpha', 'gamma']);
+      expect(repo.recorded, isEmpty, reason: 'history is not a trend count');
+      await tester.tap(find.byKey(DiscoverScreen.clearKey));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(SearchHome.recentRemoveKey('alpha')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(SearchHome.recentTermKey('alpha')), findsNothing);
+      expect(_saved(), ['beta', 'gamma']);
+      expect(find.byTooltip(_en.searchRecentRemove('gamma')), findsOneWidget);
+
+      await tester.tap(find.byKey(SearchHome.recentClearKey));
+      await tester.pumpAndSettle();
+      expect(find.byKey(SearchHome.recentKey), findsNothing);
+      expect(_saved(), isNull);
+      // The other sections are untouched.
+      expect(find.byKey(SearchHome.hotKey), findsOneWidget);
+    });
+
+    test('at most ten, newest first, per account', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          currentUserProvider.overrideWithValue(testUser()),
+        ],
+      );
+      addTearDown(container.dispose);
+      final recent = container.read(recentSearchesProvider.notifier);
+      for (var i = 0; i < 12; i++) {
+        recent.add('term $i');
+      }
+      expect(container.read(recentSearchesProvider), [
+        for (var i = 11; i >= 2; i--) 'term $i',
+      ]);
+      expect(RecentSearchesController.maxCount, 10);
+      recent.add('   ');
+      expect(container.read(recentSearchesProvider).length, 10);
+
+      // Another account on the phone sees none of them.
+      final other = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          currentUserProvider.overrideWithValue(
+            testUser().copyWith(id: 'someone-else'),
+          ),
+        ],
+      );
+      addTearDown(other.dispose);
+      expect(other.read(recentSearchesProvider), isEmpty);
+    });
+
+    testWidgets('Arabic RTL: the title at the start (right), Clear all at '
+        'the end; Latin terms read left to right', (tester) async {
+      await pump(
+        tester,
+        language: AppLanguage.ar,
+        recent: const ['طبخ', 'karaoke'],
+      );
+      final title = tester.getRect(find.text(_ar.searchRecentTitle));
+      final clear = tester.getRect(find.byKey(SearchHome.recentClearKey));
+      expect(title.right, greaterThan(clear.right));
+      final first = tester.getRect(find.byKey(SearchHome.recentTermKey('طبخ')));
+      final second = tester.getRect(
+        find.byKey(SearchHome.recentTermKey('karaoke')),
+      );
+      expect(first.top, second.top, reason: 'one line');
+      expect(first.left, greaterThan(second.left), reason: 'newest first');
+      final latin = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(SearchHome.recentTermKey('karaoke')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(latin.textDirection, TextDirection.ltr);
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final language in AppLanguage.values) {
+      testWidgets('${language.name} at 360 dp, text scale 1.3: long recent '
+          'terms and the hint do not overflow', (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await pump(
+          tester,
+          language: language,
+          viewport: GoldenViewport.android,
+          recent: const [
+            'a very long recent search term that cannot fit on one line',
+            'pk',
+          ],
+        );
+        expect(tester.takeException(), isNull);
+        await pump(
+          tester,
+          language: language,
+          viewport: GoldenViewport.android,
+          terms: const [],
+          tags: const [],
+          rooms: const [],
+        );
+        expect(find.byKey(SearchHome.hintKey), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  });
 }
+
+final _recentKey = 'pref.recentSearches.${testUser().id}';
+late SharedPreferences _prefs;
+List<String>? _saved() => _prefs.getStringList(_recentKey);

@@ -196,4 +196,25 @@ void main() {
       expect(await fx.diagnostics(), isNull);
     },
   );
+
+  test('D157: the fill light goes to the colour stage (the published '
+      'picture), alone or with a filter; off sends no matrix', () async {
+    final bridge = _FakeBridge();
+    final fx = LiveCameraFx(bridge: bridge, licenseKey: '');
+    await fx.attach('t1');
+    bridge.calls.clear();
+    await fx.update(const LiveBeauty(light: LiveFillLight.medium));
+    expect(bridge.calls, ['color:12']);
+    bridge.calls.clear();
+    await fx.update(
+      const LiveBeauty(
+        light: LiveFillLight.medium,
+        filter: LiveColorFilter.warm,
+      ),
+    );
+    expect(bridge.calls, ['color:12']);
+    bridge.calls.clear();
+    await fx.update(const LiveBeauty());
+    expect(bridge.calls, ['color:none']);
+  });
 }

@@ -33,6 +33,12 @@ abstract final class GoLiveKeys {
 
   /// D144a: why the picked effect is off now, or that it is starting.
   static const effectStatus = Key('goLive.effect.status');
+
+  /// D157 fill light: one chip per level, and the line saying where the
+  /// light goes (the published picture, or the screen only).
+  static Key fillLightLevel(LiveFillLight l) =>
+      Key('goLive.fillLight.${l.name}');
+  static const fillLightNote = Key('goLive.fillLight.note');
 }
 
 const _white = Color(0xFFFFFFFF);
@@ -1162,6 +1168,88 @@ Future<void> showLiveFilterSheet(
   },
 );
 
+/// D157 fill light (front camera): its level — Off, Low, Medium, High.
+/// [onPicture]: the device lifts the published picture (viewers see it);
+/// else only a thin glow on the screen lights the face, and the sheet says
+/// so. The picture stays visible above the sheet while choosing.
+Future<void> showLiveFillLightSheet(
+  BuildContext context, {
+  required LiveFillLight level,
+  required bool onPicture,
+  required Color accent,
+  required ValueChanged<LiveFillLight> onChanged,
+}) => showModalBottomSheet<void>(
+  context: context,
+  backgroundColor: const Color(0x00000000),
+  barrierColor: const Color(0x22000000),
+  builder: (sheet) {
+    var value = level;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        final l10n = context.l10n;
+        final text = context.textStyles;
+        return LiveSheetFrame(
+          title: l10n.liveFillLightTitle,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KSpacing.lg,
+              0,
+              KSpacing.lg,
+              KSpacing.md,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  onPicture
+                      ? l10n.liveFillLightOnPicture
+                      : l10n.liveFillLightScreenOnly,
+                  key: GoLiveKeys.fillLightNote,
+                  textAlign: TextAlign.center,
+                  style: text.caption.copyWith(
+                    color: _white.withValues(alpha: 0.75),
+                  ),
+                ),
+                const SizedBox(height: KSpacing.md),
+                // One row, Off first (start side: right in Arabic).
+                Row(
+                  spacing: KSpacing.xs,
+                  children: [
+                    for (final l in LiveFillLight.values)
+                      Expanded(
+                        child: _EffectChip(
+                          key: GoLiveKeys.fillLightLevel(l),
+                          dense: true,
+                          label: liveFillLightLabel(l10n, l),
+                          selected: l == value,
+                          accent: accent,
+                          onTap: () {
+                            setState(() => value = l);
+                            onChanged(l);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  },
+);
+
+/// The name of fill-light [level] in the person's language.
+String liveFillLightLabel(AppLocalizations l10n, LiveFillLight level) =>
+    switch (level) {
+      LiveFillLight.off => l10n.liveFillLightOff,
+      LiveFillLight.low => l10n.liveFillLightLow,
+      LiveFillLight.medium => l10n.liveFillLightMedium,
+      LiveFillLight.high => l10n.liveFillLightHigh,
+    };
+
 /// The name of [effect] in the person's language.
 String liveEffectLabel(AppLocalizations l10n, LiveArEffect effect) =>
     switch (effect) {
@@ -1274,19 +1362,23 @@ class _EffectsSection extends StatelessWidget {
 
 class _EffectChip extends StatelessWidget {
   const new({
-    required this.icon,
     required this.label,
     required this.selected,
     required this.accent,
     required this.onTap,
     super.key,
+    this.icon,
+    this.dense = false,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final String label;
   final bool selected;
   final Color accent;
   final VoidCallback? onTap;
+
+  /// D157: tighter padding, content centred (four in one row, words only).
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -1304,8 +1396,8 @@ class _EffectChip extends StatelessWidget {
           opacity: enabled ? 1 : 0.45,
           child: Container(
             constraints: const BoxConstraints(minHeight: 40),
-            padding: const EdgeInsets.symmetric(
-              horizontal: KSpacing.md,
+            padding: EdgeInsets.symmetric(
+              horizontal: dense ? KSpacing.sm : KSpacing.md,
               vertical: KSpacing.xs,
             ),
             decoration: BoxDecoration(
@@ -1318,9 +1410,12 @@ class _EffectChip extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 18, color: _white),
-                const SizedBox(width: KSpacing.xs),
+                if (icon case final icon?) ...[
+                  Icon(icon, size: 18, color: _white),
+                  const SizedBox(width: KSpacing.xs),
+                ],
                 Flexible(
                   child: Text(
                     label,

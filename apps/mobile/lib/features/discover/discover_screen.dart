@@ -9,6 +9,7 @@ import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/design_system/design_system.dart';
+import 'package:kabso_live/features/discover/recent_searches.dart';
 import 'package:kabso_live/features/discover/search_home.dart';
 import 'package:kabso_live/features/posts/application/search_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -29,6 +30,10 @@ import 'package:material_ui/material_ui.dart';
 /// under an empty field the [SearchHome] (hot searches, hot hashtags, lives)
 /// with the hint rotating through the trending terms. A submitted search,
 /// or one whose result is opened, is counted for trends (§11.11).
+///
+/// D157: the search home always shows under an empty field (its Recent
+/// searches come from this device: a submitted query, a tapped hot or recent
+/// term, or one whose result is opened).
 class DiscoverScreen extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -82,7 +87,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
   void _coveredChanged(AnimationStatus status) {
-    if (status == AnimationStatus.forward) _record(_query);
+    if (status != AnimationStatus.forward) return;
+    _record(_query);
+    // The push notifies while the tree builds: the provider changes after.
+    final q = _query;
+    unawaited(Future(() => mounted ? _remember(q) : null));
+  }
+
+  /// D157: into this device's recent searches.
+  void _remember(String query) {
+    if (query.isEmpty) return;
+    ref.read(recentSearchesProvider.notifier).add(query);
   }
 
   /// D147 `POST /search/queries`, once per query, never awaited: trends
@@ -120,14 +135,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     setState(() => _query = '');
   }
 
-  /// D147: a hot search: into the field, searched at once.
+  /// D147: a hot search (D157: or a recent one): into the field, searched
+  /// at once.
   void _searchTerm(String term) {
     _timer?.cancel();
     _field.value = TextEditingValue(
       text: term,
       selection: TextSelection.collapsed(offset: term.length),
     );
-    setState(() => _query = normalizeSearchQuery(term));
+    final q = normalizeSearchQuery(term);
+    setState(() => _query = q);
+    _remember(q);
   }
 
   void _cancel() {
@@ -201,6 +219,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                                 final q = normalizeSearchQuery(raw);
                                 setState(() => _query = q);
                                 _record(q);
+                                _remember(q);
                               },
                               style: fieldStyle,
                               decoration: InputDecoration(
@@ -304,17 +323,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ),
             Expanded(
               child: _query.isEmpty
-                  ? (searchHomeHasContent(ref)
-                        ? SearchHome(
-                            key: DiscoverScreen.promptKey,
-                            onSearchTerm: _searchTerm,
-                          )
-                        : KEmptyState(
-                            key: DiscoverScreen.promptKey,
-                            icon: Icons.search_rounded,
-                            title: l10n.searchPromptTitle,
-                            message: l10n.searchPromptBody,
-                          ))
+                  ? SearchHome(
+                      key: DiscoverScreen.promptKey,
+                      onSearchTerm: _searchTerm,
+                    )
                   : _Results(
                       key: ValueKey((_type, _query)),
                       type: _type,

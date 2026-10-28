@@ -14,6 +14,15 @@ List<double> _apply(LiveColorFilter f, List<double> rgb) {
   ];
 }
 
+/// Applies a row-major 3 × 4 [m] to an RGB colour in 0 … 1.
+List<double> _applyM(List<double> m, List<double> rgb) => [
+  for (var row = 0; row < 3; row++)
+    m[row * 4] * rgb[0] +
+        m[row * 4 + 1] * rgb[1] +
+        m[row * 4 + 2] * rgb[2] +
+        m[row * 4 + 3],
+];
+
 void main() {
   test('D143: natural is the identity (the published picture unchanged)', () {
     expect(LiveColorFilter.natural.matrix, [
@@ -82,5 +91,77 @@ void main() {
     expect(filtered, isNot(base));
     expect(filtered, base.copyWith(filter: LiveColorFilter.vivid));
     expect(base.copyWith(smooth: 0.2).filter, LiveColorFilter.natural);
+  });
+
+  group('D157 fill light', () {
+    test('off changes nothing; Natural with no light sends no matrix', () {
+      expect(LiveFillLight.off.matrix, liveIdentityMatrix);
+      expect(liveColorMatrix(LiveColorFilter.natural, LiveFillLight.off), null);
+      expect(const LiveBeauty().colorMatrix, isNull);
+      expect(
+        liveColorMatrix(LiveColorFilter.warm, LiveFillLight.off),
+        LiveColorFilter.warm.matrix,
+      );
+      expect(
+        liveColorMatrix(LiveColorFilter.natural, LiveFillLight.medium),
+        LiveFillLight.medium.matrix,
+      );
+    });
+
+    test('a soft, even lift with a slight warm tint, stronger per level, '
+        'never a wash-out', () {
+      const grey = [0.5, 0.5, 0.5];
+      const shadow = [0.15, 0.12, 0.1];
+      var last = _applyM(LiveFillLight.off.matrix, grey);
+      for (final level in [
+        LiveFillLight.low,
+        LiveFillLight.medium,
+        LiveFillLight.high,
+      ]) {
+        final g = _applyM(level.matrix, grey);
+        final luma = 0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2];
+        final lastLuma = 0.2126 * last[0] + 0.7152 * last[1] + 0.0722 * last[2];
+        expect(luma, greaterThan(lastLuma), reason: '$level brighter');
+        // Mid-grey gains at most ~0.15: a gentle exposure lift.
+        expect(luma, lessThan(0.66), reason: '$level stays gentle');
+        expect(g[0], greaterThan(g[2]), reason: '$level slightly warm');
+        expect(g[0] - g[2], lessThan(0.05), reason: '$level only slightly');
+        // Shadows are lifted too (a fill light), and stay dark.
+        final s = _applyM(level.matrix, shadow);
+        expect(s[1], greaterThan(shadow[1]));
+        expect(s[1], lessThan(0.25));
+        last = g;
+      }
+    });
+
+    test('the light comes before the filter (one colour stage)', () {
+      final m = liveColorMatrix(LiveColorFilter.mono, LiveFillLight.high)!;
+      const rgb = [0.6, 0.4, 0.3];
+      final expected = _apply(
+        LiveColorFilter.mono,
+        _applyM(LiveFillLight.high.matrix, rgb),
+      );
+      final got = _applyM(m, rgb);
+      for (var i = 0; i < 3; i++) {
+        expect(got[i], closeTo(expected[i], 1e-9));
+      }
+      expect(liveShaderMatrix(m).sublist(0, 3), [m[0], m[4], m[8]]);
+      expect(liveShaderOffset(m), [m[3], m[7], m[11]]);
+    });
+
+    test('the light rides with beauty (copyWith, equality, colorMatrix)', () {
+      const base = LiveBeauty(filter: LiveColorFilter.cool);
+      final lit = base.copyWith(light: LiveFillLight.low);
+      expect(lit, isNot(base));
+      expect(lit, base.copyWith(light: LiveFillLight.low));
+      expect(lit.hashCode, base.copyWith(light: LiveFillLight.low).hashCode);
+      expect(lit.copyWith(smooth: 0.1).light, LiveFillLight.low);
+      expect(
+        lit.colorMatrix,
+        liveColorMatrix(LiveColorFilter.cool, LiveFillLight.low),
+      );
+      expect(LiveFillLight.parse('high'), LiveFillLight.high);
+      expect(LiveFillLight.parse('nope'), LiveFillLight.medium);
+    });
   });
 }

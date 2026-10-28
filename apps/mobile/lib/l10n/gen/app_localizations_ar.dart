@@ -5966,6 +5966,29 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveFillLightNoTorch => 'هذه الكاميرا بلا كشاف.';
 
   @override
+  String get liveFillLightTitle => 'الإضاءة';
+
+  @override
+  String get liveFillLightOff => 'إيقاف';
+
+  @override
+  String get liveFillLightLow => 'خفيفة';
+
+  @override
+  String get liveFillLightMedium => 'متوسطة';
+
+  @override
+  String get liveFillLightHigh => 'قوية';
+
+  @override
+  String get liveFillLightOnPicture =>
+      'تُفتّح الإضاءة الصورة نفسها بلطف، فيراها مشاهدوك كما تراها.';
+
+  @override
+  String get liveFillLightScreenOnly =>
+      'على هذا الجهاز تضيء الشاشة وجهك بتوهّج خفيف عند الحواف؛ صورة البث لا تتغير.';
+
+  @override
   String get liveFilterTitle => 'فلاتر الألوان';
 
   @override
@@ -6720,6 +6743,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchCancel => 'إلغاء';
+
+  @override
+  String get searchRecentTitle => 'عمليات البحث الأخيرة';
+
+  @override
+  String get searchRecentClear => 'مسح الكل';
+
+  @override
+  String searchRecentRemove(String term) {
+    return 'إزالة «$term» من عمليات البحث الأخيرة';
+  }
 
   @override
   String get searchHotTitle => 'الأكثر بحثاً';

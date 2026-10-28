@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
+import 'package:kabso_live/features/discover/recent_searches.dart';
 import 'package:kabso_live/features/live/application/live_room_swipe.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -109,11 +110,13 @@ final FutureProvider<List<LiveRoomSummary>> searchLivesProvider =
       return page.data;
     });
 
-/// The search home under an empty field (D147, owner's layout reference):
+/// The search home under an empty field (D147, owner's layout reference),
+/// always shown there (D157): Recent searches (this device's history, D157),
 /// Hot Searches (`GET /search/trending`, hidden below 3 terms), Hot Take
 /// (the hashtags of the week; "More" when there are more than four) and You
 /// may like (popular lives). Each section is hidden while it has nothing
-/// real to show or fails to load; with nothing at all the prompt shows.
+/// real to show or fails to load — nothing is made up; with nothing at all a
+/// one-line hint shows in the layout (no big empty state).
 class SearchHome extends ConsumerWidget {
   const new({required this.onSearchTerm, super.key});
 
@@ -124,6 +127,12 @@ class SearchHome extends ConsumerWidget {
   static const topicsKey = Key('searchHome.topics');
   static const livesKey = Key('searchHome.lives');
   static const moreKey = Key('searchHome.more');
+  static const recentKey = Key('searchHome.recent');
+  static const recentClearKey = Key('searchHome.recent.clear');
+  static const hintKey = Key('searchHome.hint');
+  static Key recentTermKey(String term) => Key('searchHome.recent.$term');
+  static Key recentRemoveKey(String term) =>
+      Key('searchHome.recent.$term.remove');
   static Key hotRowKey(String term) => Key('searchHome.hot.$term');
   static Key topicKey(String tag) => Key('searchHome.topic.$tag');
   static Key liveKey(String id) => Key('searchHome.live.$id');
@@ -136,12 +145,40 @@ class SearchHome extends ConsumerWidget {
         ref.watch(trendingHashtagsProvider(KSearchHome.topicCount + 1)).value ??
         const [];
     final lives = ref.watch(searchLivesProvider).value ?? const [];
+    final recent = ref.watch(recentSearchesProvider);
     final showHot = hot.length >= KSearchHome.minHotSearches;
+    final loading = [
+      ref.watch(trendingSearchesProvider),
+      ref.watch(trendingHashtagsProvider(KSearchHome.topicCount + 1)),
+      ref.watch(searchLivesProvider),
+    ].any((a) => a.isLoading);
+    final nothing =
+        !loading &&
+        recent.isEmpty &&
+        !showHot &&
+        topics.isEmpty &&
+        lives.isEmpty;
     return CustomScrollView(
       slivers: [
+        if (recent.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _RecentSearches(
+              key: recentKey,
+              terms: recent,
+              onTap: onSearchTerm,
+              onRemove: ref.read(recentSearchesProvider.notifier).remove,
+              onClear: ref.read(recentSearchesProvider.notifier).clear,
+            ),
+          ),
+        if (nothing) const SliverToBoxAdapter(child: _Hint(key: hintKey)),
         if (showHot)
           SliverToBoxAdapter(
-            child: _HotSearches(key: hotKey, terms: hot, onTap: onSearchTerm),
+            child: _HotSearches(
+              key: hotKey,
+              terms: hot,
+              onTap: onSearchTerm,
+              topGap: recent.isNotEmpty,
+            ),
           ),
         if (topics.isNotEmpty)
           SliverToBoxAdapter(
@@ -149,7 +186,7 @@ class SearchHome extends ConsumerWidget {
               key: topicsKey,
               tags: topics.take(KSearchHome.topicCount).toList(),
               hasMore: topics.length > KSearchHome.topicCount,
-              topGap: showHot,
+              topGap: showHot || recent.isNotEmpty,
             ),
           ),
         if (lives.isNotEmpty) ...[
@@ -157,7 +194,7 @@ class SearchHome extends ConsumerWidget {
             child: _SectionTitle(
               key: livesKey,
               text: context.l10n.searchMayLikeTitle,
-              top: showHot || topics.isNotEmpty ? 22.1 : 0,
+              top: showHot || topics.isNotEmpty || recent.isNotEmpty ? 22.1 : 0,
             ),
           ),
           SliverPadding(
@@ -202,19 +239,6 @@ class SearchHome extends ConsumerWidget {
 TextDirection hashtagDirection(String tag) =>
     Bidi.detectRtlDirectionality(tag) ? TextDirection.rtl : TextDirection.ltr;
 
-/// True when the search home has something to show (or is still loading).
-bool searchHomeHasContent(WidgetRef ref) {
-  final hot = ref.watch(trendingSearchesProvider);
-  final topics = ref.watch(
-    trendingHashtagsProvider(KSearchHome.topicCount + 1),
-  );
-  final lives = ref.watch(searchLivesProvider);
-  if (hot.isLoading || topics.isLoading || lives.isLoading) return true;
-  return (hot.value?.length ?? 0) >= KSearchHome.minHotSearches ||
-      (topics.value?.isNotEmpty ?? false) ||
-      (lives.value?.isNotEmpty ?? false);
-}
-
 class _SectionTitle extends StatelessWidget {
   const new({
     required this.text,
@@ -240,42 +264,238 @@ class _SectionTitle extends StatelessWidget {
       end: KSearchHome.cancelEnd,
       top: top,
     ),
+    // The end widget keeps its own width; the title (and its icon) take
+    // the rest (D157: a long Arabic title is no longer cut at half).
     child: Row(
       children: [
-        Flexible(
-          child: Semantics(
-            header: true,
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.title.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                height: 1.2,
-                letterSpacing: -0.35,
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.title.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      letterSpacing: -0.35,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              ?trailing,
+            ],
           ),
         ),
-        ?trailing,
-        if (end case final e?) ...[const Spacer(), e],
+        if (end case final e?) ...[const SizedBox(width: KSpacing.sm), e],
       ],
     ),
   );
 }
 
+/// D157: this device's last searches as chips (a tap searches again, ✕
+/// forgets one), with Clear all.
+class _RecentSearches extends StatelessWidget {
+  const new({
+    required this.terms,
+    required this.onTap,
+    required this.onRemove,
+    required this.onClear,
+    super.key,
+  });
+
+  final List<String> terms;
+  final ValueChanged<String> onTap;
+  final ValueChanged<String> onRemove;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionTitle(
+          text: l10n.searchRecentTitle,
+          top: 0,
+          end: Semantics(
+            button: true,
+            child: InkWell(
+              key: SearchHome.recentClearKey,
+              onTap: onClear,
+              borderRadius: BorderRadius.circular(KRadius.xs),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 32, minWidth: 48),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    l10n.searchRecentClear,
+                    style: context.textStyles.body.copyWith(
+                      color: p.textTertiary,
+                      fontSize: 14.5,
+                      letterSpacing: -0.2,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(
+            start: KSearchHome.titleInset,
+            end: KSearchHome.titleInset,
+          ),
+          child: Wrap(
+            spacing: KSpacing.sm,
+            runSpacing: KSpacing.sm,
+            children: [
+              for (final term in terms)
+                _RecentChip(
+                  term: term,
+                  onTap: () => onTap(term),
+                  onRemove: () => onRemove(term),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentChip extends StatelessWidget {
+  const new({required this.term, required this.onTap, required this.onRemove});
+
+  static const double height = 34;
+
+  final String term;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final radius = BorderRadius.circular(KRadius.pill);
+    return Material(
+      color: p.surface,
+      borderRadius: radius,
+      child: SizedBox(
+        height: height,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Semantics(
+                button: true,
+                child: InkWell(
+                  key: SearchHome.recentTermKey(term),
+                  onTap: onTap,
+                  borderRadius: const BorderRadiusDirectional.horizontal(
+                    start: Radius.circular(KRadius.pill),
+                  ).resolve(Directionality.of(context)),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: KSpacing.md,
+                      end: KSpacing.xs,
+                    ),
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        term,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textDirection: hashtagDirection(term),
+                        style: context.textStyles.body.copyWith(
+                          fontSize: 14,
+                          height: 1.2,
+                          color: p.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              key: SearchHome.recentRemoveKey(term),
+              tooltip: context.l10n.searchRecentRemove(term),
+              onPressed: onRemove,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: height,
+                height: height,
+              ),
+              icon: Icon(Icons.close_rounded, size: 16, color: p.textTertiary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// D157: with nothing to show yet (no history, no trends, no hashtags of
+/// the week, no lives), one quiet line where the sections would be.
+class _Hint extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(
+        KSearchHome.titleInset,
+        KSpacing.sm,
+        KSearchHome.titleInset,
+        0,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 18, color: p.textTertiary),
+          const SizedBox(width: KSpacing.sm),
+          Expanded(
+            child: Text(
+              context.l10n.searchPromptBody,
+              style: context.textStyles.body.copyWith(
+                fontSize: 14,
+                height: 1.3,
+                color: p.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HotSearches extends StatelessWidget {
-  const new({required this.terms, required this.onTap, super.key});
+  const new({
+    required this.terms,
+    required this.onTap,
+    super.key,
+    this.topGap = false,
+  });
 
   final List<TrendingSearch> terms;
   final ValueChanged<String> onTap;
+
+  /// D157: below Recent searches.
+  final bool topGap;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _SectionTitle(text: context.l10n.searchHotTitle, top: 0),
+      _SectionTitle(text: context.l10n.searchHotTitle, top: topGap ? 19.9 : 0),
       const SizedBox(height: 8.6),
       for (final (i, t) in terms.indexed) ...[
         if (i > 0) const SizedBox(height: KSearchHome.rowGap),

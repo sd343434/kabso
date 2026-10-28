@@ -9,10 +9,12 @@ import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/core/storage/preferences.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_host_controller.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/go_live_screen.dart';
+import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -32,6 +34,7 @@ Future<void> _pump(
   GoldenViewport viewport = GoldenViewport.phone,
   List<LiveSeat>? onAir,
   int? roomLevel,
+  bool filters = true,
 }) async {
   final ar = language == AppLanguage.ar;
   final repo = FakeLiveRepository(
@@ -50,7 +53,11 @@ Future<void> _pump(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         liveRepositoryProvider.overrideWithValue(repo),
-        liveMediaEngineProvider.overrideWithValue(FakeLiveMediaEngine.new),
+        liveMediaEngineProvider.overrideWithValue(
+          filters
+              ? FakeLiveMediaEngine.new
+              : () => FakeLiveMediaEngine()..supportsFilters = false,
+        ),
         currentUserProvider.overrideWithValue(
           testUser(displayName: ar ? 'ليلى' : 'Layla').copyWith(canHost: true),
         ),
@@ -303,6 +310,39 @@ void main() {
         seats: 13,
       );
       await expectScreenGolden('go_live.audio13', language: language);
+    });
+
+    // D157: the fill light's level sheet over the setup (front camera).
+    testWidgets('go live: fill light sheet ($language)', (tester) async {
+      await _pump(tester, language: language, mode: LiveRoomMode.solo);
+      final tool = find.byKey(GoLiveKeys.tool('fillLight'));
+      await tester.ensureVisible(tool);
+      await tester.tap(tool);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(GoLiveKeys.fillLightLevel(LiveFillLight.medium)),
+      );
+      await tester.pumpAndSettle();
+      await expectScreenGolden('go_live.fill_light_sheet', language: language);
+    });
+
+    // D157: a device without a camera pipeline — the thin edge glow at its
+    // strongest level (no frame, the controls untouched).
+    testWidgets('go live: fill light edge glow ($language)', (tester) async {
+      await _pump(
+        tester,
+        language: language,
+        mode: LiveRoomMode.solo,
+        filters: false,
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LiveMiniWindow)),
+      );
+      await container
+          .read(liveHostControllerProvider.notifier)
+          .setFillLight(on: true, level: LiveFillLight.high);
+      await tester.pumpAndSettle();
+      await expectScreenGolden('go_live.fill_light_glow', language: language);
     });
   });
 }

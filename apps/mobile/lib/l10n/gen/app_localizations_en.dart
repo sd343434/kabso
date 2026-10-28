@@ -5941,6 +5941,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveFillLightNoTorch => 'This camera has no torch.';
 
   @override
+  String get liveFillLightTitle => 'Fill light';
+
+  @override
+  String get liveFillLightOff => 'Off';
+
+  @override
+  String get liveFillLightLow => 'Low';
+
+  @override
+  String get liveFillLightMedium => 'Medium';
+
+  @override
+  String get liveFillLightHigh => 'High';
+
+  @override
+  String get liveFillLightOnPicture =>
+      'Gently brightens the picture itself, so your viewers see it as you do.';
+
+  @override
+  String get liveFillLightScreenOnly =>
+      'On this device the screen lights your face with a soft glow at its edges; the broadcast picture doesn\'t change.';
+
+  @override
   String get liveFilterTitle => 'Colour filters';
 
   @override
@@ -6677,6 +6700,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchCancel => 'Cancel';
+
+  @override
+  String get searchRecentTitle => 'Recent searches';
+
+  @override
+  String get searchRecentClear => 'Clear all';
+
+  @override
+  String searchRecentRemove(String term) {
+    return 'Remove “$term” from recent searches';
+  }
 
   @override
   String get searchHotTitle => 'Hot Searches';
