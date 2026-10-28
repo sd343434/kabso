@@ -62,8 +62,8 @@ class LiveGiftEffects extends Notifier<LiveGiftEffectsState> {
 
   /// D145e (owner: a short ~3 s moment): the card's whole life, entrance to
   /// fade-out (was 4 s for the D132 pill). D159: the owner's win banner's
-  /// 3.2 s timeline.
-  static const luckyTime = Duration(milliseconds: 3200);
+  /// timeline, 3.5 s in his revision 2.
+  static const luckyTime = Duration(milliseconds: 3500);
 
   /// D159: wins waiting for their banner behind the one on screen; a bigger
   /// win takes the place of the smaller ones waiting.

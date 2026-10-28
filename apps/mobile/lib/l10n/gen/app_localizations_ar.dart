@@ -7429,4 +7429,14 @@ class AppLocalizationsAr extends AppLocalizations {
   ) {
     return '$label: $name ربح ⁦×$multiplier⁩، $coins عملة';
   }
+
+  @override
+  String liveWinBannerSent(String name, String gift) {
+    return '$name أرسل $gift';
+  }
+
+  @override
+  String liveWinBannerWon(String multiplier, String coins) {
+    return 'ربح $multiplier وحصل على $coins';
+  }
 }

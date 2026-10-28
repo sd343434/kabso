@@ -1,11 +1,12 @@
 // D159 (owner, 2026-10-28: «الإطار الخاص بهدية المكسب غيّره واجعلها بهذا
-// الشكل، وكل مكسب له شكل معين», with his `kabso_win_banner.dart` and four
-// frames):
+// الشكل، وكل مكسب له شكل معين», with his `kabso_win_banner` package,
+// revision 2: a medallion and a message bar):
 // - a lucky win is announced in its tier's frame — sapphire «فوز» ×5…×25,
-//   ruby «فوز كبير» ×50…×100, amethyst «فوز ضخم» ×250, onyx «جاكبوت»
-//   ×500…×1000 — avatar, name, label, ×N and the coins counting up; it
-//   slides in from the reading start and out to the reading end; reduced
-//   motion: still, then a fade;
+//   ruby «فوز كبير» ×50…×100, amethyst «فوز ضخم» ×250, onyx «جاكبوت» ×500
+//   and «سوبر جاكبوت» ×1000 — ×N and the label in the medallion, «name
+//   أرسل gift» / «ربح ×N وحصل على N» with the coins counting up; it slides
+//   in from the reading start and out to the reading end (the art mirrored
+//   in English); reduced motion: still, then a fade;
 // - the room's `lucky-win` messages (the server's ×100+ rule) and the
 //   sender's own wins of every tier (from the send's answer); one at a
 //   time, a bigger win replaces smaller ones waiting, at most 3 wait;
@@ -20,7 +21,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
-import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/live/application/live_gift_effects.dart';
 import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
@@ -124,6 +124,7 @@ Future<void> _pumpBanner(
   LuckyWin win, {
   AppLanguage language = AppLanguage.en,
   GoldenViewport viewport = GoldenViewport.android,
+  String? giftName = 'Lucky coin',
 }) async {
   setViewport(tester, viewport);
   await pumpScreen(
@@ -140,6 +141,7 @@ Future<void> _pumpBanner(
             child: Center(
               child: LiveWinBanner(
                 win: win,
+                giftName: giftName,
                 width: LiveWinBanner.widthOn(viewport.logicalSize.width),
               ),
             ),
@@ -195,7 +197,8 @@ void main() {
       );
     });
 
-    test('labels: «فوز», «فوز كبير», «فوز ضخم», «جاكبوت» / WIN … JACKPOT', () {
+    test('labels: «فوز», «فوز كبير», «فوز ضخم», «جاكبوت» / WIN … JACKPOT; '
+        '×1000 «سوبر جاكبوت» / SUPER JACKPOT', () {
       final ar = l10nFor(AppLanguage.ar);
       final en = l10nFor(AppLanguage.en);
       expect(
@@ -206,6 +209,15 @@ void main() {
         [for (final t in LuckyWinTier.values) LuckyWinTierArt.label(en, t)],
         ['WIN', 'BIG WIN', 'HUGE WIN', 'JACKPOT'],
       );
+      for (final (l10n, jackpot, superJackpot) in [
+        (ar, 'جاكبوت', 'سوبر جاكبوت'),
+        (en, 'JACKPOT', 'SUPER JACKPOT'),
+      ]) {
+        expect(LuckyWinTierArt.labelOf(l10n, 500), jackpot);
+        expect(LuckyWinTierArt.labelOf(l10n, 999), jackpot);
+        expect(LuckyWinTierArt.labelOf(l10n, 1000), superJackpot);
+        expect(LuckyWinTierArt.labelOf(l10n, 250), l10n.liveWinTierHuge);
+      }
     });
 
     test("the MAX X celebration takes its tier's colours (jewel ribbon, "
@@ -229,71 +241,83 @@ void main() {
     for (final language in AppLanguage.values) {
       for (final viewport in GoldenViewport.values) {
         for (final (m, coins, tier) in cases) {
-          testWidgets('${language.name} ${viewport.name} ×$m: the $tier frame, '
-              'avatar, name, label, ×N, coins counting up; slides in from '
-              'the reading start and out to the reading end', (tester) async {
-            final l10n = l10nFor(language);
-            await _pumpBanner(
-              tester,
-              _win(multiplier: m, coins: coins),
-              language: language,
-              viewport: viewport,
-            );
-            final width = viewport.logicalSize.width;
-            final rest = (width - LiveWinBanner.widthOn(width)) / 2;
-            final image = tester.widget<Image>(
-              find.byKey(LiveWinBanner.frameKey),
-            );
-            expect((image.image as AssetImage).assetName, tier.frame);
-            // Entering: still off its place, on the reading-start side.
-            await tester.pump(const Duration(milliseconds: 120));
-            final rtl = language == AppLanguage.ar;
-            final entering = _frame(tester).left;
-            rtl
-                ? expect(entering, greaterThan(rest + 20))
-                : expect(entering, lessThan(rest - 20));
-            // At rest: whole on screen, centred.
-            await _run(tester, const Duration(milliseconds: 900));
-            final r = _frame(tester);
-            expect(r.left, closeTo(rest, .5));
-            expect(r.right, lessThanOrEqualTo(width));
-            expect(_text(tester, LiveWinBanner.nameKey), 'Oz Nabulsi');
-            expect(
-              _text(tester, LiveWinBanner.labelKey),
-              LuckyWinTierArt.label(l10n, tier),
-            );
-            expect(
-              _text(tester, LiveWinBanner.numberKey),
-              '×${m == 1000 ? '1,000' : m}',
-            );
-            expect(find.byType(KAvatar), findsOneWidget);
-            // The avatar sits at the reading start of the panel.
-            final avatar = tester.getCenter(find.byType(KAvatar));
-            final number = tester.getCenter(
-              find.byKey(LiveWinBanner.numberKey),
-            );
-            rtl
-                ? expect(avatar.dx, greaterThan(number.dx))
-                : expect(avatar.dx, lessThan(number.dx));
-            // Coins: counting at 0.9 s, all of it after 1.3 s.
-            expect(
-              _text(tester, LiveWinBanner.coinsKey),
-              isNot('+${_grouped(coins)}'),
-            );
-            await _run(tester, const Duration(milliseconds: 500));
-            expect(
-              _text(tester, LiveWinBanner.coinsKey),
-              '+${_grouped(coins)}',
-            );
-            // Leaving (2.75–3.15 s): toward the reading end.
-            await _run(tester, const Duration(milliseconds: 1500));
-            final leaving = _frame(tester).left;
-            rtl
-                ? expect(leaving, lessThan(rest - 20))
-                : expect(leaving, greaterThan(rest + 20));
-            expect(tester.takeException(), isNull);
-            await _run(tester, const Duration(milliseconds: 400));
-          });
+          testWidgets(
+            '${language.name} ${viewport.name} ×$m: the $tier frame, '
+            'medallion ×N and label, name, gift, coins counting up; slides in '
+            'from the reading start and out to the reading end',
+            (tester) async {
+              final l10n = l10nFor(language);
+              await _pumpBanner(
+                tester,
+                _win(multiplier: m, coins: coins),
+                language: language,
+                viewport: viewport,
+              );
+              final width = viewport.logicalSize.width;
+              final rest = (width - LiveWinBanner.widthOn(width)) / 2;
+              final image = tester.widget<Image>(
+                find.byKey(LiveWinBanner.frameKey),
+              );
+              expect((image.image as AssetImage).assetName, tier.frame);
+              // Entering: still off its place, on the reading-start side.
+              await tester.pump(const Duration(milliseconds: 120));
+              final rtl = language == AppLanguage.ar;
+              final entering = _frame(tester).left;
+              rtl
+                  ? expect(entering, greaterThan(rest + 20))
+                  : expect(entering, lessThan(rest - 20));
+              // At rest: whole on screen, centred.
+              await _run(tester, const Duration(milliseconds: 900));
+              final r = _frame(tester);
+              expect(r.left, closeTo(rest, .5));
+              expect(r.right, lessThanOrEqualTo(width));
+              expect(_text(tester, LiveWinBanner.nameKey), 'Oz Nabulsi');
+              expect(
+                _text(tester, LiveWinBanner.labelKey),
+                LuckyWinTierArt.labelOf(l10n, m),
+              );
+              expect(_text(tester, LiveWinBanner.giftKey), 'Lucky coin');
+              expect(
+                _text(tester, LiveWinBanner.numberKey),
+                '×${m == 1000 ? '1,000' : m}',
+              );
+              // The message at the reading start, the medallion at the end
+              // (the owner's art, mirrored in English); the label inside the
+              // medallion.
+              final name = tester.getCenter(find.byKey(LiveWinBanner.nameKey));
+              final number = tester.getRect(
+                find.byKey(LiveWinBanner.numberKey),
+              );
+              rtl
+                  ? expect(name.dx, greaterThan(number.center.dx))
+                  : expect(name.dx, lessThan(number.center.dx));
+              final medallion = Rect.fromCircle(
+                center:
+                    r.topLeft +
+                    Offset((rtl ? .186 : 1 - .186) * r.width, .563 * r.height),
+                radius: .086 * r.width + .5,
+              );
+              final label = tester.getRect(find.byKey(LiveWinBanner.labelKey));
+              expect(medallion.left, lessThanOrEqualTo(label.left));
+              expect(medallion.right, greaterThanOrEqualTo(label.right));
+              expect(medallion.contains(number.center), isTrue);
+              // Coins: counting at 1.0 s, all of it after 1.4 s.
+              expect(
+                _text(tester, LiveWinBanner.coinsKey),
+                isNot(_grouped(coins)),
+              );
+              await _run(tester, const Duration(milliseconds: 500));
+              expect(_text(tester, LiveWinBanner.coinsKey), _grouped(coins));
+              // Leaving (3.05–3.45 s): toward the reading end.
+              await _run(tester, const Duration(milliseconds: 1800));
+              final leaving = _frame(tester).left;
+              rtl
+                  ? expect(leaving, lessThan(rest - 20))
+                  : expect(leaving, greaterThan(rest + 20));
+              expect(tester.takeException(), isNull);
+              await _run(tester, const Duration(milliseconds: 400));
+            },
+          );
         }
       }
     }
@@ -320,6 +344,18 @@ void main() {
       }
     });
 
+    testWidgets('no gift name known: «هدية» / "a gift"', (tester) async {
+      for (final language in AppLanguage.values) {
+        await _pumpBanner(tester, _win(), language: language, giftName: null);
+        await _run(tester, const Duration(milliseconds: 1000));
+        expect(
+          _text(tester, LiveWinBanner.giftKey),
+          l10nFor(language).liveGiftGeneric,
+        );
+        await _run(tester, const Duration(seconds: 3));
+      }
+    });
+
     testWidgets('reduced motion: no slide, no sweep, no sparkles; the whole '
         'amount at once; still, then a fade', (tester) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
@@ -330,7 +366,7 @@ void main() {
       await _pumpBanner(tester, _win(coins: 7725), language: AppLanguage.ar);
       await tester.pump(const Duration(milliseconds: 30));
       final first = _frame(tester);
-      expect(_text(tester, LiveWinBanner.coinsKey), '+7,725');
+      expect(_text(tester, LiveWinBanner.coinsKey), '7,725');
       expect(
         find.descendant(of: _banner, matching: find.byType(ShaderMask)),
         // Only the ×N's gold fill; no light sweep over the frame.
@@ -342,8 +378,8 @@ void main() {
         find.descendant(of: _banner, matching: find.byType(Opacity)).first,
       );
       expect(opacity().opacity, 1);
-      // Fading over the last 0.4 s of its 3.2 s.
-      await tester.pump(const Duration(milliseconds: 1400));
+      // Fading over the last 0.4 s of its 3.5 s.
+      await tester.pump(const Duration(milliseconds: 1700));
       expect(opacity().opacity, inExclusiveRange(.3, .8));
       await tester.pump(const Duration(milliseconds: 260));
       expect(opacity().opacity, lessThan(.05));

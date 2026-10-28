@@ -90,6 +90,7 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                     child: LiveWinBanner(
                       key: ValueKey('lucky.${win.giftId}'),
                       win: win,
+                      giftName: catalogue?.byCode(win.giftCode)?.name,
                       width: bannerWidth,
                     ),
                   ),

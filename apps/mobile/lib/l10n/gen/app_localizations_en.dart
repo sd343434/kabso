@@ -7390,4 +7390,14 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return '$label: $name won ×$multiplier, $coins coins';
   }
+
+  @override
+  String liveWinBannerSent(String name, String gift) {
+    return '$name sent $gift';
+  }
+
+  @override
+  String liveWinBannerWon(String multiplier, String coins) {
+    return 'won $multiplier and got $coins';
+  }
 }

@@ -12738,6 +12738,18 @@ abstract class AppLocalizations {
     String multiplier,
     String coins,
   );
+
+  /// D159 rev 2: the win banner's first line (the owner's «Oz Nabulsi أرسل عملة الحظ»); name and gift are drawn as separate pieces.
+  ///
+  /// In ar, this message translates to:
+  /// **'{name} أرسل {gift}'**
+  String liveWinBannerSent(String name, String gift);
+
+  /// D159 rev 2: the win banner's second line (the owner's «ربح x100 وحصل على 17,500 🪙»); multiplier (×N) and coins are drawn as separate gold pieces, the coin icon follows.
+  ///
+  /// In ar, this message translates to:
+  /// **'ربح {multiplier} وحصل على {coins}'**
+  String liveWinBannerWon(String multiplier, String coins);
 }
 
 class _AppLocalizationsDelegate

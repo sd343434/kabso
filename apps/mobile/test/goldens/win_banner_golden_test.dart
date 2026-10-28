@@ -1,6 +1,7 @@
-// D159 goldens: the owner's four win banners (sapphire ×10, ruby ×100,
-// amethyst ×250, onyx ×1000) in ar and en, still (reduced motion: the
-// banner at rest, the whole amount), on the audio room's purple.
+// D159 goldens (owner's revision 2): the four win banners (sapphire ×10,
+// ruby ×100, amethyst ×250, onyx ×1000 «سوبر جاكبوت») in ar and en, still
+// (reduced motion: the banner at rest, the whole amount), on the audio
+// room's purple.
 // Regenerate on Linux with the pinned Flutter:
 //   flutter test --update-goldens test/goldens/win_banner_golden_test.dart
 @Tags(['golden'])
@@ -10,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kabso_live/app/app.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
 import 'package:kabso_live/core/models/shared_models.dart';
+import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -78,6 +80,9 @@ void main() {
                     Center(
                       child: LiveWinBanner(
                         win: _win(m, coins, name),
+                        giftName: language == AppLanguage.ar
+                            ? 'عملة الحظ'
+                            : 'Lucky coin',
                         width: width,
                       ),
                     ),

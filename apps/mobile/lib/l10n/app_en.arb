@@ -2412,5 +2412,7 @@
   "liveWatchNewSuggestion": "New suggestion: {title}",
   "liveWinTierWin": "WIN",
   "liveWinTierHuge": "HUGE WIN",
-  "liveWinBannerSemantics": "{label}: {name} won ×{multiplier}, {coins} coins"
+  "liveWinBannerSemantics": "{label}: {name} won ×{multiplier}, {coins} coins",
+  "liveWinBannerSent": "{name} sent {gift}",
+  "liveWinBannerWon": "won {multiplier} and got {coins}"
 }
