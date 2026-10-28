@@ -15,13 +15,15 @@ import { markReadSchema, updateNotificationSettingsSchema } from './notification
 
 /** `NotificationTarget` (openapi v1.5-social, CP-009). */
 export interface NotificationTargetDto {
-  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL';
+  type: 'POST' | 'COMMENT' | 'STORY' | 'USER' | 'FAMILY' | 'MEDAL' | 'PREMIUM_USERNAME';
   id: string;
   postId: string | null;
   thumbUrl: string | null;
   text: string | null;
   /** LIVE_SCHEDULED_SOON only (v1.14-live): the planned start. */
   startsAt?: string;
+  /** v1.28-live (D146) PREMIUM_USERNAME only: the period's end (EXPIRING) or the grace's (EXPIRED). */
+  endsAt?: string;
 }
 
 /** `Notification`. */
@@ -104,6 +106,8 @@ function visibleNotificationWhere(me: string): Prisma.NotificationWhereInput {
       { type: 'CONTENT_REMOVED' },
       // v1.21-live (CP-018): a medal the caller earned (system, no actor).
       { type: 'MEDAL_AWARDED' },
+      // v1.28-live (D146): the caller's premium username ends soon / ended (system, no actor).
+      { type: { in: ['PREMIUM_USERNAME_EXPIRING', 'PREMIUM_USERNAME_EXPIRED'] } },
       { type: 'POST_PUBLISHED', post: visiblePostWhere(me) },
       {
         type: { in: ACTOR_TYPES },
@@ -138,6 +142,7 @@ function include(me: string) {
     story: { select: { text: true, mediaAsset: true } },
     liveSchedule: { select: { title: true, startsAt: true } },
     family: { select: { name: true } },
+    premiumLease: { select: { username: true, expiresAt: true, graceUntil: true } },
   } satisfies Prisma.NotificationInclude;
 }
 type NotificationRow = Prisma.NotificationGetPayload<{ include: ReturnType<typeof include> }>;
@@ -250,6 +255,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       };
     }
     // v1.21-live (CP-018): the medal earned (the app reads its name and icon from GET /medals).
+    // v1.28-live (D146): the premium username whose period ends soon or ended.
+    if (row.premiumLease) {
+      const end =
+        row.type === 'PREMIUM_USERNAME_EXPIRED' ? row.premiumLease.graceUntil : row.premiumLease.expiresAt;
+      return {
+        type: 'PREMIUM_USERNAME',
+        id: row.premiumLease.username,
+        postId: null,
+        thumbUrl: null,
+        text: null,
+        ...(end ? { endsAt: end.toISOString() } : {}),
+      };
+    }
     if (row.medalCode !== null) {
       return { type: 'MEDAL', id: row.medalCode, postId: null, thumbUrl: null, text: null };
     }

@@ -23,6 +23,7 @@ import { LiveModule } from './modules/live/live.module.js';
 import { SocialModule } from './modules/social/social.module.js';
 import { PublicProfileModule } from './modules/users/profiles/public-profile.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { PremiumUsernamesModule } from './modules/premium-usernames/premium-usernames.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 import { CouplesModule } from './modules/couples/couples.module.js';
 import { FamiliesModule } from './modules/families/families.module.js';
@@ -67,6 +68,8 @@ export class AppModule {
         PublicProfileModule,
         // v1.19-live (DRAFT, CP-017).
         WalletModule,
+        // v1.28-live (D146): premium usernames and PUT /me/username.
+        PremiumUsernamesModule,
         // v1.21-live (DRAFT, CP-018).
         FamiliesModule,
         CouplesModule,

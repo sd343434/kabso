@@ -37,7 +37,7 @@ const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 describe('POST /auth/register', () => {
   // v1.2: register → 202 (no tokens), register/verify → 201 AuthResponse with a verified email.
   it('register → 202, verify → creates the account and returns AuthResponse', async () => {
-    const payload = newUser({ email: '  Mixed.Case@Example.COM ', username: 'mixed.case_user' });
+    const payload = newUser({ email: '  Mixed.Case@Example.COM ', username: 'mixed_case_user7' });
     const pending = await ctx.http.post('/api/v1/auth/register').send(payload);
     expect(pending.status).toBe(202);
     expect(pending.body).toEqual({ status: 'verification_pending' });
@@ -52,7 +52,7 @@ describe('POST /auth/register', () => {
       id: expect.stringMatching(UUID),
       email: 'mixed.case@example.com',
       emailVerified: true,
-      username: 'mixed.case_user',
+      username: 'mixed_case_user7',
       displayName: 'Test User',
       bio: null,
       avatarUrl: null,
@@ -197,11 +197,16 @@ describe('POST /auth/register', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects reserved usernames with USERNAME_TAKEN', async () => {
-    for (const username of ['admin', 'kabso', 'sup.port']) {
+  it('rejects reserved usernames (v1.28-live, D146: the new rule refuses them first)', async () => {
+    // Every reserved name is letters only, so the D146 rule answers before the reserved list.
+    for (const [username, issue] of [
+      ['admin', 'premium'],
+      ['kabso', 'premium'],
+      ['sup.port', 'invalid_format'],
+    ] as const) {
       const res = await ctx.http.post('/api/v1/auth/register').send(newUser({ username }));
-      expect(res.status).toBe(409);
-      expect(res.body.error.code).toBe('USERNAME_TAKEN');
+      expect(res.status).toBe(400);
+      expect(res.body.error.details).toEqual([{ field: 'username', issue }]);
     }
   });
 });

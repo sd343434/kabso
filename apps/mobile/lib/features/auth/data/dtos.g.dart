@@ -21,6 +21,7 @@ MeDto _$MeDtoFromJson(Map<String, dynamic> json) => MeDto(
   canHost: json['canHost'] as bool? ?? false,
   liveCoverUrl: json['liveCoverUrl'] as String?,
   country: json['country'] as String?,
+  premiumTier: premiumTierFromJson(json['premiumTier']),
 );
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
@@ -38,6 +39,7 @@ Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
   'canHost': instance.canHost,
   'liveCoverUrl': instance.liveCoverUrl,
   'country': instance.country,
+  'premiumTier': premiumTierToJson(instance.premiumTier),
 };
 
 AuthResponseDto _$AuthResponseDtoFromJson(Map<String, dynamic> json) =>

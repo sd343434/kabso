@@ -44,18 +44,27 @@ export interface PageDto<T> {
   page: { nextCursor: string | null; hasMore: boolean };
 }
 
-const PROFILE_SELECT = { username: true, displayName: true, avatarUrl: true } as const;
+const PROFILE_SELECT = { username: true, displayName: true, avatarUrl: true, premiumTier: true } as const;
 
 /** A user row with its profile → `UserSummary` (never an email). */
 export function userSummary(user: {
   id: string;
-  profile: { username: string; displayName: string; avatarUrl: string | null } | null;
+  profile: {
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    /** v1.28-live (D146); absent in older selects. */
+    premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER' | null;
+  } | null;
 }): UserSummaryDto {
+  const tier = user.profile?.premiumTier;
   return {
     id: user.id,
     username: user.profile?.username ?? '',
     displayName: user.profile?.displayName ?? '',
     avatarUrl: user.profile?.avatarUrl ?? null,
+    // v1.28-live (D146): only while the username is a premium one (absent otherwise).
+    ...(tier ? { premiumTier: tier } : {}),
   };
 }
 

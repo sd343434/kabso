@@ -63,6 +63,11 @@ String errorCodeMessage(AppLocalizations l10n, ErrorCode code) {
     ErrorCode.cpTaskNotCompleted => l10n.errorCpTaskNotCompleted,
     ErrorCode.cpPrivilegeLocked => l10n.errorCpPrivilegeLocked,
     ErrorCode.familyChatMuted => l10n.errorFamilyChatMuted,
+    ErrorCode.premiumUsernameUnavailable =>
+      l10n.errorPremiumUsernameUnavailable,
+    ErrorCode.premiumUsernamePriceChanged =>
+      l10n.errorPremiumUsernamePriceChanged,
+    ErrorCode.premiumUsernameActive => l10n.errorPremiumUsernameActive,
     ErrorCode.networkOffline => l10n.errorNetworkOffline,
     ErrorCode.networkTimeout => l10n.errorNetworkTimeout,
     ErrorCode.unknown => l10n.errorUnknown,

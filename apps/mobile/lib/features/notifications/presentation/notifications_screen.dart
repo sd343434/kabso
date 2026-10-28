@@ -17,6 +17,7 @@ import 'package:kabso_live/features/medals/presentation/medal_icon.dart';
 import 'package:kabso_live/features/notifications/application/notifications_controller.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
+import 'package:kabso_live/features/premium/presentation/premium_labels.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -277,6 +278,7 @@ class NotificationRow extends StatelessWidget {
     }
     if (item.type == NotificationType.medalAwarded) return AppRoutes.medals;
     return switch (target.type) {
+      NotificationTargetType.premiumUsername => AppRoutes.premium,
       NotificationTargetType.post => AppRoutes.post(target.id),
       NotificationTargetType.comment when target.postId != null =>
         AppRoutes.post(target.postId!, comments: true),
@@ -344,6 +346,16 @@ class NotificationRow extends StatelessWidget {
         final name? => l10n.notifMedalAwarded(KFormat.bidiIsolate(name)),
         null => l10n.notifMedalAwardedUnnamed,
       },
+      NotificationType.premiumUsernameExpiring =>
+        l10n.notificationPremiumExpiring(
+          item.target?.id ?? '',
+          premiumTimeLeft(
+            l10n,
+            (item.target?.endsAt ?? clock.now()).difference(clock.now()),
+          ),
+        ),
+      NotificationType.premiumUsernameExpired =>
+        l10n.notificationPremiumExpired(item.target?.id ?? ''),
       NotificationType.unknown => '',
     };
     return (text, item.type.isSystem ? null : who, name);
@@ -444,6 +456,9 @@ class NotificationRow extends StatelessWidget {
             child: Icon(
               item.type == NotificationType.contentRemoved
                   ? Icons.gpp_maybe_outlined
+                  : item.type.isSystem &&
+                        item.type != NotificationType.postPublished
+                  ? Icons.workspace_premium_rounded
                   : Icons.schedule_rounded,
               color: item.type == NotificationType.contentRemoved
                   ? p.error

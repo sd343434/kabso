@@ -39,6 +39,11 @@ enum NotificationType {
   /// v1.21-live (CP-018, system): you earned a medal (target: the medal
   /// code; its name and icon come from `GET /medals`).
   medalAwarded('MEDAL_AWARDED'),
+
+  /// v1.28-live (D146, system): your premium username ends soon / ended
+  /// (target: the username, `endsAt`).
+  premiumUsernameExpiring('PREMIUM_USERNAME_EXPIRING'),
+  premiumUsernameExpired('PREMIUM_USERNAME_EXPIRED'),
   unknown('');
 
   new(this.wire);
@@ -52,7 +57,11 @@ enum NotificationType {
 
   /// No actor: the app or moderation told you (always on).
   bool get isSystem =>
-      this == postPublished || this == contentRemoved || this == medalAwarded;
+      this == postPublished ||
+      this == contentRemoved ||
+      this == medalAwarded ||
+      this == premiumUsernameExpiring ||
+      this == premiumUsernameExpired;
 }
 
 /// `NotificationTarget.type`.
@@ -66,7 +75,10 @@ enum NotificationTargetType {
   family('FAMILY'),
 
   /// v1.21-live (CP-018): a medal (its code as the id).
-  medal('MEDAL');
+  medal('MEDAL'),
+
+  /// v1.28-live (D146): a premium username (the name as the id; `endsAt`).
+  premiumUsername('PREMIUM_USERNAME');
 
   new(this.wire);
 
@@ -89,6 +101,7 @@ class NotificationTarget {
     this.thumbUrl,
     this.text,
     this.startsAt,
+    this.endsAt,
   });
 
   factory fromJson(Map<String, dynamic> json) => NotificationTarget(
@@ -98,6 +111,10 @@ class NotificationTarget {
     thumbUrl: json['thumbUrl'] as String?,
     text: json['text'] as String?,
     startsAt: switch (json['startsAt']) {
+      final String at => DateTime.parse(at),
+      _ => null,
+    },
+    endsAt: switch (json['endsAt']) {
       final String at => DateTime.parse(at),
       _ => null,
     },
@@ -121,6 +138,10 @@ class NotificationTarget {
 
   /// [NotificationType.liveScheduledSoon]: when the live is planned.
   final DateTime? startsAt;
+
+  /// D146 [NotificationTargetType.premiumUsername]: the period's (or the
+  /// grace's) end.
+  final DateTime? endsAt;
 }
 
 /// `Notification`. Likes and reposts on one item group while unread

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/widgets/charm_level_badge.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
@@ -257,10 +258,19 @@ class KLiveRoomScaffold extends StatelessWidget {
 /// room number stays in the API (share links, support) — it is just not
 /// shown here any more.
 class KLiveUsernameTag extends StatelessWidget {
-  const new({required this.username, super.key, this.fontSize = 10});
+  const new({
+    required this.username,
+    super.key,
+    this.fontSize = 10,
+    this.premiumTier,
+  });
 
   final String username;
   final double fontSize;
+
+  /// D146: a premium username shows the owner's special-ID badge instead of
+  /// the plain text (the tier comes from the server).
+  final PremiumTier? premiumTier;
 
   static const tagKey = Key('live.usernameTag');
 
@@ -268,6 +278,30 @@ class KLiveUsernameTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final shown = '@$username';
+    if (premiumTier case final tier?) {
+      return Semantics(
+        button: true,
+        label: '$shown. ${l10n.liveRoomIdCopyHint}',
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: KSpecialUsername(
+              key: tagKey,
+              username: username,
+              tier: tier,
+              height: fontSize * 1.7,
+              onTap: () {
+                unawaited(Clipboard.setData(ClipboardData(text: shown)));
+                KSnack.info(context, l10n.liveUsernameCopied);
+              },
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
       label: '$shown. ${l10n.liveRoomIdCopyHint}',
@@ -419,11 +453,15 @@ class KHostPill extends StatefulWidget {
     this.onFollow,
     this.onTap,
     this.username,
+    this.premiumTier,
   });
 
   /// D141 (owner, replaces D135's room ID): the host's `@username` beside
   /// the name; a tap copies it ([KLiveUsernameTag]).
   final String? username;
+
+  /// D146: the host's premium username tier (the special-ID badge).
+  final PremiumTier? premiumTier;
 
   /// The visible stadium (D141: its top is [KMetrics.liveHeaderGap] under
   /// the status bar in every room).
@@ -615,7 +653,10 @@ class _KHostPillState extends State<KHostPill> {
                           // short (a narrow phone, large text).
                           Flexible(
                             flex: 2,
-                            child: KLiveUsernameTag(username: name),
+                            child: KLiveUsernameTag(
+                              username: name,
+                              premiumTier: widget.premiumTier,
+                            ),
                           ),
                         ],
                       ],

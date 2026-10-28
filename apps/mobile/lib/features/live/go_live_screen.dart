@@ -981,6 +981,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // D141 (owner): the host's @username (copy on tap), not the
           // room number.
           username: user?.username,
+          premiumTier: user?.premiumTier,
           minimizeKey: GoLiveScreen.minimizeKey,
           minimizeTooltip: l10n.goLiveMinimize,
           onMinimize: live ? _minimize : null,
@@ -1721,6 +1722,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: user?.username,
+        premiumTier: user?.premiumTier,
         hostName: hostName,
         avatar: avatarUrl == null ? null : NetworkImage(avatarUrl),
         lines: [

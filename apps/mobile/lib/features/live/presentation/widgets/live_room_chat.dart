@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/error/failure_messages.dart';
 import 'package:kabso_live/core/format/k_format.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/network/error_mapper.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
@@ -178,6 +179,8 @@ class LiveRoomChatLines extends ConsumerWidget {
         _mediaLine(context, ref, entry, entry.media!, boxMax),
       LiveChatPosted(:final entry) => LiveChatAuthoredLine(
         name: entry.author.displayName,
+        username: entry.author.username,
+        premiumTier: entry.author.premiumTier,
         avatarUrl: entry.author.avatarUrl,
         role: entry.authorRole,
         badges: entry.authorBadges,
@@ -213,6 +216,8 @@ class LiveRoomChatLines extends ConsumerWidget {
           opacity: failed ? 1 : 0.6,
           child: LiveChatAuthoredLine(
             name: authorName,
+            username: ref.watch(currentUserProvider)?.username,
+            premiumTier: ref.watch(currentUserProvider)?.premiumTier,
             avatarUrl: ref.watch(currentUserProvider)?.avatarUrl,
             maxWidth: boxMax,
             color: _messageBubble,
@@ -403,6 +408,8 @@ class LiveRoomChatLines extends ConsumerWidget {
     final voice = entry.kind == LiveChatKind.voice;
     return LiveChatAuthoredLine(
       name: name,
+      username: entry.author.username,
+      premiumTier: entry.author.premiumTier,
       avatarUrl: entry.author.avatarUrl,
       role: entry.authorRole,
       badges: entry.authorBadges,
@@ -605,9 +612,16 @@ class LiveChatAuthoredLine extends StatelessWidget {
     this.onProfile,
     this.onActions,
     this.mediaInside = false,
+    this.username,
+    this.premiumTier,
   });
 
   final String name;
+
+  /// D146: the author's username and premium tier; with a tier the line
+  /// shows the special-ID badge (still, no sweep) under the name.
+  final String? username;
+  final PremiumTier? premiumTier;
   final String? avatarUrl;
   final LiveChatRole? role;
   final LiveChatAuthorBadges? badges;
@@ -650,6 +664,9 @@ class LiveChatAuthoredLine extends StatelessWidget {
   static const boxKey = Key('liveChat.box');
   static const avatarKey = Key('liveChat.avatar');
   static const nameKey = Key('liveChat.name');
+
+  /// D146: the author's special-ID badge.
+  static const premiumKey = Key('liveChat.premium');
 
   /// The message (text, clip or picture) inside the box.
   static const bubbleKey = Key('liveChat.bubble');
@@ -727,6 +744,21 @@ class LiveChatAuthoredLine extends StatelessWidget {
                   ),
                 ),
               ),
+              if ((premiumTier, username) case (final tier?, final handle?))
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: KSpecialUsername(
+                      key: premiumKey,
+                      username: handle,
+                      tier: tier,
+                      height: 15,
+                      animate: false,
+                    ),
+                  ),
+                ),
               if (row.isNotEmpty) ...[const SizedBox(height: 4), row],
               const SizedBox(height: 5),
               KeyedSubtree(key: bubbleKey, child: message),

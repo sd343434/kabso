@@ -85,6 +85,9 @@ describe('ErrorCode', () => {
         // v1.27-live (DRAFT, D132)
         'LUCKY_GIFT_AGE_UNCONFIRMED',
         'LUCKY_GIFT_REGION_UNAVAILABLE',
+        'PREMIUM_USERNAME_UNAVAILABLE',
+        'PREMIUM_USERNAME_PRICE_CHANGED',
+        'PREMIUM_USERNAME_ACTIVE',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -140,6 +143,9 @@ describe('ErrorCode', () => {
       FAMILY_CHAT_MUTED: 403,
       LUCKY_GIFT_AGE_UNCONFIRMED: 403,
       LUCKY_GIFT_REGION_UNAVAILABLE: 403,
+      PREMIUM_USERNAME_UNAVAILABLE: 409,
+      PREMIUM_USERNAME_PRICE_CHANGED: 409,
+      PREMIUM_USERNAME_ACTIVE: 409,
     });
   });
 

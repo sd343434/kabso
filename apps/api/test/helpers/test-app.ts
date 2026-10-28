@@ -200,6 +200,10 @@ export function buildTestConfig(overrides: Record<string, string> = {}): AppConf
     POSTS_PUBLISH_INTERVAL_SECONDS: '0',
     NOTIFICATIONS_SWEEP_INTERVAL_SECONDS: '0',
     BONDS_SWEEP_INTERVAL_SECONDS: '0',
+    // D146: specs call PremiumUsernamesService.sweep() with a fake clock.
+    PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: '0',
+    RATE_LIMIT_PREMIUM_RENT_USER: GENEROUS,
+    RATE_LIMIT_USERNAME_CHANGE_USER: GENEROUS,
     // No background sweeper in tests: specs call LiveRoomsService.sweepStale() with a fake clock.
     LIVE_SWEEP_INTERVAL_SECONDS: '0',
     ...overrides,
@@ -339,7 +343,11 @@ let counter = 0;
 /** Unique, contract-valid registration payload. */
 export function newUser(overrides: Partial<Record<string, unknown>> = {}) {
   counter += 1;
-  const suffix = `${Date.now().toString(36)}${counter}`;
+  // D146: never a premium pattern (a run of three equal characters makes a name premium).
+  let name = `user${Date.now().toString(36)}${counter}`;
+  while (/(.)\1\1/.test(name))
+    name = name.replace(/(.)\1\1/, (_m, c: string) => `${c}${c}${c === 'q' ? 'v' : 'q'}`);
+  const suffix = name.slice(4);
   return {
     email: `user${suffix}@example.com`,
     password: 'correct horse battery staple',

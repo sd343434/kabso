@@ -780,6 +780,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).
         username: host.username,
+        premiumTier: host.premiumTier,
         hostName: host.displayName,
         avatar: avatar,
         lines: ended
@@ -1022,6 +1023,7 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                   // D141 (owner): the host's @username (copy on tap), not
                   // the room number.
                   username: host.username,
+                  premiumTier: host.premiumTier,
                   onTap: () => _person(_username),
                   action: canFollow
                       ? LiveRoundButton(
@@ -1561,11 +1563,19 @@ class _HostSheet extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        l10n.liveRoomUsername(profile.username),
-                        textDirection: TextDirection.ltr,
-                        style: text.body.copyWith(color: _Card.soft),
-                      ),
+                      // D146: a premium username wears its special-ID badge.
+                      if (profile.premiumTier case final tier?)
+                        KSpecialUsername(
+                          username: profile.username,
+                          tier: tier,
+                          height: 20,
+                        )
+                      else
+                        Text(
+                          l10n.liveRoomUsername(profile.username),
+                          textDirection: TextDirection.ltr,
+                          style: text.body.copyWith(color: _Card.soft),
+                        ),
                       const SizedBox(width: 4),
                       const Icon(
                         Icons.copy_rounded,

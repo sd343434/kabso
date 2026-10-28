@@ -375,6 +375,8 @@ String? usernameIssueMessage(AppLocalizations l10n, UsernameIssue? issue) =>
       UsernameIssue.tooShort => l10n.usernameTooShort,
       UsernameIssue.tooLong => l10n.usernameTooLong,
       UsernameIssue.badEdges => l10n.usernameBadEdges,
+      UsernameIssue.lettersAndDigits => l10n.usernameLettersAndDigits,
+      UsernameIssue.premium => l10n.usernamePremium,
     };
 
 /// A "question + link" row, e.g. "Don't have an account? Create account".

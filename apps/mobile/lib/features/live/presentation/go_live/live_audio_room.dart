@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:kabso_live/core/emoji/unicode_emoji.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/emoji/emoji_panel.dart';
 import 'package:kabso_live/features/emoji/kabi_emoji.dart';
@@ -652,6 +653,7 @@ class LiveAudioRoomHeader extends StatelessWidget {
     super.key,
     this.subtitle,
     this.username,
+    this.premiumTier,
     this.minimizeKey,
     this.endKey,
     this.onShare,
@@ -691,6 +693,9 @@ class LiveAudioRoomHeader extends StatelessWidget {
   /// D141 (owner): the host's `@username` under the title (copy on tap),
   /// in place of [subtitle].
   final String? username;
+
+  /// D146: the host's premium username tier (the special-ID badge).
+  final PremiumTier? premiumTier;
   final String minimizeTooltip;
   final VoidCallback? onMinimize;
   final String endTooltip;
@@ -774,7 +779,11 @@ class LiveAudioRoomHeader extends StatelessWidget {
                               ],
                             ),
                             if (username case final name?)
-                              KLiveUsernameTag(username: name, fontSize: 11)
+                              KLiveUsernameTag(
+                                username: name,
+                                fontSize: 11,
+                                premiumTier: premiumTier,
+                              )
                             else if (subtitle != null && subtitle.isNotEmpty)
                               Text(
                                 subtitle,

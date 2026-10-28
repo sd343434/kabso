@@ -34,6 +34,8 @@ export interface PublicProfileDto {
   medals: ProfileMedalsDto;
   /** v1.22-live (CP-019): the PROFILE_CARD the user wears, or null. */
   profileCard: ProfileCardDto | null;
+  /** v1.28-live (D146): the tier of the user's premium username; absent for a regular one. */
+  premiumTier?: 'LEGEND' | 'RUBY' | 'GOLD' | 'SILVER';
 }
 
 /**
@@ -86,6 +88,7 @@ export class PublicProfileService {
       avatarUrl: user.avatarUrl,
       bio: user.bio,
       isPrivate: user.isPrivate,
+      ...(user.premiumTier ? { premiumTier: user.premiumTier } : {}),
       followerCount: counts.followerCount,
       followingCount: counts.followingCount,
       isFollowing,

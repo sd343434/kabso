@@ -2,6 +2,7 @@
 // v1.3 `components.schemas`).
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 
 part 'shared_models.freezed.dart';
 part 'shared_models.g.dart';
@@ -23,6 +24,11 @@ abstract class UserSummary with _$UserSummary {
     required String username,
     required String displayName,
     required String? avatarUrl,
+
+    /// v1.28-live (D146): the tier of the user's premium username (the
+    /// badge), or null for a regular username. Only the server decides it.
+    @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
+    PremiumTier? premiumTier,
   }) = _UserSummary;
 
   factory fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);

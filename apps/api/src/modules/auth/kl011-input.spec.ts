@@ -20,7 +20,7 @@ function details(fn: () => unknown) {
 
 describe('free-text character policy (SEC-008, CONVENTIONS §6)', () => {
   const register = new ZodValidationPipe(registerSchema);
-  const base = { email: 'a@b.co', password: 'password1', username: 'abc' };
+  const base = { email: 'a@b.co', password: 'password1', username: 'abc123' };
 
   it.each([
     ['RLO bidi override', 'admin‮gnp.exe'],

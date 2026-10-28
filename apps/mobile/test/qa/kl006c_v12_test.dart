@@ -134,7 +134,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(RegisterScreen), findsOneWidget);
       await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
-      await tester.enterText(find.byKey(RegisterScreen.usernameKey), 'layla');
+      await tester.enterText(
+        find.byKey(RegisterScreen.usernameKey),
+        'layla_22',
+      );
       await tester.enterText(
         find.byKey(RegisterScreen.displayNameKey),
         'علی‌رضا 👨‍👩‍👧',
@@ -182,7 +185,7 @@ void main() {
           await tester.enterText(find.byKey(RegisterScreen.emailKey), 'a@b.co');
           await tester.enterText(
             find.byKey(RegisterScreen.usernameKey),
-            'layla',
+            'layla_22',
           );
           // Passes every client-side check; only the server rejects it.
           await tester.enterText(

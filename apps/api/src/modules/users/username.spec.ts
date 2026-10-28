@@ -3,13 +3,14 @@ import { usernameSchema } from '../auth/auth.schemas.js';
 import { isReservedUsername, isValidUsername, normalizeEmail, normalizeUsername } from './username.js';
 
 describe('username validation', () => {
-  it.each(['abc', 'a.b', 'a_b', 'user.name_99', '123', 'a'.repeat(30)])('accepts %s', (name) => {
+  // v1.28-live (D146): the stored / lookup shape is 1–30 (grandfathered and premium names).
+  it.each(['7', 'ab', 'abc', 'a.b', 'a_b', 'user.name_99', '123', 'a'.repeat(30)])('accepts %s', (name) => {
     expect(isValidUsername(name)).toBe(true);
     expect(usernameSchema.safeParse(name).success).toBe(true);
   });
 
   it.each([
-    ['too short', 'ab'],
+    ['one separator', '_'],
     ['too long', 'a'.repeat(31)],
     ['uppercase', 'Alice'],
     ['leading dot', '.abc'],

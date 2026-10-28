@@ -1,6 +1,7 @@
 // Wire DTOs matching docs/contracts/openapi.yaml exactly.
 
 import 'package:json_annotation/json_annotation.dart';
+import 'package:kabso_live/core/models/premium_tier.dart';
 import 'package:kabso_live/core/network/auth_tokens.dart';
 import 'package:kabso_live/features/auth/domain/entities.dart';
 
@@ -24,6 +25,7 @@ class MeDto {
     this.canHost = false,
     this.liveCoverUrl,
     this.country,
+    this.premiumTier,
   });
 
   factory fromJson(Map<String, dynamic> json) => _$MeDtoFromJson(json);
@@ -50,6 +52,10 @@ class MeDto {
   /// v1.27.1-live (D133): ISO 3166-1 alpha-2, or null.
   final String? country;
 
+  /// v1.28-live (D146): the premium username's tier; absent for a regular one.
+  @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)
+  final PremiumTier? premiumTier;
+
   Map<String, dynamic> toJson() => _$MeDtoToJson(this);
 
   User toEntity() => User(
@@ -67,6 +73,7 @@ class MeDto {
     canHost: canHost,
     liveCoverUrl: liveCoverUrl,
     country: country,
+    premiumTier: premiumTier,
   );
 }
 

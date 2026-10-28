@@ -289,7 +289,9 @@ as bool,
 /// @nodoc
 mixin _$UserSummary {
 
- String get id; String get username; String get displayName; String? get avatarUrl;
+ String get id; String get username; String get displayName; String? get avatarUrl;/// v1.28-live (D146): the tier of the user's premium username (the
+/// badge), or null for a regular username. Only the server decides it.
+@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? get premiumTier;
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -303,20 +305,20 @@ $UserSummaryCopyWith<UserSummary> get copyWith => _$UserSummaryCopyWithImpl<User
 @override
 bool operator ==(Object other) {
   final _this = this as UserSummary;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserSummary&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.displayName, _this.displayName) || other.displayName == _this.displayName)&&(identical(other.avatarUrl, _this.avatarUrl) || other.avatarUrl == _this.avatarUrl)&&(identical(other.premiumTier, _this.premiumTier) || other.premiumTier == _this.premiumTier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as UserSummary;
-  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl);
+  return Object.hash(runtimeType,_this.id,_this.username,_this.displayName,_this.avatarUrl,_this.premiumTier);
 }
 
 @override
 String toString() {
   final _this = this as UserSummary;
-  return 'UserSummary(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl})';
+  return 'UserSummary(id: ${_this.id}, username: ${_this.username}, displayName: ${_this.displayName}, avatarUrl: ${_this.avatarUrl}, premiumTier: ${_this.premiumTier})';
 }
 
 
@@ -327,7 +329,7 @@ abstract mixin class $UserSummaryCopyWith<$Res>  {
   factory $UserSummaryCopyWith(UserSummary value, $Res Function(UserSummary) _then) = _$UserSummaryCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl
+ String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier
 });
 
 
@@ -344,13 +346,14 @@ class _$UserSummaryCopyWithImpl<$Res>
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,}) {
   return _then(UserSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,displayName: null == displayName ? _self.displayName : displayName // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
+as PremiumTier?,
   ));
 }
 
@@ -435,10 +438,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserSummary() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier);case _:
   return orElse();
 
 }
@@ -456,10 +459,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case 
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier)  $default,) {final _that = this;
 switch (_that) {
 case _UserSummary():
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -476,10 +479,10 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case 
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String displayName,  String? avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson)  PremiumTier? premiumTier)?  $default,) {final _that = this;
 switch (_that) {
 case _UserSummary() when $default != null:
-return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case _:
+return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl,_that.premiumTier);case _:
   return null;
 
 }
@@ -491,13 +494,16 @@ return $default(_that.id,_that.username,_that.displayName,_that.avatarUrl);case 
 @JsonSerializable()
 
 class _UserSummary implements UserSummary {
-  const _UserSummary({required this.id, required this.username, required this.displayName, required this.avatarUrl});
+  const _UserSummary({required this.id, required this.username, required this.displayName, required this.avatarUrl, @JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) this.premiumTier});
   factory _UserSummary.fromJson(Map<String, dynamic> json) => _$UserSummaryFromJson(json);
 
 @override final  String id;
 @override final  String username;
 @override final  String displayName;
 @override final  String? avatarUrl;
+/// v1.28-live (D146): the tier of the user's premium username (the
+/// badge), or null for a regular username. Only the server decides it.
+@override@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) final  PremiumTier? premiumTier;
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -512,18 +518,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.premiumTier, premiumTier) || other.premiumTier == premiumTier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,id,username,displayName,avatarUrl);
+    return Object.hash(runtimeType,id,username,displayName,avatarUrl,premiumTier);
 }
 
 @override
 String toString() {
-    return 'UserSummary(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl)';
+    return 'UserSummary(id: $id, username: $username, displayName: $displayName, avatarUrl: $avatarUrl, premiumTier: $premiumTier)';
 }
 
 
@@ -534,7 +540,7 @@ abstract mixin class _$UserSummaryCopyWith<$Res> implements $UserSummaryCopyWith
   factory _$UserSummaryCopyWith(_UserSummary value, $Res Function(_UserSummary) _then) = __$UserSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String displayName, String? avatarUrl
+ String id, String username, String displayName, String? avatarUrl,@JsonKey(fromJson: premiumTierFromJson, toJson: premiumTierToJson) PremiumTier? premiumTier
 });
 
 
@@ -551,13 +557,14 @@ class __$UserSummaryCopyWithImpl<$Res>
 
 /// Create a copy of UserSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? displayName = null,Object? avatarUrl = freezed,Object? premiumTier = freezed,}) {
   return _then(_UserSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,displayName: null == displayName ? _self.displayName : displayName // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,premiumTier: freezed == premiumTier ? _self.premiumTier : premiumTier // ignore: cast_nullable_to_non_nullable
+as PremiumTier?,
   ));
 }
 

@@ -258,6 +258,9 @@ class ProfileBondsBlock extends StatelessWidget {
   /// The bag tile (own profile only, CP-019).
   static const bagKey = Key('profile.bonds.bag');
 
+  /// D146: the premium usernames tile (own profile only).
+  static const premiumKey = Key('profile.bonds.premium');
+
   @override
   Widget build(BuildContext context) {
     final profile = this.profile;
@@ -291,6 +294,18 @@ class ProfileBondsBlock extends StatelessWidget {
                 title: context.l10n.bagTitle,
                 value: context.l10n.bagTileValue,
                 onTap: () => context.push(AppRoutes.bag),
+              ),
+            ),
+          // D146: premium usernames (the store, and the person's own one).
+          if (profile.isSelf)
+            Padding(
+              padding: const EdgeInsets.only(top: KSpacing.sm),
+              child: _Tile(
+                key: premiumKey,
+                iconData: Icons.workspace_premium_rounded,
+                title: context.l10n.premiumTitle,
+                value: context.l10n.premiumTileValue,
+                onTap: () => context.push(AppRoutes.premium),
               ),
             ),
         ],

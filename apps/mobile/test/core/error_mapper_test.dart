@@ -66,6 +66,9 @@ const Map<ErrorCode, int> _statusFor = {
   ErrorCode.cpTaskNotCompleted: 409,
   ErrorCode.cpPrivilegeLocked: 403,
   ErrorCode.familyChatMuted: 403,
+  ErrorCode.premiumUsernameUnavailable: 409,
+  ErrorCode.premiumUsernamePriceChanged: 409,
+  ErrorCode.premiumUsernameActive: 409,
 };
 
 DioException _badResponse(
@@ -154,6 +157,10 @@ void main() {
           'CP_TASK_NOT_COMPLETED',
           'CP_PRIVILEGE_LOCKED',
           'FAMILY_CHAT_MUTED',
+          // v1.28-live (D146)
+          'PREMIUM_USERNAME_UNAVAILABLE',
+          'PREMIUM_USERNAME_PRICE_CHANGED',
+          'PREMIUM_USERNAME_ACTIVE',
         ]),
       );
       expect(ErrorCode.networkOffline.wire, 'NETWORK_OFFLINE');

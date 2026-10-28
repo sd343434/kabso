@@ -156,17 +156,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t check right now. You can still continue.';
 
   @override
-  String get usernameTooShort => 'Use at least 3 characters';
+  String get usernameTooShort => 'Use at least 6 characters';
 
   @override
   String get usernameTooLong => 'Use 30 characters or fewer';
 
   @override
-  String get usernameBadChars =>
-      'Use only a–z, 0–9, dot (.) and underscore (_)';
+  String get usernameBadChars => 'Use only a–z, 0–9 and underscore (_)';
 
   @override
-  String get usernameBadEdges => 'Can\'t start or end with a dot or underscore';
+  String get usernameBadEdges => 'Can\'t start or end with an underscore';
 
   @override
   String get codeTitle => 'Check your email';
@@ -6351,5 +6350,295 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String liveComboBalance(String coins) {
     return 'Balance $coins coins';
+  }
+
+  @override
+  String get usernameLettersAndDigits =>
+      'Use both letters and numbers (e.g. sara22)';
+
+  @override
+  String get usernamePremium =>
+      'This is a premium username. Premium names are rented from the Premium usernames store.';
+
+  @override
+  String get errorPremiumUsernameUnavailable =>
+      'This username can\'t be rented right now.';
+
+  @override
+  String get errorPremiumUsernamePriceChanged =>
+      'The price just changed. Check the new price and try again.';
+
+  @override
+  String get errorPremiumUsernameActive =>
+      'You already have a premium username. Give it back first.';
+
+  @override
+  String get premiumTitle => 'Premium usernames';
+
+  @override
+  String get premiumTileValue => 'Rent a special @username';
+
+  @override
+  String get premiumSearchHint => 'Search a username, e.g. 777';
+
+  @override
+  String get premiumSearchHelp => 'Type a name to see if you can rent it.';
+
+  @override
+  String get premiumLoadError => 'Couldn\'t load the store';
+
+  @override
+  String get premiumTierAll => 'All';
+
+  @override
+  String get premiumTierLegend => 'Legend';
+
+  @override
+  String get premiumTierRuby => 'Ruby';
+
+  @override
+  String get premiumTierGold => 'Gold';
+
+  @override
+  String get premiumTierSilver => 'Silver';
+
+  @override
+  String get premiumTierLegendRule => '1–3 characters';
+
+  @override
+  String get premiumTierRubyRule => 'One character repeated (7777)';
+
+  @override
+  String get premiumTierGoldRule =>
+      '4–5 characters or a pattern (1221, 1212, 123456)';
+
+  @override
+  String get premiumTierSilverRule => '6+ letters only or digits only';
+
+  @override
+  String get premiumTierNotOnSale => 'Not on sale yet';
+
+  @override
+  String premiumPricePerPeriod(String coins, int days) {
+    return '$coins coins / $days days';
+  }
+
+  @override
+  String premiumCoins(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String get premiumSuggestions => 'Available now';
+
+  @override
+  String get premiumNotOnSaleTitle => 'Premium usernames aren\'t on sale yet';
+
+  @override
+  String get premiumNotOnSaleMessage =>
+      'Prices haven\'t been set. Check back soon.';
+
+  @override
+  String get premiumNoSuggestionsTitle => 'Nothing free here right now';
+
+  @override
+  String get premiumNoSuggestionsMessage =>
+      'Search for a name above, or try another tier.';
+
+  @override
+  String premiumRules(int days, int grace) {
+    return 'Each rent lasts $days days and you can renew any time. When it ends you go back to your regular username, and the name is kept for you for $grace days.';
+  }
+
+  @override
+  String get premiumStateAvailable => 'Available to rent';
+
+  @override
+  String get premiumStateNotForSale => 'Not on sale yet';
+
+  @override
+  String get premiumStateTaken => 'Someone already has this username';
+
+  @override
+  String get premiumStateHeld => 'Kept for its last renter for a few days';
+
+  @override
+  String get premiumStateYours => 'This is your username. You can renew it.';
+
+  @override
+  String get premiumStateYoursGrace =>
+      'Your rent ended. Renew now to get it back.';
+
+  @override
+  String get premiumStateReserved => 'This username is reserved';
+
+  @override
+  String get premiumStateRegular =>
+      'Not a premium username: you can take it for free from Settings › Username if it\'s free.';
+
+  @override
+  String get premiumStateInvalid => 'Not a valid username';
+
+  @override
+  String premiumHeldUntil(String date) {
+    return 'Free again after $date';
+  }
+
+  @override
+  String get premiumRent => 'Rent';
+
+  @override
+  String get premiumRenew => 'Renew';
+
+  @override
+  String premiumRentFor(String coins) {
+    return 'Rent · $coins coins';
+  }
+
+  @override
+  String premiumRenewFor(String coins) {
+    return 'Renew · $coins coins';
+  }
+
+  @override
+  String get premiumRentTitle => 'Rent this username';
+
+  @override
+  String get premiumRenewTitle => 'Renew your username';
+
+  @override
+  String get premiumSheetPrice => 'Price';
+
+  @override
+  String get premiumSheetBalance => 'Your balance';
+
+  @override
+  String get premiumSheetUntil => 'Yours until';
+
+  @override
+  String premiumSheetAfter(String username) {
+    return 'After that you go back to @$username unless you renew.';
+  }
+
+  @override
+  String get premiumNotEnoughCoins => 'You don\'t have enough coins.';
+
+  @override
+  String premiumRented(String username) {
+    return 'You\'re now @$username';
+  }
+
+  @override
+  String premiumRenewed(String username) {
+    return '@$username renewed';
+  }
+
+  @override
+  String get premiumMineTitle => 'Your premium username';
+
+  @override
+  String get premiumMineGraceTitle => 'Your premium username ended';
+
+  @override
+  String premiumMineLeft(String left) {
+    return '$left left';
+  }
+
+  @override
+  String get premiumMineNoEnd => 'No end date';
+
+  @override
+  String get premiumMineGranted => 'Given by the Kabso team';
+
+  @override
+  String premiumMineGrace(String username, String left) {
+    return 'You\'re @$username again. It\'s kept for you for $left.';
+  }
+
+  @override
+  String get premiumRelease => 'Give back';
+
+  @override
+  String get premiumReleaseTitle => 'Give back your premium username?';
+
+  @override
+  String premiumReleaseBody(String premium, String regular) {
+    return '@$premium goes back to the store now and you become @$regular again. Coins aren\'t refunded.';
+  }
+
+  @override
+  String premiumReleased(String username) {
+    return 'You\'re @$username again';
+  }
+
+  @override
+  String get premiumLeftUnderMinute => 'less than a minute';
+
+  @override
+  String premiumLeftMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String premiumLeftHours(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String premiumLeftDays(int days, int hours) {
+    return '$days d $hours h';
+  }
+
+  @override
+  String premiumBadgeLabel(String tier, String username) {
+    return '$tier premium username @$username';
+  }
+
+  @override
+  String get settingsUsername => 'Username';
+
+  @override
+  String get changeUsernameTitle => 'Change username';
+
+  @override
+  String get changeUsernameCurrent => 'Your username now';
+
+  @override
+  String get changeUsernameNew => 'New username';
+
+  @override
+  String get changeUsernameRule =>
+      '6–30 characters: letters and numbers (a–z, 0–9), _ allowed';
+
+  @override
+  String get changeUsernameSave => 'Save';
+
+  @override
+  String changeUsernameDone(String username) {
+    return 'You\'re now @$username';
+  }
+
+  @override
+  String get changeUsernameNote =>
+      'Your old username becomes free for others right away.';
+
+  @override
+  String changeUsernameRentInstead(String username) {
+    return 'Rent @$username as a premium username';
+  }
+
+  @override
+  String changeUsernamePremiumActive(String premium, String regular) {
+    return 'You\'re using the premium username @$premium. To change your regular username (@$regular), give the premium one back first.';
+  }
+
+  @override
+  String notificationPremiumExpiring(String username, String left) {
+    return 'Your premium username @$username ends in $left. Renew to keep it.';
+  }
+
+  @override
+  String notificationPremiumExpired(String username) {
+    return 'Your premium username @$username ended. It\'s kept for you for a few days.';
   }
 }
