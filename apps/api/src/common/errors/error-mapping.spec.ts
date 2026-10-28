@@ -91,6 +91,10 @@ describe('ErrorCode', () => {
         // v1.32-live (DRAFT, D154)
         'QUIP_FREE_USED',
         'QUIP_QUEUE_FULL',
+        // v1.33-live (DRAFT, D154b)
+        'BOOST_QUEUE_FULL',
+        'BOOST_CARD_INSUFFICIENT',
+        'BOOST_ROOM_BUSY',
       ].sort(),
     );
     expect(ERROR_HTTP_STATUS).toMatchObject({
@@ -151,6 +155,9 @@ describe('ErrorCode', () => {
       PREMIUM_USERNAME_ACTIVE: 409,
       QUIP_FREE_USED: 409,
       QUIP_QUEUE_FULL: 409,
+      BOOST_QUEUE_FULL: 409,
+      BOOST_CARD_INSUFFICIENT: 409,
+      BOOST_ROOM_BUSY: 409,
     });
   });
 

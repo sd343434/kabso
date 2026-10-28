@@ -33,6 +33,13 @@ import { LiveCategoriesService, type LiveCategoryDto } from './live-categories.s
 import { LiveBulletsService, type LiveBulletResultDto } from './live-bullets.service.js';
 import { LiveSeatEmojiService, type LiveSeatEmojiDto } from './live-seat-emoji.service.js';
 import { LiveQuipsService, type LiveQuipDto } from './live-quips.service.js';
+import {
+  LiveBoostsService,
+  type LiveBoostDto,
+  type LiveBoostedRoomDto,
+  type LiveBoostOffersDto,
+  type LiveBoostResultDto,
+} from './live-boosts.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -121,6 +128,7 @@ export class LiveController {
     private readonly bullets: LiveBulletsService,
     private readonly seatEmoji: LiveSeatEmojiService,
     private readonly quips: LiveQuipsService,
+    private readonly boosts: LiveBoostsService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -147,6 +155,26 @@ export class LiveController {
   @Get('categories')
   async listCategories(@Req() req: AppRequest): Promise<{ data: LiveCategoryDto[] }> {
     return { data: await this.categories.listActive(await this.language(req)) };
+  }
+
+  /**
+   * v1.33-live (D154b): the lives in a paid «مميز» slot now (traffic cards), for the top of the live
+   * list; guests too (the list's buckets).
+   */
+  @Get('boosts/active')
+  @OptionalAuth()
+  @RateLimit(
+    { bucket: 'live:list', rule: 'liveListUser', key: byUserId, replacesDefault: true, appliesTo: 'user' },
+    GUEST_READ,
+  )
+  async activeBoosts(@Req() req: AppRequest): Promise<{ data: LiveBoostedRoomDto[] }> {
+    return this.boosts.active(callerOf(req), await this.language(req));
+  }
+
+  /** v1.33-live (D154b): the traffic card lengths and prices, the caller's cards and the queue. */
+  @Get('boosts/offers')
+  offerBoosts(@Req() req: AppRequest, @Query('roomId') roomId?: string): Promise<LiveBoostOffersDto> {
+    return this.boosts.offers(requireCaller(req), roomId);
   }
 
   @Get('rooms')
@@ -525,6 +553,30 @@ export class LiveController {
     @Body() body: unknown,
   ): Promise<LiveSeatEmojiDto> {
     return this.seatEmoji.send(requireCaller(req), roomId, body);
+  }
+
+  /**
+   * v1.33-live (D154b): a traffic card for this live, bought with coins or one of the caller's cards
+   * (the host, or a viewer gifting it). 201 new, 200 a retry with the same `clientId`. 30 / hour per
+   * user (bucket `live:boost`, the CP writes rule `RATE_LIMIT_CP_WRITE_USER`), replacing the default (§7).
+   */
+  @Post('rooms/:roomId/boosts')
+  @RateLimit({ bucket: 'live:boost', rule: 'cpWriteUser', key: byUserId, replacesDefault: true })
+  async buyBoost(
+    @Req() req: AppRequest,
+    @Param('roomId') roomId: string,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<LiveBoostResultDto> {
+    const { created, result } = await this.boosts.buy(requireCaller(req), roomId, body);
+    res.status(created ? 201 : 200);
+    return result;
+  }
+
+  /** v1.33-live (D154b): this live's traffic cards (running or waiting first). */
+  @Get('rooms/:roomId/boosts')
+  listRoomBoosts(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<{ data: LiveBoostDto[] }> {
+    return this.boosts.roomBoosts(requireCaller(req), roomId);
   }
 
   /**

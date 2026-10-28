@@ -156,6 +156,48 @@ const hostSharePercents = (fallback: string) =>
       return out as Record<HostShareCategory, number>;
     });
 
+/**
+ * v1.33-live (D154b, CONVENTIONS §10.34): the traffic card prices, `minutes:coins` pairs, e.g.
+ * `10:10000,20:18000` → ascending by minutes. 1–8 lengths of 1–1440 minutes, prices 1 … 10^9 coins.
+ */
+export interface BoostPrice {
+  readonly minutes: number;
+  readonly coins: number;
+}
+const boostPrices = (fallback: string) =>
+  z
+    .string()
+    .trim()
+    .default(fallback)
+    .transform((value, ctx): readonly BoostPrice[] => {
+      const out: BoostPrice[] = [];
+      for (const part of value.split(',')) {
+        const m = /^\s*(\d{1,4})\s*:\s*(\d{1,10})\s*$/.exec(part);
+        const minutes = Number(m?.[1]);
+        const coins = Number(m?.[2]);
+        if (
+          !m ||
+          minutes < 1 ||
+          minutes > 1440 ||
+          coins < 1 ||
+          coins > 1_000_000_000 ||
+          out.some((p) => p.minutes === minutes)
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `expected minutes:coins pairs (distinct minutes), got "${value}"`,
+          });
+          return z.NEVER;
+        }
+        out.push({ minutes, coins });
+      }
+      if (out.length > 8) {
+        ctx.addIssue({ code: 'custom', message: 'at most 8 lengths' });
+        return z.NEVER;
+      }
+      return out.sort((a, b) => a.minutes - b.minutes);
+    });
+
 const percentSetting = (fallback: string) =>
   z
     .string()
@@ -497,6 +539,14 @@ export const envSchema = z
      * start more than this many seconds from now (one plays at a time per room).
      */
     QUIP_QUEUE_MAX_WAIT_SECONDS: intSetting(60, 5, 600),
+    /**
+     * v1.33-live (D154b, CONVENTIONS §10.34): traffic cards — the prices by length (owner 15c: 10 min
+     * 10 000, 20 min 18 000, 30 min 25 000, 60 min 45 000 coins), the paid slots at the top of the live
+     * list (owner: 3), and the longest a new card may wait for its slot (else 409 BOOST_QUEUE_FULL).
+     */
+    LIVE_BOOST_PRICES: boostPrices('10:10000,20:18000,30:25000,60:45000'),
+    LIVE_BOOST_SLOTS: intSetting(3, 1, 20),
+    LIVE_BOOST_MAX_WAIT_MINUTES: intSetting(180, 10, 1440),
     /**
      * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
      * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is

@@ -2018,15 +2018,24 @@ void main() {
         'guests',
         // D143: Fill light replaces the "Flash" that said Soon.
         'fillLight',
+        // D154a/D154b: the soundboard and the traffic card work now.
+        'sounds',
+        'traffic',
       ]) {
         expect(find.byKey(GoLiveKeys.tool(id)), findsOneWidget, reason: id);
       }
       final l10n = _l10n(tester);
+      for (final label in [l10n.liveToolSounds, l10n.liveToolTrafficCard]) {
+        expect(
+          find.bySemanticsLabel('$label, ${l10n.liveSoon}'),
+          findsNothing,
+          reason: label,
+        );
+      }
       for (final label in [
         l10n.liveToolDual,
         l10n.liveToolHd,
         l10n.liveToolSticker,
-        l10n.liveToolTrafficCard,
       ]) {
         expect(
           find.bySemanticsLabel('$label, ${l10n.liveSoon}'),

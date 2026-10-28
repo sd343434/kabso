@@ -11953,6 +11953,162 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.'**
   String get errorQuipQueueFull;
+
+  /// D154b: the traffic card sheet title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الزيارات'**
+  String get liveBoostTitle;
+
+  /// D154b: the host's explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'يظهر بثك في أعلى قائمة البث مع علامة «مميز». {slots} أماكن فقط؛ إن امتلأت ينتظر دوره.'**
+  String liveBoostHint(int slots);
+
+  /// D154b: a viewer gifting the host.
+  ///
+  /// In ar, this message translates to:
+  /// **'هدية لـ {name}: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.'**
+  String liveBoostGiftHint(String name);
+
+  /// D154b: a card length.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} د'**
+  String liveBoostMinutes(int minutes);
+
+  /// D154b: a card price (screen readers).
+  ///
+  /// In ar, this message translates to:
+  /// **'{coins} عملة'**
+  String liveBoostPrice(String coins);
+
+  /// D154b: what a longer card saves.
+  ///
+  /// In ar, this message translates to:
+  /// **'وفّر {percent}%'**
+  String liveBoostSave(int percent);
+
+  /// D154b: reward cards held of a length.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك {count}'**
+  String liveBoostHeld(int count);
+
+  /// D154b: a free slot now.
+  ///
+  /// In ar, this message translates to:
+  /// **'يبدأ فوراً.'**
+  String get liveBoostStartsNow;
+
+  /// D154b: the honest wait.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأماكن ممتلئة: يبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostStartsIn(int minutes);
+
+  /// D154b: pay with a reward card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم بطاقة (لديك {count})'**
+  String liveBoostUseCard(int count);
+
+  /// D154b: the button with a card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم البطاقة'**
+  String get liveBoostUseCardAction;
+
+  /// D154b: the buy button.
+  ///
+  /// In ar, this message translates to:
+  /// **'اشترِ بـ {coins} عملة'**
+  String liveBoostBuy(String coins);
+
+  /// D154b: confirm dialog title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة الزيارات'**
+  String get liveBoostConfirmTitle;
+
+  /// D154b: confirm with coins.
+  ///
+  /// In ar, this message translates to:
+  /// **'{minutes} دقيقة في الأماكن المميزة مقابل {coins} عملة؟'**
+  String liveBoostConfirmCoins(int minutes, String coins);
+
+  /// D154b: confirm with a card.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام بطاقة {minutes} دقيقة؟'**
+  String liveBoostConfirmCard(int minutes);
+
+  /// D154b: confirm button.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد'**
+  String get liveBoostConfirmAction;
+
+  /// D154b: bought, running.
+  ///
+  /// In ar, this message translates to:
+  /// **'البث مميز الآن في أعلى القائمة.'**
+  String get liveBoostDoneNow;
+
+  /// D154b: bought, waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'في الدور: يبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostDoneWaiting(int minutes);
+
+  /// D154b: the live's card is running.
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز الآن — ينتهي خلال {minutes} د.'**
+  String liveBoostRunning(int minutes);
+
+  /// D154b: the live's card is waiting.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة في الدور — تبدأ خلال {minutes} د على الأكثر.'**
+  String liveBoostWaiting(int minutes);
+
+  /// D154b: offers failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل بطاقة الزيارات'**
+  String get liveBoostLoadError;
+
+  /// D154b: the label of a boosted live on the hub.
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز'**
+  String get liveBoostFeatured;
+
+  /// D154b: the host card's button for viewers.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقة زيارات'**
+  String get liveBoostGiftAction;
+
+  /// Error BOOST_QUEUE_FULL.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأماكن المميزة محجوزة لوقت طويل؛ جرّب بطاقة أقصر أو لاحقاً.'**
+  String get errorBoostQueueFull;
+
+  /// Error BOOST_CARD_INSUFFICIENT.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك بطاقة بهذه المدة.'**
+  String get errorBoostCardInsufficient;
+
+  /// Error BOOST_ROOM_BUSY.
+  ///
+  /// In ar, this message translates to:
+  /// **'لهذا البث بطاقة زيارات تعمل أو في الدور.'**
+  String get errorBoostRoomBusy;
 }
 
 class _AppLocalizationsDelegate

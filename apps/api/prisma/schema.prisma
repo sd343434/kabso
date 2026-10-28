@@ -156,6 +156,10 @@ model User {
   luckyAgeConfirm    LuckyGiftAgeConfirmation?
   /// v1.30-live (D148): the caller's losing lucky draws in a row (the guarantee).
   luckyPity          LuckyGiftPity?
+  /// v1.33-live (D154b): traffic cards held, bought and received.
+  boostCards         LiveBoostCard[]
+  boostsBought       LiveBoost[]            @relation("LiveBoostBuyer")
+  boostsReceived     LiveBoost[]            @relation("LiveBoostHost")
   /// v1.32-live (D154): the free quips the user sent (one per live).
   freeQuips          LiveFreeQuip[]
   // v1.27.1-live (D133): featured on the live hub.
@@ -493,6 +497,7 @@ model LiveRoom {
   bullets      LiveBullet[]
   gifts        LiveGift[]
   freeQuips    LiveFreeQuip[]
+  boosts       LiveBoost[]
 
   @@unique([hostUserId], map: "live_rooms_one_live_per_host", where: raw("status = 'LIVE'::live_room_status"))
   @@index([score(sort: Desc), startedAt(sort: Desc), id(sort: Desc)], map: "live_rooms_live_popular_idx", where: raw("status = 'LIVE'::live_room_status"))
@@ -745,6 +750,9 @@ enum WalletLedgerReason {
   /// v1.28-live (D146): renting a premium username, and renewing it (reference: the payment).
   PREMIUM_USERNAME_RENT
   PREMIUM_USERNAME_RENEW
+  /// v1.33-live (D154b): a traffic card bought with coins, and its refund when it never ran.
+  LIVE_BOOST
+  LIVE_BOOST_REFUND
 
   @@map("wallet_ledger_reason")
 }
@@ -2465,6 +2473,57 @@ model LiveFreeQuip {
   @@id([roomId, userId], map: "live_free_quips_pkey")
   @@index([userId], map: "live_free_quips_user_idx")
   @@map("live_free_quips")
+}
+
+/// v1.33-live (D154b): how a traffic card was paid.
+enum LiveBoostSource {
+  COINS
+  CARD
+
+  @@map("live_boost_source")
+}
+
+/// v1.33-live (D154b, CONVENTIONS §10.34): a traffic card «بطاقة الزيارات» — a live shown in one of the
+/// few paid slots at the top of the live list for `minutes`. Scheduled when bought (`slot`, `starts_at`,
+/// `ends_at`; boosts of one room run back to back); a waiting one whose live ended is cancelled and
+/// refunded (`cancelled_at`), a running one whose live ended is cut short (`ends_at` moved).
+model LiveBoost {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  roomId       String          @map("room_id") @db.Uuid
+  hostUserId   String          @map("host_user_id") @db.Uuid
+  buyerId      String          @map("buyer_id") @db.Uuid
+  clientId     String          @map("client_id") @db.Uuid
+  minutes      Int
+  source       LiveBoostSource
+  coinsCharged BigInt          @map("coins_charged")
+  slot         Int             @db.SmallInt
+  startsAt     DateTime        @map("starts_at") @db.Timestamptz(3)
+  endsAt       DateTime        @map("ends_at") @db.Timestamptz(3)
+  cancelledAt  DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  room  LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  host  User     @relation("LiveBoostHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  buyer User     @relation("LiveBoostBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, clientId], map: "live_boosts_client_once")
+  @@index([endsAt], map: "live_boosts_ends_idx", where: raw("cancelled_at IS NULL"))
+  @@index([roomId, endsAt], map: "live_boosts_room_idx")
+  @@index([hostUserId], map: "live_boosts_host_idx")
+  @@map("live_boosts")
+}
+
+/// v1.33-live (D154b): traffic cards a user holds (granted by an admin as rewards), by length.
+model LiveBoostCard {
+  userId    String   @map("user_id") @db.Uuid
+  minutes   Int
+  quantity  Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, minutes], map: "live_boost_cards_pkey")
+  @@map("live_boost_cards")
 }
 
 /// D124 (v1.26-live, CONVENTIONS §10.26): a promo banner shown on the live hub between the live

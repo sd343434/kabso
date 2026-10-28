@@ -27,6 +27,7 @@ class LiveRoomCardData {
     this.hostId,
     this.seatCount,
     this.occupiedSeats = 0,
+    this.featured = false,
   });
 
   /// A room from `GET /live/rooms` (v1.3): the host's display name and
@@ -35,7 +36,7 @@ class LiveRoomCardData {
   /// card then shows the host avatar) and the server-localized category name
   /// when the room has one. Multi-guest rooms carry no guest count in v1.3,
   /// so no seats tag is shown.
-  factory fromSummary(LiveRoomSummary room) {
+  factory fromSummary(LiveRoomSummary room, {bool featured = false}) {
     final cover = room.coverUrl;
     final avatar = room.host.avatarUrl;
     return LiveRoomCardData(
@@ -53,6 +54,7 @@ class LiveRoomCardData {
       hostId: room.host.id,
       seatCount: room.seatCount,
       occupiedSeats: room.occupiedSeats,
+      featured: featured,
     );
   }
 
@@ -106,6 +108,9 @@ class LiveRoomCardData {
 
   /// CP-011: guests seated now.
   final int occupiedSeats;
+
+  /// D154b: in a paid «مميز» slot now (a traffic card); the card says so.
+  final bool featured;
 }
 
 /// A line in the live chat overlay.

@@ -840,6 +840,25 @@ export class LiveRoomsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * v1.33-live (D154b): the summaries of the rooms in `roomIds` that are LIVE and fresh now, with an
+   * ACTIVE host and no block with `viewerId` (the traffic-card slots of `GET /live/boosts/active`).
+   */
+  async liveSummaries(
+    roomIds: readonly string[],
+    viewerId: string | null,
+    lang: ContentLanguage,
+  ): Promise<Map<string, LiveRoomSummaryDto>> {
+    if (roomIds.length === 0) return new Map();
+    const now = this.clock.now();
+    const rows = await this.prisma.$queryRaw<RoomRow[]>`
+      ${ROOM_SELECT}
+       WHERE r.id = ANY(${[...roomIds]}::uuid[]) AND r.status = 'LIVE'
+         AND r.last_heartbeat_at > ${ts(this.cutoff(now))}::timestamptz
+         AND u.status = 'ACTIVE' AND ${notBlockedSql(viewerId)}`;
+    return new Map(rows.map((row) => [row.id, this.toSummary(row, lang)]));
+  }
+
+  /**
    * `GET /live/rooms/{roomId}`: also ENDED rooms. Nonexistent, malformed and non-ACTIVE-host
    * rooms are the same 404, and so (CP-010) is a room across a block with `viewerId`. A stale
    * LIVE room is ended (that single room) and returned as ENDED. `viewerId` null: a guest.

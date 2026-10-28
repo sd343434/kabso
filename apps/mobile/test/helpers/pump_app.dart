@@ -10,6 +10,7 @@ import 'package:kabso_live/features/auth/presentation/splash_video.dart';
 import 'package:kabso_live/features/auth/presentation/welcome_screen.dart';
 import 'package:kabso_live/features/live/data/home_banners_repository.dart';
 import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart';
+import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
@@ -25,6 +26,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_home_banners_repository.dart';
 import 'fake_live_blocked_words_repository.dart';
+import 'fake_live_boost_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
 import 'fake_live_rankings_repository.dart';
@@ -65,6 +67,7 @@ Future<void> pumpKabsoApp(
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
+  LiveBoostRepository? liveBoostRepository,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -115,6 +118,10 @@ Future<void> pumpKabsoApp(
         liveGiftRepositoryProvider.overrideWithValue(
           liveGiftRepository ?? FakeLiveGiftRepository(),
         ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -155,6 +162,7 @@ Future<void> pumpScreen(
   PostsRepository? postsRepository,
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
+  LiveBoostRepository? liveBoostRepository,
   HomeBannersRepository? homeBannersRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
@@ -185,6 +193,10 @@ Future<void> pumpScreen(
         // CP-020: never the network (an empty catalogue, as production).
         liveGiftRepositoryProvider.overrideWithValue(
           liveGiftRepository ?? FakeLiveGiftRepository(),
+        ),
+        // D154b: never the network (no featured lives, no cards).
+        liveBoostRepositoryProvider.overrideWithValue(
+          liveBoostRepository ?? FakeLiveBoostRepository(),
         ),
         ...overrides,
       ],

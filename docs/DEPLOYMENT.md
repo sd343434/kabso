@@ -1111,6 +1111,33 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
   `ALTER TABLE live_gifts ALTER COLUMN host_share_bps SET DEFAULT 6500;` (keeps old inserts working).
   Disable the quips without a rollback with `gift-admin disable <code>` (each).
 
+### 5.18 Traffic cards «بطاقة الزيارات» (migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`; D154b) — [IMPLEMENTED, draft contract v1.33-live; not deployed, not device-tested]
+
+- Apply with the usual `migrate` job (§5): enum `live_boost_source`, ledger reasons `LIVE_BOOST` and
+  `LIVE_BOOST_REFUND` (the `wallet_ledger_reason_sign` CHECK is replaced to include them), tables
+  `live_boosts` and `live_boost_cards`. No GRANT, no backfill.
+- **New optional config:**
+
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `LIVE_BOOST_PRICES` | `10:10000,20:18000,30:25000,60:45000` | `minutes:coins` per length on sale (owner 15c); 1–8 lengths |
+  | `LIVE_BOOST_SLOTS` | `3` | paid «مميز» slots at the top of the live list (owner) |
+  | `LIVE_BOOST_MAX_WAIT_MINUTES` | `180` | a card that would wait longer is refused (409 `BOOST_QUEUE_FULL`) |
+
+  The settlement (refunds of cards whose live ended before they ran) runs on the live sweeper's interval
+  (`LIVE_SWEEP_INTERVAL_SECONDS`) and before every purchase; safe on several instances (one advisory lock).
+- **Rewards:** grant cards with the CLI (audited):
+
+  ```bash
+  BOOST="docker compose --profile jobs run --rm migrate node dist/cli/boost-admin.js"
+  $BOOST grant someone@example.com 30 1   # one 30-minute card
+  $BOOST cards someone@example.com
+  $BOOST queue                            # cards running and waiting now
+  ```
+
+- **Rollback:** the API before D154b ignores the tables; a card running at that moment simply stops
+  showing (nothing is refunded automatically — list them with `boost-admin queue` first).
+
 ## 6. Observability baseline
 
 | Item | Status |

@@ -6919,4 +6919,113 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorQuipQueueFull =>
       'Too many quips are waiting. Try again in a moment.';
+
+  @override
+  String get liveBoostTitle => 'Traffic card';
+
+  @override
+  String liveBoostHint(int slots) {
+    return 'Your live shows at the top of the live list, marked «Featured». Only $slots places; when they\'re full it waits its turn.';
+  }
+
+  @override
+  String liveBoostGiftHint(String name) {
+    return 'A gift for $name: their live shows at the top of the list, marked «Featured». The host earns no coins from it.';
+  }
+
+  @override
+  String liveBoostMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String liveBoostPrice(String coins) {
+    return '$coins coins';
+  }
+
+  @override
+  String liveBoostSave(int percent) {
+    return 'Save $percent%';
+  }
+
+  @override
+  String liveBoostHeld(int count) {
+    return 'You have $count';
+  }
+
+  @override
+  String get liveBoostStartsNow => 'Starts right away.';
+
+  @override
+  String liveBoostStartsIn(int minutes) {
+    return 'All places taken: starts within $minutes min at the latest.';
+  }
+
+  @override
+  String liveBoostUseCard(int count) {
+    return 'Use a card (you have $count)';
+  }
+
+  @override
+  String get liveBoostUseCardAction => 'Use the card';
+
+  @override
+  String liveBoostBuy(String coins) {
+    return 'Buy for $coins coins';
+  }
+
+  @override
+  String get liveBoostConfirmTitle => 'Traffic card';
+
+  @override
+  String liveBoostConfirmCoins(int minutes, String coins) {
+    return '$minutes minutes in the featured places for $coins coins?';
+  }
+
+  @override
+  String liveBoostConfirmCard(int minutes) {
+    return 'Use a $minutes-minute card?';
+  }
+
+  @override
+  String get liveBoostConfirmAction => 'Confirm';
+
+  @override
+  String get liveBoostDoneNow =>
+      'The live is featured at the top of the list now.';
+
+  @override
+  String liveBoostDoneWaiting(int minutes) {
+    return 'Queued: starts within $minutes min at the latest.';
+  }
+
+  @override
+  String liveBoostRunning(int minutes) {
+    return 'Featured now — ends in $minutes min.';
+  }
+
+  @override
+  String liveBoostWaiting(int minutes) {
+    return 'A card is queued — starts within $minutes min at the latest.';
+  }
+
+  @override
+  String get liveBoostLoadError => 'Couldn\'t load the traffic card';
+
+  @override
+  String get liveBoostFeatured => 'Featured';
+
+  @override
+  String get liveBoostGiftAction => 'Traffic card';
+
+  @override
+  String get errorBoostQueueFull =>
+      'The featured places are booked far ahead; try a shorter card or later.';
+
+  @override
+  String get errorBoostCardInsufficient => 'You have no card of that length.';
+
+  @override
+  String get errorBoostRoomBusy =>
+      'This live already has a traffic card running or queued.';
 }

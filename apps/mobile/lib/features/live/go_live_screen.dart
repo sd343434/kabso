@@ -34,6 +34,7 @@ import 'package:kabso_live/features/live/presentation/go_live/go_live_audio_setu
 import 'package:kabso_live/features/live/presentation/go_live/go_live_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/go_live_setup_parts.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
@@ -984,6 +985,16 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               label: l10n.liveToolLiveTime,
               onTap: () => unawaited(showLiveSchedule(context)),
             ),
+            // D154b: the traffic card (a paid «مميز» slot for this room).
+            GoLiveTool(
+              id: 'traffic',
+              icon: Icons.confirmation_number_outlined,
+              label: l10n.liveToolTrafficCard,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveBoostSheet(context, roomId: room.id)),
+            ),
             byId['guests']!,
           ],
         ),
@@ -1738,10 +1749,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             label: l10n.liveToolLiveTime,
             onTap: () => unawaited(showLiveSchedule(context)),
           ),
-          soon(
-            'traffic',
-            Icons.confirmation_number_outlined,
-            l10n.liveToolTrafficCard,
+          // D154b: the traffic card (a paid «مميز» slot for this live).
+          GoLiveTool(
+            id: 'traffic',
+            icon: Icons.confirmation_number_outlined,
+            label: l10n.liveToolTrafficCard,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveBoostSheet(context, roomId: room.id)),
           ),
           ?byId['guests'],
         ],

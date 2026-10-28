@@ -65,6 +65,9 @@ class KLiveGridCard extends StatelessWidget {
   static const viewersKey = Key('liveGrid.viewers');
   static const initialKey = Key('liveGrid.initial');
 
+  /// D154b: the «مميز» label of a live with a running traffic card.
+  static const featuredKey = Key('liveGrid.featured');
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -95,9 +98,12 @@ class KLiveGridCard extends StatelessWidget {
     final withType = l10n.liveCardSemanticsMode(base, type);
     final category = room.categoryName;
     final hasCategory = category != null && category.isNotEmpty;
-    final semantics = hasCategory
+    final described = hasCategory
         ? l10n.liveCardSemanticsCategory(withType, category)
         : withType;
+    final semantics = room.featured
+        ? '${l10n.liveBoostFeatured}, $described'
+        : described;
 
     return Semantics(
       button: onTap != null,
@@ -177,6 +183,34 @@ class KLiveGridCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // D154b: «مميز» over the title (a running traffic card).
+                  if (room.featured)
+                    PositionedDirectional(
+                      start: 8.5,
+                      bottom: 28,
+                      child: Container(
+                        key: featuredKey,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFD36E), Color(0xFFF2A93B)],
+                          ),
+                          borderRadius: BorderRadius.circular(KRadius.pill),
+                        ),
+                        child: Text(
+                          l10n.liveBoostFeatured,
+                          maxLines: 1,
+                          style: t.caption.copyWith(
+                            color: const Color(0xFF3B2200),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
                   // Ref 165: the title 8.5 pt in, its baseline 10.6 pt up.
                   PositionedDirectional(
                     start: 8.5,

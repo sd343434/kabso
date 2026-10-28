@@ -137,6 +137,9 @@ All non-2xx responses use one envelope:
 | 409 | `PREMIUM_USERNAME_ACTIVE` | *(v1.28-live, DRAFT, D146)* The caller already has an active premium username: renting another one or changing the regular username waits until it is given back (§10.32). |
 | 409 | `QUIP_FREE_USED` | *(v1.32-live, DRAFT, D154)* The caller already sent their one free quip in this live (owner: one free quip per viewer per live). Nothing was stored or played; paid quips are still available (§10.33). |
 | 409 | `QUIP_QUEUE_FULL` | *(v1.32-live, DRAFT, D154)* The room's quips queue is full: this quip would start more than `QUIP_QUEUE_MAX_WAIT_SECONDS` (60) from now. Nothing was stored, charged or played; try again shortly (§10.33). |
+| 409 | `BOOST_QUEUE_FULL` | *(v1.33-live, DRAFT, D154b)* The traffic card would start more than `LIVE_BOOST_MAX_WAIT_MINUTES` (180) from now: every featured slot is booked too far ahead. Nothing was charged (§10.34). |
+| 409 | `BOOST_CARD_INSUFFICIENT` | *(v1.33-live, DRAFT, D154b)* `source: CARD` but the caller holds no traffic card of that length. Nothing was taken (§10.34). |
+| 409 | `BOOST_ROOM_BUSY` | *(v1.33-live, DRAFT, D154b)* This live already has a traffic card running or waiting (one at a time per live). Nothing was charged (§10.34). |
 
 New codes are added by contract change only. The mobile app keeps a localized message for every
 code above plus a generic fallback for unknown codes and network failures (`NETWORK_OFFLINE`,
@@ -393,6 +396,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `GET /live/rooms/{roomId}/chat` *(v1.9-live, CP-013)* | the per-user default; guests share the CP-010 guest read limit per IP |
 | `POST /live/rooms/{roomId}/seat-emoji` *(v1.27.5-live, D138)* | 120 / min per user (bucket `live:seat-emoji`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one every 2 s per user** (429 with `Retry-After`). **Replaces** the per-user default |
 | `POST /live/rooms/{roomId}/sounds` *(v1.32-live, D154)* | 120 / min per user (bucket `live:sound`, the taps rule `RATE_LIMIT_LIVE_TAPS_USER`), plus a counting rule of **one sound every 2 s per user** (owner; 429 with `Retry-After`). **Replaces** the per-user default. Quips sent from the gift panel use the gift buckets above |
+| `POST /live/rooms/{roomId}/boosts` *(v1.33-live, D154b)* | 30 / hour per user (bucket `live:boost`, the CP writes rule `RATE_LIMIT_CP_WRITE_USER`). **Replaces** the per-user default. `GET /live/boosts/active` uses the live list's buckets (guests too); the other reads the per-user default |
 | `GET /live/rooms/{roomId}/stats` *(v1.27.6-live, D140)* | the per-user default only (600 / 15 min); host only, no endpoint-specific bucket |
 | `PATCH /live/rooms/{roomId}` *(v1.6-live, CP-010)* | 60 / hour per user |
 | `GET /live/rooms/{roomId}/viewers` *(v1.6-live, CP-010)* | 300 / 15 min per user (shares the `GET /live/rooms` rule); *(v1.23.2-live, D109)* guests share the CP-010 guest read limit per IP |
@@ -467,6 +471,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | *(v1.32-live)* Table `live_free_quips`; columns `gifts.sound_key`, `sound_ms`, `quip_text`, `live_gifts.host_share_bps`, `live_rooms.quip_busy_until`; server config `GIFT_HOST_SHARE_PERCENTS`, `QUIP_QUEUE_MAX_WAIT_SECONDS` | Backend — `gifts` module (catalogue, `quips.ts`) and `live` module (`LiveGiftsService` writes sends, free quips and the queue in the send's transaction; `LiveQuipsService` the soundboard) | CTO; Security (coin paths; the host share is a money rule, D149) |
+| *(v1.33-live)* Tables `live_boosts`, `live_boost_cards`; ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; server config `LIVE_BOOST_PRICES`, `LIVE_BOOST_SLOTS`, `LIVE_BOOST_MAX_WAIT_MINUTES` | Backend — `live` module (`LiveBoostsService`; cards granted only by the `boost-admin` CLI) | CTO; Security (coin paths, refunds) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -506,6 +511,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.33-live (draft) | 2026-10-28 | **D154b (owner: Room Tools item 2 «بطاقة الزيارات», 15, 15b, 15c; CP-014 part C, the room boost):** `getLiveBoostOffers` (`GET /live/boosts/offers[?roomId=]`, `LiveBoostOffers`, `LiveBoostOption`, `LiveBoostCardStock`), `listActiveLiveBoosts` (`GET /live/boosts/active`, `LiveBoostedRoom`; guests too), `buyLiveBoost` (`POST /live/rooms/{roomId}/boosts`, `LiveBoostRequest`, `LiveBoostResult`; 201 / 200 retry), `listLiveRoomBoosts` (`GET /live/rooms/{roomId}/boosts`); `LiveBoost`, `LiveBoostState`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`, `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (409); ledger reasons `LIVE_BOOST`, `LIVE_BOOST_REFUND`; config `LIVE_BOOST_PRICES` (default `10:10000,20:18000,30:25000,60:45000`), `LIVE_BOOST_SLOTS` (3), `LIVE_BOOST_MAX_WAIT_MINUTES` (180); CLI `boost-admin grant|cards|queue`, audit `live.boost_card.grant`; migrations `20261205090000_live_boosts_enums`, `20261205100000_live_boosts`. §4, §7, §8, §10.34. | **Additive** (new operations, data message, codes and ledger reasons). The live list itself is unchanged: apps show the boosted lives above it. |
 | v1.32-live (draft) | 2026-10-28 | **D154 (owner: the Room Tools, item 1 «إفيهات / Quips»; 5b–5f):** gift category `QUIPS` (`GiftCategory`), `Gift.quip` (`GiftQuip` `{soundKey, durationMs, text}`, null for other gifts); `Gift.priceCoins`, `LiveGift.unitPrice` / `totalCoins` may be **0** for a free quip; `LiveGiftResult.quip` (`LiveQuip`); `playLiveSound` (`POST /live/rooms/{roomId}/sounds`, `LiveSoundRequest`, `{quip: LiveQuip}`, host and moderators, one every 2 s); data message `quip` on topic `quip` (`{"type":"quip","quip":LiveQuip}`) — a quip is sent instead of the `gift` message; codes `QUIP_FREE_USED`, `QUIP_QUEUE_FULL` (409). Quips: coins and quantity 1 only (else 400), one free quip per person per live, one quip at a time per room (`QUIP_QUEUE_MAX_WAIT_SECONDS`, default 60). The recipients' earnings share is fixed on each send (`live_gifts.host_share_bps`): server config `GIFT_HOST_SHARE_PERCENTS` (default `POPULAR:65,EVENT:65,FUN:65,QUIPS:50`; LUCKY keeps `LUCKY_GIFT_HOST_SHARE_PERCENT`); existing sends backfilled (lucky: their draws' share; others 65 %). CLI `gift-admin quips-seed`, `--sound`, `--sound-ms`, `--quip-text`; migrations `20261204090000_quips_enums`, `20261204100000_quips`. §4, §7, §8, §10.23, §10.33. | **Additive** for clients (a new category older apps drop, new fields, a new operation, a new data message topic, new codes). `GiftCatalogue.categories` now lists `QUIPS`. Score, levels and boards count a paid quip like a normal gift; a free quip counts nothing. |
 | v1.31-live (draft) | 2026-10-28 | **D148 (owner: eight tiers, a guarantee, «لحظة الحظ», 100 lucky sends a second):** the lucky table is configured as chances per million (`LUCKY_GIFT_CHANCES_PER_MILLION`, default ×5 48 918 · ×10 15 451 · ×25 3 903 · ×50 1 464 · ×100 569 · ×250 130 · ×500 40 · ×1000 12; `LUCKY_GIFT_MULTIPLIERS` default `5,10,25,50,100,250,500,1000`; `LUCKY_GIFT_RTP_SHARES` removed — set, the server refuses to start); the per-sender guarantee (`LUCKY_PITY_AFTER` 15, `LUCKY_PITY_MULTIPLIER` 5: after 15 losing draws in a row the next draw pays at least ×5); `LuckyGiftOdds.pity` (`LuckyGiftPity`, nullable) and `returnPercent` now includes the guarantee (84.9999 with the defaults); `LuckyGiftResult.guaranteed`; data message `lucky-ticker` on topic `lucky` to every other LIVE room for a win ≥ `bigWinMultiplier`, at most one every 10 s (all instances), the biggest waiting one next; audit columns `lucky_gift_draws.losses_before`, `losses_after`, `guaranteed` and table `lucky_gift_pity`. §10.27. | **Additive** for clients (new fields and a new data message type; older apps ignore them). **Behaviour change** for lucky draws (new odds and the guarantee) — the published odds say so. A server configured with `LUCKY_GIFT_RTP_SHARES` must switch to `LUCKY_GIFT_CHANCES_PER_MILLION` before upgrading. |
 | v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
@@ -2273,6 +2279,46 @@ Owner decisions (2026-10-28, D154 items 5, 5b–5f) are marked *(owner)*.
   score, charm and boards are unchanged (§10.23, §10.27).
 - **Not in v1.32-live:** hosted (downloadable) quip sounds (a new sound needs an app release), a
   room-wide switch to turn viewers' quips off, quips outside a live, payouts of the host share (D149).
+
+### 10.34 Traffic cards «بطاقة الزيارات» *(v1.33-live, DRAFT — D154b; CP-014 part C, the room boost)*
+
+Owner decisions (2026-10-28, D154 items 15, 15b, 15c) are marked *(owner)*. This is the room boost of
+CP-014 part C (never built before): one mechanism, no second "boost".
+
+- **What it is** *(owner)*: a card that puts a LIVE room in one of **`LIVE_BOOST_SLOTS` = 3** paid
+  slots at the top of the live list for its length, with a small «مميز» / "Featured" label. Lengths
+  and prices are server config `LIVE_BOOST_PRICES` *(owner 15c: 10 min 10 000 · 20 min 18 000 · 30 min
+  25 000 · 60 min 45 000 coins)*; `getLiveBoostOffers` returns them with `savePercent` (rounded saving
+  against the shortest length per minute: 0 / 10 / 17 / 25).
+- **Who** *(owner)*: the host for their own live, or **any viewer for the host** (a gift of exposure).
+  **The host earns nothing from it** *(owner 15c)*: no score, charm, support, boards or earnings share;
+  the buyer's family gets nothing either. Paid with coins (ledger `LIVE_BOOST`) or with one of the
+  buyer's **cards** (`live_boost_cards`, by length), which only an admin grants as rewards:
+  `boost-admin grant <email|username> <minutes> <quantity>` (a length on sale; audited
+  `live.boost_card.grant`), `boost-admin cards <user>`, `boost-admin queue`.
+- **The queue** *(owner: a queue and an honest ETA)*: one FIFO queue over the slots; a card starts at
+  once when a slot is free, else when the slot that frees first frees. A live has **at most one card
+  running or waiting** (409 `BOOST_ROOM_BUSY`). A card that would start more than
+  `LIVE_BOOST_MAX_WAIT_MINUTES` (180) from now → 409 `BOOST_QUEUE_FULL`. `startsAt` is a promise "at the
+  latest": cards are planned again only when one is cancelled or cut short, which never makes a later
+  card start later. `nextStartAt` (offers) is when a new card would start now. When a live ends, its
+  **waiting** card is cancelled (`CANCELLED`) and **refunded** (coins with `LIVE_BOOST_REFUND`, or the
+  card back), its **running** card stops there (its time is used; the slot frees at once). Settled by a
+  background job (`LIVE_SWEEP_INTERVAL_SECONDS`) and before every purchase.
+- **`buyLiveBoost`** (`POST /live/rooms/{roomId}/boosts`, `{minutes, source: COINS|CARD, clientId}`):
+  checks 401, 429, 404 (cannot see the room), 409 `LIVE_ROOM_ENDED`, 400 body (`minutes` not on sale →
+  `invalid_value`), a retry with the same `clientId` → 200 the first card, 409 `BOOST_ROOM_BUSY`, 409
+  `BOOST_QUEUE_FULL`, 409 `INSUFFICIENT_COINS` / `BOOST_CARD_INSUFFICIENT`. 201 `{boost: LiveBoost, coins,
+  cards}`. The room gets `{"type":"boost","boost":LiveBoost}` on topic `boost` (best effort).
+  `LiveBoost` = `{id, roomId, host, buyer: UserSummary, minutes, source, coinsCharged, state:
+  WAITING|RUNNING|DONE|CANCELLED, startsAt, endsAt, createdAt}`.
+- **The list:** `listActiveLiveBoosts` (`GET /live/boosts/active`, guests too) → `{data: [{room:
+  LiveRoomSummary, endsAt}]}`: the rooms whose card runs now, at most `slots`, the earliest started first,
+  only LIVE, fresh, ACTIVE hosts and no block with the caller. **App:** the hub shows them first, each
+  marked «مميز», and leaves them out of the list under it. `listLiveRoomBoosts` lists a room's last 12
+  cards (its host's tool shows the running or waiting one and when it starts).
+- **Not in v1.33-live:** buying cards to keep for later (cards come only from admin rewards), choosing a
+  start time, boosting outside a live, refunds of a running card, an admin UI.
 
 ## 11. Social content — posts, comments, search and safety *(v1.5-social, DRAFT — CP-006 M1, D87)*
 

@@ -6965,4 +6965,111 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorQuipQueueFull => 'إفيهات كثيرة بانتظار دورها، جرّب بعد قليل.';
+
+  @override
+  String get liveBoostTitle => 'بطاقة الزيارات';
+
+  @override
+  String liveBoostHint(int slots) {
+    return 'يظهر بثك في أعلى قائمة البث مع علامة «مميز». $slots أماكن فقط؛ إن امتلأت ينتظر دوره.';
+  }
+
+  @override
+  String liveBoostGiftHint(String name) {
+    return 'هدية لـ $name: يظهر بثه في أعلى القائمة مع علامة «مميز». المضيف لا يربح منها عملات.';
+  }
+
+  @override
+  String liveBoostMinutes(int minutes) {
+    return '$minutes د';
+  }
+
+  @override
+  String liveBoostPrice(String coins) {
+    return '$coins عملة';
+  }
+
+  @override
+  String liveBoostSave(int percent) {
+    return 'وفّر $percent%';
+  }
+
+  @override
+  String liveBoostHeld(int count) {
+    return 'لديك $count';
+  }
+
+  @override
+  String get liveBoostStartsNow => 'يبدأ فوراً.';
+
+  @override
+  String liveBoostStartsIn(int minutes) {
+    return 'الأماكن ممتلئة: يبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String liveBoostUseCard(int count) {
+    return 'استخدم بطاقة (لديك $count)';
+  }
+
+  @override
+  String get liveBoostUseCardAction => 'استخدم البطاقة';
+
+  @override
+  String liveBoostBuy(String coins) {
+    return 'اشترِ بـ $coins عملة';
+  }
+
+  @override
+  String get liveBoostConfirmTitle => 'بطاقة الزيارات';
+
+  @override
+  String liveBoostConfirmCoins(int minutes, String coins) {
+    return '$minutes دقيقة في الأماكن المميزة مقابل $coins عملة؟';
+  }
+
+  @override
+  String liveBoostConfirmCard(int minutes) {
+    return 'استخدام بطاقة $minutes دقيقة؟';
+  }
+
+  @override
+  String get liveBoostConfirmAction => 'تأكيد';
+
+  @override
+  String get liveBoostDoneNow => 'البث مميز الآن في أعلى القائمة.';
+
+  @override
+  String liveBoostDoneWaiting(int minutes) {
+    return 'في الدور: يبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String liveBoostRunning(int minutes) {
+    return 'مميز الآن — ينتهي خلال $minutes د.';
+  }
+
+  @override
+  String liveBoostWaiting(int minutes) {
+    return 'بطاقة في الدور — تبدأ خلال $minutes د على الأكثر.';
+  }
+
+  @override
+  String get liveBoostLoadError => 'تعذّر تحميل بطاقة الزيارات';
+
+  @override
+  String get liveBoostFeatured => 'مميز';
+
+  @override
+  String get liveBoostGiftAction => 'بطاقة زيارات';
+
+  @override
+  String get errorBoostQueueFull =>
+      'الأماكن المميزة محجوزة لوقت طويل؛ جرّب بطاقة أقصر أو لاحقاً.';
+
+  @override
+  String get errorBoostCardInsufficient => 'ليس لديك بطاقة بهذه المدة.';
+
+  @override
+  String get errorBoostRoomBusy => 'لهذا البث بطاقة زيارات تعمل أو في الدور.';
 }

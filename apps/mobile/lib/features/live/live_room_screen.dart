@@ -30,6 +30,7 @@ import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
@@ -395,6 +396,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               _session.mute(index, muted: muted),
           selfMic: selfMic,
           onGift: (person) => unawaited(_openGifts(preselect: person)),
+          // D154b: on the host's card, a traffic card for this live.
+          onBoost: me == null || target != LivePersonRole.host
+              ? null
+              : () => unawaited(
+                  showLiveBoostSheet(
+                    context,
+                    roomId: room.id,
+                    hostName: room.host.displayName,
+                  ),
+                ),
           // D135: Mention — "@username" in the chat box, opened.
           onMention: me == null
               ? null
@@ -1441,6 +1452,7 @@ class _HostSheet extends ConsumerWidget {
   /// D135: Mention (puts @username into the chat box) and Follow (for
   /// someone this viewer does not follow; Message once they do).
   static const mentionKey = Key('room.userCard.mention');
+  static const boostKey = Key('room.userCard.boost');
   static const followKey = Key('room.userCard.follow');
   static const copyKey = Key('room.userCard.copy');
   static const medalsKey = Key('room.userCard.medals');
@@ -1756,6 +1768,23 @@ class _HostSheet extends ConsumerWidget {
                               name: profile.displayName,
                             )),
                           ),
+                        ),
+                      ),
+                    // D154b: a traffic card for the host's live.
+                    if (scope?.onBoost case final onBoost?)
+                      Expanded(
+                        child: action(
+                          key: boostKey,
+                          glyph: const _RoundGlyph(
+                            colors: [Color(0xFFFFD36E), Color(0xFFF2A93B)],
+                            child: Icon(
+                              Icons.confirmation_number_rounded,
+                              size: 18,
+                              color: Color(0xFFFFFFFF),
+                            ),
+                          ),
+                          label: l10n.liveBoostGiftAction,
+                          onTap: () => close(onBoost),
                         ),
                       ),
                     if (scope?.onMention case final onMention?)

@@ -87,6 +87,8 @@ export enum AuditAction {
   /** v1.27.1-live (D133): featured hosts, changed only by the feature-admin CLI. */
   LIVE_FEATURE_ADD = 'live.feature.add',
   LIVE_FEATURE_REMOVE = 'live.feature.remove',
+  /** v1.33-live (D154b): traffic cards granted by the boost-admin CLI. */
+  LIVE_BOOST_CARD_GRANT = 'live.boost_card.grant',
   // v1.28-live (DRAFT, D146): premium usernames and the username change (CONVENTIONS §10.32).
   USERNAME_CHANGE = 'user.username.change',
   PREMIUM_USERNAME_RENT = 'premium_username.rent',

@@ -105,6 +105,12 @@ export enum ErrorCode {
   QUIP_FREE_USED = 'QUIP_FREE_USED',
   /** v1.32-live (DRAFT, D154): the room's quip queue is full (the quip would wait too long). */
   QUIP_QUEUE_FULL = 'QUIP_QUEUE_FULL',
+  /** v1.33-live (DRAFT, D154b): the traffic card would wait longer than the limit for a slot. */
+  BOOST_QUEUE_FULL = 'BOOST_QUEUE_FULL',
+  /** v1.33-live (DRAFT, D154b): the caller holds no traffic card of that length. */
+  BOOST_CARD_INSUFFICIENT = 'BOOST_CARD_INSUFFICIENT',
+  /** v1.33-live (DRAFT, D154b): this live already has a traffic card running or waiting. */
+  BOOST_ROOM_BUSY = 'BOOST_ROOM_BUSY',
 }
 
 /** HTTP status for every code (CONVENTIONS.md §4 table). */
@@ -167,6 +173,9 @@ export const ERROR_HTTP_STATUS: Readonly<Record<ErrorCode, number>> = {
   [ErrorCode.LIVE_GIFT_RECIPIENT_UNAVAILABLE]: 409,
   [ErrorCode.QUIP_FREE_USED]: 409,
   [ErrorCode.QUIP_QUEUE_FULL]: 409,
+  [ErrorCode.BOOST_QUEUE_FULL]: 409,
+  [ErrorCode.BOOST_CARD_INSUFFICIENT]: 409,
+  [ErrorCode.BOOST_ROOM_BUSY]: 409,
   [ErrorCode.CP_TASK_NOT_COMPLETED]: 409,
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 403,
 };
@@ -233,6 +242,9 @@ export const DEFAULT_ERROR_MESSAGE: Readonly<Record<ErrorCode, string>> = {
   [ErrorCode.CP_PRIVILEGE_LOCKED]: 'This couple has not unlocked that CP privilege.',
   [ErrorCode.QUIP_FREE_USED]: 'You already sent your free quip in this live.',
   [ErrorCode.QUIP_QUEUE_FULL]: 'Too many quips are waiting in this live; try again in a moment.',
+  [ErrorCode.BOOST_QUEUE_FULL]: 'The featured slots are booked too far ahead; try a shorter card or later.',
+  [ErrorCode.BOOST_CARD_INSUFFICIENT]: 'You have no traffic card of that length.',
+  [ErrorCode.BOOST_ROOM_BUSY]: 'This live already has a traffic card running or waiting.',
 };
 
 export interface ErrorDetail {

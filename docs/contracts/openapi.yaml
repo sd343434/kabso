@@ -179,6 +179,11 @@ info:
     host's and moderators' soundboard (`playLiveSound`, `POST /live/rooms/{roomId}/sounds`, one every
     2 s), the per-category host share (server config `GIFT_HOST_SHARE_PERCENTS`, quips 50 %) and the
     codes `QUIP_FREE_USED` and `QUIP_QUEUE_FULL` (CONVENTIONS §10.33).
+    **D154b (DRAFT v1.33-live)** adds traffic cards «بطاقة الزيارات» (the room boost of CP-014 part C):
+    `getLiveBoostOffers`, `listActiveLiveBoosts` (the lives in the paid «مميز» slots at the top of the
+    live list), `buyLiveBoost` (the host, or a viewer for the host; coins or one of the caller's cards)
+    and `listLiveRoomBoosts`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`,
+    `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (CONVENTIONS §10.34).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1197,6 +1202,58 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/boosts/offers:
+    get:
+      tags: [live]
+      operationId: getLiveBoostOffers
+      summary: "Traffic card lengths, prices, the caller's cards and the queue (D154b)"
+      description: |
+        v1.33-live, CONVENTIONS §10.34. The configured lengths and prices (`LIVE_BOOST_PRICES`) with what
+        each saves against the shortest per minute, the caller's traffic cards, the number of paid slots,
+        when a new card would start now at the latest (`nextStartAt`), and — with `roomId` — that live's
+        own card running or waiting. 404 for a `roomId` the caller may not see.
+      parameters:
+        - name: roomId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The offers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveBoostOffers' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/live/boosts/active:
+    get:
+      tags: [live]
+      operationId: listActiveLiveBoosts
+      summary: "The lives in the paid «مميز» slots now (D154b)"
+      description: |
+        v1.33-live, CONVENTIONS §10.34. At most `slots` LIVE rooms whose traffic card runs now, the
+        earliest started first, for the top of the live list with the «مميز» label. Guests may read it
+        (the list's buckets). Rooms across a block with the caller, of a host who is not ACTIVE, or not
+        fresh are left out.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: The boosted lives.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 20
+                    items: { $ref: '#/components/schemas/LiveBoostedRoom' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms:
     get:
       tags: [live]
@@ -1876,6 +1933,74 @@ paths:
                   requestId: 0192f1d0-7777-7000-8000-000000000008
         '429': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/boosts:
+    post:
+      tags: [live]
+      operationId: buyLiveBoost
+      summary: "Put this live in a paid «مميز» slot with a traffic card (D154b)"
+      description: |
+        v1.33-live, CONVENTIONS §10.34. A signed-in caller who can see this LIVE room — its host, or a
+        viewer gifting the host — uses a traffic card of `minutes` (one of `getLiveBoostOffers.options`):
+        paid with coins (`COINS`, ledger `LIVE_BOOST`) or one of the caller's cards (`CARD`). The host
+        earns nothing from it. Checks, in order: 401; 429 (30 / hour per user); 404; 409
+        `LIVE_ROOM_ENDED`; 400 for the body (`minutes` not offered → `invalid_value`); a retry with the
+        same `clientId` → 200 with the first card (nothing charged again); 409 `BOOST_ROOM_BUSY` (this
+        live has a card running or waiting); 409 `BOOST_QUEUE_FULL` (it would start more than
+        `LIVE_BOOST_MAX_WAIT_MINUTES` from now); 409 `INSUFFICIENT_COINS` or `BOOST_CARD_INSUFFICIENT`.
+        The card starts at once when a slot is free, else it waits (FIFO) and `startsAt` is when it
+        starts at the latest. A waiting card whose live ends is cancelled and refunded. The room gets a
+        `boost` data message (`{"type":"boost","boost":LiveBoost}`).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LiveBoostRequest' }
+            example: { minutes: 30, source: COINS, clientId: 0192f1d0-3333-7000-8000-000000000031 }
+      responses:
+        '200':
+          description: A retry with the same `clientId`; the first card.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveBoostResult' }
+        '201':
+          description: The card, the caller's balance and cards after it.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveBoostResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409':
+          description: "`LIVE_ROOM_ENDED`, `BOOST_ROOM_BUSY`, `BOOST_QUEUE_FULL`, `INSUFFICIENT_COINS` or `BOOST_CARD_INSUFFICIENT` (nothing charged)."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [live]
+      operationId: listLiveRoomBoosts
+      summary: "This live's traffic cards (D154b)"
+      description: v1.33-live, CONVENTIONS §10.34. The room's last 12 cards, the latest start first, each with its state.
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The cards.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 12
+                    items: { $ref: '#/components/schemas/LiveBoost' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms/{roomId}/sounds:
     post:
       tags: [live]
@@ -9111,6 +9236,81 @@ components:
           description: v1.32-live (D154). Present only for a QUIPS gift (absent for a retry and every other send) — its slot in the room's quip queue, as the `quip` data message carries it.
           allOf:
             - $ref: '#/components/schemas/LiveQuip'
+    LiveBoostRequest:
+      type: object
+      description: v1.33-live (D154b). A traffic card for this live.
+      required: [minutes, source, clientId]
+      additionalProperties: false
+      properties:
+        minutes: { type: integer, minimum: 1, maximum: 1440, description: "One of the offered lengths (default 10, 20, 30, 60)." }
+        source: { type: string, enum: [COINS, CARD] }
+        clientId: { type: string, format: uuid, description: A retry with the same id returns the first card and is never charged again. }
+    LiveBoostState:
+      type: string
+      enum: [WAITING, RUNNING, DONE, CANCELLED]
+      description: "WAITING for a slot; RUNNING (on the list now); DONE; CANCELLED (its live ended before it ran: refunded)."
+    LiveBoost:
+      type: object
+      description: v1.33-live (D154b, CONVENTIONS §10.34). One traffic card used on a live.
+      required: [id, roomId, host, buyer, minutes, source, coinsCharged, state, startsAt, endsAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        roomId: { type: string, format: uuid }
+        host: { $ref: '#/components/schemas/UserSummary' }
+        buyer: { $ref: '#/components/schemas/UserSummary' }
+        minutes: { type: integer, minimum: 1 }
+        source: { type: string, enum: [COINS, CARD] }
+        coinsCharged: { type: integer, format: int64, minimum: 0 }
+        state: { $ref: '#/components/schemas/LiveBoostState' }
+        startsAt: { type: string, format: date-time, description: "When it starts (at the latest, while WAITING) or started." }
+        endsAt: { type: string, format: date-time, description: "When it ends (or ended: a live that ended stops its card)." }
+        createdAt: { type: string, format: date-time }
+    LiveBoostCardStock:
+      type: object
+      required: [minutes, quantity]
+      properties:
+        minutes: { type: integer, minimum: 1 }
+        quantity: { type: integer, minimum: 1 }
+    LiveBoostOption:
+      type: object
+      required: [minutes, priceCoins, savePercent]
+      properties:
+        minutes: { type: integer, minimum: 1 }
+        priceCoins: { type: integer, minimum: 1 }
+        savePercent: { type: integer, minimum: 0, maximum: 100, description: Rounded percent saved against the shortest length per minute. }
+    LiveBoostOffers:
+      type: object
+      required: [slots, maxWaitMinutes, options, cards, nextStartAt, roomBoost]
+      properties:
+        slots: { type: integer, minimum: 1, description: The paid slots at the top of the live list (owner 3). }
+        maxWaitMinutes: { type: integer, minimum: 1 }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/LiveBoostOption' }
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/LiveBoostCardStock' }
+        nextStartAt: { type: string, format: date-time, description: "When a new card would start now, at the latest." }
+        roomBoost:
+          description: The `roomId` live's card running or waiting, or null.
+          oneOf:
+            - $ref: '#/components/schemas/LiveBoost'
+            - type: 'null'
+    LiveBoostResult:
+      type: object
+      required: [boost, coins, cards]
+      properties:
+        boost: { $ref: '#/components/schemas/LiveBoost' }
+        coins: { type: integer, format: int64, minimum: 0, description: The caller's balance after it. }
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/LiveBoostCardStock' }
+    LiveBoostedRoom:
+      type: object
+      required: [room, endsAt]
+      properties:
+        room: { $ref: '#/components/schemas/LiveRoomSummary' }
+        endsAt: { type: string, format: date-time, description: When its card ends. }
     LiveSoundRequest:
       type: object
       description: v1.32-live (D154). A free sound of the soundboard.

@@ -172,6 +172,17 @@ enum ErrorCode {
   /// live; nothing was charged; try again shortly.
   quipQueueFull('QUIP_QUEUE_FULL'),
 
+  /// v1.33-live (D154b, §10.34, 409): every featured slot is booked too far
+  /// ahead; nothing was charged.
+  boostQueueFull('BOOST_QUEUE_FULL'),
+
+  /// v1.33-live (D154b, §10.34, 409): no traffic card of that length.
+  boostCardInsufficient('BOOST_CARD_INSUFFICIENT'),
+
+  /// v1.33-live (D154b, §10.34, 409): this live has a card running or
+  /// waiting already.
+  boostRoomBusy('BOOST_ROOM_BUSY'),
+
   /// Client-only: no connection could be established.
   networkOffline('NETWORK_OFFLINE'),
 

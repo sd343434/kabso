@@ -30,7 +30,8 @@
     "banner:admin": "tsx src/cli/banner-admin.ts",
     "feature:admin": "tsx src/cli/feature-admin.ts",
     "premium:admin": "tsx src/cli/premium-admin.ts",
-    "search:admin": "tsx src/cli/search-admin.ts"
+    "search:admin": "tsx src/cli/search-admin.ts",
+    "boost:admin": "tsx src/cli/boost-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
