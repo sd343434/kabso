@@ -18,6 +18,13 @@ import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 /// D144a: [status] follows DeepAR on the device — the native side switches an
 /// effect off by itself (and says why) instead of freezing the picture; the
 /// non-release overlay reads [diagnostics].
+///
+/// D144b: an effect that is still starting [startTimeout] after it was picked
+/// is reported unavailable here too ([LiveArProblem.failed], `start_timeout`)
+/// — a backstop behind the native 10 s start watch, so Magic can never say
+/// «جارٍ تشغيل المؤثر…» for ever even if the native side goes quiet. And
+/// [release] names this camera's track, so a camera stopping late (the last
+/// go-live screen) never frees the processor the next camera now has.
 class LiveCameraFx {
   new({KabsoCameraFx? bridge, String? licenseKey})
     : _bridge = bridge ?? KabsoCameraFx(),
@@ -37,9 +44,44 @@ class LiveCameraFx {
 
   void _listen() {
     if (_statusSub != null || !_bridge.isSupported) return;
-    _statusSub = _bridge.statusChanges.listen(
-      (s) => _status.value = LiveArStatus.from(s),
-    );
+    _statusSub = _bridge.statusChanges.listen(_onNative);
+  }
+
+  void _onNative(KabsoCameraFxStatus native) {
+    final next = LiveArStatus.from(native);
+    if (next.state != LiveArState.starting) _startTimer?.cancel();
+    // After the backstop fired, the native side going off (the effect set
+    // back to None) must not hide why.
+    if (_timedOut && next.state == LiveArState.off) return;
+    _status.value = next;
+  }
+
+  /// D144b: how long an effect may stay starting before the app gives up on
+  /// it (the native start watch gives up at 10 s; this only matters when it
+  /// stays silent).
+  static const Duration startTimeout = Duration(seconds: 12);
+
+  /// The code [status] carries when the backstop fired.
+  static const String startTimeoutCode = 'start_timeout';
+
+  Timer? _startTimer;
+  bool _timedOut = false;
+
+  void _armStart() {
+    _startTimer?.cancel();
+    _timedOut = false;
+    _startTimer = Timer(startTimeout, () {
+      if (_status.value.state == LiveArState.running ||
+          _status.value.state == LiveArState.unavailable) {
+        return;
+      }
+      _timedOut = true;
+      _status.value = const LiveArStatus(
+        LiveArState.unavailable,
+        problem: LiveArProblem.failed,
+        code: startTimeoutCode,
+      );
+    });
   }
 
   LiveBeauty _wanted = const LiveBeauty();
@@ -98,6 +140,11 @@ class LiveCameraFx {
     }
     await _bridge.setEffect(effect.source);
     _sentEffect = effect;
+    if (effect == LiveArEffect.none) {
+      _startTimer?.cancel();
+    } else {
+      _armStart();
+    }
   }
 
   /// The camera stopped (the live ended, off the seat): processor off,
@@ -105,6 +152,9 @@ class LiveCameraFx {
   Future<void> release() async {
     if (!_bridge.isSupported) return;
     final wasInUse = _trackId != null || _keySent;
+    final trackId = _trackId;
+    _startTimer?.cancel();
+    _timedOut = false;
     _trackId = null;
     _sentMatrix = null;
     _sentEffect = null;
@@ -112,7 +162,7 @@ class LiveCameraFx {
     _status.value = LiveArStatus.off;
     await _statusSub?.cancel();
     _statusSub = null;
-    if (wasInUse) await _bridge.release();
+    if (wasInUse) await _bridge.release(trackId: trackId);
   }
 
   static bool _sameMatrix(List<double>? a, List<double>? b) {

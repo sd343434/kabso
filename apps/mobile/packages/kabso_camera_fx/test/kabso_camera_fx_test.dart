@@ -181,6 +181,39 @@ void main() {
     });
   });
 
+  group('D144b', () {
+    test('release names its track (a late stop never frees the next '
+        "camera's processor); no track: everything", () async {
+      final fx = KabsoCameraFx(supported: true);
+      await fx.release(trackId: 'old-camera');
+      await fx.release();
+      expect(calls.map((c) => c.method), ['release', 'release']);
+      expect(calls[0].arguments, {'trackId': 'old-camera'});
+      expect(calls[1].arguments, isNull);
+    });
+
+    test('diagnostics: camera frames into the processor and the frame path; '
+        'no_frames is an error status', () {
+      final d = KabsoCameraFxDiagnostics.fromMap(const {
+        'state': 'error',
+        'reason': 'no_frames',
+        'attached': true,
+        'cameraFrames': 0,
+        'framePath': 'rebound',
+      });
+      expect(
+        d.status,
+        const KabsoCameraFxStatus(KabsoCameraFxState.error, 'no_frames'),
+      );
+      expect(d.status.state.isFailure, isTrue);
+      expect(d.cameraFrames, 0);
+      expect(d.framePath, 'rebound');
+      final old = KabsoCameraFxDiagnostics.fromMap(const {'state': 'ready'});
+      expect(old.cameraFrames, 0);
+      expect(old.framePath, isNull);
+    });
+  });
+
   group('D144a permissions', () {
     const permissionsChannel = MethodChannel(KabsoPermissions.channelName);
     final asked = <MethodCall>[];

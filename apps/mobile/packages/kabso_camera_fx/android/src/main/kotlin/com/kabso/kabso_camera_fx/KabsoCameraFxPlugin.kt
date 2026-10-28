@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.cloudwebrtc.webrtc.FlutterWebRTCPlugin
+import com.cloudwebrtc.webrtc.GetUserMediaImpl
 import com.cloudwebrtc.webrtc.video.LocalVideoTrack
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -12,6 +13,8 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import org.webrtc.VideoProcessor
+import org.webrtc.VideoSource
 
 /**
  * D144: the Dart side of [CameraFxProcessor] (`com.kabso/camera_fx`).
@@ -30,6 +33,12 @@ import io.flutter.plugin.common.MethodChannel
  * channel (`{state, reason}`), and `diagnostics` answers the non-release
  * overlay's poll (counters and state, never the key). The camera/microphone
  * permission helper ([KabsoPermissions]) has its own channel.
+ *
+ * D144b: [attach] makes sure the track it attaches to is the one its camera
+ * actually calls ([FramePath]: flutter_webrtc calls only the first wrapper of
+ * a camera opened twice), and `release` with a `trackId` only releases the
+ * processor if it is still on that track — a go-live screen closing after the
+ * next one opened its camera must not take the new one's processor away.
  */
 class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
@@ -133,6 +142,14 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
             }
             "status" -> result.success(lastStatus)
             "release" -> {
+                val trackId = call.argument<String>("trackId")
+                val current = attachedTrack
+                if (trackId != null && current != null && current.id() != trackId) {
+                    // Another camera has the processor now: not ours to free.
+                    Log.i(TAG, "release: the processor is on another track; kept")
+                    result.success(null)
+                    return
+                }
                 releaseProcessor()
                 colorMatrix = null
                 effect = null
@@ -162,7 +179,44 @@ class KabsoCameraFxPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCa
         attachedTrack?.let { previous -> current.detachFrom(previous) }
         track.addProcessor(current)
         attachedTrack = track
+        current.framePath = bindFramePath(webrtc, trackId, track).code
         return true
+    }
+
+    /**
+     * D144b: makes [track] the `VideoProcessor` of its camera's `VideoSource`,
+     * so the frames go through it (and so through our processor). Reads
+     * flutter_webrtc 1.6.2+hotfix.4's private state by reflection (kept by its
+     * consumer ProGuard rules: `-keep class com.cloudwebrtc.webrtc.** { *; }`,
+     * `-keep class org.webrtc.** { *; }`); any mismatch → [FramePath.Result.UNKNOWN],
+     * nothing changed, and the start watch reports `no_frames` if it matters.
+     */
+    private fun bindFramePath(webrtc: FlutterWebRTCPlugin, trackId: String, track: LocalVideoTrack): FramePath.Result =
+        try {
+            val source = videoSourceOf(webrtc, trackId)
+            if (source == null) {
+                FramePath.Result.UNKNOWN
+            } else {
+                val field = VideoSource::class.java.getDeclaredField("videoProcessor").apply { isAccessible = true }
+                val currentProcessor = field.get(source) as? VideoProcessor
+                FramePath.bind(currentProcessor, track as VideoProcessor) { wanted ->
+                    Log.w(TAG, "attach: the track was not on its camera's frame path (shared camera): rebound")
+                    source.setVideoProcessor(wanted)
+                }
+            }
+        } catch (error: Throwable) {
+            Log.w(TAG, "attach: frame path unknown: $error")
+            FramePath.Result.UNKNOWN
+        }
+
+    private fun videoSourceOf(webrtc: FlutterWebRTCPlugin, trackId: String): VideoSource? {
+        fun Any.field(name: String): Any? =
+            javaClass.getDeclaredField(name).apply { isAccessible = true }.get(this)
+        val handler = webrtc.field("methodCallHandler") ?: return null
+        val getUserMedia = handler.field("getUserMediaImpl") ?: return null
+        val capturers = getUserMedia.field("mVideoCapturers") as? Map<*, *> ?: return null
+        val info = capturers[trackId] as? GetUserMediaImpl.VideoCapturerInfoEx ?: return null
+        return info.videoSource
     }
 
     /** Any thread: DeepAR's state changed; Dart hears it on the main thread. */

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.media.Image
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.util.Log
 import android.view.Surface
 import ai.deepar.ar.ARErrorType
@@ -60,6 +61,15 @@ import java.util.concurrent.atomic.AtomicLong
  *   part is black, then the effect turns itself off (`black_output`).
  *   The owner's device showed the blur black with only DeepAR's watermark;
  *   the read-out (`luma in … out …`, `probe …`) now tells input from output.
+ * - **D144b — the start is timed from the pick** ([StartWatch]): a timer, not
+ *   the frame path, checks [WARMUP_MS] after an effect is picked. No camera
+ *   frame reached the stage (`no_frames`), DeepAR never initialized
+ *   (`init_timeout`) or never published (`no_output`) → the effect turns
+ *   itself off and Dart shows why. D144a armed its warm-up on the first
+ *   frame, so with no frames (the owner's `in 0 … init no`) it never fired.
+ *   DeepAR still sets its render surface (and so initializes) on the first
+ *   frame: the input geometry is only known then. That is a dependency on
+ *   frames, not a deadlock — frames never wait for initialization.
  *
  * Adapted from voxa_deepar's DeepArBridgeFilter (MIT; see the package's
  * THIRD_PARTY_NOTICES.md).
@@ -112,6 +122,10 @@ internal class DeepArStage(
 
     private val gate = FreshGate<VideoFrame> { it.release() }
 
+    // D144b: the start-up safety net, timed from the pick (main thread timer).
+    private val startWatch = StartWatch(TimeUnit.MILLISECONDS.toNanos(WARMUP_MS))
+    private val main = Handler(Looper.getMainLooper())
+
     // Capture thread only.
     private val health = OutputHealth(MAX_MISSES, TimeUnit.MILLISECONDS.toNanos(WARMUP_MS))
     @Volatile private var armPending = false
@@ -161,8 +175,10 @@ internal class DeepArStage(
             resetPending = true
             active = true
             setState(STATE_INITIALIZING, null)
+            armStartWatch()
         } else {
             active = false
+            startWatch.disarm()
             gate.clear()
             // A failure stays visible (Dart shows why) until the next pick.
             if (!isFailure(state)) setState(STATE_OFF, null)
@@ -177,6 +193,7 @@ internal class DeepArStage(
     fun dispose() {
         if (!disposed.compareAndSet(false, true)) return
         active = false
+        startWatch.disarm()
         deepAr.post {
             teardown()
             deepArThread.quitSafely()
@@ -456,6 +473,7 @@ internal class DeepArStage(
             return miss(done)
         }
         health.onOutput()
+        startWatch.onOutput()
         if (++publishedSinceSample >= OUTPUT_SAMPLE_EVERY) {
             publishedSinceSample = 0
             val luma = sampleLuma(rendered)
@@ -607,6 +625,7 @@ internal class DeepArStage(
         Log.i(TAG, "camera rotation changed: new DeepAR instance")
         health.arm(nowNanos)
         setState(STATE_INITIALIZING, null)
+        armStartWatch()
         deepAr.post(::recreate)
     }
 
@@ -715,6 +734,7 @@ internal class DeepArStage(
     /** Turns the effect off for a reason Dart shows; the raw camera goes on. */
     private fun fail(newState: String, why: String) {
         active = false
+        startWatch.disarm()
         gate.clear()
         setState(newState, why)
         Log.w(TAG, "effect off: $newState ($why)")
@@ -725,6 +745,31 @@ internal class DeepArStage(
             } else {
                 pauseDeepAr()
             }
+        }
+    }
+
+    /**
+     * D144b: [WARMUP_MS] from now, whatever the frames do, the start is
+     * judged ([StartWatch]); a later pick (a new token) supersedes this one.
+     */
+    private fun armStartWatch() {
+        val token = startWatch.arm(System.nanoTime(), framesIn.get())
+        main.postDelayed({ checkStart(token) }, WARMUP_MS)
+    }
+
+    private fun checkStart(token: Int) {
+        if (disposed.get() || !active || !startWatch.isCurrent(token)) return
+        val initialized = initializedGen >= 0 && initializedGen == synchronized(lock) { generation }
+        when (startWatch.check(System.nanoTime(), framesIn.get(), initialized)) {
+            StartWatch.Verdict.OK -> Unit
+            // The timer ran early: look again shortly.
+            StartWatch.Verdict.WAITING -> main.postDelayed({ checkStart(token) }, START_RECHECK_MS)
+            StartWatch.Verdict.NO_FRAMES -> {
+                lastError = "no camera frame reached the effect in ${WARMUP_MS / 1000} s"
+                fail(STATE_ERROR, "no_frames")
+            }
+            StartWatch.Verdict.INIT_TIMEOUT -> fail(STATE_ERROR, "init_timeout")
+            StartWatch.Verdict.NO_OUTPUT -> fail(STATE_DISABLED, "no_output")
         }
     }
 
@@ -800,8 +845,12 @@ internal class DeepArStage(
         /** Fresh-render misses in a row (≈ 1 s at 30 fps) before giving up. */
         const val MAX_MISSES = 30
 
-        /** Time to the first fresh render (initialization included). */
+        /**
+         * Time to the first fresh render (initialization included); D144b:
+         * counted from the pick, with or without camera frames.
+         */
         const val WARMUP_MS = 10_000L
+        private const val START_RECHECK_MS = 500L
 
         /**
          * One frame handed to DeepAR's thread and not taken for this long

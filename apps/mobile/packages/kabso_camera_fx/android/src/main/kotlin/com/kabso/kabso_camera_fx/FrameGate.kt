@@ -375,3 +375,124 @@ internal class PassthroughProbe(
         }
     }
 }
+
+/**
+ * D144b: the start-up safety net, armed when an effect is **picked** — not on
+ * the first camera frame.
+ *
+ * D144a armed [OutputHealth] inside the per-frame path, so its 10 s warm-up
+ * only ran while camera frames reached the stage. The owner's device showed
+ * the stage with no frames at all (`in 0 … init no`): nothing armed it,
+ * nothing asked it, and Magic said «جارٍ تشغيل المؤثر…» for ever. This watch
+ * is checked by a timer, so it decides with or without frames:
+ * - [Verdict.NO_FRAMES]: no camera frame reached the stage since the pick
+ *   (the processor is not on the camera's frame path);
+ * - [Verdict.INIT_TIMEOUT]: frames came, DeepAR never said `initialized()`;
+ * - [Verdict.NO_OUTPUT]: DeepAR started but published no fresh render.
+ * Thread-safe (picked on the main thread, frames on the capture thread, the
+ * check on a timer).
+ */
+internal class StartWatch(private val timeoutNanos: Long) {
+    enum class Verdict { WAITING, OK, NO_FRAMES, INIT_TIMEOUT, NO_OUTPUT }
+
+    private var armed = false
+    private var armedAt = 0L
+    private var framesAtArm = 0L
+    private var sawOutput = false
+    private var token = 0
+
+    /** An effect was picked at [nowNanos]; [framesSoFar] is the stage's frame count. Returns the arm's token. */
+    @Synchronized
+    fun arm(nowNanos: Long, framesSoFar: Long): Int {
+        armed = true
+        armedAt = nowNanos
+        framesAtArm = framesSoFar
+        sawOutput = false
+        return ++token
+    }
+
+    /** No effect any more (None, or the effect gave up for another reason). */
+    @Synchronized
+    fun disarm() {
+        armed = false
+    }
+
+    /** A fresh render was published: the start succeeded. */
+    @Synchronized
+    fun onOutput() {
+        sawOutput = true
+    }
+
+    /** Whether [token] is still the current, armed pick. */
+    @Synchronized
+    fun isCurrent(token: Int) = armed && token == this.token
+
+    @Synchronized
+    fun check(nowNanos: Long, framesNow: Long, initialized: Boolean): Verdict {
+        if (!armed || sawOutput) return Verdict.OK
+        if (nowNanos - armedAt < timeoutNanos) return Verdict.WAITING
+        return when {
+            framesNow == framesAtArm -> Verdict.NO_FRAMES
+            !initialized -> Verdict.INIT_TIMEOUT
+            else -> Verdict.NO_OUTPUT
+        }
+    }
+}
+
+/**
+ * D144b: flutter_webrtc 1.6.2+hotfix.4 calls only **one** `LocalVideoTrack`
+ * wrapper per camera: the one installed as its `VideoSource`'s
+ * `VideoProcessor` (`GetUserMediaImpl.getUserVideo`, l.874–875). When the
+ * same camera is asked for again while it is open, it hands out a *shared*
+ * track (`buildSharedVideoTrack`, l.765–780 and 906–924) whose wrapper is
+ * registered for `getLocalTrack` but never called; a processor added to it
+ * sees no frame, while the picture (the source's sink feeds every track of
+ * the source) looks normal. That is the owner's `in 0 … on track`.
+ *
+ * [bind] makes the wrapper we attach to the source's processor. [P] is the
+ * processor type (a `VideoProcessor` on the device, a fake in the tests).
+ */
+internal object FramePath {
+    enum class Result(val code: String) {
+        /** The wrapper already was the source's processor. */
+        ON_PATH("source"),
+
+        /** It was not (a shared track): it is now. */
+        REBOUND("rebound"),
+
+        /** The source could not be found; left as it was. */
+        UNKNOWN("unknown"),
+    }
+
+    fun <P : Any> bind(current: P?, wanted: P, install: (P) -> Unit): Result {
+        if (current === wanted) return Result.ON_PATH
+        install(wanted)
+        return Result.REBOUND
+    }
+}
+
+/**
+ * D144b: the processor's two stages in order — DeepAR first, then the colour
+ * transform (D143 filter with D157's fill light folded in) on DeepAR's
+ * output — each a pass-through (`null`) when it has nothing to do. Both run
+ * when both are on. A frame a stage made is ours: the intermediate one goes
+ * back as soon as the colour stage has drawn it. Returns the frame for the
+ * track and whether it is ours (release it on the next call).
+ */
+internal object FxChain {
+    fun <F : Any> run(
+        frame: F,
+        effect: (F) -> F?,
+        color: (F) -> F?,
+        release: (F) -> Unit,
+    ): Pair<F, Boolean> {
+        val effected = effect(frame)
+        val colored = color(effected ?: frame)
+        if (colored != null) {
+            effected?.let(release)
+            return colored to true
+        }
+        if (effected != null) return effected to true
+        return frame to false
+    }
+}
