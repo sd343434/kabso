@@ -683,6 +683,18 @@ a `CONNECTION LIMIT`.
   send of a user per minute) and `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` (default `10/1`: lucky
   sends per second, instead of `RATE_LIMIT_LIVE_GIFT_USER`). The app's MAX X queue paces taps at
   ≥ 100 ms and retries a 429 silently after `Retry-After` with the same `clientId`.
+- **D145d (100 lucky sends a second):** the defaults are now `RATE_LIMIT_LIVE_LUCKY_GIFT_USER=6000/60`
+  and `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER=100/1` (were `600/60` and `10/1`); normal gifts keep
+  `RATE_LIMIT_LIVE_GIFT_USER` (`120/60`). A server that set the old values explicitly keeps them until
+  the variables are removed or changed. The app's MAX X queue paces at ≥ 10 ms (one send in flight
+  at a time). Measured (dev box, 4 vCPU, API + PostgreSQL 16 + Redis on one host, e2e `kl093`): one
+  user commits about 20 lucky sends a second one at a time and about 28–35 a second when 100 are
+  offered in one second (every one accepted, no 429): each send is one interactive transaction of
+  about 37 statements under the sender's advisory lock (p50 26 ms; the database itself spends about
+  2.5 ms executing them), so a single sender's sends are serialized. The limit no longer refuses
+  100 a second, but the database path does not commit 100 a second for one sender.
+- **D145d (MAX X sounds):** the app ships the owner's sounds in `apps/mobile/assets/sounds/`
+  (`PROVENANCE.md`); nothing to deploy on the server.
 - Levels: gifts credit charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) only while those
   categories are enabled with a published version (`levels:admin`); nothing is credited later for
   gifts sent while a category was unavailable.

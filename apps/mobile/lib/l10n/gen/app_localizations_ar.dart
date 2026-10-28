@@ -354,6 +354,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsLanguage => 'اللغة';
 
   @override
+  String get settingsSoundEffects => 'المؤثرات الصوتية';
+
+  @override
+  String get settingsSoundEffectsHint =>
+      'أصوات زر ماكس وأرباح الهدايا المحظوظة';
+
+  @override
   String get settingsSessions => 'الجلسات النشطة';
 
   @override
@@ -6373,7 +6380,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
 
   @override
-  String get liveComboLabel => 'MAX X';
+  String get liveComboLabel => 'ماكس';
+
+  @override
+  String get liveMaxXJackpot => 'جاكبوت';
+
+  @override
+  String get liveMaxXSuperJackpot => 'سوبر جاكبوت';
 
   @override
   String liveComboSemantics(String gift, int count) {

@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/cp/presentation/cp_space_art.dart';
 import 'package:kabso_live/features/debug/preview_photo.dart';
+import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/data/live_permissions.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_mic_effect.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seat_fx.dart';
@@ -15,6 +16,7 @@ import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/widgets/battle_emoji.dart';
 import 'package:kabso_live/features/live/presentation/widgets/kabso_pk_bar.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/profile_card/kabso_profile_header.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -22,6 +24,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   PreviewPhoto.enabled = false;
   KabsoBattleEmoji.enabled = false;
   KGiftEffect.animate = false;
+  // D145d: the MAX X orb's endless motion, and its sounds (no audio plugin).
+  MaxXOrb.animate = false;
+  AudioplayersMaxXSounds.enabled = false;
   // D134: the animated cherry decodes outside fake time.
   KCherryIcon.animate = false;
   KabsoProfileHeaderArt.animate = false;

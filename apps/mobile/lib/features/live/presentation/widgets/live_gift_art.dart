@@ -137,16 +137,21 @@ class KGiftImage extends StatelessWidget {
 }
 
 /// D145 (owner: «big gift animations are larger than the screen and cut
-/// off»): an effect's movie is drawn whole — scaled to *contain* inside the
-/// safe area (aspect kept, centred, never cropped) on any phone, and
-/// nothing it draws leaves that box.
+/// off»): an effect's movie is drawn whole on any phone, its aspect kept,
+/// and nothing it draws leaves its frame.
 ///
 /// D145c (owner, device: the angel's wings and legs still cut off): what
-/// is contained is the movie's *drawn* area ([bounds]), not only its view
+/// is fitted is the movie's *drawn* area ([bounds]), not only its view
 /// box. A full-screen cinematic such as `angel_warrior` (view box
 /// 750 × 1624) paints its frames 916 × 1628 from x = −83: D145 clipped
-/// those 83 units on each side (the wings at the edges). Now the whole
-/// painted frame is scaled into the safe area.
+/// those 83 units on each side (the wings at the edges).
+///
+/// D145d (owner, device: an empty band under the effect): the drawn area
+/// takes the screen's **full width** (nothing cut at the sides) and its
+/// **bottom sits on the screen's bottom edge** — through the bottom safe
+/// area and behind the bottom bar (the effect never takes taps); its top
+/// lands wherever the movie's height puts it. No safe-area inset: the
+/// frame fills the whole screen it is given.
 class KGiftMovieFrame extends StatelessWidget {
   const new({
     required this.viewBox,
@@ -166,21 +171,21 @@ class KGiftMovieFrame extends StatelessWidget {
   /// at [bounds]).
   final Widget child;
 
-  /// The rect [viewBox] takes inside [area]: contained and centred.
-  static Rect fit(Size viewBox, Rect area) {
-    if (viewBox.isEmpty || area.isEmpty) return area;
-    final size = applyBoxFit(BoxFit.contain, viewBox, area.size).destination;
-    return Alignment.center.inscribe(size, area);
-  }
-
-  /// [bounds] contained and centred in [area]; returns (the drawn area's
-  /// rect, the view box's rect) on screen.
+  /// [bounds] scaled to [area]'s full width, its bottom on [area]'s
+  /// bottom (D145d); returns (the drawn area's rect, the view box's rect)
+  /// on screen. The top may be above [area] for a movie taller than it.
   static (Rect, Rect) layout(Size viewBox, Rect bounds, Rect area) {
     final box = Offset.zero & viewBox;
     final drawn = bounds.isEmpty ? box : bounds.expandToInclude(box);
-    final outer = fit(drawn.size, area);
-    if (drawn.isEmpty || outer.isEmpty) return (outer, outer);
-    final scale = outer.width / drawn.width;
+    if (drawn.isEmpty || area.isEmpty) return (area, area);
+    final scale = area.width / drawn.width;
+    final height = drawn.height * scale;
+    final outer = Rect.fromLTWH(
+      area.left,
+      area.bottom - height,
+      area.width,
+      height,
+    );
     final inner = Rect.fromLTWH(
       outer.left - drawn.left * scale,
       outer.top - drawn.top * scale,
@@ -237,7 +242,7 @@ class KGiftMovieFrame extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => SafeArea(
+  Widget build(BuildContext context) => SizedBox.expand(
     child: LayoutBuilder(
       builder: (context, box) {
         final (outer, inner) = layout(
@@ -246,6 +251,7 @@ class KGiftMovieFrame extends StatelessWidget {
           Offset.zero & box.biggest,
         );
         return Stack(
+          clipBehavior: Clip.none,
           children: [
             Positioned.fromRect(
               rect: outer,
@@ -270,8 +276,9 @@ class KGiftMovieFrame extends StatelessWidget {
 
 /// The full-screen effect of an animated gift: its SVGA — the hosted
 /// [animationUrl] (D126, from the device cache or downloaded now) or the
-/// bundled [animationKey] — plays once over the room, contained in the
-/// safe area ([KGiftMovieFrame]), with the sound inside the SVGA
+/// bundled [animationKey] — plays once over the room, full width and
+/// standing on the screen's bottom edge ([KGiftMovieFrame], D145d), with
+/// the sound inside the SVGA
 /// ([GiftEffectSound]).
 ///
 /// D145c (owner: «the gift's static picture floats mid-screen for ~2 s,

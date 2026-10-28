@@ -344,8 +344,10 @@ void main() {
       Size(430, 932),
     ]) {
       testWidgets('${phone.width.toInt()}×${phone.height.toInt()}: the whole '
-          'painted frame shows, contained in the safe area and centred — '
-          'nothing cropped', (tester) async {
+          'painted width shows (D145c) and, D145d, the movie stands on the '
+          "screen's bottom edge — through the bottom safe area", (
+        tester,
+      ) async {
         tester.view
           ..physicalSize = phone
           ..devicePixelRatio = 1
@@ -406,46 +408,51 @@ void main() {
           maxX + 1.0,
           maxY + 1.0,
         );
-        final safe = Rect.fromLTRB(0, 59, phone.width, phone.height - 34);
+        final screen = Offset.zero & phone;
         final (outer, inner) = KGiftMovieFrame.layout(
           const Size(750, 1624),
           bounds,
-          safe,
+          screen,
         );
-        // Inside the safe area, centred.
-        expect(red.left, greaterThanOrEqualTo(safe.left));
-        expect(red.top, greaterThanOrEqualTo(safe.top));
-        expect(red.right, lessThanOrEqualTo(safe.right));
-        expect(red.bottom, lessThanOrEqualTo(safe.bottom));
-        expect((red.center - safe.center).dx.abs(), lessThan(1.5));
+        // D145d: the bottom edge of the painted movie is the screen's
+        // bottom (no band under it, the 34 pt inset included); full width,
+        // centred; the top lands where the height puts it.
+        expect(red.bottom, closeTo(phone.height, 1));
+        expect(red.left, closeTo(0, 1));
+        expect(red.right, closeTo(phone.width, 1));
+        expect((red.center.dx - phone.width / 2).abs(), lessThan(1.5));
+        expect(outer.bottom, phone.height);
         // The whole 916-unit frame is painted (D145 cut it at 750: the
         // wings at the edges).
         expect(red.width, closeTo(outer.width, 2));
         expect(red.height, closeTo(outer.height, 2));
         expect(red.width / inner.width, closeTo(916 / 750, 0.01));
-        // It fills the safe area's width.
-        expect(red.width, closeTo(safe.width, 2));
         // Nothing drawn outside the frame.
         expect(red.top, greaterThanOrEqualTo(outer.top - 1));
       });
     }
 
-    test('a movie drawn inside its view box keeps the view box', () {
+    test('a movie drawn inside its view box keeps the view box; full width, '
+        'on the bottom edge', () {
       final (outer, inner) = KGiftMovieFrame.layout(
         const Size(750, 1334),
         const Rect.fromLTWH(0, 0, 750, 1334),
-        const Rect.fromLTWH(0, 59, 393, 759),
+        const Rect.fromLTWH(0, 0, 393, 852),
       );
       expect(outer, inner);
+      expect(outer.width, 393);
+      expect(outer.bottom, 852);
+      expect(outer.height, closeTo(393 * 1334 / 750, 0.001));
     });
   });
 
-  test('MAX X: the Latin label in both languages; screen readers say '
-      '"Max X" / «ماكس إكس»', () {
+  test("MAX X: D145d, the owner's label «ماكس x12» / «MAX x12» (the word "
+      'here, the number on the button); screen readers say "Max X" / '
+      '«ماكس إكس»', () {
     final en = l10nFor(AppLanguage.en);
     final ar = l10nFor(AppLanguage.ar);
-    expect(en.liveComboLabel, 'MAX X');
-    expect(ar.liveComboLabel, 'MAX X');
+    expect(en.liveComboLabel, 'MAX');
+    expect(ar.liveComboLabel, 'ماكس');
     expect(en.liveComboSemantics('Rose', 3), startsWith('Max X'));
     expect(ar.liveComboSemantics('وردة', 3), startsWith('ماكس إكس'));
     expect(ar.liveComboSemantics('وردة', 3), contains('\u2066×3\u2069'));

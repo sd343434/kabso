@@ -686,6 +686,18 @@ abstract class AppLocalizations {
   /// **'اللغة'**
   String get settingsLanguage;
 
+  /// D145d: Settings switch for the app's sound effects (the MAX X taps and wins).
+  ///
+  /// In ar, this message translates to:
+  /// **'المؤثرات الصوتية'**
+  String get settingsSoundEffects;
+
+  /// D145d: the sound effects switch's subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أصوات زر ماكس وأرباح الهدايا المحظوظة'**
+  String get settingsSoundEffectsHint;
+
   /// No description provided for @settingsSessions.
   ///
   /// In ar, this message translates to:
@@ -11024,11 +11036,23 @@ abstract class AppLocalizations {
   /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
   String get liveStatsLoadFailedBody;
 
-  /// D145/D145c: the lucky combo button's label — owner: the Latin "MAX X" in every language (screen readers say "Max X" / «ماكس إكس» through liveComboSemantics).
+  /// D145/D145c/D145d: the word on the MAX X button before its counter — owner's MAX X design: «ماكس x12» in Arabic, «MAX x12» in English (screen readers say "Max X" / «ماكس إكس» through liveComboSemantics).
   ///
   /// In ar, this message translates to:
-  /// **'MAX X'**
+  /// **'ماكس'**
   String get liveComboLabel;
+
+  /// D145d: the ×500 win celebration's title on the MAX X button (owner's file: جاكبوت / JACKPOT).
+  ///
+  /// In ar, this message translates to:
+  /// **'جاكبوت'**
+  String get liveMaxXJackpot;
+
+  /// D145d: the ×1000 win celebration's title (owner's file: سوبر جاكبوت / SUPER JACKPOT).
+  ///
+  /// In ar, this message translates to:
+  /// **'سوبر جاكبوت'**
+  String get liveMaxXSuperJackpot;
 
   /// D145: the lucky combo button for screen readers.
   ///

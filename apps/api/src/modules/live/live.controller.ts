@@ -527,9 +527,9 @@ export class LiveController {
 
   /**
    * v1.23-live (CP-020): a gift to the host and/or seated people, paid with coins or from the bag.
-   * 201 new, 200 a retry with the same `clientId`. Rate limits (§7, D145c): every send 600 / min per
-   * user here (replacing the default); then, in the service, a normal gift 120 / min and a lucky
-   * gift 10 / s (a retry with the same `clientId` counts only here).
+   * 201 new, 200 a retry with the same `clientId`. Rate limits (§7, D145c, D145d): every send 6000 / min
+   * per user here (replacing the default); then, in the service, a normal gift 120 / min and a lucky
+   * gift 100 / s (a retry with the same `clientId` counts only here).
    */
   @Post('rooms/:roomId/gifts')
   @RateLimit({ bucket: 'live:gift:any', rule: 'liveGiftAnyUser', key: byUserId, replacesDefault: true })

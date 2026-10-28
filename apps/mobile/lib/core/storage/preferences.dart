@@ -29,4 +29,7 @@ abstract final class PreferenceKeys {
   /// the party button opens the voice rooms). A value saved by an older
   /// build is left alone and ignored. Not sensitive.
   static const liveHubKind = 'pref.liveHubKind';
+
+  /// D145d: the app's sound effects on (default) or off. Not sensitive.
+  static const soundEffects = 'pref.soundEffects';
 }

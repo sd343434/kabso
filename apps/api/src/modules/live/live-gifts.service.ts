@@ -259,9 +259,6 @@ export class LiveGiftsService {
     const to = recipients as Recipient[];
     await this.assertNoBlocks(callerId, to);
 
-    const now = this.clock.now();
-    const at = now.toISOString();
-    const giftId = uuidv7();
     const key = recipientsKey(to.map((r) => r.id));
     // The draws are made before the transaction (CSPRNG, pure) and committed only with this send:
     // a refused or raced send discards them, a retry reads the stored ones and never draws again.
@@ -280,6 +277,12 @@ export class LiveGiftsService {
         await setLiveStatementTimeout(tx);
         // One send of this sender at a time (their combo follows the previous send).
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`live-gift:${callerId}`}, 0))`;
+        // D145d (load check, 100 lucky sends a second): the time and the id are taken under the
+        // sender's lock, so concurrent sends of one sender are stored in the order they ran and each
+        // continues the combo of the one before (taken earlier, two could read the same previous).
+        const now = this.clock.now();
+        const at = now.toISOString();
+        const giftId = uuidv7();
         // The room row first, like taps (§10.10): sends and tap batches of a room are serialized.
         const [room] = await tx.$queryRaw<{ host_user_id: string; status: string; wish_gifts: string[] }[]>`
           SELECT host_user_id::text AS host_user_id, status::text AS status, wish_gifts

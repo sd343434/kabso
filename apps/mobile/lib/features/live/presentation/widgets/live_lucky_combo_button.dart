@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,9 +9,10 @@ import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/application/live_gift_providers.dart';
 import 'package:kabso_live/features/live/application/live_lucky_combo.dart';
 import 'package:kabso_live/features/live/application/live_wallet_controller.dart';
+import 'package:kabso_live/features/live/application/max_x.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
-import 'package:kabso_live/features/live/presentation/widgets/gift_panel.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_gift_art.dart';
+import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -24,12 +24,19 @@ import 'package:material_ui/material_ui.dart';
 /// seats or the quick replies.
 ///
 /// From the top: the streak's winnings (compact: the coin and "+N", the
-/// best ×), the round button — the gift and «كومبو / Combo» on Kabso red,
-/// a gold rim, a gold → red countdown ring of [LuckyComboController
-/// .ringTime] — with the one ×N badge (the gifts per recipient in the
-/// server's combo, `combo.quantity`) at its top start, and the balance.
-/// Each accepted tap buzzes, bounces the button and flies the gift up
-/// ([LuckyComboLayer]). Nothing when no combo shows.
+/// best ×), the round button and the balance.
+///
+/// D145d: the button is the owner's animated MAX X design ([MaxXOrb]): a
+/// heat orb that turns red → pink → purple → gold as the streak grows
+/// (x1, x10, x30, x100), the countdown ring of [LuckyComboController
+/// .ringTime] (urgent in its last second), the gift and «ماكس x12» /
+/// «MAX x12» — the number is the one ×N of the room (the gifts per
+/// recipient in the server's combo, `combo.quantity`, plus the taps on
+/// their way), so the separate ×N badge is gone. Each accepted tap buzzes,
+/// pops (the owner's tap sound, when sound effects are on: [MaxXSounds]),
+/// squashes the orb and flies the gift up ([LuckyComboLayer]). A send the
+/// server answers with a win celebrates over the room ([MaxXCelebration]).
+/// Nothing when no combo shows.
 class LuckyComboCluster extends ConsumerStatefulWidget {
   const new({required this.roomId, super.key});
 
@@ -42,7 +49,8 @@ class LuckyComboCluster extends ConsumerStatefulWidget {
   static const resultKey = Key('combo.result');
 
   /// The button's outer size (ring included); a 48 pt target and more.
-  static const double size = 76;
+  /// The orb's glow and sparks draw past it.
+  static const double size = 84;
 
   /// The cluster's width (the button and its badge; the chips scale down
   /// to it).
@@ -71,21 +79,18 @@ class _LuckyComboClusterState extends ConsumerState<LuckyComboCluster>
     duration: LuckyComboController.ringTime,
     animationBehavior: AnimationBehavior.preserve,
   );
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
 
   @override
   void dispose() {
     _ring.dispose();
-    _pulse.dispose();
     super.dispose();
   }
 
   void _onTap() {
     final ok = ref.read(liveLuckyComboProvider(widget.roomId).notifier).tap();
-    if (ok) unawaited(HapticFeedback.mediumImpact());
+    if (!ok) return;
+    unawaited(HapticFeedback.mediumImpact());
+    ref.read(maxXSoundsProvider).tap();
   }
 
   @override
@@ -99,24 +104,14 @@ class _LuckyComboClusterState extends ConsumerState<LuckyComboCluster>
     });
     final combo = ref.watch(provider);
     final gift = combo.gift;
-    if (!combo.visible || gift == null) {
-      if (_pulse.isAnimating) _pulse.stop();
-      return const SizedBox.shrink();
-    }
+    if (!combo.visible || gift == null) return const SizedBox.shrink();
     // The balance is kept read while the combo shows (its answers set it).
     final coins = ref.watch(liveCoinsProvider).value;
-    final reduce = MediaQuery.disableAnimationsOf(context);
-    if (!reduce && !_pulse.isAnimating) {
-      _pulse.repeat(reverse: true);
-    } else if (reduce && _pulse.isAnimating) {
-      _pulse.stop();
-    }
     if (!_ring.isAnimating && _ring.value == 0) _ring.forward(from: 0);
     final catalogue = ref.watch(giftCatalogueProvider).value;
     final name = catalogue?.byCode(gift.code)?.name;
     final scaler = MediaQuery.textScalerOf(context)
         .clamp(maxScaleFactor: KMetrics.overlayMaxTextScale);
-    final media = MediaQuery.of(context);
     return SizedBox(
       width: LuckyComboCluster.width,
       child: Column(
@@ -134,68 +129,45 @@ class _LuckyComboClusterState extends ConsumerState<LuckyComboCluster>
           const SizedBox(height: KSpacing.xxs),
           SizedBox(
             width: LuckyComboCluster.width,
-            height: LuckyComboCluster.size + 6,
-            child: Stack(
-              children: [
-                Align(
-                  alignment: AlignmentDirectional.bottomEnd,
-                  child: Semantics(
-                    button: true,
-                    label: l10n.liveComboSemantics(
-                      KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
-                      combo.comboQuantity,
-                    ),
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      key: LuckyComboCluster.buttonKey,
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _onTap,
-                      child: KeyedSubtree(
-                        key: LuckyComboCluster.anchorFor(widget.roomId),
-                        child: _ComboButton(
-                          ring: _ring,
-                          pulse: _pulse,
-                          taps: combo.taps,
-                          reduce: reduce,
-                          assetKey: gift.assetKey,
-                          imageUrl: gift.imageUrl,
-                          label: l10n.liveComboLabel,
-                          scaler: scaler,
-                        ),
-                      ),
+            height: LuckyComboCluster.size,
+            child: Align(
+              alignment: AlignmentDirectional.bottomEnd,
+              child: Semantics(
+                button: true,
+                label: l10n.liveComboSemantics(
+                  KFormat.bidiIsolate(name ?? l10n.liveGiftGeneric),
+                  combo.displayCount,
+                ),
+                excludeSemantics: true,
+                child: GestureDetector(
+                  key: LuckyComboCluster.buttonKey,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _onTap,
+                  child: KeyedSubtree(
+                    key: LuckyComboCluster.anchorFor(widget.roomId),
+                    child: MaxXOrb(
+                      ring: _ring,
+                      streak: combo.streak,
+                      count: combo.displayCount,
+                      taps: combo.taps,
+                      word: l10n.liveComboLabel,
+                      assetKey: gift.assetKey,
+                      imageUrl: gift.imageUrl,
+                      countKey: LuckyComboCluster.countKey,
+                      ringKey: LuckyComboCluster.ringKey,
                     ),
                   ),
                 ),
-                PositionedDirectional(
-                  top: 0,
-                  start: 0,
-                  child: ExcludeSemantics(
-                    child: MediaQuery(
-                      data: media.copyWith(
-                        textScaler: scaler.clamp(maxScaleFactor: 1.15),
-                      ),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: KLiveColors.chatScrim,
-                          borderRadius: BorderRadius.circular(KRadius.pill),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          child: KGiftComboCounter(
-                            key: LuckyComboCluster.countKey,
-                            count: combo.comboQuantity,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
           if (coins != null) ...[
             const SizedBox(height: 2),
-            _Balance(coins: coins, scaler: scaler),
+            // A six-digit balance scales down to the cluster's width.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: _Balance(coins: coins, scaler: scaler),
+            ),
           ],
         ],
       ),
@@ -245,6 +217,9 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
   /// Flights: id → where it starts (the button's centre then).
   final _flights = <int, Offset>{};
 
+  /// D145d: win celebrations on screen: the win and where it plays.
+  final _wins = <MaxXWin, Offset>{};
+
   @override
   void dispose() {
     _messageTimer?.cancel();
@@ -257,6 +232,19 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
       if (mounted) setState(() => _message = null);
     });
     setState(() => _message = text);
+  }
+
+  /// Plays [win]'s celebration at the button (after this frame when the
+  /// button is not laid out yet: the panel's own send starts the combo).
+  void _celebrate(MaxXWin win, {bool retry = true}) {
+    final at = _buttonCentre();
+    if (at != null) {
+      setState(() => _wins[win] = at);
+    } else if (retry) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _celebrate(win, retry: false);
+      });
+    }
   }
 
   Offset? _buttonCentre() {
@@ -276,6 +264,13 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
           !MediaQuery.disableAnimationsOf(context)) {
         final from = _buttonCentre();
         if (from != null) setState(() => _flights[next.taps] = from);
+      }
+      // D145d: a send the server answered with a win celebrates (and plays
+      // its jingle) once, at the button.
+      final win = next.win;
+      if (win != null && win.id != previous?.win?.id) {
+        ref.read(maxXSoundsProvider).win(win.multiplier);
+        _celebrate(win);
       }
       final stop = next.stop;
       if (stop != null && stop.id != previous?.stop?.id) {
@@ -350,169 +345,27 @@ class _LuckyComboLayerState extends ConsumerState<LuckyComboLayer> {
         );
       }
     }
-    return IgnorePointer(
-      child: Stack(fit: StackFit.expand, children: children),
-    );
-  }
-}
-
-/// The round button: the gift and "Combo" on Kabso red, a gold → red
-/// countdown ring that empties over the ring time, a soft pulse (none with
-/// reduced motion) and a bounce on each tap.
-class _ComboButton extends StatelessWidget {
-  const new({
-    required this.ring,
-    required this.pulse,
-    required this.taps,
-    required this.reduce,
-    required this.assetKey,
-    required this.imageUrl,
-    required this.label,
-    required this.scaler,
-  });
-
-  final Animation<double> ring;
-  final Animation<double> pulse;
-  final int taps;
-  final bool reduce;
-  final String assetKey;
-  final String? imageUrl;
-  final String label;
-  final TextScaler scaler;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = LuckyComboCluster.size;
-    final face = Container(
-      width: size - 12,
-      height: size - 12,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          center: Alignment(0, -0.35),
-          radius: 0.9,
-          colors: [KBrandColors.red400, KBrandColors.red600],
+    for (final MapEntry(key: win, value: at) in _wins.entries) {
+      children.add(
+        MaxXCelebration(
+          key: ValueKey('maxx.win.${win.id}'),
+          win: win,
+          centre: at,
+          radius: MaxXOrb.radiusOf(LuckyComboCluster.size),
+          onDone: () {
+            if (mounted) setState(() => _wins.remove(win));
+          },
         ),
-        border: Border.fromBorderSide(
-          BorderSide(color: KBrandColors.gold, width: 1.5),
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          KGiftImage(assetKey, imageUrl: imageUrl, size: 34),
-          Text(
-            label,
-            maxLines: 1,
-            // D145c: the Latin "MAX X" in every language.
-            textDirection: TextDirection.ltr,
-            textScaler: scaler.clamp(maxScaleFactor: 1.15),
-            style: context.textStyles.caption.copyWith(
-              color: const Color(0xFFFFFFFF),
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-              height: 1.1,
-              shadows: KLiveColors.glassShadow,
-            ),
-          ),
-        ],
-      ),
-    );
-    final ringed = SizedBox.square(
-      dimension: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AnimatedBuilder(
-            key: LuckyComboCluster.ringKey,
-            animation: Listenable.merge([ring, pulse]),
-            builder: (context, _) => CustomPaint(
-              size: const Size.square(size),
-              painter: ComboRingPainter(
-                remaining: 1 - ring.value,
-                glow: reduce ? 0 : pulse.value,
-              ),
-            ),
-          ),
-          AnimatedBuilder(
-            animation: pulse,
-            builder: (context, child) => Transform.scale(
-              scale: reduce ? 1 : 1 + 0.05 * pulse.value,
-              child: child,
-            ),
-            child: face,
-          ),
-        ],
-      ),
-    );
-    final bounce = KMotion.of(context, const Duration(milliseconds: 220));
-    if (bounce == Duration.zero) return ringed;
-    return TweenAnimationBuilder<double>(
-      key: ValueKey('bounce.$taps'),
-      tween: Tween(begin: taps == 0 ? 1 : 0.86, end: 1),
-      duration: bounce,
-      curve: Curves.easeOutBack,
-      builder: (context, scale, child) =>
-          Transform.scale(scale: scale, child: child),
-      child: ringed,
-    );
-  }
-}
-
-/// The countdown ring: a dim track and the time left as a gold → red arc
-/// from the top, clockwise; [glow] (0–1) widens a soft halo.
-class ComboRingPainter extends CustomPainter {
-  const new({required this.remaining, this.glow = 0});
-
-  final double remaining;
-  final double glow;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const stroke = 4.5;
-    final rect = (Offset.zero & size).deflate(stroke / 2 + 1);
-    if (glow > 0) {
-      canvas.drawCircle(
-        size.center(Offset.zero),
-        size.width / 2 - 2,
-        Paint()
-          ..color = KBrandColors.red500.withValues(alpha: 0.25 + 0.2 * glow)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4 + 4 * glow),
       );
     }
-    canvas.drawArc(
-      rect,
-      0,
-      2 * math.pi,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..color = const Color(0x66000000),
-    );
-    final sweep = 2 * math.pi * remaining.clamp(0, 1);
-    if (sweep <= 0) return;
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      sweep,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        ..shader = const SweepGradient(
-          startAngle: -math.pi / 2,
-          endAngle: 3 * math.pi / 2,
-          colors: [KBrandColors.gold, KBrandColors.red400, KBrandColors.gold],
-          transform: GradientRotation(-math.pi / 2),
-        ).createShader(rect),
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
+        children: children,
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(ComboRingPainter old) =>
-      old.remaining != remaining || old.glow != glow;
 }
 
 /// The streak's lucky winnings, compact for the cluster's width: the coin,

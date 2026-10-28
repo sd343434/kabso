@@ -340,6 +340,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguage => 'Language';
 
   @override
+  String get settingsSoundEffects => 'Sound effects';
+
+  @override
+  String get settingsSoundEffectsHint => 'MAX X taps and lucky wins';
+
+  @override
   String get settingsSessions => 'Active sessions';
 
   @override
@@ -6353,7 +6359,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveStatsLoadFailedBody => 'Check your connection and try again.';
 
   @override
-  String get liveComboLabel => 'MAX X';
+  String get liveComboLabel => 'MAX';
+
+  @override
+  String get liveMaxXJackpot => 'JACKPOT';
+
+  @override
+  String get liveMaxXSuperJackpot => 'SUPER JACKPOT';
 
   @override
   String liveComboSemantics(String gift, int count) {

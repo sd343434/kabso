@@ -96,6 +96,8 @@ flutter:
     - assets/taps/
     # D63 launch animation and voice (owner-supplied).
     - assets/splash/
+    # D145d the owner's MAX X sounds (assets/sounds/PROVENANCE.md).
+    - assets/sounds/
     # Owner-supplied emoji packs, one folder per pack (D66, D102; Kabi's
     # outline added by tool/kabi_emoji_outline.py; assets/emojis/PROVENANCE.md).
     - assets/emojis/kabi/

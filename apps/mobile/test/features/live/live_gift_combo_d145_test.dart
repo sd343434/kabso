@@ -31,6 +31,7 @@ import 'package:kabso_live/features/live/presentation/widgets/live_lucky_combo_b
 import 'package:kabso_live/features/live/presentation/widgets/live_room_chat.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.dart';
 import 'package:kabso_live/features/live/presentation/widgets/live_viewer_parts.dart';
+import 'package:kabso_live/features/live/presentation/widgets/max_x_art.dart';
 import 'package:kabso_live/features/profile/data/profile_repository.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -161,7 +162,10 @@ Future<void> _combo(WidgetTester tester) async {
 String? _text(WidgetTester tester, Key key) {
   final f = find.descendant(of: find.byKey(key), matching: find.byType(Text));
   if (f.evaluate().isEmpty) return null;
-  return tester.widget<Text>(f.first).data;
+  // D145d: the MAX X number rolls (the new one slides in last).
+  return tester
+      .widget<Text>(key == LuckyComboCluster.countKey ? f.last : f.first)
+      .data;
 }
 
 LiveGiftReceived _strip(
@@ -208,7 +212,7 @@ void main() {
       expect(find.byKey(KLiveGiftSheet.sheetKey), findsNothing);
       expect(_button, findsOneWidget);
       expect(find.byKey(LuckyComboCluster.ringKey), findsOneWidget);
-      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(1));
+      expect(_text(tester, LuckyComboCluster.countKey), 'x1');
       expect(find.text(en.liveComboLabel), findsOneWidget);
       // 1000 − 1 (rose) − 10 (clover).
       expect(_text(tester, LuckyComboCluster.balanceKey), '989');
@@ -235,7 +239,7 @@ void main() {
         expect(s.source, LiveGiftSource.coins);
       }
       expect({for (final s in h.gifts.sends) s.clientId}, hasLength(3));
-      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(3));
+      expect(_text(tester, LuckyComboCluster.countKey), 'x3');
       expect(_text(tester, LuckyComboCluster.balanceKey), '970');
       await _run(tester, const Duration(milliseconds: 3500));
       expect(_button, findsOneWidget);
@@ -278,7 +282,7 @@ void main() {
       // 1000 − 6 × 10 + 50 won.
       expect(h.gifts.coins, 990);
       expect(_text(tester, LuckyComboCluster.balanceKey), '990');
-      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(6));
+      expect(_text(tester, LuckyComboCluster.countKey), 'x6');
       expect(_text(tester, LuckyComboCluster.resultKey), '+50');
       await _run(tester, const Duration(seconds: 5));
     });
@@ -336,7 +340,7 @@ void main() {
       expect(h.gifts.sends[1].clientId, h.gifts.sends[2].clientId);
       expect(h.gifts.coins, 980);
       expect(_button, findsOneWidget);
-      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(2));
+      expect(_text(tester, LuckyComboCluster.countKey), 'x2');
       await _run(tester, const Duration(seconds: 5));
     });
 
@@ -377,14 +381,16 @@ void main() {
         ),
         findsNothing,
       );
-      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(2));
+      expect(_text(tester, LuckyComboCluster.countKey), 'x2');
 
-      // Five quick taps go one at a time, never faster than minGap.
+      // Five quick taps go one at a time, never faster than minGap (D145d:
+      // 10 ms, 100 a second).
+      expect(LuckyComboController.minGap, const Duration(milliseconds: 10));
       for (var i = 0; i < 5; i++) {
         await tester.tap(_button);
       }
-      await _run(tester, const Duration(milliseconds: 250));
-      expect(h.gifts.sends.length - 3, lessThanOrEqualTo(3));
+      await tester.pump(const Duration(milliseconds: 15));
+      expect(h.gifts.sends.length - 3, lessThanOrEqualTo(2));
       await _run(tester, const Duration(seconds: 1));
       expect(h.gifts.sends, hasLength(8));
       expect(h.gifts.coins, 930);
@@ -449,14 +455,12 @@ void main() {
       expect(find.byKey(LuckyComboLayer.flightKey), findsNothing);
       await _run(tester, const Duration(milliseconds: 500));
       final ring = tester.widget<CustomPaint>(
-        find.descendant(
-          of: find.byKey(LuckyComboCluster.ringKey),
-          matching: find.byType(CustomPaint),
-        ),
+        find.byKey(LuckyComboCluster.ringKey),
       );
-      expect((ring.painter! as ComboRingPainter).glow, 0);
+      // D145d: nothing moves but the countdown.
+      expect((ring.painter! as MaxXOrbPainter).animated, isFalse);
       // The ring still counts down.
-      expect((ring.painter! as ComboRingPainter).remaining, lessThan(1));
+      expect((ring.painter! as MaxXOrbPainter).left, lessThan(1));
       await _run(tester, const Duration(seconds: 5));
     });
   });
@@ -729,9 +733,8 @@ void main() {
     ];
     for (final phone in phones) {
       testWidgets('${phone.width.toInt()}×${phone.height.toInt()}: every '
-          'movie is contained in the safe area, centred, its aspect kept', (
-        tester,
-      ) async {
+          'movie takes the full width and stands on the bottom edge (D145d), '
+          'centred, its aspect kept', (tester) async {
         tester.view
           ..physicalSize = phone * 3
           ..devicePixelRatio = 3
@@ -752,19 +755,13 @@ void main() {
             ),
           );
           final r = tester.getRect(find.byKey(const Key('movie')));
-          final safe = Rect.fromLTRB(0, 59, phone.width, phone.height - 34);
-          expect(r.left, greaterThanOrEqualTo(safe.left - 0.01));
-          expect(r.top, greaterThanOrEqualTo(safe.top - 0.01));
-          expect(r.right, lessThanOrEqualTo(safe.right + 0.01));
-          expect(r.bottom, lessThanOrEqualTo(safe.bottom + 0.01));
+          // D145d: the whole screen, not the safe area: full width, the
+          // bottom on the screen's bottom edge (under the 34 pt inset).
+          expect(r.left, closeTo(0, 0.01));
+          expect(r.right, closeTo(phone.width, 0.01));
+          expect(r.bottom, closeTo(phone.height, 0.01));
           expect(r.width / r.height, closeTo(movie.width / movie.height, 0.01));
-          // It fills one side of the safe area and is centred.
-          expect(
-            (r.width - safe.width).abs() < 0.5 ||
-                (r.height - safe.height).abs() < 0.5,
-            isTrue,
-          );
-          expect((r.center - safe.center).distance, lessThan(0.5));
+          expect((r.center.dx - phone.width / 2).abs(), lessThan(0.5));
         }
       });
     }
