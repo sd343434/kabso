@@ -1343,6 +1343,15 @@ the SDK's built-in background blur). Android only; iOS is phase 3 (Magic stays g
     per camera flip).
   The Kotlin rules are unit-tested (`./gradlew :kabso_camera_fx:testDebugUnitTest` in
   `apps/mobile/android`, CI's Android job); none of this has run on a device yet.
+- **D144b — the effect always gets the camera, or says it did not start:** a camera opened
+  while another is still open is a *shared* flutter_webrtc track that the processor never
+  sees; the app now opens one camera at a time (`LiveCameraGate`), the plugin moves a shared
+  track onto the camera's frame path at attach, and the start is judged 10 s after the
+  pick, frames or not. Overlay line `camera N  path …`: `camera` = frames the track handed
+  to the processor (effect or not), `path` = `source` (normal) / `rebound` (a shared track
+  was moved) / `unknown`. `camera 0` while `on track` → after 10 s `error (no_frames)`;
+  `init no` with frames → `error (init_timeout)`; Magic then says the effect did not start
+  and the raw camera goes on.
 - **Camera/microphone permissions (D144a):** Android asks through the plugin's
   `com.kabso/permissions` channel after the app's own explanation sheet, once; refused for
   good → «فتح الإعدادات». Audio rooms and audio seats ask for the microphone only.

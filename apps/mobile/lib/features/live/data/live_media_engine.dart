@@ -10,6 +10,7 @@ import 'package:kabso_camera_fx/kabso_camera_fx.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
 import 'package:kabso_live/features/live/data/beauty/live_camera_fx.dart';
+import 'package:kabso_live/features/live/data/live_camera_gate.dart';
 import 'package:kabso_live/features/live/data/live_voice_recorder.dart';
 import 'package:kabso_live/features/live/domain/live_chat.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
@@ -578,13 +579,43 @@ class LiveKitMediaEngine implements LiveMediaEngine {
     await _fx.attach(video.mediaStreamTrack.id ?? '');
   }
 
+  /// Opens the camera; a seam for tests.
+  @visibleForTesting
+  static Future<lk.LocalVideoTrack> Function(lk.CameraCaptureOptions options)
+  createCamera = lk.LocalVideoTrack.createCameraTrack;
+
+  Future<void>? _previewing;
+
+  /// D144b: one start at a time per engine. Two overlapping starts both saw
+  /// no camera and both opened one: the second came back as a shared track
+  /// the camera processor never sees ([LiveCameraGate]), the first leaked.
   @override
   Future<void> startPreview({bool video = true}) async {
+    for (var running = _previewing; running != null; running = _previewing) {
+      try {
+        await running;
+      } on Object {
+        // Its own caller hears about it.
+      }
+    }
+    final run = _startPreview(video: video);
+    _previewing = run;
+    try {
+      await run;
+    } finally {
+      if (identical(_previewing, run)) _previewing = null;
+    }
+  }
+
+  Future<void> _startPreview({required bool video}) async {
     try {
       if (video && _video == null) {
+        // D144b: never while another camera (the last go-live's) is still
+        // being stopped — it would make this one a shared track.
+        await LiveCameraGate.idle();
         // D160: whether this camera captures 1080p, before it opens.
         await _checkHd();
-        final camera = await lk.LocalVideoTrack.createCameraTrack(
+        final camera = await createCamera(
           _cameraOptions(),
         );
         _video = camera;
@@ -979,26 +1010,47 @@ class LiveKitMediaEngine implements LiveMediaEngine {
   bool get removed => _removed;
 
   @override
-  Future<void> stop() async {
+  Future<void> stop() {
+    // D144b: the camera's stop is known to [LiveCameraGate] at once, before
+    // the room is left — the next go-live's camera waits for it.
+    final camera = _video == null ? null : Completer<void>();
+    if (camera != null) {
+      unawaited(LiveCameraGate.stopping(() => camera.future));
+    }
+    return _stop(camera);
+  }
+
+  Future<void> _stop(Completer<void>? camera) async {
     _uplinkTimer?.cancel();
     _uplinkTimer = null;
     _uplink.reset();
     final listener = _listener;
     _listener = null;
-    await listener?.dispose();
     final room = _room;
     _room = null;
     final audio = _audio;
     _audio = null;
     _clipHold = false;
-    await room?.disconnect();
-    await room?.dispose();
-    await _stopVideo();
-    await audio?.stop();
-    await audio?.dispose();
+    try {
+      await listener?.dispose();
+      await room?.disconnect();
+      await room?.dispose();
+    } finally {
+      // D144b: the camera always stops, also when leaving the room failed —
+      // a leaked camera made every later one a shared track.
+      try {
+        await _stopVideo();
+      } finally {
+        camera?.complete();
+      }
+      await audio?.stop();
+      await audio?.dispose();
+    }
   }
 
-  Future<void> _stopVideo() async {
+  Future<void> _stopVideo() => LiveCameraGate.stopping(_stopVideoNow);
+
+  Future<void> _stopVideoNow() async {
     final video = _video;
     final pipeline = _beautyPipeline;
     _video = null;

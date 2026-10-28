@@ -53,7 +53,8 @@ enum KabsoCameraFxState {
 
   /// DeepAR failed to start or to take frames ([KabsoCameraFxStatus.reason]:
   /// `init_timeout`, `start_failed`, `surface_failed`, `feed_failed`,
-  /// `effect_failed`).
+  /// `effect_failed`; D144b: `no_frames` — no camera frame reached the effect
+  /// within 10 s of the pick).
   error,
 
   /// The effect switched itself off: DeepAR stopped giving new pictures
@@ -142,6 +143,8 @@ class KabsoCameraFxDiagnostics {
     this.outputLuma = -1,
     this.blackMs = 0,
     this.probe,
+    this.cameraFrames = 0,
+    this.framePath,
   });
 
   factory KabsoCameraFxDiagnostics.fromMap(Map<Object?, Object?> map) {
@@ -182,6 +185,8 @@ class KabsoCameraFxDiagnostics {
       outputLuma: map['outputLuma'] is num ? count('outputLuma') : -1,
       blackMs: count('blackMs'),
       probe: text('probe'),
+      cameraFrames: count('cameraFrames'),
+      framePath: text('framePath'),
     );
   }
 
@@ -251,6 +256,16 @@ class KabsoCameraFxDiagnostics {
   /// `passthrough_ok` (the camera: the effect's render is black),
   /// `passthrough_black` (nothing of the camera), `no_samples`, or `running`.
   final String? probe;
+
+  /// D144b: every camera frame the track handed to the processor, effect or
+  /// not. 0 while attached means the processor is not on the camera's frame
+  /// path — the effect cannot get a picture.
+  final int cameraFrames;
+
+  /// D144b: how the last attach found its track: `source` (the camera's own
+  /// frame path), `rebound` (a shared camera track, moved onto the path),
+  /// `unknown` (could not tell).
+  final String? framePath;
 }
 
 /// Steers the native processor. The native side keeps a single processor;
@@ -338,9 +353,12 @@ class KabsoCameraFx {
 
   /// Takes the processor off its track and releases DeepAR and the GPU
   /// stage; colour and effect are forgotten.
-  Future<void> release() async {
+  ///
+  /// D144b: with [trackId], only if the processor is still on that track —
+  /// a camera that stops late never takes the next camera's processor away.
+  Future<void> release({String? trackId}) async {
     if (!_supported) return;
-    await _call<void>('release', null);
+    await _call<void>('release', trackId == null ? null : {'trackId': trackId});
   }
 
   Future<T?> _call<T>(String method, Map<String, Object?>? arguments) async {

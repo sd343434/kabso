@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import com.cloudwebrtc.webrtc.video.LocalVideoTrack
 import org.webrtc.VideoFrame
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -20,6 +21,11 @@ import java.util.concurrent.atomic.AtomicReference
  * made is ours. The one handed to the track is released at the start of the
  * next call (the sink is done with it by then: `onFrameCaptured` is
  * synchronous); an intermediate one as soon as the next stage has drawn it.
+ *
+ * D144b: [cameraFrames] counts every frame the track hands us (effect or not)
+ * and [framePath] says how the attach found the track ([FramePath]); the
+ * overlay shows both, so "the processor gets no camera frames" is visible as
+ * such instead of as a DeepAR that never starts.
  */
 internal class CameraFxProcessor(
     activity: Activity,
@@ -33,6 +39,12 @@ internal class CameraFxProcessor(
     /** The frame handed to the track last time; released on the next call. */
     private val lastReturned = AtomicReference<VideoFrame?>(null)
 
+    /** D144b: frames the track handed to this processor. */
+    private val cameraFrames = AtomicLong()
+
+    /** D144b: how the last attach found its track ([FramePath.Result.code]). */
+    @Volatile var framePath: String? = null
+
     fun setLicenseKey(key: String) = deepAr.setLicenseKey(key)
 
     fun setEffect(effect: DeepArStage.Effect?) = deepAr.setEffect(effect)
@@ -40,27 +52,19 @@ internal class CameraFxProcessor(
     fun setColorMatrix(matrix: FloatArray?) = color.setMatrix(matrix)
 
     /** D144a: DeepAR's state and counters for the diagnostics overlay. */
-    fun diagnostics(): Map<String, Any?> = deepAr.diagnostics()
+    fun diagnostics(): Map<String, Any?> =
+        deepAr.diagnostics() + mapOf("cameraFrames" to cameraFrames.get(), "framePath" to framePath)
 
     override fun onFrame(frame: VideoFrame): VideoFrame {
         // Before any bail-out: DeepAR's render texture is single and must
         // come back, and the colour stage's textures are a small pool.
         lastReturned.getAndSet(null)?.release()
 
-        val effected = deepAr.process(frame)
-        val input = effected ?: frame
-        val colored = color.process(input)
-        if (colored != null) {
-            // Drawn and finished on the GPU: DeepAR's texture can go back.
-            effected?.release()
-            lastReturned.set(colored)
-            return colored
-        }
-        if (effected != null) {
-            lastReturned.set(effected)
-            return effected
-        }
-        return frame
+        cameraFrames.incrementAndGet()
+        // DeepAR, then the colour transform on its output (D144b: FxChain).
+        val (out, ours) = FxChain.run(frame, deepAr::process, color::process) { it.release() }
+        if (ours) lastReturned.set(out)
+        return out
     }
 
     /** Takes the processor off [track]; called on the main thread. */

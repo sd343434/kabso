@@ -39,8 +39,14 @@ class _FakeBridge implements KabsoCameraFx {
   Future<void> setEffect(String? effect) async =>
       calls.add('effect:${effect ?? 'none'}');
 
+  /// D144b: the track the last release named.
+  String? releasedTrack;
+
   @override
-  Future<void> release() async => calls.add('release');
+  Future<void> release({String? trackId}) async {
+    calls.add('release');
+    releasedTrack = trackId;
+  }
 
   /// D144a: what the native side reports.
   final StreamController<KabsoCameraFxStatus> native =

@@ -18,6 +18,12 @@ import 'package:material_ui/material_ui.dart';
 /// `black_output` stop what DeepAR showed without the effect (`probe`).
 /// D144a's `render` count is gone: DeepAR 5.6.22 never reports it.
 ///
+/// D144b: the `camera` line — every frame the camera track handed to the
+/// processor (effect or not) and how the attach found the track (`source`:
+/// the camera's own frame path; `rebound`: a shared camera track moved onto
+/// it; `unknown`). `camera 0` while `on track` means no picture can reach the
+/// effect; the effect then stops after 10 s with `error (no_frames)`.
+///
 /// Technical read-out for the team, not product copy: not localized.
 class LiveFxDiagnostics extends StatefulWidget {
   const new({
@@ -139,6 +145,7 @@ List<String> liveFxDiagnosticsLines(
   final input =
       'input ${d.input ?? '-'}  init ${d.initialized ? 'yes' : 'no'}  '
       '#${d.instances}  ${d.attached ? 'on track' : 'no track'}$sdk';
+  final camera = 'camera ${d.cameraFrames}  path ${d.framePath ?? '-'}';
   return [
     state,
     frames,
@@ -146,6 +153,7 @@ List<String> liveFxDiagnosticsLines(
     brightness,
     times,
     input,
+    camera,
     if (d.lastError case final e?)
       'err ${e.length > 80 ? '${e.substring(0, 80)}…' : e}',
   ];
