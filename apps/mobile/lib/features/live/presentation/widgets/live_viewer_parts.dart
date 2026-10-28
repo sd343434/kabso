@@ -310,11 +310,10 @@ class KViewerBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          // The circles 42.1 pt apart: 48 pt targets overlap by 5.9.
-          for (final (i, a) in actions.indexed) ...[
-            if (i > 0) const SizedBox(width: KViewerRoom.buttonGap - 13.2),
-            a,
-          ],
+          // The reference's circles are 42.1 pt apart, which would make the
+          // 48 pt targets overlap; side by side they are 48 pt apart (D154c:
+          // a moderator's second button — a negative gap cannot be laid out).
+          ...actions,
         ],
       ),
     );

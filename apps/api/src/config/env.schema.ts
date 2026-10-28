@@ -548,6 +548,11 @@ export const envSchema = z
     LIVE_BOOST_SLOTS: intSetting(3, 1, 20),
     LIVE_BOOST_MAX_WAIT_MINUTES: intSetting(180, 10, 1440),
     /**
+     * v1.34-live (D154c, CONVENTIONS §10.35): an account younger than this many days is a newcomer
+     * («جديد 🌱» in the live chat, the host's Newcomers list); owner: 30 (was 7).
+     */
+    NEWCOMER_DAYS: intSetting(30, 1, 365),
+    /**
      * v1.27-live (D132, CONVENTIONS §10.27): lucky gifts. Off by default: LUCKY gifts are not
      * listed and cannot be sent; the odds are still published. Every other LUCKY_GIFT* setting is
      * checked at start-up even while off (the server refuses to start on an invalid table).

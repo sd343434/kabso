@@ -40,6 +40,7 @@ import {
   type LiveBoostOffersDto,
   type LiveBoostResultDto,
 } from './live-boosts.service.js';
+import { LiveNewcomersService, type LiveNewcomersDto } from './live-newcomers.service.js';
 import { LiveGiftsService, type LiveGiftResultDto } from './live-gifts.service.js';
 import { LiveChatService, type LiveChatMessageDto, type LiveChatMuteDto } from './live-chat.service.js';
 import { LiveBlockedWordsService, type LiveBlockedWordsDto } from './live-blocked-words.service.js';
@@ -129,6 +130,7 @@ export class LiveController {
     private readonly seatEmoji: LiveSeatEmojiService,
     private readonly quips: LiveQuipsService,
     private readonly boosts: LiveBoostsService,
+    private readonly newcomers: LiveNewcomersService,
     private readonly liveGifts: LiveGiftsService,
     private readonly kicks: LiveKicksService,
     private readonly rankings: LiveRankingsService,
@@ -571,6 +573,12 @@ export class LiveController {
     const { created, result } = await this.boosts.buy(requireCaller(req), roomId, body);
     res.status(created ? 201 : 200);
     return result;
+  }
+
+  /** v1.34-live (D154c): the newcomers in this live now (host and moderators). */
+  @Get('rooms/:roomId/newcomers')
+  listNewcomers(@Req() req: AppRequest, @Param('roomId') roomId: string): Promise<LiveNewcomersDto> {
+    return this.newcomers.list(requireCaller(req), roomId);
   }
 
   /** v1.33-live (D154b): this live's traffic cards (running or waiting first). */

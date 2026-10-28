@@ -12109,6 +12109,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لهذا البث بطاقة زيارات تعمل أو في الدور.'**
   String get errorBoostRoomBusy;
+
+  /// D154c: the newcomer badge in chat and the newcomers list.
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد 🌱'**
+  String get liveNewcomerBadge;
+
+  /// D154c: the newcomers sheet explanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات عمرها أقل من {days} يوماً، موجودة في البث الآن.'**
+  String liveNewcomersHint(int days);
+
+  /// D154c: empty newcomers list.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد جدد في البث الآن.'**
+  String get liveNewcomersEmpty;
+
+  /// D154c: newcomers failed to load.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الجدد'**
+  String get liveNewcomersLoadError;
+
+  /// D154c: send the ready welcome line.
+  ///
+  /// In ar, this message translates to:
+  /// **'رحّب'**
+  String get liveNewcomerWelcome;
+
+  /// D154c: already welcomed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الترحيب ✓'**
+  String get liveNewcomerWelcomed;
+
+  /// D154c: the ready welcome chat line.
+  ///
+  /// In ar, this message translates to:
+  /// **'أهلاً @{username} 🌱 نوّرت البث'**
+  String liveNewcomerWelcomeText(String username);
 }
 
 class _AppLocalizationsDelegate

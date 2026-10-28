@@ -66,6 +66,10 @@ abstract class LiveChatAuthorBadges with _$LiveChatAuthorBadges {
     int? charmLevel,
     int? supportLevel,
     LiveChatAuthorFamily? family,
+
+    /// v1.34-live (D154c): the author's account is younger than the
+    /// server's newcomer window (owner: 30 days) — «جديد 🌱».
+    @Default(false) bool newcomer,
   }) = _LiveChatAuthorBadges;
 
   factory fromJson(Map<String, dynamic> json) =>

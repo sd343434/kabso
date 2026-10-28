@@ -2309,5 +2309,12 @@
   "liveBoostGiftAction": "Traffic card",
   "errorBoostQueueFull": "The featured places are booked far ahead; try a shorter card or later.",
   "errorBoostCardInsufficient": "You have no card of that length.",
-  "errorBoostRoomBusy": "This live already has a traffic card running or queued."
+  "errorBoostRoomBusy": "This live already has a traffic card running or queued.",
+  "liveNewcomerBadge": "New 🌱",
+  "liveNewcomersHint": "Accounts less than {days} days old, in this live now.",
+  "liveNewcomersEmpty": "No newcomers in this live right now.",
+  "liveNewcomersLoadError": "Couldn't load the newcomers",
+  "liveNewcomerWelcome": "Welcome",
+  "liveNewcomerWelcomed": "Welcomed ✓",
+  "liveNewcomerWelcomeText": "Welcome @{username} 🌱 glad you're here"
 }

@@ -184,6 +184,9 @@ info:
     live list), `buyLiveBoost` (the host, or a viewer for the host; coins or one of the caller's cards)
     and `listLiveRoomBoosts`; data message `boost` on topic `boost`; codes `BOOST_QUEUE_FULL`,
     `BOOST_CARD_INSUFFICIENT`, `BOOST_ROOM_BUSY` (CONVENTIONS §10.34).
+    **D154c (DRAFT v1.34-live)** adds newcomers «الجدد»: `listLiveNewcomers` (host and moderators:
+    the people in the live whose account is younger than `NEWCOMER_DAYS`, 30) and
+    `LiveChatAuthorBadges.newcomer` (CONVENTIONS §10.35).
 servers:
   - url: http://localhost:3000
     description: Local development
@@ -1520,6 +1523,30 @@ paths:
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
+  /api/v1/live/rooms/{roomId}/newcomers:
+    get:
+      tags: [live]
+      operationId: listLiveNewcomers
+      summary: "The newcomers in this live now (host and moderators, D154c)"
+      description: |
+        v1.34-live, CONVENTIONS §10.35. The signed-in people in this live's media session now whose
+        account is younger than `NEWCOMER_DAYS` (owner: 30 days), the most recent arrivals first, at
+        most 100; never the host, never someone in a block with the caller. Only "new or not" is told —
+        never a signup date. Checks: 401; 404 (cannot see the room); 409 `LIVE_ROOM_ENDED`; 403
+        `AUTH_FORBIDDEN` (not the host or a moderator of this live).
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: The newcomers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveNewcomers' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
   /api/v1/live/rooms/{roomId}/viewers:
     get:
       tags: [live]
@@ -7048,15 +7075,20 @@ components:
         expiresAt: '2026-10-26T18:31:00.000Z'
         createdAt: '2026-10-26T18:30:00.000Z'
         cpBubble: false
-        authorBadges: { charmLevel: 12, supportLevel: 3, family: { name: نجوم كابسو, level: 2 } }
+        authorBadges: { charmLevel: 12, supportLevel: 3, family: { name: نجوم كابسو, level: 2 }, newcomer: false }
     LiveChatAuthorBadges:
       type: object
       description: |
         (v1.24.4-live, D119) The small badges a live chat line shows under the author's name, as
         they are now (read when the message is sent or listed; the server may cache them up to
         30 s). Messages from before v1.24.4-live get them too (they are not stored).
-      required: [charmLevel, supportLevel, family]
+      required: [charmLevel, supportLevel, family, newcomer]
       properties:
+        newcomer:
+          type: boolean
+          description: |
+            v1.34-live (D154c, CONVENTIONS §10.35): the author's account is younger than NEWCOMER_DAYS
+            (owner: 30); the app shows «جديد 🌱» next to the name. The signup date is never sent.
         charmLevel:
           type: [integer, 'null']
           minimum: 1
@@ -9236,6 +9268,16 @@ components:
           description: v1.32-live (D154). Present only for a QUIPS gift (absent for a retry and every other send) — its slot in the room's quip queue, as the `quip` data message carries it.
           allOf:
             - $ref: '#/components/schemas/LiveQuip'
+    LiveNewcomers:
+      type: object
+      description: v1.34-live (D154c). The newcomers in a live now.
+      required: [newcomerDays, data]
+      properties:
+        newcomerDays: { type: integer, minimum: 1, maximum: 365, description: Accounts younger than this many days count. }
+        data:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/UserSummary' }
     LiveBoostRequest:
       type: object
       description: v1.33-live (D154b). A traffic card for this live.

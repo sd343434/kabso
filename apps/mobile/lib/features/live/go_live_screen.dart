@@ -40,6 +40,7 @@ import 'package:kabso_live/features/live/presentation/go_live/live_end_summary.d
 import 'package:kabso_live/features/live/presentation/go_live/live_fill_light.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_glass.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_host_parts.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_info_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_room_tools.dart';
@@ -967,10 +968,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
               icon: Icons.videocam_outlined,
               label: l10n.liveToolRecorder,
             ),
-            GoLiveTool.soon(
+            // D154c: the newcomers in this room, with «رحّب».
+            GoLiveTool(
               id: 'newcomers',
               icon: Icons.fiber_new_outlined,
               label: l10n.liveToolNewcomers,
+              onTap: room == null || !live
+                  ? null
+                  : () =>
+                        unawaited(showLiveNewcomers(context, roomId: room.id)),
             ),
             GoLiveTool.soon(
               id: 'data',
@@ -1740,7 +1746,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
             l10n.liveToolProgramList,
           ),
           soon('recorder', Icons.videocam_outlined, l10n.liveToolRecorder),
-          soon('newcomers', Icons.fiber_new_outlined, l10n.liveToolNewcomers),
+          // D154c: the newcomers in this live, with «رحّب».
+          GoLiveTool(
+            id: 'newcomers',
+            icon: Icons.fiber_new_outlined,
+            label: l10n.liveToolNewcomers,
+            onTap: !live
+                ? null
+                : () => unawaited(showLiveNewcomers(context, roomId: room.id)),
+          ),
           soon('data', Icons.insights_outlined, l10n.liveToolDataCenter),
           // D141 (owner): the host's live schedule (D99 C), from the live.
           GoLiveTool(

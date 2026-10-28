@@ -13,6 +13,7 @@ import 'package:kabso_live/features/live/data/live_blocked_words_repository.dart
 import 'package:kabso_live/features/live/data/live_boost_repository.dart';
 import 'package:kabso_live/features/live/data/live_gift_repository.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
+import 'package:kabso_live/features/live/data/live_newcomers_repository.dart';
 import 'package:kabso_live/features/live/data/live_rankings_repository.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/data/live_schedule_repository.dart';
@@ -29,6 +30,7 @@ import 'fake_live_blocked_words_repository.dart';
 import 'fake_live_boost_repository.dart';
 import 'fake_live_gift_repository.dart';
 import 'fake_live_media_engine.dart';
+import 'fake_live_newcomers_repository.dart';
 import 'fake_live_rankings_repository.dart';
 import 'fake_live_repository.dart';
 import 'fake_live_schedule_repository.dart';
@@ -68,6 +70,7 @@ Future<void> pumpKabsoApp(
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
   LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
   Map<String, Object> prefs = const {},
 }) async {
   final preferences = await testPrefs(language: language, extra: prefs);
@@ -122,6 +125,10 @@ Future<void> pumpKabsoApp(
         liveBoostRepositoryProvider.overrideWithValue(
           liveBoostRepository ?? FakeLiveBoostRepository(),
         ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
+        ),
         ...overrides,
       ],
       child: const KabsoApp(),
@@ -163,6 +170,7 @@ Future<void> pumpScreen(
   FakeLiveMediaEngine? liveMediaEngine,
   LiveGiftRepository? liveGiftRepository,
   LiveBoostRepository? liveBoostRepository,
+  LiveNewcomersRepository? liveNewcomersRepository,
   HomeBannersRepository? homeBannersRepository,
 }) async {
   final prefs = await testPrefs(language: language.name);
@@ -197,6 +205,10 @@ Future<void> pumpScreen(
         // D154b: never the network (no featured lives, no cards).
         liveBoostRepositoryProvider.overrideWithValue(
           liveBoostRepository ?? FakeLiveBoostRepository(),
+        ),
+        // D154c: never the network (no newcomers).
+        liveNewcomersRepositoryProvider.overrideWithValue(
+          liveNewcomersRepository ?? FakeLiveNewcomersRepository(),
         ),
         ...overrides,
       ],

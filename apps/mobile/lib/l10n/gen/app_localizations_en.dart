@@ -7028,4 +7028,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorBoostRoomBusy =>
       'This live already has a traffic card running or queued.';
+
+  @override
+  String get liveNewcomerBadge => 'New 🌱';
+
+  @override
+  String liveNewcomersHint(int days) {
+    return 'Accounts less than $days days old, in this live now.';
+  }
+
+  @override
+  String get liveNewcomersEmpty => 'No newcomers in this live right now.';
+
+  @override
+  String get liveNewcomersLoadError => 'Couldn\'t load the newcomers';
+
+  @override
+  String get liveNewcomerWelcome => 'Welcome';
+
+  @override
+  String get liveNewcomerWelcomed => 'Welcomed ✓';
+
+  @override
+  String liveNewcomerWelcomeText(String username) {
+    return 'Welcome @$username 🌱 glad you\'re here';
+  }
 }

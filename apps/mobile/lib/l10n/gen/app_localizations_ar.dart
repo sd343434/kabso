@@ -7072,4 +7072,29 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorBoostRoomBusy => 'لهذا البث بطاقة زيارات تعمل أو في الدور.';
+
+  @override
+  String get liveNewcomerBadge => 'جديد 🌱';
+
+  @override
+  String liveNewcomersHint(int days) {
+    return 'حسابات عمرها أقل من $days يوماً، موجودة في البث الآن.';
+  }
+
+  @override
+  String get liveNewcomersEmpty => 'لا يوجد جدد في البث الآن.';
+
+  @override
+  String get liveNewcomersLoadError => 'تعذّر تحميل الجدد';
+
+  @override
+  String get liveNewcomerWelcome => 'رحّب';
+
+  @override
+  String get liveNewcomerWelcomed => 'تم الترحيب ✓';
+
+  @override
+  String liveNewcomerWelcomeText(String username) {
+    return 'أهلاً @$username 🌱 نوّرت البث';
+  }
 }

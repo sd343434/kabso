@@ -7993,5 +7993,19 @@
   "errorBoostCardInsufficient": "ليس لديك بطاقة بهذه المدة.",
   "@errorBoostCardInsufficient": {"description": "Error BOOST_CARD_INSUFFICIENT."},
   "errorBoostRoomBusy": "لهذا البث بطاقة زيارات تعمل أو في الدور.",
-  "@errorBoostRoomBusy": {"description": "Error BOOST_ROOM_BUSY."}
+  "@errorBoostRoomBusy": {"description": "Error BOOST_ROOM_BUSY."},
+  "liveNewcomerBadge": "جديد 🌱",
+  "@liveNewcomerBadge": {"description": "D154c: the newcomer badge in chat and the newcomers list."},
+  "liveNewcomersHint": "حسابات عمرها أقل من {days} يوماً، موجودة في البث الآن.",
+  "@liveNewcomersHint": {"description": "D154c: the newcomers sheet explanation.", "placeholders": {"days": {"type": "int"}}},
+  "liveNewcomersEmpty": "لا يوجد جدد في البث الآن.",
+  "@liveNewcomersEmpty": {"description": "D154c: empty newcomers list."},
+  "liveNewcomersLoadError": "تعذّر تحميل الجدد",
+  "@liveNewcomersLoadError": {"description": "D154c: newcomers failed to load."},
+  "liveNewcomerWelcome": "رحّب",
+  "@liveNewcomerWelcome": {"description": "D154c: send the ready welcome line."},
+  "liveNewcomerWelcomed": "تم الترحيب ✓",
+  "@liveNewcomerWelcomed": {"description": "D154c: already welcomed."},
+  "liveNewcomerWelcomeText": "أهلاً @{username} 🌱 نوّرت البث",
+  "@liveNewcomerWelcomeText": {"description": "D154c: the ready welcome chat line.", "placeholders": {"username": {"type": "String"}}}
 }

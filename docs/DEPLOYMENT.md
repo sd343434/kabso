@@ -1138,6 +1138,11 @@ APNs key yet): the iOS app never starts Firebase and needs no `GoogleService-Inf
 - **Rollback:** the API before D154b ignores the tables; a card running at that moment simply stops
   showing (nothing is refunded automatically — list them with `boost-admin queue` first).
 
+### 5.19 Newcomers «الجدد» (no migration; D154c) — [IMPLEMENTED, draft contract v1.34-live; not deployed, not device-tested]
+
+- **New optional config:** `NEWCOMER_DAYS` (default `30`, owner; 1–365): an account younger than this is a
+  newcomer (the «جديد 🌱» chat badge and the host's and moderators' Newcomers list). No table, no backfill.
+
 ## 6. Observability baseline
 
 | Item | Status |

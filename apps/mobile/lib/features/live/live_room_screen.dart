@@ -32,6 +32,7 @@ import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_audio_room.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_boost_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_cp_seats.dart';
+import 'package:kabso_live/features/live/presentation/go_live/live_newcomers_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_rankings_sheet.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_emoji.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_seat_tiles.dart';
@@ -91,6 +92,9 @@ class LiveRoomScreen extends ConsumerWidget {
   /// D131: the host pill's taps line and the bar's gift button.
   static const tapsKey = Key('room.taps');
   static const giftKey = Key('room.gift');
+
+  /// D154c: a moderator's Newcomers button.
+  static const newcomersKey = Key('room.newcomers');
 
   /// v1.20-live (D105): this person was kicked out of the live.
   static const kickedKey = Key('room.kicked');
@@ -941,6 +945,16 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                       onEmoji: () =>
                           unawaited(_openChat(composer, emoji: true)),
                       actions: [
+                        // D154c: a moderator's Newcomers list.
+                        if (session.canModerate)
+                          KViewerBarButton(
+                            key: LiveRoomScreen.newcomersKey,
+                            icon: Icons.fiber_new_outlined,
+                            label: l10n.liveToolNewcomers,
+                            onTap: () => unawaited(
+                              showLiveNewcomers(context, roomId: room.id),
+                            ),
+                          ),
                         KViewerBarButton(
                           key: LiveRoomScreen.giftKey,
                           // D135: the owner's colourful gift box.
@@ -1156,6 +1170,17 @@ class _RoomViewState extends ConsumerState<_RoomView> {
                 ],
                 barEnd: [
                   ?seatButton,
+                  // D154c: a moderator's Newcomers list.
+                  if (session.canModerate)
+                    LiveRoundButton(
+                      key: LiveRoomScreen.newcomersKey,
+                      icon: Icons.fiber_new_outlined,
+                      bare: true,
+                      label: l10n.liveToolNewcomers,
+                      onTap: () => unawaited(
+                        showLiveNewcomers(context, roomId: room.id),
+                      ),
+                    ),
                   if (session.canModerate)
                     LiveRoundButton(
                       key: AudioRoomViewKeys.requests,
