@@ -18,11 +18,13 @@ abstract final class KLiveStyle {
   static const micOn = Color(0xFF2F9BFF);
   static const micMuted = Color(0xFFFF4D7A);
 
-  /// D143 fill light (front camera): a warm white band around the picture
-  /// and its glow inwards; the band is this share of the shortest side.
+  /// D157 fill light's edge glow (front camera, only where the device has
+  /// no camera pipeline to lift the picture itself): a thin warm-white glow
+  /// that fades inwards from the very edges — [fillLightEdge] of the width,
+  /// at most [fillLightEdgeMax] — never a frame (D143's 7 % band was one).
   static const fillLight = Color(0xFFFFF4E2);
-  static const fillLightGlow = Color(0xCCFFE9C7);
-  static const fillLightBand = 0.07;
+  static const fillLightEdge = 0.035;
+  static const fillLightEdgeMax = 14.0;
 
   /// D143 Magic: the colour-filter swatch (a sample of sky, skin and
   /// shadow tones, tinted by each filter) and its size.

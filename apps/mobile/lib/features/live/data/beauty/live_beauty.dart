@@ -8,7 +8,9 @@ import 'package:material_ui/material_ui.dart';
 /// Beauty for the camera picture (owner D94), applied on the device before
 /// publishing: skin smoothing and brightening, each 0 … 1 — and, D143
 /// (Magic), a colour [filter], applied whether beauty is on or not — and,
-/// D144 (Magic → Effects, beta), an AR [effect] where the device runs one.
+/// D144 (Magic → Effects, beta), an AR [effect] where the device runs one —
+/// and, D157, the front camera's fill [light] (an exposure lift with a warm
+/// tint, in the colour stage before the filter: [colorMatrix]).
 @immutable
 class LiveBeauty {
   const new({
@@ -17,6 +19,7 @@ class LiveBeauty {
     this.brighten = 0.3,
     this.filter = LiveColorFilter.natural,
     this.effect = LiveArEffect.none,
+    this.light = LiveFillLight.off,
   });
 
   final bool enabled;
@@ -24,6 +27,11 @@ class LiveBeauty {
   final double brighten;
   final LiveColorFilter filter;
   final LiveArEffect effect;
+  final LiveFillLight light;
+
+  /// The colour stage's transform (row-major 3 × 4): the fill [light], then
+  /// the [filter]; `null` when neither changes the picture.
+  List<double>? get colorMatrix => liveColorMatrix(filter, light);
 
   LiveBeauty copyWith({
     bool? enabled,
@@ -31,12 +39,14 @@ class LiveBeauty {
     double? brighten,
     LiveColorFilter? filter,
     LiveArEffect? effect,
+    LiveFillLight? light,
   }) => LiveBeauty(
     enabled: enabled ?? this.enabled,
     smooth: smooth ?? this.smooth,
     brighten: brighten ?? this.brighten,
     filter: filter ?? this.filter,
     effect: effect ?? this.effect,
+    light: light ?? this.light,
   );
 
   @override
@@ -46,10 +56,12 @@ class LiveBeauty {
       other.smooth == smooth &&
       other.brighten == brighten &&
       other.filter == filter &&
-      other.effect == effect;
+      other.effect == effect &&
+      other.light == light;
 
   @override
-  int get hashCode => Object.hash(enabled, smooth, brighten, filter, effect);
+  int get hashCode =>
+      Object.hash(enabled, smooth, brighten, filter, effect, light);
 }
 
 /// Processes the camera track: what is published and what the host sees.

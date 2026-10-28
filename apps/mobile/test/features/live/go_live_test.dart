@@ -2192,20 +2192,118 @@ void main() {
         ProviderScope.containerOf(tester.element(find.byType(GoLiveScreen)))
             .read(liveHostControllerProvider);
 
-    testWidgets('front camera: the warm frame lights the face, no torch; '
-        'kept from the setup into the live', (tester) async {
+    Future<void> pickLevel(WidgetTester tester, LiveFillLight level) async {
+      await tester.tap(find.byKey(GoLiveKeys.fillLightLevel(level)));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> closeSheet(WidgetTester tester) async {
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('D157 front camera: a level sheet; the soft light goes on '
+        'the published picture (no frame, no torch); kept into the live', (
+      tester,
+    ) async {
       final (_, camera) = await _pump(tester);
+      final l10n = _l10n(tester);
       expect(frame, findsNothing);
       await toggleFillLight(tester);
-      expect(frame, findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text(l10n.liveFillLightTitle),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<Text>(find.byKey(GoLiveKeys.fillLightNote)).data,
+        l10n.liveFillLightOnPicture,
+      );
+      for (final l in LiveFillLight.values) {
+        expect(find.byKey(GoLiveKeys.fillLightLevel(l)), findsOneWidget);
+      }
+      expect(hostState(tester).fillLight, isFalse, reason: 'opens off');
+      await pickLevel(tester, LiveFillLight.medium);
+      expect(camera.beauty.light, LiveFillLight.medium);
       expect(hostState(tester).fillLight, isTrue);
+      await pickLevel(tester, LiveFillLight.high);
+      expect(camera.beauty.light, LiveFillLight.high);
+      expect(hostState(tester).fillLightLevel, LiveFillLight.high);
+      await closeSheet(tester);
+      expect(frame, findsNothing, reason: 'the picture itself is lit');
       expect(camera.torchCalls, isEmpty);
+      // Magic keeps the light (one colour stage: light, then filter).
+      await ProviderScope.containerOf(tester.element(find.byType(GoLiveScreen)))
+          .read(liveHostControllerProvider.notifier)
+          .setColorFilter(LiveColorFilter.warm);
+      expect(camera.beauty.filter, LiveColorFilter.warm);
+      expect(camera.beauty.light, LiveFillLight.high);
       await _goLive(tester);
-      expect(frame, findsOneWidget, reason: 'remembered for the session');
+      expect(camera.beauty.light, LiveFillLight.high, reason: 'remembered');
       await _openTools(tester);
       await toggleFillLight(tester);
-      expect(frame, findsNothing);
+      await pickLevel(tester, LiveFillLight.off);
+      expect(camera.beauty.light, LiveFillLight.off);
+      expect(camera.beauty.filter, LiveColorFilter.warm);
       expect(hostState(tester).fillLight, isFalse);
+      await closeSheet(tester);
+      await _leave(tester);
+    });
+
+    testWidgets('D157 Arabic: the sheet reads right to left', (tester) async {
+      await _pump(tester, language: AppLanguage.ar);
+      await toggleFillLight(tester);
+      final l10n = _l10n(tester);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text('الإضاءة'),
+        ),
+        findsOneWidget,
+      );
+      expect(l10n.liveFillLightLow, 'خفيفة');
+      final off = tester.getCenter(
+        find.byKey(GoLiveKeys.fillLightLevel(LiveFillLight.off)),
+      );
+      final high = tester.getCenter(
+        find.byKey(GoLiveKeys.fillLightLevel(LiveFillLight.high)),
+      );
+      expect(off.dx, greaterThan(high.dx), reason: 'Off first, on the right');
+      await closeSheet(tester);
+      await _leave(tester);
+    });
+
+    testWidgets('D157 no camera pipeline: only a thin, faint glow at the very '
+        'edges, and the sheet says the broadcast is unchanged', (tester) async {
+      final (_, camera) = await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..supportsFilters = false,
+      );
+      await toggleFillLight(tester);
+      expect(
+        tester.widget<Text>(find.byKey(GoLiveKeys.fillLightNote)).data,
+        _l10n(tester).liveFillLightScreenOnly,
+      );
+      await pickLevel(tester, LiveFillLight.high);
+      await closeSheet(tester);
+      expect(frame, findsOneWidget);
+      final width = tester.getSize(frame).width;
+      expect(LiveFillLightFrame.edgeWidth(width), lessThanOrEqualTo(14));
+      expect(
+        LiveFillLightFrame.edgeWidth(width) / width,
+        lessThanOrEqualTo(0.04),
+      );
+      expect(
+        LiveFillLightFrame.edgeOpacity(LiveFillLight.high),
+        lessThanOrEqualTo(0.45),
+      );
+      expect(
+        find.ancestor(of: frame, matching: find.byType(IgnorePointer)),
+        findsWidgets,
+      );
+      expect(camera.torchCalls, isEmpty);
       await _leave(tester);
     });
 
@@ -2218,15 +2316,18 @@ void main() {
       await toggleFillLight(tester);
       expect(camera.torchCalls, [true]);
       expect(frame, findsNothing, reason: 'the torch lights, not the screen');
-      // To the front: torch off, the screen's frame instead.
+      expect(camera.beauty.light, LiveFillLight.off);
+      // To the front: torch off, the soft light on the picture instead.
       await tester.tap(find.byKey(GoLiveScreen.flipKey));
       await tester.pumpAndSettle();
       expect(camera.torchCalls, [true, false]);
-      expect(frame, findsOneWidget);
-      // Back again: the torch comes back on.
+      expect(camera.beauty.light, LiveFillLight.medium);
+      expect(frame, findsNothing);
+      // Back again: the torch comes back on, the picture's light goes off.
       await tester.tap(find.byKey(GoLiveScreen.flipKey));
       await tester.pumpAndSettle();
       expect(camera.torchCalls, [true, false, true]);
+      expect(camera.beauty.light, LiveFillLight.off);
       await toggleFillLight(tester);
       expect(camera.torchCalls, [true, false, true, false]);
       expect(hostState(tester).fillLight, isFalse);
@@ -2253,21 +2354,26 @@ void main() {
       await _leave(tester);
     });
 
-    testWidgets('reduced motion: the frame appears at once', (tester) async {
-      await _pump(tester);
+    testWidgets('reduced motion: the edge glow appears at once', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        engine: FakeLiveMediaEngine()..supportsFilters = false,
+      );
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
       addTearDown(
         tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
       );
       await tester.pump();
-      await tester.ensureVisible(fillLight);
-      await tester.tap(fillLight);
-      await tester.pump();
+      await toggleFillLight(tester);
+      await pickLevel(tester, LiveFillLight.low);
       final opacity = tester.widget<AnimatedOpacity>(
         find.ancestor(of: frame, matching: find.byType(AnimatedOpacity)),
       );
       expect(opacity.duration, Duration.zero);
+      await closeSheet(tester);
       await _leave(tester);
     });
 

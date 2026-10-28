@@ -10286,7 +10286,7 @@ abstract class AppLocalizations {
   /// **'مؤثرات'**
   String get liveToolMagic;
 
-  /// Fill light (D143): a warm screen frame with the front camera, the torch with the back camera.
+  /// Fill light (D143/D157): a soft light on the picture with the front camera, the torch with the back camera.
   ///
   /// In ar, this message translates to:
   /// **'إضاءة'**
@@ -10297,6 +10297,48 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذه الكاميرا بلا كشاف.'**
   String get liveFillLightNoTorch;
+
+  /// Fill light sheet (D157): its title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإضاءة'**
+  String get liveFillLightTitle;
+
+  /// Fill light level: off.
+  ///
+  /// In ar, this message translates to:
+  /// **'إيقاف'**
+  String get liveFillLightOff;
+
+  /// Fill light level: low.
+  ///
+  /// In ar, this message translates to:
+  /// **'خفيفة'**
+  String get liveFillLightLow;
+
+  /// Fill light level: medium.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسطة'**
+  String get liveFillLightMedium;
+
+  /// Fill light level: high.
+  ///
+  /// In ar, this message translates to:
+  /// **'قوية'**
+  String get liveFillLightHigh;
+
+  /// Fill light (D157): the light is on the published picture.
+  ///
+  /// In ar, this message translates to:
+  /// **'تُفتّح الإضاءة الصورة نفسها بلطف، فيراها مشاهدوك كما تراها.'**
+  String get liveFillLightOnPicture;
+
+  /// Fill light (D157): no camera pipeline on this device, so only a thin glow on the screen lights the face.
+  ///
+  /// In ar, this message translates to:
+  /// **'على هذا الجهاز تضيء الشاشة وجهك بتوهّج خفيف عند الحواف؛ صورة البث لا تتغير.'**
+  String get liveFillLightScreenOnly;
 
   /// Magic: title of the colour-filter picker.
   ///
@@ -11545,6 +11587,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إلغاء'**
   String get searchCancel;
+
+  /// D157: the search home's local history of this device's searches.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمليات البحث الأخيرة'**
+  String get searchRecentTitle;
+
+  /// D157: clears the recent searches.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسح الكل'**
+  String get searchRecentClear;
+
+  /// D157: removes one recent search (the ✕ on its chip).
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة «{term}» من عمليات البحث الأخيرة'**
+  String searchRecentRemove(String term);
 
   /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
   ///

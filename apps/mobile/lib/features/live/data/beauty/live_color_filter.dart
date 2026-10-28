@@ -23,19 +23,10 @@ enum LiveColorFilter {
   bool get isNatural => this == LiveColorFilter.natural;
 
   /// The 3 × 3 part, column-major (what `uniformMatrix3fv` takes).
-  List<double> get shaderMatrix {
-    final m = matrix;
-    return [
-      for (var col = 0; col < 3; col++)
-        for (var row = 0; row < 3; row++) m[row * 4 + col],
-    ];
-  }
+  List<double> get shaderMatrix => liveShaderMatrix(matrix);
 
   /// The offset, in 0 … 1.
-  List<double> get shaderOffset {
-    final m = matrix;
-    return [m[3], m[7], m[11]];
-  }
+  List<double> get shaderOffset => liveShaderOffset(matrix);
 
   /// The same transform for [ColorFilter.matrix] (5 × 4, offsets in
   /// 0 … 255): used to tint the picker's swatches.
@@ -61,6 +52,52 @@ enum LiveColorFilter {
   static LiveColorFilter parse(String? name) => LiveColorFilter.values
       .firstWhere((f) => f.name == name, orElse: () => natural);
 }
+
+/// D157 fill light on the camera picture (front camera): a soft, even
+/// exposure lift with a slight warm tint — like a soft light in front of the
+/// face — applied in the same colour stage as [LiveColorFilter], before the
+/// filter (the light reaches the scene, then the picture is graded).
+///
+/// Each level is `out = gain · rgb + lift`, then a small warm balance:
+/// gentle enough that skin keeps its texture and whites barely clip.
+enum LiveFillLight {
+  off,
+  low,
+  medium,
+  high;
+
+  bool get isOff => this == LiveFillLight.off;
+
+  /// Row-major 3 × 4, like [LiveColorFilter.matrix].
+  List<double> get matrix => _lightMatrices[this]!;
+
+  /// Parses a stored name; unknown or `null` → [medium].
+  static LiveFillLight parse(String? name) => LiveFillLight.values.firstWhere(
+    (l) => l.name == name,
+    orElse: () => medium,
+  );
+}
+
+/// The colour transform for [filter] with [light] before it (row-major
+/// 3 × 4); `null` when both do nothing.
+List<double>? liveColorMatrix(LiveColorFilter filter, LiveFillLight light) {
+  if (light.isOff) return filter.isNatural ? null : filter.matrix;
+  if (filter.isNatural) return light.matrix;
+  return _then(light.matrix, filter.matrix);
+}
+
+/// The 3 × 3 part of a row-major 3 × 4 [m], column-major (what
+/// `uniformMatrix3fv` takes).
+List<double> liveShaderMatrix(List<double> m) => [
+  for (var col = 0; col < 3; col++)
+    for (var row = 0; row < 3; row++) m[row * 4 + col],
+];
+
+/// The offset of a row-major 3 × 4 [m], in 0 … 1.
+List<double> liveShaderOffset(List<double> m) => [m[3], m[7], m[11]];
+
+/// The identity transform (row-major 3 × 4).
+const List<double> liveIdentityMatrix = _identity;
 
 // ---- composition helpers (rows: r, g, b; each [x, y, z, offset]) --------
 
@@ -167,4 +204,17 @@ final Map<LiveColorFilter, List<double>> _matrices = {
     _contrast(0.86),
     _offset(0.03, 0.03, 0.03),
   ]),
+};
+
+// Exposure gain and lift per level, then a warm balance (red up, blue down).
+_M _light(double gain, double lift, double warm) => _chain([
+  _scale(gain, gain, gain, lift: lift),
+  _scale(1 + warm, 1, 1 - 2 * warm),
+]);
+
+final Map<LiveFillLight, List<double>> _lightMatrices = {
+  LiveFillLight.off: _identity,
+  LiveFillLight.low: _light(1.06, 0.02, 0.01),
+  LiveFillLight.medium: _light(1.12, 0.035, 0.015),
+  LiveFillLight.high: _light(1.18, 0.05, 0.02),
 };

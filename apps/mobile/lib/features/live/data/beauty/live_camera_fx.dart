@@ -50,7 +50,7 @@ class LiveCameraFx {
   LiveArEffect? _sentEffect;
   bool _keySent = false;
 
-  /// Colour filters run here.
+  /// Colour filters (and D157's fill light) run here.
   bool get filtersSupported => _bridge.isSupported;
 
   LiveArSupport get effects {
@@ -81,8 +81,8 @@ class LiveCameraFx {
   }
 
   Future<void> _sync() async {
-    final filter = _wanted.filter;
-    final matrix = filter.isNatural ? null : filter.matrix;
+    // D143 colour filter with D157's fill light before it, in one stage.
+    final matrix = _wanted.colorMatrix;
     if (!_sameMatrix(matrix, _sentMatrix) || _sentEffect == null) {
       await _bridge.setColorMatrix(matrix);
       _sentMatrix = matrix;

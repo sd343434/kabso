@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dart_webrtc/dart_webrtc.dart' as dw;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:kabso_live/features/live/data/beauty/live_beauty.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:material_ui/material_ui.dart';
 import 'package:web/web.dart' as web;
@@ -197,8 +198,10 @@ class _BeautyProcessor implements lk.TrackProcessor<lk.VideoProcessorOptions> {
     if (!_running || gl == null || video == null || canvas == null) return;
     if (video.readyState >= 2) {
       final on = beauty.enabled;
-      final m = beauty.filter.shaderMatrix;
-      final o = beauty.filter.shaderOffset;
+      // D143 colour filter, with D157's fill light before it.
+      final cm = beauty.colorMatrix ?? liveIdentityMatrix;
+      final m = liveShaderMatrix(cm);
+      final o = liveShaderOffset(cm);
       gl
         ..viewport(0, 0, canvas.width, canvas.height)
         ..texImage2D(

@@ -58,12 +58,19 @@ class GoLiveState {
     this.voiceEnhance = true,
     this.wishGifts,
     this.fillLight = false,
+    this.fillLightLevel = LiveFillLight.medium,
   });
 
   /// D143 fill light, kept for this go-live (setup and on air): the front
-  /// camera lights the face with the screen (a warm frame), the back
-  /// camera with its torch.
+  /// camera lights the face — D157: a soft exposure lift with a warm tint on
+  /// the published picture ([fillLightLevel], carried in [beauty]`.light`),
+  /// or a thin glow at the screen's edges where the device has no camera
+  /// pipeline — the back camera with its torch.
   final bool fillLight;
+
+  /// D157: how strong the front camera's fill light is (never
+  /// [LiveFillLight.off]; off is [fillLight] false).
+  final LiveFillLight fillLightLevel;
 
   /// D136: the wish list picked before going live (sent once the room
   /// exists); null: the server keeps the host's last live's list.
@@ -128,8 +135,10 @@ class GoLiveState {
     bool? voiceEnhance,
     List<String>? wishGifts,
     bool? fillLight,
+    LiveFillLight? fillLightLevel,
   }) => GoLiveState(
     fillLight: fillLight ?? this.fillLight,
+    fillLightLevel: fillLightLevel ?? this.fillLightLevel,
     wishGifts: wishGifts ?? this.wishGifts,
     noiseReduction: noiseReduction ?? this.noiseReduction,
     voiceEnhance: voiceEnhance ?? this.voiceEnhance,
@@ -272,6 +281,7 @@ class LiveHostController extends Notifier<GoLiveState> {
         phase: GoLivePhase.preview,
         frontCamera: _engine.frontCamera,
       );
+      await _syncLight();
     } on LiveCaptureException catch (e) {
       if (!ref.mounted) return;
       state = state.copyWith(
@@ -443,8 +453,22 @@ class LiveHostController extends Notifier<GoLiveState> {
 
   /// Beauty on the camera (D94), before and while live.
   Future<void> setBeauty(LiveBeauty beauty) async {
-    state = state.copyWith(beauty: beauty);
-    await _engine.setBeauty(beauty);
+    // The fill light is the controller's to set (D157), never the sheet's.
+    final withLight = beauty.copyWith(light: _effectiveLight);
+    state = state.copyWith(beauty: withLight);
+    await _engine.setBeauty(withLight);
+  }
+
+  /// D157: the light on the published picture — the front camera's fill
+  /// light at its level; off otherwise (the back camera has its torch).
+  LiveFillLight get _effectiveLight => state.fillLight && _engine.frontCamera
+      ? state.fillLightLevel
+      : LiveFillLight.off;
+
+  /// Sends the fill light to the camera pipeline when it changed.
+  Future<void> _syncLight() async {
+    if (state.beauty.light == _effectiveLight) return;
+    await setBeauty(state.beauty);
   }
 
   /// D143: Magic's colour filter, on the published picture (where the
@@ -457,17 +481,23 @@ class LiveHostController extends Notifier<GoLiveState> {
   Future<void> setArEffect(LiveArEffect effect) =>
       setBeauty(state.beauty.copyWith(effect: effect));
 
-  /// D143 fill light. The front camera: the screen's warm frame (nothing to
-  /// ask the device). The back camera: its torch — `false` (and the light
-  /// stays off) when it has none. Off turns the torch off too.
-  Future<bool> setFillLight({required bool on}) async {
-    if (!on) {
+  /// D143 fill light. The front camera (D157): a soft exposure lift with a
+  /// warm tint at [level] (or the last level) on the published picture.
+  /// The back camera: its torch — `false` (and the light stays off) when it
+  /// has none. Off turns the torch off too.
+  Future<bool> setFillLight({required bool on, LiveFillLight? level}) async {
+    if (!on || level == LiveFillLight.off) {
       state = state.copyWith(fillLight: false);
       if (!_engine.frontCamera) await _torch(on: false);
+      await _syncLight();
       return true;
     }
     if (_engine.frontCamera) {
-      state = state.copyWith(fillLight: true);
+      state = state.copyWith(
+        fillLight: true,
+        fillLightLevel: level ?? state.fillLightLevel,
+      );
+      await _syncLight();
       return true;
     }
     if (!await _torch(on: true)) return false;
@@ -503,6 +533,7 @@ class LiveHostController extends Notifier<GoLiveState> {
       frontCamera: _engine.frontCamera,
       fillLight: fillLight,
     );
+    await _syncLight();
   }
 
   Future<void> toggleMic() async {
@@ -610,6 +641,8 @@ class LiveHostController extends Notifier<GoLiveState> {
           noiseReduction: state.noiseReduction,
           voiceEnhance: state.voiceEnhance,
           wishGifts: state.wishGifts,
+          fillLight: state.fillLight,
+          fillLightLevel: state.fillLightLevel,
         );
       }
       _release();

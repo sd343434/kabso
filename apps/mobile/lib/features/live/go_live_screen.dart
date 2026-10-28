@@ -22,6 +22,7 @@ import 'package:kabso_live/features/live/application/live_lucky_ticker.dart';
 import 'package:kabso_live/features/live/application/live_seat_emojis.dart';
 import 'package:kabso_live/features/live/application/live_tap_batcher.dart';
 import 'package:kabso_live/features/live/data/beauty/live_ar_effect.dart';
+import 'package:kabso_live/features/live/data/beauty/live_color_filter.dart';
 import 'package:kabso_live/features/live/data/live_media_engine.dart';
 import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_gift_models.dart';
@@ -644,8 +645,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                 )
               : null,
         ),
-        // D143 fill light: the screen's warm frame (front camera) or the
-        // torch (back camera); one tool for both (it replaces "Flash").
+        // D143 fill light: the front camera's soft light with its level
+        // (D157: a sheet — off/low/medium/high) or the torch (back camera,
+        // a toggle); one tool for both (it replaces "Flash").
         GoLiveTool(
           id: 'fillLight',
           icon: state.frontCamera
@@ -654,7 +656,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           label: l10n.liveToolFillLight,
           toggled: state.fillLight,
           onTap: canAct && engine.videoEnabled
-              ? () => unawaited(_toggleFillLight(state))
+              ? () => unawaited(_toggleFillLight(state, art.accent))
               : null,
         ),
       ],
@@ -2250,8 +2252,20 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     );
   }
 
-  /// D143 fill light on or off; says so when the back camera has no torch.
-  Future<void> _toggleFillLight(GoLiveState state) async {
+  /// D143 fill light. The front camera (D157): the level sheet. The back
+  /// camera: the torch on or off; says so when it has none.
+  Future<void> _toggleFillLight(GoLiveState state, Color accent) async {
+    if (state.frontCamera) {
+      await showLiveFillLightSheet(
+        context,
+        level: state.fillLight ? state.fillLightLevel : LiveFillLight.off,
+        onPicture: _host.engine.filtersSupported,
+        accent: accent,
+        onChanged: (level) =>
+            unawaited(_host.setFillLight(on: !level.isOff, level: level)),
+      );
+      return;
+    }
     final on = !state.fillLight;
     final done = await _host.setFillLight(on: on);
     if (!mounted || done) return;
@@ -2259,8 +2273,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   /// The camera picture (full screen for LIVE, the host tile for
-  /// multi-guest), with [fallback] until it runs. D143: with the fill light
-  /// on and the front camera, the screen's warm frame lights the face.
+  /// multi-guest), with [fallback] until it runs. D157: with the fill light
+  /// on and the front camera the picture itself is lifted (camera
+  /// pipeline); only a device without one shows the thin edge glow.
   Widget _camera(GoLiveState state, {Widget? fallback}) {
     final picture = state.phase == GoLivePhase.ended
         ? null
@@ -2277,7 +2292,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         fit: StackFit.expand,
         children: [
           picture,
-          LiveFillLightFrame(on: state.fillLight && state.frontCamera),
+          LiveFillLightFrame(
+            on:
+                state.fillLight &&
+                state.frontCamera &&
+                !_host.engine.filtersSupported,
+            level: state.fillLightLevel,
+          ),
         ],
       ),
     );
