@@ -306,7 +306,7 @@ class _IconAction extends StatelessWidget {
     constraints: const BoxConstraints.tightFor(width: 44, height: 44),
     icon: Badge(
       isLabelVisible: badge > 0,
-      label: Text('$badge'),
+      label: Text(KFormat.compact(badge, context.l10n)),
       child: Icon(icon, size: 20, color: const Color(0xFFFFFFFF)),
     ),
   );
