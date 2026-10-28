@@ -25,8 +25,10 @@ export class MediaController {
   completeUpload(
     @CurrentAuth() auth: AuthContext,
     @Param('uploadId') uploadId: string,
+    @Body() body: unknown,
   ): Promise<MediaAssetDto> {
-    return this.media.completeUpload(auth.userId, uploadId);
+    // v1.41-social (D162): `{posterId}` for a video; validated by the service after the slot.
+    return this.media.completeUpload(auth.userId, uploadId, body);
   }
 
   @Get(':mediaId')

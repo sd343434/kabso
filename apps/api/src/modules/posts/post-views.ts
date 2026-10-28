@@ -8,7 +8,8 @@ import { parseHashtags, parseMentions } from './text-entities.js';
 /** `Post` (openapi v1.5-social). */
 export interface PostDto {
   id: string;
-  format: 'POST';
+  /** v1.41-social (D162): `REEL` — one vertical video (Moments). */
+  format: 'POST' | 'REEL';
   author: UserSummaryDto;
   text: string;
   media: MediaAssetDto[];
@@ -184,7 +185,7 @@ export class PostViews {
     const mentioned = new Map(row.mentions.map((m) => [m.user.profile?.username ?? '', userSummary(m.user)]));
     return {
       id: row.id,
-      format: 'POST',
+      format: row.format,
       author: userSummary(row.author),
       text: row.text,
       media: row.media.map((m) => this.media.toDto(m.mediaAsset)),

@@ -1223,6 +1223,14 @@ enum PostStatus {
   @@map("post_status")
 }
 
+/// v1.41-social (D162, CP-023): a post, or a reel (one vertical video, Moments).
+enum PostFormat {
+  POST
+  REEL
+
+  @@map("post_format")
+}
+
 enum PostModeration {
   VISIBLE
   PENDING
@@ -1317,11 +1325,16 @@ model MediaAsset {
   /// 0 for a `LIVE_CHAT_VOICE` clip (CP-017).
   width      Int
   height     Int
-  /// CP-017: a `LIVE_CHAT_VOICE` clip's length (≤ 30 000 ms); null for images.
+  /// CP-017: a `LIVE_CHAT_VOICE` clip's length (≤ 30 000 ms); null for images. D162: a video's
+  /// length (`POST_VIDEO` ≤ 180 000, `REEL_VIDEO` ≤ 60 000).
   durationMs Int?      @map("duration_ms")
   blurhash   String?   @db.VarChar(64)
+  /// D162: a video's file (`media/{id}/video.mp4|.mov`); otherwise the large WebP.
   largeKey   String    @map("large_key") @db.VarChar(256)
+  /// D162: a video's poster at 320 px.
   thumbKey   String    @map("thumb_key") @db.VarChar(256)
+  /// D162: a video's poster at 1 080 px (the consumed `VIDEO_POSTER`); null for other kinds.
+  posterKey  String?   @map("poster_key") @db.VarChar(256)
   byteSize   Int       @map("byte_size")
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   attachedAt DateTime? @map("attached_at") @db.Timestamptz(3)
@@ -1350,6 +1363,8 @@ model Post {
   id              String         @id @default(uuid(7)) @db.Uuid
   authorId        String         @map("author_id") @db.Uuid
   text            String         @default("") @db.VarChar(2200)
+  /// D162: `REEL` — one `REEL_VIDEO`, listed by the reels feed only.
+  format          PostFormat     @default(POST)
   location        String?        @db.VarChar(80)
   status          PostStatus     @default(PUBLISHED)
   moderation      PostModeration @default(VISIBLE)
@@ -1392,6 +1407,7 @@ model Post {
   @@index([publishedAt(sort: Desc), id(sort: Desc)], map: "posts_published_idx", where: raw("status = 'PUBLISHED'::post_status AND deleted_at IS NULL AND moderation = 'VISIBLE'::post_moderation"))
   @@index([publishAt], map: "posts_scheduled_due_idx", where: raw("status = 'SCHEDULED'::post_status AND deleted_at IS NULL"))
   @@index([authorId, status, createdAt(sort: Desc)], map: "posts_author_status_created_idx")
+  @@index([authorId, publishedAt(sort: Desc), id(sort: Desc)], map: "posts_reels_author_published_idx", where: raw("format = 'REEL'::post_format AND status = 'PUBLISHED'::post_status AND deleted_at IS NULL"))
   @@map("posts")
 }
 

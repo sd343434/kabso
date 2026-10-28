@@ -31,7 +31,17 @@ export class InteractionsController {
     @CurrentAuth() auth: AuthContext,
     @Query(new ZodValidationPipe(feedQuerySchema)) query: FeedQuery,
   ): Promise<PageDto<PostDto>> {
-    return this.feeds.feed(auth.userId, query);
+    return this.feeds.feed(auth.userId, query, 'POST');
+  }
+
+  /** v1.41-social (D162): reels for Moments (CONVENTIONS §11.14); the `social:feed` bucket. */
+  @Get('feed/reels')
+  @RateLimit({ bucket: 'social:feed', rule: 'feedUser', key: byUserId, replacesDefault: true })
+  reels(
+    @CurrentAuth() auth: AuthContext,
+    @Query(new ZodValidationPipe(feedQuerySchema)) query: FeedQuery,
+  ): Promise<PageDto<PostDto>> {
+    return this.feeds.feed(auth.userId, query, 'REEL');
   }
 
   @Put('posts/:postId/like')

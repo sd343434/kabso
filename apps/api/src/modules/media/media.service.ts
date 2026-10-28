@@ -22,21 +22,34 @@ import {
   type ImageShape,
 } from './media-image.js';
 import { AUDIO_CONTENT_TYPES, InvalidAudioError, MAX_VOICE_BYTES, verifyVoiceClip } from './media-audio.js';
+import {
+  InvalidVideoError,
+  MAX_VIDEO_BYTES,
+  VIDEO_CONTENT_TYPES,
+  VIDEO_LIMITS,
+  inspectVideo,
+  isVideoKind,
+  type VideoContentType,
+  type VideoInfo,
+  type VideoKind,
+} from './media-video.js';
 import { OBJECT_STORAGE, type ObjectStorage } from './object-storage.js';
 
-/** `MediaAsset` (openapi v1.5-social; `AUDIO` and `durationMs`, CP-017). */
+/** `MediaAsset` (openapi v1.5-social; `AUDIO` and `durationMs`, CP-017; `VIDEO`, v1.41-social). */
 export interface MediaAssetDto {
   id: string;
-  type: 'IMAGE' | 'AUDIO';
+  type: 'IMAGE' | 'AUDIO' | 'VIDEO';
   status: 'READY';
   /** 0 for AUDIO. */
   width: number;
   height: number;
   blurhash: string | null;
   url: string;
-  /** AUDIO: the same as `url`. */
+  /** AUDIO: the same as `url`. VIDEO: the poster at 320 px. */
   thumbUrl: string;
-  /** AUDIO only: the clip's length (≤ 30 000). */
+  /** VIDEO only (D162): the poster at 1 080 px. */
+  posterUrl?: string;
+  /** AUDIO: the clip's length (≤ 30 000). VIDEO (D162): ≤ 60 000 for a reel, ≤ 180 000 for a post. */
   durationMs?: number;
 }
 
@@ -70,6 +83,11 @@ export const MEDIA_KINDS = [
   // chat voice clip); deleted with the message after 24 hours (§11.13).
   'DM_IMAGE',
   'DM_VOICE',
+  // v1.41-social (D162, CP-023): a post's video, a reel's video and a video's poster (the first
+  // frame, made on the phone; processed like a post image and consumed by the video's `complete`).
+  'POST_VIDEO',
+  'REEL_VIDEO',
+  'VIDEO_POSTER',
 ] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
@@ -78,25 +96,42 @@ export function isVoiceKind(kind: string): boolean {
   return kind === 'LIVE_CHAT_VOICE' || kind === 'DM_VOICE';
 }
 
+/** The largest upload of `kind` (images 15 MiB, voice clips 1 MiB, videos per D162). */
+export function maxUploadBytes(kind: MediaKind): number {
+  if (isVoiceKind(kind)) return MAX_VOICE_BYTES;
+  if (isVideoKind(kind)) return VIDEO_LIMITS[kind].maxBytes;
+  return MAX_IMAGE_BYTES;
+}
+
 /**
  * `CreateMediaUploadRequest`: strict (unknown fields → `unknown_field`). CP-017: a
- * `LIVE_CHAT_VOICE` upload is `audio/mp4` of at most 1 MiB; every other kind is an image type.
+ * `LIVE_CHAT_VOICE` upload is `audio/mp4` of at most 1 MiB; v1.41-social (D162): a `POST_VIDEO` /
+ * `REEL_VIDEO` upload is `video/mp4` or `video/quicktime` (≤ 200 / 100 MiB); every other kind is
+ * an image type of at most 15 MiB.
  */
 export const createMediaUploadSchema = z
   .strictObject({
     kind: z.enum(MEDIA_KINDS),
-    contentType: z.enum([...IMAGE_CONTENT_TYPES, ...AUDIO_CONTENT_TYPES]),
-    byteSize: z.number().int().min(1).max(MAX_IMAGE_BYTES),
+    contentType: z.enum([...IMAGE_CONTENT_TYPES, ...AUDIO_CONTENT_TYPES, ...VIDEO_CONTENT_TYPES]),
+    byteSize: z.number().int().min(1).max(MAX_VIDEO_BYTES),
   })
   .superRefine((value, ctx) => {
-    const voice = isVoiceKind(value.kind);
-    const audio = (AUDIO_CONTENT_TYPES as readonly string[]).includes(value.contentType);
-    if (voice !== audio) {
+    const family = (type: string): 'audio' | 'video' | 'image' =>
+      (AUDIO_CONTENT_TYPES as readonly string[]).includes(type)
+        ? 'audio'
+        : (VIDEO_CONTENT_TYPES as readonly string[]).includes(type)
+          ? 'video'
+          : 'image';
+    const wanted = isVoiceKind(value.kind) ? 'audio' : isVideoKind(value.kind) ? 'video' : 'image';
+    if (family(value.contentType) !== wanted) {
       ctx.addIssue({ code: 'custom', path: ['contentType'], params: { issue: 'invalid_value' } });
-    } else if (voice && value.byteSize > MAX_VOICE_BYTES) {
+    } else if (value.byteSize > maxUploadBytes(value.kind)) {
       ctx.addIssue({ code: 'custom', path: ['byteSize'], params: { issue: 'too_big' } });
     }
   });
+
+/** v1.41-social (D162): `CompleteMediaUploadRequest` — `{posterId}` for a video, nothing otherwise. */
+export const completeMediaUploadSchema = z.strictObject({ posterId: z.uuid().optional() });
 
 /** A presigned URL lives 10 minutes (§11.1). */
 export const UPLOAD_URL_TTL_SECONDS = 600;
@@ -148,12 +183,12 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
   toDto(
     asset: Pick<
       MediaAsset,
-      'id' | 'kind' | 'width' | 'height' | 'blurhash' | 'largeKey' | 'thumbKey' | 'durationMs'
+      'id' | 'kind' | 'width' | 'height' | 'blurhash' | 'largeKey' | 'thumbKey' | 'durationMs' | 'posterKey'
     >,
   ): MediaAssetDto {
     const dto: MediaAssetDto = {
       id: asset.id,
-      type: isVoiceKind(asset.kind) ? 'AUDIO' : 'IMAGE',
+      type: isVoiceKind(asset.kind) ? 'AUDIO' : isVideoKind(asset.kind) ? 'VIDEO' : 'IMAGE',
       status: 'READY',
       width: asset.width,
       height: asset.height,
@@ -161,6 +196,7 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       url: this.publicUrl(asset.largeKey),
       thumbUrl: this.publicUrl(asset.thumbKey),
     };
+    if (asset.posterKey !== null && isVideoKind(asset.kind)) dto.posterUrl = this.publicUrl(asset.posterKey);
     if (asset.durationMs !== null) dto.durationMs = asset.durationMs;
     return dto;
   }
@@ -229,8 +265,11 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /** `POST /media/uploads/{uploadId}/complete`. Only the uploader; anyone else gets 404. */
-  async completeUpload(userId: string, uploadId: string): Promise<MediaAssetDto> {
+  /**
+   * `POST /media/uploads/{uploadId}/complete`. Only the uploader; anyone else gets 404. v1.41-social
+   * (D162): `body` is `{posterId}` for a video upload and empty for every other kind.
+   */
+  async completeUpload(userId: string, uploadId: string, body?: unknown): Promise<MediaAssetDto> {
     this.assertEnabled();
     if (!isUuid(uploadId)) throw new AppException(ErrorCode.NOT_FOUND);
     const upload = await this.prisma.mediaUpload.findFirst({
@@ -238,7 +277,17 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
       include: { mediaAsset: true },
     });
     if (!upload) throw new AppException(ErrorCode.NOT_FOUND);
+    const parsed = completeMediaUploadSchema.safeParse(body ?? {});
+    if (!parsed.success) throw AppException.validation(zodErrorToDetails(parsed.error));
+    const posterId = parsed.data.posterId?.toLowerCase();
+    const video = isVideoKind(upload.kind);
+    if (!video && posterId !== undefined) {
+      throw AppException.validation([{ field: 'posterId', issue: 'unknown_field' }]);
+    }
     if (upload.status === 'COMPLETED' && upload.mediaAsset) return this.toDto(upload.mediaAsset);
+    if (video && posterId === undefined) {
+      throw AppException.validation([{ field: 'posterId', issue: 'required' }]);
+    }
     if (upload.status !== 'PENDING') throw new AppException(ErrorCode.MEDIA_INVALID);
 
     const fail = async (reason: string): Promise<never> => {
@@ -252,9 +301,27 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     };
 
     if (upload.expiresAt.getTime() + SLOT_GRACE_MS < Date.now()) return fail('slot expired');
+    if (video && !(await this.findPoster(userId, posterId!))) {
+      throw AppException.validation([{ field: 'posterId', issue: 'invalid_value' }]);
+    }
     const head = await this.storage.head(upload.objectKey);
     if (!head) return fail('object missing');
     if (head.size !== upload.byteSize) return fail('size mismatch');
+    if (video) {
+      let info: VideoInfo;
+      try {
+        info = await inspectVideo(
+          (offset, length) => this.storage.getRange(upload.objectKey, offset, length),
+          head.size,
+          upload.contentType as VideoContentType,
+          upload.kind as VideoKind,
+        );
+      } catch (err) {
+        if (err instanceof InvalidVideoError) return fail(err.message);
+        throw err;
+      }
+      return this.toDto(await this.storeVideo(userId, upload, posterId!, info));
+    }
     const bytes = await this.storage.get(upload.objectKey, upload.byteSize);
     if (!bytes || bytes.length !== upload.byteSize) return fail('size mismatch');
 
@@ -367,6 +434,83 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     return asset;
   }
 
+  /** The caller's READY, unattached `VIDEO_POSTER` younger than 24 h, or null. */
+  private findPoster(userId: string, posterId: string): Promise<MediaAsset | null> {
+    return this.prisma.mediaAsset.findFirst({
+      where: {
+        id: posterId,
+        ownerId: userId,
+        kind: 'VIDEO_POSTER',
+        attachedAt: null,
+        createdAt: { gt: new Date(Date.now() - 24 * 3600 * 1000) },
+      },
+    });
+  }
+
+  /**
+   * v1.41-social (D162): a checked video is copied unchanged by the storage service to
+   * `media/{mediaId}/video.mp4|.mov`; in one transaction the poster row is locked, its objects
+   * become the video's poster and thumbnail, and the poster row is deleted. A poster taken by a
+   * concurrent request → 400 `posterId` / `invalid_value` (the copy is removed, the slot stays
+   * open). Idempotent with the asset id = the upload id.
+   */
+  private async storeVideo(
+    userId: string,
+    upload: { id: string; kind: string; objectKey: string; contentType: string; byteSize: number },
+    posterId: string,
+    info: VideoInfo,
+  ): Promise<MediaAsset> {
+    const key = `media/${upload.id}/video.${upload.contentType === 'video/quicktime' ? 'mov' : 'mp4'}`;
+    await this.storage.copy(upload.objectKey, key, upload.contentType, IMMUTABLE_CACHE);
+    let asset: MediaAsset | null;
+    try {
+      asset = await this.prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM media_assets
+           WHERE id = ${posterId}::uuid AND owner_id = ${userId}::uuid AND kind = 'VIDEO_POSTER'
+             AND attached_at IS NULL AND created_at > now() - interval '24 hours'
+           FOR UPDATE`;
+        if (locked.length === 0) return null;
+        const poster = await tx.mediaAsset.findUniqueOrThrow({ where: { id: posterId } });
+        await tx.mediaAsset.createMany({
+          data: [
+            {
+              id: upload.id,
+              ownerId: userId,
+              kind: upload.kind,
+              width: info.width,
+              height: info.height,
+              durationMs: info.durationMs,
+              blurhash: poster.blurhash,
+              largeKey: key,
+              thumbKey: poster.thumbKey,
+              posterKey: poster.largeKey,
+              byteSize: upload.byteSize,
+            },
+          ],
+          skipDuplicates: true,
+        });
+        await tx.mediaAsset.delete({ where: { id: poster.id } });
+        await tx.mediaUpload.updateMany({
+          where: { id: upload.id, status: 'PENDING' },
+          data: { status: 'COMPLETED', completedAt: new Date(), mediaAssetId: upload.id },
+        });
+        return tx.mediaAsset.findUniqueOrThrow({ where: { id: upload.id } });
+      });
+    } catch (err) {
+      await this.storage.delete([key]).catch(() => undefined);
+      throw err;
+    }
+    if (!asset) {
+      await this.storage.delete([key]).catch(() => undefined);
+      throw AppException.validation([{ field: 'posterId', issue: 'invalid_value' }]);
+    }
+    await this.storage.delete([upload.objectKey]).catch((err: unknown) => {
+      this.logger.warn({ uploadId: upload.id, error: safeErrorLog(err) }, 'Upload object not deleted');
+    });
+    return asset;
+  }
+
   /** `GET /media/{mediaId}`: the caller's own assets only (else 404). */
   async getMedia(userId: string, mediaId: string): Promise<MediaAssetDto> {
     if (!isUuid(mediaId)) throw new AppException(ErrorCode.NOT_FOUND);
@@ -387,14 +531,15 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     tx: Prisma.TransactionClient,
     userId: string,
     ids: readonly string[],
-    kind: MediaKind = 'POST_IMAGE',
+    kind: MediaKind | readonly MediaKind[] = 'POST_IMAGE',
   ): Promise<MediaAsset[] | null> {
     if (ids.length === 0) return [];
     const lower = ids.map((id) => id.toLowerCase());
+    const kinds: string[] = typeof kind === 'string' ? [kind] : [...kind];
     const locked = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM media_assets
       WHERE id = ANY(${lower}::uuid[]) AND owner_id = ${userId}::uuid AND attached_at IS NULL
-        AND kind = ${kind}
+        AND kind = ANY(${kinds}::text[])
         AND created_at > now() - interval '24 hours'
       FOR UPDATE`;
     if (locked.length !== lower.length) return null;
@@ -440,7 +585,9 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
     }
     // DELETE … RETURNING: only rows still unattached at delete time (a concurrent claim holds the
     // row lock and sets attached_at first) lose their objects.
-    const stale = await this.prisma.$queryRaw<{ large_key: string; thumb_key: string }[]>`
+    const stale = await this.prisma.$queryRaw<
+      { large_key: string; thumb_key: string; poster_key: string | null }[]
+    >`
       DELETE FROM media_assets
       WHERE id IN (
         SELECT id FROM media_assets
@@ -449,8 +596,12 @@ export class MediaService implements OnModuleInit, OnModuleDestroy {
         LIMIT ${SWEEP_BATCH}
         FOR UPDATE SKIP LOCKED)
         AND attached_at IS NULL
-      RETURNING large_key, thumb_key`;
-    if (stale.length > 0) await this.storage.delete(stale.flatMap((a) => [a.large_key, a.thumb_key]));
+      RETURNING large_key, thumb_key, poster_key`;
+    if (stale.length > 0) {
+      await this.storage.delete(
+        stale.flatMap((a) => [a.large_key, a.thumb_key, ...(a.poster_key ? [a.poster_key] : [])]),
+      );
+    }
     return { slots: slots.length, assets: stale.length };
   }
 }
