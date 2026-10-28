@@ -6697,4 +6697,56 @@ class AppLocalizationsAr extends AppLocalizations {
   String notificationPremiumExpired(String username) {
     return 'انتهى يوزرك المميز ‎@$username، وهو محجوز لك لبضعة أيام.';
   }
+
+  @override
+  String searchTryHint(String term) {
+    return 'جرّب البحث: $term';
+  }
+
+  @override
+  String get searchCancel => 'إلغاء';
+
+  @override
+  String get searchHotTitle => 'الأكثر بحثاً';
+
+  @override
+  String searchHotSemantics(int rank, String term) {
+    return 'بحث رائج $rank: $term';
+  }
+
+  @override
+  String get searchTagTrending => 'رائج';
+
+  @override
+  String get searchTagNew => 'جديد';
+
+  @override
+  String get searchHotTakeTitle => 'وسوم رائجة';
+
+  @override
+  String get searchMore => 'المزيد';
+
+  @override
+  String get searchMayLikeTitle => 'قد يعجبك';
+
+  @override
+  String get trendingHashtagsTitle => 'الوسوم الرائجة';
+
+  @override
+  String get trendingHashtagsEmpty => 'لا توجد وسوم رائجة هذا الأسبوع';
+
+  @override
+  String trendingHashtagWeekCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count منشور هذا الأسبوع',
+      many: '$count منشورًا هذا الأسبوع',
+      few: '$count منشورات هذا الأسبوع',
+      two: 'منشوران هذا الأسبوع',
+      one: 'منشور واحد هذا الأسبوع',
+      zero: 'لا منشورات هذا الأسبوع',
+    );
+    return '$_temp0';
+  }
 }

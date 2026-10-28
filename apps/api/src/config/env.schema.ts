@@ -370,6 +370,8 @@ export const envSchema = z
     RATE_LIMIT_STORY_SEEN_USER: rateLimit('600/3600'),
     RATE_LIMIT_NOTIFICATIONS_READ_USER: rateLimit('120/3600'),
     RATE_LIMIT_SEARCH_USER: rateLimit('300/900'),
+    /** v1.29-live (D147, §11.11): `POST /search/queries` (a submitted search counted for trends). */
+    RATE_LIMIT_SEARCH_RECORD_USER: rateLimit('120/3600'),
     RATE_LIMIT_BLOCK_USER: rateLimit('60/3600'),
     RATE_LIMIT_REPORT_USER: rateLimit('30/3600'),
 
@@ -522,6 +524,13 @@ export const envSchema = z
     PREMIUM_USERNAME_MAX_PREPAID_DAYS: intSetting(365, 1, 3650),
     /** D146: period of the premium-username sweeper (reminders, expiry, grace); 0 disables it (not in production). */
     PREMIUM_USERNAME_SWEEP_INTERVAL_SECONDS: intSetting(60, 0, 3600),
+    /**
+     * v1.29-live (D147, §11.11): a search term is listed in `GET /search/trending` only once at
+     * least this many different people searched it in the last 7 days (nothing rare or personal).
+     */
+    SEARCH_TRENDING_MIN_SEARCHERS: intSetting(5, 2, 100000),
+    /** D147: period of the search-trends sweeper (drops counts older than 14 days); 0 disables it. */
+    SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86400),
     /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.

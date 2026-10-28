@@ -352,6 +352,7 @@ whole as `{ "data": [...] }` with no `page` object, like `GET /auth/sessions`.
 | `PATCH /me` *(v1.2)* | 30 / hour per user |
 | `PUT /me/username` *(v1.28-live, D146)* | 5 / day per user (bucket `username:change`, `RATE_LIMIT_USERNAME_CHANGE_USER`). **Replaces** the per-user default |
 | `POST /me/premium-username/rentals`, `DELETE /me/premium-username` *(v1.28-live, D146)* | 20 / hour per user (bucket `premium:rent`, `RATE_LIMIT_PREMIUM_RENT_USER`). **Replaces** the per-user default; `GET /premium-usernames`, `GET /premium-usernames/{username}` and `GET /me/premium-username` use the per-user default |
+| `POST /search/queries` *(v1.29-live, D147)* | 120 / hour per user (bucket `search:record`, `RATE_LIMIT_SEARCH_RECORD_USER`). **Replaces** the per-user default; `GET /search/trending` and `GET /search/trending-hashtags` use the per-user default |
 | `GET /live/rooms` *(v1.3)* | 300 / 15 min per user |
 | `GET /users/{username}` *(v1.3)* | 300 / 15 min per user (profile scraping) |
 | `POST /live/rooms` *(v1.3)* | 10 / hour and 30 / day per user; counted **before** the `LIVE_HOSTING_ENABLED` check |
@@ -460,6 +461,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.22-live)* Tables `bag_items`, `user_bag_items` | Backend — `bag` module (the free items are written at signup by the users module through `bag-grants.ts`, in the account's transaction; admin grants by the `bag-admin` CLI) | CTO |
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
+| *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -499,6 +501,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.29-live (draft) | 2026-10-28 | **D147 (owner: «Make the search page match this page 100%» — a Bigo-style search home; layout reference only):** search trends, tag `search`. `recordSearchQuery` (`POST /search/queries`, `RecordSearchQueryRequest` `{q}`, 204): a search the person submitted or whose result they opened, counted once per person per 7 days with no user id stored; `listTrendingSearches` (`GET /search/trending`, `TrendingSearchList` of `TrendingSearch` `{term, tag: TRENDING \| NEW \| null}`, at most 6, only terms with ≥ `SEARCH_TRENDING_MIN_SEARCHERS` (5) different searchers in 7 days, never hidden or blocked); `listTrendingHashtags` (`GET /search/trending-hashtags?limit=1–20`, `HashtagList`: visible posts of the last 7 days, ≥ 3 posts by ≥ 2 authors). Server CLI `search-admin top\|hide\|unhide\|block-word`; audit `search.term.hide`, `search.blocked_word`; config `SEARCH_TRENDING_MIN_SEARCHERS`, `SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_SEARCH_RECORD_USER`. §7, §8, §11.11. | **Additive** (new operations and schemas; `GET /search` unchanged). Older apps never record searches, so the lists fill from updated apps only. |
 | v1.28-live (draft) | 2026-10-28 | **D146 (owner: «يوزر مميز» — premium usernames rented monthly with coins, the owner's four special-ID medals, and a stricter rule for new usernames):** `changeUsername` (`PUT /me/username`, `ChangeUsernameRequest`, `RegularUsername`), `getPremiumUsernameStore` (`GET /premium-usernames?tier=`, `PremiumUsernameStore`, `PremiumUsernameTierPrice`), `getPremiumUsernameStatus` (`GET /premium-usernames/{username}`, `PremiumUsernameStatus`, `PremiumUsernameState`), `getMyPremiumUsername` / `releaseMyPremiumUsername` (`GET` / `DELETE /me/premium-username`, `MyPremiumUsernameResponse`, `MyPremiumUsername`), `rentPremiumUsername` (`POST /me/premium-username/rentals`, `Idempotency-Key`, `RentPremiumUsernameRequest`, `PremiumUsernameRental`); `PremiumUsernameTier` (`LEGEND`, `RUBY`, `GOLD`, `SILVER`); optional `premiumTier` on `UserSummary`, `PublicProfile` and `Me`; `Username` widened to 1–30; `RegisterRequest.username` → `RegularUsername`; `LoginRequest.identifier` min 1; notification types `PREMIUM_USERNAME_EXPIRING` / `_EXPIRED` and target `PREMIUM_USERNAME` (`endsAt`); codes `PREMIUM_USERNAME_UNAVAILABLE`, `PREMIUM_USERNAME_PRICE_CHANGED`, `PREMIUM_USERNAME_ACTIVE` (409); issues `letters_and_digits`, `premium`; ledger reasons `PREMIUM_USERNAME_RENT` / `_RENEW`; CLI `premium-admin`; migrations `20261201090000_premium_usernames_enums`, `20261201100000_premium_usernames`. §4, §6, §7, §8, §10.32. | **Behaviour:** registration refuses names that break the new rule (existing names are kept); older apps show the new validation issues as a generic error. **Additive** otherwise (new operations, optional fields, enum values and codes). Nothing is on sale until the owner sets prices. |
 | v1.27.6-live (draft) | 2026-10-27 | **D140 (owner: «صفحة انتهاء البث بملء الشاشة … ومعلومات أكثر منها دول المشاهدين ونسبة المشاهدة لكل دولة»):** `getLiveRoomStats` (`GET /live/rooms/{roomId}/stats`, host only, `LiveRoomStats`, `LiveRoomViewerStats`, `LiveViewerCountry`): the live's cherries with the host's own share, supporters and the top three, gifts, chat messages, new followers, unique / peak viewers, average watch time and the viewers' countries (top 5 + `OTHER` + `UNKNOWN`, one-decimal shares). Migration `20261130090000_live_audience` (`live_room_audience`, `live_rooms.peak_viewer_count`). §7, §10.31. | **Additive** (a new operation and schemas). Lives started before the deploy read `viewers: null`, `viewerCountries: []`. |
 | v1.27.5-live (draft) | 2026-10-27 | **D138 (owner: «في البث الصوتي المستخدم يستخدمها على الكرسي … مرة واحدة وتختفي»):** `sendLiveSeatEmoji` (`POST /live/rooms/{roomId}/seat-emoji`, `LiveSeatEmojiRequest`, `LiveSeatEmoji`); data message `seat-emoji` on topic `seat-emoji`. §7, §10.30. | **Additive** (a new operation and data message topic; older apps ignore unknown topics and types). |
@@ -2350,3 +2353,51 @@ count is eventually consistent (≤ 1 min).
 - **Retention (owner, D92):** notifications whose latest activity is older than **30 days** are
   deleted by a sweeper.
 - Delivery is in-app (the app polls the unread count); push waits on CP-006 Q4.
+
+### 11.11 Search trends *(v1.29-live, DRAFT — D147)*
+
+Owner request (2026-10-28): the search page laid out like an authorized third-party reference
+(layout only — no logo, art or photos copied): hot searches, hot hashtags and lives under an empty
+field. Every list is real data; a section with too little data is hidden by the app (honest).
+
+- **Counting a search** (`recordSearchQuery`, `POST /search/queries` `{q}` → 204): the app sends it
+  when the person **submits** a search or **opens a result** of one — never per keystroke. `q`
+  follows `search`'s rules (1–64 after NFC and trim; 400 `VALIDATION_FAILED` otherwise). The server
+  counts the **normalized term**: NFC, trimmed, one leading `@`/`#` dropped, inner whitespace
+  collapsed, lower case; 2–64 code points with at least one letter. Never counted (accepted and
+  dropped, 204, so the answer does not reveal it): control or format characters, `@` (emails), a
+  link (`://`, `www.`), or **5+ digits in a row** (phone, room or account numbers).
+- **Privacy**: no user id, IP or device is stored with a term. Each person counts **once per term
+  per 7 days**: an HMAC (HKDF `search-searcher/v1` of `RATE_LIMIT_KEY_SECRET`) of user and term is
+  kept in Redis with a 7-day expiry, then forgotten. Stored are only `search_terms` (term, first
+  seen, hidden) and `search_term_counts` (term, UTC hour, number of searchers). A sweeper
+  (`SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS`, default 3600, 0 disables) deletes counts older than
+  **14 days** and unhidden terms left without counts, in bounded batches.
+- **Hot searches** (`listTrendingSearches`, `GET /search/trending`): at most **6** terms, the same
+  for everyone (cached 60 s), ranked by searchers in the last 7 days, then the last 24 h, then the
+  term. A term is listed only with at least **`SEARCH_TRENDING_MIN_SEARCHERS` (default 5)
+  different searchers in 7 days** (nothing rare or personal surfaces), never when hidden by an
+  admin or containing a **blocked word**. `tag`: `NEW` when first searched in the last 24 h; else
+  `TRENDING` when at least 3 searchers in the last 24 h and at least twice the 24 h before; else
+  null. Counts are hourly buckets: "24 h" and "7 days" are accurate to the hour.
+- **Hashtags of the week** (`listTrendingHashtags`, `GET /search/trending-hashtags?limit`, 1–20,
+  default 20): hashtags of posts **published in the last 7 days that the caller can see** (the
+  visibility of hashtag pages, §11.6–§11.7: blocks, private accounts, hidden posts), with at least
+  **3 such posts by at least 2 authors**; most posts first, then the newest post, then the tag;
+  `postCount` counts those 7 days. Never a tag containing a blocked word. Not cached (per viewer).
+- **Blocked words** (`search_blocked_words`): matched like a host's live blocked words (§10.14:
+  case and Arabic spelling folded; Arabic words match inside words, others as whole words). Managed
+  on the server only (this repository is public), like the reserved premium names.
+- **Admin** (no API; `search-admin` CLI, migration role): `top` (the 50 most searched terms with
+  their 7-day and 24 h numbers, hidden ones marked), `hide <term>` / `unhide <term>` (a hidden term
+  is still counted but never listed; audited `search.term.hide`), `block-word add|remove|list`
+  (audited `search.blocked_word`, without the word). The public list follows within 60 s.
+- **The app** (D147): under an empty field — **Hot Searches** (ranks 1–3 coloured on a fading
+  tint, tags Trending / New; shown only with **≥ 3** terms; a tap searches the term), **Hot Take**
+  (four hashtags of the week in two columns; **More** opens the week's list only when there are
+  more), **You may like** (the first 6 lives of `GET /live/rooms?tab=popular`, the live hub's
+  cards; a tap opens the room). The hint rotates "Try searching: <term>" through the trending terms
+  (the static hint without them). **Cancel** closes the search. With nothing to show the prompt
+  shows. Typing shows the Accounts / Hashtags / Posts results as before.
+- **Not in v1.29-live**: personal search history, suggestions while typing, QR scan (the
+  reference's scan button has no Kabso feature; its slot is left empty), editorial topics.

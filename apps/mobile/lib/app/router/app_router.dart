@@ -33,6 +33,7 @@ import 'package:kabso_live/features/debug/previews_hub_screen.dart';
 import 'package:kabso_live/features/debug/profile_preview_screen.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/discover/hashtag_screen.dart';
+import 'package:kabso_live/features/discover/trending_hashtags_screen.dart';
 import 'package:kabso_live/features/families/presentation/create_family_screen.dart';
 import 'package:kabso_live/features/families/presentation/families_screen.dart';
 import 'package:kabso_live/features/families/presentation/family_chat_screen.dart';
@@ -190,6 +191,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.notificationSettings,
         builder: (_, _) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.trendingHashtags,
+        builder: (_, _) => const TrendingHashtagsScreen(),
       ),
       GoRoute(
         path: AppRoutes.hashtagPattern,

@@ -17,6 +17,7 @@ import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
 import 'package:kabso_live/features/discover/hashtag_screen.dart';
 import 'package:kabso_live/features/home/presentation/widgets/feed_post_tile.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/posts/application/posts_feed_controller.dart';
 import 'package:kabso_live/features/posts/application/search_controller.dart';
 import 'package:kabso_live/features/posts/data/posts_repository.dart';
@@ -26,6 +27,7 @@ import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../helpers/fake_http_adapter.dart';
+import '../../helpers/fake_live_repository.dart';
 import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
@@ -167,6 +169,8 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
             postsRepositoryProvider.overrideWithValue(repo),
+            // D147: the search home's lives (none here).
+            liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
             secureTokenStoreProvider.overrideWithValue(InMemoryTokenStore()),
             currentUserProvider.overrideWithValue(testUser()),
           ],

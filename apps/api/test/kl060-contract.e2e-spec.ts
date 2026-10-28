@@ -59,6 +59,10 @@ describe('KL-060 contract coverage', () => {
         'getHashtag',
         'listHashtagPosts',
         'search',
+        // v1.29-live (D147): search trends under /search (§11.11)
+        'listTrendingSearches',
+        'listTrendingHashtags',
+        'recordSearchQuery',
         // Safety (§11.7)
         'blockUser',
         'unblockUser',

@@ -2611,3 +2611,39 @@ model PremiumUsernameReserved {
 
   @@map("premium_username_reserved")
 }
+
+/// v1.29-live (D147, CONVENTIONS §11.11): a normalized search term people searched. No user id is
+/// ever stored with it; rows without counts are dropped by the sweeper after 14 days.
+model SearchTerm {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  term        String    @unique @db.VarChar(64)
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  /// Hidden by an admin (`search-admin hide`): never listed, still counted.
+  hiddenAt    DateTime? @map("hidden_at") @db.Timestamptz(3)
+
+  counts SearchTermCount[]
+
+  @@map("search_terms")
+}
+
+/// D147: how many different people searched a term in one hour (each person counts once per term
+/// per 7 days, deduplicated by an ephemeral HMAC key in Redis).
+model SearchTermCount {
+  termId    String     @map("term_id") @db.Uuid
+  hour      DateTime   @db.Timestamptz(3)
+  searchers Int
+  term      SearchTerm @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@id([termId, hour])
+  @@index([hour], map: "search_term_counts_hour_idx")
+  @@map("search_term_counts")
+}
+
+/// D147: words that keep a search term out of `GET /search/trending` and hashtags out of
+/// `GET /search/trending-hashtags` (`search-admin block-word`); matched like live blocked words.
+model SearchBlockedWord {
+  word      String   @id @db.VarChar(60)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("search_blocked_words")
+}

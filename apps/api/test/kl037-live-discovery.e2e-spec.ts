@@ -12,7 +12,7 @@ import { Clock } from '../src/common/time/clock.js';
 import { LiveRoomsService } from '../src/modules/live/live-rooms.service.js';
 import { AccountLifecycleService } from '../src/modules/users/profiles/account-lifecycle.service.js';
 import { expectContract, operations } from './helpers/openapi.js';
-import { createTestApp, registerVerified, type TestContext } from './helpers/test-app.js';
+import { createTestApp, newUser, registerVerified, type TestContext } from './helpers/test-app.js';
 
 class FakeClock extends Clock {
   private ms = Date.now();
@@ -907,7 +907,8 @@ describe('KL-037 public profile and follow', () => {
     const deleted = await signup(ctx);
     await ctx.prisma.user.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
     expect(await ctx.app.get(AccountLifecycleService).softDelete(deleted.id)).toBe(true);
-    const pendingName = `pend${Date.now().toString(36)}`;
+    // D146: a valid regular username (letters and digits, no premium pattern).
+    const pendingName = newUser().username.replace(/^user/, 'pend');
     const reg = await ctx.http.post('/api/v1/auth/register').send({
       email: `${pendingName}@example.com`,
       password: 'correct horse battery staple',

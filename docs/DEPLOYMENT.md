@@ -929,6 +929,34 @@ a `CONNECTION LIMIT`.
   (`… CHECK ("username" ~ '^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])?$')`, which fails while a 2-character
   username exists). The enum values cannot be dropped (harmless).
 
+### 5.15 Search trends (migration `20261202090000_search_trends`; D147) — [IMPLEMENTED, draft contract]
+
+- Apply with the usual `migrate` job (§5): tables `search_terms`, `search_term_counts`,
+  `search_blocked_words`. No GRANT (default privileges), no backfill: the lists start empty and fill
+  as updated apps record submitted searches (older apps never do).
+- **Privacy**: only normalized terms and hourly counts of searchers are stored, never who searched;
+  the per-person dedupe key is an HMAC in Redis that expires after 7 days. Counts older than 14 days
+  are deleted by the sweeper (`SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS=3600`; 0 disables it — then old
+  counts stay, so keep it on in production; safe on several instances).
+- A term is listed only after `SEARCH_TRENDING_MIN_SEARCHERS=5` different people searched it in 7
+  days (raise it for a large audience; never below 2). `RATE_LIMIT_SEARCH_RECORD_USER=120/3600`.
+- **Moderation** with the `search-admin` CLI (migration role; offensive words are entered on the
+  server only, this repository is public):
+
+  ```bash
+  SEARCH="docker compose --profile jobs run --rm migrate node dist/cli/search-admin.js"
+  $SEARCH top                         # the 50 most searched terms (7 days, 24 h; hidden marked -)
+  $SEARCH hide "some term"            # never listed (still counted); audited search.term.hide
+  $SEARCH unhide "some term"
+  $SEARCH block-word add <word>       # no trending term or hashtag containing it
+  $SEARCH block-word remove <word>
+  $SEARCH block-word list
+  ```
+
+  The public list is cached 60 s. Locally: `pnpm search:admin …`.
+- Rollback: the API before D147 ignores the tables (the app's sections then hide on 404); drop the
+  three tables to remove the data.
+
 ## 6. Observability baseline
 
 | Item | Status |

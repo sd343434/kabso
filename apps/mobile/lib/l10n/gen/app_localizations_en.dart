@@ -6654,4 +6654,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String notificationPremiumExpired(String username) {
     return 'Your premium username @$username ended. It\'s kept for you for a few days.';
   }
+
+  @override
+  String searchTryHint(String term) {
+    return 'Try searching:  $term';
+  }
+
+  @override
+  String get searchCancel => 'Cancel';
+
+  @override
+  String get searchHotTitle => 'Hot Searches';
+
+  @override
+  String searchHotSemantics(int rank, String term) {
+    return 'Hot search $rank: $term';
+  }
+
+  @override
+  String get searchTagTrending => 'Trending';
+
+  @override
+  String get searchTagNew => 'New';
+
+  @override
+  String get searchHotTakeTitle => 'Hot Take';
+
+  @override
+  String get searchMore => 'More';
+
+  @override
+  String get searchMayLikeTitle => 'You may like';
+
+  @override
+  String get trendingHashtagsTitle => 'Trending hashtags';
+
+  @override
+  String get trendingHashtagsEmpty => 'No trending hashtags this week';
+
+  @override
+  String trendingHashtagWeekCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count posts this week',
+      one: '$count post this week',
+    );
+    return '$_temp0';
+  }
 }

@@ -11509,6 +11509,78 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'انتهى يوزرك المميز ‎@{username}، وهو محجوز لك لبضعة أيام.'**
   String notificationPremiumExpired(String username);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'جرّب البحث: {term}'**
+  String searchTryHint(String term);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get searchCancel;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'الأكثر بحثاً'**
+  String get searchHotTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث رائج {rank}: {term}'**
+  String searchHotSemantics(int rank, String term);
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'رائج'**
+  String get searchTagTrending;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'جديد'**
+  String get searchTagNew;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'وسوم رائجة'**
+  String get searchHotTakeTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'المزيد'**
+  String get searchMore;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'قد يعجبك'**
+  String get searchMayLikeTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'الوسوم الرائجة'**
+  String get trendingHashtagsTitle;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد وسوم رائجة هذا الأسبوع'**
+  String get trendingHashtagsEmpty;
+
+  /// D147: Bigo-style search home (trending searches, hot hashtags, lives).
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا منشورات هذا الأسبوع} =1{منشور واحد هذا الأسبوع} =2{منشوران هذا الأسبوع} few{{count} منشورات هذا الأسبوع} many{{count} منشورًا هذا الأسبوع} other{{count} منشور هذا الأسبوع}}'**
+  String trendingHashtagWeekCount(int count);
 }
 
 class _AppLocalizationsDelegate

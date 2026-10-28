@@ -98,6 +98,18 @@ abstract interface class PostsRepository {
   /// unused).
   Future<Hashtag> hashtag(String tag);
 
+  /// D147 `GET /search/trending`: up to 6 terms people search most (the
+  /// same list for everyone).
+  Future<List<TrendingSearch>> trendingSearches();
+
+  /// D147 `GET /search/trending-hashtags?limit`: the hashtags of the week
+  /// the caller can see; `postCount` counts the last 7 days.
+  Future<List<Hashtag>> trendingHashtags({int limit = 20});
+
+  /// D147 `POST /search/queries`: a search the person submitted (or whose
+  /// result they opened), counted for trends; never for each keystroke.
+  Future<void> recordSearch(String query);
+
   /// `GET /hashtags/{tag}/posts`: recent, or top (trending score over 30
   /// days).
   Future<PageOf<Post>> hashtagPosts(
@@ -364,6 +376,33 @@ class PostsRepositoryImpl implements PostsRepository {
   @override
   Future<PageOf<Post>> searchPosts(String query, {String? cursor}) =>
       _search(query, SearchType.posts, cursor, Post.fromJson);
+
+  @override
+  Future<List<TrendingSearch>> trendingSearches() => guardApiCall(() async {
+    final res = await _dio.get<Map<String, dynamic>>('/search/trending');
+    return [
+      for (final e in res.data!['data']! as List<dynamic>)
+        TrendingSearch.fromJson(e as Map<String, dynamic>),
+    ];
+  });
+
+  @override
+  Future<List<Hashtag>> trendingHashtags({int limit = 20}) =>
+      guardApiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+          '/search/trending-hashtags',
+          queryParameters: {'limit': limit},
+        );
+        return [
+          for (final e in res.data!['data']! as List<dynamic>)
+            Hashtag.fromJson(e as Map<String, dynamic>),
+        ];
+      });
+
+  @override
+  Future<void> recordSearch(String query) => guardApiCall(() async {
+    await _dio.post<void>('/search/queries', data: {'q': query});
+  });
 
   @override
   Future<Hashtag> hashtag(String tag) => guardApiCall(() async {

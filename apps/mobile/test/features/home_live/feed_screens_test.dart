@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -19,17 +20,20 @@ import 'package:kabso_live/core/storage/secure_token_store.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/auth/data/auth_repository_impl.dart';
 import 'package:kabso_live/features/discover/discover_screen.dart';
+import 'package:kabso_live/features/live/data/live_repository.dart';
 import 'package:kabso_live/features/live/domain/live_models.dart';
 import 'package:kabso_live/features/live/live_screen.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_grid_card.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_filters.dart';
 import 'package:kabso_live/features/live/presentation/hub/live_hub_grid.dart';
 import 'package:kabso_live/features/notifications/presentation/notifications_screen.dart';
+import 'package:kabso_live/features/posts/data/posts_repository.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../fixtures/live/live_api_fixtures.dart';
 import '../../helpers/fake_live_repository.dart';
+import '../../helpers/fake_posts_repository.dart';
 import '../../helpers/fakes.dart';
 import '../../helpers/golden.dart';
 import '../../helpers/pump_app.dart';
@@ -258,17 +262,25 @@ void main() {
         );
         addTearDown(router.dispose);
         await tester.pumpWidget(
-          MaterialApp.router(
-            routerConfig: router,
-            locale: language.locale,
-            supportedLocales: KabsoApp.supportedLocales,
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              ...GlobalMaterialLocalizations.delegates,
+          // D147: the search home reads trends and lives (fakes, empty).
+          ProviderScope(
+            retry: (_, _) => null,
+            overrides: [
+              postsRepositoryProvider.overrideWithValue(FakePostsRepository()),
+              liveRepositoryProvider.overrideWithValue(FakeLiveRepository()),
             ],
-            theme: buildAppTheme(
-              brightness: Brightness.dark,
+            child: MaterialApp.router(
+              routerConfig: router,
               locale: language.locale,
+              supportedLocales: KabsoApp.supportedLocales,
+              localizationsDelegates: const [
+                AppLocalizations.delegate,
+                ...GlobalMaterialLocalizations.delegates,
+              ],
+              theme: buildAppTheme(
+                brightness: Brightness.dark,
+                locale: language.locale,
+              ),
             ),
           ),
         );

@@ -376,6 +376,42 @@ class Hashtag {
   final int postCount;
 }
 
+/// D147: the tag of a [TrendingSearch].
+enum TrendingSearchTag {
+  /// Searched by at least 3 people in the last 24 h, twice the day before.
+  trending,
+
+  /// First searched in the last 24 h.
+  newTerm,
+}
+
+/// D147: one term people search most (`GET /search/trending`, CONVENTIONS
+/// §11.11): the server's counted form (lower case) and an optional tag.
+@immutable
+class TrendingSearch {
+  const new({required this.term, this.tag});
+
+  factory fromJson(Map<String, dynamic> json) => TrendingSearch(
+    term: json['term']! as String,
+    tag: switch (json['tag']) {
+      'TRENDING' => TrendingSearchTag.trending,
+      'NEW' => TrendingSearchTag.newTerm,
+      // Unknown or absent tags show no pill.
+      _ => null,
+    },
+  );
+
+  final String term;
+  final TrendingSearchTag? tag;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TrendingSearch && other.term == term && other.tag == tag;
+
+  @override
+  int get hashCode => Object.hash(term, tag);
+}
+
 /// What `GET /search` looks for.
 enum SearchType { users, hashtags, posts }
 
