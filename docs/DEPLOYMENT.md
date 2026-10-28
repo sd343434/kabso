@@ -679,6 +679,10 @@ a `CONNECTION LIMIT`.
   strictly ascending whole numbers 1–9999; the API refuses to start otherwise) and
   `RATE_LIMIT_LIVE_GIFT_USER` (default `120/60`). Changing the quantities changes the catalogue
   `version`, so apps reload it.
+- **D145c (lucky streaks):** optional `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` (default `600/60`: every gift
+  send of a user per minute) and `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` (default `10/1`: lucky
+  sends per second, instead of `RATE_LIMIT_LIVE_GIFT_USER`). The app's MAX X queue paces taps at
+  ≥ 100 ms and retries a 429 silently after `Retry-After` with the same `clientId`.
 - Levels: gifts credit charm (`GIFT_RECEIVED`) and support (`GIFT_SENT`) only while those
   categories are enabled with a published version (`levels:admin`); nothing is credited later for
   gifts sent while a category was unavailable.

@@ -368,8 +368,9 @@ class LiveRoomChatLines extends ConsumerWidget {
   }
 
   /// D141: a public message (bullet) in the owner's card. Its sender's
-  /// role and badges come from their latest message in this chat (the
-  /// bullet itself carries none) — nothing is shown when unknown.
+  /// badges come from their latest message in this chat (the bullet itself
+  /// carries none) — nothing is shown when unknown; D145c: never their
+  /// role in this room.
   Widget _publicMessage(
     BuildContext context,
     WidgetRef ref,
@@ -384,7 +385,6 @@ class LiveRoomChatLines extends ConsumerWidget {
     }
     return LivePublicMessage(
       bullet: bullet,
-      role: latest?.authorRole,
       badges: latest?.authorBadges,
       maxWidth: maxWidth,
       onTap: () => onProfile(bullet.sender.username),

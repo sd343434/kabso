@@ -539,6 +539,9 @@ describe('loadConfig — v1.5-social media and posts (CONVENTIONS §11)', () => 
   it('reads the CP-020 gift quantities and the gift-send bucket', () => {
     expect(loadConfig(base).gifts.quantities).toEqual([1, 10, 66, 99, 188, 520, 1314]);
     expect(loadConfig(base).rateLimits.liveGiftUser).toEqual({ max: 120, windowSeconds: 60 });
+    // D145c: lucky gifts' own limits.
+    expect(loadConfig(base).rateLimits.liveGiftAnyUser).toEqual({ max: 600, windowSeconds: 60 });
+    expect(loadConfig(base).rateLimits.liveLuckyGiftBurstUser).toEqual({ max: 10, windowSeconds: 1 });
     expect(loadConfig({ ...base, LIVE_GIFT_QUANTITIES: ' 1, 5 ,9999' }).gifts.quantities).toEqual([
       1, 5, 9999,
     ]);

@@ -340,6 +340,57 @@ void main() {
       await _run(tester, const Duration(seconds: 5));
     });
 
+    testWidgets('D145c: a 429 during a streak is waited out (Retry-After) '
+        'and sent again with the same clientId — no "too many attempts", '
+        'charged once; the queue is paced', (tester) async {
+      final h = await _pump(tester);
+      await _sendLucky(tester);
+      h.gifts.failNext['send'] = const ServerFailure(
+        code: ErrorCode.rateLimited,
+        rawCode: 'RATE_LIMITED',
+        debugMessage: 'x',
+        statusCode: 429,
+        retryAfter: Duration(seconds: 1),
+      );
+      await tester.tap(_button);
+      await _run(tester, const Duration(milliseconds: 500));
+      // Refused once, waiting: nothing said, the button stays.
+      expect(h.gifts.sends, hasLength(2));
+      expect(find.byKey(LuckyComboLayer.messageKey), findsNothing);
+      expect(_button, findsOneWidget);
+      await _run(tester, const Duration(milliseconds: 800));
+      expect(h.gifts.sends, hasLength(3));
+      expect(h.gifts.sends[1].clientId, h.gifts.sends[2].clientId);
+      expect(h.gifts.coins, 980);
+      expect(find.byKey(LuckyComboLayer.messageKey), findsNothing);
+      expect(
+        find.textContaining(
+          failureMessage(
+            en,
+            const ServerFailure(
+              code: ErrorCode.rateLimited,
+              rawCode: 'RATE_LIMITED',
+              debugMessage: 'x',
+              statusCode: 429,
+            ),
+          ),
+        ),
+        findsNothing,
+      );
+      expect(_text(tester, LuckyComboCluster.countKey), en.giftCombo(2));
+
+      // Five quick taps go one at a time, never faster than minGap.
+      for (var i = 0; i < 5; i++) {
+        await tester.tap(_button);
+      }
+      await _run(tester, const Duration(milliseconds: 250));
+      expect(h.gifts.sends.length - 3, lessThanOrEqualTo(3));
+      await _run(tester, const Duration(seconds: 1));
+      expect(h.gifts.sends, hasLength(8));
+      expect(h.gifts.coins, 930);
+      await _run(tester, const Duration(seconds: 5));
+    });
+
     testWidgets("the panel's quantity is kept; a panel tap still waiting goes "
         'with the combo', (tester) async {
       final h = await _pump(tester);
@@ -539,10 +590,50 @@ void main() {
                     .first,
               );
               expect(seats.bottom, lessThanOrEqualTo(cluster.top + 0.5));
-              expect(strips.top, greaterThanOrEqualTo(seats.bottom - 0.5));
             } else {
               final wish = tester.getRect(find.byKey(LiveWishCard.cardKey));
               expect(strips.overlaps(wish), isFalse);
+            }
+            // D145c (owner): the strips are vertically centred at the
+            // reading start, the same in audio and video; never over the
+            // MAX X cluster or the chat text.
+            // Centred, or moved up just enough to end above the chat.
+            final floor = _container(tester)
+                .read(liveChatTopProvider('room-0'));
+            expect(floor, isNotNull);
+            expect(
+              (strips.center.dy - size.height / 2).abs() < 1 ||
+                  (strips.bottom - (floor! - LiveGiftStripsSlot.gap)).abs() < 1,
+              isTrue,
+              reason: '$strips floor $floor',
+            );
+            expect(strips.center.dy, lessThanOrEqualTo(size.height / 2 + 1));
+            expect(
+              ar
+                  ? strips.right > size.width - (audio ? 12 : 140)
+                  : strips.left < (audio ? 12 : 140),
+              isTrue,
+            );
+            expect(strips.overlaps(cluster), isFalse);
+            for (final line
+                in find
+                    .descendant(
+                      of: find.byType(LiveRoomChatLines).first,
+                      matching: find.byType(RichText),
+                    )
+                    .evaluate()) {
+              final box = line.renderObject! as RenderBox;
+              var r = box.localToGlobal(Offset.zero) & box.size;
+              // Only what the chat shows (its list clips the rest).
+              final list = find.ancestor(
+                of: find.byElementPredicate((e) => e == line),
+                matching: find.byType(Scrollable),
+              );
+              if (list.evaluate().isNotEmpty) {
+                r = r.intersect(tester.getRect(list.first));
+              }
+              if (r.isEmpty) continue;
+              expect(r.overlaps(strips), isFalse, reason: '$r $strips');
             }
             // One count per strip: ×70 for 10 roses sent 7 times.
             final omar = find.byKey(LiveGiftEffectsLayer.bannerKey('combo-o1'));

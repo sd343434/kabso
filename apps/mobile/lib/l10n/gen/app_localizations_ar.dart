@@ -6373,11 +6373,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get liveStatsLoadFailedBody => 'تحقّق من اتصالك ثم حاول مجدداً.';
 
   @override
-  String get liveComboLabel => 'كومبو';
+  String get liveComboLabel => 'MAX X';
 
   @override
   String liveComboSemantics(String gift, int count) {
-    return 'أرسل $gift مجدداً، كومبو ⁦×$count⁩';
+    return 'ماكس إكس: أرسل $gift مجدداً ⁦×$count⁩';
   }
 
   @override

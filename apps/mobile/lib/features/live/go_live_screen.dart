@@ -950,17 +950,14 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       );
       // The chat box opens from 💬 and 🙂 (CP-013).
       body = LiveAudioRoomLayout(
-        // D145a: the combo in the promo box's place; the strips between
-        // the seats and the chat.
+        // D145c: the gift strips keep above the chat text.
+        onChatTop: room == null
+            ? null
+            : (top) => ref.read(liveChatTopProvider(room.id).notifier).set(top),
+        // D145a: the combo in the promo box's place.
         combo: room != null && LuckyComboCluster.shows(ref, room.id)
             ? LuckyComboCluster(roomId: room.id)
             : null,
-        strips: room == null
-            ? null
-            : LiveGiftStrips(
-                roomId: room.id,
-                onSender: (u) => unawaited(_person(room.id, u.username)),
-              ),
         // D141a (owner): the promo box over the gift button.
         promo: live && room != null && LiveRoomPromoBox.shows(ref, room.id)
             ? LiveRoomPromoBox(
@@ -1403,18 +1400,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                   LiveGiftEffectsLayer(
                     roomId: room.id,
                     onSender: (u) => unawaited(_person(room.id, u.username)),
-                    // D145a: an audio room draws the strips between its
-                    // seats and its chat; a video live beside the wish
+                    // D145c: the strips centred at the reading start in
+                    // audio and video alike; beside a video live's wish
                     // column.
-                    showStrips: !audioOnAir,
-                    stripsAt: audioOnAir
-                        ? null
-                        : LiveGiftEffectsLayer.videoStripsAt(
-                            context,
-                            sideColumn:
-                                room.wishGifts.isNotEmpty ||
-                                LiveRoomPromoBox.shows(ref, room.id),
-                          ),
+                    stripsStart: LiveGiftEffectsLayer.videoStripsStart(
+                      sideColumn:
+                          !audioOnAir &&
+                          (room.wishGifts.isNotEmpty ||
+                              LiveRoomPromoBox.shows(ref, room.id)),
+                    ),
                   ),
                 // D145: the lucky combo button after a lucky gift is sent.
                 if (onAir && room != null)
@@ -1725,6 +1719,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         )
         .firstOrNull;
     return KLiveRoomScaffold(
+      // D145c: the gift strips keep above the chat text.
+      onChatTop: (top) =>
+          ref.read(liveChatTopProvider(room.id).notifier).set(top),
       video: background,
       header: KHostPill(
         // D141 (owner): the host's @username beside the name (copy on tap).

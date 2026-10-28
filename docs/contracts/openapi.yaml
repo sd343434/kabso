@@ -1872,7 +1872,9 @@ paths:
         receives `quantity` of the gift. `source: COINS` charges
         `priceCoins × quantity × recipients` coins (ledger `LIVE_GIFT`, it counts for the sender's
         family); `source: BAG` takes `quantity × recipients` of that gift from the caller's gift bag.
-        Checks, in order: 401; 429 (120 / min per user); 404 for a room the caller may not see; 409
+        Checks, in order: 401; 429 (600 / min per user for every send; once the gift is known, a
+        normal gift 120 / min and a LUCKY gift 10 / s — D145c, CONVENTIONS §7; nothing charged); 404
+        for a room the caller may not see; 409
         `LIVE_ROOM_ENDED`; 400 for the body (`quantity` not one of `GiftCatalogue.quantities` →
         `quantity` / `invalid_value`; recipients missing, more than 25 or repeated); a retry with
         the same `clientId` → 200 (the first send, the current balance and bag quantity; nothing

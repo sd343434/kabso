@@ -11024,16 +11024,16 @@ abstract class AppLocalizations {
   /// **'تحقّق من اتصالك ثم حاول مجدداً.'**
   String get liveStatsLoadFailedBody;
 
-  /// D145: the lucky combo button's label.
+  /// D145/D145c: the lucky combo button's label — owner: the Latin "MAX X" in every language (screen readers say "Max X" / «ماكس إكس» through liveComboSemantics).
   ///
   /// In ar, this message translates to:
-  /// **'كومبو'**
+  /// **'MAX X'**
   String get liveComboLabel;
 
   /// D145: the lucky combo button for screen readers.
   ///
   /// In ar, this message translates to:
-  /// **'أرسل {gift} مجدداً، كومبو ⁦×{count}⁩'**
+  /// **'ماكس إكس: أرسل {gift} مجدداً ⁦×{count}⁩'**
   String liveComboSemantics(String gift, int count);
 
   /// D145: the coin balance under the combo button.

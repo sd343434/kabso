@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -136,17 +137,33 @@ class KGiftImage extends StatelessWidget {
 }
 
 /// D145 (owner: «big gift animations are larger than the screen and cut
-/// off»): an effect's movie is drawn whole — its view box scaled to
-/// *contain* inside the safe area (aspect kept, centred, never cropped) on
-/// any phone, and nothing it draws leaves that box. The player used to get
-/// the whole screen with sprites allowed past the view box, so a movie
-/// whose art runs over its box (or a screen narrower than the movie's
-/// aspect) was cut at the edges.
+/// off»): an effect's movie is drawn whole — scaled to *contain* inside the
+/// safe area (aspect kept, centred, never cropped) on any phone, and
+/// nothing it draws leaves that box.
+///
+/// D145c (owner, device: the angel's wings and legs still cut off): what
+/// is contained is the movie's *drawn* area ([bounds]), not only its view
+/// box. A full-screen cinematic such as `angel_warrior` (view box
+/// 750 × 1624) paints its frames 916 × 1628 from x = −83: D145 clipped
+/// those 83 units on each side (the wings at the edges). Now the whole
+/// painted frame is scaled into the safe area.
 class KGiftMovieFrame extends StatelessWidget {
-  const new({required this.viewBox, required this.child, super.key});
+  const new({
+    required this.viewBox,
+    required this.child,
+    super.key,
+    this.bounds,
+  });
 
   /// The movie's own size (SVGA `viewBoxWidth` × `viewBoxHeight`).
   final Size viewBox;
+
+  /// What the movie draws, in view-box units ([movieBounds]); null: the
+  /// view box.
+  final Rect? bounds;
+
+  /// The movie, drawn into the view box (overflow allowed: the frame clips
+  /// at [bounds]).
   final Widget child;
 
   /// The rect [viewBox] takes inside [area]: contained and centred.
@@ -156,16 +173,93 @@ class KGiftMovieFrame extends StatelessWidget {
     return Alignment.center.inscribe(size, area);
   }
 
+  /// [bounds] contained and centred in [area]; returns (the drawn area's
+  /// rect, the view box's rect) on screen.
+  static (Rect, Rect) layout(Size viewBox, Rect bounds, Rect area) {
+    final box = Offset.zero & viewBox;
+    final drawn = bounds.isEmpty ? box : bounds.expandToInclude(box);
+    final outer = fit(drawn.size, area);
+    if (drawn.isEmpty || outer.isEmpty) return (outer, outer);
+    final scale = outer.width / drawn.width;
+    final inner = Rect.fromLTWH(
+      outer.left - drawn.left * scale,
+      outer.top - drawn.top * scale,
+      viewBox.width * scale,
+      viewBox.height * scale,
+    );
+    return (outer, inner);
+  }
+
+  /// What [movie] paints over all its frames, in view-box units: the
+  /// union of its bitmaps' transformed frames (the player draws each at
+  /// `0, 0, layout.width, layout.height` under the frame's transform),
+  /// at least the view box. A stray sprite far off the canvas does not
+  /// shrink the movie: the area stops at half a view box beyond each edge.
+  static Rect movieBounds(MovieEntity movie) {
+    final p = movie.params;
+    final box = Rect.fromLTWH(0, 0, p.viewBoxWidth, p.viewBoxHeight);
+    if (box.isEmpty) return box;
+    Rect? drawn;
+    for (final sprite in movie.sprites) {
+      if (sprite.imageKey.isEmpty) continue;
+      Rect? last;
+      for (final f in sprite.frames) {
+        final w = f.layout.width;
+        final h = f.layout.height;
+        if (w <= 0 || h <= 0 || (f.hasAlpha() && f.alpha <= 0)) continue;
+        final Rect r;
+        if (f.hasTransform()) {
+          final t = f.transform;
+          final xs = [0.0, t.a * w, t.c * h, t.a * w + t.c * h];
+          final ys = [0.0, t.b * w, t.d * h, t.b * w + t.d * h];
+          r = Rect.fromLTRB(
+            t.tx + xs.reduce(math.min),
+            t.ty + ys.reduce(math.min),
+            t.tx + xs.reduce(math.max),
+            t.ty + ys.reduce(math.max),
+          );
+        } else {
+          r = Rect.fromLTWH(0, 0, w, h);
+        }
+        if (r == last) continue;
+        last = r;
+        drawn = drawn == null ? r : drawn.expandToInclude(r);
+      }
+    }
+    if (drawn == null) return box;
+    final limit = Rect.fromLTRB(
+      -box.width / 2,
+      -box.height / 2,
+      box.width * 1.5,
+      box.height * 1.5,
+    );
+    return box.expandToInclude(drawn.intersect(limit));
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: LayoutBuilder(
       builder: (context, box) {
-        final rect = fit(viewBox, Offset.zero & box.biggest);
+        final (outer, inner) = layout(
+          viewBox,
+          bounds ?? Offset.zero & viewBox,
+          Offset.zero & box.biggest,
+        );
         return Stack(
           children: [
             Positioned.fromRect(
-              rect: rect,
-              child: ClipRect(child: child),
+              rect: outer,
+              child: ClipRect(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fromRect(
+                      rect: inner.shift(-outer.topLeft),
+                      child: child,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         );
@@ -174,41 +268,38 @@ class KGiftMovieFrame extends StatelessWidget {
   );
 }
 
-/// The large effect of a big gift. The image pops in the centre at once
-/// (grows in, holds, fades out over [duration]); when the gift has an SVGA
-/// — the hosted [animationUrl] (D126, from the device cache or downloaded
-/// now) or the bundled [animationKey] — it plays over the whole screen,
-/// once, with the sound inside the SVGA ([GiftEffectSound]). A download
-/// that fails or takes longer than [animationWait] skips the animation for
-/// this send (the download goes on for the next one). With reduced motion
-/// the image just shows. [onHold] runs when an SVGA is being fetched or
-/// played (the effect then lasts until it ends, not [duration]); [onDone]
-/// runs once when the effect is over; the
-/// decoded frames and the sound are released on dispose. Never takes taps.
+/// The full-screen effect of an animated gift: its SVGA — the hosted
+/// [animationUrl] (D126, from the device cache or downloaded now) or the
+/// bundled [animationKey] — plays once over the room, contained in the
+/// safe area ([KGiftMovieFrame]), with the sound inside the SVGA
+/// ([GiftEffectSound]).
+///
+/// D145c (owner: «the gift's static picture floats mid-screen for ~2 s,
+/// then the SVGA plays»): nothing is drawn until the movie is ready — the
+/// strip (with the gift's small picture) is already on screen; the panel
+/// prefetches the selected gift's SVGA so it is usually ready at once. A
+/// download that fails or takes longer than [animationWait] skips the
+/// effect for this send (the download goes on for the next one), as does
+/// reduced motion. [onHold] runs when the SVGA is being fetched or played
+/// (the effect then lasts until it ends); [onDone] runs once when the
+/// effect is over; the decoded frames and the sound are released on
+/// dispose. Never takes taps.
 class KGiftEffect extends StatefulWidget {
   const new({
-    required this.assetKey,
     required this.animationKey,
-    required this.duration,
     super.key,
-    this.imageUrl,
     this.animationUrl,
     this.onHold,
     this.onDone,
-    this.size = 220,
   });
 
-  final String assetKey;
   final String? animationKey;
-  final String? imageUrl;
   final String? animationUrl;
-  final Duration duration;
   final VoidCallback? onHold;
   final VoidCallback? onDone;
-  final double size;
 
   /// How long the effect waits for the SVGA before it gives up on it.
-  static const animationWait = Duration(seconds: 6);
+  static const animationWait = Duration(seconds: 8);
 
   /// Widget tests and goldens skip SVGA decoding (it runs outside fake
   /// time); set by `test/flutter_test_config.dart`.
@@ -220,13 +311,8 @@ class KGiftEffect extends StatefulWidget {
 
 class _KGiftEffectState extends State<KGiftEffect>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  /// The still pop; it holds at [_hold] while an SVGA may still come.
-  late final AnimationController _still = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  );
-  static const _hold = 0.8;
   SVGAAnimationController? _svga;
+  Rect? _bounds;
   GiftEffectSound? _sound;
   bool _started = false;
   bool _done = false;
@@ -235,10 +321,6 @@ class _KGiftEffectState extends State<KGiftEffect>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // The pop has ended (not merely paused at the hold): the effect is over.
-    _still.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _still.value >= 1) _finish();
-    });
   }
 
   @override
@@ -252,28 +334,18 @@ class _KGiftEffectState extends State<KGiftEffect>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    final still = MediaQuery.disableAnimationsOf(context);
-    final wantsMovie =
-        KGiftEffect.animate &&
-        !still &&
-        (widget.animationUrl != null ||
-            KGiftAssets.animation(widget.animationKey) != null);
-    if (still) {
-      _still.value = 0.5;
-      _finishAfter(widget.duration);
-    } else if (wantsMovie) {
-      widget.onHold?.call();
-      _still.animateTo(_hold);
-      unawaited(_loadMovie());
-    } else {
-      _still.forward();
+    // Tests: the room's timer ends the effect ([LiveGiftEffects.bigTime]).
+    if (!KGiftEffect.animate) return;
+    final hasMovie =
+        widget.animationUrl != null ||
+        KGiftAssets.animation(widget.animationKey) != null;
+    if (MediaQuery.disableAnimationsOf(context) || !hasMovie) {
+      // Nothing to play (reduced motion: the strip says it).
+      WidgetsBinding.instance.addPostFrameCallback((_) => _finish());
+      return;
     }
-  }
-
-  Timer? _stillTimer;
-
-  void _finishAfter(Duration d) {
-    _stillTimer = Timer(d, _finish);
+    widget.onHold?.call();
+    unawaited(_loadMovie());
   }
 
   void _finish() {
@@ -281,12 +353,6 @@ class _KGiftEffectState extends State<KGiftEffect>
     _done = true;
     unawaited(_sound?.stop());
     widget.onDone?.call();
-  }
-
-  /// No SVGA after all: the image finishes its pop.
-  void _stillOnly() {
-    if (!mounted || _done) return;
-    _still.forward();
   }
 
   Future<Uint8List?> _movieBytes() async {
@@ -313,7 +379,7 @@ class _KGiftEffectState extends State<KGiftEffect>
     try {
       final bytes = await _movieBytes();
       if (!mounted) return;
-      if (bytes == null) return _stillOnly();
+      if (bytes == null) return _finish();
       final movie = await SVGAParser.shared.decodeFromBuffer(bytes);
       if (!mounted) {
         movie.dispose();
@@ -328,26 +394,25 @@ class _KGiftEffectState extends State<KGiftEffect>
       }
       setState(() {
         _svga = svga;
+        _bounds = KGiftMovieFrame.movieBounds(movie);
         _sound = sound;
       });
       sound.onFrame(0);
       await svga.forward();
       _finish();
     } on Object catch (e) {
-      // A broken file: the image plays instead.
+      // A broken file: no effect (the strip has shown the gift).
       debugPrint(
         'KGiftEffect(${widget.animationUrl ?? widget.animationKey}): $e',
       );
-      _stillOnly();
+      _finish();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _stillTimer?.cancel();
     unawaited(_sound?.stop());
-    _still.dispose();
     // Releases the decoded frames (the movie is auto-released).
     _svga?.dispose();
     super.dispose();
@@ -356,46 +421,15 @@ class _KGiftEffectState extends State<KGiftEffect>
   @override
   Widget build(BuildContext context) {
     final svga = _svga;
-    if (svga != null) {
-      final params = svga.videoItem?.params;
-      return IgnorePointer(
-        child: KGiftMovieFrame(
-          viewBox: params == null
-              ? Size.zero
-              : Size(params.viewBoxWidth, params.viewBoxHeight),
-          child: SVGAImage(svga, allowDrawingOverflow: false),
-        ),
-      );
-    }
+    final params = svga?.videoItem?.params;
+    if (svga == null || params == null) return const SizedBox.shrink();
     return IgnorePointer(
-      child: Center(
-        child: SizedBox.square(
-          dimension: widget.size,
-          child: AnimatedBuilder(
-            animation: _still,
-            builder: (context, child) {
-              final t = _still.value;
-              // Grow in (first quarter), hold, fade out (last fifth).
-              final scale = t < 0.25
-                  ? 0.5 + Curves.easeOutBack.transform(t / 0.25) * 0.5
-                  : 1.0;
-              final opacity = t < 0.15
-                  ? t / 0.15
-                  : t > _hold
-                  ? (1 - t) / 0.2
-                  : 1.0;
-              return Opacity(
-                opacity: opacity.clamp(0, 1),
-                child: Transform.scale(scale: scale, child: child),
-              );
-            },
-            child: KGiftImage(
-              widget.assetKey,
-              imageUrl: widget.imageUrl,
-              size: widget.size * 0.8,
-            ),
-          ),
-        ),
+      child: KGiftMovieFrame(
+        viewBox: Size(params.viewBoxWidth, params.viewBoxHeight),
+        bounds: _bounds,
+        // The frame clips at the drawn area; the player may draw past the
+        // view box into it.
+        child: SVGAImage(svga),
       ),
     );
   }

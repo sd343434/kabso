@@ -314,6 +314,46 @@ describe('D132 lucky gifts (on)', { timeout: 180_000 }, () => {
     });
   });
 
+  describe('D145c rate limits (owner: «too many attempts» during a lucky streak)', () => {
+    it('200 lucky sends at the MAX X pace all succeed; an 11th in one second → 429 with Retry-After; a retry with the same clientId is not counted; normal gifts keep 120 / min', async () => {
+      const { h, viewer, roomId } = await f.scene();
+      const code = await f.gift();
+      const pace = 105; // ms: never more than 10 in any 1 s window (the app's queue paces too)
+      let last = 0;
+      for (let i = 0; i < 200; i++) {
+        const wait = last + pace - Date.now();
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        last = Date.now();
+        const res = await f.send(roomId, viewer, f.body(code, [h]));
+        expect(res.status, `send ${String(i)}: ${JSON.stringify(res.body)}`).toBe(201);
+      }
+      expect(await ctx.prisma.liveGift.count({ where: { senderId: viewer.id } })).toBe(200);
+
+      // A burst past 10 / s: refused with Retry-After, nothing charged for it.
+      await new Promise((r) => setTimeout(r, 1100));
+      const burst = [];
+      for (let i = 0; i < 11; i++) burst.push(f.body(code, [h]));
+      const answers = [];
+      for (const b of burst) answers.push(await f.send(roomId, viewer, b));
+      const limited = answers.filter((r) => r.status === 429);
+      expect(limited.length).toBeGreaterThanOrEqual(1);
+      expectError(limited[0]!, 429, 'RATE_LIMITED');
+      expect(Number(limited[0]!.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+      // The same clientId once the window passed: sent (and a retry of a done one is free).
+      await new Promise((r) => setTimeout(r, 1100));
+      const lastBody = burst[answers.indexOf(limited[0]!)]!;
+      expect((await f.send(roomId, viewer, lastBody)).status).toBe(201);
+      for (let i = 0; i < 12; i++) expect((await f.send(roomId, viewer, lastBody)).status).toBe(200);
+
+      // Normal gifts keep their own bucket (120 / min, RATE_LIMIT_LIVE_GIFT_USER).
+      const normal = await f.gift({ category: 'POPULAR' });
+      const normals = [];
+      for (let i = 0; i < 121; i++) normals.push((await f.send(roomId, h, f.body(normal, [h]))).status);
+      expect(normals.slice(0, 120).every((s) => s === 201)).toBe(true);
+      expect(normals[120]).toBe(429);
+    });
+  });
+
   describe('gates', () => {
     it('18+: refused until the caller confirmed; nothing charged, drawn or stored', async () => {
       const { h, s1, roomId } = await f.scene();

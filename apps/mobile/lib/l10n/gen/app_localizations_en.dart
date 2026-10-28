@@ -6353,11 +6353,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveStatsLoadFailedBody => 'Check your connection and try again.';
 
   @override
-  String get liveComboLabel => 'Combo';
+  String get liveComboLabel => 'MAX X';
 
   @override
   String liveComboSemantics(String gift, int count) {
-    return 'Send $gift again, combo ×$count';
+    return 'Max X: send $gift again ×$count';
   }
 
   @override

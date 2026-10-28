@@ -78,6 +78,12 @@ export interface AppConfig {
     readonly cpGiftUser: RateLimitRule;
     /** CP-020: gift sends in a live (per user). */
     readonly liveGiftUser: RateLimitRule;
+    /**
+     * D145c (owner: «too many attempts» in a lucky streak): every gift send (the route's ceiling),
+     * and lucky sends' own burst limit; normal sends keep {@link liveGiftUser}.
+     */
+    readonly liveGiftAnyUser: RateLimitRule;
+    readonly liveLuckyGiftBurstUser: RateLimitRule;
     /** v1.28-live (D146). */
     readonly premiumRentUser: RateLimitRule;
     readonly usernameChangeUser: RateLimitRule;
@@ -281,6 +287,8 @@ export function loadConfig(raw: Record<string, string | undefined>): AppConfig {
       cpWriteUser: e.RATE_LIMIT_CP_WRITE_USER,
       cpGiftUser: e.RATE_LIMIT_CP_GIFT_USER,
       liveGiftUser: e.RATE_LIMIT_LIVE_GIFT_USER,
+      liveGiftAnyUser: e.RATE_LIMIT_LIVE_LUCKY_GIFT_USER,
+      liveLuckyGiftBurstUser: e.RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER,
       premiumRentUser: e.RATE_LIMIT_PREMIUM_RENT_USER,
       usernameChangeUser: e.RATE_LIMIT_USERNAME_CHANGE_USER,
       cpSpaceWriteUser: e.RATE_LIMIT_CP_SPACE_WRITE_USER,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:kabso_live/core/error/app_failure.dart';
@@ -168,6 +169,17 @@ class LuckyComboController extends Notifier<LuckyComboState> {
   /// the queue is full are not taken.
   static const maxQueued = 20;
 
+  /// D145c (owner: «too many attempts» in a lucky streak): queued taps go
+  /// at most one per [minGap] (the server allows 10 lucky sends a second),
+  /// and a 429 is waited out (its `Retry-After`, [maxRateWait] at most) and
+  /// sent again with the same `clientId` — never shown, never charged
+  /// twice — up to [rateRetries] times.
+  static const minGap = Duration(milliseconds: 110);
+  static const maxRateWait = Duration(seconds: 10);
+  static const rateRetries = 6;
+
+  DateTime? _lastSend;
+
   Timer? _ring;
   int _stops = 0;
 
@@ -280,18 +292,59 @@ class LuckyComboController extends Notifier<LuckyComboState> {
       source: LiveGiftSource.coins,
       clientId: clientId,
     );
+    // D145c: paced — never faster than [minGap] between two sends.
+    Future<LiveGiftResult> paced() async {
+      final last = _lastSend;
+      if (last != null) {
+        final wait = minGap - clock.now().difference(last);
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+      }
+      _lastSend = clock.now();
+      return await send();
+    }
+
     LiveGiftResult result;
+    var rateWaits = 0;
+    var networkRetried = false;
     try {
-      try {
-        result = await send();
-      } on Object catch (e) {
-        // A lost answer: once more with the same id (never charged twice).
-        if (toAppFailure(e) is ServerFailure) rethrow;
-        result = await send();
+      while (true) {
+        try {
+          result = await paced();
+          break;
+        } on Object catch (e) {
+          final failure = toAppFailure(e);
+          if (failure.code == ErrorCode.rateLimited &&
+              rateWaits < rateRetries) {
+            // Too fast for the server: wait as told, then the same send
+            // (same clientId) — silently.
+            rateWaits++;
+            final told =
+                (failure is ServerFailure ? failure.retryAfter : null) ??
+                const Duration(seconds: 1);
+            await Future<void>.delayed(
+              told > maxRateWait
+                  ? maxRateWait
+                  : told < minGap
+                  ? minGap
+                  : told,
+            );
+            if (!ref.mounted || epoch != _epoch) return false;
+            continue;
+          }
+          // A lost answer: once more with the same id (never charged twice).
+          if (failure is ServerFailure || networkRetried) rethrow;
+          networkRetried = true;
+        }
       }
     } on Object catch (e) {
       if (!ref.mounted) return false;
       final failure = toAppFailure(e);
+      if (failure.code == ErrorCode.rateLimited) {
+        // Still refused after waiting: the streak ends quietly (never a
+        // "too many attempts" message during a lucky streak).
+        stop();
+        return false;
+      }
       if (failure.code == ErrorCode.insufficientCoins &&
           ref.exists(liveCoinsProvider)) {
         ref.invalidate(liveCoinsProvider);

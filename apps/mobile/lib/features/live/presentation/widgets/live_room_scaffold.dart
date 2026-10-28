@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:kabso_live/core/format/k_format.dart';
@@ -45,6 +46,7 @@ class KLiveRoomScaffold extends StatelessWidget {
     this.sideStart,
     this.sidePromo,
     this.chatEnd,
+    this.onChatTop,
     this.closeButtonKey = closeKey,
     this.closeLabel,
   });
@@ -79,6 +81,10 @@ class KLiveRoomScaffold extends StatelessWidget {
   final Widget? chatEnd;
 
   /// ✕'s key and spoken label (the host's ✕ ends the live).
+  /// D145c: told the chat's top on the screen when it moves (the gift
+  /// strips keep above the chat text).
+  final ValueChanged<double>? onChatTop;
+
   final Key closeButtonKey;
   final String? closeLabel;
 
@@ -198,7 +204,10 @@ class KLiveRoomScaffold extends StatelessWidget {
                                       constraints: BoxConstraints(
                                         maxHeight: chatCap,
                                       ),
-                                      child: chat,
+                                      child: KTopReporter(
+                                        onTop: onChatTop,
+                                        child: chat,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -1107,4 +1116,49 @@ class KRoomIconButton extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// D145c: tells [onTop] its child's top on the screen after a frame in
+/// which it was painted at a new place (nothing when [onTop] is null).
+class KTopReporter extends SingleChildRenderObjectWidget {
+  const new({required this.onTop, super.child, super.key});
+
+  final ValueChanged<double>? onTop;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      RenderTopReporter(onTop);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderTopReporter renderObject,
+  ) {
+    renderObject.onTop = onTop;
+  }
+}
+
+/// The render object of [KTopReporter].
+class RenderTopReporter extends RenderProxyBox {
+  new(this.onTop);
+
+  ValueChanged<double>? onTop;
+  double? _last;
+  bool _scheduled = false;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    if (onTop == null || _scheduled) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      final onTop = this.onTop;
+      if (onTop == null || !attached || !hasSize) return;
+      final top = localToGlobal(Offset.zero).dy;
+      if (top == _last) return;
+      _last = top;
+      onTop(top);
+    });
+  }
 }

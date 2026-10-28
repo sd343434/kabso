@@ -345,6 +345,11 @@ export const envSchema = z
     // v1.23-live (CP-020, CONVENTIONS §7): gift sends in a live, per user, replacing the default
     // authenticated bucket (combos are quick taps on "send": one a second on average, 2× headroom).
     RATE_LIMIT_LIVE_GIFT_USER: rateLimit('120/60'),
+    // D145c (CONVENTIONS §7): lucky gifts (the MAX X streak) get their own, higher limits — every
+    // gift send of a user counts against the per-minute ceiling (the route's bucket), and a lucky
+    // send against its burst bucket instead of RATE_LIMIT_LIVE_GIFT_USER.
+    RATE_LIMIT_LIVE_LUCKY_GIFT_USER: rateLimit('600/60'),
+    RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER: rateLimit('10/1'),
     // v1.28-live (D146, CONVENTIONS §7): premium usernames and the username change.
     RATE_LIMIT_PREMIUM_RENT_USER: rateLimit('20/3600'),
     RATE_LIMIT_USERNAME_CHANGE_USER: rateLimit('5/86400'),

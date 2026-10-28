@@ -404,6 +404,8 @@ class _ComboButton extends StatelessWidget {
           Text(
             label,
             maxLines: 1,
+            // D145c: the Latin "MAX X" in every language.
+            textDirection: TextDirection.ltr,
             textScaler: scaler.clamp(maxScaleFactor: 1.15),
             style: context.textStyles.caption.copyWith(
               color: const Color(0xFFFFFFFF),

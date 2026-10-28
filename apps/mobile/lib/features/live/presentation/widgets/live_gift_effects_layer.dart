@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/core/format/k_format.dart';
 import 'package:kabso_live/core/icons/kabso_art.dart';
@@ -12,30 +14,25 @@ import 'package:kabso_live/features/live/presentation/widgets/live_side_cards.da
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The gifts sent in a live, over the room (CP-020, §10.23): a banner per
-/// combo (sender → recipients, the gift, ×quantity and the combo count)
-/// and a large centred effect for an animated or big gift. Names come from
-/// the cached catalogue by `giftCode`.
+/// The gifts sent in a live, over the room (CP-020, §10.23): a strip per
+/// combo (sender → recipients, the gift, ×N) and the full-screen effect of
+/// an animated gift. Names come from the cached catalogue by `giftCode`.
 ///
-/// D145 (owner: «the room only shows the gift's picture, no strip»): the
-/// strips slide in at the reading start, above the middle (clear of the
-/// open gift panel, which normal gifts keep open), up to
-/// [LiveGiftEffects.maxBanners] at once with the newest on top, each for
-/// [LiveGiftEffects.bannerTime] after its combo's last send, drawn over the
-/// large effect so a full-screen animation never hides them. A tap on a
-/// strip opens the sender's card ([onSender]); nothing else takes taps.
-///
-/// D145a (owner review): the strips never hide the seats or the wish
-/// column — an audio room draws them itself between its seats and its chat
-/// ([showStrips] false here, [LiveGiftStrips] in its layout); a video live
-/// places them at [stripsAt] (beside the wish / promo column).
+/// D145c (owner, device: «no strip at all» after his own gift in his audio
+/// room): the strips are drawn here, **over** the full-screen effect, in
+/// audio rooms and video lives alike — vertically centred at the reading
+/// start ([LiveGiftStripsSlot]), the same place in both; beside the
+/// wish / promo column when a video live shows it ([stripsStart]); and
+/// above the gift panel while it is open (normal gifts keep it open, so
+/// the sender sees their own strip). D145a had moved the audio strips into
+/// the room's layout, under the effect and under the open panel. A tap on
+/// a strip opens the sender's card ([onSender]); nothing else takes taps.
 class LiveGiftEffectsLayer extends ConsumerWidget {
   const new({
     required this.roomId,
     super.key,
     this.onSender,
-    this.showStrips = true,
-    this.stripsAt,
+    this.stripsStart = KSpacing.sm,
   });
 
   final String roomId;
@@ -43,30 +40,14 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
   /// Opens the sender's card (D145); null: the strips take no taps.
   final ValueChanged<UserSummary>? onSender;
 
-  /// False when the room draws [LiveGiftStrips] in its own layout.
-  final bool showStrips;
+  /// The strips' distance from the reading-start edge.
+  final double stripsStart;
 
-  /// The strips' top start corner (from the screen's top start); null: at
-  /// [bannerAlignment].
-  final EdgeInsetsDirectional? stripsAt;
-
-  /// Where the strips sit without [stripsAt]: the reading start, above the
-  /// middle, so three strips still end above the open gift panel.
-  static const bannerAlignment = AlignmentDirectional(-1, -0.3);
-
-  /// D145a: where a video live's strips start — under the header rows, at
-  /// the reading start, or beside the wish / promo column when it shows
-  /// ([sideColumn]) so they never hide it.
-  static EdgeInsetsDirectional videoStripsAt(
-    BuildContext context, {
-    required bool sideColumn,
-  }) => EdgeInsetsDirectional.only(
-    top: MediaQuery.paddingOf(context).top + KLiveSideCards.promoTop + 6,
-    start: sideColumn
-        ? KLiveSideCards.wishStart + LiveWishCard.width + KSpacing.xs
-        : KSpacing.sm,
-    end: KSpacing.sm,
-  );
+  /// D145a/D145c: a video live's strips start beside the wish / promo
+  /// column when it shows ([sideColumn]), so they never hide it.
+  static double videoStripsStart({required bool sideColumn}) => sideColumn
+      ? KLiveSideCards.wishStart + LiveWishCard.width + KSpacing.xs
+      : KSpacing.sm;
 
   static Key bannerKey(String comboId) => Key('gift.banner.$comboId');
   static const effectKey = Key('gift.effect');
@@ -79,8 +60,6 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
     final effects = ref.watch(liveGiftEffectsProvider(roomId));
     final catalogue = ref.watch(giftCatalogueProvider).value;
     final big = effects.big;
-    final at = stripsAt;
-    final strips = LiveGiftStrips(roomId: roomId, onSender: onSender);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -107,12 +86,10 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
                   key: effectKey,
                   child: KGiftEffect(
                     key: ValueKey(big.id),
-                    assetKey: big.assetKey,
-                    animationKey: big.animationKey,
-                    imageUrl: big.imageUrl ?? _art(catalogue, big)?.imageUrl,
+                    animationKey:
+                        big.animationKey ?? _art(catalogue, big)?.animationKey,
                     animationUrl:
                         big.animationUrl ?? _art(catalogue, big)?.animationUrl,
-                    duration: LiveGiftEffects.bigTime,
                     onHold: () => ref
                         .read(liveGiftEffectsProvider(roomId).notifier)
                         .bigHold(big.id),
@@ -124,28 +101,112 @@ class LiveGiftEffectsLayer extends ConsumerWidget {
             ],
           ),
         ),
-        if (showStrips)
-          if (at != null)
-            PositionedDirectional(
-              top: at.top,
-              start: at.start,
-              end: at.end,
-              child: Align(
-                alignment: AlignmentDirectional.topStart,
-                child: strips,
-              ),
-            )
-          else
-            Align(
-              alignment: bannerAlignment,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(start: KSpacing.sm),
-                child: strips,
-              ),
-            ),
+        // Over the effect: a full-screen animation never hides them.
+        LiveGiftStripsSlot(
+          start: stripsStart,
+          floor: ref.watch(liveChatTopProvider(roomId)),
+          child: LiveGiftStrips(roomId: roomId, onSender: onSender),
+        ),
       ],
     );
   }
+}
+
+/// D145c (owner): where the gift strips sit, the same in every live — at
+/// the reading start ([start] from the edge), the column's middle on the
+/// screen's middle; it moves up just enough to end [gap] above the chat
+/// text ([floor], the chat's top on the screen) and above the gift panel
+/// while it is open ([liveGiftPanelHeightProvider]: normal gifts keep it
+/// open), never above the header rows ([top] under the status bar). Fills
+/// the room; only the strips take taps.
+class LiveGiftStripsSlot extends ConsumerWidget {
+  const new({
+    required this.child,
+    super.key,
+    this.start = KSpacing.sm,
+    this.floor,
+  });
+
+  final Widget child;
+  final double start;
+
+  /// The chat's top on the screen, or null.
+  final double? floor;
+
+  /// The strips keep this far under the status bar (the header rows).
+  static const double top = 96;
+
+  /// …and this far above the open gift panel.
+  static const double gap = KSpacing.sm;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final panel = ref.watch(liveGiftPanelHeightProvider);
+    return CustomSingleChildLayout(
+      delegate: _StripsLayout(
+        start: start,
+        end: KSpacing.sm,
+        rtl: Directionality.of(context) == TextDirection.rtl,
+        ceiling: MediaQuery.paddingOf(context).top + top,
+        panel: panel,
+        floor: floor,
+        gap: gap,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _StripsLayout extends SingleChildLayoutDelegate {
+  new({
+    required this.start,
+    required this.end,
+    required this.rtl,
+    required this.ceiling,
+    required this.panel,
+    required this.floor,
+    required this.gap,
+  });
+
+  final double start;
+  final double end;
+  final bool rtl;
+  final double ceiling;
+
+  /// The open panel's height, or null.
+  final double? panel;
+
+  /// The chat's top (from the screen's top), or null.
+  final double? floor;
+  final double gap;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints(
+        maxWidth: math.max(0, constraints.maxWidth - start - end),
+        maxHeight: constraints.maxHeight,
+      );
+
+  @override
+  Offset getPositionForChild(Size size, Size child) {
+    var y = (size.height - child.height) / 2;
+    if (panel case final p?) {
+      y = math.min(y, size.height - p - gap - child.height);
+    }
+    if (floor case final f?) y = math.min(y, f - gap - child.height);
+    y = math.max(y, ceiling);
+    return Offset(rtl ? size.width - start - child.width : start, y);
+  }
+
+  @override
+  bool shouldRelayout(_StripsLayout old) =>
+      old.start != start ||
+      old.end != end ||
+      old.rtl != rtl ||
+      old.ceiling != ceiling ||
+      old.panel != panel ||
+      old.floor != floor ||
+      old.gap != gap;
 }
 
 /// D145/D145a: the gift strips of a live — up to
@@ -193,7 +254,7 @@ class LiveGiftStrips extends ConsumerWidget {
     final strips = AnimatedSize(
       duration: KMotion.of(context, KMotion.base),
       curve: KMotion.standard,
-      alignment: AlignmentDirectional.bottomStart.resolve(
+      alignment: AlignmentDirectional.centerStart.resolve(
         Directionality.of(context),
       ),
       child: column,

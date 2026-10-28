@@ -250,11 +250,37 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
   /// The catalogue version whose small animations were prefetched (D126).
   String? _prefetched;
 
+  /// D145c: the room's strips keep above the open panel.
+  late final LiveGiftPanelHeight _panelHeight;
+  double? _reportedHeight;
+
+  /// D145c: the height told to the room, after this frame.
+  void _reportHeight(double height) {
+    if (_reportedHeight == height) return;
+    _reportedHeight = height;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _panelHeight.set(height);
+    });
+  }
+
+  /// D145c (owner: «the static picture floats for ~2 s while the SVGA
+  /// downloads»): the picked gift's SVGA is fetched as soon as it is
+  /// picked, whatever its size, so its effect plays at once when sent.
+  void _prefetchEffect(String code) {
+    final url = ref
+        .read(giftCatalogueProvider)
+        .value
+        ?.byCode(code)
+        ?.animationUrl;
+    if (url != null) GiftArtCache.instance.prefetch(url);
+  }
+
   @override
   void initState() {
     super.initState();
+    _panelHeight = ref.read(liveGiftPanelHeightProvider.notifier);
     // The panel opened: fetch the small hosted animations now, so they
-    // play at once when sent; big ones wait until a gift is sent.
+    // play at once when sent; big ones when they are picked (D145c).
     ref.listenManual(giftCatalogueProvider, (_, next) {
       final catalogue = next.value;
       if (catalogue == null || catalogue.version == _prefetched) return;
@@ -265,6 +291,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
 
   @override
   void dispose() {
+    final height = _panelHeight;
+    // Not during the tree's teardown: after it.
+    scheduleMicrotask(() => height.set(null));
     _comboTimer?.cancel();
     _toastTimer?.cancel();
     super.dispose();
@@ -497,6 +526,7 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
     // Several people can receive: their row comes first (ref 161 is a
     // solo live and has none).
     if (_candidates().length > 1) height += _Person.size + 9;
+    _reportHeight(height);
     // Dense room controls: text grows up to the live overlays' limit.
     return KLiveSurface(
       child: MediaQuery(
@@ -575,6 +605,9 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
         if (catalogue.byCode(code) case final gift?) {
           _tab = gift.category.wire;
           _selected = gift.code;
+          if (gift.animationUrl case final url?) {
+            GiftArtCache.instance.prefetch(url);
+          }
         }
       }
     }
@@ -792,11 +825,14 @@ class _KLiveGiftSheetState extends ConsumerState<KLiveGiftSheet> {
             key: KLiveGiftSheet.cellKey(cell.gift.code, bag: isBag),
             cell: cell,
             selected: cell.gift.code == selected?.gift.code,
-            onTap: () => setState(() {
-              _selected = cell.gift.code;
-              _error = null;
-              _resetCombo();
-            }),
+            onTap: () {
+              _prefetchEffect(cell.gift.code);
+              setState(() {
+                _selected = cell.gift.code;
+                _error = null;
+                _resetCombo();
+              });
+            },
           );
         },
       );

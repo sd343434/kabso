@@ -694,17 +694,14 @@ class _RoomViewState extends ConsumerState<_RoomView> {
               LiveGiftEffectsLayer(
                 roomId: room.id,
                 onSender: (u) => _person(u.username),
-                // D145a: an audio room draws the strips between its seats
-                // and its chat; a video live beside the wish column.
-                showStrips: room.mode != LiveRoomMode.audio,
-                stripsAt: room.mode == LiveRoomMode.audio
-                    ? null
-                    : LiveGiftEffectsLayer.videoStripsAt(
-                        context,
-                        sideColumn:
-                            room.wishGifts.isNotEmpty ||
-                            LiveRoomPromoBox.shows(ref, room.id),
-                      ),
+                // D145c: the strips centred at the reading start in audio
+                // and video alike; beside a video live's wish column.
+                stripsStart: LiveGiftEffectsLayer.videoStripsStart(
+                  sideColumn:
+                      room.mode != LiveRoomMode.audio &&
+                      (room.wishGifts.isNotEmpty ||
+                          LiveRoomPromoBox.shows(ref, room.id)),
+                ),
               ),
             // D145: the lucky combo button after a lucky gift is sent.
             if (room.status == LiveRoomStatus.live)
@@ -766,6 +763,9 @@ class _RoomViewState extends ConsumerState<_RoomView> {
     // live's points (the cherry) and its taps (a heart), when known.
     final taps = session.scoreParts?.tapPoints ?? room.scoreParts?.tapPoints;
     return KLiveRoomScaffold(
+      // D145c: the gift strips keep above the chat text.
+      onChatTop: (top) =>
+          ref.read(liveChatTopProvider(room.id).notifier).set(top),
       // Ended: the overlay explains; no video message underneath it.
       video: ended
           ? const KLiveVideoPlaceholder(child: SizedBox.shrink())
@@ -993,15 +993,13 @@ class _RoomViewState extends ConsumerState<_RoomView> {
             children: [
               _video(session, engine),
               LiveAudioRoomLayout(
-                // D145a: the combo in the promo box's place; the strips
-                // between the seats and the chat.
+                // D145c: the gift strips keep above the chat text.
+                onChatTop: (top) =>
+                    ref.read(liveChatTopProvider(room.id).notifier).set(top),
+                // D145a: the combo in the promo box's place.
                 combo: LuckyComboCluster.shows(ref, room.id)
                     ? LuckyComboCluster(roomId: room.id)
                     : null,
-                strips: LiveGiftStrips(
-                  roomId: room.id,
-                  onSender: (u) => _person(u.username),
-                ),
                 // D141a (owner): the promo box over the gift button.
                 promo:
                     signedIn &&
