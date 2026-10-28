@@ -4,15 +4,37 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ContentResolver
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         createNotificationChannels()
+    }
+
+    /**
+     * D156: the ring mode (`AudioManager.RINGER_MODE_*`: 0 silent, 1 vibrate,
+     * 2 normal), so the launch video plays muted when the phone is silent or
+     * on vibrate. Media volume alone would not follow that switch.
+     */
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.kabso/audio")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "ringerMode" -> {
+                        val audio = getSystemService(AudioManager::class.java)
+                        result.success(audio?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
     /**

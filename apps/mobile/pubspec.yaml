@@ -51,7 +51,9 @@ dependencies:
   # CP-017 voice clips in the live chat (AAC in .m4a). Pinned exactly.
   record: 7.1.2
   shared_preferences: ^2.5.6
-  video_player: ^2.14.1
+  # D156 the launch video (and message attachments). The official Flutter
+  # plugin, pinned exactly. BSD-3-Clause.
+  video_player: 2.14.1
   visibility_detector: ^0.4.0+2
   web: 1.1.1
 
@@ -98,7 +100,8 @@ flutter:
     # Owner-supplied charm level icons and tap characters (D101, PROVENANCE.md in each).
     - assets/charm/
     - assets/taps/
-    # D63 launch animation and voice (owner-supplied).
+    # D156 the owner's launch video and its last frame; the D63 Lottie (the
+    # welcome screen's Kabi). assets/splash/PROVENANCE.md.
     - assets/splash/
     # D145d the owner's MAX X sounds (assets/sounds/PROVENANCE.md).
     - assets/sounds/

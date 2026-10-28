@@ -169,6 +169,10 @@
     "description": "No support button until B7 provides a channel."
   },
   "splashRestoreFailed": "تعذّرت استعادة جلستك.",
+  "splashSkip": "تخطي",
+  "@splashSkip": {
+    "description": "D156: the button that skips the launch video."
+  },
   "navHome": "الرئيسية",
   "navDiscover": "استكشاف",
   "navCreate": "إنشاء",

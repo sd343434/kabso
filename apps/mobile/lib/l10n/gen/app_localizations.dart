@@ -584,6 +584,12 @@ abstract class AppLocalizations {
   /// **'تعذّرت استعادة جلستك.'**
   String get splashRestoreFailed;
 
+  /// D156: the button that skips the launch video.
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطي'**
+  String get splashSkip;
+
   /// No description provided for @navHome.
   ///
   /// In ar, this message translates to:

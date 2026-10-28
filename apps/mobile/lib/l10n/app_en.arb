@@ -81,6 +81,7 @@
   "sessionEndedBanner": "Your session has ended. Please log in again.",
   "accountSuspendedBanner": "This account has been suspended. If you think this is a mistake, contact support.",
   "splashRestoreFailed": "We couldn't restore your session.",
+  "splashSkip": "Skip",
   "navHome": "Home",
   "navDiscover": "Discover",
   "navCreate": "Create",
