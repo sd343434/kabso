@@ -319,7 +319,7 @@ class _PublicProfileScreenState extends ConsumerState<PublicProfileScreen> {
     final load = ref.watch(publicProfileProvider(widget.username));
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(

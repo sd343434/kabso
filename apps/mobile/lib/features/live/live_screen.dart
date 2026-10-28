@@ -122,8 +122,7 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
         ref.watch(liveDiscoveryCategoriesProvider).value ?? const [];
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        bottom: false,
+      body: KTopSafeArea(
         child: Column(
           children: [
             const LiveHubTopBar(),

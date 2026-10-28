@@ -154,6 +154,33 @@ describe('KL-060 hashtags and search', () => {
       expect((await search(me, `s${run.slice(0, 3)}%`, 'users')).body.data).toEqual([]);
     });
 
+    it('D142: a letters-and-digits username (as "nabulsi001") is found — no posts, any case, @, prefix, own account', async () => {
+      // The owner's device check: an account with no posts and no followers, named like
+      // "nabulsi001" (letters then digits), searched by itself and by someone else.
+      const [owner, other] = [await signup(), await signup()];
+      const name = `n${run}001`;
+      await withMigrationClient((c) =>
+        c.userProfile.update({ where: { userId: owner.id }, data: { username: name } }),
+      );
+      for (const [who, q] of [
+        [other, name],
+        [other, `@${name}`],
+        [other, name.toUpperCase()],
+        [other, ` ${name} `],
+        [other, name.slice(0, 1)],
+        [other, name.slice(0, -1)],
+        [owner, name],
+      ] as const) {
+        const res = await search(who, q, 'users');
+        expect(res.status).toBe(200);
+        expect(ids(res)).toContain(owner.id);
+      }
+      // Exact match first.
+      expect(ids(await search(other, name, 'users'))[0]).toBe(owner.id);
+      // Not a substring match: the middle of a username finds nothing.
+      expect(ids(await search(other, name.slice(1), 'users'))).not.toContain(owner.id);
+    });
+
     it('hashtags: prefix, exact first, with visible counts', async () => {
       const me = await signup();
       await post(me, `#h${run} #h${run}x #h${run}x`);

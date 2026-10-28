@@ -237,7 +237,7 @@ class _ConversationsPreviewScreenState
     // reachable through [ConversationsPreviewScreen.initialState].
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         automaticallyImplyLeading: false,

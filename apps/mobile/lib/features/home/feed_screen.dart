@@ -84,10 +84,9 @@ class _FeedScreenState extends State<FeedScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     final belowHeader = EdgeInsets.only(
-      top: MediaQuery.paddingOf(context).top + KMetrics.topBarHeight,
+      top: KTopInset.of(context) + KMetrics.topBarHeight,
     );
-    final bar = SafeArea(
-      bottom: false,
+    final bar = KTopSafeArea(
       child: _FeedHeader(
         tab: _tab,
         feed: _feed,

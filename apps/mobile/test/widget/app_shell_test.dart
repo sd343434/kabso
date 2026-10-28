@@ -135,6 +135,9 @@ void main() {
         find.byKey(SettingsScreen.logoutKey),
         200,
       );
+      // D142: the tile can stop just under the screen's edge; bring it in.
+      await tester.ensureVisible(find.byKey(SettingsScreen.logoutKey));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(SettingsScreen.logoutKey));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('settings.logout.confirm')));

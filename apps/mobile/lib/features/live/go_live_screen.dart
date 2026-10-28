@@ -1160,7 +1160,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         openChat: openChat,
       );
     } else {
-      body = SafeArea(
+      body = KTopSafeArea(
+        bottom: true,
         child: Column(
           children: [
             Padding(

@@ -139,7 +139,7 @@ class _CreateFamilyState extends ConsumerState<CreateFamilyScreen> {
     final coins = ref.watch(liveCoinsProvider).value;
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.familyCreateTitle),

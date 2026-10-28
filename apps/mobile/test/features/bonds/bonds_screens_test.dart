@@ -375,11 +375,19 @@ void main() {
           find.byKey(ShowcasePicker.optionKey(code)),
           100,
         );
+        // D142: the option can stop just under the screen's edge.
+        await tester.ensureVisible(find.byKey(ShowcasePicker.optionKey(code)));
+        await tester.pump();
         await tester.tap(find.byKey(ShowcasePicker.optionKey(code)));
         await tester.pump();
       }
       // The 7th was refused.
       expect(find.text(en.medalsShowcaseLimit(6)), findsOneWidget);
+      // The count sits at the top of the list (scrolled back to it).
+      await tester.scrollUntilVisible(
+        find.text(en.medalsShowcaseCount(6, 6)),
+        -100,
+      );
       expect(find.text(en.medalsShowcaseCount(6, 6)), findsOneWidget);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ShowcasePicker.saveKey));

@@ -47,8 +47,9 @@ import '../../helpers/pump_app.dart';
 
 final AppLocalizations _en = l10nFor(AppLanguage.en);
 
+/// Where the header row starts: the status bar inset plus the D142 gap.
 double _topInset(WidgetTester tester) =>
-    MediaQuery.paddingOf(tester.element(find.byType(FeedScreen))).top;
+    KTopInset.of(tester.element(find.byType(FeedScreen)));
 
 /// The mode on screen, read from the switch word (it names the other mode).
 HomeTab _mode(WidgetTester tester) {

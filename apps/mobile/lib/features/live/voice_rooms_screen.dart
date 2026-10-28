@@ -234,8 +234,7 @@ class _Header extends ConsumerWidget {
                 ]
               : null,
         ),
-        child: SafeArea(
-          bottom: false,
+        child: KTopSafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

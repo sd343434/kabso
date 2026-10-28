@@ -73,7 +73,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final l10n = context.l10n;
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(
+      appBar: KAppBar(
         titleSpacing: 0,
         title: Padding(
           padding: const EdgeInsetsDirectional.only(end: KSpacing.md),

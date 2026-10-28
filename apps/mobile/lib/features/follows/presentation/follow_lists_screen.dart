@@ -116,8 +116,7 @@ class _FollowListsScreenState extends ConsumerState<FollowListsScreen> {
       initialIndex: widget.initial.index,
       child: Scaffold(
         backgroundColor: p.background,
-        body: SafeArea(
-          bottom: false,
+        body: KTopSafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

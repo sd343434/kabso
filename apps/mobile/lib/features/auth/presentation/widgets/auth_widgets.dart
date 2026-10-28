@@ -127,7 +127,7 @@ class AuthScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: hasBar
-          ? AppBar(
+          ? KAppBar(
               automaticallyImplyLeading: showBack && onBack == null,
               leading: showBack && onBack != null
                   ? IconButton(
@@ -205,8 +205,7 @@ class AuthHero extends StatelessWidget {
           borderRadius: const BorderRadius.vertical(
             bottom: Radius.circular(KAuthHero.radius),
           ),
-          child: SafeArea(
-            bottom: false,
+          child: KTopSafeArea(
             child: Column(
               children: [
                 SizedBox(

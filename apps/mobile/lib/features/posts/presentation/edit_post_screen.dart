@@ -49,7 +49,7 @@ class EditPostScreen extends ConsumerWidget {
     return switch (ref.watch(postProvider(postId))) {
       AsyncData(:final value) => _EditPostForm(post: edited ?? value),
       AsyncError(:final error) => Scaffold(
-        appBar: AppBar(title: Text(l10n.editPostTitle)),
+        appBar: KAppBar(title: Text(l10n.editPostTitle)),
         body: switch (toAppFailure(error)) {
           ServerFailure(code: ErrorCode.notFound) => KEmptyState(
             icon: Icons.visibility_off_outlined,
@@ -64,7 +64,7 @@ class EditPostScreen extends ConsumerWidget {
         },
       ),
       _ => Scaffold(
-        appBar: AppBar(title: Text(l10n.editPostTitle)),
+        appBar: KAppBar(title: Text(l10n.editPostTitle)),
         body: const Center(child: CircularProgressIndicator()),
       ),
     };
@@ -243,7 +243,7 @@ class _EditPostFormState extends ConsumerState<_EditPostForm> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: KAppBar(
           title: Text(l10n.editPostTitle),
           actions: [
             Padding(

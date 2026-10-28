@@ -51,7 +51,7 @@ class PreviewsHubScreen extends StatelessWidget {
     ];
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         title: Text(l10n.previewsHubTitle),
       ),

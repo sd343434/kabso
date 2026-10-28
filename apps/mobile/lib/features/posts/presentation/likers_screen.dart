@@ -76,7 +76,7 @@ class LikersScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final provider = postLikersProvider(postId);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.likersTitle)),
+      appBar: KAppBar(title: Text(l10n.likersTitle)),
       body: switch (ref.watch(provider)) {
         AsyncValue(value: FeedItems(:final items)) when items.isEmpty =>
           KEmptyState(

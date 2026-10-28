@@ -132,6 +132,13 @@ abstract final class KMetrics {
   /// T-3 proposal: header bar with the primary tabs and search.
   static const double topBarHeight = KSizes.minTouchTarget;
 
+  /// D142 (owner: "put a gap between the top bar and the phone's status
+  /// info"): every top bar — app bars (`KAppBar`), custom headers
+  /// (`KTopSafeArea`, `KTopInset.of`) — starts this far under the status
+  /// bar / notch inset. The same value as the live rooms' header
+  /// ([liveHeaderGap], D141), so every screen has one gap.
+  static const double statusBarGap = 10;
+
   /// T-2 proposal: primary tabs clamp text scaling so the 48 dp header
   /// keeps its height (the screen-reader label is never clamped).
   static const double topBarMaxTextScale = 1.3;
@@ -180,8 +187,9 @@ abstract final class KMetrics {
   /// D141 (owner: "the top bar is too close to the clock"): the visible
   /// top of every live room's header (the video host pill, the audio room
   /// card) sits this far under the status bar / notch inset — one value
-  /// for audio and video, host and viewer.
-  static const double liveHeaderGap = 10;
+  /// for audio and video, host and viewer. D142: the app-wide
+  /// [statusBarGap].
+  static const double liveHeaderGap = statusBarGap;
 
   /// HL-L2 follow capsule inside its 48 dp hit area. D131 (ref 158: a
   /// 31.5 × 23.8 pt cyan capsule with a "+").

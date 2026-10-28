@@ -428,7 +428,8 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
         onVerticalDragEnd: (d) {
           if ((d.primaryVelocity ?? 0) > KStoryViewer.closeVelocity) _close();
         },
-        child: SafeArea(
+        child: KTopSafeArea(
+          bottom: true,
           child: switch (story) {
             final s? => _StoryPage(
               key: StoryViewerScreen.storyKey(s.id),

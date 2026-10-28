@@ -118,7 +118,7 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(
+      appBar: KAppBar(
         title: Text(l10n.notificationsTitle),
         actions: [
           IconButton(
@@ -554,7 +554,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.notificationsSettings)),
+      appBar: KAppBar(title: Text(l10n.notificationsSettings)),
       body: switch (ref.watch(notificationSettingsProvider)) {
         AsyncValue(:final value?) => ListView(
           children: [

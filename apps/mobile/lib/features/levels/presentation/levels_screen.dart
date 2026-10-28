@@ -35,7 +35,7 @@ class LevelsScreen extends ConsumerWidget {
     final load = ref.watch(myLevelsProvider);
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         title: Text(l10n.levelsTitle),

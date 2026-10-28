@@ -38,7 +38,7 @@ class ShowcasePickerScreen extends ConsumerWidget {
         ),
       (AsyncValue(:final error?, isLoading: false), _) ||
       (_, AsyncValue(:final error?, isLoading: false)) => Scaffold(
-        appBar: AppBar(title: Text(l10n.medalsShowcaseTitle)),
+        appBar: KAppBar(title: Text(l10n.medalsShowcaseTitle)),
         body: FailureErrorState(
           title: l10n.medalsLoadError,
           failure: toAppFailure(error),
@@ -48,7 +48,7 @@ class ShowcasePickerScreen extends ConsumerWidget {
         ),
       ),
       _ => Scaffold(
-        appBar: AppBar(title: Text(l10n.medalsShowcaseTitle)),
+        appBar: KAppBar(title: Text(l10n.medalsShowcaseTitle)),
         body: const Center(child: CircularProgressIndicator()),
       ),
     };
@@ -158,7 +158,7 @@ class _ShowcasePickerState extends ConsumerState<ShowcasePicker> {
       },
       child: Scaffold(
         backgroundColor: p.background,
-        appBar: AppBar(
+        appBar: KAppBar(
           backgroundColor: p.background,
           centerTitle: true,
           title: Text(l10n.medalsShowcaseTitle),

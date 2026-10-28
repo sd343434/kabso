@@ -86,7 +86,7 @@ class FamilyScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: p.background,
       appBar: family == null
-          ? AppBar(
+          ? KAppBar(
               backgroundColor: p.background,
               centerTitle: true,
               title: Text(l10n.familyPageTitle),
@@ -827,7 +827,7 @@ class _Top extends ConsumerWidget {
     );
 
     final topBar = Positioned(
-      top: top,
+      top: top + KMetrics.statusBarGap,
       left: 0,
       right: 0,
       height: barHeight,

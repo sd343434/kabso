@@ -605,8 +605,7 @@ class _FamiliesScreenState extends ConsumerState<FamiliesScreen> {
         : null;
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        bottom: false,
+      body: KTopSafeArea(
         child: Column(
           children: [
             _header(context),

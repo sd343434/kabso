@@ -106,8 +106,7 @@ class _DiscoverPreviewScreenState extends State<DiscoverPreviewScreen> {
     final p = context.palette;
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        bottom: false,
+      body: KTopSafeArea(
         child: Column(
           children: [
             if (widget.inApp)

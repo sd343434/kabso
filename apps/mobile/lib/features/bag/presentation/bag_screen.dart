@@ -34,7 +34,7 @@ class BagScreen extends StatelessWidget {
       length: BagCategory.values.length,
       child: Scaffold(
         backgroundColor: p.background,
-        appBar: AppBar(
+        appBar: KAppBar(
           backgroundColor: p.background,
           centerTitle: true,
           title: Text(l10n.bagTitle),

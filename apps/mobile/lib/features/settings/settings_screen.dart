@@ -68,7 +68,7 @@ class SettingsScreen extends ConsumerWidget {
     final language = ref.watch(languageControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.settingsTitle)),
+      appBar: KAppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsetsDirectional.symmetric(vertical: KSpacing.lg),
         children: [

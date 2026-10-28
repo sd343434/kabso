@@ -83,7 +83,7 @@ class FeedTabsScaffold extends StatefulWidget {
   /// The height the floating header covers: the top safe area plus the
   /// 48 dp tab bar.
   static double overlayHeaderExtent(BuildContext context) =>
-      MediaQuery.paddingOf(context).top + KMetrics.topBarHeight;
+      KTopInset.of(context) + KMetrics.topBarHeight;
 
   @override
   State<FeedTabsScaffold> createState() => _FeedTabsScaffoldState();
@@ -199,7 +199,7 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
                       colors: [Color(0x80000000), Color(0x00000000)],
                     ),
                   ),
-                  child: SafeArea(bottom: false, child: header),
+                  child: KTopSafeArea(child: header),
                 ),
               ),
             ],
@@ -209,8 +209,7 @@ class _FeedTabsScaffoldState extends State<FeedTabsScaffold> {
     }
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        bottom: false,
+      body: KTopSafeArea(
         child: Column(
           children: [
             ?widget.topBar,

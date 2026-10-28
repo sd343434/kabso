@@ -76,7 +76,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
+      appBar: KAppBar(
         backgroundColor: p.background,
         centerTitle: true,
         // PHASE1_1_SCREENS §5.4: the TopBar shows @username ("Profile" stays

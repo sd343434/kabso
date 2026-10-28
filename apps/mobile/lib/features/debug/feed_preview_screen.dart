@@ -65,8 +65,7 @@ class _FeedPreviewScreenState extends State<FeedPreviewScreen> {
               itemCount: posts.length,
               itemBuilder: (_, i) => _FeedPage(post: posts[i]),
             ),
-            SafeArea(
-              bottom: false,
+            KTopSafeArea(
               child: _TopBar(
                 tabs: _tabs,
                 selected: _tab,
@@ -262,7 +261,7 @@ class _FeedPage extends StatelessWidget {
           ),
         ),
         PositionedDirectional(
-          top: MediaQuery.paddingOf(context).top + KFeedPreview.topBarHeight,
+          top: KTopInset.of(context) + KFeedPreview.topBarHeight,
           start: KFeedPreview.captionInset,
           child: const _TestDataLabel(),
         ),

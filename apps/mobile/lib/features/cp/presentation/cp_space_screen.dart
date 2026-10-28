@@ -357,7 +357,8 @@ class _Frame extends StatelessWidget {
     body: Stack(
       children: [
         const Positioned.fill(child: _Backdrop()),
-        SafeArea(
+        KTopSafeArea(
+          bottom: true,
           child: Column(
             children: [
               const _TopBar(),
@@ -552,7 +553,7 @@ class _CpSpaceViewState extends ConsumerState<_CpSpaceView> {
               top: 0,
               left: 0,
               right: 0,
-              height: media.padding.top + 56 + CpHero.heightFor(heroWidth),
+              height: KTopInset.of(context) + 56 + CpHero.heightFor(heroWidth),
               child: const CpRisingHearts(),
             ),
             RefreshIndicator(
@@ -562,7 +563,7 @@ class _CpSpaceViewState extends ConsumerState<_CpSpaceView> {
                 padding: EdgeInsets.only(bottom: media.padding.bottom + 24),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  SizedBox(height: media.padding.top),
+                  SizedBox(height: KTopInset.of(context)),
                   _TopBar(onHelp: couple.own ? _help : null),
                   Center(
                     child: CpHero(

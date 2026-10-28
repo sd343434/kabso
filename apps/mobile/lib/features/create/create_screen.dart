@@ -369,7 +369,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
       },
       child: Scaffold(
         backgroundColor: p.surface,
-        body: SafeArea(
+        body: KTopSafeArea(
+          bottom: true,
           child: _details
               ? KeyedSubtree(
                   key: CreateScreen.detailsStepKey,
