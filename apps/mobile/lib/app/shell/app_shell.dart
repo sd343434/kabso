@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kabso_live/app/router/routes.dart';
 import 'package:kabso_live/app/shell/shell_navigation.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/messages/unread_messages.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/features/stories/application/stories_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
@@ -37,6 +40,16 @@ class AppShell extends ConsumerWidget {
     final creating =
         navigationShell.currentIndex ==
         AppRoutes.shellBranches.indexOf(AppRoutes.create);
+    // D152: right after a sign-in (never at a cold start), explain and ask
+    // for the notification permission once.
+    if (ref.watch(pushPromptDueProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        if (ref.read(pushPromptDueProvider.notifier).consume()) {
+          unawaited(maybeAskPushPermission(context, ref));
+        }
+      });
+    }
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: creating

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kabso_live/app/router/app_router.dart';
 import 'package:kabso_live/core/preferences/app_preferences.dart';
 import 'package:kabso_live/design_system/design_system.dart';
 import 'package:kabso_live/features/live/presentation/go_live/live_mini_window.dart';
+import 'package:kabso_live/features/push/push_controller.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -30,6 +33,8 @@ class KabsoApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final locale = ref.watch(languageControllerProvider).locale;
     final themeMode = ref.watch(themeModeControllerProvider);
+    // D152: pushes (token, foreground sounds, taps); starts once.
+    unawaited(ref.watch(pushControllerProvider).start());
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appTitle,

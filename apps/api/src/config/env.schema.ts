@@ -553,6 +553,18 @@ export const envSchema = z
     /** D147: period of the search-trends sweeper (drops counts older than 14 days); 0 disables it. */
     SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS: intSetting(3600, 0, 86400),
     /**
+     * v1.30-live (D152, §11.12): path of the Firebase service-account key (a read-only file mounted
+     * into the container, never the key itself). Unset, missing or invalid → push notifications
+     * are off (one log line); everything else works.
+     */
+    FIREBASE_CREDENTIALS_FILE: z.string().trim().min(1).max(4096).optional(),
+    /** D152: how often the push outbox (new notifications) is read; 0 disables it (tests). */
+    PUSH_DISPATCH_INTERVAL_MS: intSetting(2000, 0, 60000),
+    /** D152: at most one general push per recipient per this many seconds (0 = no limit). */
+    PUSH_GENERAL_GAP_SECONDS: intSetting(5, 0, 3600),
+    /** D152: at most one message push per recipient per chat per this many seconds (0 = no limit). */
+    PUSH_MESSAGES_GAP_SECONDS: intSetting(10, 0, 3600),
+    /**
      * Optional dedicated source of the HMAC key (HKDF, info `social-cursor/v1`) of the v1.5-social
      * list cursors; like LIVE_CURSOR_KEY it falls back to RATE_LIMIT_KEY_SECRET.
      */

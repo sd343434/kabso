@@ -462,6 +462,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | *(v1.23-live)* Tables `gifts`, `user_gift_stock`, `live_gifts`, `live_gift_recipients` | Backend — `gifts` module (sends are written by the live module's `LiveGiftsService` through `gift-catalogue.ts` in the send's transaction; the catalogue and grants only by the `gift-admin` CLI) | CTO; Security (coin path) |
 | *(v1.28-live)* Tables `premium_username_leases`, `premium_username_payments`, `premium_username_tier_prices`, `premium_username_name_prices`, `premium_username_reserved`; columns `user_profiles.premium_tier`, `notifications.premium_lease_id` | Backend — `premium-usernames` module (it also writes `user_profiles.username` with the lease, and the wallet ledger's `PREMIUM_USERNAME_*` debits through `wallet-ledger.ts`); prices, the reserved list, grants and revokes only by the `premium-admin` CLI | CTO; Security (coin path, username changes) |
 | *(v1.29-live)* Tables `search_terms`, `search_term_counts`, `search_blocked_words` | Backend — `posts` module (`SearchTrendsService`; changed by admins only with the `search-admin` CLI) | CTO; Security reviews the privacy rules (§11.11) |
+| *(v1.30-live)* Table `device_tokens`; column `notifications.pushed_at` | Backend — `push` module (tokens; the notifications module's push dispatcher sets `pushed_at`; the auth module's session revocation deletes the session's token) | CTO; Security reviews token handling (§11.12) |
 | `apps/api/**` | Backend | CTO review |
 | `apps/mobile/lib/app/router/**` (route registry) | Flutter | CTO review |
 | `apps/mobile/pubspec.yaml` | Flutter | CTO review |
@@ -501,6 +502,7 @@ Rate limiting fails **closed** (503 `SERVICE_UNAVAILABLE`) when Redis is unavail
 | v1.11-live (draft) | 2026-10-24 | **CP-015 (D98):** `MediaKind.LIVE_COVER` (a centre-cropped square, 640 and 320 px); `setLiveCover` / `removeLiveCover` (`PUT` / `DELETE /me/live-cover`, `SetLiveCoverRequest`, `LiveCover`); `Me.liveCoverUrl`; `LiveRoomSummary.coverUrl` is the host's cover; §7 row, §10.13 and §11.1. | **Additive** (a new enum value, new operations, a new response field; `coverUrl` was already nullable). |
 | v1.12-live (draft) | 2026-10-24 | **CP-016 part B (D99):** `getLiveBlockedWords` / `setLiveBlockedWords` (`GET` / `PUT /me/live-blocked-words`, `SetLiveBlockedWordsRequest`, `LiveBlockedWords`); `LiveChatMessage.text` may be masked; §7 row and §10.14. | **Additive** (new operations; masking only changes message content). |
 | v1.13-live (draft) | 2026-10-25 | **CP-016 part A (D99):** `listLiveRankings` (`GET /live/rankings?period=HOUR\|DAY\|WEEK`, `LiveRankingPeriod`, `LiveRankingEntry`, `LiveRankings`); §7 row and §10.15. | **Additive** (a new operation). |
+| v1.30-live (draft) | 2026-10-28 | **D152 (owner: notification sounds; Firebase project `kabso-27b19`, Android app `com.kabso.kabso_live`):** push notifications on Android through Firebase Cloud Messaging. `registerPushToken` (`PUT /me/push-token`, `RegisterPushTokenRequest` `{token, platform: PushPlatform, appVersion}`, 204) and `unregisterPushToken` (`DELETE /me/push-token`, 204): one token per signed-in session, removed with the session (logout, revocation, refresh reuse, password reset) and when Firebase reports it invalid; `NotificationSettings.messages` / `UpdateNotificationSettingsRequest.messages` (family chat pushes, on by default). Table `device_tokens`, column `notifications.pushed_at` (migration `20261203090000_push_notifications`); config `FIREBASE_CREDENTIALS_FILE` (unset → push off), `PUSH_DISPATCH_INTERVAL_MS`, `PUSH_GENERAL_GAP_SECONDS`, `PUSH_MESSAGES_GAP_SECONDS`. §8, §11.10, §11.12. | **Additive** (new operations, a new response field with a default, a new optional request field). Older apps never register a token, so they receive no pushes. Nothing is sent until the server has the Firebase key; iOS tokens are accepted but not used until APNs is set up. |
 | v1.29.2-live (draft) | 2026-10-28 | **D145d (owner: «100 lucky draws a second per user»):** `sendLiveGift` rate-limit defaults — every send 6000 / min per user (`live:gift:any`, `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` `6000/60`, was 600/60), a LUCKY gift 100 / s (`live:gift:lucky`, `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` `100/1`, was 10/1); a normal gift stays 120 / min (`live:gift`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
 | v1.29.1-live (draft) | 2026-10-28 | **D145c (owner, device: «too many attempts» after a number of lucky-gift taps):** `sendLiveGift` rate limits — every send 600 / min per user (`live:gift:any`), then a normal gift 120 / min (`live:gift`, unchanged) or a LUCKY gift 10 / s (`live:gift:lucky`); a `clientId` replay counts only against the first. Config `RATE_LIMIT_LIVE_LUCKY_GIFT_USER` (`600/60`), `RATE_LIMIT_LIVE_LUCKY_GIFT_BURST_USER` (`10/1`). §7 row. | **Relaxing** for lucky gifts (a higher limit); normal gifts unchanged. No shape change. |
 | v1.29-live (draft) | 2026-10-28 | **D147 (owner: «Make the search page match this page 100%» — a Bigo-style search home; layout reference only):** search trends, tag `search`. `recordSearchQuery` (`POST /search/queries`, `RecordSearchQueryRequest` `{q}`, 204): a search the person submitted or whose result they opened, counted once per person per 7 days with no user id stored; `listTrendingSearches` (`GET /search/trending`, `TrendingSearchList` of `TrendingSearch` `{term, tag: TRENDING \| NEW \| null}`, at most 6, only terms with ≥ `SEARCH_TRENDING_MIN_SEARCHERS` (5) different searchers in 7 days, never hidden or blocked); `listTrendingHashtags` (`GET /search/trending-hashtags?limit=1–20`, `HashtagList`: visible posts of the last 7 days, ≥ 3 posts by ≥ 2 authors). Server CLI `search-admin top\|hide\|unhide\|block-word`; audit `search.term.hide`, `search.blocked_word`; config `SEARCH_TRENDING_MIN_SEARCHERS`, `SEARCH_TRENDS_SWEEP_INTERVAL_SECONDS`, `RATE_LIMIT_SEARCH_RECORD_USER`. §7, §8, §11.11. | **Additive** (new operations and schemas; `GET /search` unchanged). Older apps never record searches, so the lists fill from updated apps only. |
@@ -2354,7 +2356,8 @@ count is eventually consistent (≤ 1 min).
   own; others are ignored) or `all: true`; idempotent.
 - **Retention (owner, D92):** notifications whose latest activity is older than **30 days** are
   deleted by a sweeper.
-- Delivery is in-app (the app polls the unread count); push waits on CP-006 Q4.
+- Delivery is in-app (the app polls the unread count) and, since v1.30-live (D152), a push on Android
+  (§11.12).
 
 ### 11.11 Search trends *(v1.29-live, DRAFT — D147)*
 
@@ -2403,3 +2406,58 @@ field. Every list is real data; a section with too little data is hidden by the 
   shows. Typing shows the Accounts / Hashtags / Posts results as before.
 - **Not in v1.29-live**: personal search history, suggestions while typing, QR scan (the
   reference's scan button has no Kabso feature; its slot is left empty), editorial topics.
+
+### 11.12 Push notifications *(v1.30-live, DRAFT — D152)*
+
+Owner request (2026-10-28): notification sounds — the owner's two Kabso sounds, a general one and
+a message one. Phase 1 plays them in the app; phase 2 (this section) sends pushes.
+
+- **Transport:** Firebase Cloud Messaging (project `kabso-27b19`), **Android only** for now. iOS
+  needs an Apple Developer account and an APNs key (deferred): iOS tokens are accepted and kept,
+  nothing is sent to them, and the iOS app does not start Firebase.
+- **Tokens** (`registerPushToken`, `PUT /me/push-token` `{token, platform, appVersion}` → 204;
+  `unregisterPushToken`, `DELETE /me/push-token` → 204; both idempotent, the per-user default rate
+  limit of §7): a token belongs to the **calling session**, one per session. A new token replaces
+  the session's old one; a token registered by another session (same phone, another account)
+  moves to this one. The app registers after sign-in, at launch and on every token refresh
+  (`lastSeenAt`). Removed: by `DELETE`, with the session (logout, revocation, refresh-token reuse,
+  password reset), when Firebase answers that the token is not registered or invalid, and by the
+  notifications sweeper when the session has ended or the token was not seen for 60 days. A token
+  is never logged or returned.
+- **Who gets a push:** only an ACTIVE account with a live session (not revoked, not expired)
+  whose token is ANDROID. **Never the actor or sender.**
+- **General** (Android channel `kabso_general`, the owner's general sound): every §11.10
+  notification that is **created, or gains an actor while unread** (a like group), is pushed once,
+  within `PUSH_DISPATCH_INTERVAL_MS` (default 2 s; an outbox: `notifications.pushed_at`), only if
+  it is still unread and visible under §11.10 at that moment (blocks either way, mutes, inactive
+  actors, removed targets, the type's switch) and its latest activity is at most **10 minutes**
+  old (a backlog after downtime is not pushed). **Bursts collapse:** at most one general push per
+  recipient per `PUSH_GENERAL_GAP_SECONDS` (default 5) and one per notification per 60 s; what is
+  skipped stays in the in-app inbox. Text in the recipient's account language (`users.locale`,
+  Arabic by default): title «Kabso Live», body the inbox sentence («أعجب سارة و2 آخرون بمنشورك»).
+  Android `tag` = the notification id (a group's newer push replaces the older one).
+  Data: `kind: notification`, `channel: general`, `notificationId`, `type`, `targetType`,
+  `targetId`, `targetPostId`, `actorUsername` (strings; absent when null).
+- **Messages** (Android channel `kabso_messages`, the owner's message sound): a new **family chat**
+  message (§10.25; private conversations do not exist yet, D86) is pushed to the family's other
+  members who are ACTIVE, have `messages` on (`/me/notification-settings`, default on), have no
+  block either way with the author and have not muted the author. **Bursts collapse:** one push
+  per member per family per `PUSH_MESSAGES_GAP_SECONDS` (default 10); Android `tag`
+  `family:<familyId>` (one notification per chat, replaced). Title: the family's name; body
+  «<author>: <text>» with the leader's blocked words masked, at most 100 code points. Data:
+  `kind: family_chat`, `channel: messages`, `familyId`, `messageId`.
+- **Privacy:** pushes carry the text above; logs carry counts and Firebase error codes only —
+  never a token, title, body or message text. The Firebase service-account key is a server file
+  (`FIREBASE_CREDENTIALS_FILE`, read-only mount), never in git or in the environment; unset,
+  missing or invalid → push is **off** with one log line and everything else works.
+- **The app** (D152): two Android notification channels with the owner's sounds from `res/raw`
+  (`kabso_general` ← `kabi_voice_a`, `kabso_messages` ← `kabso_message`). Android 13+ asks for
+  POST_NOTIFICATIONS **once**, after a sign-in or on first opening the notifications or a family
+  chat (never at a cold start), with a rationale sheet first (D144a); refused for good → the
+  notification settings offer «فتح الإعدادات». A tap opens the target (the inbox's own routing) or
+  the family chat. In the foreground nothing is shown by the system: a message in another chat
+  plays the message sound, a notification the general sound (also when the polled unread count
+  grows), never for the chat on screen, never two at once, only while Settings → **Sound effects**
+  is on and, on Android, not in silent or vibrate mode.
+- **Not in v1.30-live:** iOS pushes, pushes of live-room chat, per-chat mute, quiet hours,
+  notification grouping on the device (summary notifications).

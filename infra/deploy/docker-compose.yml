@@ -55,6 +55,15 @@ services:
     image: ${KABSO_API_IMAGE:?set in /etc/kabso/kabso.env}
     restart: unless-stopped
     env_file: /etc/kabso/api.env
+    # D152 push notifications: the Firebase Admin SDK key, read-only, never in git or in an env
+    # file. The API runs as `node` (uid/gid 1000), so the host file is root:1000, mode 640, inside
+    # /etc/kabso (700, root only) — docs/DEPLOYMENT.md §11.4. If the host file is missing, Docker
+    # creates an empty directory at that path; the API then logs "Push notifications are off" and
+    # runs normally. KABSO_FIREBASE_ADMIN_FILE (kabso.env) may point elsewhere, e.g. /dev/null.
+    environment:
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-admin.json
+    volumes:
+      - ${KABSO_FIREBASE_ADMIN_FILE:-/etc/kabso/firebase-admin.json}:/run/secrets/firebase-admin.json:ro
     depends_on:
       postgres:
         condition: service_healthy

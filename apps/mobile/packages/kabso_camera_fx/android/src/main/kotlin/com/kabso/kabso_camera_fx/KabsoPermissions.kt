@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -17,7 +18,9 @@ import io.flutter.plugin.common.PluginRegistry
  * once, and send a person who refused for good to the app's settings
  * (flutter_webrtc would otherwise ask on its own, every time).
  *
- * Per permission (`camera`, `microphone`):
+ * Per permission (`camera`, `microphone`; D152 `notifications`, Android 13+'s
+ * POST_NOTIFICATIONS — before 13 there is no prompt: `granted` while the
+ * app's notifications are on in the system settings, else `blocked`):
  * - `granted`;
  * - `notAsked`: never asked by this app (the system prompt will show);
  * - `denied`: refused, the system will still ask again;
@@ -41,7 +44,7 @@ internal class KabsoPermissions : PluginRegistry.RequestPermissionsResultListene
             result.error("no_activity", "no activity", null)
             return
         }
-        val kinds = call.argument<List<String>>("kinds").orEmpty().filter { it in PERMISSIONS }
+        val kinds = call.argument<List<String>>("kinds").orEmpty().filter { it in KINDS }
         when (call.method) {
             "status" -> result.success(kinds.associateWith { status(host, it, afterRequest = false) })
             "request" -> request(host, kinds, result)
@@ -55,16 +58,17 @@ internal class KabsoPermissions : PluginRegistry.RequestPermissionsResultListene
             result.error("busy", "a request is already showing", null)
             return
         }
-        val missing = kinds.filter {
-            host.checkSelfPermission(PERMISSIONS.getValue(it)) != PackageManager.PERMISSION_GRANTED
+        val missing = kinds.filter { kind ->
+            val permission = runtimePermission(kind)
+            permission != null && host.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED
         }
         if (missing.isEmpty()) {
-            result.success(kinds.associateWith { GRANTED })
+            result.success(kinds.associateWith { status(host, it, afterRequest = false) })
             return
         }
         prefs(host).edit().apply { missing.forEach { putBoolean(it, true) } }.apply()
         pending = Pending(kinds, result)
-        host.requestPermissions(missing.map { PERMISSIONS.getValue(it) }.toTypedArray(), REQUEST_CODE)
+        host.requestPermissions(missing.mapNotNull { runtimePermission(it) }.toTypedArray(), REQUEST_CODE)
     }
 
     override fun onRequestPermissionsResult(
@@ -91,12 +95,30 @@ internal class KabsoPermissions : PluginRegistry.RequestPermissionsResultListene
     }
 
     private fun status(host: Activity, kind: String, afterRequest: Boolean): String {
-        val permission = PERMISSIONS.getValue(kind)
+        if (kind == NOTIFICATIONS && !notificationsEnabled(host)) {
+            // Turned off in the system settings (any Android version): only there
+            // can it come back — unless Android 13+ can still ask.
+            val permission = runtimePermission(kind) ?: return BLOCKED
+            if (host.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) return BLOCKED
+        }
+        val permission = runtimePermission(kind) ?: return GRANTED
         if (host.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) return GRANTED
         if (host.shouldShowRequestPermissionRationale(permission)) return DENIED
         // No rationale: never asked, or refused for good.
         val asked = afterRequest || prefs(host).getBoolean(kind, false)
         return if (asked) BLOCKED else NOT_ASKED
+    }
+
+    /** The runtime permission of `kind`, or null when this Android has none (granted at install). */
+    private fun runtimePermission(kind: String): String? = when (kind) {
+        NOTIFICATIONS ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.POST_NOTIFICATIONS else null
+        else -> PERMISSIONS[kind]
+    }
+
+    private fun notificationsEnabled(host: Activity): Boolean {
+        val manager = host.getSystemService(android.app.NotificationManager::class.java) ?: return true
+        return manager.areNotificationsEnabled()
     }
 
     private fun openSettings(host: Activity): Boolean = try {
@@ -120,9 +142,11 @@ internal class KabsoPermissions : PluginRegistry.RequestPermissionsResultListene
         private const val DENIED = "denied"
         private const val BLOCKED = "blocked"
         private const val NOT_ASKED = "notAsked"
+        private const val NOTIFICATIONS = "notifications"
         private val PERMISSIONS = mapOf(
             "camera" to Manifest.permission.CAMERA,
             "microphone" to Manifest.permission.RECORD_AUDIO,
         )
+        private val KINDS = PERMISSIONS.keys + NOTIFICATIONS
     }
 }

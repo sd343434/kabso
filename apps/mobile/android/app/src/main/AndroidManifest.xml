@@ -9,7 +9,8 @@
     <!-- D123: a live keeps running in the background. A foreground service
          (flutter_foreground_task) of type microphone (host and seated guests)
          and mediaPlayback (listeners of audio rooms) with an ongoing
-         notification; Android 13+ asks for POST_NOTIFICATIONS to show it. -->
+         notification; Android 13+ asks for POST_NOTIFICATIONS to show it.
+         D152: the same permission shows pushes (asked once, with a rationale). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
@@ -70,6 +71,18 @@
             android:foregroundServiceType="microphone|mediaPlayback"
             android:stopWithTask="true"
             android:exported="false"/>
+        <!-- D152 pushes (Firebase Cloud Messaging): the channel a push without
+             one uses, the status-bar icon and its accent. The channels and
+             their sounds are created by MainActivity. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="kabso_general" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_kabso" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

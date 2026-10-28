@@ -5,6 +5,7 @@ import 'package:kabso_live/core/state/feed_load.dart';
 import 'package:kabso_live/features/auth/presentation/session_controller.dart';
 import 'package:kabso_live/features/notifications/data/notifications_repository.dart';
 import 'package:kabso_live/features/notifications/domain/notification_models.dart';
+import 'package:kabso_live/features/push/notification_sounds.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// How often the badge refreshes while the app is open (CP-009 §3: there is
@@ -14,9 +15,13 @@ const Duration unreadPollInterval = Duration(seconds: 60);
 /// The unread count for the bell (0–99; the badge shows "99+" at 99). It
 /// loads when first watched, then every [unreadPollInterval] and whenever
 /// the app comes back to the foreground. A failed refresh keeps the last
-/// count: the badge is a hint, never an error.
+/// count: the badge is a hint, never an error. D152: a count that grew plays
+/// the general sound (in the foreground, Sound effects on).
 class UnreadNotifications extends Notifier<int> {
   Timer? _timer;
+
+  /// D152 phase 1: the count grew after the first load → the general sound.
+  bool _loaded = false;
 
   @override
   int build() {
@@ -39,7 +44,12 @@ class UnreadNotifications extends Notifier<int> {
   Future<void> _load(NotificationsRepository repo) async {
     try {
       final count = await repo.unreadCount();
-      if (ref.mounted) state = count;
+      if (!ref.mounted) return;
+      if (_loaded && count > state) {
+        ref.read(notificationSoundsProvider).general();
+      }
+      _loaded = true;
+      state = count;
     } on Object {
       // Keep the last count.
     }

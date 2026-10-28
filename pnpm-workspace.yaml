@@ -16,3 +16,6 @@ onlyBuiltDependencies:
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - unrs-resolver
+  # D152 (firebase-admin): optional postinstall checks, not needed to send pushes.
+  - '@firebase/util'
+  - protobufjs

@@ -198,6 +198,18 @@ void main() {
       expect((asked[1].arguments as Map)['kinds'], ['camera']);
     });
 
+    test('D152: the notification permission goes by its own kind', () async {
+      messenger.setMockMethodCallHandler(permissionsChannel, (call) async {
+        asked.add(call);
+        return {'notifications': 'denied'};
+      });
+      final p = KabsoPermissions(supported: true);
+      expect(await p.request({KabsoPermission.notifications}), {
+        KabsoPermission.notifications: KabsoPermissionStatus.denied,
+      });
+      expect((asked.single.arguments as Map)['kinds'], ['notifications']);
+    });
+
     test('elsewhere or without the plugin: unknown, nothing asked', () async {
       final elsewhere = KabsoPermissions(supported: false);
       expect(await elsewhere.status({KabsoPermission.microphone}), {

@@ -360,8 +360,10 @@ enum KabsoPermissionStatus {
   };
 }
 
-/// What [KabsoPermissions] covers.
-enum KabsoPermission { camera, microphone }
+/// What [KabsoPermissions] covers. D152: [notifications] is Android 13+'s
+/// POST_NOTIFICATIONS (pushes); before 13 it is granted unless the app's
+/// notifications are off in the system settings (then blocked).
+enum KabsoPermission { camera, microphone, notifications }
 
 /// D144a: camera and microphone permissions for going live (Android): check,
 /// ask the system once, open the app's settings. Elsewhere everything is

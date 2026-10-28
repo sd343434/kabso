@@ -19,6 +19,7 @@ import 'package:kabso_live/features/notifications/domain/notification_models.dar
 import 'package:kabso_live/features/posts/presentation/comments_sheet.dart';
 import 'package:kabso_live/features/premium/presentation/premium_labels.dart';
 import 'package:kabso_live/features/profile/profile_screen.dart';
+import 'package:kabso_live/features/push/push_permission.dart';
 import 'package:kabso_live/l10n/l10n.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -116,7 +117,11 @@ class NotificationsScreen extends ConsumerWidget {
       Key('notifications.section.${s.name}');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) =>
+      // D152: the first visit is a moment to explain notifications.
+      PushPermissionTrigger(child: _build(context, ref));
+
+  Widget _build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     return Scaffold(
       appBar: KAppBar(
@@ -573,6 +578,8 @@ class NotificationSettingsScreen extends ConsumerWidget {
       body: switch (ref.watch(notificationSettingsProvider)) {
         AsyncValue(:final value?) => ListView(
           children: [
+            // D152: pushes cannot show on this phone (permission off).
+            const PushPermissionBanner(),
             for (final (s, title, subtitle) in [
               (
                 NotificationSetting.likes,
@@ -587,6 +594,12 @@ class NotificationSettingsScreen extends ConsumerWidget {
                 NotificationSetting.lives,
                 l10n.notifSettingLives,
                 l10n.notifSettingLivesBody,
+              ),
+              // D152: family chat pushes.
+              (
+                NotificationSetting.messages,
+                l10n.notifSettingMessages,
+                l10n.notifSettingMessagesBody,
               ),
             ])
               SwitchListTile(

@@ -151,6 +151,7 @@ export class SessionsService {
         data: { revokedAt: now, revokedReason: RevokedReason.REFRESH_REUSE },
       });
       if (revoked.count === 0) throw new AppException(ErrorCode.AUTH_REFRESH_INVALID);
+      await this.dropPushToken({ sessionId: session.id });
       return {
         kind: 'reuse',
         userId: session.userId,
@@ -233,7 +234,19 @@ export class SessionsService {
       where: { id: sessionId, userId, revokedAt: null },
       data: { revokedAt: now, revokedReason: reason },
     });
+    await this.dropPushToken({ sessionId, userId });
     return result.count > 0;
+  }
+
+  /**
+   * v1.30-live (D152, §11.12): a revoked session gets no more pushes — its device token goes with
+   * it (the push module's `device_tokens`; sending also skips ended sessions).
+   */
+  private async dropPushToken(
+    where: { sessionId: string; userId?: string } | { userId: string },
+    tx: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<void> {
+    await tx.deviceToken.deleteMany({ where });
   }
 
   async revokeAllForUser(
@@ -246,6 +259,7 @@ export class SessionsService {
       where: { userId, revokedAt: null },
       data: { revokedAt: now, revokedReason: reason },
     });
+    await this.dropPushToken({ userId }, tx);
     return result.count;
   }
 

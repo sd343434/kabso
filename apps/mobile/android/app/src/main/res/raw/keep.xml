@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D152: the notification channels' sounds are referenced only by URI
+     (android.resource://…/raw/…), so resource shrinking must keep them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/kabi_voice_a,@raw/kabso_message,@drawable/ic_stat_kabso" />

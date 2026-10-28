@@ -7,7 +7,7 @@
 | B1 | Live streaming provider credentials (LiveKit Cloud API key/secret or a self-hosted LiveKit server) | Phase 6–7 cannot be verified end-to-end | Choose LiveKit Cloud vs self-host; provide keys via secret manager |
 | B2 | Email delivery (SMTP or provider) | Verification/reset emails only logged in dev | Provider + sending domain (SPF/DKIM) |
 | B3 | SMS provider for phone registration | Phone sign-up not implemented (email only) | Provider choice + budget |
-| B4 | Firebase project (FCM) + APNs key | Push notifications (Phase 9) | Firebase project, Apple developer account |
+| B4 | ~~Firebase project (FCM)~~ (done: `kabso-27b19`, D152) + APNs key | Android push implemented (D152); **iOS push** still waits | Apple Developer account and an APNs key (.p8) |
 | B5 | Coin purchases: Apple IAP / Google Play Billing products, legal review of virtual currency & creator payouts per region | Phase 8 real money stays disabled | Commercial/legal sign-off, store product setup |
 | B6 | Android SDK / Xcode not available in this cloud environment | No APK/IPA build or device test here; CI must run them | macOS runner / signing assets |
 | B7 | App identity: final bundle id / application id (current placeholder in `apps/mobile`: `com.kabso.kabso_live`), domain, privacy/terms URLs, support contact | Store submission | Owner-provided values |
@@ -43,8 +43,11 @@
   and identity checks exist (L1b), so going live stays switched off in production until then.
   No live chat, gifts, guests on stage or PK yet (L2–L5); no recording or replays. Development
   runs a local LiveKit server; production needs LiveKit Cloud keys (B1).
-- Notifications (CP-009, D92): in-app only — no push to the phone until a Firebase project
-  exists (CP-006 Q4); the badge refreshes by polling (on foreground and every 60 s), not live.
+- Notifications (CP-009, D92): the badge refreshes by polling (on foreground and every 60 s), not
+  live. Since D152 Android phones also get pushes (FCM) once the server has the Firebase key and
+  the APK was built with `google-services.json`; iOS pushes wait for APNs (B4); live-room chat is
+  never pushed; private conversations do not exist yet (D86), so the only pushed chat is the
+  family chat. Not verified on a device yet (delivery, sounds, the Android 13+ prompt).
 - Stories (CP-008, D91): story photos are shown to others at once, without a moderation hold
   (owner decision); harmful ones are handled by reports and expire after 24 hours.
 - Stories: deleting or removing a story is soft; its photo files stay in object storage (as for
